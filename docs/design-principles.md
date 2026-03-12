@@ -18,7 +18,7 @@ If something matters, it should survive beyond a single conversation. That means
 
 ## 4. Reusable knowledge over local noise
 
-A major purpose of the system is to accumulate reusable research structure. The long-term value lies in workflows, methods, concepts, and other notes that remain useful across topics and sessions.
+A major purpose of the system is to accumulate reusable research structure. The long-term value lies in workflows, methods, concepts, derivation objects, and other artifacts that remain useful across topics and sessions.
 
 ## 5. Preserve uncertainty honestly
 
@@ -26,12 +26,18 @@ Research contains partial derivations, failed attempts, anomalies, and unresolve
 
 ## 6. Layer separation is epistemically important
 
-Raw intake, canonical reusable knowledge, and exploratory research feedback should not be merged into one undifferentiated store. The three-layer architecture is meant to preserve this distinction.
+Source substrate, provisional understanding, canonical reusable knowledge, exploratory candidate formation, and validation should not be merged into one undifferentiated store. The L0-L4 architecture is meant to preserve this distinction.
 
 ## 7. Validation matters
 
 A useful research system should not stop at language-level plausibility. It should support explicit validation routes and make it clearer what still needs to be checked analytically, numerically, symbolically, or formally.
 
+Layer 4 should therefore be treated as an execution-backed validation surface, not just a place to store vague confidence notes.
+
 ## 8. The system should compound over time
 
 The point is not just to answer isolated prompts. The point is to build a research kernel that becomes more useful by accumulating reusable structure and better judgment surfaces over time.
+
+## 9. Typed communication over copied summaries
+
+The layers should communicate through durable references, typed objects, and explicit decisions rather than by copying whole artifacts into every later stage.

@@ -9,10 +9,12 @@ This repository is an attempt to build the research core of a future **human-AI 
 The goal is **not** to build a paper summarizer, a chat-only assistant, or a system that merely imitates the language of research. The goal is to build a disciplined research kernel that helps a human researcher and an AI system work together on real theoretical-physics problems.
 
 In practical terms, that means combining:
-- source intake from papers, notes, web material, and transcripts,
-- a canonical reusable knowledge base,
-- exploratory research feedback from active investigation,
-- explicit validation planning,
+- a callable source substrate for papers, notes, web material, and transcripts,
+- provisional understanding before canonicalization,
+- a canonical reusable knowledge base that acts as active memory,
+- exploratory candidate formation from active investigation,
+- explicit validation and adjudication,
+- execution or handoff when deeper checking is required,
 - structured writeback rather than one-off chat output,
 - and human checkpoints at high-impact decisions.
 
@@ -33,8 +35,9 @@ What is often missing is:
 - durable artifacts rather than chat-only memory,
 - reusable knowledge that compounds across topics,
 - explicit validation routes,
+- structured communication between stages,
 - structured handling of uncertainty,
-- and a disciplined loop from intake -> understanding -> investigation -> evaluation -> writeback.
+- and a disciplined loop from source acquisition -> understanding -> investigation -> evaluation -> writeback.
 
 This project exists to address that gap.
 
@@ -68,10 +71,24 @@ This is intended to support research tasks such as:
 
 ## Core architecture
 
-The current conceptual center of the project is a **three-layer research architecture**.
+The current public baseline is an **L0-L4 research architecture**.
 
-### Layer 1 — Intake / Staging
-Stores source-bound, not-yet-canonical material.
+### Layer 0 — Source Substrate
+This layer handles source acquisition, source identity, source reopening, and source expansion.
+
+Examples:
+- papers and PDFs,
+- URLs and web pages,
+- videos and transcripts,
+- conversations and local notes.
+
+Purpose:
+- keep source provenance explicit,
+- allow later stages to reopen evidence,
+- support citation chasing and source expansion when new gaps appear.
+
+### Layer 1 — Intake / Provisional Understanding
+This layer stores source-bound, not-yet-canonical material.
 
 Examples:
 - paper intake,
@@ -86,26 +103,28 @@ Purpose:
 - allow ambiguity and partial understanding,
 - avoid premature canonicalization.
 
-### Layer 2 — Canonical Reusable Knowledge Base
+### Layer 2 — Canonical Reusable Knowledge and Active Memory
 This is the center of gravity of the system.
 
 It stores reusable research knowledge such as:
-- atomic notes,
-- workflows,
-- concept notes,
-- method notes,
+- concepts,
 - claim cards,
+- derivation objects,
+- methods,
+- workflows,
 - bridge notes,
 - validation patterns,
-- warning notes.
+- warning notes,
+- and transitional atomic notes where needed.
 
 Purpose:
 - accumulate reusable research memory,
 - support cross-topic reuse,
+- act as an active comparison surface during later reasoning,
 - allow the system to compound over time.
 
-### Layer 3 — Research Feedback / Exploratory Log
-Stores active research output that is still uncertain or too local to canonicalize.
+### Layer 3 — Research Candidate / Exploratory Notebook
+This layer stores active research output that is still uncertain or too local to canonicalize.
 
 Examples:
 - conjectures,
@@ -113,26 +132,51 @@ Examples:
 - partial derivations,
 - anomalies,
 - negative results,
+- candidate objects,
 - run-local interpretations,
 - open technical questions.
 
 Purpose:
 - preserve high-value uncertainty,
 - support active investigation,
+- form explicit candidates for later adjudication,
 - prevent exploratory material from polluting the canonical layer too early.
+
+### Layer 4 — Execution-Backed Validation Surface
+This layer judges whether Layer 3 candidates are ready to enter the canonical layer.
+
+Examples:
+- validation plans,
+- contradiction checks,
+- benchmark or reproduction records,
+- execution tasks,
+- promotion / revise / reject / defer decisions.
+
+Purpose:
+- make non-trivial acceptance decisions explicit,
+- connect reasoning to execution or handoff when deeper checks are required,
+- keep promotion into Layer 2 auditable rather than implicit.
+
+Earlier internal drafts used a three-layer knowledge view. The current baseline keeps that epistemic separation but makes the source substrate and the validation surface explicit.
 
 ---
 
 ## Flow logic
 
-The intended movement between layers is:
+The default route for non-trivial research material is:
 
-- **Layer 1 -> Layer 2** when extracted material becomes reusable and sufficiently source-anchored.
-- **Layer 1 -> Layer 3** when intake directly triggers an active research question.
-- **Layer 2 -> Layer 3** when canonical knowledge seeds a new investigation.
-- **Layer 3 -> Layer 2** when a run-local result becomes portable and stable enough to reuse.
+`L0 -> L1 -> L3 -> L4 -> L2`
 
-This separation is not cosmetic. It is the main way the project tries to avoid collapsing raw intake, reusable knowledge, and uncertain research output into one mixed notebook.
+The low-risk exception route is:
+
+`L0 -> L1 -> L2`
+
+Three additional constraints matter:
+- `L2` is not only the final writeback target; it should also be consulted during `L1`, `L3`, and `L4`.
+- `L4` is not just a synonym for execution; it is the execution-backed validation surface that can dispatch execution or handoff when needed.
+- direct `L1 -> L4 -> L2` should not replace explicit candidate formation in `L3`.
+
+This separation is not cosmetic. It is the main way the project tries to avoid collapsing source traces, reusable knowledge, uncertain research output, and validation records into one mixed notebook.
 
 ---
 
@@ -165,10 +209,11 @@ For a more explicit statement, see [`docs/design-principles.md`](docs/design-pri
 This project is currently in an **early architecture-build phase**.
 
 What already exists conceptually:
-- a three-layer knowledge architecture,
+- an L0-L4 architecture baseline,
+- Layer 2 as the center of gravity and active memory surface,
 - a human-in-the-loop research posture,
 - a draft closed-loop research workflow,
-- the idea of canonical promotion from intake and feedback,
+- the idea of canonical promotion from intake and feedback through explicit validation,
 - and an emphasis on epistemic discipline.
 
 What does **not** yet exist in mature public form:
@@ -181,6 +226,8 @@ What does **not** yet exist in mature public form:
 So the honest description is:
 
 > this repository is building the kernel of a future human-AI collaborative theoretical-physics research system.
+
+The public repository is intentionally cleaner and higher-level than the current internal working environment. That is deliberate: public wording should stay stable and honest while deeper schemas, examples, and adapters continue to harden.
 
 ---
 
@@ -229,15 +276,16 @@ The public repository is intentionally minimal in its first release. The goal is
 - export the first stable docs,
 - provide a minimal public structure.
 
-### Phase 2 — Stronger knowledge workflows
-- improve canonical note schemas,
-- improve promotion rules,
-- make provenance and linking more explicit,
+### Phase 2 — Stronger layer contracts and canonical memory
+- improve canonical schemas,
+- strengthen ids, linking, and provenance,
+- define clearer handoff objects between layers,
 - strengthen typed research artifacts.
 
-### Phase 3 — Research-loop closure
-- connect validation routes to deeper execution or handoff,
+### Phase 3 — Validation and writeback closure
+- connect validation routes to execution or handoff,
 - standardize result evaluation,
+- improve promotion / revise / reject / defer decisions,
 - improve writeback from exploratory runs into canonical knowledge.
 
 ### Phase 4 — Benchmark-style research cases

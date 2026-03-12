@@ -17,23 +17,24 @@ Success criterion:
 
 ---
 
-## Phase 2 — Canonical knowledge workflows
+## Phase 2 — Layer contracts and canonical memory
 
 Goal:
-- make the reusable knowledge layer structurally stronger.
+- make the L0-L4 architecture structurally stronger.
 
 Deliverables:
-- note families with clearer schemas,
+- canonical objects with clearer schemas,
+- clearer handoff objects between layers,
+- better provenance and indexing conventions,
 - promotion rules from intake / feedback into canonical knowledge,
-- provenance conventions,
-- improved linking across concepts, methods, workflows, and claims.
+- improved linking across concepts, methods, workflows, derivation objects, and claims.
 
 Success criterion:
 - the repository can express why Layer 2 is the center of gravity and show how reusable research memory compounds over time.
 
 ---
 
-## Phase 3 — Research-loop closure
+## Phase 3 — Validation and writeback closure
 
 Goal:
 - connect knowledge structuring to real investigation and result writeback.
@@ -41,16 +42,17 @@ Goal:
 Deliverables:
 - validation-route specifications,
 - decision ledger design,
+- execution or handoff surfaces for deeper checks,
 - result capture conventions,
 - keep / revise / discard / defer workflow,
-- better interfaces for execution or handoff.
+- better writeback from validated results into canonical memory.
 
 Success criterion:
-- the system supports a visible path from intake to evaluation to structured writeback.
+- the system supports a visible path from source acquisition to evaluation to structured writeback.
 
 ---
 
-## Phase 4 — Benchmark research cases
+## Phase 4 — Worked L0-L4 research cases
 
 Goal:
 - demonstrate the system on real theoretical-physics-style cases.
