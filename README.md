@@ -70,49 +70,25 @@ directory and contract surfaces should remain stable.
 
 ## Quick Start
 
-Clone the repository, install the minimal runtime, then install the wrapper for
-the runtime you actually want to use:
+The shortest useful install path is the Codex path:
 
 ```bash
 git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git
 cd AITP-Research-Protocol
 
-python -m pip install -e research/knowledge-hub
+python3 -m pip install -e research/knowledge-hub
 aitp doctor
-
-# choose one, or install them all
 aitp install-agent --agent codex --scope user
-aitp install-agent --agent openclaw --scope user
-aitp install-agent --agent claude-code --scope user
-aitp install-agent --agent opencode --scope user
 ```
 
-Then start AITP work through the runtime instead of through free-form prompting:
+If your system Python is externally managed, use:
 
 ```bash
-aitp loop --topic "Bounded formal-theory smoke topic" --human-request "do a bounded literature and route check without scientific conclusions"
+python3 -m pip install --break-system-packages --user -e research/knowledge-hub
 ```
 
-For Codex-driven coding or execution work, use the wrapper that forces a loop
-refresh before `codex exec`:
-
-```bash
-aitp-codex --topic-slug bounded-formal-theory-smoke-topic "continue the bounded task"
-```
-
-The public runtime now defaults to the repo-local kernel root:
-
-- `research/knowledge-hub`
-
-So a fresh clone no longer depends on the original private integration
-workspace just to get `aitp` running.
-
-`aitp doctor` now serves as the structural check for a fresh clone: it should
-show the detected repo/kernel roots plus the layer and contract surfaces that
-make the standalone install complete.
-
-If you want bare `codex` inside another theory workspace to default into AITP
-for research tasks, install the Codex skill into that workspace root:
+If you want a separate theory workspace to run bare `codex` in an AITP-first
+way, install the project skill into that workspace root:
 
 ```bash
 aitp install-agent --agent codex --scope project --target-root /path/to/theory-workspace
@@ -121,6 +97,13 @@ aitp install-agent --agent codex --scope project --target-root /path/to/theory-w
 That writes `.agents/skills/aitp-runtime/` under the target workspace so a
 normal `codex` session there sees an AITP-first research rule instead of
 starting from ad hoc browsing.
+
+The public runtime now defaults to the repo-local kernel root:
+
+- `research/knowledge-hub`
+
+So a fresh clone no longer depends on the original private integration
+workspace just to get `aitp` running.
 
 ## How You Actually Use It
 
@@ -141,7 +124,16 @@ cd /path/to/theory-workspace
 codex
 ```
 
-Then describe your research idea or ask to continue an existing topic.
+Inside `codex`, you can speak normally. For example:
+
+```text
+Start a new AITP topic about operator growth in a toy spin chain. Do a bounded first pass only.
+```
+
+```text
+Resume topic <topic_slug> and continue the next bounded AITP step. Do not jump directly to conclusions.
+```
+
 The expected behavior is:
 
 - `codex` reads `.agents/skills/aitp-runtime/SKILL.md`;
@@ -174,52 +166,6 @@ The expected behavior is:
 - it reads the runtime protocol bundle and decision surfaces;
 - it performs one bounded next step, writes human-readable artifacts, and re-enters later;
 - anything destined for `L2` still waits for explicit human approval.
-
-## Installation Flow
-
-```mermaid
-flowchart TD
-    A[Clone AITP-Research-Protocol] --> B[pip install -e research/knowledge-hub]
-    B --> C[aitp doctor]
-    C --> D{Choose runtime}
-    D --> E[aitp install-agent --agent codex]
-    D --> F[aitp install-agent --agent openclaw]
-    D --> G[aitp install-agent --agent claude-code]
-    D --> H[aitp install-agent --agent opencode]
-    E --> I[Open runtime normally]
-    F --> I
-    G --> I
-    H --> I
-    I --> J[Enter through aitp loop or aitp-codex]
-    J --> K[Read runtime_protocol.generated.md]
-    K --> L[Do bounded research work]
-    L --> M[Run audits and trust gates]
-```
-
-## Runtime Flow
-
-```mermaid
-flowchart TD
-    A[Human research request] --> B[aitp bootstrap or aitp loop]
-    B --> C[Materialize topic state and queue]
-    C --> D[Generate runtime protocol bundle]
-    D --> E[Agent reads protocol bundle and runtime artifacts]
-    E --> F{Bounded next action}
-    F --> G[L0 or L1 source/intake work]
-    F --> H[L3 candidate or exploratory work]
-    F --> I[L4 validation or execution]
-    G --> J[aitp audit]
-    H --> J
-    I --> K[baseline / atomize / trust-audit when required]
-    K --> J
-    J --> L{Passes conformance?}
-    L -->|yes| M[Persist reproducible artifacts and notes]
-    L -->|no| N[Run does not count as AITP work]
-    M --> O[request-promotion]
-    O --> P{Human approves?}
-    P -->|yes| Q[promote into L2 backend]
-    P -->|no| R[stay in L3 or reject]
-```
 
 ## Workflow Diagrams
 
