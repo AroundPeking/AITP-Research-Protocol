@@ -59,6 +59,21 @@ class L2BackendContractTests(unittest.TestCase):
         self.assertTrue(smoke_script.exists())
         self.assertIn("run_formal_theory_backend_smoke.sh", starter)
 
+    def test_tpkn_backend_card_and_smoke_script_exist(self) -> None:
+        payload = json.loads(
+            (
+                self.kernel_root
+                / "canonical"
+                / "backends"
+                / "theoretical-physics-knowledge-network.json"
+            ).read_text(encoding="utf-8")
+        )
+        smoke_script = self.kernel_root / "runtime" / "scripts" / "run_tpkn_formal_promotion_smoke.sh"
+        self.validator.validate(payload)
+        self.assertEqual(payload["backend_type"], "mixed_local_library")
+        self.assertIn("derivation_object", payload["canonical_targets"])
+        self.assertTrue(smoke_script.exists())
+
     def test_toy_model_numeric_example_card_conforms_to_schema(self) -> None:
         payload = json.loads(
             (

@@ -570,6 +570,7 @@ def build_interaction_state(
     surfaces["runtime_queue_contract"] = (
         f"runtime/topics/{topic_state['topic_slug']}/{ACTION_QUEUE_CONTRACT_GENERATED_NOTE_FILENAME}"
     )
+    surfaces["runtime_promotion_gate"] = f"runtime/topics/{topic_state['topic_slug']}/promotion_gate.md"
     capability_artifacts = []
     for filename in ("skill_discovery.json", "skill_recommendations.md"):
         artifact_path = topic_runtime_root / filename
@@ -643,6 +644,11 @@ def build_interaction_state(
                 "surface": "runtime_queue_contract",
                 "path": surfaces["runtime_queue_contract"],
                 "role": "generated action-contract snapshot for editing",
+            },
+            {
+                "surface": "runtime_promotion_gate",
+                "path": surfaces["runtime_promotion_gate"],
+                "role": "human approval gate for L2 promotion",
             },
             {
                 "surface": "runtime_trajectory",
@@ -730,7 +736,7 @@ def build_interaction_state(
     }
 
 
-def build_operator_console(interaction_state: dict, queue: list[dict]) -> str:
+def build_operator_console(topic_state: dict, interaction_state: dict, queue: list[dict]) -> str:
     lines = [
         "# AITP operator console",
         "",
@@ -769,6 +775,7 @@ def build_operator_console(interaction_state: dict, queue: list[dict]) -> str:
 
     decision_surface = interaction_state.get("decision_surface") or {}
     queue_surface = interaction_state.get("action_queue_surface") or {}
+    promotion_gate = topic_state.get("promotion_gate") or {}
     lines.extend(
         [
             "",
@@ -803,6 +810,16 @@ def build_operator_console(interaction_state: dict, queue: list[dict]) -> str:
             f"- Declared contract used: `{str(bool(queue_surface.get('declared_contract_used'))).lower()}`",
             f"- Generated contract JSON: `{queue_surface.get('generated_contract_path') or '(missing)'}`",
             f"- Generated contract note: `{queue_surface.get('generated_contract_note_path') or '(missing)'}`",
+            "",
+            "## L2 promotion gate",
+            "",
+            f"- Status: `{promotion_gate.get('status') or 'not_requested'}`",
+            f"- Candidate id: `{promotion_gate.get('candidate_id') or '(missing)'}`",
+            f"- Candidate type: `{promotion_gate.get('candidate_type') or '(missing)'}`",
+            f"- Backend id: `{promotion_gate.get('backend_id') or '(missing)'}`",
+            f"- Target backend root: `{promotion_gate.get('target_backend_root') or '(missing)'}`",
+            f"- Gate JSON: `{topic_state.get('pointers', {}).get('promotion_gate_path') or '(missing)'}`",
+            f"- Gate note: `{topic_state.get('pointers', {}).get('promotion_gate_note_path') or '(missing)'}`",
         ]
     )
 
@@ -841,6 +858,7 @@ def build_operator_console(interaction_state: dict, queue: list[dict]) -> str:
 def build_agent_brief(topic_state: dict, queue: list[dict], interaction_state: dict) -> str:
     pointers = topic_state["pointers"]
     backend_bridges = topic_state.get("backend_bridges") or []
+    promotion_gate = topic_state.get("promotion_gate") or {}
     decision_surface = interaction_state.get("decision_surface") or {}
     queue_surface = interaction_state.get("action_queue_surface") or {}
     research_mode_profile = topic_state.get("research_mode_profile") or {}
@@ -862,6 +880,8 @@ def build_agent_brief(topic_state: dict, queue: list[dict], interaction_state: d
         f"- Intake status: `{pointers.get('intake_status_path') or '(missing)'}`",
         f"- Feedback status: `{pointers.get('feedback_status_path') or '(missing)'}`",
         f"- Promotion decision: `{pointers.get('promotion_decision_path') or '(missing)'}`",
+        f"- Promotion gate: `{pointers.get('promotion_gate_path') or '(missing)'}`",
+        f"- Promotion gate note: `{pointers.get('promotion_gate_note_path') or '(missing)'}`",
         f"- Consultation index: `{pointers.get('consultation_index_path') or '(missing)'}`",
         f"- Interaction state: `runtime/topics/{topic_state['topic_slug']}/interaction_state.json`",
         f"- Operator console: `runtime/topics/{topic_state['topic_slug']}/operator_console.md`",
@@ -918,6 +938,21 @@ def build_agent_brief(topic_state: dict, queue: list[dict], interaction_state: d
             )
     else:
         lines.append("- None registered.")
+    lines.extend(
+        [
+            "",
+            "## L2 promotion gate",
+            "",
+            f"- Status: `{promotion_gate.get('status') or 'not_requested'}`",
+            f"- Candidate id: `{promotion_gate.get('candidate_id') or '(missing)'}`",
+            f"- Candidate type: `{promotion_gate.get('candidate_type') or '(missing)'}`",
+            f"- Backend id: `{promotion_gate.get('backend_id') or '(missing)'}`",
+            f"- Target backend root: `{promotion_gate.get('target_backend_root') or '(missing)'}`",
+            f"- Approved by: `{promotion_gate.get('approved_by') or '(pending)'}`",
+            f"- Promoted units: `{', '.join(promotion_gate.get('promoted_units') or []) or '(none)'}`",
+            "",
+        ]
+    )
     lines.extend(
         [
             "",
@@ -1086,7 +1121,7 @@ def main() -> int:
         knowledge_root,
     )
     write_json(topic_runtime_root / "interaction_state.json", interaction_state)
-    write_text(topic_runtime_root / "operator_console.md", build_operator_console(interaction_state, action_queue))
+    write_text(topic_runtime_root / "operator_console.md", build_operator_console(topic_state, interaction_state, action_queue))
     write_text(topic_runtime_root / "agent_brief.md", build_agent_brief(topic_state, action_queue, interaction_state))
     subprocess.run(
         [

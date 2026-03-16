@@ -59,6 +59,18 @@ class _AITPStubSuccess:
     def capability_audit(self, **kwargs):  # noqa: ANN003
         return {"overall_status": "ready", "sections": {}, "recommendations": []}
 
+    def request_promotion(self, **kwargs):  # noqa: ANN003
+        return {"status": "pending_human_approval", "candidate_id": kwargs.get("candidate_id")}
+
+    def approve_promotion(self, **kwargs):  # noqa: ANN003
+        return {"status": "approved", "candidate_id": kwargs.get("candidate_id")}
+
+    def reject_promotion(self, **kwargs):  # noqa: ANN003
+        return {"status": "rejected", "candidate_id": kwargs.get("candidate_id")}
+
+    def promote_candidate(self, **kwargs):  # noqa: ANN003
+        return {"target_unit_id": "concept:demo", "candidate_id": kwargs.get("candidate_id")}
+
     def run_topic_loop(self, **kwargs):  # noqa: ANN003
         return {"topic_slug": kwargs.get("topic_slug") or "demo-topic", "loop_state": {"exit_conformance": "pass"}}
 
@@ -93,6 +105,18 @@ class _AITPStubFailure:
 
     def capability_audit(self, **kwargs):  # noqa: ANN003
         raise RuntimeError("capability boom")
+
+    def request_promotion(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("promotion request boom")
+
+    def approve_promotion(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("promotion approve boom")
+
+    def reject_promotion(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("promotion reject boom")
+
+    def promote_candidate(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("promotion run boom")
 
     def run_topic_loop(self, **kwargs):  # noqa: ANN003
         raise RuntimeError("loop boom")
@@ -141,6 +165,32 @@ class AITPMCPServerTests(unittest.TestCase):
             )
             trust = _parse(aitp_mcp_server.aitp_audit_operation_trust("demo-topic", "2026-03-13-demo"))
             capability = _parse(aitp_mcp_server.aitp_audit_capability("demo-topic"))
+            request_promotion = _parse(
+                aitp_mcp_server.aitp_request_promotion(
+                    "demo-topic",
+                    "candidate:demo",
+                    backend_id="backend:theoretical-physics-knowledge-network",
+                )
+            )
+            approve_promotion = _parse(
+                aitp_mcp_server.aitp_approve_promotion(
+                    "demo-topic",
+                    "candidate:demo",
+                )
+            )
+            reject_promotion = _parse(
+                aitp_mcp_server.aitp_reject_promotion(
+                    "demo-topic",
+                    "candidate:demo",
+                )
+            )
+            promote_candidate = _parse(
+                aitp_mcp_server.aitp_promote_candidate(
+                    "demo-topic",
+                    "candidate:demo",
+                    target_backend_root="/tmp/tpkn",
+                )
+            )
             loop = _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic"))
             install = _parse(aitp_mcp_server.aitp_install_agent_wrapper("codex"))
 
@@ -156,6 +206,10 @@ class AITPMCPServerTests(unittest.TestCase):
         self.assertEqual(update["status"], "success")
         self.assertEqual(trust["status"], "success")
         self.assertEqual(capability["status"], "success")
+        self.assertEqual(request_promotion["status"], "success")
+        self.assertEqual(approve_promotion["status"], "success")
+        self.assertEqual(reject_promotion["status"], "success")
+        self.assertEqual(promote_candidate["status"], "success")
         self.assertEqual(loop["status"], "success")
         self.assertEqual(install["status"], "success")
 
@@ -198,6 +252,10 @@ class AITPMCPServerTests(unittest.TestCase):
                 ),
                 _parse(aitp_mcp_server.aitp_audit_operation_trust("demo-topic")),
                 _parse(aitp_mcp_server.aitp_audit_capability("demo-topic")),
+                _parse(aitp_mcp_server.aitp_request_promotion("demo-topic", "candidate:demo")),
+                _parse(aitp_mcp_server.aitp_approve_promotion("demo-topic", "candidate:demo")),
+                _parse(aitp_mcp_server.aitp_reject_promotion("demo-topic", "candidate:demo")),
+                _parse(aitp_mcp_server.aitp_promote_candidate("demo-topic", "candidate:demo")),
                 _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic")),
                 _parse(aitp_mcp_server.aitp_install_agent_wrapper("codex")),
             ]

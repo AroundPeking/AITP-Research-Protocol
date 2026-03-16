@@ -53,6 +53,47 @@ class AITPCLITests(unittest.TestCase):
         capability_args = parser.parse_args(["capability-audit", "--topic-slug", "demo-topic"])
         self.assertEqual(capability_args.command, "capability-audit")
 
+    def test_promotion_commands_are_registered(self) -> None:
+        parser = aitp_cli.build_parser()
+
+        request_args = parser.parse_args(
+            [
+                "request-promotion",
+                "--topic-slug",
+                "demo-topic",
+                "--candidate-id",
+                "candidate:demo",
+                "--backend-id",
+                "backend:theoretical-physics-knowledge-network",
+            ]
+        )
+        self.assertEqual(request_args.command, "request-promotion")
+        self.assertEqual(request_args.backend_id, "backend:theoretical-physics-knowledge-network")
+
+        approve_args = parser.parse_args(
+            ["approve-promotion", "--topic-slug", "demo-topic", "--candidate-id", "candidate:demo"]
+        )
+        self.assertEqual(approve_args.command, "approve-promotion")
+
+        reject_args = parser.parse_args(
+            ["reject-promotion", "--topic-slug", "demo-topic", "--candidate-id", "candidate:demo"]
+        )
+        self.assertEqual(reject_args.command, "reject-promotion")
+
+        promote_args = parser.parse_args(
+            [
+                "promote",
+                "--topic-slug",
+                "demo-topic",
+                "--candidate-id",
+                "candidate:demo",
+                "--target-backend-root",
+                "/tmp/tpkn",
+            ]
+        )
+        self.assertEqual(promote_args.command, "promote")
+        self.assertEqual(promote_args.target_backend_root, "/tmp/tpkn")
+
     def test_install_agent_accepts_claude_code(self) -> None:
         parser = aitp_cli.build_parser()
         args = parser.parse_args(["install-agent", "--agent", "claude-code"])

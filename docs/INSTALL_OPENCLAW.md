@@ -43,7 +43,9 @@ OpenClaw should now be able to:
 
 - start topic work through `aitp bootstrap`, `aitp resume`, or preferably `aitp loop`
 - read the runtime protocol bundle before taking actions
+- surface `promotion_gate.json` / `promotion_gate.md` for human approval on Feishu or other operator channels
 - refresh `aitp audit` at exit
+- request approval before any `L2` writeback and only then run `aitp promote ...`
 
 ## Reference plugin assets
 

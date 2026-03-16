@@ -276,6 +276,7 @@ def build_resume_markdown(state: dict) -> str:
     pointers = state["pointers"]
     layer_status = state["layer_status"]
     backend_bridges = state.get("backend_bridges") or []
+    promotion_gate = state.get("promotion_gate") or {}
     closed_loop = state.get("closed_loop") or {}
     research_mode_profile = state.get("research_mode_profile") or {}
     lines = [
@@ -344,6 +345,16 @@ def build_resume_markdown(state: dict) -> str:
 
     lines.extend(
         [
+            "",
+            "## L2 promotion gate",
+            "",
+            f"- Status: `{promotion_gate.get('status') or 'not_requested'}`",
+            f"- Candidate id: `{promotion_gate.get('candidate_id') or '(missing)'}`",
+            f"- Candidate type: `{promotion_gate.get('candidate_type') or '(missing)'}`",
+            f"- Backend id: `{promotion_gate.get('backend_id') or '(missing)'}`",
+            f"- Target backend root: `{promotion_gate.get('target_backend_root') or '(missing)'}`",
+            f"- Gate JSON: `{pointers.get('promotion_gate_path') or '(missing)'}`",
+            f"- Gate note: `{pointers.get('promotion_gate_note_path') or '(missing)'}`",
             "",
             "## Closed-loop state",
             "",
@@ -458,6 +469,9 @@ def main() -> int:
     latest_decision = promotion_rows[-1] if promotion_rows else None
     consultation_rows = read_jsonl(consultation_index_path)
     backend_bridges = build_backend_bridges(l0_source_rows, knowledge_root)
+    promotion_gate_path = topic_runtime_root / "promotion_gate.json"
+    promotion_gate_note_path = topic_runtime_root / "promotion_gate.md"
+    promotion_gate = read_json(promotion_gate_path) or {}
     next_actions_contract = load_next_actions_contract(next_actions_path)
     pending_actions = parse_contract_actions(next_actions_contract)
     if not pending_actions and next_actions_path:
@@ -538,6 +552,8 @@ def main() -> int:
         summary_parts.append(f"closed_loop={closed_loop['selected_route'].get('route_id')}")
     if backend_bridges:
         summary_parts.append(f"backends={len(backend_bridges)}")
+    if promotion_gate:
+        summary_parts.append(f"promotion_gate={promotion_gate.get('status', 'unknown')}")
     summary_parts.append(f"mode={research_mode}")
     summary_parts.append(f"executor={active_executor_kind}")
     summary = (
@@ -571,6 +587,15 @@ def main() -> int:
         "source_count": len(l0_source_rows),
         "backend_bridge_count": len(backend_bridges),
         "backend_bridges": backend_bridges,
+        "promotion_gate": {
+            "status": str(promotion_gate.get("status") or "not_requested"),
+            "candidate_id": str(promotion_gate.get("candidate_id") or ""),
+            "candidate_type": str(promotion_gate.get("candidate_type") or ""),
+            "backend_id": str(promotion_gate.get("backend_id") or ""),
+            "target_backend_root": str(promotion_gate.get("target_backend_root") or ""),
+            "approved_by": str(promotion_gate.get("approved_by") or ""),
+            "promoted_units": list(promotion_gate.get("promoted_units") or []),
+        },
         "layer_status": {
             "L0": {
                 "status": "present" if l0_source_rows else "missing",
@@ -602,6 +627,8 @@ def main() -> int:
                 knowledge_root,
             ),
             "promotion_decision_path": relative_path(promotion_decisions_path, knowledge_root),
+            "promotion_gate_path": relative_path(promotion_gate_path, knowledge_root),
+            "promotion_gate_note_path": relative_path(promotion_gate_note_path, knowledge_root),
             "consultation_index_path": relative_path(consultation_index_path, knowledge_root),
             "control_note_path": control_note_rel,
             "unfinished_work_path": relative_path(unfinished_work_path, knowledge_root),

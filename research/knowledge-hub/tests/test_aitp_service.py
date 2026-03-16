@@ -147,6 +147,166 @@ class AITPServiceTests(unittest.TestCase):
         )
         return runtime_root
 
+    def _write_candidate(self, topic_slug: str = "demo-topic", run_id: str = "2026-03-13-demo") -> Path:
+        feedback_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / run_id
+        feedback_root.mkdir(parents=True, exist_ok=True)
+        ledger_path = feedback_root / "candidate_ledger.jsonl"
+        row = {
+            "candidate_id": "candidate:demo-candidate",
+            "candidate_type": "concept",
+            "title": "Demo Promoted Concept",
+            "summary": "A bounded demo concept for testing the promotion gate and external writeback.",
+            "topic_slug": topic_slug,
+            "run_id": run_id,
+            "origin_refs": [
+                {
+                    "id": "paper:demo-source",
+                    "layer": "L0",
+                    "object_type": "source",
+                    "path": "source-layer/topics/demo-topic/source_index.jsonl",
+                    "title": "Demo Source",
+                    "summary": "Public source entry for promotion testing.",
+                }
+            ],
+            "question": "Can this candidate be promoted through a human approval gate into an external L2 backend?",
+            "assumptions": ["The example is bounded and non-scientific."],
+            "proposed_validation_route": "bounded-smoke",
+            "intended_l2_targets": ["concept:demo-promoted-concept"],
+            "status": "ready_for_validation",
+        }
+        ledger_path.write_text(json.dumps(row, ensure_ascii=True) + "\n", encoding="utf-8")
+        source_root = self.kernel_root / "source-layer" / "topics" / topic_slug
+        source_root.mkdir(parents=True, exist_ok=True)
+        (source_root / "source_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:demo-source",
+                    "source_type": "paper",
+                    "title": "Demo Source",
+                    "topic_slug": topic_slug,
+                    "provenance": {
+                        "authors": ["Demo Author"],
+                        "published": "2026-03-13T00:00:00+08:00",
+                        "updated": "2026-03-13T00:00:00+08:00",
+                        "abs_url": "https://example.org/demo",
+                        "pdf_url": "https://example.org/demo.pdf",
+                        "source_url": "https://example.org/demo.tar.gz",
+                    },
+                    "acquired_at": "2026-03-13T00:00:00+08:00",
+                    "summary": "Demo source summary.",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return ledger_path
+
+    def _write_fake_tpkn_repo(self) -> Path:
+        tpkn_root = self.root / "tpkn"
+        for relative in (
+            "docs",
+            "schema",
+            "scripts",
+            "sources",
+            "units/concepts",
+            "units/claims",
+            "units/derivations",
+            "units/methods",
+            "units/bridges",
+            "units/warnings",
+            "edges",
+            "indexes",
+            "portal",
+            "human-mirror",
+        ):
+            (tpkn_root / relative).mkdir(parents=True, exist_ok=True)
+        (tpkn_root / "docs" / "PROTOCOLS.md").write_text("# Demo\n", encoding="utf-8")
+        (tpkn_root / "docs" / "L2_RETRIEVAL_PROTOCOL.md").write_text("# Demo\n", encoding="utf-8")
+        (tpkn_root / "docs" / "OBJECT_MODEL.md").write_text("# Demo\n", encoding="utf-8")
+        (tpkn_root / "docs" / "L2_BRIDGE_PROTOCOL.md").write_text("# Demo\n", encoding="utf-8")
+        (tpkn_root / "edges" / "edges.jsonl").write_text("", encoding="utf-8")
+        (tpkn_root / "schema" / "unit.schema.json").write_text(
+            json.dumps({"title": "demo-unit-schema"}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (tpkn_root / "schema" / "source-manifest.schema.json").write_text(
+            json.dumps({"title": "demo-source-schema"}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (tpkn_root / "scripts" / "kb.py").write_text(
+            textwrap.dedent(
+                """\
+                from __future__ import annotations
+
+                import json
+                import sys
+                from pathlib import Path
+
+                ROOT = Path(__file__).resolve().parents[1]
+                UNIT_DIRS = {
+                    "concept": ROOT / "units" / "concepts",
+                    "claim": ROOT / "units" / "claims",
+                    "derivation": ROOT / "units" / "derivations",
+                    "method": ROOT / "units" / "methods",
+                    "bridge": ROOT / "units" / "bridges",
+                    "warning": ROOT / "units" / "warnings",
+                }
+
+                def read_json(path: Path) -> dict:
+                    return json.loads(path.read_text(encoding="utf-8"))
+
+                def build() -> None:
+                    rows = []
+                    for unit_type, unit_dir in UNIT_DIRS.items():
+                        unit_dir.mkdir(parents=True, exist_ok=True)
+                        for path in sorted(unit_dir.glob("*.json")):
+                            payload = read_json(path)
+                            rows.append(
+                                {
+                                    "id": payload["id"],
+                                    "type": payload["type"],
+                                    "title": payload["title"],
+                                    "summary": payload["summary"],
+                                    "path": str(path.relative_to(ROOT)),
+                                    "domain": payload.get("domain"),
+                                    "subdomain": payload.get("subdomain"),
+                                    "tags": payload.get("tags") or [],
+                                    "aliases": payload.get("aliases") or [],
+                                    "dependencies": payload.get("dependencies") or [],
+                                    "related_units": payload.get("related_units") or [],
+                                    "formalization_status": payload.get("formalization_status"),
+                                    "validation_status": payload.get("validation_status"),
+                                    "maturity": payload.get("maturity"),
+                                    "source_anchor_count": len(payload.get("source_anchors") or []),
+                                }
+                            )
+                    unit_index = ROOT / "indexes" / "unit_index.jsonl"
+                    unit_index.parent.mkdir(parents=True, exist_ok=True)
+                    unit_index.write_text(
+                        "".join(json.dumps(row, ensure_ascii=False) + "\\n" for row in rows),
+                        encoding="utf-8",
+                    )
+
+                def main() -> int:
+                    if len(sys.argv) < 2:
+                        return 1
+                    command = sys.argv[1]
+                    if command == "check":
+                        return 0
+                    if command == "build":
+                        build()
+                        return 0
+                    return 1
+
+                if __name__ == "__main__":
+                    raise SystemExit(main())
+                """
+            ),
+            encoding="utf-8",
+        )
+        return tpkn_root
+
     def test_service_accepts_string_paths(self) -> None:
         (self.repo_root / "AGENTS.md").write_text("# test\n", encoding="utf-8")
         (self.repo_root / "research" / "knowledge-hub").mkdir(parents=True, exist_ok=True)
@@ -274,6 +434,24 @@ class AITPServiceTests(unittest.TestCase):
         (runtime_root / "operator_console.md").write_text("# Console\n", encoding="utf-8")
         (runtime_root / "action_queue_contract.generated.md").write_text("# Queue\n", encoding="utf-8")
         (runtime_root / "conformance_report.md").write_text("# Conformance\n", encoding="utf-8")
+        (runtime_root / "promotion_gate.json").write_text(
+            json.dumps(
+                {
+                    "status": "approved",
+                    "candidate_id": "candidate:demo-candidate",
+                    "candidate_type": "concept",
+                    "backend_id": "backend:theoretical-physics-knowledge-network",
+                    "target_backend_root": "/tmp/tpkn",
+                    "approved_by": "human",
+                    "promoted_units": [],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "promotion_gate.md").write_text("# Promotion gate\n", encoding="utf-8")
         (runtime_root / "action_queue.jsonl").write_text(
             json.dumps(
                 {
@@ -306,12 +484,14 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["priority_rules"][0]["source"], "control_note_or_decision_contract")
         self.assertEqual(payload["action_queue_surface"]["queue_source"], "heuristic")
         self.assertEqual(payload["backend_bridges"][0]["backend_id"], "backend:formal-theory-note-library")
+        self.assertEqual(payload["promotion_gate"]["status"], "approved")
         self.assertEqual(
             payload["backend_bridges"][0]["l0_registration_script"],
             "source-layer/scripts/register_local_note_source.py",
         )
         self.assertIn("Prefer durable `next_actions.contract.json`", protocol_note.read_text(encoding="utf-8"))
         self.assertIn("backend:formal-theory-note-library", protocol_note.read_text(encoding="utf-8"))
+        self.assertIn("## L2 promotion gate", protocol_note.read_text(encoding="utf-8"))
         self.assertIn("source-layer/scripts/register_local_note_source.py", protocol_note.read_text(encoding="utf-8"))
 
     def test_operation_trust_registry_blocks_until_gate_is_satisfied(self) -> None:
@@ -407,6 +587,70 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["auto_actions"]["executed"][0]["status"], "completed")
         self.assertTrue(Path(payload["runtime_protocol"]["runtime_protocol_path"]).exists())
         self.assertTrue(Path(payload["runtime_protocol"]["runtime_protocol_note_path"]).exists())
+
+    def test_request_and_approve_promotion_gate_write_runtime_artifacts(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+
+        requested = self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+        )
+        self.assertEqual(requested["status"], "pending_human_approval")
+        self.assertTrue(Path(requested["promotion_gate_path"]).exists())
+        self.assertTrue(Path(requested["promotion_gate_note_path"]).exists())
+
+        approved = self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+        )
+        self.assertEqual(approved["status"], "approved")
+        gate_payload = json.loads(Path(approved["promotion_gate_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(gate_payload["approved_by"], "aitp-cli")
+
+    def test_promote_candidate_writes_tpkn_unit_and_decision(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+            target_backend_root=str(tpkn_root),
+        )
+        self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+        )
+
+        payload = self.service.promote_candidate(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            target_backend_root=str(tpkn_root),
+            domain="demo-domain",
+            subdomain="demo-subdomain",
+        )
+
+        unit_path = Path(payload["target_unit_path"])
+        decision_path = Path(payload["promotion_decision_path"])
+        consultation_result_path = Path(payload["consultation"]["consultation_result_path"])
+        self.assertTrue(unit_path.exists())
+        self.assertTrue(decision_path.exists())
+        self.assertTrue(consultation_result_path.exists())
+        unit_payload = json.loads(unit_path.read_text(encoding="utf-8"))
+        self.assertEqual(unit_payload["id"], "concept:demo-promoted-concept")
+        self.assertEqual(unit_payload["domain"], "demo-domain")
+        decision_rows = [json.loads(line) for line in decision_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertEqual(decision_rows[-1]["verdict"], "accepted")
+        gate_payload = json.loads(Path(payload["promotion_gate_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(gate_payload["status"], "promoted")
+        candidate_rows = [
+            json.loads(line)
+            for line in (self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo" / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(candidate_rows[0]["status"], "promoted")
 
     def test_execute_auto_actions_supports_literature_followup_search(self) -> None:
         topic_slug = "demo-topic"
@@ -520,8 +764,8 @@ class AITPServiceTests(unittest.TestCase):
         )
 
         self.assertEqual(result["installed"][0]["kind"], "skill")
-        skill_path = codex_target / "SKILL.md"
-        setup_path = codex_target / "AITP_MCP_SETUP.md"
+        skill_path = codex_target / ".agents" / "skills" / "aitp-runtime" / "SKILL.md"
+        setup_path = codex_target / ".agents" / "skills" / "aitp-runtime" / "AITP_MCP_SETUP.md"
         self.assertTrue(skill_path.exists())
         self.assertTrue(setup_path.exists())
         self.assertIn("aitp loop", skill_path.read_text(encoding="utf-8"))

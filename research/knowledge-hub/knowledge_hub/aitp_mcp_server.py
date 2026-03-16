@@ -263,6 +263,120 @@ def aitp_audit_capability(
 
 
 @mcp.tool()
+def aitp_request_promotion(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    route: str = "L3->L4->L2",
+    backend_id: str | None = None,
+    target_backend_root: str | None = None,
+    updated_by: str = "aitp-mcp",
+    notes: str | None = None,
+) -> str:
+    """Create a durable human-approval request before Layer 2 promotion."""
+    try:
+        result = service.request_promotion(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            route=route,
+            backend_id=backend_id,
+            target_backend_root=target_backend_root,
+            requested_by=updated_by,
+            notes=notes,
+        )
+        payload = dict(result)
+        payload["gate_status"] = payload.pop("status", None)
+        return _ok(**payload)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
+def aitp_approve_promotion(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+    notes: str | None = None,
+) -> str:
+    """Approve a pending Layer 2 promotion request."""
+    try:
+        result = service.approve_promotion(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            approved_by=updated_by,
+            notes=notes,
+        )
+        payload = dict(result)
+        payload["gate_status"] = payload.pop("status", None)
+        return _ok(**payload)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
+def aitp_reject_promotion(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+    notes: str | None = None,
+) -> str:
+    """Reject a pending Layer 2 promotion request."""
+    try:
+        result = service.reject_promotion(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            rejected_by=updated_by,
+            notes=notes,
+        )
+        payload = dict(result)
+        payload["gate_status"] = payload.pop("status", None)
+        return _ok(**payload)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
+def aitp_promote_candidate(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    backend_id: str | None = None,
+    target_backend_root: str | None = None,
+    domain: str | None = None,
+    subdomain: str | None = None,
+    source_id: str | None = None,
+    source_section: str | None = None,
+    source_section_title: str | None = None,
+    updated_by: str = "aitp-mcp",
+    notes: str | None = None,
+) -> str:
+    """Promote an approved candidate into the configured Layer 2 backend."""
+    try:
+        result = service.promote_candidate(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            promoted_by=updated_by,
+            backend_id=backend_id,
+            target_backend_root=target_backend_root,
+            domain=domain,
+            subdomain=subdomain,
+            source_id=source_id,
+            source_section=source_section,
+            source_section_title=source_section_title,
+            notes=notes,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
 def aitp_run_topic_loop(
     topic_slug: str | None = None,
     topic: str | None = None,

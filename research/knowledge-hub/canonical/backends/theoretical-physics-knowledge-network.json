@@ -1,0 +1,44 @@
+{
+  "$schema": "../../schemas/l2-backend.schema.json",
+  "backend_id": "backend:theoretical-physics-knowledge-network",
+  "title": "Theoretical Physics Knowledge Network",
+  "backend_type": "mixed_local_library",
+  "status": "planned",
+  "root_paths": [
+    "__TPKN_REPO_ROOT__"
+  ],
+  "purpose": [
+    "Bridge a standalone formal-theory knowledge network into AITP as an explicit Layer 2 backend rather than a hidden side channel.",
+    "Support formal-theory promotion packets that write durable concepts, derivations, bridges, methods, and warnings into a separate typed repository."
+  ],
+  "artifact_granularity": "One promoted typed unit together with its source manifest update and any required edge or index rebuild is the atomic backend writeback artifact.",
+  "source_policy": {
+    "requires_l0_registration": true,
+    "allows_direct_canonical_promotion": false,
+    "default_source_type": "local_note"
+  },
+  "l0_registration": {
+    "script": "source-layer/scripts/register_local_note_source.py",
+    "required_provenance_fields": [
+      "provenance.backend_id",
+      "provenance.backend_root",
+      "provenance.backend_artifact_kind"
+    ],
+    "required_locator_fields": [
+      "locator.backend_relative_path"
+    ]
+  },
+  "canonical_targets": [
+    "concept",
+    "derivation_object",
+    "method",
+    "bridge",
+    "warning_note"
+  ],
+  "retrieval_hints": [
+    "Read indexes/unit_index.jsonl, indexes/source_anchor_index.jsonl, and edges/edges.jsonl before any writeback.",
+    "Treat the standalone repository as a typed external Layer 2 backend, not as chat memory or a folder dump.",
+    "Require an explicit human approval gate before promoting AITP candidates into this backend."
+  ],
+  "notes": "This card documents the public bridge from AITP into the standalone Theoretical-Physics-Knowledge-Network repository."
+}

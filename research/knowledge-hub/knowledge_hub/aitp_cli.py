@@ -134,6 +134,48 @@ def build_parser() -> argparse.ArgumentParser:
     state.add_argument("--topic-slug", required=True)
     state.add_argument("--json", action="store_true")
 
+    request_promotion = subparsers.add_parser("request-promotion", help="Request human approval before Layer 2 promotion")
+    request_promotion.add_argument("--topic-slug", required=True)
+    request_promotion.add_argument("--candidate-id", required=True)
+    request_promotion.add_argument("--run-id")
+    request_promotion.add_argument("--route", default="L3->L4->L2")
+    request_promotion.add_argument("--backend-id")
+    request_promotion.add_argument("--target-backend-root")
+    request_promotion.add_argument("--updated-by", default="aitp-cli")
+    request_promotion.add_argument("--notes")
+    request_promotion.add_argument("--json", action="store_true")
+
+    approve_promotion = subparsers.add_parser("approve-promotion", help="Approve a pending Layer 2 promotion request")
+    approve_promotion.add_argument("--topic-slug", required=True)
+    approve_promotion.add_argument("--candidate-id", required=True)
+    approve_promotion.add_argument("--run-id")
+    approve_promotion.add_argument("--updated-by", default="aitp-cli")
+    approve_promotion.add_argument("--notes")
+    approve_promotion.add_argument("--json", action="store_true")
+
+    reject_promotion = subparsers.add_parser("reject-promotion", help="Reject a pending Layer 2 promotion request")
+    reject_promotion.add_argument("--topic-slug", required=True)
+    reject_promotion.add_argument("--candidate-id", required=True)
+    reject_promotion.add_argument("--run-id")
+    reject_promotion.add_argument("--updated-by", default="aitp-cli")
+    reject_promotion.add_argument("--notes")
+    reject_promotion.add_argument("--json", action="store_true")
+
+    promote = subparsers.add_parser("promote", help="Promote an approved candidate into the configured Layer 2 backend")
+    promote.add_argument("--topic-slug", required=True)
+    promote.add_argument("--candidate-id", required=True)
+    promote.add_argument("--run-id")
+    promote.add_argument("--backend-id")
+    promote.add_argument("--target-backend-root")
+    promote.add_argument("--domain")
+    promote.add_argument("--subdomain")
+    promote.add_argument("--source-id")
+    promote.add_argument("--source-section")
+    promote.add_argument("--source-section-title")
+    promote.add_argument("--updated-by", default="aitp-cli")
+    promote.add_argument("--notes")
+    promote.add_argument("--json", action="store_true")
+
     install = subparsers.add_parser("install-agent", help="Install AITP wrappers for supported agents")
     install.add_argument("--agent", choices=["codex", "openclaw", "opencode", "claude-code", "all"], required=True)
     install.add_argument("--scope", choices=["user", "project"], default="user")
@@ -310,6 +352,60 @@ def main() -> int:
 
     if args.command == "state":
         payload = {"topic_state": service.get_runtime_state(args.topic_slug)}
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "request-promotion":
+        payload = service.request_promotion(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            route=args.route,
+            backend_id=args.backend_id,
+            target_backend_root=args.target_backend_root,
+            requested_by=args.updated_by,
+            notes=args.notes,
+        )
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "approve-promotion":
+        payload = service.approve_promotion(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            approved_by=args.updated_by,
+            notes=args.notes,
+        )
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "reject-promotion":
+        payload = service.reject_promotion(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            rejected_by=args.updated_by,
+            notes=args.notes,
+        )
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "promote":
+        payload = service.promote_candidate(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            promoted_by=args.updated_by,
+            backend_id=args.backend_id,
+            target_backend_root=args.target_backend_root,
+            domain=args.domain,
+            subdomain=args.subdomain,
+            source_id=args.source_id,
+            source_section=args.source_section,
+            source_section_title=args.source_section_title,
+            notes=args.notes,
+        )
         _emit(payload, args.json)
         return 0
 

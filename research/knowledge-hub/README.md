@@ -52,6 +52,9 @@ aitp operation-init --topic-slug <topic_slug> --run-id <run_id> --title "<operat
 aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<operation>" --baseline-status passed
 aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
 aitp capability-audit --topic-slug <topic_slug>
+aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
+aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
+aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
 aitp install-agent --agent all --scope user
 ```
 
@@ -115,6 +118,8 @@ contract file is sufficient.
 - Each bootstrap or loop materializes:
   - `runtime/topics/<topic_slug>/runtime_protocol.generated.json`
   - `runtime/topics/<topic_slug>/runtime_protocol.generated.md`
+  - optional `runtime/topics/<topic_slug>/promotion_gate.json`
+  - optional `runtime/topics/<topic_slug>/promotion_gate.md`
 
 Agents should read that runtime bundle before acting on heuristic queue rows.
 
@@ -123,10 +128,28 @@ External backends such as a separate formal-theory knowledge network, a
 software repository, or a result store should enter through the documented
 `L2` backend bridge rather than through hidden path assumptions.
 
+Layer 2 promotion is now approval-gated:
+
+1. `aitp request-promotion ...`
+2. human `aitp approve-promotion ...` or `aitp reject-promotion ...`
+3. `aitp promote ...`
+
+The current public external writeback path targets the standalone
+`Theoretical-Physics-Knowledge-Network` repository through the backend card:
+
+- `canonical/backends/theoretical-physics-knowledge-network.json`
+
 ## Validation
 
 Run the bundled tests:
 
 ```bash
 python -m unittest discover -s research/knowledge-hub/tests -v
+```
+
+Public bounded smoke tests:
+
+```bash
+research/knowledge-hub/runtime/scripts/run_formal_theory_backend_smoke.sh
+research/knowledge-hub/runtime/scripts/run_tpkn_formal_promotion_smoke.sh
 ```

@@ -12,6 +12,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .tpkn_bridge import (
+    build_tpkn_unit,
+    choose_source_row,
+    derive_tpkn_unit_id,
+    ensure_source_manifest,
+    find_collision_rows,
+    load_unit_index_rows,
+    map_aitp_candidate_type,
+    run_tpkn_checks,
+    unit_path_for,
+    write_json as write_external_json,
+)
+
 
 def _looks_like_repo_root(path: Path) -> bool:
     return (path / "AGENTS.md").exists() and (path / "research" / "knowledge-hub").exists()
@@ -190,6 +203,22 @@ class AITPService:
     def _feedback_run_root(self, topic_slug: str, run_id: str) -> Path:
         return self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / run_id
 
+    def _candidate_ledger_path(self, topic_slug: str, run_id: str) -> Path:
+        return self._feedback_run_root(topic_slug, run_id) / "candidate_ledger.jsonl"
+
+    def _promotion_gate_paths(self, topic_slug: str) -> dict[str, Path]:
+        runtime_root = self._runtime_root(topic_slug)
+        return {
+            "json": runtime_root / "promotion_gate.json",
+            "note": runtime_root / "promotion_gate.md",
+        }
+
+    def _promotion_gate_log_path(self, topic_slug: str, run_id: str) -> Path:
+        return self._validation_run_root(topic_slug, run_id) / "promotion_gate_log.jsonl"
+
+    def _consultation_root(self, topic_slug: str) -> Path:
+        return self.kernel_root / "consultation" / "topics" / topic_slug
+
     def _research_root(self) -> Path:
         return self.kernel_root.parent
 
@@ -316,6 +345,289 @@ class AITPService:
             "note": runtime_root / "runtime_protocol.generated.md",
         }
 
+    def _load_candidate(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Any]:
+        rows = read_jsonl(self._candidate_ledger_path(topic_slug, run_id))
+        for row in rows:
+            if str(row.get("candidate_id") or "").strip() == candidate_id:
+                return row
+        raise FileNotFoundError(f"Candidate {candidate_id} not found for topic {topic_slug} run {run_id}")
+
+    def _replace_candidate_row(
+        self,
+        topic_slug: str,
+        run_id: str,
+        candidate_id: str,
+        updated_row: dict[str, Any],
+    ) -> None:
+        ledger_path = self._candidate_ledger_path(topic_slug, run_id)
+        rows = []
+        replaced = False
+        for row in read_jsonl(ledger_path):
+            if str(row.get("candidate_id") or "").strip() == candidate_id:
+                rows.append(updated_row)
+                replaced = True
+            else:
+                rows.append(row)
+        if not replaced:
+            rows.append(updated_row)
+        write_jsonl(ledger_path, rows)
+
+    def _detect_tpkn_root(self) -> Path | None:
+        env_override = os.environ.get("AITP_TPKN_ROOT")
+        candidates: list[Path] = []
+        if env_override:
+            candidates.append(Path(env_override).expanduser())
+        candidates.extend(
+            [
+                self.repo_root.parent / "theoretical-physics-knowledge-network",
+                self.repo_root.parent / "Theoretical-Physics-Knowledge-Network",
+            ]
+        )
+        for candidate in candidates:
+            resolved = candidate.expanduser().resolve()
+            if (resolved / "scripts" / "kb.py").exists() and (resolved / "units").exists():
+                return resolved
+        return None
+
+    def _load_backend_card(self, backend_id: str) -> tuple[Path | None, dict[str, Any] | None]:
+        registry_rows = read_jsonl(self.kernel_root / "canonical" / "backends" / "backend_index.jsonl")
+        for row in registry_rows:
+            if str(row.get("backend_id") or "").strip() != backend_id:
+                continue
+            card_path = str(row.get("card_path") or "").strip()
+            if card_path:
+                candidate = Path(card_path).expanduser()
+                if not candidate.is_absolute():
+                    candidate = self.kernel_root / card_path
+                payload = read_json(candidate)
+                if payload is not None:
+                    return candidate.resolve(), payload
+
+        for card_path in sorted((self.kernel_root / "canonical" / "backends").rglob("*.json")):
+            payload = read_json(card_path)
+            if payload is None:
+                continue
+            if str(payload.get("backend_id") or "").strip() == backend_id:
+                return card_path.resolve(), payload
+        return None, None
+
+    def _resolve_tpkn_root(
+        self,
+        *,
+        backend_id: str | None,
+        target_backend_root: str | None,
+    ) -> tuple[Path, Path | None, dict[str, Any] | None]:
+        if target_backend_root:
+            resolved = Path(target_backend_root).expanduser().resolve()
+            if not (resolved / "scripts" / "kb.py").exists():
+                raise FileNotFoundError(f"TPKN backend root missing scripts/kb.py: {resolved}")
+            return resolved, None, None
+
+        if backend_id:
+            card_path, card_payload = self._load_backend_card(backend_id)
+            if card_payload:
+                for root_path in card_payload.get("root_paths") or []:
+                    candidate = str(root_path).strip()
+                    if not candidate or candidate.startswith("__"):
+                        continue
+                    resolved = Path(candidate).expanduser().resolve()
+                    if (resolved / "scripts" / "kb.py").exists():
+                        return resolved, card_path, card_payload
+            detected = self._detect_tpkn_root()
+            if detected is not None:
+                return detected, card_path, card_payload
+
+        detected = self._detect_tpkn_root()
+        if detected is not None:
+            return detected, None, None
+        raise FileNotFoundError("Unable to resolve a TPKN backend root. Pass --target-backend-root or set AITP_TPKN_ROOT.")
+
+    def _promotion_gate_markdown(self, payload: dict[str, Any]) -> str:
+        lines = [
+            "# L2 promotion gate",
+            "",
+            f"- Topic slug: `{payload['topic_slug']}`",
+            f"- Run id: `{payload['run_id']}`",
+            f"- Candidate id: `{payload['candidate_id']}`",
+            f"- Candidate type: `{payload['candidate_type']}`",
+            f"- Title: `{payload['title']}`",
+            f"- Status: `{payload['status']}`",
+            f"- Route: `{payload['route']}`",
+            f"- Backend id: `{payload.get('backend_id') or '(missing)'}`",
+            f"- Target backend root: `{payload.get('target_backend_root') or '(missing)'}`",
+            f"- Requested by: `{payload['requested_by']}` at `{payload['requested_at']}`",
+            f"- Approved by: `{payload.get('approved_by') or '(pending)'}` at `{payload.get('approved_at') or '(pending)'}`",
+            f"- Rejected by: `{payload.get('rejected_by') or '(n/a)'}` at `{payload.get('rejected_at') or '(n/a)'}`",
+            "",
+            "## Intended L2 targets",
+            "",
+        ]
+        for target in payload.get("intended_l2_targets") or ["(missing)"]:
+            lines.append(f"- `{target}`")
+        lines.extend(
+            [
+                "",
+                "## Candidate summary",
+                "",
+                payload.get("summary") or "(missing)",
+                "",
+                "## Operator rule",
+                "",
+            ]
+        )
+        if payload["status"] == "approved":
+            lines.append("- Human approval is present. `aitp promote ...` may write the distilled unit into the configured L2 backend.")
+        elif payload["status"] == "promoted":
+            lines.append("- Promotion already ran. Re-check the decision and backend writeback artifacts before editing further.")
+        else:
+            lines.append("- L2 promotion is blocked until a human explicitly approves or rejects this request.")
+        if payload.get("notes"):
+            lines.extend(["", "## Notes", "", payload["notes"], ""])
+        return "\n".join(lines) + "\n"
+
+    def _write_promotion_gate(self, topic_slug: str, payload: dict[str, Any]) -> dict[str, str]:
+        paths = self._promotion_gate_paths(topic_slug)
+        write_json(paths["json"], payload)
+        write_text(paths["note"], self._promotion_gate_markdown(payload))
+        return {
+            "promotion_gate_path": str(paths["json"]),
+            "promotion_gate_note_path": str(paths["note"]),
+        }
+
+    def _load_promotion_gate(self, topic_slug: str) -> dict[str, Any] | None:
+        return read_json(self._promotion_gate_paths(topic_slug)["json"])
+
+    def _append_promotion_gate_log(self, topic_slug: str, run_id: str, row: dict[str, Any]) -> str:
+        log_path = self._promotion_gate_log_path(topic_slug, run_id)
+        rows = read_jsonl(log_path)
+        rows.append(row)
+        write_jsonl(log_path, rows)
+        return str(log_path)
+
+    def _consultation_paths(self, topic_slug: str, consultation_slug: str) -> dict[str, Path]:
+        call_root = self._consultation_root(topic_slug) / "calls" / f"consult-{consultation_slug}"
+        return {
+            "request": call_root / "request.json",
+            "result": call_root / "result.json",
+            "application": call_root / "application.json",
+            "index": self._consultation_root(topic_slug) / "consultation_index.jsonl",
+        }
+
+    def _record_l2_consultation(
+        self,
+        *,
+        topic_slug: str,
+        stage: str,
+        run_id: str | None,
+        consultation_slug: str,
+        context_ref: dict[str, Any],
+        purpose: str,
+        query_text: str,
+        requested_unit_types: list[str],
+        retrieved_refs: list[dict[str, Any]],
+        result_summary: str,
+        effect_on_work: str,
+        outcome: str,
+        projection_paths: list[str],
+        requested_by: str,
+        produced_by: str,
+        written_by: str,
+        retrieval_profile: str,
+    ) -> dict[str, str]:
+        consultation_id = f"consult:{consultation_slug}"
+        timestamp = now_iso()
+        paths = self._consultation_paths(topic_slug, consultation_slug)
+
+        request_payload: dict[str, Any] = {
+            "consultation_id": consultation_id,
+            "topic_slug": topic_slug,
+            "stage": stage,
+            "context_ref": context_ref,
+            "purpose": purpose,
+            "query_text": query_text,
+            "requested_unit_types": requested_unit_types,
+            "requested_by": requested_by,
+            "requested_at": timestamp,
+            "notes": "Generated by AITP service during backend consultation.",
+        }
+        result_payload: dict[str, Any] = {
+            "consultation_id": consultation_id,
+            "topic_slug": topic_slug,
+            "stage": stage,
+            "retrieval_profile": retrieval_profile,
+            "query_text": query_text,
+            "retrieved_refs": retrieved_refs,
+            "expanded_edge_types": [],
+            "result_summary": result_summary,
+            "produced_by": produced_by,
+            "produced_at": timestamp,
+            "notes": "Generated during an explicit backend-aware collision scan.",
+        }
+        application_payload: dict[str, Any] = {
+            "consultation_id": consultation_id,
+            "topic_slug": topic_slug,
+            "stage": stage,
+            "context_ref": context_ref,
+            "applied_refs": retrieved_refs,
+            "deferred_refs": [],
+            "effect_on_work": effect_on_work,
+            "outcome": outcome,
+            "projection_paths": projection_paths,
+            "written_by": written_by,
+            "written_at": timestamp,
+            "notes": "Generated after applying backend consultation to the promotion path.",
+        }
+        index_entry: dict[str, Any] = {
+            "consultation_id": consultation_id,
+            "topic_slug": topic_slug,
+            "stage": stage,
+            "status": "applied",
+            "context_ref": context_ref,
+            "request_path": self._relativize(paths["request"]),
+            "result_path": self._relativize(paths["result"]),
+            "application_path": self._relativize(paths["application"]),
+            "summary": result_summary,
+        }
+        if run_id:
+            request_payload["run_id"] = run_id
+            result_payload["run_id"] = run_id
+            application_payload["run_id"] = run_id
+            index_entry["run_id"] = run_id
+
+        write_json(paths["request"], request_payload)
+        write_json(paths["result"], result_payload)
+        write_json(paths["application"], application_payload)
+        index_rows = [row for row in read_jsonl(paths["index"]) if row.get("consultation_id") != consultation_id]
+        index_rows.append(index_entry)
+        write_jsonl(paths["index"], index_rows)
+
+        if run_id:
+            if stage == "L1":
+                projection_path = self.kernel_root / "intake" / "topics" / topic_slug / "l2_consultation_log.jsonl"
+            elif stage == "L3":
+                projection_path = self._feedback_run_root(topic_slug, run_id) / "l2_consultation_log.jsonl"
+            else:
+                projection_path = self._validation_run_root(topic_slug, run_id) / "l2_consultation_log.jsonl"
+            projection_rows = read_jsonl(projection_path)
+            projection_rows.append(
+                {
+                    "consultation_id": consultation_id,
+                    "stage": stage,
+                    "request_path": self._relativize(paths["request"]),
+                    "result_path": self._relativize(paths["result"]),
+                    "application_path": self._relativize(paths["application"]),
+                    "updated_at": timestamp,
+                }
+            )
+            write_jsonl(projection_path, projection_rows)
+
+        return {
+            "consultation_request_path": str(paths["request"]),
+            "consultation_result_path": str(paths["result"]),
+            "consultation_application_path": str(paths["application"]),
+            "consultation_index_path": str(paths["index"]),
+        }
+
     def _runtime_protocol_markdown(self, payload: dict[str, Any]) -> str:
         lines = [
             "# AITP runtime protocol bundle",
@@ -378,10 +690,10 @@ class AITPService:
             lines.append(f"- {item}")
         lines.extend(
             [
-                "",
-                "## L2 backend bridge snapshot",
-                "",
-            ]
+            "",
+            "## L2 backend bridge snapshot",
+            "",
+        ]
         )
         backend_bridges = payload.get("backend_bridges") or []
         if backend_bridges:
@@ -399,8 +711,21 @@ class AITPService:
                 )
         else:
             lines.append("- None registered.")
+        promotion_gate = payload.get("promotion_gate") or {}
         lines.extend(
             [
+                "",
+                "## L2 promotion gate",
+                "",
+                f"- Status: `{promotion_gate.get('status') or 'not_requested'}`",
+                f"- Candidate id: `{promotion_gate.get('candidate_id') or '(missing)'}`",
+                f"- Candidate type: `{promotion_gate.get('candidate_type') or '(missing)'}`",
+                f"- Gate JSON: `{promotion_gate.get('path') or '(missing)'}`",
+                f"- Gate note: `{promotion_gate.get('note_path') or '(missing)'}`",
+                f"- Backend id: `{promotion_gate.get('backend_id') or '(missing)'}`",
+                f"- Target backend root: `{promotion_gate.get('target_backend_root') or '(missing)'}`",
+                f"- Approved by: `{promotion_gate.get('approved_by') or '(pending)'}`",
+                f"- Promoted units: `{', '.join(promotion_gate.get('promoted_units') or []) or '(none)'}`",
                 "",
                 "## Delivery rule",
                 "",
@@ -461,6 +786,7 @@ class AITPService:
         runtime_root = self._ensure_runtime_root(topic_slug)
         topic_state = read_json(runtime_root / "topic_state.json") or {}
         interaction_state = read_json(runtime_root / "interaction_state.json") or {}
+        promotion_gate = self._load_promotion_gate(topic_slug) or {}
         queue_rows = read_jsonl(runtime_root / "action_queue.jsonl")
         queue_surface = interaction_state.get("action_queue_surface") or {}
         decision_surface = interaction_state.get("decision_surface") or {}
@@ -488,6 +814,7 @@ class AITPService:
         read_order: list[str] = [self._relativize(runtime_root / "runtime_protocol.generated.md")]
         for candidate in (
             "interaction_state.json",
+            "promotion_gate.md",
             "agent_brief.md",
             "operator_console.md",
             "action_queue_contract.generated.md",
@@ -525,6 +852,7 @@ class AITPService:
                 "Materialize durable runtime state and protocol snapshots on disk.",
                 "Run conformance, capability, and trust audits against persisted artifacts.",
                 "Execute explicit auto-runnable handlers declared in runtime state.",
+                "Block Layer 2 promotion until a durable human approval artifact exists on disk.",
             ],
             "agent_required_read_order": read_order,
             "priority_rules": [
@@ -548,6 +876,21 @@ class AITPService:
             "reproducibility_expectations": research_mode_profile.get("reproducibility_expectations") or [],
             "note_expectations": research_mode_profile.get("note_expectations") or [],
             "backend_bridges": backend_bridges,
+            "promotion_gate": {
+                "status": str(promotion_gate.get("status") or "not_requested"),
+                "candidate_id": str(promotion_gate.get("candidate_id") or ""),
+                "candidate_type": str(promotion_gate.get("candidate_type") or ""),
+                "path": self._relativize(self._promotion_gate_paths(topic_slug)["json"])
+                if self._promotion_gate_paths(topic_slug)["json"].exists()
+                else None,
+                "note_path": self._relativize(self._promotion_gate_paths(topic_slug)["note"])
+                if self._promotion_gate_paths(topic_slug)["note"].exists()
+                else None,
+                "backend_id": str(promotion_gate.get("backend_id") or ""),
+                "target_backend_root": str(promotion_gate.get("target_backend_root") or ""),
+                "approved_by": str(promotion_gate.get("approved_by") or ""),
+                "promoted_units": self._dedupe_strings(list(promotion_gate.get("promoted_units") or [])),
+            },
             "delivery_rule": str((interaction_state.get("delivery_contract") or {}).get("rule") or ""),
             "editable_protocol_surfaces": editable_surfaces,
             "action_queue_surface": {
@@ -925,7 +1268,10 @@ class AITPService:
 
     def _codex_skill_targets(self, *, scope: str, target_root: str | None) -> list[Path]:
         if target_root:
-            return [Path(target_root)]
+            target_path = Path(target_root)
+            if target_path.name == "aitp-runtime" or target_path.parent.name == "skills":
+                return [target_path]
+            return [target_path / ".agents" / "skills" / "aitp-runtime"]
         if scope == "project":
             return [self.repo_root / ".agents" / "skills" / "aitp-runtime"]
 
@@ -1474,6 +1820,8 @@ class AITPService:
             "conformance_report.md",
             "runtime_protocol.generated.json",
             "runtime_protocol.generated.md",
+            "promotion_gate.json",
+            "promotion_gate.md",
             "skill_discovery.json",
             "skill_recommendations.md",
             "loop_state.json",
@@ -1592,6 +1940,359 @@ class AITPService:
             "capability_report_path": str(report_path),
         }
 
+    def request_promotion(
+        self,
+        *,
+        topic_slug: str,
+        candidate_id: str,
+        run_id: str | None = None,
+        route: str = "L3->L4->L2",
+        backend_id: str | None = None,
+        target_backend_root: str | None = None,
+        requested_by: str = "aitp-cli",
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        if not resolved_run_id:
+            raise FileNotFoundError(f"Unable to resolve a feedback/validation run for topic {topic_slug}")
+        candidate = self._load_candidate(topic_slug, resolved_run_id, candidate_id)
+        gate_payload = {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": str(candidate.get("candidate_type") or ""),
+            "title": str(candidate.get("title") or ""),
+            "summary": str(candidate.get("summary") or ""),
+            "route": route,
+            "status": "pending_human_approval",
+            "intended_l2_targets": self._dedupe_strings(list(candidate.get("intended_l2_targets") or [])),
+            "backend_id": str(backend_id or ""),
+            "target_backend_root": str(target_backend_root or ""),
+            "requested_by": requested_by,
+            "requested_at": now_iso(),
+            "approved_by": None,
+            "approved_at": None,
+            "rejected_by": None,
+            "rejected_at": None,
+            "promoted_by": None,
+            "promoted_at": None,
+            "promoted_units": [],
+            "notes": notes or "",
+        }
+        paths = self._write_promotion_gate(topic_slug, gate_payload)
+        log_path = self._append_promotion_gate_log(
+            topic_slug,
+            resolved_run_id,
+            {
+                "event": "requested",
+                "candidate_id": candidate_id,
+                "status": gate_payload["status"],
+                "updated_by": requested_by,
+                "updated_at": gate_payload["requested_at"],
+                "backend_id": gate_payload["backend_id"],
+                "target_backend_root": gate_payload["target_backend_root"],
+                "notes": gate_payload["notes"],
+            },
+        )
+        return {
+            **gate_payload,
+            **paths,
+            "promotion_gate_log_path": log_path,
+        }
+
+    def approve_promotion(
+        self,
+        *,
+        topic_slug: str,
+        candidate_id: str,
+        run_id: str | None = None,
+        approved_by: str = "aitp-cli",
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        gate_payload = self._load_promotion_gate(topic_slug)
+        if gate_payload is None:
+            raise FileNotFoundError(f"Promotion gate missing for topic {topic_slug}")
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id or str(gate_payload.get("run_id") or ""))
+        if not resolved_run_id:
+            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+        if str(gate_payload.get("candidate_id") or "") != candidate_id:
+            raise ValueError(f"Promotion gate candidate mismatch: expected {gate_payload.get('candidate_id')}, got {candidate_id}")
+        gate_payload["status"] = "approved"
+        gate_payload["approved_by"] = approved_by
+        gate_payload["approved_at"] = now_iso()
+        if notes is not None:
+            gate_payload["notes"] = notes
+        paths = self._write_promotion_gate(topic_slug, gate_payload)
+        log_path = self._append_promotion_gate_log(
+            topic_slug,
+            resolved_run_id,
+            {
+                "event": "approved",
+                "candidate_id": candidate_id,
+                "status": gate_payload["status"],
+                "updated_by": approved_by,
+                "updated_at": gate_payload["approved_at"],
+                "notes": gate_payload.get("notes") or "",
+            },
+        )
+        return {
+            **gate_payload,
+            **paths,
+            "promotion_gate_log_path": log_path,
+        }
+
+    def reject_promotion(
+        self,
+        *,
+        topic_slug: str,
+        candidate_id: str,
+        run_id: str | None = None,
+        rejected_by: str = "aitp-cli",
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        gate_payload = self._load_promotion_gate(topic_slug)
+        if gate_payload is None:
+            raise FileNotFoundError(f"Promotion gate missing for topic {topic_slug}")
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id or str(gate_payload.get("run_id") or ""))
+        if not resolved_run_id:
+            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+        if str(gate_payload.get("candidate_id") or "") != candidate_id:
+            raise ValueError(f"Promotion gate candidate mismatch: expected {gate_payload.get('candidate_id')}, got {candidate_id}")
+        gate_payload["status"] = "rejected"
+        gate_payload["rejected_by"] = rejected_by
+        gate_payload["rejected_at"] = now_iso()
+        if notes is not None:
+            gate_payload["notes"] = notes
+        paths = self._write_promotion_gate(topic_slug, gate_payload)
+        log_path = self._append_promotion_gate_log(
+            topic_slug,
+            resolved_run_id,
+            {
+                "event": "rejected",
+                "candidate_id": candidate_id,
+                "status": gate_payload["status"],
+                "updated_by": rejected_by,
+                "updated_at": gate_payload["rejected_at"],
+                "notes": gate_payload.get("notes") or "",
+            },
+        )
+        return {
+            **gate_payload,
+            **paths,
+            "promotion_gate_log_path": log_path,
+        }
+
+    def promote_candidate(
+        self,
+        *,
+        topic_slug: str,
+        candidate_id: str,
+        run_id: str | None = None,
+        promoted_by: str = "aitp-cli",
+        backend_id: str | None = None,
+        target_backend_root: str | None = None,
+        domain: str | None = None,
+        subdomain: str | None = None,
+        source_id: str | None = None,
+        source_section: str | None = None,
+        source_section_title: str | None = None,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        gate_payload = self._load_promotion_gate(topic_slug)
+        if gate_payload is None:
+            raise FileNotFoundError(f"Promotion gate missing for topic {topic_slug}")
+        if str(gate_payload.get("candidate_id") or "") != candidate_id:
+            raise ValueError(f"Promotion gate candidate mismatch: expected {gate_payload.get('candidate_id')}, got {candidate_id}")
+        if str(gate_payload.get("status") or "") != "approved":
+            raise PermissionError("Layer 2 promotion requires an approved promotion_gate.json status.")
+
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id or str(gate_payload.get("run_id") or ""))
+        if not resolved_run_id:
+            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+        candidate = self._load_candidate(topic_slug, resolved_run_id, candidate_id)
+        resolved_backend_id = backend_id or str(gate_payload.get("backend_id") or "") or "backend:theoretical-physics-knowledge-network"
+        tpkn_root, card_path, card_payload = self._resolve_tpkn_root(
+            backend_id=resolved_backend_id,
+            target_backend_root=target_backend_root or str(gate_payload.get("target_backend_root") or ""),
+        )
+        mapped_type = map_aitp_candidate_type(str(candidate.get("candidate_type") or ""))
+        source_rows = read_jsonl(self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl")
+        source_row = choose_source_row(source_rows=source_rows, candidate=candidate)
+        resolved_source_id = source_id or str((source_row or {}).get("source_id") or "") or f"source:{slugify(candidate_id)}"
+        resolved_source_section = source_section or "aitp/promoted-candidate"
+        resolved_source_section_title = source_section_title or str(candidate.get("title") or candidate_id)
+
+        default_domain = slugify(domain or topic_slug).replace("-", "-")
+        default_subdomain = slugify(subdomain or mapped_type).replace("-", "-")
+        collision_rows = find_collision_rows(
+            tpkn_root=tpkn_root,
+            candidate_title=str(candidate.get("title") or ""),
+            candidate_summary=str(candidate.get("summary") or ""),
+            candidate_tags=[
+                str(candidate.get("candidate_type") or ""),
+                str(candidate.get("topic_slug") or ""),
+            ],
+            candidate_aliases=[],
+            domain=default_domain,
+            target_type=mapped_type,
+        )
+        context_ref = {
+            "id": candidate_id,
+            "layer": "L3",
+            "object_type": "candidate",
+            "path": self._relativize(self._candidate_ledger_path(topic_slug, resolved_run_id)),
+            "title": str(candidate.get("title") or candidate_id),
+            "summary": str(candidate.get("summary") or ""),
+        }
+        retrieved_refs = [
+            {
+                "id": str(row.get("id") or ""),
+                "layer": "L2",
+                "object_type": f"tpkn_{row.get('type') or 'unit'}",
+                "path": str(row.get("path") or ""),
+                "title": str(row.get("title") or row.get("id") or ""),
+                "summary": str(row.get("summary") or ""),
+            }
+            for row in collision_rows
+        ]
+
+        unit_id = derive_tpkn_unit_id(candidate, mapped_type)
+        existing_tpkn_ids = {str(row.get("id") or "") for row in load_unit_index_rows(tpkn_root)}
+        unit_payload = build_tpkn_unit(
+            candidate=candidate,
+            unit_id=unit_id,
+            target_type=mapped_type,
+            domain=default_domain,
+            subdomain=default_subdomain,
+            source_id=resolved_source_id,
+            source_section=resolved_source_section,
+            source_anchor_notes=(
+                f"AITP promoted candidate {candidate_id} from topic {topic_slug}; "
+                "keep upstream validation and approval artifacts for full provenance."
+            ),
+            existing_tpkn_ids=existing_tpkn_ids,
+        )
+        unit_path = unit_path_for(tpkn_root, mapped_type, unit_id)
+        manifest_path, created_manifest = ensure_source_manifest(
+            tpkn_root=tpkn_root,
+            source_row=source_row,
+            source_id=resolved_source_id,
+            source_section=resolved_source_section,
+            source_section_title=resolved_source_section_title,
+            source_section_summary=str(candidate.get("summary") or resolved_source_section_title),
+        )
+        write_external_json(unit_path, unit_payload)
+        check_results = run_tpkn_checks(tpkn_root)
+
+        consultation_paths = self._record_l2_consultation(
+            topic_slug=topic_slug,
+            stage="L4",
+            run_id=resolved_run_id,
+            consultation_slug=f"tpkn-promotion-{slugify(candidate_id)}",
+            context_ref=context_ref,
+            purpose="Consult the external formal-theory backend before L2 promotion to detect collisions and keep writeback explicit.",
+            query_text=(
+                f"Check TPKN collisions and source-anchor compatibility before promoting {candidate_id} "
+                f"as {mapped_type}:{unit_id.split(':', 1)[-1]}."
+            ),
+            requested_unit_types=[str(candidate.get("candidate_type") or "")],
+            retrieved_refs=retrieved_refs,
+            result_summary=(
+                f"Found {len(retrieved_refs)} nearby TPKN objects before unit promotion."
+                if retrieved_refs
+                else "No obvious TPKN collision was found before unit promotion."
+            ),
+            effect_on_work=(
+                f"Created or updated `{unit_id}` in the configured TPKN backend and recorded the collision scan."
+            ),
+            outcome="candidate_narrowed" if retrieved_refs else "no_change",
+            projection_paths=[
+                self._relativize(self._candidate_ledger_path(topic_slug, resolved_run_id)),
+                self._relativize(self._promotion_gate_paths(topic_slug)["json"]),
+                self._relativize(self._promotion_gate_paths(topic_slug)["note"]),
+            ],
+            requested_by=promoted_by,
+            produced_by=promoted_by,
+            written_by=promoted_by,
+            retrieval_profile="tpkn-unit-index-and-source-anchor-scan",
+        )
+
+        decision_id = f"decision:{slugify(candidate_id)}-tpkn-promotion"
+        promoted_at = now_iso()
+        decision_row = {
+            "decision_id": decision_id,
+            "candidate_id": candidate_id,
+            "route": str(gate_payload.get("route") or "L3->L4->L2"),
+            "verdict": "accepted",
+            "promoted_units": [unit_id],
+            "fallback_targets": [],
+            "evidence_refs": self._dedupe_strings(
+                [
+                    self._relativize(self._candidate_ledger_path(topic_slug, resolved_run_id)),
+                    self._relativize(self._promotion_gate_paths(topic_slug)["json"]),
+                    self._relativize(Path(consultation_paths["consultation_result_path"])),
+                    str(unit_path),
+                    str(manifest_path),
+                ]
+            ),
+            "decided_by": promoted_by,
+            "decided_at": promoted_at,
+            "reason": notes
+            or "Promoted after explicit human approval and an explicit TPKN backend collision scan.",
+        }
+        decisions_path = self._validation_run_root(topic_slug, resolved_run_id) / "promotion_decisions.jsonl"
+        decision_rows = read_jsonl(decisions_path)
+        decision_rows = [row for row in decision_rows if row.get("decision_id") != decision_id]
+        decision_rows.append(decision_row)
+        write_jsonl(decisions_path, decision_rows)
+
+        updated_candidate = dict(candidate)
+        updated_candidate["status"] = "promoted"
+        self._replace_candidate_row(topic_slug, resolved_run_id, candidate_id, updated_candidate)
+
+        gate_payload["status"] = "promoted"
+        gate_payload["backend_id"] = resolved_backend_id
+        gate_payload["target_backend_root"] = str(tpkn_root)
+        gate_payload["promoted_by"] = promoted_by
+        gate_payload["promoted_at"] = promoted_at
+        gate_payload["promoted_units"] = [unit_id]
+        gate_payload["notes"] = notes or gate_payload.get("notes") or ""
+        gate_paths = self._write_promotion_gate(topic_slug, gate_payload)
+        log_path = self._append_promotion_gate_log(
+            topic_slug,
+            resolved_run_id,
+            {
+                "event": "promoted",
+                "candidate_id": candidate_id,
+                "status": gate_payload["status"],
+                "updated_by": promoted_by,
+                "updated_at": promoted_at,
+                "promoted_units": [unit_id],
+                "backend_id": resolved_backend_id,
+                "target_backend_root": str(tpkn_root),
+                "notes": gate_payload.get("notes") or "",
+            },
+        )
+
+        return {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "backend_id": resolved_backend_id,
+            "backend_card_path": str(card_path) if card_path else None,
+            "target_backend_root": str(tpkn_root),
+            "target_unit_id": unit_id,
+            "target_unit_path": str(unit_path),
+            "source_manifest_path": str(manifest_path),
+            "source_manifest_created": created_manifest,
+            "promotion_decision_path": str(decisions_path),
+            "promotion_gate_log_path": log_path,
+            "tpkn_check": check_results["check"],
+            "tpkn_build": check_results["build"],
+            "consultation": consultation_paths,
+            **gate_paths,
+        }
+
     def run_topic_loop(
         self,
         *,
@@ -1653,6 +2354,7 @@ class AITPService:
             "exit_conformance": (exit_audit.get("conformance_state") or {}).get("overall_status"),
             "capability_status": capability.get("overall_status"),
             "trust_status": trust.get("overall_status") if trust else "missing",
+            "promotion_gate_status": str((self._load_promotion_gate(resolved_topic_slug) or {}).get("status") or "not_requested"),
             "auto_actions_executed": auto_actions["executed"],
             "remaining_pending_actions": auto_actions["remaining_pending"],
         }
@@ -1692,20 +2394,23 @@ description: Route research work through the AITP kernel using the installable `
 
 ## Required entry
 
-1. For coding or implementation work, prefer `aitp-codex --topic-slug <topic_slug> "<task>"`.
-2. Otherwise start substantial topic work with `aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...`.
-3. Read the generated `runtime_protocol.generated.md`, `agent_brief.md`, `operator_console.md`, and `conformance_report.md`.
+1. In a bare `codex` research session, do not start with direct browsing or free-form synthesis; enter through `aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...` first.
+2. For Codex-driven implementation or execution work inside an active topic, prefer `aitp-codex --topic-slug <topic_slug> "<task>"`.
+3. Read the generated `runtime_protocol.generated.md`, `promotion_gate.md`, `agent_brief.md`, `operator_console.md`, and `conformance_report.md`.
 4. Register reusable operations with `aitp operation-init ...`.
-5. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
+5. Before any L2 promotion, create a durable approval request with `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
+6. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
 - If the conformance audit fails, the run does not count as AITP work.
+- If the task is theoretical-physics research rather than plain coding, staying inside AITP is mandatory.
 - Prefer durable control notes and contract files over Python heuristic defaults.
 - Every reusable operation must pass through `aitp trust-audit ...` before AITP treats it as trusted.
 - If a new numerical backend or diagnostic is being trusted, scaffold a baseline first with `aitp baseline ...`.
 - If a derivation-heavy method is being claimed as understood, scaffold atomic understanding first with `aitp atomize ...`.
 - If there is a capability gap, prefer `aitp loop ... --skill-query ...` so discovery becomes runtime state instead of ad hoc browsing.
+- Layer 2 promotion is blocked until `promotion_gate.json` says `approved` and `aitp promote ...` records the writeback.
 
 ## Common commands
 
@@ -1713,6 +2418,9 @@ description: Route research work through the AITP kernel using the installable `
 aitp-codex --topic-slug <topic_slug> "<task>"
 aitp loop --topic-slug <topic_slug> --human-request "<task>" --skill-query "<capability gap>"
 aitp resume --topic-slug <topic_slug> --human-request "<task>"
+aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id> --backend-id backend:theoretical-physics-knowledge-network
+aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
+aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
 aitp operation-init --topic-slug <topic_slug> --run-id <run_id> --title "<operation>" --kind numerical
 aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<operation>" --baseline-status passed
 aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
@@ -1791,6 +2499,7 @@ server registered in `mcporter`.
 - Reusable operations require `aitp operation-init ...` and `aitp trust-audit ...`
 - Numerical novelty requires `aitp baseline ...`
 - Theory-method understanding requires `aitp atomize ...`
+- Layer 2 promotion requires `aitp request-promotion ...`, a human `aitp approve-promotion ...`, and only then `aitp promote ...`
 
 Kernel root default: `{self.kernel_root}`
 """
@@ -1808,7 +2517,8 @@ Required pattern:
 3. inspect `runtime_protocol.generated.md` and the other generated runtime artifacts
 4. register reusable operations with `aitp operation-init`
 5. do the actual work
-6. close with `aitp audit --phase exit`
+6. request human approval before any L2 promotion with `aitp request-promotion ...`
+7. close with `aitp audit --phase exit`
 
 If method trust is missing:
 
@@ -1832,7 +2542,8 @@ User request: $ARGUMENTS
 1. If the topic already exists, run `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
 2. If the topic is new, run `aitp bootstrap --topic "<topic>" --statement "$ARGUMENTS"` and then `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
 3. Read the generated `runtime_protocol.generated.md`, `agent_brief.md`, `operator_console.md`, `capability_report.md`, and `conformance_report.md`.
-4. Continue the task only after the runtime artifacts exist and conformance passes.
+4. If the work is heading toward Layer 2, use `aitp request-promotion ...` and wait for a durable approval gate.
+5. Continue the task only after the runtime artifacts exist and conformance passes.
 """
         elif name == "aitp-resume":
             body = """---
@@ -1871,6 +2582,7 @@ aitp loop $ARGUMENTS
 ```
 
 Then inspect `runtime_protocol.generated.md`, `loop_state.json`, `capability_report.md`, and `conformance_report.md`.
+If the loop surfaces a promotion-ready candidate, use `aitp request-promotion ...` before any writeback.
 """
         else:
             body = """---
@@ -1903,6 +2615,7 @@ Arguments: $ARGUMENTS
 1. If the topic exists, run `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
 2. If the topic is new, run `aitp bootstrap --topic "<topic>" --statement "$ARGUMENTS"` and then `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
 3. Read the generated runtime protocol bundle before deeper work.
+4. Request human approval before any Layer 2 promotion.
 """
         elif name == "aitp-loop":
             body = """---
@@ -1919,6 +2632,7 @@ aitp loop $ARGUMENTS
 ```
 
 Then inspect `runtime_protocol.generated.md`, `loop_state.json`, and `conformance_report.md`.
+If the result should enter Layer 2, run `aitp request-promotion ...` first.
 """
         else:
             body = """---

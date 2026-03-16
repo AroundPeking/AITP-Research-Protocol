@@ -111,6 +111,17 @@ workspace just to get `aitp` running.
 show the detected repo/kernel roots plus the layer and contract surfaces that
 make the standalone install complete.
 
+If you want bare `codex` inside another theory workspace to default into AITP
+for research tasks, install the Codex skill into that workspace root:
+
+```bash
+aitp install-agent --agent codex --scope project --target-root /path/to/theory-workspace
+```
+
+That writes `.agents/skills/aitp-runtime/` under the target workspace so a
+normal `codex` session there sees an AITP-first research rule instead of
+starting from ad hoc browsing.
+
 ## Installation Flow
 
 ```mermaid
@@ -151,7 +162,10 @@ flowchart TD
     J --> L{Passes conformance?}
     L -->|yes| M[Persist reproducible artifacts and notes]
     L -->|no| N[Run does not count as AITP work]
-    M --> O[L2 promote or reject]
+    M --> O[request-promotion]
+    O --> P{Human approves?}
+    P -->|yes| Q[promote into L2 backend]
+    P -->|no| R[stay in L3 or reject]
 ```
 
 ## Agent Support Matrix
@@ -165,8 +179,8 @@ flowchart TD
 
 Current strength differs by runtime:
 
-- `Codex` is the strongest path right now because `aitp-codex` hard-wraps the
-  loop before it launches `codex exec`.
+- `Codex` is the strongest path right now because it supports both an
+  AITP-first bare-session skill install and the stronger `aitp-codex` wrapper.
 - `OpenCode`, `Claude Code`, and `OpenClaw` are currently constrained through
   installed command/skill surfaces plus conformance requirements, not through an
   equally strong native wrapper binary yet.
@@ -263,6 +277,9 @@ The repository is now more than a pure protocol archive:
 - it now ships fixed `L0-L4` directories plus `consultation/`, `runtime/`, and `schemas/`;
 - it can install user-side wrappers for the main target runtimes;
 - it can bridge separate human-note and software backends into `L2` without hard-wiring one private knowledge base as the only target;
+- it now includes an explicit human approval gate before `L2` promotion and a
+  public bridge into the standalone `Theoretical-Physics-Knowledge-Network`
+  formal-theory backend;
 - it still keeps stronger private integration claims honest.
 
 What is still incomplete:

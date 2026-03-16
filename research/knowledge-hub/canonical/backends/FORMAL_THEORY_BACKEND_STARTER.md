@@ -7,6 +7,11 @@ It does not hard-wire one specific personal repository.
 It demonstrates the contract shape that another clone can adapt to its own
 formal-theory knowledge base.
 
+For the stronger standalone typed-repository bridge, see:
+
+- `theoretical-physics-knowledge-network.json`
+- `../../runtime/scripts/run_tpkn_formal_promotion_smoke.sh`
+
 ## Included artifacts
 
 - example backend card:

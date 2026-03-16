@@ -20,6 +20,9 @@ Public starter pack for formal-theory backends:
 - `examples/formal-theory-note-library.example.json`
 - `../../runtime/scripts/run_formal_theory_backend_smoke.sh`
 
+Public bridge card for the standalone formal-theory repository:
+- `theoretical-physics-knowledge-network.json`
+
 Public starter pack for toy-model numeric backends:
 - `TOY_MODEL_NUMERIC_BACKEND_STARTER.md`
 - `examples/toy-model-numeric-workspace.example.json`
