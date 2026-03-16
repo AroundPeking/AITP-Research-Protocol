@@ -124,30 +124,56 @@ starting from ad hoc browsing.
 
 ## How You Actually Use It
 
-For most users there are only four recurring operations:
+AITP currently has two primary public-facing usage patterns.
+
+### 1. Bare Codex in a Theory Workspace
+
+Use this when you want to open a normal `codex` session inside a theory project
+directory, but you want research work to be forced into AITP instead of direct
+browsing and free-form synthesis.
 
 ```bash
-# 1. create or refresh a topic shell
-aitp bootstrap --topic "<topic>" --human-request "<task>"
+# one-time workspace install
+aitp install-agent --agent codex --scope project --target-root /path/to/theory-workspace
 
-# 2. do one bounded unit of topic work
-aitp loop --topic-slug <topic_slug> --human-request "<task>" --max-auto-steps 1
-
-# 3. continue an existing topic without re-bootstrap
-aitp resume --topic-slug <topic_slug> --human-request "<task>"
-
-# 4. move a mature candidate into L2 only after human approval
-aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id> --backend-id <backend_id>
-aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
-aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <backend_root>
+# normal daily use
+cd /path/to/theory-workspace
+codex
 ```
 
-The practical rule is:
+Then describe your research idea or ask to continue an existing topic.
+The expected behavior is:
 
-- use `bootstrap` to open a topic;
-- use `loop` or `resume` for actual bounded progress;
-- keep exploratory or not-yet-approved material in `L3` or `L4`;
-- only move into `L2` after an explicit human approval artifact exists.
+- `codex` reads `.agents/skills/aitp-runtime/SKILL.md`;
+- the first serious research action becomes `aitp bootstrap`, `aitp loop`, or `aitp resume`;
+- `codex` reads the runtime bundle before continuing;
+- outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
+
+For execution-heavy work inside an already active topic, the stronger wrapper is:
+
+```bash
+aitp-codex --topic-slug <topic_slug> "<task>"
+```
+
+### 2. OpenClaw for Bounded Autonomous Research
+
+Use this when you want OpenClaw to keep advancing a topic through bounded loop
+steps, usually under heartbeat or control-note constraints.
+
+```bash
+# one-time user install
+aitp install-agent --agent openclaw --scope user
+
+# bounded runtime entry
+aitp loop --topic-slug <topic_slug> --human-request "<task>" --max-auto-steps 1
+```
+
+The expected behavior is:
+
+- OpenClaw re-enters through `aitp loop` instead of inventing its own workflow;
+- it reads the runtime protocol bundle and decision surfaces;
+- it performs one bounded next step, writes human-readable artifacts, and re-enters later;
+- anything destined for `L2` still waits for explicit human approval.
 
 ## Installation Flow
 
@@ -195,7 +221,7 @@ flowchart TD
     P -->|no| R[stay in L3 or reject]
 ```
 
-## Application Scenarios
+## Workflow Diagrams
 
 AITP is designed so different runtimes and different research lanes can share
 the same `L0-L4` contract instead of inventing different hidden workflows.
@@ -305,6 +331,33 @@ flowchart LR
     D -->|yes| F[promote]
     F --> G[L2 backend writeback]
 ```
+
+## Core Runtime Commands
+
+For most users there are only four recurring AITP operations:
+
+```bash
+# 1. create or refresh a topic shell
+aitp bootstrap --topic "<topic>" --human-request "<task>"
+
+# 2. do one bounded unit of topic work
+aitp loop --topic-slug <topic_slug> --human-request "<task>" --max-auto-steps 1
+
+# 3. continue an existing topic without re-bootstrap
+aitp resume --topic-slug <topic_slug> --human-request "<task>"
+
+# 4. move a mature candidate into L2 only after human approval
+aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id> --backend-id <backend_id>
+aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
+aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <backend_root>
+```
+
+The practical rule is:
+
+- use `bootstrap` to open a topic;
+- use `loop` or `resume` for actual bounded progress;
+- keep exploratory or not-yet-approved material in `L3` or `L4`;
+- only move into `L2` after an explicit human approval artifact exists.
 
 ## Agent Support Matrix
 
