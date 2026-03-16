@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 
 research/knowledge-hub/.venv/
+research/knowledge-hub/build/
 research/knowledge-hub/*.egg-info/
 research/knowledge-hub/runtime/topics/
 research/knowledge-hub/runtime/topic_index.jsonl

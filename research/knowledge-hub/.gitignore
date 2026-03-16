@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+build/
 
 data/documents.json
 data/queries/*.json
