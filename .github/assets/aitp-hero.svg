@@ -124,11 +124,12 @@
     </g>
 
     <g stroke="url(#panelStroke)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M86 98L52 194L86 288"/>
-      <path d="M122 98V288"/>
-      <path d="M272 98V288"/>
-      <path d="M306 98L340 194L306 288"/>
+      <path d="M92 98L58 194L92 288"/>
+      <path d="M126 92V294"/>
+      <path d="M274 92V294"/>
+      <path d="M308 98L342 194L308 288"/>
     </g>
+    <path d="M126 92V294" stroke="#BFFFF8" stroke-width="13" stroke-linecap="round"/>
 
     <g stroke="#FFC857" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
       <path d="M156 274L200 120L244 274"/>
