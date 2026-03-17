@@ -115,7 +115,13 @@ Cross-layer protocol surfaces:
 AITP should not hide research control logic inside Python when a durable
 contract file is sufficient.
 
+AITP does not require one fixed Python implementation or one fixed agent
+workflow. Scripts, handlers, prompts, and execution strategy may evolve, but
+the contract surface must stay stable: layer semantics, runtime artifacts,
+candidate and review objects, evidence traces, and backend writeback rules.
+
 - Python remains responsible for state materialization, audits, and explicit handler execution.
+- Agents may adapt execution strategy freely inside that boundary as long as the resulting artifacts remain protocol-compatible and auditable.
 - Research routing, layer delivery, and queue overrides should prefer durable protocol artifacts.
 - Each bootstrap or loop materializes:
   - `runtime/topics/<topic_slug>/runtime_protocol.generated.json`

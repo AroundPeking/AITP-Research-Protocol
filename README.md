@@ -26,6 +26,11 @@
 
 > Charter above runtime. Protocol above heuristics. Agents are executors, not the source of truth.
 
+AITP stabilizes the research protocol, not one frozen implementation. Agents
+may use different scripts, prompts, and task decompositions, but they must
+preserve the layer model, durable artifacts, evidence boundaries, and governed
+promotion gates that make the work auditable and reusable.
+
 ## Why AITP
 
 Large models can already write research-sounding prose. That is cheap.
