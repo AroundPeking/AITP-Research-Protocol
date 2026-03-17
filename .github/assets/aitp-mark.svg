@@ -1,6 +1,6 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">AITP Mark</title>
-  <desc id="desc">A dark rounded-square AITP logo with a clean circular portal, a robot glyph at the center, and a ket-style quantum-information frame.</desc>
+  <desc id="desc">A dark rounded-square AITP logo with a centered sci-fi robot icon inside a circular portal.</desc>
   <defs>
     <linearGradient id="bg" x1="42" y1="34" x2="462" y2="480" gradientUnits="userSpaceOnUse">
       <stop stop-color="#061725"/>
@@ -12,25 +12,24 @@
       <stop offset="0.68" stop-color="#0A1C2F"/>
       <stop offset="1" stop-color="#060E18"/>
     </radialGradient>
-    <linearGradient id="ketStroke" x1="166" y1="148" x2="382" y2="352" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#83F4EB"/>
-      <stop offset="1" stop-color="#A98BFF"/>
+    <linearGradient id="shellStroke" x1="194" y1="164" x2="320" y2="356" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEFBFF"/>
+      <stop offset="0.52" stop-color="#9CECF7"/>
+      <stop offset="1" stop-color="#A78EFF"/>
     </linearGradient>
-    <linearGradient id="robotStroke" x1="202" y1="126" x2="316" y2="370" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFF2C6"/>
-      <stop offset="0.46" stop-color="#FFC857"/>
-      <stop offset="1" stop-color="#FF9354"/>
+    <linearGradient id="shellFill" x1="256" y1="170" x2="256" y2="354" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D7F8FF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#78C8FF" stop-opacity="0.06"/>
     </linearGradient>
-    <linearGradient id="robotFill" x1="258" y1="154" x2="258" y2="340" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFEAB5"/>
-      <stop offset="0.5" stop-color="#FFC857"/>
-      <stop offset="1" stop-color="#FF9354"/>
+    <linearGradient id="visorFill" x1="220" y1="208" x2="292" y2="236" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8AF6EE"/>
+      <stop offset="1" stop-color="#6FA7FF"/>
     </linearGradient>
-    <filter id="coreGlow" x="146" y="128" width="224" height="232" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+    <filter id="coreGlow" x="152" y="148" width="208" height="222" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="18"/>
     </filter>
-    <filter id="eyeGlow" x="214" y="164" width="88" height="50" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="6"/>
+    <filter id="visorGlow" x="204" y="194" width="104" height="58" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7"/>
     </filter>
   </defs>
 
@@ -38,54 +37,43 @@
   <rect x="24.5" y="24.5" width="463" height="463" rx="95.5" stroke="#61DEF1" stroke-opacity="0.16"/>
 
   <circle cx="256" cy="256" r="146" fill="url(#portal)"/>
-  <circle cx="256" cy="256" r="120" stroke="#7EE8F2" stroke-opacity="0.12" stroke-width="2"/>
-  <circle cx="256" cy="256" r="92" stroke="#A98BFF" stroke-opacity="0.12" stroke-width="2"/>
+  <circle cx="256" cy="256" r="118" stroke="#7EE8F2" stroke-opacity="0.14" stroke-width="2"/>
+  <circle cx="256" cy="256" r="88" stroke="#A98BFF" stroke-opacity="0.14" stroke-width="2"/>
 
-  <circle cx="178" cy="324" r="80" fill="#1CE2C7" fill-opacity="0.08"/>
-  <circle cx="302" cy="190" r="76" fill="#6BA8FF" fill-opacity="0.08"/>
-  <circle cx="258" cy="246" r="70" fill="#FFC857" fill-opacity="0.12" filter="url(#coreGlow)"/>
+  <circle cx="188" cy="322" r="84" fill="#1CE2C7" fill-opacity="0.08"/>
+  <circle cx="306" cy="192" r="74" fill="#6BA8FF" fill-opacity="0.08"/>
+  <circle cx="258" cy="252" r="66" fill="#89F3F0" fill-opacity="0.1" filter="url(#coreGlow)"/>
 
-  <g stroke="url(#ketStroke)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M182 160V344"/>
-    <path d="M366 160L402 252L366 344"/>
+  <g fill="url(#shellFill)">
+    <rect x="194" y="170" width="124" height="106" rx="34"/>
+    <path d="M214 314C228 296 284 296 298 314L314 350H198L214 314Z"/>
   </g>
 
-  <g fill="url(#robotFill)" fill-opacity="0.12">
-    <rect x="214" y="154" width="88" height="84" rx="24"/>
-    <path d="M226 250H290L302 298L258 336L214 298L226 250Z"/>
+  <g stroke="url(#shellStroke)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 140V170"/>
+    <path d="M194 223H176"/>
+    <path d="M318 223H336"/>
+    <rect x="194" y="170" width="124" height="106" rx="34"/>
+    <path d="M214 314C228 296 284 296 298 314L314 350H198L214 314Z"/>
+    <path d="M238 276V314"/>
+    <path d="M274 276V314"/>
+    <path d="M234 334H278"/>
+    <path d="M246 350L232 370"/>
+    <path d="M266 350L280 370"/>
   </g>
 
-  <g stroke="url(#robotStroke)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M258 124V146"/>
-    <path d="M214 190H196"/>
-    <path d="M302 190H320"/>
-    <rect x="214" y="154" width="88" height="84" rx="24"/>
-    <path d="M238 214H278"/>
-    <path d="M226 250H290L302 298L258 336L214 298L226 250Z"/>
-    <path d="M258 250V318"/>
-    <path d="M232 296H284"/>
-    <path d="M226 270L194 292"/>
-    <path d="M290 270L322 292"/>
-    <path d="M238 336L214 366"/>
-    <path d="M278 336L302 366"/>
+  <g fill="url(#visorFill)" filter="url(#visorGlow)">
+    <rect x="220" y="206" width="72" height="28" rx="14"/>
   </g>
+  <g fill="#A6FFF8">
+    <circle cx="242" cy="220" r="5.5"/>
+    <circle cx="270" cy="220" r="5.5"/>
+  </g>
+  <path d="M234 250H278" stroke="#FFC857" stroke-width="10" stroke-linecap="round"/>
 
-  <g fill="#6FF6EC" filter="url(#eyeGlow)">
-    <circle cx="238" cy="188" r="7"/>
-    <circle cx="278" cy="188" r="7"/>
-  </g>
-  <g fill="#9CF8EF">
-    <circle cx="238" cy="188" r="4.5"/>
-    <circle cx="278" cy="188" r="4.5"/>
-  </g>
-
-  <g fill="#FFF0BF">
-    <circle cx="258" cy="124" r="8.5"/>
-    <circle cx="194" cy="292" r="6.5"/>
-    <circle cx="322" cy="292" r="6.5"/>
-    <circle cx="214" cy="366" r="7"/>
-    <circle cx="302" cy="366" r="7"/>
-    <circle cx="258" cy="336" r="7"/>
-    <circle cx="258" cy="278" r="6"/>
+  <g fill="#DDF9FF">
+    <circle cx="256" cy="132" r="8"/>
+    <circle cx="238" cy="334" r="5.5"/>
+    <circle cx="274" cy="334" r="5.5"/>
   </g>
 </svg>
