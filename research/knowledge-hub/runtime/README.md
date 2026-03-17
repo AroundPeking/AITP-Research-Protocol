@@ -41,6 +41,14 @@ Use `runtime/` to answer three operational questions quickly:
   - generated queue-contract snapshot showing the current executable queue in declarative form
 - `topics/<topic_slug>/action_queue_contract.generated.md`
   - human-readable queue-contract snapshot
+- `topics/<topic_slug>/deferred_candidates.json`
+  - machine-readable deferred parking and reactivation buffer
+- `topics/<topic_slug>/deferred_candidates.md`
+  - human-readable deferred parking note
+- `topics/<topic_slug>/followup_subtopics.jsonl`
+  - append-only parent/child lineage for cited-literature subtopics
+- `topics/<topic_slug>/followup_subtopics.md`
+  - human-readable follow-up subtopic index
 - `topics/<topic_slug>/conformance_state.json`
   - machine-readable audit status for AITP runtime conformance
 - `topics/<topic_slug>/conformance_report.md`
@@ -79,6 +87,9 @@ Use `runtime/` to answer three operational questions quickly:
 - Runtime should prefer declared contracts when they exist and only fall back to heuristics when they do not.
 - Runtime should also expose a conformance report so non-AITP operation becomes visible rather than implicit.
 - Runtime may materialize one thin closed-loop control step, but it must never claim that heavy execution already happened unless a returned execution result artifact is present.
+- Runtime should auto-promote theory-formal candidates only after explicit coverage and consensus artifacts exist.
+- Runtime should keep wide or mixed candidates out of Layer 2 by splitting or parking them first.
+- Runtime may spawn independent follow-up subtopics when cited-literature gaps are explicit enough to deserve a fresh `L0 -> L1 -> L3 -> L4 -> L2` route.
 
 ## Minimal required pointers
 
@@ -151,6 +162,9 @@ Bounded literature follow-up search can be auto-run from emitted query records:
 
 - `runtime/scripts/run_literature_followup.py`
 
+Those search receipts may then spawn independent follow-up subtopics and may
+reactivate parked deferred fragments when the declared conditions are satisfied.
+
 When a capability gap needs external skill discovery, add one or more queries:
 
 ```bash
@@ -195,3 +209,6 @@ the loop through a durable steering note.
 
 Use `runtime/DECLARATIVE_RUNTIME_CONTRACTS.md` when you want queue/decision
 selection to be authored explicitly instead of inferred.
+
+Use `runtime/DEFERRED_RUNTIME_CONTRACTS.md` when a parked fragment needs a
+durable reactivation contract rather than a prose-only TODO.

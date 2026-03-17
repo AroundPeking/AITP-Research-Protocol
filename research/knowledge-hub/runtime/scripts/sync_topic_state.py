@@ -19,6 +19,10 @@ NEXT_ACTION_DECISION_CONTRACT_FILENAME = "next_action_decision.contract.json"
 NEXT_ACTION_DECISION_CONTRACT_NOTE_FILENAME = "next_action_decision.contract.md"
 ACTION_QUEUE_CONTRACT_GENERATED_FILENAME = "action_queue_contract.generated.json"
 ACTION_QUEUE_CONTRACT_GENERATED_NOTE_FILENAME = "action_queue_contract.generated.md"
+DEFERRED_BUFFER_FILENAME = "deferred_candidates.json"
+DEFERRED_BUFFER_NOTE_FILENAME = "deferred_candidates.md"
+FOLLOWUP_SUBTOPICS_FILENAME = "followup_subtopics.jsonl"
+FOLLOWUP_SUBTOPICS_NOTE_FILENAME = "followup_subtopics.md"
 
 
 def now_iso() -> str:
@@ -98,6 +102,32 @@ def parse_contract_actions(contract: dict | None) -> list[str]:
         if summary:
             actions.append(summary)
     return actions
+
+
+def buffer_entry_ready_for_reactivation(entry: dict, source_ids: set[str], source_text: str, child_topics: set[str]) -> bool:
+    conditions = entry.get("reactivation_conditions") or {}
+    source_rules = {
+        str(value).strip()
+        for value in (conditions.get("source_ids_any") or [])
+        if str(value).strip()
+    }
+    if source_rules and source_ids.intersection(source_rules):
+        return True
+    text_rules = [
+        str(value).strip().lower()
+        for value in (conditions.get("text_contains_any") or [])
+        if str(value).strip()
+    ]
+    if text_rules and any(rule in source_text for rule in text_rules):
+        return True
+    child_topic_rules = {
+        str(value).strip()
+        for value in (conditions.get("child_topics_any") or [])
+        if str(value).strip()
+    }
+    if child_topic_rules and child_topics.intersection(child_topic_rules):
+        return True
+    return not source_rules and not text_rules and not child_topic_rules
 
 
 def latest_run_id(runs_root: Path) -> str | None:
@@ -233,9 +263,9 @@ def infer_resume_state(
     if latest_decision:
         verdict = latest_decision.get("verdict", "unknown")
         fallback_targets = latest_decision.get("fallback_targets") or []
-        if verdict == "promoted":
+        if verdict in {"accepted", "promoted"}:
             return "L2", "L4", "Latest validation promoted material into Layer 2."
-        if verdict in {"deferred", "rejected"}:
+        if verdict in {"deferred", "rejected", "needs_revision"}:
             if fallback_targets:
                 first_target = fallback_targets[0]
                 if str(first_target).startswith("feedback/"):
@@ -353,6 +383,11 @@ def build_resume_markdown(state: dict) -> str:
             f"- Candidate type: `{promotion_gate.get('candidate_type') or '(missing)'}`",
             f"- Backend id: `{promotion_gate.get('backend_id') or '(missing)'}`",
             f"- Target backend root: `{promotion_gate.get('target_backend_root') or '(missing)'}`",
+            f"- Review mode: `{promotion_gate.get('review_mode') or '(missing)'}`",
+            f"- Canonical layer: `{promotion_gate.get('canonical_layer') or '(missing)'}`",
+            f"- Coverage status: `{promotion_gate.get('coverage_status') or '(missing)'}`",
+            f"- Consensus status: `{promotion_gate.get('consensus_status') or '(missing)'}`",
+            f"- Merge outcome: `{promotion_gate.get('merge_outcome') or '(missing)'}`",
             f"- Gate JSON: `{pointers.get('promotion_gate_path') or '(missing)'}`",
             f"- Gate note: `{pointers.get('promotion_gate_note_path') or '(missing)'}`",
             "",
@@ -363,6 +398,9 @@ def build_resume_markdown(state: dict) -> str:
             f"- Result manifest: `{closed_loop.get('result_id') or '(missing)'}`",
             f"- Latest decision: `{closed_loop.get('latest_decision') or '(missing)'}`",
             f"- Literature follow-ups: `{closed_loop.get('literature_followup_count', 0)}`",
+            f"- Deferred candidates: `{state.get('deferred_candidate_count', 0)}`",
+            f"- Reactivatable deferred entries: `{state.get('reactivable_deferred_count', 0)}`",
+            f"- Follow-up subtopics: `{state.get('followup_subtopic_count', 0)}`",
             "",
             "## Pending actions",
             "",
@@ -407,6 +445,10 @@ def build_resume_markdown(state: dict) -> str:
             f"- Decision ledger: `{pointers.get('decision_ledger_path') or '(missing)'}`",
             f"- Literature follow-ups: `{pointers.get('literature_followup_queries_path') or '(missing)'}`",
             f"- Literature follow-up receipts: `{pointers.get('literature_followup_receipts_path') or '(missing)'}`",
+            f"- Deferred buffer: `{pointers.get('deferred_buffer_path') or '(missing)'}`",
+            f"- Deferred buffer note: `{pointers.get('deferred_buffer_note_path') or '(missing)'}`",
+            f"- Follow-up subtopics: `{pointers.get('followup_subtopics_path') or '(missing)'}`",
+            f"- Follow-up subtopics note: `{pointers.get('followup_subtopics_note_path') or '(missing)'}`",
             "",
             "## Summary",
             "",
@@ -471,7 +513,13 @@ def main() -> int:
     backend_bridges = build_backend_bridges(l0_source_rows, knowledge_root)
     promotion_gate_path = topic_runtime_root / "promotion_gate.json"
     promotion_gate_note_path = topic_runtime_root / "promotion_gate.md"
+    deferred_buffer_path = topic_runtime_root / DEFERRED_BUFFER_FILENAME
+    deferred_buffer_note_path = topic_runtime_root / DEFERRED_BUFFER_NOTE_FILENAME
+    followup_subtopics_path = topic_runtime_root / FOLLOWUP_SUBTOPICS_FILENAME
+    followup_subtopics_note_path = topic_runtime_root / FOLLOWUP_SUBTOPICS_NOTE_FILENAME
     promotion_gate = read_json(promotion_gate_path) or {}
+    deferred_buffer = read_json(deferred_buffer_path) or {}
+    followup_subtopics = read_jsonl(followup_subtopics_path)
     next_actions_contract = load_next_actions_contract(next_actions_path)
     pending_actions = parse_contract_actions(next_actions_contract)
     if not pending_actions and next_actions_path:
@@ -499,6 +547,32 @@ def main() -> int:
     )
     latest_trajectory_log_ref = closed_loop["paths"].get("trajectory_log_path")
     latest_failure_classification_ref = closed_loop["paths"].get("failure_classification_path")
+    source_ids = {
+        str(row.get("source_id") or "").strip()
+        for row in l0_source_rows
+        if str(row.get("source_id") or "").strip()
+    }
+    source_text = " ".join(
+        [
+            str(row.get("title") or "")
+            for row in l0_source_rows
+        ]
+        + [
+            str(row.get("summary") or "")
+            for row in l0_source_rows
+        ]
+    ).lower()
+    child_topic_slugs = {
+        str(row.get("child_topic_slug") or "").strip()
+        for row in followup_subtopics
+        if str(row.get("child_topic_slug") or "").strip()
+    }
+    reactivatable_deferred_count = sum(
+        1
+        for entry in (deferred_buffer.get("entries") or [])
+        if str(entry.get("status") or "") == "buffered"
+        and buffer_entry_ready_for_reactivation(entry, source_ids, source_text, child_topic_slugs)
+    )
 
     resume_stage, last_materialized_stage, resume_reason = infer_resume_state(
         intake_status=intake_status,
@@ -554,6 +628,10 @@ def main() -> int:
         summary_parts.append(f"backends={len(backend_bridges)}")
     if promotion_gate:
         summary_parts.append(f"promotion_gate={promotion_gate.get('status', 'unknown')}")
+    if deferred_buffer.get("entries"):
+        summary_parts.append(f"deferred={len(deferred_buffer.get('entries') or [])}")
+    if followup_subtopics:
+        summary_parts.append(f"followup_subtopics={len(followup_subtopics)}")
     summary_parts.append(f"mode={research_mode}")
     summary_parts.append(f"executor={active_executor_kind}")
     summary = (
@@ -587,12 +665,20 @@ def main() -> int:
         "source_count": len(l0_source_rows),
         "backend_bridge_count": len(backend_bridges),
         "backend_bridges": backend_bridges,
+        "deferred_candidate_count": len(deferred_buffer.get("entries") or []),
+        "reactivable_deferred_count": reactivatable_deferred_count,
+        "followup_subtopic_count": len(followup_subtopics),
         "promotion_gate": {
             "status": str(promotion_gate.get("status") or "not_requested"),
             "candidate_id": str(promotion_gate.get("candidate_id") or ""),
             "candidate_type": str(promotion_gate.get("candidate_type") or ""),
             "backend_id": str(promotion_gate.get("backend_id") or ""),
             "target_backend_root": str(promotion_gate.get("target_backend_root") or ""),
+            "review_mode": str(promotion_gate.get("review_mode") or ""),
+            "canonical_layer": str(promotion_gate.get("canonical_layer") or ""),
+            "coverage_status": str(promotion_gate.get("coverage_status") or ""),
+            "consensus_status": str(promotion_gate.get("consensus_status") or ""),
+            "merge_outcome": str(promotion_gate.get("merge_outcome") or ""),
             "approved_by": str(promotion_gate.get("approved_by") or ""),
             "promoted_units": list(promotion_gate.get("promoted_units") or []),
         },
@@ -629,6 +715,10 @@ def main() -> int:
             "promotion_decision_path": relative_path(promotion_decisions_path, knowledge_root),
             "promotion_gate_path": relative_path(promotion_gate_path, knowledge_root),
             "promotion_gate_note_path": relative_path(promotion_gate_note_path, knowledge_root),
+            "deferred_buffer_path": relative_path(deferred_buffer_path, knowledge_root),
+            "deferred_buffer_note_path": relative_path(deferred_buffer_note_path, knowledge_root),
+            "followup_subtopics_path": relative_path(followup_subtopics_path, knowledge_root),
+            "followup_subtopics_note_path": relative_path(followup_subtopics_note_path, knowledge_root),
             "consultation_index_path": relative_path(consultation_index_path, knowledge_root),
             "control_note_path": control_note_rel,
             "unfinished_work_path": relative_path(unfinished_work_path, knowledge_root),

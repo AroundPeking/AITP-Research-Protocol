@@ -1,16 +1,20 @@
 # Layer 2 object families
 
-This file defines the first-pass typed families that sit on top of `CanonicalUnit`.
+This file defines the typed families that sit on top of `CanonicalUnit`.
 
-The target is not to freeze the final ontology forever.
-The target is to make typed identity explicit from day one.
+The target is not to freeze the ontology forever.
+The target is to make reusable identity explicit from day one, especially for
+theory-formal material that should not collapse into one broad `concept` or
+`claim_card`.
 
-## 1. `atomic_note`
+## Transitional and generic families
+
+### 1. `atomic_note`
 
 Use for:
 - sharply scoped reusable distinctions,
-- small definitions,
-- local mechanisms that are too small to justify a richer type yet.
+- small mechanisms that are too small to justify a richer type yet,
+- temporary canonicalization when the content is settled but the narrower type is still unclear.
 
 `payload` should usually include:
 - `statement`
@@ -19,17 +23,16 @@ Use for:
 Do not use for:
 - unresolved reminders,
 - vague scratch thoughts,
-- content that should really be a concept, claim card, or warning note.
+- theory-formal items that clearly belong in one of the dedicated families below.
 
-This is a transitional fallback, not the ideal default target.
+This is a fallback, not the preferred target for formal theory intake.
 
-## 2. `concept`
+### 2. `concept`
 
 Use for:
-- definitions,
-- conceptual maps,
-- distinctions between nearby ideas,
-- stable explanatory frames.
+- broad conceptual maps,
+- stable explanatory frames,
+- distinctions between nearby ideas that are not best captured as a definition, theorem, or equivalence.
 
 `payload` should usually include:
 - `definition`
@@ -38,15 +41,15 @@ Use for:
 
 Do not use for:
 - source-local claims,
-- procedure descriptions,
-- long derivation traces.
+- equation-level formal content,
+- theorem statements or proof fragments that should remain decomposed.
 
-## 3. `claim_card`
+### 3. `claim_card`
 
 Use for:
 - stable claims worth reusing,
 - statements whose scope and assumptions matter,
-- distilled claims promoted from papers, runs, or checks.
+- distilled claims promoted from papers, runs, or checks when they are not best represented as theorems.
 
 `payload` should usually include:
 - `claim`
@@ -57,9 +60,217 @@ Use for:
 Do not use for:
 - broad concept explanations,
 - active conjectures,
-- claims whose provenance is still too weak to audit.
+- theorems, lemmas, or proof obligations that should stay explicitly formal.
 
-## 4. `derivation_object`
+## Theory-formal families
+
+### 4. `definition_card`
+
+Use for:
+- explicit formal definitions,
+- source-anchored meaning of technical objects,
+- reusable definitions that should be cited independently of longer concept notes.
+
+`payload` should usually include:
+- `definition`
+- `defined_object`
+- `equivalent_forms`
+- `non_examples`
+
+Do not use for:
+- informal background explanations,
+- notation-only disambiguation,
+- assumption or regime statements.
+
+### 5. `notation_card`
+
+Use for:
+- stable notation conventions,
+- overloaded symbol disambiguation,
+- notation that recurs across papers or sections.
+
+`payload` should usually include:
+- `symbol`
+- `meaning`
+- `binding_context`
+- `notation_variants`
+
+Do not use for:
+- equations with semantic content,
+- definitions that introduce mathematical objects,
+- local scratch aliases.
+
+### 6. `equation_card`
+
+Use for:
+- named equations,
+- canonical identities,
+- source-anchored equations whose exact form is reusable independently of the surrounding derivation.
+
+`payload` should usually include:
+- `equation`
+- `variables`
+- `assumption_refs`
+- `regime_refs`
+
+Do not use for:
+- long multi-step derivations,
+- symbolic manipulations that are only meaningful as a step inside a proof.
+
+### 7. `assumption_card`
+
+Use for:
+- explicit hypotheses,
+- approximation statements,
+- domain assumptions that recur across definitions, equations, and theorems.
+
+`payload` should usually include:
+- `assumption`
+- `scope_of_use`
+- `failure_modes`
+- `dependent_units`
+
+Do not use for:
+- regime descriptions that package several assumptions plus scale/boundary information,
+- caveats whose value is mostly warning rather than hypothesis declaration.
+
+### 8. `regime_card`
+
+Use for:
+- validity regimes,
+- asymptotic windows,
+- parameter-domain restrictions that should be referenced by other units.
+
+`payload` should usually include:
+- `regime_statement`
+- `parameter_window`
+- `boundary_conditions`
+- `known_breakdowns`
+
+Do not use for:
+- individual assumptions without a regime story,
+- warnings that are mostly operational rather than formal.
+
+### 9. `theorem_card`
+
+Use for:
+- theorem, lemma, proposition, or corollary statements,
+- formally scoped statements whose dependencies and hypotheses must remain explicit.
+
+`payload` should usually include:
+- `statement`
+- `hypotheses`
+- `conclusion`
+- `proof_status`
+
+Do not use for:
+- informal claims without a theorem-style dependency structure,
+- derivation steps that do not stand as a reusable theorem.
+
+### 10. `proof_fragment`
+
+Use for:
+- reusable proof ideas,
+- local proof subroutines,
+- theorem-supporting arguments that should not be flattened into one monolithic derivation object.
+
+`payload` should usually include:
+- `goal`
+- `inputs`
+- `argument`
+- `gap_markers`
+
+Do not use for:
+- whole theorem statements,
+- complete derivations that are better represented as `derivation_object`.
+
+### 11. `derivation_step`
+
+Use for:
+- one atomic symbolic or logical step,
+- intermediate equalities or substitutions,
+- fine-grained proof or derivation units meant to compose into larger objects.
+
+`payload` should usually include:
+- `step_statement`
+- `input_refs`
+- `output_refs`
+- `justification`
+
+Do not use for:
+- multi-step argument packages,
+- standalone equations with no stepwise role.
+
+### 12. `example_card`
+
+Use for:
+- canonical worked examples,
+- toy cases that instantiate a definition, theorem, or method,
+- examples that materially clarify scope.
+
+`payload` should usually include:
+- `setup`
+- `worked_result`
+- `illustrated_units`
+- `limitations`
+
+Do not use for:
+- raw notebook calculations,
+- benchmark logs that belong in validation artifacts.
+
+### 13. `caveat_card`
+
+Use for:
+- formal scope limitations,
+- subtle exceptions,
+- portability warnings that are part of the content contract rather than a runtime checklist.
+
+`payload` should usually include:
+- `caveat`
+- `trigger_conditions`
+- `affected_units`
+- `mitigation_or_rephrasing`
+
+Do not use for:
+- operational troubleshooting notes with no formal content,
+- unresolved blockers.
+
+### 14. `equivalence_map`
+
+Use for:
+- equivalence between definitions, formulations, or representations,
+- mappings across formal languages that should be reusable as a first-class object.
+
+`payload` should usually include:
+- `left_formulation`
+- `right_formulation`
+- `translation_rules`
+- `equivalence_conditions`
+
+Do not use for:
+- vague topic relations,
+- loose analogies without explicit mapping rules.
+
+### 15. `symbol_binding`
+
+Use for:
+- precise variable or symbol bindings,
+- local but reusable declarations needed to interpret equations or proof steps,
+- disambiguation between symbol instances across contexts.
+
+`payload` should usually include:
+- `symbol`
+- `bound_object`
+- `binding_scope`
+- `collision_notes`
+
+Do not use for:
+- whole notation systems,
+- equations that already carry the real reusable content.
+
+## Process and validation families
+
+### 16. `derivation_object`
 
 Use for:
 - semi-formal natural-language derivations,
@@ -79,9 +290,9 @@ Use for:
 Do not use for:
 - raw scratch calculations,
 - unresolved long derivation backlogs,
-- one-off notebook fragments that still belong in Layer 3.
+- cases where the derivation should stay decomposed into `proof_fragment` and `derivation_step`.
 
-## 5. `method`
+### 17. `method`
 
 Use for:
 - calculational procedures,
@@ -99,7 +310,7 @@ Do not use for:
 - full research workflows with decision points,
 - one-shot benchmark logs.
 
-## 6. `workflow`
+### 18. `workflow`
 
 Use for:
 - repeatable multi-step research procedures,
@@ -117,7 +328,7 @@ Do not use for:
 - a single theorem-style derivation,
 - content whose main value is conceptual explanation rather than process.
 
-## 7. `bridge`
+### 19. `bridge`
 
 Use for:
 - structural links across topics,
@@ -132,10 +343,10 @@ Use for:
 - `mapping_constraints`
 
 Do not use for:
-- vague “related to” links with no real structure,
+- vague "related to" links with no real structure,
 - unresolved bridge ideas that still belong in the backlog.
 
-## 8. `validation_pattern`
+### 20. `validation_pattern`
 
 Use for:
 - reusable check templates,
@@ -155,7 +366,7 @@ Do not use for:
 - records of a single run outcome,
 - broad method notes without a check goal.
 
-## 9. `warning_note`
+### 21. `warning_note`
 
 Use for:
 - portable traps,
@@ -177,10 +388,15 @@ Do not use for:
 
 Prefer the narrowest type that matches the object's real reusable role.
 
+For theory-formal material:
+- prefer `definition_card`, `notation_card`, `equation_card`, `assumption_card`, `regime_card`, `theorem_card`, `proof_fragment`, `derivation_step`, `example_card`, `caveat_card`, `equivalence_map`, or `symbol_binding` before falling back to `concept` or `claim_card`,
+- promote a bundle of small units rather than one report-shaped canonical note,
+- merge with an existing concept only when the identity and scope already match.
+
 If an item can only be described as:
-- “interesting,”
-- “maybe important,”
-- “needs follow-up,”
-- or “I should remember this later,”
+- "interesting,"
+- "maybe important,"
+- "needs follow-up,"
+- or "I should remember this later,"
 
 then it is probably still a Layer 3 object, not a Layer 2 one.

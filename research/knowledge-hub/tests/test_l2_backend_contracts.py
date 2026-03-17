@@ -69,10 +69,16 @@ class L2BackendContractTests(unittest.TestCase):
             ).read_text(encoding="utf-8")
         )
         smoke_script = self.kernel_root / "runtime" / "scripts" / "run_tpkn_formal_promotion_smoke.sh"
+        auto_smoke_script = (
+            self.kernel_root / "runtime" / "scripts" / "run_tpkn_formal_auto_promotion_smoke.sh"
+        )
         self.validator.validate(payload)
         self.assertEqual(payload["backend_type"], "mixed_local_library")
         self.assertIn("derivation_object", payload["canonical_targets"])
+        self.assertIn("equation_card", payload["canonical_targets"])
+        self.assertTrue(payload["source_policy"]["allows_auto_canonical_promotion"])
         self.assertTrue(smoke_script.exists())
+        self.assertTrue(auto_smoke_script.exists())
 
     def test_toy_model_numeric_example_card_conforms_to_schema(self) -> None:
         payload = json.loads(

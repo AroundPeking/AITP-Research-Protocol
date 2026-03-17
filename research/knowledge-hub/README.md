@@ -52,9 +52,11 @@ aitp operation-init --topic-slug <topic_slug> --run-id <run_id> --title "<operat
 aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<operation>" --baseline-status passed
 aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
 aitp capability-audit --topic-slug <topic_slug>
+aitp coverage-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --source-section <section> --covered-section <section>
 aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
+aitp auto-promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
 aitp install-agent --agent all --scope user
 ```
 
@@ -128,11 +130,15 @@ External backends such as a separate formal-theory knowledge network, a
 software repository, or a result store should enter through the documented
 `L2` backend bridge rather than through hidden path assumptions.
 
-Layer 2 promotion is now approval-gated:
+Layer 2 now has two governed writeback paths:
 
-1. `aitp request-promotion ...`
-2. human `aitp approve-promotion ...` or `aitp reject-promotion ...`
-3. `aitp promote ...`
+1. Human-reviewed `L2`:
+   - `aitp request-promotion ...`
+   - human `aitp approve-promotion ...` or `aitp reject-promotion ...`
+   - `aitp promote ...`
+2. Theory-formal `L2_auto`:
+   - `aitp coverage-audit ...`
+   - `aitp auto-promote ...`
 
 The current public external writeback path targets the standalone
 `Theoretical-Physics-Knowledge-Network` repository through the backend card:
@@ -152,4 +158,5 @@ Public bounded smoke tests:
 ```bash
 research/knowledge-hub/runtime/scripts/run_formal_theory_backend_smoke.sh
 research/knowledge-hub/runtime/scripts/run_tpkn_formal_promotion_smoke.sh
+research/knowledge-hub/runtime/scripts/run_tpkn_formal_auto_promotion_smoke.sh
 ```

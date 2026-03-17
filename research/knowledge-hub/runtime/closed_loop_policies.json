@@ -132,10 +132,10 @@
       }
     ],
     "candidate_status_by_decision": {
-      "keep": "kept",
-      "revise": "needs_revision",
-      "discard": "discarded",
-      "defer": "deferred"
+      "keep": "ready_for_validation",
+      "revise": "returned_to_l3",
+      "discard": "returned_to_l3",
+      "defer": "deferred_buffered"
     },
     "followup_policy": {
       "trigger_flags": [
@@ -224,5 +224,55 @@
         }
       ]
     }
+  },
+  "auto_promotion_policy": {
+    "enabled": true,
+    "default_backend_id": "backend:theoretical-physics-knowledge-network",
+    "trigger_candidate_statuses": [
+      "ready_for_validation",
+      "reactivated",
+      "returned_to_l3"
+    ],
+    "theory_formal_candidate_types": [
+      "definition_card",
+      "notation_card",
+      "equation_card",
+      "assumption_card",
+      "regime_card",
+      "theorem_card",
+      "proof_fragment",
+      "derivation_step",
+      "example_card",
+      "caveat_card",
+      "equivalence_map",
+      "symbol_binding"
+    ]
+  },
+  "followup_subtopic_policy": {
+    "enabled": true,
+    "max_subtopics_per_receipt": 2,
+    "spawn_target_source_types": [
+      "paper",
+      "arxiv",
+      "review"
+    ],
+    "statement_template": "Follow up the cited-literature gap `{query}` from parent topic `{topic_slug}` using source `{arxiv_id}`.",
+    "human_request_template": "Study the follow-up paper `{arxiv_id}` for the bounded gap `{query}` and build an independent AITP subtopic from L0 onward."
+  },
+  "candidate_split_policy": {
+    "enabled": true,
+    "contract_filename": "candidate_split.contract.json",
+    "auto_apply_contracts": true,
+    "receipt_filename": "candidate_split_receipts.jsonl",
+    "deferred_buffer_filename": "deferred_candidates.json"
+  },
+  "deferred_buffer_policy": {
+    "enabled": true,
+    "auto_reactivate": true,
+    "status_values": [
+      "buffered",
+      "reactivated",
+      "dismissed"
+    ]
   }
 }

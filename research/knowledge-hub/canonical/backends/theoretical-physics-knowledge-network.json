@@ -15,6 +15,12 @@
   "source_policy": {
     "requires_l0_registration": true,
     "allows_direct_canonical_promotion": false,
+    "allows_auto_canonical_promotion": true,
+    "auto_promotion_domains": [
+      "theory-formal"
+    ],
+    "auto_promotion_requires_coverage_audit": true,
+    "auto_promotion_requires_multi_agent_consensus": true,
     "default_source_type": "local_note"
   },
   "l0_registration": {
@@ -30,15 +36,28 @@
   },
   "canonical_targets": [
     "concept",
+    "definition_card",
+    "notation_card",
+    "equation_card",
+    "assumption_card",
+    "regime_card",
+    "theorem_card",
+    "proof_fragment",
+    "derivation_step",
     "derivation_object",
     "method",
     "bridge",
+    "example_card",
+    "caveat_card",
+    "equivalence_map",
+    "symbol_binding",
     "warning_note"
   ],
   "retrieval_hints": [
     "Read indexes/unit_index.jsonl, indexes/source_anchor_index.jsonl, and edges/edges.jsonl before any writeback.",
     "Treat the standalone repository as a typed external Layer 2 backend, not as chat memory or a folder dump.",
-    "Require an explicit human approval gate before promoting AITP candidates into this backend."
+    "Human-reviewed promotion remains available for L2.",
+    "Theory-formal candidates may enter L2_auto only after passing coverage and multi-agent consensus gates."
   ],
-  "notes": "This card documents the public bridge from AITP into the standalone Theoretical-Physics-Knowledge-Network repository."
+  "notes": "This card documents the public bridge from AITP into the standalone Theoretical-Physics-Knowledge-Network repository, including the theory-specific L2_auto path."
 }

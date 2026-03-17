@@ -214,6 +214,11 @@ Then either:
 - route `L4 -> L2` if accepted,
 - or route `L4 -> L3` if deferred, rejected, or still unresolved.
 
+If the unresolved point is delegated to cited literature rather than local
+re-analysis, AITP may spawn an independent follow-up subtopic that re-enters at
+`L0 -> L1` instead of collapsing the new source into the original topic by
+default.
+
 ### Step E. Write back to Layer 2
 
 Write back only:
@@ -227,6 +232,11 @@ Do not write back:
 - vague summaries,
 - unresolved coordination debt,
 - backlog artifacts that still belong in Layer 3.
+
+If a candidate is too wide or too mixed:
+- split the reusable child candidates explicitly,
+- park the unresolved fragments into the deferred runtime buffer,
+- only promote the bounded children that actually satisfy the Layer 2 contract.
 
 ## 5. Allowed and disallowed edges
 

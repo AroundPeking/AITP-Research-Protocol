@@ -4,6 +4,11 @@
     "l1_provisional_understanding": {
       "preferred_unit_types": [
         "concept",
+        "definition_card",
+        "notation_card",
+        "equation_card",
+        "assumption_card",
+        "regime_card",
         "claim_card",
         "warning_note",
         "workflow"
@@ -28,10 +33,14 @@
     },
     "l3_candidate_formation": {
       "preferred_unit_types": [
+        "theorem_card",
+        "proof_fragment",
+        "derivation_step",
         "method",
         "derivation_object",
         "workflow",
         "bridge",
+        "equivalence_map",
         "warning_note"
       ],
       "required_fields": [
@@ -56,6 +65,11 @@
     },
     "l4_adjudication": {
       "preferred_unit_types": [
+        "equation_card",
+        "theorem_card",
+        "proof_fragment",
+        "assumption_card",
+        "regime_card",
         "validation_pattern",
         "claim_card",
         "warning_note",

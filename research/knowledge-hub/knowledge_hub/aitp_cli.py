@@ -15,6 +15,30 @@ def _emit(payload: dict[str, Any], as_json: bool) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+def _parse_notation_binding(value: str) -> dict[str, str]:
+    if "=" not in value:
+        raise argparse.ArgumentTypeError("notation bindings must use SYMBOL=MEANING")
+    symbol, meaning = value.split("=", 1)
+    symbol = symbol.strip()
+    meaning = meaning.strip()
+    if not symbol or not meaning:
+        raise argparse.ArgumentTypeError("notation bindings must include both symbol and meaning")
+    return {"symbol": symbol, "meaning": meaning}
+
+
+def _parse_agent_vote(value: str) -> dict[str, str]:
+    if "=" not in value:
+        raise argparse.ArgumentTypeError("agent votes must use ROLE=VERDICT or ROLE=VERDICT:NOTE")
+    role, verdict_note = value.split("=", 1)
+    role = role.strip()
+    verdict, _, note = verdict_note.partition(":")
+    verdict = verdict.strip()
+    note = note.strip()
+    if not role or not verdict:
+        raise argparse.ArgumentTypeError("agent votes must include both role and verdict")
+    return {"role": role, "verdict": verdict, "notes": note}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AITP kernel CLI")
     parser.add_argument("--kernel-root", type=Path)
@@ -118,6 +142,27 @@ def build_parser() -> argparse.ArgumentParser:
     capability_audit.add_argument("--updated-by", default="aitp-cli")
     capability_audit.add_argument("--json", action="store_true")
 
+    coverage_audit = subparsers.add_parser(
+        "coverage-audit",
+        help="Record theory coverage, notation, derivation, and consensus artifacts for a candidate",
+    )
+    coverage_audit.add_argument("--topic-slug", required=True)
+    coverage_audit.add_argument("--candidate-id", required=True)
+    coverage_audit.add_argument("--run-id")
+    coverage_audit.add_argument("--updated-by", default="aitp-cli")
+    coverage_audit.add_argument("--source-section", action="append", default=[])
+    coverage_audit.add_argument("--covered-section", action="append", default=[])
+    coverage_audit.add_argument("--equation-label", action="append", default=[])
+    coverage_audit.add_argument("--notation-binding", action="append", default=[], type=_parse_notation_binding)
+    coverage_audit.add_argument("--derivation-node", action="append", default=[])
+    coverage_audit.add_argument("--agent-vote", action="append", default=[], type=_parse_agent_vote)
+    coverage_audit.add_argument("--consensus-status", default="unanimous")
+    coverage_audit.add_argument("--critical-unit-recall", type=float, default=1.0)
+    coverage_audit.add_argument("--missing-anchor-count", type=int, default=0)
+    coverage_audit.add_argument("--skeptic-major-gap-count", type=int, default=0)
+    coverage_audit.add_argument("--notes")
+    coverage_audit.add_argument("--json", action="store_true")
+
     loop = subparsers.add_parser("loop", help="Run the safe AITP auto-continue loop")
     loop.add_argument("--topic")
     loop.add_argument("--topic-slug")
@@ -175,6 +220,24 @@ def build_parser() -> argparse.ArgumentParser:
     promote.add_argument("--updated-by", default="aitp-cli")
     promote.add_argument("--notes")
     promote.add_argument("--json", action="store_true")
+
+    auto_promote = subparsers.add_parser(
+        "auto-promote",
+        help="Auto-promote a theory candidate into L2_auto after coverage and consensus gates pass",
+    )
+    auto_promote.add_argument("--topic-slug", required=True)
+    auto_promote.add_argument("--candidate-id", required=True)
+    auto_promote.add_argument("--run-id")
+    auto_promote.add_argument("--backend-id")
+    auto_promote.add_argument("--target-backend-root")
+    auto_promote.add_argument("--domain")
+    auto_promote.add_argument("--subdomain")
+    auto_promote.add_argument("--source-id")
+    auto_promote.add_argument("--source-section")
+    auto_promote.add_argument("--source-section-title")
+    auto_promote.add_argument("--updated-by", default="aitp-cli")
+    auto_promote.add_argument("--notes")
+    auto_promote.add_argument("--json", action="store_true")
 
     install = subparsers.add_parser("install-agent", help="Install AITP wrappers for supported agents")
     install.add_argument("--agent", choices=["codex", "openclaw", "opencode", "claude-code", "all"], required=True)
@@ -334,6 +397,27 @@ def main() -> int:
         _emit(payload, args.json)
         return 0 if payload.get("overall_status") == "ready" else 1
 
+    if args.command == "coverage-audit":
+        payload = service.audit_theory_coverage(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            updated_by=args.updated_by,
+            source_sections=args.source_section,
+            covered_sections=args.covered_section,
+            equation_labels=args.equation_label,
+            notation_bindings=args.notation_binding,
+            derivation_nodes=args.derivation_node,
+            agent_votes=args.agent_vote,
+            consensus_status=args.consensus_status,
+            critical_unit_recall=args.critical_unit_recall,
+            missing_anchor_count=args.missing_anchor_count,
+            skeptic_major_gap_count=args.skeptic_major_gap_count,
+            notes=args.notes,
+        )
+        _emit(payload, args.json)
+        return 0 if payload.get("coverage_status") == "pass" else 1
+
     if args.command == "loop":
         payload = service.run_topic_loop(
             topic_slug=args.topic_slug,
@@ -393,6 +477,24 @@ def main() -> int:
 
     if args.command == "promote":
         payload = service.promote_candidate(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            promoted_by=args.updated_by,
+            backend_id=args.backend_id,
+            target_backend_root=args.target_backend_root,
+            domain=args.domain,
+            subdomain=args.subdomain,
+            source_id=args.source_id,
+            source_section=args.source_section,
+            source_section_title=args.source_section_title,
+            notes=args.notes,
+        )
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "auto-promote":
+        payload = service.auto_promote_candidate(
             topic_slug=args.topic_slug,
             candidate_id=args.candidate_id,
             run_id=args.run_id,

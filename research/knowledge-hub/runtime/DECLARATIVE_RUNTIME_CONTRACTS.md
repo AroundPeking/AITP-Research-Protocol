@@ -1,6 +1,6 @@
 # Declarative runtime contracts
 
-The runtime now supports two contract-first escape hatches so research steering
+The runtime now supports multiple contract-first escape hatches so research steering
 does not have to live only inside Python heuristics.
 
 ## 1. L3 action contract
@@ -87,6 +87,97 @@ Stop/pause variant:
 Keep the human explanation in:
 
 - `runtime/topics/<topic_slug>/next_action_decision.contract.md`
+
+## 3. Candidate split contract
+
+Path:
+
+- `feedback/topics/<topic_slug>/runs/<run_id>/candidate_split.contract.json`
+
+Purpose:
+
+- split wide or mixed Layer 3 candidates into smaller reusable children,
+- park unresolved fragments into the runtime deferred buffer,
+- keep parent/child lineage explicit before any promotion action runs.
+
+Minimal shape:
+
+```json
+{
+  "contract_version": 1,
+  "splits": [
+    {
+      "source_candidate_id": "candidate:wide-parent",
+      "reason": "This parent mixes a definition with an unresolved caveat.",
+      "child_candidates": [
+        {
+          "candidate_id": "candidate:narrow-definition",
+          "candidate_type": "definition_card",
+          "title": "Narrow Definition",
+          "summary": "The reusable part extracted from the parent.",
+          "origin_refs": [],
+          "question": "Can the definition be promoted independently?",
+          "assumptions": ["Keep the source-local scope explicit."],
+          "proposed_validation_route": "bounded-smoke",
+          "intended_l2_targets": ["definition:narrow-definition"]
+        }
+      ],
+      "deferred_fragments": [
+        {
+          "entry_id": "deferred:wide-parent-caveat",
+          "title": "Unresolved Caveat",
+          "summary": "Park until a cited follow-up paper is ingested.",
+          "reason": "The current source delegates the caveat externally."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Rules:
+
+- the parent candidate must already exist in `candidate_ledger.jsonl`,
+- child candidates are appended back into the same run ledger,
+- deferred fragments move into `runtime/topics/<topic_slug>/deferred_candidates.json`,
+- reactivation is driven by the deferred buffer, not by prose-only notes.
+
+Schema:
+
+- `feedback/schemas/candidate-split-contract.schema.json`
+
+## 4. Deferred runtime buffer
+
+Paths:
+
+- `runtime/topics/<topic_slug>/deferred_candidates.json`
+- `runtime/topics/<topic_slug>/deferred_candidates.md`
+
+Purpose:
+
+- hold unresolved but still valuable fragments outside Layer 2,
+- let later source intake or spawned follow-up subtopics reactivate them,
+- keep reactivation conditions durable and inspectable.
+
+Schema:
+
+- `runtime/schemas/deferred-candidate-buffer.schema.json`
+
+The buffer is populated by the candidate split contract and may be reactivated by:
+
+- new `source_id` arrivals,
+- matching source text,
+- or declared child-topic completion signals.
+
+## 5. Recommended action types
+
+When authoring `next_actions.contract.json`, prefer explicit `action_type`
+values for the new runtime-capable flows:
+
+- `apply_candidate_split_contract`
+- `reactivate_deferred_candidate`
+- `spawn_followup_subtopics`
+- `auto_promote_candidate`
 
 ## Precedence
 

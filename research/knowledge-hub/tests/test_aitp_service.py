@@ -115,6 +115,51 @@ class _LoopStubService(AITPService):
         }
 
 
+class _FollowupStubService(AITPService):
+    def __init__(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        super().__init__(*args, **kwargs)
+        self.orchestrated_topics: list[str] = []
+
+    def orchestrate(self, **kwargs):  # noqa: ANN003
+        topic_slug = kwargs["topic_slug"]
+        self.orchestrated_topics.append(topic_slug)
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": topic_slug,
+                    "latest_run_id": "2026-03-13-followup",
+                    "resume_stage": "L1",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        source_index_path = self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl"
+        source_index_path.parent.mkdir(parents=True, exist_ok=True)
+        arxiv_ids = kwargs.get("arxiv_ids") or []
+        source_index_path.write_text(
+            json.dumps(
+                {
+                    "source_id": f"paper:{arxiv_ids[0].replace('.', '-')}" if arxiv_ids else f"paper:{topic_slug}",
+                    "source_type": "paper",
+                    "title": f"Follow-up {arxiv_ids[0]}" if arxiv_ids else topic_slug,
+                    "summary": "Follow-up source.",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return {
+            "topic_slug": topic_slug,
+            "runtime_root": str(runtime_root),
+        }
+
+
 class AITPServiceTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
@@ -147,14 +192,21 @@ class AITPServiceTests(unittest.TestCase):
         )
         return runtime_root
 
-    def _write_candidate(self, topic_slug: str = "demo-topic", run_id: str = "2026-03-13-demo") -> Path:
+    def _write_candidate(
+        self,
+        topic_slug: str = "demo-topic",
+        run_id: str = "2026-03-13-demo",
+        candidate_type: str = "concept",
+        intended_l2_target: str = "concept:demo-promoted-concept",
+        title: str = "Demo Promoted Concept",
+    ) -> Path:
         feedback_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / run_id
         feedback_root.mkdir(parents=True, exist_ok=True)
         ledger_path = feedback_root / "candidate_ledger.jsonl"
         row = {
             "candidate_id": "candidate:demo-candidate",
-            "candidate_type": "concept",
-            "title": "Demo Promoted Concept",
+            "candidate_type": candidate_type,
+            "title": title,
             "summary": "A bounded demo concept for testing the promotion gate and external writeback.",
             "topic_slug": topic_slug,
             "run_id": run_id,
@@ -171,7 +223,7 @@ class AITPServiceTests(unittest.TestCase):
             "question": "Can this candidate be promoted through a human approval gate into an external L2 backend?",
             "assumptions": ["The example is bounded and non-scientific."],
             "proposed_validation_route": "bounded-smoke",
-            "intended_l2_targets": ["concept:demo-promoted-concept"],
+            "intended_l2_targets": [intended_l2_target],
             "status": "ready_for_validation",
         }
         ledger_path.write_text(json.dumps(row, ensure_ascii=True) + "\n", encoding="utf-8")
@@ -202,6 +254,77 @@ class AITPServiceTests(unittest.TestCase):
         )
         return ledger_path
 
+    def _write_tpkn_backend_card(self, *, allows_auto: bool = True) -> Path:
+        backends_root = self.kernel_root / "canonical" / "backends"
+        backends_root.mkdir(parents=True, exist_ok=True)
+        card_path = backends_root / "theoretical-physics-knowledge-network.json"
+        card_payload = {
+            "$schema": "../../schemas/l2-backend.schema.json",
+            "backend_id": "backend:theoretical-physics-knowledge-network",
+            "title": "Theoretical Physics Knowledge Network",
+            "backend_type": "mixed_local_library",
+            "status": "active",
+            "root_paths": ["__TPKN_REPO_ROOT__"],
+            "purpose": ["Test backend card for promotion flows."],
+            "artifact_granularity": "One typed unit at a time.",
+            "source_policy": {
+                "requires_l0_registration": True,
+                "allows_direct_canonical_promotion": False,
+                "allows_auto_canonical_promotion": allows_auto,
+                "auto_promotion_domains": ["theory-formal"] if allows_auto else [],
+                "auto_promotion_requires_coverage_audit": True,
+                "auto_promotion_requires_multi_agent_consensus": True,
+                "default_source_type": "local_note",
+            },
+            "l0_registration": {
+                "script": "source-layer/scripts/register_local_note_source.py",
+                "required_provenance_fields": ["provenance.backend_id"],
+                "required_locator_fields": ["locator.backend_relative_path"],
+            },
+            "canonical_targets": [
+                "concept",
+                "definition_card",
+                "notation_card",
+                "equation_card",
+                "assumption_card",
+                "regime_card",
+                "theorem_card",
+                "claim_card",
+                "proof_fragment",
+                "derivation_step",
+                "derivation_object",
+                "method",
+                "workflow",
+                "bridge",
+                "example_card",
+                "caveat_card",
+                "equivalence_map",
+                "symbol_binding",
+                "validation_pattern",
+                "warning_note",
+            ],
+            "retrieval_hints": ["Read generated indexes before writeback."],
+            "notes": "Test card.",
+        }
+        card_path.write_text(json.dumps(card_payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+        (backends_root / "backend_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "backend_id": "backend:theoretical-physics-knowledge-network",
+                    "title": "Theoretical Physics Knowledge Network",
+                    "backend_type": "mixed_local_library",
+                    "status": "active",
+                    "card_path": "canonical/backends/theoretical-physics-knowledge-network.json",
+                    "canonical_targets": card_payload["canonical_targets"],
+                    "allows_auto_canonical_promotion": allows_auto,
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return card_path
+
     def _write_fake_tpkn_repo(self) -> Path:
         tpkn_root = self.root / "tpkn"
         for relative in (
@@ -210,10 +333,25 @@ class AITPServiceTests(unittest.TestCase):
             "scripts",
             "sources",
             "units/concepts",
+            "units/definitions",
+            "units/notations",
+            "units/assumptions",
+            "units/regimes",
+            "units/theorems",
             "units/claims",
+            "units/proof-fragments",
+            "units/derivation-steps",
             "units/derivations",
             "units/methods",
             "units/bridges",
+            "units/examples",
+            "units/caveats",
+            "units/equivalences",
+            "units/symbol-bindings",
+            "units/equations",
+            "units/quantities",
+            "units/models",
+            "units/source-maps",
             "units/warnings",
             "edges",
             "indexes",
@@ -246,11 +384,32 @@ class AITPServiceTests(unittest.TestCase):
                 ROOT = Path(__file__).resolve().parents[1]
                 UNIT_DIRS = {
                     "concept": ROOT / "units" / "concepts",
+                    "definition": ROOT / "units" / "definitions",
+                    "notation": ROOT / "units" / "notations",
+                    "assumption": ROOT / "units" / "assumptions",
+                    "regime": ROOT / "units" / "regimes",
+                    "theorem": ROOT / "units" / "theorems",
                     "claim": ROOT / "units" / "claims",
+                    "proof_fragment": ROOT / "units" / "proof-fragments",
+                    "derivation_step": ROOT / "units" / "derivation-steps",
                     "derivation": ROOT / "units" / "derivations",
                     "method": ROOT / "units" / "methods",
                     "bridge": ROOT / "units" / "bridges",
+                    "example": ROOT / "units" / "examples",
+                    "caveat": ROOT / "units" / "caveats",
+                    "equivalence": ROOT / "units" / "equivalences",
+                    "symbol_binding": ROOT / "units" / "symbol-bindings",
+                    "equation": ROOT / "units" / "equations",
+                    "quantity": ROOT / "units" / "quantities",
+                    "model": ROOT / "units" / "models",
+                    "source_map": ROOT / "units" / "source-maps",
                     "warning": ROOT / "units" / "warnings",
+                }
+                LIST_FIELDS = {
+                    "review_artifacts",
+                    "merge_lineage",
+                    "conflict_refs",
+                    "equivalence_refs",
                 }
 
                 def read_json(path: Path) -> dict:
@@ -293,6 +452,15 @@ class AITPServiceTests(unittest.TestCase):
                         return 1
                     command = sys.argv[1]
                     if command == "check":
+                        for unit_type, unit_dir in UNIT_DIRS.items():
+                            unit_dir.mkdir(parents=True, exist_ok=True)
+                            for path in sorted(unit_dir.glob("*.json")):
+                                payload = read_json(path)
+                                for field in LIST_FIELDS:
+                                    if field in payload and not isinstance(payload[field], list):
+                                        raise SystemExit(
+                                            f\"ERROR: {path.relative_to(ROOT)}: field '{field}' must be a list\"
+                                        )
                         return 0
                     if command == "build":
                         build()
@@ -609,6 +777,96 @@ class AITPServiceTests(unittest.TestCase):
         gate_payload = json.loads(Path(approved["promotion_gate_path"]).read_text(encoding="utf-8"))
         self.assertEqual(gate_payload["approved_by"], "aitp-cli")
 
+    def test_audit_theory_coverage_writes_packet_artifacts(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+
+        payload = self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro", "sec:result"],
+            covered_sections=["sec:intro", "sec:result"],
+            equation_labels=["eq:1"],
+            notation_bindings=[{"symbol": "H", "meaning": "Hamiltonian"}],
+            derivation_nodes=["def:h", "eq:1"],
+            agent_votes=[{"role": "skeptic", "verdict": "no_major_gap", "notes": ""}],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+        )
+
+        self.assertEqual(payload["coverage_status"], "pass")
+        self.assertTrue(Path(payload["paths"]["structure_map"]).exists())
+        self.assertTrue(Path(payload["paths"]["coverage_ledger"]).exists())
+        self.assertTrue(Path(payload["paths"]["notation_table"]).exists())
+        self.assertTrue(Path(payload["paths"]["derivation_graph"]).exists())
+        self.assertTrue(Path(payload["paths"]["agent_consensus"]).exists())
+
+    def test_promote_candidate_merges_exact_title_collision(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate(title="Demo Promoted Concept")
+        tpkn_root = self._write_fake_tpkn_repo()
+        existing_unit_path = tpkn_root / "units" / "concepts" / "existing-canonical-concept.json"
+        existing_unit_path.write_text(
+            json.dumps(
+                {
+                    "id": "concept:existing-canonical-concept",
+                    "type": "concept",
+                    "title": "Demo Promoted Concept",
+                    "summary": "Existing canonical concept.",
+                    "domain": "demo-domain",
+                    "subdomain": "demo-subdomain",
+                    "tags": ["concept"],
+                    "aliases": [],
+                    "assumptions": ["Existing assumption."],
+                    "regime": "Existing regime.",
+                    "scope": "Existing scope.",
+                    "dependencies": [],
+                    "related_units": [],
+                    "source_anchors": [
+                        {
+                            "source_id": "paper:existing-source",
+                            "section": "existing/section",
+                            "notes": "Existing anchor.",
+                        }
+                    ],
+                    "formalization_status": "candidate",
+                    "validation_status": "validated",
+                    "maturity": "seed",
+                    "created_at": "2026-03-13",
+                    "updated_at": "2026-03-13",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+            target_backend_root=str(tpkn_root),
+        )
+        self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+        )
+
+        payload = self.service.promote_candidate(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            target_backend_root=str(tpkn_root),
+            domain="demo-domain",
+            subdomain="demo-subdomain",
+        )
+
+        self.assertEqual(payload["target_unit_id"], "concept:existing-canonical-concept")
+        self.assertEqual(payload["merge_outcome"], "merged_existing")
+        unit_payload = json.loads(Path(payload["target_unit_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(len(unit_payload["source_anchors"]), 2)
+
     def test_promote_candidate_writes_tpkn_unit_and_decision(self) -> None:
         self._write_runtime_state()
         self._write_candidate()
@@ -641,6 +899,8 @@ class AITPServiceTests(unittest.TestCase):
         unit_payload = json.loads(unit_path.read_text(encoding="utf-8"))
         self.assertEqual(unit_payload["id"], "concept:demo-promoted-concept")
         self.assertEqual(unit_payload["domain"], "demo-domain")
+        self.assertIsInstance(unit_payload["review_artifacts"], list)
+        self.assertIsInstance(unit_payload["merge_lineage"], list)
         decision_rows = [json.loads(line) for line in decision_path.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(decision_rows[-1]["verdict"], "accepted")
         gate_payload = json.loads(Path(payload["promotion_gate_path"]).read_text(encoding="utf-8"))
@@ -651,6 +911,313 @@ class AITPServiceTests(unittest.TestCase):
             if line.strip()
         ]
         self.assertEqual(candidate_rows[0]["status"], "promoted")
+
+    def test_auto_promote_candidate_writes_l2_auto_unit_and_report(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+        self._write_tpkn_backend_card(allows_auto=True)
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro", "sec:result"],
+            covered_sections=["sec:intro", "sec:result"],
+            equation_labels=["eq:1"],
+            notation_bindings=[{"symbol": "H", "meaning": "Hamiltonian"}],
+            derivation_nodes=["def:h", "eq:1"],
+            agent_votes=[{"role": "skeptic", "verdict": "no_major_gap", "notes": ""}],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+        )
+
+        payload = self.service.auto_promote_candidate(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            target_backend_root=str(tpkn_root),
+            domain="demo-domain",
+            subdomain="demo-subdomain",
+        )
+
+        self.assertTrue(Path(payload["auto_promotion_report_path"]).exists())
+        self.assertEqual(payload["merge_outcome"], "created_new")
+        unit_payload = json.loads(Path(payload["target_unit_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(unit_payload["canonical_layer"], "L2_auto")
+        self.assertEqual(unit_payload["review_mode"], "ai_auto")
+        self.assertIsInstance(unit_payload["review_artifacts"], list)
+        self.assertIn("candidate_id=candidate:demo-candidate", unit_payload["review_artifacts"])
+        candidate_rows = [
+            json.loads(line)
+            for line in (self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo" / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(candidate_rows[0]["status"], "auto_promoted")
+
+    def test_apply_candidate_split_contract_creates_children_and_deferred_buffer(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+        run_root = self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo"
+        contract_path = run_root / "candidate_split.contract.json"
+        contract_path.write_text(
+            json.dumps(
+                {
+                    "contract_version": 1,
+                    "splits": [
+                        {
+                            "source_candidate_id": "candidate:demo-candidate",
+                            "reason": "The source candidate mixes a reusable definition with a still-unresolved caveat.",
+                            "child_candidates": [
+                                {
+                                    "candidate_id": "candidate:demo-definition",
+                                    "candidate_type": "definition_card",
+                                    "title": "Demo Definition",
+                                    "summary": "A sharp definition extracted from the wider candidate.",
+                                    "origin_refs": [],
+                                    "question": "Can the bounded definition be promoted independently?",
+                                    "assumptions": ["Bounded example."],
+                                    "proposed_validation_route": "bounded-smoke",
+                                    "intended_l2_targets": ["definition:demo-definition"],
+                                }
+                            ],
+                            "deferred_fragments": [
+                                {
+                                    "entry_id": "deferred:demo-caveat",
+                                    "title": "Demo Caveat",
+                                    "summary": "A caveat parked until a cited follow-up source is available.",
+                                    "reason": "Missing source-local resolution for the caveat.",
+                                    "required_l2_types": ["caveat_card"],
+                                    "reactivation_conditions": {
+                                        "source_ids_any": ["paper:followup-source"]
+                                    },
+                                    "reactivation_candidate": {
+                                        "candidate_id": "candidate:demo-caveat-reactivated",
+                                        "candidate_type": "caveat_card",
+                                        "title": "Demo Caveat Reactivated",
+                                        "summary": "Reactivated caveat candidate.",
+                                        "origin_refs": [],
+                                        "question": "Can the caveat now be promoted separately?",
+                                        "assumptions": ["Bounded example."],
+                                        "proposed_validation_route": "bounded-smoke",
+                                        "intended_l2_targets": ["caveat:demo-caveat-reactivated"]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.apply_candidate_split_contract(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        self.assertEqual(payload["applied_source_candidates"], ["candidate:demo-candidate"])
+        ledger_rows = [
+            json.loads(line)
+            for line in (run_root / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        source_row = next(row for row in ledger_rows if row["candidate_id"] == "candidate:demo-candidate")
+        child_row = next(row for row in ledger_rows if row["candidate_id"] == "candidate:demo-definition")
+        self.assertEqual(source_row["status"], "split_into_children")
+        self.assertEqual(child_row["split_parent_id"], "candidate:demo-candidate")
+        deferred_payload = json.loads(
+            (self.kernel_root / "runtime" / "topics" / "demo-topic" / "deferred_candidates.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(deferred_payload["entries"][0]["status"], "buffered")
+        self.assertEqual(deferred_payload["entries"][0]["entry_id"], "deferred:demo-caveat")
+
+    def test_reactivate_deferred_candidates_materializes_reactivated_candidate(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+        run_root = self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo"
+        contract_path = run_root / "candidate_split.contract.json"
+        contract_path.write_text(
+            json.dumps(
+                {
+                    "contract_version": 1,
+                    "splits": [
+                        {
+                            "source_candidate_id": "candidate:demo-candidate",
+                            "reason": "Park one fragment for later reactivation.",
+                            "child_candidates": [],
+                            "deferred_fragments": [
+                                {
+                                    "entry_id": "deferred:demo-reactivation",
+                                    "title": "Deferred fragment",
+                                    "summary": "Wait for a follow-up source.",
+                                    "reason": "The current paper is insufficient.",
+                                    "reactivation_conditions": {
+                                        "source_ids_any": ["paper:followup-source"]
+                                    },
+                                    "reactivation_candidate": {
+                                        "candidate_id": "candidate:demo-reactivated",
+                                        "candidate_type": "caveat_card",
+                                        "title": "Demo Reactivated",
+                                        "summary": "Reactivated candidate from deferred buffer.",
+                                        "origin_refs": [],
+                                        "question": "Can the follow-up source resolve the caveat?",
+                                        "assumptions": ["Bounded example."],
+                                        "proposed_validation_route": "bounded-smoke",
+                                        "intended_l2_targets": ["caveat:demo-reactivated"]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.service.apply_candidate_split_contract(topic_slug="demo-topic", updated_by="aitp-cli")
+        source_index_path = self.kernel_root / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl"
+        source_index_path.parent.mkdir(parents=True, exist_ok=True)
+        source_index_path.write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:followup-source",
+                    "source_type": "paper",
+                    "title": "Follow-up Source",
+                    "summary": "Contains the missing caveat resolution.",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.reactivate_deferred_candidates(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        self.assertEqual(payload["reactivated_candidate_ids"], ["candidate:demo-reactivated"])
+        ledger_rows = [
+            json.loads(line)
+            for line in (run_root / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        reactivated_row = next(row for row in ledger_rows if row["candidate_id"] == "candidate:demo-reactivated")
+        self.assertEqual(reactivated_row["status"], "reactivated")
+        self.assertEqual(reactivated_row["reactivated_from"], "deferred:demo-reactivation")
+        deferred_payload = json.loads(
+            (self.kernel_root / "runtime" / "topics" / "demo-topic" / "deferred_candidates.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(deferred_payload["entries"][0]["status"], "reactivated")
+
+    def test_spawn_followup_subtopics_creates_child_topics_and_runtime_ledger(self) -> None:
+        service = _FollowupStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        self._write_runtime_state()
+        receipts_path = (
+            self.kernel_root
+            / "validation"
+            / "topics"
+            / "demo-topic"
+            / "runs"
+            / "2026-03-13-demo"
+            / "literature_followup_receipts.jsonl"
+        )
+        receipts_path.parent.mkdir(parents=True, exist_ok=True)
+        receipts_path.write_text(
+            json.dumps(
+                {
+                    "receipt_id": "literature-followup:demo-topic:q1",
+                    "topic_slug": "demo-topic",
+                    "run_id": "2026-03-13-demo",
+                    "query": "demo follow-up gap",
+                    "target_source_type": "paper",
+                    "status": "completed",
+                    "matches": [
+                        {"arxiv_id": "1510.07698v1", "title": "Topological Phases of Matter"}
+                    ],
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = service.spawn_followup_subtopics(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        self.assertEqual(len(payload["spawned_subtopics"]), 1)
+        child_topic_slug = payload["spawned_subtopics"][0]["child_topic_slug"]
+        self.assertIn(child_topic_slug, service.orchestrated_topics)
+        self.assertTrue((self.kernel_root / "runtime" / "topics" / child_topic_slug / "topic_state.json").exists())
+        ledger_rows = [
+            json.loads(line)
+            for line in (self.kernel_root / "runtime" / "topics" / "demo-topic" / "followup_subtopics.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(ledger_rows[0]["parent_topic_slug"], "demo-topic")
+        self.assertEqual(ledger_rows[0]["arxiv_id"], "1510.07698v1")
+
+    def test_execute_auto_actions_supports_generic_runtime_handler(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        handler_path = self.kernel_root / "runtime" / "scripts" / "generic_runtime_handler.py"
+        handler_path.parent.mkdir(parents=True, exist_ok=True)
+        handler_path.write_text(
+            textwrap.dedent(
+                """\
+                #!/usr/bin/env python3
+                from __future__ import annotations
+
+                import argparse
+                import json
+
+                parser = argparse.ArgumentParser()
+                parser.add_argument("--topic-slug", required=True)
+                parser.add_argument("--updated-by", required=True)
+                parser.add_argument("--step", required=True)
+                args = parser.parse_args()
+                print(json.dumps({"topic_slug": args.topic_slug, "updated_by": args.updated_by, "step": args.step}, ensure_ascii=True))
+                """
+            ),
+            encoding="utf-8",
+        )
+        queue_path = runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:generic:01",
+                    "status": "pending",
+                    "auto_runnable": True,
+                    "action_type": "select_validation_route",
+                    "handler": str(handler_path),
+                    "handler_args": {"step": "select_route"},
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service._execute_auto_actions(
+            topic_slug=topic_slug,
+            updated_by="aitp-cli",
+            max_auto_steps=1,
+            default_skill_queries=None,
+        )
+
+        self.assertEqual(payload["executed"][0]["status"], "completed")
+        self.assertEqual(payload["executed"][0]["result"]["payload"]["step"], "select_route")
+        queue_row = json.loads(queue_path.read_text(encoding="utf-8").splitlines()[0])
+        self.assertEqual(queue_row["status"], "completed")
 
     def test_execute_auto_actions_supports_literature_followup_search(self) -> None:
         topic_slug = "demo-topic"

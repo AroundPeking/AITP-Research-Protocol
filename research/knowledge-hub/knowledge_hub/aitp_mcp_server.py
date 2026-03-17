@@ -263,6 +263,48 @@ def aitp_audit_capability(
 
 
 @mcp.tool()
+def aitp_audit_theory_coverage(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+    source_sections: list[str] | None = None,
+    covered_sections: list[str] | None = None,
+    equation_labels: list[str] | None = None,
+    notation_bindings: list[dict[str, str]] | None = None,
+    derivation_nodes: list[str] | None = None,
+    agent_votes: list[dict[str, str]] | None = None,
+    consensus_status: str = "unanimous",
+    critical_unit_recall: float = 1.0,
+    missing_anchor_count: int = 0,
+    skeptic_major_gap_count: int = 0,
+    notes: str | None = None,
+) -> str:
+    """Record theory coverage, notation, derivation, and consensus artifacts for a candidate."""
+    try:
+        result = service.audit_theory_coverage(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            updated_by=updated_by,
+            source_sections=source_sections or [],
+            covered_sections=covered_sections or [],
+            equation_labels=equation_labels or [],
+            notation_bindings=notation_bindings or [],
+            derivation_nodes=derivation_nodes or [],
+            agent_votes=agent_votes or [],
+            consensus_status=consensus_status,
+            critical_unit_recall=critical_unit_recall,
+            missing_anchor_count=missing_anchor_count,
+            skeptic_major_gap_count=skeptic_major_gap_count,
+            notes=notes,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
 def aitp_request_promotion(
     topic_slug: str,
     candidate_id: str,
@@ -358,6 +400,42 @@ def aitp_promote_candidate(
     """Promote an approved candidate into the configured Layer 2 backend."""
     try:
         result = service.promote_candidate(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            promoted_by=updated_by,
+            backend_id=backend_id,
+            target_backend_root=target_backend_root,
+            domain=domain,
+            subdomain=subdomain,
+            source_id=source_id,
+            source_section=source_section,
+            source_section_title=source_section_title,
+            notes=notes,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
+def aitp_auto_promote_candidate(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    backend_id: str | None = None,
+    target_backend_root: str | None = None,
+    domain: str | None = None,
+    subdomain: str | None = None,
+    source_id: str | None = None,
+    source_section: str | None = None,
+    source_section_title: str | None = None,
+    updated_by: str = "aitp-mcp",
+    notes: str | None = None,
+) -> str:
+    """Auto-promote a theory candidate into L2_auto after coverage and consensus gates pass."""
+    try:
+        result = service.auto_promote_candidate(
             topic_slug=topic_slug,
             candidate_id=candidate_id,
             run_id=run_id,

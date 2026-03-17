@@ -54,11 +54,23 @@
         "enum": [
           "atomic_note",
           "concept",
+          "definition_card",
+          "notation_card",
+          "equation_card",
+          "assumption_card",
+          "regime_card",
+          "theorem_card",
           "claim_card",
+          "proof_fragment",
+          "derivation_step",
           "derivation_object",
           "method",
           "workflow",
           "bridge",
+          "example_card",
+          "caveat_card",
+          "equivalence_map",
+          "symbol_binding",
           "validation_pattern",
           "warning_note"
         ]

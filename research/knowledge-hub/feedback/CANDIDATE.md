@@ -42,14 +42,36 @@ The candidate may suggest the validation route, but it is not yet a decision art
 Do not use the entire research log as the candidate.
 The candidate should be the smallest adjudicable unit or unit bundle.
 
+If a source-facing candidate is still too wide or mixes settled and unsettled
+material, do not force it through promotion. Instead:
+- split the reusable child candidates explicitly,
+- park the unresolved remainder into the runtime deferred buffer,
+- keep the split lineage durable on disk.
+
+Use:
+- `feedback/SPLIT_PROTOCOL.md`
+- `feedback/schemas/candidate-split-contract.schema.json`
+
 ## Typical candidate types
 
 - `concept`
+- `definition_card`
+- `notation_card`
+- `equation_card`
+- `assumption_card`
+- `regime_card`
+- `theorem_card`
 - `claim_card`
+- `proof_fragment`
+- `derivation_step`
 - `derivation_object`
 - `method`
 - `workflow`
 - `bridge`
+- `example_card`
+- `caveat_card`
+- `equivalence_map`
+- `symbol_binding`
 - `validation_pattern`
 - `warning_note`
 
@@ -57,6 +79,8 @@ The candidate should be the smallest adjudicable unit or unit bundle.
 
 Recommended storage:
 - `feedback/topics/<topic_slug>/runs/<run_id>/candidate_ledger.jsonl`
+- `feedback/topics/<topic_slug>/runs/<run_id>/candidate_split.contract.json`
 
 Machine-readable schema:
 - `feedback/schemas/candidate.schema.json`
+- `feedback/schemas/candidate-split-contract.schema.json`

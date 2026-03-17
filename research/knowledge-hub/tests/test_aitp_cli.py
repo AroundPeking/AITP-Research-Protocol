@@ -63,12 +63,15 @@ class AITPCLITests(unittest.TestCase):
                 "demo-topic",
                 "--candidate-id",
                 "candidate:demo",
+                "--route",
+                "L3->L4_auto->L2_auto",
                 "--backend-id",
                 "backend:theoretical-physics-knowledge-network",
             ]
         )
         self.assertEqual(request_args.command, "request-promotion")
         self.assertEqual(request_args.backend_id, "backend:theoretical-physics-knowledge-network")
+        self.assertEqual(request_args.route, "L3->L4_auto->L2_auto")
 
         approve_args = parser.parse_args(
             ["approve-promotion", "--topic-slug", "demo-topic", "--candidate-id", "candidate:demo"]
@@ -93,6 +96,41 @@ class AITPCLITests(unittest.TestCase):
         )
         self.assertEqual(promote_args.command, "promote")
         self.assertEqual(promote_args.target_backend_root, "/tmp/tpkn")
+
+        coverage_args = parser.parse_args(
+            [
+                "coverage-audit",
+                "--topic-slug",
+                "demo-topic",
+                "--candidate-id",
+                "candidate:demo",
+                "--source-section",
+                "sec:intro",
+                "--covered-section",
+                "sec:intro",
+                "--notation-binding",
+                "H=Hamiltonian",
+                "--agent-vote",
+                "skeptic=no_major_gap",
+            ]
+        )
+        self.assertEqual(coverage_args.command, "coverage-audit")
+        self.assertEqual(coverage_args.notation_binding[0]["symbol"], "H")
+        self.assertEqual(coverage_args.agent_vote[0]["role"], "skeptic")
+
+        auto_promote_args = parser.parse_args(
+            [
+                "auto-promote",
+                "--topic-slug",
+                "demo-topic",
+                "--candidate-id",
+                "candidate:demo",
+                "--target-backend-root",
+                "/tmp/tpkn",
+            ]
+        )
+        self.assertEqual(auto_promote_args.command, "auto-promote")
+        self.assertEqual(auto_promote_args.target_backend_root, "/tmp/tpkn")
 
     def test_install_agent_accepts_claude_code(self) -> None:
         parser = aitp_cli.build_parser()

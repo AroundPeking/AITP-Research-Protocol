@@ -38,9 +38,13 @@ Layer 4 is the place for:
 
 4. Return the result to Layer 3 if unresolved.
    Failed checks, contradictions, partial support, and new ambiguities go back to Layer 3 as new research work.
+   When the unresolved point depends on external cited literature, the loop may
+   also spawn a fresh follow-up subtopic that restarts at `L0`.
 
 5. Promote to Layer 2 only when the result has become a reusable typed object.
    The promoted object should be smaller and more portable than the full run.
+   If only part of the candidate is reusable, split it and park the remainder in
+   the deferred runtime buffer instead of forcing one mixed promotion.
 
 ## Canonical participation
 

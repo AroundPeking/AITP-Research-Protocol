@@ -27,11 +27,23 @@
       "type": "string",
       "enum": [
         "concept",
+        "definition_card",
+        "notation_card",
+        "equation_card",
+        "assumption_card",
+        "regime_card",
+        "theorem_card",
         "claim_card",
+        "proof_fragment",
+        "derivation_step",
         "derivation_object",
         "method",
         "workflow",
         "bridge",
+        "example_card",
+        "caveat_card",
+        "equivalence_map",
+        "symbol_binding",
         "validation_pattern",
         "warning_note"
       ]
@@ -86,8 +98,49 @@
         "ready_for_validation",
         "under_validation",
         "returned_to_l3",
-        "promoted"
+        "split_into_children",
+        "deferred_buffered",
+        "reactivated",
+        "promoted",
+        "auto_promoted"
       ]
+    },
+    "promotion_mode": {
+      "type": "string",
+      "enum": [
+        "human",
+        "ai_auto",
+        "hybrid"
+      ]
+    },
+    "promoted_units": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*:[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "split_parent_id": {
+      "type": "string",
+      "pattern": "^candidate:[a-z0-9][a-z0-9-]*$"
+    },
+    "split_child_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^candidate:[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "buffer_entry_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^deferred:[a-z0-9][a-z0-9-]*$"
+      }
+    },
+    "reactivated_from": {
+      "type": "string",
+      "pattern": "^deferred:[a-z0-9][a-z0-9-]*$"
     }
   }
 }

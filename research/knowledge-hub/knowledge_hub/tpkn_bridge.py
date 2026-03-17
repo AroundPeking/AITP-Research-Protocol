@@ -10,32 +10,71 @@ from typing import Any
 
 AITP_TO_TPKN_TYPE = {
     "concept": "concept",
+    "definition_card": "definition",
+    "notation_card": "notation",
+    "equation_card": "equation",
+    "assumption_card": "assumption",
+    "regime_card": "regime",
+    "theorem_card": "theorem",
     "claim_card": "claim",
+    "proof_fragment": "proof_fragment",
+    "derivation_step": "derivation_step",
     "derivation_object": "derivation",
     "method": "method",
     "workflow": "method",
     "bridge": "bridge",
+    "example_card": "example",
+    "caveat_card": "caveat",
+    "equivalence_map": "equivalence",
+    "symbol_binding": "symbol_binding",
     "validation_pattern": "method",
     "warning_note": "warning",
 }
 
 AITP_ID_PREFIX_TO_TPKN_TYPE = {
     "concept": "concept",
+    "definition_card": "definition",
+    "notation_card": "notation",
+    "equation_card": "equation",
+    "assumption_card": "assumption",
+    "regime_card": "regime",
+    "theorem_card": "theorem",
     "claim_card": "claim",
+    "proof_fragment": "proof_fragment",
+    "derivation_step": "derivation_step",
     "derivation_object": "derivation",
     "method": "method",
     "workflow": "method",
     "bridge": "bridge",
+    "example_card": "example",
+    "caveat_card": "caveat",
+    "equivalence_map": "equivalence",
+    "symbol_binding": "symbol_binding",
     "validation_pattern": "method",
     "warning_note": "warning",
 }
 
 TPKN_UNIT_DIRS = {
     "concept": "units/concepts",
+    "definition": "units/definitions",
+    "notation": "units/notations",
+    "assumption": "units/assumptions",
+    "regime": "units/regimes",
+    "theorem": "units/theorems",
     "claim": "units/claims",
+    "proof_fragment": "units/proof-fragments",
+    "derivation_step": "units/derivation-steps",
     "derivation": "units/derivations",
     "method": "units/methods",
     "bridge": "units/bridges",
+    "example": "units/examples",
+    "caveat": "units/caveats",
+    "equivalence": "units/equivalences",
+    "symbol_binding": "units/symbol-bindings",
+    "equation": "units/equations",
+    "quantity": "units/quantities",
+    "model": "units/models",
+    "source_map": "units/source-maps",
     "warning": "units/warnings",
 }
 
@@ -87,6 +126,70 @@ def append_or_replace_jsonl(path: Path, row: dict[str, Any], *, key: str) -> Non
 
 def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().lower())
+
+
+def _dedupe_strings(values: list[str] | None) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values or []:
+        stripped = str(value).strip()
+        if stripped and stripped not in seen:
+            seen.add(stripped)
+            deduped.append(stripped)
+    return deduped
+
+
+def _dedupe_object_list(values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for value in values or []:
+        key = json.dumps(value, ensure_ascii=True, sort_keys=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(value)
+    return deduped
+
+
+def _normalize_metadata_entries(value: Any) -> list[str]:
+    entries: list[str] = []
+    if value is None:
+        return entries
+    if isinstance(value, dict):
+        for key in sorted(value):
+            item = value[key]
+            if item is None:
+                continue
+            if isinstance(item, str):
+                stripped = item.strip()
+                if stripped:
+                    entries.append(f"{key}={stripped}")
+                continue
+            entries.append(f"{key}={json.dumps(item, ensure_ascii=True, sort_keys=True)}")
+        return _dedupe_strings(entries)
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, str):
+                stripped = item.strip()
+                if stripped:
+                    entries.append(stripped)
+                continue
+            if isinstance(item, dict):
+                entries.extend(_normalize_metadata_entries(item))
+                continue
+            stripped = str(item).strip()
+            if stripped:
+                entries.append(stripped)
+        return _dedupe_strings(entries)
+    stripped = str(value).strip()
+    return [stripped] if stripped else []
+
+
+def _extract_review_candidate_id(review_artifacts: list[str] | None) -> str:
+    for entry in review_artifacts or []:
+        if entry.startswith("candidate_id="):
+            return entry.split("=", 1)[1].strip()
+    return ""
 
 
 def load_unit_index_rows(tpkn_root: Path) -> list[dict[str, Any]]:
@@ -203,6 +306,26 @@ def derive_tpkn_unit_id(candidate: dict[str, Any], target_type: str) -> str:
     return f"{target_type}:{slugify(slug)}"
 
 
+def choose_merge_target(
+    *,
+    collision_rows: list[dict[str, Any]],
+    requested_unit_id: str,
+    candidate_title: str,
+    target_type: str,
+) -> dict[str, Any] | None:
+    for row in collision_rows:
+        if str(row.get("id") or "") == requested_unit_id:
+            return row
+
+    title_norm = normalize_text(candidate_title)
+    for row in collision_rows:
+        if str(row.get("type") or "") != target_type:
+            continue
+        if normalize_text(str(row.get("title") or "")) == title_norm:
+            return row
+    return None
+
+
 def choose_source_row(
     *,
     source_rows: list[dict[str, Any]],
@@ -219,6 +342,20 @@ def choose_source_row(
     return source_rows[0] if source_rows else None
 
 
+def _find_source_manifest_paths_by_id(tpkn_root: Path, source_id: str) -> list[Path]:
+    sources_root = tpkn_root / "sources"
+    if not sources_root.exists():
+        return []
+    matches: list[Path] = []
+    for manifest_path in sorted(sources_root.glob("*/manifest.json")):
+        payload = read_json(manifest_path)
+        if payload is None:
+            continue
+        if str(payload.get("source_id") or "").strip() == source_id:
+            matches.append(manifest_path)
+    return matches
+
+
 def ensure_source_manifest(
     *,
     tpkn_root: Path,
@@ -229,7 +366,15 @@ def ensure_source_manifest(
     source_section_summary: str,
 ) -> tuple[Path, bool]:
     source_slug = source_id.split(":", 1)[-1]
-    manifest_path = tpkn_root / "sources" / source_slug / "manifest.json"
+    expected_manifest_path = tpkn_root / "sources" / source_slug / "manifest.json"
+    matching_manifest_paths = _find_source_manifest_paths_by_id(tpkn_root, source_id)
+    if len(matching_manifest_paths) > 1:
+        relative_paths = ", ".join(str(path.relative_to(tpkn_root)) for path in matching_manifest_paths)
+        raise RuntimeError(
+            f"Multiple source manifests already declare source_id {source_id}; "
+            f"clean up duplicates before promotion: {relative_paths}"
+        )
+    manifest_path = matching_manifest_paths[0] if matching_manifest_paths else expected_manifest_path
     existing = read_json(manifest_path)
     created = existing is None
     provenance = (source_row or {}).get("provenance") or {}
@@ -300,10 +445,25 @@ def build_tpkn_unit(
     source_section: str,
     source_anchor_notes: str,
     existing_tpkn_ids: set[str],
+    canonical_layer: str = "L2",
+    review_mode: str = "human",
+    promotion_route: str | None = None,
+    review_artifacts: Any | None = None,
+    coverage: dict[str, Any] | None = None,
+    consensus: dict[str, Any] | None = None,
+    merge_lineage: Any | None = None,
+    conflict_status: str = "none",
+    conflict_refs: list[str] | None = None,
+    equivalence_refs: list[str] | None = None,
 ) -> dict[str, Any]:
     assumptions = [str(value) for value in candidate.get("assumptions") or [] if str(value).strip()]
     if not assumptions:
         assumptions = ["Promoted from an AITP candidate; refine assumptions in later review."]
+    review_phrase = {
+        "human": "after explicit human approval.",
+        "ai_auto": "after passing the documented AI coverage and consensus gate.",
+        "hybrid": "after hybrid human and AI review.",
+    }.get(review_mode, "after explicit review.")
 
     dependencies: list[str] = []
     related_units: list[str] = []
@@ -320,7 +480,7 @@ def build_tpkn_unit(
         if mapped not in related_units and mapped not in dependencies:
             related_units.append(mapped)
 
-    return {
+    unit = {
         "id": unit_id,
         "type": target_type,
         "title": str(candidate["title"]),
@@ -339,7 +499,7 @@ def build_tpkn_unit(
         "assumptions": assumptions,
         "regime": (
             f"Promoted from AITP topic {candidate['topic_slug']} via candidate {candidate['candidate_id']} "
-            "after explicit human approval."
+            + review_phrase
         ),
         "scope": str(candidate.get("question") or candidate["summary"]),
         "dependencies": dependencies,
@@ -354,16 +514,95 @@ def build_tpkn_unit(
         "formalization_status": "candidate",
         "validation_status": "validated",
         "maturity": "seed",
+        "canonical_layer": canonical_layer,
+        "review_mode": review_mode,
+        "promotion_route": promotion_route or "",
+        "conflict_status": conflict_status,
+        "conflict_refs": _dedupe_strings(conflict_refs),
+        "equivalence_refs": _dedupe_strings(equivalence_refs),
         "failure_modes": [
             "Review the regime and assumptions before treating this promoted unit as stable."
         ],
-        "formal_targets": ["aitp-l2"],
+        "formal_targets": ["aitp-l2-auto" if canonical_layer == "L2_auto" else "aitp-l2"],
         "retrieval_hints": [
             f"Promoted from AITP candidate {candidate['candidate_id']}.",
         ],
         "created_at": today_iso(),
         "updated_at": today_iso(),
     }
+    normalized_review_artifacts = _normalize_metadata_entries(review_artifacts)
+    if normalized_review_artifacts:
+        unit["review_artifacts"] = normalized_review_artifacts
+    if coverage:
+        unit["coverage"] = coverage
+    if consensus:
+        unit["consensus"] = consensus
+    normalized_merge_lineage = _normalize_metadata_entries(merge_lineage)
+    if normalized_merge_lineage:
+        unit["merge_lineage"] = normalized_merge_lineage
+    return unit
+
+
+def merge_tpkn_unit(
+    *,
+    existing_unit: dict[str, Any],
+    incoming_unit: dict[str, Any],
+) -> dict[str, Any]:
+    merged = dict(existing_unit)
+    merged["tags"] = sorted(set(existing_unit.get("tags") or []) | set(incoming_unit.get("tags") or []))
+    aliases = list(existing_unit.get("aliases") or [])
+    incoming_title = str(incoming_unit.get("title") or "").strip()
+    if incoming_title and normalize_text(incoming_title) != normalize_text(str(existing_unit.get("title") or "")):
+        aliases.append(incoming_title)
+    aliases.extend(incoming_unit.get("aliases") or [])
+    merged["aliases"] = _dedupe_strings(aliases)
+    merged["assumptions"] = _dedupe_strings(list(existing_unit.get("assumptions") or []) + list(incoming_unit.get("assumptions") or []))
+    merged["dependencies"] = _dedupe_strings(list(existing_unit.get("dependencies") or []) + list(incoming_unit.get("dependencies") or []))
+    merged["related_units"] = _dedupe_strings(list(existing_unit.get("related_units") or []) + list(incoming_unit.get("related_units") or []))
+    merged["source_anchors"] = _dedupe_object_list(list(existing_unit.get("source_anchors") or []) + list(incoming_unit.get("source_anchors") or []))
+    merged["failure_modes"] = _dedupe_strings(list(existing_unit.get("failure_modes") or []) + list(incoming_unit.get("failure_modes") or []))
+    merged["formal_targets"] = _dedupe_strings(list(existing_unit.get("formal_targets") or []) + list(incoming_unit.get("formal_targets") or []))
+    merged["retrieval_hints"] = _dedupe_strings(list(existing_unit.get("retrieval_hints") or []) + list(incoming_unit.get("retrieval_hints") or []))
+    merged["equivalence_refs"] = _dedupe_strings(list(existing_unit.get("equivalence_refs") or []) + list(incoming_unit.get("equivalence_refs") or []))
+    merged["conflict_refs"] = _dedupe_strings(list(existing_unit.get("conflict_refs") or []) + list(incoming_unit.get("conflict_refs") or []))
+    merged["updated_at"] = today_iso()
+
+    existing_layer = str(existing_unit.get("canonical_layer") or "")
+    incoming_layer = str(incoming_unit.get("canonical_layer") or "")
+    merged["canonical_layer"] = "L2" if "L2" in {existing_layer, incoming_layer} else incoming_layer or existing_layer
+    merged["review_mode"] = str(existing_unit.get("review_mode") or incoming_unit.get("review_mode") or "human")
+    merged["promotion_route"] = str(existing_unit.get("promotion_route") or incoming_unit.get("promotion_route") or "")
+    merged["conflict_status"] = str(incoming_unit.get("conflict_status") or existing_unit.get("conflict_status") or "none")
+
+    review_artifacts = _dedupe_strings(
+        _normalize_metadata_entries(existing_unit.get("review_artifacts"))
+        + _normalize_metadata_entries(incoming_unit.get("review_artifacts"))
+    )
+    if review_artifacts:
+        merged["review_artifacts"] = review_artifacts
+
+    coverage = incoming_unit.get("coverage") or existing_unit.get("coverage")
+    if coverage:
+        merged["coverage"] = coverage
+    consensus = incoming_unit.get("consensus") or existing_unit.get("consensus")
+    if consensus:
+        merged["consensus"] = consensus
+
+    lineage = _dedupe_strings(
+        _normalize_metadata_entries(existing_unit.get("merge_lineage"))
+        + _normalize_metadata_entries(incoming_unit.get("merge_lineage"))
+    )
+    incoming_candidate_id = _extract_review_candidate_id(
+        _normalize_metadata_entries(incoming_unit.get("review_artifacts"))
+    )
+    if incoming_candidate_id:
+        lineage.append(f"merged_candidate_id={incoming_candidate_id}")
+    lineage.append(f"last_merge_at={today_iso()}")
+    lineage = _dedupe_strings(lineage)
+    if lineage:
+        merged["merge_lineage"] = lineage
+
+    return merged
 
 
 def unit_path_for(tpkn_root: Path, unit_type: str, unit_id: str) -> Path:

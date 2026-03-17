@@ -31,6 +31,12 @@ Every Layer 2 object must provide:
 - `related_units`
 - `payload`
 
+For theory-formal auto promotion, the `promotion` block should also carry:
+- `review_mode`
+- `canonical_layer`
+- `coverage_status`
+- `consensus_status`
+
 ## Semantic rules
 
 ### 1. Stable identity
@@ -62,11 +68,21 @@ artifacts that justified trust in the method.
 Use it when a registered external backend materially shaped the reusable object.
 
 ### 5. Promotion path is explicit
-The object must say whether it entered Layer 2 via:
+The object must say whether it entered canonical storage via:
 - `L1->L2`
 - `L3->L4->L2`
+- `L1->L2_auto`
+- `L3->L4_auto->L2_auto`
+- `L2_auto->L2`
+
+`review_mode` should record whether the gate was `human`, `ai_auto`, or
+`hybrid`.
+
+`canonical_layer` should record whether the written object currently lives in
+`L2` or `L2_auto`.
 
 Direct `L1->L4->L2` is not allowed.
+Direct `L1->L4_auto->L2_auto` is not allowed either.
 
 ### 6. Payload holds type-specific content
 The common contract stays small.
@@ -80,6 +96,10 @@ Use these states consistently:
 - `validated`: passed the intended promotion gate and has explicit supporting checks
 - `stable`: reliable default reusable object
 - `deprecated`: kept for history, but no longer recommended for active reuse
+- `auto_candidate`: AI-shaped object that passed structure checks but still needs stronger cross-source confidence
+- `auto_validated`: AI-promoted object that passed the documented auto gates
+- `cross_paper_stable`: reconciled across multiple sources strongly enough to serve as a default reusable node
+- `human_promoted`: object that originated from auto flow but was later accepted into the human-governed canonical layer
 
 The existence of `draft` or `candidate` in Layer 2 should be exceptional, not the dominant pattern.
 
@@ -88,15 +108,32 @@ The existence of `draft` or `candidate` in Layer 2 should be exceptional, not th
 Default storage projection:
 - `atomic_note` -> `canonical/atomic-notes/`
 - `concept` -> `canonical/concepts/`
+- `definition_card` -> backend-defined definitions storage
+- `notation_card` -> backend-defined notation storage
+- `equation_card` -> backend-defined equations storage
+- `assumption_card` -> backend-defined assumptions storage
+- `regime_card` -> backend-defined regimes storage
+- `theorem_card` -> backend-defined theorems storage
 - `claim_card` -> `canonical/claim-cards/`
+- `proof_fragment` -> backend-defined proof-fragment storage
+- `derivation_step` -> backend-defined derivation-step storage
 - `derivation_object` -> `canonical/derivation-objects/`
 - `method` -> `canonical/methods/`
 - `workflow` -> `canonical/workflows/`
 - `bridge` -> `canonical/bridges/`
+- `example_card` -> backend-defined examples storage
+- `caveat_card` -> backend-defined caveats storage
+- `equivalence_map` -> backend-defined equivalence storage
+- `symbol_binding` -> backend-defined symbol-binding storage
 - `validation_pattern` -> `canonical/validation-patterns/`
 - `warning_note` -> `canonical/warning-notes/`
 
 This mapping is operational convenience, not ontology.
+Backend cards may override the concrete directories. For example, the public
+TPKN backend projects the theory-formal families into `units/definitions/`,
+`units/notations/`, `units/assumptions/`, `units/regimes/`, `units/theorems/`,
+`units/proof-fragments/`, `units/examples/`, `units/caveats/`,
+`units/equivalences/`, and `units/symbol-bindings/`.
 
 ## Minimal example
 
@@ -135,6 +172,8 @@ This mapping is operational convenience, not ontology.
   },
   "promotion": {
     "route": "L3->L4->L2",
+    "review_mode": "human",
+    "canonical_layer": "L2",
     "promoted_by": "codex",
     "promoted_at": "2026-03-11T12:00:00+08:00",
     "review_status": "accepted",

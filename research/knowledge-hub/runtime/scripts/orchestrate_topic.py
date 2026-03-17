@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -15,6 +16,11 @@ from closed_loop_v1 import compute_closed_loop_status
 NEXT_ACTIONS_CONTRACT_FILENAME = "next_actions.contract.json"
 ACTION_QUEUE_CONTRACT_GENERATED_FILENAME = "action_queue_contract.generated.json"
 ACTION_QUEUE_CONTRACT_GENERATED_NOTE_FILENAME = "action_queue_contract.generated.md"
+CANDIDATE_SPLIT_CONTRACT_FILENAME = "candidate_split.contract.json"
+DEFERRED_BUFFER_FILENAME = "deferred_candidates.json"
+DEFERRED_BUFFER_NOTE_FILENAME = "deferred_candidates.md"
+FOLLOWUP_SUBTOPICS_FILENAME = "followup_subtopics.jsonl"
+FOLLOWUP_SUBTOPICS_NOTE_FILENAME = "followup_subtopics.md"
 
 
 def now_iso() -> str:
@@ -137,6 +143,14 @@ def classify_action(summary: str) -> tuple[str, bool]:
         return "baseline_reproduction", False
     if "atomic" in lowered or "dependency graph" in lowered or "decompos" in lowered:
         return "atomic_understanding", False
+    if "split contract" in lowered or "split candidate" in lowered:
+        return "apply_candidate_split_contract", True
+    if "reactivate deferred" in lowered or "reactivate parked" in lowered:
+        return "reactivate_deferred_candidate", True
+    if "follow-up subtopic" in lowered or "followup subtopic" in lowered:
+        return "spawn_followup_subtopics", True
+    if "auto-promote" in lowered or "l2_auto" in lowered:
+        return "auto_promote_candidate", True
     if "conformance" in lowered:
         return "conformance_audit", False
     if "skill" in lowered or "tooling" in lowered or "workflow" in lowered:
@@ -180,6 +194,308 @@ def followup_max_results(priority: str) -> int:
     if priority == "low":
         return 1
     return 2
+
+
+def load_runtime_policy(knowledge_root: Path) -> dict:
+    return load_json(knowledge_root / "runtime" / "closed_loop_policies.json") or {}
+
+
+def fingerprint_payload(payload: dict) -> str:
+    serialized = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha1(serialized.encode("utf-8")).hexdigest()
+
+
+def buffer_entry_ready_for_reactivation(entry: dict, source_ids: set[str], source_text: str, child_topics: set[str]) -> bool:
+    conditions = entry.get("reactivation_conditions") or {}
+    source_rules = {
+        str(value).strip()
+        for value in (conditions.get("source_ids_any") or [])
+        if str(value).strip()
+    }
+    if source_rules and source_ids.intersection(source_rules):
+        return True
+    text_rules = [
+        str(value).strip().lower()
+        for value in (conditions.get("text_contains_any") or [])
+        if str(value).strip()
+    ]
+    if text_rules and any(rule in source_text for rule in text_rules):
+        return True
+    child_topic_rules = {
+        str(value).strip()
+        for value in (conditions.get("child_topics_any") or [])
+        if str(value).strip()
+    }
+    if child_topic_rules and child_topics.intersection(child_topic_rules):
+        return True
+    return not source_rules and not text_rules and not child_topic_rules
+
+
+def pending_split_contract_action(knowledge_root: Path, topic_state: dict, queue_meta: dict) -> list[dict]:
+    policy = (load_runtime_policy(knowledge_root).get("candidate_split_policy") or {})
+    if not policy.get("enabled") or not policy.get("auto_apply_contracts", True):
+        return []
+    run_id = str(topic_state.get("latest_run_id") or "").strip()
+    if not run_id:
+        return []
+    contract_path = (
+        knowledge_root
+        / "feedback"
+        / "topics"
+        / topic_state["topic_slug"]
+        / "runs"
+        / run_id
+        / str(policy.get("contract_filename") or CANDIDATE_SPLIT_CONTRACT_FILENAME)
+    )
+    contract_payload = load_json(contract_path)
+    if contract_payload is None:
+        return []
+    receipts_path = (
+        knowledge_root
+        / "feedback"
+        / "topics"
+        / topic_state["topic_slug"]
+        / "runs"
+        / run_id
+        / str(policy.get("receipt_filename") or "candidate_split_receipts.jsonl")
+    )
+    receipt_rows = read_jsonl(receipts_path)
+    pending_sources: list[str] = []
+    for split_payload in contract_payload.get("splits") or []:
+        source_candidate_id = str(split_payload.get("source_candidate_id") or "").strip()
+        if not source_candidate_id:
+            continue
+        fingerprint = fingerprint_payload(split_payload)
+        already_applied = any(
+            str(row.get("source_candidate_id") or "") == source_candidate_id
+            and str(row.get("fingerprint") or "") == fingerprint
+            for row in receipt_rows
+        )
+        if not already_applied:
+            pending_sources.append(source_candidate_id)
+    if not pending_sources:
+        return []
+    return [
+        {
+            "action_id": f"action:{topic_state['topic_slug']}:apply-split-contract",
+            "topic_slug": topic_state["topic_slug"],
+            "resume_stage": "L3",
+            "status": "pending",
+            "action_type": "apply_candidate_split_contract",
+            "summary": (
+                "Apply the declared candidate split contract so wide or mixed candidates are decomposed "
+                "and unresolved fragments move into the deferred buffer."
+            ),
+            "auto_runnable": True,
+            "handler": None,
+            "handler_args": {"run_id": run_id},
+            "queue_source": "runtime_appended",
+            "declared_contract_path": queue_meta.get("declared_contract_path"),
+        }
+    ]
+
+
+def auto_promotion_actions(knowledge_root: Path, topic_state: dict, queue_meta: dict) -> list[dict]:
+    policy = (load_runtime_policy(knowledge_root).get("auto_promotion_policy") or {})
+    if not policy.get("enabled"):
+        return []
+    run_id = str(topic_state.get("latest_run_id") or "").strip()
+    if not run_id:
+        return []
+    candidate_rows = read_jsonl(
+        knowledge_root / "feedback" / "topics" / topic_state["topic_slug"] / "runs" / run_id / "candidate_ledger.jsonl"
+    )
+    allowed_statuses = {
+        str(value).strip()
+        for value in (policy.get("trigger_candidate_statuses") or [])
+        if str(value).strip()
+    }
+    allowed_types = {
+        str(value).strip()
+        for value in (policy.get("theory_formal_candidate_types") or [])
+        if str(value).strip()
+    }
+    promotion_gate = load_json(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / "promotion_gate.json") or {}
+    actions: list[dict] = []
+    for row in candidate_rows:
+        candidate_id = str(row.get("candidate_id") or "").strip()
+        candidate_type = str(row.get("candidate_type") or "").strip()
+        status = str(row.get("status") or "").strip()
+        if not candidate_id or not candidate_type:
+            continue
+        if allowed_statuses and status not in allowed_statuses:
+            continue
+        if allowed_types and candidate_type not in allowed_types:
+            continue
+        if status in {"promoted", "auto_promoted", "split_into_children", "deferred_buffered"}:
+            continue
+        if (
+            str(promotion_gate.get("candidate_id") or "") == candidate_id
+            and str(promotion_gate.get("status") or "") in {"approved", "promoted"}
+        ):
+            continue
+        packet_root = (
+            knowledge_root
+            / "validation"
+            / "topics"
+            / topic_state["topic_slug"]
+            / "runs"
+            / run_id
+            / "theory-packets"
+            / slugify(candidate_id)
+        )
+        coverage_payload = load_json(packet_root / "coverage_ledger.json") or {}
+        consensus_payload = load_json(packet_root / "agent_consensus.json") or {}
+        if str(coverage_payload.get("status") or "") != "pass":
+            continue
+        if str(consensus_payload.get("status") or "") != "ready":
+            continue
+        actions.append(
+            {
+                "action_id": f"action:{topic_state['topic_slug']}:auto-promote:{slugify(candidate_id)}",
+                "topic_slug": topic_state["topic_slug"],
+                "resume_stage": "L4",
+                "status": "pending",
+                "action_type": "auto_promote_candidate",
+                "summary": (
+                    f"Auto-promote theory-formal candidate `{candidate_id}` into `L2_auto` "
+                    "after its coverage and consensus gates have passed."
+                ),
+                "auto_runnable": True,
+                "handler": None,
+                "handler_args": {
+                    "run_id": run_id,
+                    "candidate_id": candidate_id,
+                    "backend_id": str(policy.get("default_backend_id") or ""),
+                },
+                "queue_source": "runtime_appended",
+                "declared_contract_path": queue_meta.get("declared_contract_path"),
+            }
+        )
+    return actions
+
+
+def followup_subtopic_actions(knowledge_root: Path, topic_state: dict, queue_meta: dict) -> list[dict]:
+    policy = (load_runtime_policy(knowledge_root).get("followup_subtopic_policy") or {})
+    if not policy.get("enabled"):
+        return []
+    run_id = str(topic_state.get("latest_run_id") or "").strip()
+    if not run_id:
+        return []
+    receipts_path = (
+        knowledge_root / "validation" / "topics" / topic_state["topic_slug"] / "runs" / run_id / "literature_followup_receipts.jsonl"
+    )
+    existing_rows = read_jsonl(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / FOLLOWUP_SUBTOPICS_FILENAME)
+    existing_keys = {
+        (str(row.get("query") or ""), str(row.get("arxiv_id") or ""))
+        for row in existing_rows
+    }
+    allowed_source_types = {
+        str(value).strip()
+        for value in (policy.get("spawn_target_source_types") or [])
+        if str(value).strip()
+    }
+    max_subtopics = int(policy.get("max_subtopics_per_receipt") or 2)
+    actions: list[dict] = []
+    for receipt in read_jsonl(receipts_path):
+        target_source_type = str(receipt.get("target_source_type") or "paper").strip() or "paper"
+        if allowed_source_types and target_source_type not in allowed_source_types:
+            continue
+        if str(receipt.get("status") or "") != "completed":
+            continue
+        match_count = 0
+        for match in list(receipt.get("matches") or [])[:max_subtopics]:
+            arxiv_id = str(match.get("arxiv_id") or "").strip()
+            if not arxiv_id:
+                continue
+            if (str(receipt.get("query") or ""), arxiv_id) in existing_keys:
+                continue
+            match_count += 1
+        if match_count == 0:
+            continue
+        actions.append(
+            {
+                "action_id": f"action:{topic_state['topic_slug']}:spawn-followup:{slugify(str(receipt.get('query') or 'followup'))}",
+                "topic_slug": topic_state["topic_slug"],
+                "resume_stage": "L0",
+                "status": "pending",
+                "action_type": "spawn_followup_subtopics",
+                "summary": (
+                    f"Spawn independent follow-up subtopics for `{receipt.get('query') or '(missing)'}` "
+                    "so cited-literature gaps re-enter AITP through fresh L0/L1 topic shells."
+                ),
+                "auto_runnable": True,
+                "handler": None,
+                "handler_args": {
+                    "run_id": run_id,
+                    "query": str(receipt.get("query") or ""),
+                    "receipt_id": str(receipt.get("receipt_id") or ""),
+                },
+                "queue_source": "runtime_appended",
+                "declared_contract_path": queue_meta.get("declared_contract_path"),
+            }
+        )
+    return actions
+
+
+def deferred_reactivation_actions(knowledge_root: Path, topic_state: dict, queue_meta: dict) -> list[dict]:
+    policy = (load_runtime_policy(knowledge_root).get("deferred_buffer_policy") or {})
+    if not policy.get("enabled") or not policy.get("auto_reactivate", True):
+        return []
+    run_id = str(topic_state.get("latest_run_id") or "").strip()
+    if not run_id:
+        return []
+    deferred_buffer = load_json(
+        knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / DEFERRED_BUFFER_FILENAME
+    ) or {}
+    source_rows = read_jsonl(knowledge_root / "source-layer" / "topics" / topic_state["topic_slug"] / "source_index.jsonl")
+    source_ids = {
+        str(row.get("source_id") or "").strip()
+        for row in source_rows
+        if str(row.get("source_id") or "").strip()
+    }
+    source_text = " ".join(
+        [
+            str(row.get("title") or "")
+            for row in source_rows
+        ]
+        + [
+            str(row.get("summary") or "")
+            for row in source_rows
+        ]
+    ).lower()
+    child_topics = {
+        str(row.get("child_topic_slug") or "").strip()
+        for row in read_jsonl(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / FOLLOWUP_SUBTOPICS_FILENAME)
+        if str(row.get("child_topic_slug") or "").strip()
+    }
+    actions: list[dict] = []
+    for entry in deferred_buffer.get("entries") or []:
+        entry_id = str(entry.get("entry_id") or "").strip()
+        if not entry_id or str(entry.get("status") or "") != "buffered":
+            continue
+        if not (entry.get("reactivation_candidate") or {}):
+            continue
+        if not buffer_entry_ready_for_reactivation(entry, source_ids, source_text, child_topics):
+            continue
+        actions.append(
+            {
+                "action_id": f"action:{topic_state['topic_slug']}:reactivate:{slugify(entry_id)}",
+                "topic_slug": topic_state["topic_slug"],
+                "resume_stage": "L3",
+                "status": "pending",
+                "action_type": "reactivate_deferred_candidate",
+                "summary": (
+                    f"Reactivate deferred entry `{entry_id}` because its declared source or subtopic triggers are now satisfied."
+                ),
+                "auto_runnable": True,
+                "handler": None,
+                "handler_args": {"run_id": run_id, "entry_id": entry_id},
+                "queue_source": "runtime_appended",
+                "declared_contract_path": queue_meta.get("declared_contract_path"),
+            }
+        )
+    return actions
 
 
 def load_declared_action_contract(topic_state: dict, knowledge_root: Path) -> dict | None:
@@ -364,6 +680,8 @@ def materialize_action_queue(
                 }
             )
 
+    queue.extend(pending_split_contract_action(knowledge_root, topic_state, queue_meta))
+
     needs_capability_review = any(
         action["action_type"] in {"backend_extension", "manual_followup"} for action in queue
     )
@@ -510,6 +828,10 @@ def materialize_action_queue(
             }
         )
 
+    queue.extend(followup_subtopic_actions(knowledge_root, topic_state, queue_meta))
+    queue.extend(deferred_reactivation_actions(knowledge_root, topic_state, queue_meta))
+    queue.extend(auto_promotion_actions(knowledge_root, topic_state, queue_meta))
+
     if not queue:
         queue.append(
             {
@@ -571,6 +893,8 @@ def build_interaction_state(
         f"runtime/topics/{topic_state['topic_slug']}/{ACTION_QUEUE_CONTRACT_GENERATED_NOTE_FILENAME}"
     )
     surfaces["runtime_promotion_gate"] = f"runtime/topics/{topic_state['topic_slug']}/promotion_gate.md"
+    surfaces["runtime_deferred_buffer"] = f"runtime/topics/{topic_state['topic_slug']}/{DEFERRED_BUFFER_NOTE_FILENAME}"
+    surfaces["runtime_followup_subtopics"] = f"runtime/topics/{topic_state['topic_slug']}/{FOLLOWUP_SUBTOPICS_NOTE_FILENAME}"
     capability_artifacts = []
     for filename in ("skill_discovery.json", "skill_recommendations.md"):
         artifact_path = topic_runtime_root / filename
@@ -651,6 +975,16 @@ def build_interaction_state(
                 "role": "human approval gate for L2 promotion",
             },
             {
+                "surface": "runtime_deferred_buffer",
+                "path": surfaces["runtime_deferred_buffer"],
+                "role": "deferred candidate parking and reactivation buffer",
+            },
+            {
+                "surface": "runtime_followup_subtopics",
+                "path": surfaces["runtime_followup_subtopics"],
+                "role": "parent-child lineage for cited-literature subtopics",
+            },
+            {
                 "surface": "runtime_trajectory",
                 "path": closed_loop["paths"].get("trajectory_note_path")
                 or f"runtime/topics/{topic_state['topic_slug']}/(trajectory-log-missing)",
@@ -696,6 +1030,8 @@ def build_interaction_state(
             "executor_kind": topic_state.get("active_executor_kind"),
             "reasoning_profile": topic_state.get("active_reasoning_profile"),
             "failure_severity": (closed_loop.get("failure_classification") or {}).get("severity"),
+            "deferred_buffer_path": f"runtime/topics/{topic_state['topic_slug']}/{DEFERRED_BUFFER_FILENAME}",
+            "followup_subtopics_path": f"runtime/topics/{topic_state['topic_slug']}/{FOLLOWUP_SUBTOPICS_FILENAME}",
         },
         "decision_surface": {
             "unfinished_work_path": f"runtime/topics/{topic_state['topic_slug']}/unfinished_work.json",
