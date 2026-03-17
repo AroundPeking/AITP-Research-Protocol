@@ -1,158 +1,185 @@
-<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="1600" height="720" viewBox="0 0 1600 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">AITP README Hero</title>
-  <desc id="desc">A wide banner for the AITP repository showing the AITP mark, the title, key principles, and the L0 to L4 protocol flow.</desc>
+  <desc id="desc">A clean wide banner for AITP featuring a redesigned icon and a spacious layout referencing quantum matter, quantum gravity, and AI-native research workflows.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#071827"/>
-      <stop offset="0.45" stop-color="#0B2438"/>
-      <stop offset="1" stop-color="#08121E"/>
+    <linearGradient id="heroBg" x1="0" y1="0" x2="1600" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#05141F"/>
+      <stop offset="0.5" stop-color="#0A1D31"/>
+      <stop offset="1" stop-color="#061018"/>
     </linearGradient>
-    <linearGradient id="line" x1="130" y1="0" x2="1160" y2="640" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#39BEE7" stop-opacity="0.42"/>
-      <stop offset="1" stop-color="#39BEE7" stop-opacity="0.02"/>
+    <linearGradient id="heroBorder" x1="70" y1="50" x2="1540" y2="670" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5BE4F3" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#5BE4F3" stop-opacity="0.06"/>
     </linearGradient>
-    <radialGradient id="glowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(270 220) rotate(90) scale(180)">
-      <stop stop-color="#24D1C5" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#24D1C5" stop-opacity="0"/>
+    <linearGradient id="panelStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#71F2EA"/>
+      <stop offset="1" stop-color="#8D8EFF"/>
+    </linearGradient>
+    <linearGradient id="chipFill" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#112A43"/>
+      <stop offset="1" stop-color="#0C2033"/>
+    </linearGradient>
+    <linearGradient id="routeLine" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#68F1E8"/>
+      <stop offset="1" stop-color="#FFC857"/>
+    </linearGradient>
+    <radialGradient id="leftGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(278 308) rotate(90) scale(260)">
+      <stop stop-color="#1BE1C8" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#1BE1C8" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="glowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1010 182) rotate(90) scale(220)">
-      <stop stop-color="#FFC857" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#FFC857" stop-opacity="0"/>
+    <radialGradient id="rightGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1330 176) rotate(90) scale(240)">
+      <stop stop-color="#6BA8FF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#6BA8FF" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="pill" x1="0" y1="0" x2="0" y2="1">
-      <stop stop-color="#143049"/>
-      <stop offset="1" stop-color="#0D2235"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#24D1C5"/>
-      <stop offset="1" stop-color="#7EE8F2"/>
-    </linearGradient>
+    <clipPath id="heroGravityClip">
+      <circle cx="1310" cy="178" r="138"/>
+    </clipPath>
+    <clipPath id="panelGravityClip">
+      <circle cx="298" cy="108" r="84"/>
+    </clipPath>
   </defs>
 
-  <rect width="1280" height="640" rx="36" fill="url(#bg)"/>
-  <rect x="1" y="1" width="1278" height="638" rx="35" stroke="#4EDAF0" stroke-opacity="0.16"/>
+  <rect width="1600" height="720" rx="40" fill="url(#heroBg)"/>
+  <rect x="1" y="1" width="1598" height="718" rx="39" stroke="url(#heroBorder)"/>
 
-  <circle cx="270" cy="220" r="180" fill="url(#glowA)"/>
-  <circle cx="1010" cy="182" r="220" fill="url(#glowB)"/>
+  <circle cx="278" cy="308" r="260" fill="url(#leftGlow)"/>
+  <circle cx="1330" cy="176" r="240" fill="url(#rightGlow)"/>
 
-  <g opacity="0.18">
-    <path d="M72 100H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 160H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 220H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 280H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 340H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 400H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 460H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M72 520H1208" stroke="url(#line)" stroke-width="1"/>
-    <path d="M132 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M232 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M332 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M432 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M532 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M632 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M732 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M832 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M932 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M1032 70V570" stroke="url(#line)" stroke-width="1"/>
-    <path d="M1132 70V570" stroke="url(#line)" stroke-width="1"/>
+  <g opacity="0.12">
+    <path d="M80 108H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M80 188H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M80 268H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M80 348H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M80 428H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M80 508H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M80 588H1520" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M120 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M240 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M360 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M480 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M600 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M720 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M840 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M960 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M1080 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M1200 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M1320 80V640" stroke="#8FD7FF" stroke-width="1"/>
+    <path d="M1440 80V640" stroke="#8FD7FF" stroke-width="1"/>
   </g>
 
-  <g transform="translate(94 110)">
-    <rect x="0" y="0" width="352" height="352" rx="72" fill="#07131F" fill-opacity="0.62"/>
-    <rect x="0.5" y="0.5" width="351" height="351" rx="71.5" stroke="#5AE2F5" stroke-opacity="0.16"/>
-    <circle cx="176" cy="176" r="120" fill="#23D0C4" fill-opacity="0.09"/>
-    <circle cx="176" cy="176" r="36" fill="#FFC857"/>
-    <circle cx="176" cy="176" r="12" fill="#FFF5D7"/>
-    <g stroke="#7EE8F2" stroke-width="10" stroke-linecap="round">
-      <path d="M89 86H60V266H89"/>
-      <path d="M263 86H292V266H263"/>
-      <ellipse cx="176" cy="176" rx="124" ry="76" transform="rotate(-24 176 176)"/>
-      <ellipse cx="176" cy="176" rx="124" ry="76" transform="rotate(24 176 176)"/>
+  <g opacity="0.18" clip-path="url(#heroGravityClip)">
+    <path d="M1172 92C1232 114 1290 118 1446 94" stroke="#7BCBFF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1164 142C1230 168 1298 170 1456 144" stroke="#7BCBFF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1158 198C1230 228 1308 230 1462 204" stroke="#7BCBFF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1158 254C1232 282 1310 286 1464 260" stroke="#7BCBFF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1212 34C1194 116 1190 214 1214 316" stroke="#9BE6FF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1270 28C1256 112 1252 220 1276 322" stroke="#9BE6FF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1328 28C1322 110 1324 224 1346 322" stroke="#9BE6FF" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1386 36C1390 112 1402 220 1428 312" stroke="#9BE6FF" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g opacity="0.18" stroke="#73F2E8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1188 510L1218 492L1248 510L1248 544L1218 562L1188 544Z"/>
+    <path d="M1248 510L1278 492L1308 510L1308 544L1278 562L1248 544Z"/>
+    <path d="M1218 562L1248 544L1278 562L1278 596L1248 614L1218 596Z"/>
+    <path d="M1278 562L1308 544L1338 562L1338 596L1308 614L1278 596Z"/>
+    <path d="M1130 562L1160 544L1190 562L1190 596L1160 614L1130 596Z"/>
+  </g>
+
+  <g transform="translate(86 120)">
+    <rect x="0" y="0" width="384" height="384" rx="80" fill="#071522" fill-opacity="0.78"/>
+    <rect x="1" y="1" width="382" height="382" rx="79" stroke="url(#panelStroke)" stroke-opacity="0.28"/>
+    <circle cx="192" cy="192" r="146" fill="#0A1F33"/>
+    <circle cx="192" cy="192" r="145" stroke="url(#panelStroke)" stroke-width="6"/>
+    <circle cx="98" cy="278" r="84" fill="#1BE1C8" fill-opacity="0.08"/>
+    <circle cx="298" cy="108" r="84" fill="#6BA8FF" fill-opacity="0.08"/>
+
+    <g clip-path="url(#panelGravityClip)">
+      <path d="M214 64C254 78 296 80 376 66" stroke="#7BCBFF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M208 96C256 114 302 116 384 98" stroke="#7BCBFF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M204 128C258 150 310 152 388 132" stroke="#7BCBFF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M204 160C260 182 316 184 388 166" stroke="#7BCBFF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M250 28C238 76 236 130 250 194" stroke="#9BE6FF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M286 24C276 78 274 136 288 196" stroke="#9BE6FF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M322 24C316 76 318 138 330 196" stroke="#9BE6FF" stroke-width="4" stroke-linecap="round"/>
+      <path d="M356 30C356 78 364 136 380 188" stroke="#9BE6FF" stroke-width="4" stroke-linecap="round"/>
     </g>
-    <g fill="#9CF6EC">
-      <circle cx="94" cy="95" r="10"/>
-      <circle cx="258" cy="96" r="10"/>
-      <circle cx="64" cy="176" r="9"/>
-      <circle cx="288" cy="176" r="9"/>
-      <circle cx="97" cy="258" r="10"/>
-      <circle cx="259" cy="257" r="10"/>
+
+    <g stroke="#73F2E8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M34 280L62 264L90 280L90 312L62 328L34 312Z"/>
+      <path d="M90 280L118 264L146 280L146 312L118 328L90 312Z"/>
+      <path d="M62 328L90 312L118 328L118 360L90 376L62 360Z"/>
+      <path d="M118 328L146 312L174 328L174 360L146 376L118 360Z"/>
+    </g>
+
+    <g stroke="#FFC857" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M146 268L192 116L238 268"/>
+      <path d="M164 212H222"/>
+      <path d="M222 212H272"/>
+      <path d="M164 212H112"/>
+      <path d="M192 116V84"/>
+    </g>
+    <g fill="#FFF1BE">
+      <circle cx="192" cy="84" r="9"/>
+      <circle cx="192" cy="116" r="8"/>
+      <circle cx="146" cy="268" r="9"/>
+      <circle cx="238" cy="268" r="9"/>
+      <circle cx="164" cy="212" r="8"/>
+      <circle cx="222" cy="212" r="8"/>
+      <circle cx="112" cy="212" r="7"/>
+      <circle cx="272" cy="212" r="7"/>
     </g>
   </g>
 
   <g font-family="Segoe UI, Arial, sans-serif">
-    <text x="498" y="182" fill="#8BEFF7" font-size="24" font-weight="700" letter-spacing="4">PROTOCOL-FIRST RESEARCH KERNEL</text>
-    <text x="498" y="266" fill="#F5FBFF" font-size="78" font-weight="800" letter-spacing="2">AITP</text>
-    <text x="498" y="320" fill="#D2E7F1" font-size="34" font-weight="700">AI Theoretical Physicist</text>
-    <text x="498" y="372" fill="#C1D7E3" font-size="24">Charter above runtime. Protocol above heuristics.</text>
-    <text x="498" y="408" fill="#C1D7E3" font-size="24">Agents execute bounded research instead of improvising hidden workflows.</text>
+    <text x="560" y="164" fill="#88F1F8" font-size="24" font-weight="700" letter-spacing="5">AI THEORETICAL PHYSICIST</text>
+    <text x="560" y="286" fill="#F5FBFF" font-size="112" font-weight="800" letter-spacing="3">AITP</text>
+    <text x="560" y="354" fill="#D9EAF2" font-size="38" font-weight="700">Research Charter and Kernel</text>
+    <text x="560" y="428" fill="#C6DDE8" font-size="28">Quantum matter, quantum gravity, and AI-native protocol design</text>
+    <text x="560" y="468" fill="#C6DDE8" font-size="28">for bounded, evidence-led research workflows.</text>
   </g>
 
-  <g transform="translate(498 450)" font-family="Segoe UI, Arial, sans-serif">
-    <rect x="0" y="0" width="184" height="48" rx="24" fill="url(#pill)"/>
-    <rect x="0.5" y="0.5" width="183" height="47" rx="23.5" stroke="#5AE2F5" stroke-opacity="0.16"/>
-    <text x="92" y="31" text-anchor="middle" fill="#DDF6FB" font-size="18" font-weight="700">Evidence Before Speculation</text>
+  <g transform="translate(560 520)" font-family="Segoe UI, Arial, sans-serif">
+    <rect x="0" y="0" width="224" height="60" rx="30" fill="url(#chipFill)"/>
+    <rect x="1" y="1" width="222" height="58" rx="29" stroke="#71F2EA" stroke-opacity="0.16"/>
+    <text x="112" y="38" text-anchor="middle" fill="#E8F9FD" font-size="22" font-weight="700">Quantum Matter</text>
 
-    <rect x="196" y="0" width="174" height="48" rx="24" fill="url(#pill)"/>
-    <rect x="196.5" y="0.5" width="173" height="47" rx="23.5" stroke="#5AE2F5" stroke-opacity="0.16"/>
-    <text x="283" y="31" text-anchor="middle" fill="#DDF6FB" font-size="18" font-weight="700">Human-Gated L2</text>
+    <rect x="246" y="0" width="232" height="60" rx="30" fill="url(#chipFill)"/>
+    <rect x="247" y="1" width="230" height="58" rx="29" stroke="#71F2EA" stroke-opacity="0.16"/>
+    <text x="362" y="38" text-anchor="middle" fill="#E8F9FD" font-size="22" font-weight="700">Quantum Gravity</text>
 
-    <rect x="382" y="0" width="188" height="48" rx="24" fill="url(#pill)"/>
-    <rect x="382.5" y="0.5" width="187" height="47" rx="23.5" stroke="#5AE2F5" stroke-opacity="0.16"/>
-    <text x="476" y="31" text-anchor="middle" fill="#DDF6FB" font-size="18" font-weight="700">Codex / OpenClaw / OpenCode</text>
+    <rect x="500" y="0" width="260" height="60" rx="30" fill="url(#chipFill)"/>
+    <rect x="501" y="1" width="258" height="58" rx="29" stroke="#71F2EA" stroke-opacity="0.16"/>
+    <text x="630" y="38" text-anchor="middle" fill="#E8F9FD" font-size="22" font-weight="700">AI-Native Kernel</text>
   </g>
 
-  <g transform="translate(760 96)" font-family="Segoe UI, Arial, sans-serif">
-    <text x="0" y="0" fill="#8BEFF7" font-size="18" font-weight="700" letter-spacing="3">LAYER ROUTE</text>
+  <g transform="translate(560 620)" font-family="Segoe UI, Arial, sans-serif">
+    <line x1="50" y1="26" x2="690" y2="26" stroke="url(#routeLine)" stroke-width="4" stroke-linecap="round"/>
 
-    <g transform="translate(0 38)">
-      <line x1="58" y1="39" x2="136" y2="39" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
-      <line x1="186" y1="39" x2="264" y2="39" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
-      <line x1="314" y1="39" x2="392" y2="39" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
-      <line x1="442" y1="39" x2="520" y2="39" stroke="url(#accent)" stroke-width="4" stroke-linecap="round"/>
-
-      <g>
-        <circle cx="28" cy="39" r="28" fill="#143049"/>
-        <circle cx="28" cy="39" r="27.5" stroke="#7EE8F2" stroke-opacity="0.22"/>
-        <text x="28" y="46" text-anchor="middle" fill="#FFFFFF" font-size="22" font-weight="800">L0</text>
-        <text x="28" y="82" text-anchor="middle" fill="#BFD7E3" font-size="14">Sources</text>
-      </g>
-
-      <g transform="translate(128 0)">
-        <circle cx="28" cy="39" r="28" fill="#143049"/>
-        <circle cx="28" cy="39" r="27.5" stroke="#7EE8F2" stroke-opacity="0.22"/>
-        <text x="28" y="46" text-anchor="middle" fill="#FFFFFF" font-size="22" font-weight="800">L1</text>
-        <text x="28" y="82" text-anchor="middle" fill="#BFD7E3" font-size="14">Analysis</text>
-      </g>
-
-      <g transform="translate(256 0)">
-        <circle cx="28" cy="39" r="28" fill="#2A2233"/>
-        <circle cx="28" cy="39" r="27.5" stroke="#FFB575" stroke-opacity="0.24"/>
-        <text x="28" y="46" text-anchor="middle" fill="#FFFFFF" font-size="22" font-weight="800">L3</text>
-        <text x="28" y="82" text-anchor="middle" fill="#BFD7E3" font-size="14">Candidates</text>
-      </g>
-
-      <g transform="translate(384 0)">
-        <circle cx="28" cy="39" r="28" fill="#2A2233"/>
-        <circle cx="28" cy="39" r="27.5" stroke="#FFB575" stroke-opacity="0.24"/>
-        <text x="28" y="46" text-anchor="middle" fill="#FFFFFF" font-size="22" font-weight="800">L4</text>
-        <text x="28" y="82" text-anchor="middle" fill="#BFD7E3" font-size="14">Validation</text>
-      </g>
-
-      <g transform="translate(512 0)">
-        <circle cx="28" cy="39" r="28" fill="#17362E"/>
-        <circle cx="28" cy="39" r="27.5" stroke="#9CF6EC" stroke-opacity="0.3"/>
-        <text x="28" y="46" text-anchor="middle" fill="#FFFFFF" font-size="22" font-weight="800">L2</text>
-        <text x="28" y="82" text-anchor="middle" fill="#BFD7E3" font-size="14">Trusted Memory</text>
-      </g>
+    <g>
+      <circle cx="50" cy="26" r="22" fill="#112A43"/>
+      <circle cx="50" cy="26" r="21" stroke="#72F3EB" stroke-opacity="0.3"/>
+      <text x="50" y="34" text-anchor="middle" fill="#F5FBFF" font-size="20" font-weight="800">L0</text>
     </g>
-
-    <g transform="translate(0 176)">
-      <rect x="0" y="0" width="548" height="140" rx="24" fill="#0D2235" fill-opacity="0.86"/>
-      <rect x="0.5" y="0.5" width="547" height="139" rx="23.5" stroke="#5AE2F5" stroke-opacity="0.16"/>
-      <text x="28" y="40" fill="#F5FBFF" font-size="24" font-weight="700">Kernel Rules</text>
-      <text x="28" y="76" fill="#CEE4EE" font-size="20">1. Materialize durable artifacts before synthesis.</text>
-      <text x="28" y="106" fill="#CEE4EE" font-size="20">2. Keep exploratory work in L3/L4 until trust is earned.</text>
-      <text x="28" y="136" fill="#CEE4EE" font-size="20">3. Promote to L2 only with explicit human approval.</text>
+    <g transform="translate(160 0)">
+      <circle cx="50" cy="26" r="22" fill="#112A43"/>
+      <circle cx="50" cy="26" r="21" stroke="#72F3EB" stroke-opacity="0.3"/>
+      <text x="50" y="34" text-anchor="middle" fill="#F5FBFF" font-size="20" font-weight="800">L1</text>
+    </g>
+    <g transform="translate(320 0)">
+      <circle cx="50" cy="26" r="22" fill="#1C2340"/>
+      <circle cx="50" cy="26" r="21" stroke="#8CB5FF" stroke-opacity="0.28"/>
+      <text x="50" y="34" text-anchor="middle" fill="#F5FBFF" font-size="20" font-weight="800">L3</text>
+    </g>
+    <g transform="translate(480 0)">
+      <circle cx="50" cy="26" r="22" fill="#2A2233"/>
+      <circle cx="50" cy="26" r="21" stroke="#FFC857" stroke-opacity="0.3"/>
+      <text x="50" y="34" text-anchor="middle" fill="#F5FBFF" font-size="20" font-weight="800">L4</text>
+    </g>
+    <g transform="translate(640 0)">
+      <circle cx="50" cy="26" r="22" fill="#17362E"/>
+      <circle cx="50" cy="26" r="21" stroke="#9AF8EF" stroke-opacity="0.34"/>
+      <text x="50" y="34" text-anchor="middle" fill="#F5FBFF" font-size="20" font-weight="800">L2</text>
     </g>
   </g>
 </svg>
