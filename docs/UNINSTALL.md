@@ -38,6 +38,7 @@ rm -f ~/.claude/skills/aitp-runtime/AITP_MCP_SETUP.md
 ## OpenCode
 
 ```bash
+rm -rf ~/.config/opencode/skills/aitp-runtime
 rm -f ~/.config/opencode/commands/AITP_COMMAND_HARNESS.md
 rm -f ~/.config/opencode/commands/aitp.md
 rm -f ~/.config/opencode/commands/aitp-resume.md

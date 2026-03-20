@@ -1381,12 +1381,24 @@ class AITPServiceTests(unittest.TestCase):
             target_root=str(opencode_target),
         )
         installed_paths = {Path(item["path"]).name for item in result["installed"]}
+        command_base = opencode_target / "commands"
+        skill_base = opencode_target / "skills" / "aitp-runtime"
         self.assertIn("AITP_COMMAND_HARNESS.md", installed_paths)
         self.assertIn("aitp.md", installed_paths)
         self.assertIn("aitp-resume.md", installed_paths)
         self.assertIn("aitp-loop.md", installed_paths)
         self.assertIn("aitp-audit.md", installed_paths)
+        self.assertIn("SKILL.md", installed_paths)
+        self.assertIn("AITP_MCP_SETUP.md", installed_paths)
         self.assertIn("AITP_MCP_CONFIG.json", installed_paths)
+        self.assertTrue((command_base / "AITP_COMMAND_HARNESS.md").exists())
+        self.assertTrue((skill_base / "SKILL.md").exists())
+        self.assertTrue((skill_base / "AITP_MCP_SETUP.md").exists())
+        self.assertIn("/aitp", (skill_base / "SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "~/.config/opencode/opencode.json",
+            (skill_base / "AITP_MCP_SETUP.md").read_text(encoding="utf-8"),
+        )
 
         claude_target = self.root / "claude-runtime"
         result = self.service.install_agent(

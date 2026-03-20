@@ -148,14 +148,18 @@ def _coerce_path(value: Path | str) -> Path:
     return Path(value).expanduser().resolve()
 
 
-@dataclass
+@dataclass(init=False)
 class AITPService:
-    kernel_root: Path = DEFAULT_KERNEL_ROOT
-    repo_root: Path = DEFAULT_REPO_ROOT
+    kernel_root: Path
+    repo_root: Path
 
-    def __post_init__(self) -> None:
-        self.kernel_root = _coerce_path(self.kernel_root)
-        self.repo_root = _coerce_path(self.repo_root)
+    def __init__(
+        self,
+        kernel_root: Path | str = DEFAULT_KERNEL_ROOT,
+        repo_root: Path | str = DEFAULT_REPO_ROOT,
+    ) -> None:
+        self.kernel_root = _coerce_path(kernel_root)
+        self.repo_root = _coerce_path(repo_root)
         if not _looks_like_repo_root(self.repo_root):
             self.repo_root = _detect_repo_root().resolve()
 
@@ -2439,6 +2443,28 @@ class AITPService:
                 deduped.append(candidate)
         return deduped
 
+    def _opencode_command_target(self, *, scope: str, target_root: str | None) -> Path:
+        if target_root:
+            target_path = Path(target_root)
+            if target_path.name == "commands":
+                return target_path
+            return target_path / "commands"
+        if scope == "project":
+            return self.repo_root / ".opencode" / "commands"
+        return Path.home() / ".config" / "opencode" / "commands"
+
+    def _opencode_skill_target(self, *, scope: str, target_root: str | None) -> Path:
+        if target_root:
+            target_path = Path(target_root)
+            if target_path.name == "aitp-runtime" or target_path.parent.name == "skills":
+                return target_path
+            if target_path.name == "commands":
+                return target_path.parent / "skills" / "aitp-runtime"
+            return target_path / "skills" / "aitp-runtime"
+        if scope == "project":
+            return self.repo_root / ".opencode" / "skills" / "aitp-runtime"
+        return Path.home() / ".config" / "opencode" / "skills" / "aitp-runtime"
+
     def _install_codex_mcp(self, *, force: bool) -> list[dict[str, str]]:
         codex = shutil.which("codex")
         if codex is None:
@@ -2494,11 +2520,17 @@ class AITPService:
             config_path = Path.home() / ".config" / "opencode" / "opencode.json"
 
         if config_path.exists():
-            payload = json.loads(config_path.read_text(encoding="utf-8"))
+            loaded_payload = json.loads(config_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded_payload, dict):
+                raise ValueError(f"OpenCode config must be a JSON object: {config_path}")
+            payload: dict[str, Any] = loaded_payload
         else:
             payload = {"$schema": "https://opencode.ai/config.json"}
 
-        mcp_payload = payload.setdefault("mcp", {})
+        mcp_payload = payload.get("mcp")
+        if not isinstance(mcp_payload, dict):
+            mcp_payload = {}
+            payload["mcp"] = mcp_payload
         if "aitp" in mcp_payload and not force:
             raise FileExistsError(f"Refusing to overwrite existing OpenCode MCP server at {config_path}")
         mcp_payload["aitp"] = self._opencode_mcp_entry()
@@ -4175,6 +4207,87 @@ If method trust is missing:
 - use `aitp trust-audit ...` before reusing an operation as if it were established
 """
 
+    def _opencode_skill_template(self) -> str:
+        return f"""---
+name: aitp-runtime
+description: Route OpenCode through the AITP runtime so substantial research work stays auditable, resumable, and conformance-checked.
+---
+
+# AITP Runtime For OpenCode
+
+## Required entry
+
+1. In a bare `opencode` research session, do not start with direct browsing or free-form synthesis; enter through the installed `/aitp`, `/aitp-resume`, or `/aitp-loop` commands, or call `aitp bootstrap ...`, `aitp resume ...`, or `aitp loop ...` directly.
+2. Read `runtime_protocol.generated.md` first, then follow `Must read now` before deeper work.
+3. Expand deferred surfaces only when the named trigger in the runtime bundle fires.
+4. Register reusable operations with `aitp operation-init ...`.
+5. For human-reviewed `L2`, use `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
+6. For theory-formal `L2_auto`, materialize coverage/consensus artifacts with `aitp coverage-audit ...` and then use `aitp auto-promote ...`.
+7. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
+
+## Installed command surfaces
+
+- `/aitp` — enter the AITP runtime for a new or existing research task
+- `/aitp-resume` — resume an existing topic from the installed `aitp` CLI
+- `/aitp-loop` — run the safe AITP auto-continue loop for an active topic
+- `/aitp-audit` — refresh conformance on exit
+
+If the command bundle is unavailable, call the raw `aitp` CLI directly.
+
+## Hard rules
+
+- If the conformance audit fails, the run does not count as AITP work.
+- If the task is theoretical-physics research rather than plain coding, staying inside AITP is mandatory.
+- Prefer durable control notes and contract files over hidden heuristics.
+- Every reusable operation must pass through `aitp trust-audit ...` before AITP treats it as trusted.
+- If a new numerical backend or diagnostic is being trusted, scaffold a baseline first with `aitp baseline ...`.
+- If a derivation-heavy method is being claimed as understood, scaffold atomic understanding first with `aitp atomize ...`.
+- If there is a capability gap, prefer `aitp loop ... --skill-query ...` so discovery becomes runtime state instead of ad hoc browsing.
+- Human-reviewed Layer 2 promotion is blocked until `promotion_gate.json` says `approved` and `aitp promote ...` records the writeback.
+- Theory-formal `L2_auto` promotion is blocked until `coverage_ledger.json` passes and `agent_consensus.json` is ready.
+
+## Common commands
+
+```bash
+aitp loop --topic-slug <topic_slug> --human-request "<task>" --skill-query "<capability gap>"
+aitp resume --topic-slug <topic_slug> --human-request "<task>"
+aitp coverage-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --source-section <section> --covered-section <section>
+aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id> --backend-id backend:theoretical-physics-knowledge-network
+aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
+aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
+aitp auto-promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
+aitp operation-init --topic-slug <topic_slug> --run-id <run_id> --title "<operation>" --kind numerical
+aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<operation>" --baseline-status passed
+aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
+aitp capability-audit --topic-slug <topic_slug>
+aitp audit --topic-slug <topic_slug> --phase exit
+aitp baseline --topic-slug <topic_slug> --run-id <run_id> --title "<baseline title>" --reference "<source>" --agreement-criterion "<criterion>"
+aitp atomize --topic-slug <topic_slug> --run-id <run_id> --method-title "<method title>"
+```
+
+Kernel root default: `{self.kernel_root}`
+"""
+
+    def _opencode_mcp_setup_markdown(self) -> str:
+        return f"""# AITP MCP Setup For OpenCode
+
+## User scope
+
+When you run `aitp install-agent --agent opencode --scope user`, the installer updates `~/.config/opencode/opencode.json` directly and registers the local `aitp` MCP server there.
+
+## Project or exported bundle scope
+
+- `--scope project` writes the OpenCode config to `.opencode/opencode.json`
+- `--target-root /path/to/bundle` writes `AITP_MCP_CONFIG.json` into the bundle root
+
+Merge the generated MCP stanza into the OpenCode config you actually load for the workspace.
+
+The `aitp` MCP server forwards these environment variables:
+
+- `AITP_KERNEL_ROOT={self.kernel_root}`
+- `AITP_REPO_ROOT={self.repo_root}`
+"""
+
     def _opencode_command_template(self, name: str) -> str:
         if name == "aitp":
             body = """---
@@ -4389,23 +4502,34 @@ aitp audit $ARGUMENTS
             return installed
 
         if agent == "opencode":
-            base = (
-                Path(target_root)
-                if target_root
-                else (home / ".config" / "opencode" / "commands" if scope == "user" else self.repo_root / ".opencode" / "commands")
-            )
-            base.mkdir(parents=True, exist_ok=True)
-            harness_path = base / "AITP_COMMAND_HARNESS.md"
+            command_base = self._opencode_command_target(scope=scope, target_root=target_root)
+            skill_base = self._opencode_skill_target(scope=scope, target_root=target_root)
+            command_base.mkdir(parents=True, exist_ok=True)
+            skill_base.mkdir(parents=True, exist_ok=True)
+            harness_path = command_base / "AITP_COMMAND_HARNESS.md"
             if harness_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {harness_path}")
             write_text(harness_path, self._opencode_harness_template())
             installed.append({"agent": agent, "path": str(harness_path), "kind": "command-harness"})
             for command_name in ("aitp", "aitp-resume", "aitp-loop", "aitp-audit"):
-                command_path = base / f"{command_name}.md"
+                command_path = command_base / f"{command_name}.md"
                 if command_path.exists() and not force:
                     raise FileExistsError(f"Refusing to overwrite {command_path}")
                 write_text(command_path, self._opencode_command_template(command_name))
                 installed.append({"agent": agent, "path": str(command_path), "kind": "command"})
+
+            skill_path = skill_base / "SKILL.md"
+            if skill_path.exists() and not force:
+                raise FileExistsError(f"Refusing to overwrite {skill_path}")
+            write_text(skill_path, self._opencode_skill_template())
+            installed.append({"agent": agent, "path": str(skill_path), "kind": "skill"})
+
+            if target_root or scope == "project":
+                setup_path = skill_base / "AITP_MCP_SETUP.md"
+                if setup_path.exists() and not force:
+                    raise FileExistsError(f"Refusing to overwrite {setup_path}")
+                write_text(setup_path, self._opencode_mcp_setup_markdown())
+                installed.append({"agent": agent, "path": str(setup_path), "kind": "mcp-setup"})
 
             if install_mcp:
                 installed.extend(self._install_opencode_mcp(force=force, scope=scope, target_root=target_root))

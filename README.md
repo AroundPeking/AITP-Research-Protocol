@@ -117,7 +117,7 @@ flowchart LR
 
 ## How You Actually Use It
 
-AITP currently has two public workflows that matter.
+AITP currently has three public workflows that matter.
 
 ### 1. Bare Codex In A Theory Workspace
 
@@ -148,7 +148,33 @@ wrapper:
 aitp-codex --topic-slug <topic_slug> "<task>"
 ```
 
-### 2. OpenClaw For Bounded Autonomous Research
+### 2. Bare OpenCode In A Theory Workspace
+
+Use this when you want a normal `opencode` conversation inside a project, but
+you still want the session to default toward the AITP runtime instead of ad hoc
+file browsing.
+
+```bash
+# one-time workspace install
+aitp install-agent --agent opencode --scope project --target-root /path/to/theory-workspace
+
+# daily use
+cd /path/to/theory-workspace
+opencode
+```
+
+Expected behavior:
+
+- OpenCode gets a local `skills/aitp-runtime/SKILL.md` plus the `/aitp` command bundle;
+- the skill nudges bare sessions toward `aitp bootstrap`, `aitp loop`, or `aitp resume` when the local skill root is active;
+- the command bundle remains the explicit fallback entry surface when skill loading is unavailable;
+- outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
+
+OpenCode does not yet have a wrapper as strong as `aitp-codex`, so
+execution-heavy work should still re-enter through `aitp loop` and the
+installed `/aitp*` commands.
+
+### 3. OpenClaw For Bounded Autonomous Research
 
 Use this when you want bounded autonomous progress under heartbeat or
 control-note constraints, without giving the runtime permission to invent its
@@ -217,12 +243,12 @@ theoretical-physics work.
 | Codex | `aitp install-agent --agent codex` | Skill + MCP + `aitp-codex` wrapper |
 | OpenClaw | `aitp install-agent --agent openclaw` | Skill + MCP bridge setup note |
 | Claude Code | `aitp install-agent --agent claude-code` | Skill + command bundle |
-| OpenCode | `aitp install-agent --agent opencode` | Command harness + MCP config |
+| OpenCode | `aitp install-agent --agent opencode` | Skill + command harness + MCP config |
 
 Current maturity is not uniform:
 
 - `Codex` is the strongest path today because it supports both a bare-session skill install and the stronger `aitp-codex` wrapper.
-- `OpenClaw`, `Claude Code`, and `OpenCode` are already constrained through installed command and skill surfaces, but they do not yet have a wrapper as strong as `aitp-codex`.
+- `OpenClaw` and `Claude Code` already install explicit skill surfaces, and `OpenCode` now installs both a local `aitp-runtime` skill and the `/aitp*` command bundle, but none of them yet has a wrapper as strong as `aitp-codex`.
 
 ## Design Boundaries
 
