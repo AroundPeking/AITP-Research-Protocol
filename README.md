@@ -287,6 +287,55 @@ theoretical-physics work.
 | Toy-model numerics | baseline papers, model specs, observables, scripts | controlled runs, convergence checks, benchmark comparison | validated workflows, benchmark notes, reusable operations |
 | Code-backed algorithm development | upstream codebases, papers, existing methods | reproduction, trust audit, implementation validation | trusted methods, reusable operation manifests, backend writeback |
 
+## AITP, TPKN, And The Workspace
+
+AITP is not the public knowledge base itself.
+
+In the current multi-repo setup, the roles are:
+
+- `AITP-Research-Protocol`
+  - the protocol kernel;
+  - owns `L0-L4` routing, runtime state, gap recovery, validation, promotion, and backend bridges.
+- `theoretical-physics-knowledge-network`
+  - the public typed knowledge backend;
+  - owns canonical `sources/`, `units/`, `edges/`, retrieval indexes, and the human-facing `portal/`.
+- `Theoretical-Physics`
+  - the active private development workspace;
+  - owns the Obsidian vault, working mirrors, Share_work handoff notes, and staging code that may later publish into the public backend.
+
+Operationally, the intended direction is:
+
+`AITP runtime -> validated output -> TPKN backend`
+
+The workspace exists to do active development and mirror work without forcing
+the public backend repo to become the only editable surface.
+
+## Windows Handoff
+
+If development moves to another Windows machine, the recommended mental model is
+still three sibling repositories rather than one monorepo:
+
+- `AITP-Research-Protocol`
+- `Theoretical-Physics`
+- `theoretical-physics-knowledge-network`
+
+Recommended shell split:
+
+- use `WSL2 Ubuntu` for `aitp`, Python package work, and most protocol/runtime commands;
+- use native Windows editing tools for Obsidian, git inspection, and document work when convenient.
+
+Recommended bootstrap order:
+
+1. clone `AITP-Research-Protocol` and get `aitp` working first;
+2. clone `Theoretical-Physics` as the active workspace;
+3. clone `theoretical-physics-knowledge-network` as the clean public-backend publish target.
+
+The key boundary to preserve on Windows is this:
+
+- AITP decides how research flows and when material is ready.
+- TPKN is where trusted, typed knowledge lands.
+- The private workspace is where iterative editing and mirror work can stay messy without polluting the public backend history.
+
 ## Runtime Support Matrix
 
 | Runtime | Public install path | Enforcement surface |
