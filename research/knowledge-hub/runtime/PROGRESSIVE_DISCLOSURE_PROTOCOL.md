@@ -64,10 +64,16 @@ Use stable trigger names when possible:
 
 - `decision_override_present`
 - `promotion_intent`
+- `followup_gap_open`
 - `non_trivial_consultation`
 - `capability_gap_blocker`
 - `trust_missing`
 - `contradiction_detected`
+- `definition_trust_review`
+- `faithfulness_review_required`
+- `comparator_audit_required`
+- `provenance_review_required`
+- `prerequisite_closure_required`
 
 Projects may add more triggers, but should not rename these casually once they
 are emitted in runtime artifacts.
@@ -101,6 +107,19 @@ Mandatory deeper reads:
 - `promotion_gate.json` or `promotion_gate.md`,
 - coverage or consensus artifacts when theory-formal,
 - the selected validation or delivery surface.
+
+### `followup_gap_open`
+
+Fire when closed-loop result ingest or topic runtime state still exposes open
+typed follow-up gaps, such as missing cited results, missing derivation steps,
+or formalization blockers.
+
+Mandatory deeper reads:
+
+- the structured follow-up gap ledger,
+- the corresponding gap note,
+- any generated literature follow-up query surface when the declared
+  `return_to_stage` goes back to `L0`.
 
 ### `non_trivial_consultation`
 
@@ -177,6 +196,67 @@ Mandatory deeper reads:
 - returned execution result when present,
 - `VERIFICATION_BRIDGE_PROTOCOL.md`.
 
+### `definition_trust_review`
+
+Fire when formal-theory work introduces a translated definition, theorem-family
+wrapper, or reusable statement whose trust tier is not yet explicit.
+
+Mandatory deeper reads:
+
+- the trust-boundary policy surface,
+- the target backend protocol for trusted-target versus intermediate-theory
+  separation,
+- the unit-level trust metadata once it exists.
+
+### `faithfulness_review_required`
+
+Fire when a formal target, scaffold, or imported statement may have drifted away
+from the scientific source claim.
+
+Mandatory deeper reads:
+
+- the faithfulness policy surface,
+- the target backend formalization plan for the unit,
+- any follow-up gap or blocker record that documents what is still omitted,
+- the candidate-local `faithfulness_review.json` / `formal_theory_review.md` when those artifacts already exist.
+
+### `comparator_audit_required`
+
+Fire when a formal target looks complete enough to tempt promotion, but still
+needs an anti-cheat comparison against the scientific source statement and its
+nearby variants.
+
+Mandatory deeper reads:
+
+- the comparator-audit policy surface,
+- the trusted-target statement,
+- the intermediate-theory or scaffold statement graph around it,
+- the candidate-local `comparator_audit_record.json` when it exists.
+
+### `provenance_review_required`
+
+Fire when imported formal material, adapted proofs, or generated scaffolds need
+explicit provenance and attribution before reuse or promotion.
+
+Mandatory deeper reads:
+
+- the provenance policy surface,
+- any attribution or provenance ledger attached to the backend unit,
+- the promotion gate when writeback is in scope,
+- the candidate-local `provenance_review.json` when it exists.
+
+### `prerequisite_closure_required`
+
+Fire when a statement is being treated as promotion-ready or formalization-ready
+without an explicit closure status for its prerequisites and blockers.
+
+Mandatory deeper reads:
+
+- the prerequisite-closure policy surface,
+- the dependency graph or proof-obligation surface for the unit,
+- any formalization blocker ledger or follow-up gap ledger that remains open,
+- the candidate-local `prerequisite_closure_review.json` / `formal_theory_review.md` when they exist.
+
 ## 6. JSON and markdown expectations
 
 - The machine-readable JSON surface remains the durable source of truth.
@@ -199,6 +279,10 @@ Scripts may not decide:
 
 - whether a proof is genuinely complete,
 - whether two theorem families are truly identical,
+- whether an intermediate theorem or scaffold is faithful enough to count as the
+  trusted scientific target,
+- whether prerequisite closure is substantively satisfied merely because ids were
+  listed,
 - whether a gap is substantively resolved,
 - whether a candidate is scientifically mature merely because it was generated.
 

@@ -63,10 +63,32 @@ class SchemaContractTests(unittest.TestCase):
     def test_split_and_deferred_contract_schemas_exist(self) -> None:
         split_payload = self._read_json("feedback/schemas/candidate-split-contract.schema.json")
         deferred_payload = self._read_json("runtime/schemas/deferred-candidate-buffer.schema.json")
+        followup_gap_payload = self._read_json("runtime/schemas/followup-gap-writeback.schema.json")
+        faithfulness_payload = self._read_json("validation/schemas/faithfulness-review.schema.json")
+        comparator_payload = self._read_json("validation/schemas/comparator-audit-record.schema.json")
+        provenance_payload = self._read_json("validation/schemas/provenance-review.schema.json")
+        prerequisite_payload = self._read_json("validation/schemas/prerequisite-closure-review.schema.json")
+        formal_payload = self._read_json("validation/schemas/formal-theory-review.schema.json")
         self.assertEqual(split_payload["properties"]["contract_version"]["const"], 1)
         self.assertIn("splits", split_payload["required"])
         self.assertEqual(deferred_payload["properties"]["buffer_version"]["const"], 1)
         self.assertIn("entries", deferred_payload["required"])
+        self.assertEqual(followup_gap_payload["properties"]["gap_writeback_version"]["const"], 1)
+        self.assertIn("gaps", followup_gap_payload["required"])
+        self.assertIn(
+            "formalization_blocker",
+            set(followup_gap_payload["properties"]["gaps"]["items"]["properties"]["gap_kind"]["enum"]),
+        )
+        self.assertEqual(faithfulness_payload["properties"]["schema_version"]["const"], 1)
+        self.assertIn("status", faithfulness_payload["required"])
+        self.assertEqual(comparator_payload["properties"]["schema_version"]["const"], 1)
+        self.assertIn("nearby_variants", comparator_payload["required"])
+        self.assertEqual(provenance_payload["properties"]["schema_version"]["const"], 1)
+        self.assertIn("attribution_requirements", provenance_payload["required"])
+        self.assertEqual(prerequisite_payload["properties"]["schema_version"]["const"], 1)
+        self.assertIn("formalization_blockers", prerequisite_payload["required"])
+        self.assertEqual(formal_payload["properties"]["schema_version"]["const"], 1)
+        self.assertIn("overall_status", formal_payload["required"])
 
     def test_progressive_disclosure_runtime_schema_exposes_stable_trigger_contract(self) -> None:
         payload = self._read_json("runtime/schemas/progressive-disclosure-runtime-bundle.schema.json")
@@ -91,6 +113,32 @@ class SchemaContractTests(unittest.TestCase):
         self.assertTrue((policy_payload.get("auto_promotion_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("candidate_split_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("deferred_buffer_policy") or {}).get("auto_reactivate"))
+        gap_policy = policy_payload.get("followup_gap_policy") or {}
+        self.assertTrue(gap_policy.get("enabled"))
+        self.assertEqual(
+            (gap_policy.get("return_to_stage_by_kind") or {}).get("missing_cited_result"),
+            "L0",
+        )
+        self.assertEqual(
+            (gap_policy.get("return_to_stage_by_kind") or {}).get("formalization_blocker"),
+            "L4_formalization",
+        )
+        self.assertTrue((policy_payload.get("formal_theory_trust_boundary_policy") or {}).get("enabled"))
+        self.assertIn(
+            "trusted_target",
+            set((policy_payload.get("formal_theory_trust_boundary_policy") or {}).get("trusted_roles") or []),
+        )
+        self.assertIn(
+            "reviewed",
+            set((policy_payload.get("faithfulness_policy") or {}).get("allowed_statuses") or []),
+        )
+        self.assertTrue((policy_payload.get("comparator_audit_policy") or {}).get("failure_blocks_promotion"))
+        self.assertTrue((policy_payload.get("provenance_review_policy") or {}).get("missing_provenance_blocks_promotion"))
+        self.assertIn(
+            "closed",
+            set((policy_payload.get("prerequisite_closure_policy") or {}).get("allowed_statuses") or []),
+        )
+        self.assertTrue((policy_payload.get("benchmark_governance_policy") or {}).get("external_claim_requires_clean_suite"))
 
 
 if __name__ == "__main__":

@@ -62,6 +62,9 @@ class _AITPStubSuccess:
     def audit_theory_coverage(self, **kwargs):  # noqa: ANN003
         return {"coverage_status": "pass", "candidate_id": kwargs.get("candidate_id")}
 
+    def audit_formal_theory(self, **kwargs):  # noqa: ANN003
+        return {"overall_status": "ready", "candidate_id": kwargs.get("candidate_id")}
+
     def request_promotion(self, **kwargs):  # noqa: ANN003
         return {"status": "pending_human_approval", "candidate_id": kwargs.get("candidate_id")}
 
@@ -114,6 +117,9 @@ class _AITPStubFailure:
 
     def audit_theory_coverage(self, **kwargs):  # noqa: ANN003
         raise RuntimeError("coverage boom")
+
+    def audit_formal_theory(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("formal theory boom")
 
     def request_promotion(self, **kwargs):  # noqa: ANN003
         raise RuntimeError("promotion request boom")
@@ -185,6 +191,19 @@ class AITPMCPServerTests(unittest.TestCase):
                     covered_sections=["sec:intro"],
                 )
             )
+            formal_theory = _parse(
+                aitp_mcp_server.aitp_audit_formal_theory(
+                    "demo-topic",
+                    "candidate:demo",
+                    formal_theory_role="trusted_target",
+                    statement_graph_role="target_statement",
+                    faithfulness_status="reviewed",
+                    faithfulness_strategy="bounded source-to-target map",
+                    comparator_audit_status="passed",
+                    attribution_requirements=["Preserve source citation."],
+                    prerequisite_closure_status="closed",
+                )
+            )
             request_promotion = _parse(
                 aitp_mcp_server.aitp_request_promotion(
                     "demo-topic",
@@ -234,6 +253,7 @@ class AITPMCPServerTests(unittest.TestCase):
         self.assertEqual(trust["status"], "success")
         self.assertEqual(capability["status"], "success")
         self.assertEqual(coverage["status"], "success")
+        self.assertEqual(formal_theory["status"], "success")
         self.assertEqual(request_promotion["status"], "success")
         self.assertEqual(approve_promotion["status"], "success")
         self.assertEqual(reject_promotion["status"], "success")
@@ -282,6 +302,7 @@ class AITPMCPServerTests(unittest.TestCase):
                 _parse(aitp_mcp_server.aitp_audit_operation_trust("demo-topic")),
                 _parse(aitp_mcp_server.aitp_audit_capability("demo-topic")),
                 _parse(aitp_mcp_server.aitp_audit_theory_coverage("demo-topic", "candidate:demo")),
+                _parse(aitp_mcp_server.aitp_audit_formal_theory("demo-topic", "candidate:demo")),
                 _parse(aitp_mcp_server.aitp_request_promotion("demo-topic", "candidate:demo")),
                 _parse(aitp_mcp_server.aitp_approve_promotion("demo-topic", "candidate:demo")),
                 _parse(aitp_mcp_server.aitp_reject_promotion("demo-topic", "candidate:demo")),

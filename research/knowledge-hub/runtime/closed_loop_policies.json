@@ -274,5 +274,139 @@
       "reactivated",
       "dismissed"
     ]
+  },
+  "followup_gap_policy": {
+    "enabled": true,
+    "default_status": "open",
+    "allowed_gap_kinds": [
+      "missing_definition",
+      "missing_lemma",
+      "missing_cited_result",
+      "missing_derivation_step",
+      "cross_paper_dependency",
+      "formalization_blocker"
+    ],
+    "return_to_stage_by_kind": {
+      "missing_definition": "L1",
+      "missing_lemma": "L3",
+      "missing_cited_result": "L0",
+      "missing_derivation_step": "L3",
+      "cross_paper_dependency": "L0",
+      "formalization_blocker": "L4_formalization"
+    },
+    "default_priority_by_stage": {
+      "L0": "high",
+      "L1": "medium",
+      "L3": "medium",
+      "L4_formalization": "medium"
+    },
+    "default_target_source_type": "paper"
+  },
+  "formal_theory_trust_boundary_policy": {
+    "enabled": true,
+    "trusted_roles": [
+      "trusted_target"
+    ],
+    "intermediate_roles": [
+      "intermediate_theory"
+    ],
+    "supporting_roles": [
+      "supporting_context"
+    ],
+    "required_unit_fields": [
+      "formal_theory_role",
+      "statement_graph_role",
+      "statement_graph_parents",
+      "statement_graph_children"
+    ],
+    "blocking_rule": "Do not treat intermediate theory, temporary scaffolds, or explanatory bridges as the trusted target statement."
+  },
+  "faithfulness_policy": {
+    "enabled": true,
+    "allowed_statuses": [
+      "not_applicable",
+      "pending",
+      "bounded",
+      "reviewed"
+    ],
+    "default_required_for_roles": [
+      "trusted_target",
+      "intermediate_theory"
+    ],
+    "blocking_statuses": [
+      "pending"
+    ],
+    "minimum_fields": [
+      "faithfulness_status",
+      "faithfulness_strategy"
+    ]
+  },
+  "comparator_audit_policy": {
+    "enabled": true,
+    "allowed_statuses": [
+      "not_applicable",
+      "pending",
+      "passed",
+      "failed"
+    ],
+    "required_for_roles": [
+      "trusted_target",
+      "intermediate_theory"
+    ],
+    "failure_blocks_promotion": true,
+    "comparator_goal": "Check that the promoted or formalized statement is equivalent to the scientific source target rather than to a weakened nearby claim."
+  },
+  "provenance_review_policy": {
+    "enabled": true,
+    "allowed_provenance_kinds": [
+      "source_derived",
+      "retrieved_existing_formalization",
+      "adapted_existing_formalization",
+      "generated_from_scratch",
+      "mixed"
+    ],
+    "minimum_fields": [
+      "provenance_kind",
+      "attribution_requirements"
+    ],
+    "missing_provenance_blocks_promotion": true
+  },
+  "prerequisite_closure_policy": {
+    "enabled": true,
+    "allowed_statuses": [
+      "not_needed",
+      "pending",
+      "partial",
+      "closed"
+    ],
+    "default_required_for_roles": [
+      "trusted_target",
+      "intermediate_theory"
+    ],
+    "blocking_statuses": [
+      "pending",
+      "partial"
+    ],
+    "required_support_fields": [
+      "dependencies",
+      "lean_prerequisite_ids",
+      "supporting_obligation_ids",
+      "formalization_blockers"
+    ]
+  },
+  "benchmark_governance_policy": {
+    "enabled": true,
+    "allowed_contamination_statuses": [
+      "clean",
+      "contaminated",
+      "internal-only",
+      "unknown"
+    ],
+    "allowed_benchmark_uses": [
+      "workflow_regression",
+      "research_iteration",
+      "external_evaluation"
+    ],
+    "external_claim_requires_clean_suite": true
   }
 }

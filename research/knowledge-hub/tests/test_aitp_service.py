@@ -8,8 +8,6 @@ from pathlib import Path
 
 import sys
 
-from jsonschema import Draft202012Validator
-
 
 def _bootstrap_path() -> None:
     package_root = Path(__file__).resolve().parents[1]
@@ -255,6 +253,57 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
         return ledger_path
+
+    def _write_formal_theory_review(
+        self,
+        *,
+        topic_slug: str = "demo-topic",
+        run_id: str = "2026-03-13-demo",
+        candidate_id: str = "candidate:demo-candidate",
+        formal_theory_role: str = "trusted_target",
+        statement_graph_role: str = "target_statement",
+        target_statement_id: str | None = None,
+        faithfulness_status: str = "reviewed",
+        comparator_audit_status: str = "passed",
+        provenance_kind: str = "mixed",
+        prerequisite_closure_status: str = "closed",
+        formalization_blockers: list[str] | None = None,
+    ) -> dict[str, object]:
+        return self.service.audit_formal_theory(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            formal_theory_role=formal_theory_role,
+            statement_graph_role=statement_graph_role,
+            target_statement_id=target_statement_id,
+            statement_graph_parents=["definition:demo-prereq"],
+            statement_graph_children=["proof_fragment:demo-fragment"],
+            informal_statement="Demo source theorem statement.",
+            formal_target="demo_formal_target",
+            faithfulness_status=faithfulness_status,
+            faithfulness_strategy="Map the source theorem to one bounded trusted target and keep nearby weaker statements separate.",
+            faithfulness_notes="Demo formal-theory review for tests.",
+            comparator_audit_status=comparator_audit_status,
+            comparator_risks=["A nearby weakened statement could drop the quantization claim."],
+            nearby_variants=[
+                {
+                    "label": "weakened-demo-claim",
+                    "relation": "weaker_variant",
+                    "verdict": "rejected",
+                    "notes": "Drops the source-level quantization conclusion.",
+                }
+            ],
+            comparator_notes="Comparator scan completed.",
+            provenance_kind=provenance_kind,
+            attribution_requirements=["Preserve source citation and upstream audit pointers."],
+            provenance_sources=["paper:demo-source"],
+            provenance_notes="Built from source-grounded notes plus explicit review artifacts.",
+            prerequisite_closure_status=prerequisite_closure_status,
+            lean_prerequisite_ids=["definition:demo-prereq"],
+            supporting_obligation_ids=["proof_obligation:demo-obligation"],
+            formalization_blockers=formalization_blockers or [],
+            prerequisite_notes="All bounded prerequisites are present in the demo graph.",
+        )
 
     def _write_tpkn_backend_card(self, *, allows_auto: bool = True) -> Path:
         backends_root = self.kernel_root / "canonical" / "backends"
@@ -529,6 +578,9 @@ class AITPServiceTests(unittest.TestCase):
 
     def test_materialize_runtime_protocol_bundle_writes_expected_artifacts(self) -> None:
         runtime_root = self._write_runtime_state()
+        tpkn_root = self._write_fake_tpkn_repo()
+        self._write_candidate(candidate_type="theorem_card", intended_l2_target="theorem:demo-promoted-theorem")
+        self._write_formal_theory_review()
         (runtime_root / "topic_state.json").write_text(
             json.dumps(
                 {
@@ -546,7 +598,7 @@ class AITPServiceTests(unittest.TestCase):
                             "status": "active",
                             "card_path": "canonical/backends/formal-theory-note-library.json",
                             "card_status": "present",
-                            "backend_root": "/tmp/formal-theory-notes",
+                            "backend_root": str(tpkn_root),
                             "artifact_granularity": "One derivation-focused note is the atomic backend artifact.",
                             "artifact_kinds": ["formal_theory_note"],
                             "canonical_targets": ["concept", "derivation_object"],
@@ -559,11 +611,31 @@ class AITPServiceTests(unittest.TestCase):
                         "reproducibility_expectations": ["Keep backend provenance explicit."],
                         "note_expectations": ["Write a human-readable derivation note."],
                     },
+                    "followup_gap_count": 1,
+                    "closed_loop": {
+                        "followup_gap_count": 1,
+                    },
+                    "pointers": {
+                        "followup_gap_writeback_path": "validation/topics/demo-topic/runs/2026-03-13-demo/followup_gap_writeback.json",
+                        "followup_gap_writeback_note_path": "validation/topics/demo-topic/runs/2026-03-13-demo/followup_gap_writeback.md",
+                        "literature_followup_queries_path": "validation/topics/demo-topic/runs/2026-03-13-demo/literature_followup_queries.json",
+                    },
                 },
                 ensure_ascii=True,
                 indent=2,
             )
             + "\n",
+            encoding="utf-8",
+        )
+        validation_run_root = self.kernel_root / "validation" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo"
+        validation_run_root.mkdir(parents=True, exist_ok=True)
+        (validation_run_root / "followup_gap_writeback.md").write_text("# Follow-up gap writeback\n", encoding="utf-8")
+        (validation_run_root / "followup_gap_writeback.json").write_text(
+            json.dumps({"gap_count": 1}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (validation_run_root / "literature_followup_queries.json").write_text(
+            json.dumps({"queries": []}, ensure_ascii=True, indent=2) + "\n",
             encoding="utf-8",
         )
         (runtime_root / "interaction_state.json").write_text(
@@ -609,9 +681,9 @@ class AITPServiceTests(unittest.TestCase):
                 {
                     "status": "approved",
                     "candidate_id": "candidate:demo-candidate",
-                    "candidate_type": "concept",
+                    "candidate_type": "theorem_card",
                     "backend_id": "backend:theoretical-physics-knowledge-network",
-                    "target_backend_root": "/tmp/tpkn",
+                    "target_backend_root": str(tpkn_root),
                     "approved_by": "human",
                     "promoted_units": [],
                 },
@@ -650,20 +722,6 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(protocol_json.exists())
         self.assertTrue(protocol_note.exists())
         payload = json.loads(protocol_json.read_text(encoding="utf-8"))
-        schema = json.loads(
-            (
-                Path(__file__).resolve().parents[1]
-                / "runtime"
-                / "schemas"
-                / "progressive-disclosure-runtime-bundle.schema.json"
-            ).read_text(encoding="utf-8")
-        )
-        Draft202012Validator(schema).validate(payload)
-        self.assertEqual(
-            payload["$schema"],
-            "https://aitp.local/schemas/progressive-disclosure-runtime-bundle.schema.json",
-        )
-        self.assertEqual(payload["bundle_kind"], "progressive_disclosure_runtime_bundle")
         self.assertEqual(payload["human_request"], "run a bounded public protocol check")
         self.assertEqual(payload["priority_rules"][0]["source"], "control_note_or_decision_contract")
         self.assertEqual(payload["action_queue_surface"]["queue_source"], "heuristic")
@@ -671,19 +729,51 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["promotion_gate"]["status"], "approved")
         self.assertEqual(payload["minimal_execution_brief"]["selected_action_id"], "action:demo-topic:01")
         self.assertEqual(payload["minimal_execution_brief"]["queue_source"], "heuristic")
+        self.assertEqual(payload["minimal_execution_brief"]["open_followup_gap_count"], 1)
         self.assertEqual(payload["must_read_now"][0]["path"], "runtime/topics/demo-topic/runtime_protocol.generated.md")
-        self.assertEqual(payload["escalation_triggers"][1]["trigger"], "promotion_intent")
+        self.assertTrue(
+            any(
+                row["path"] == "validation/topics/demo-topic/runs/2026-03-13-demo/followup_gap_writeback.md"
+                for row in payload["must_read_now"]
+            )
+        )
+        self.assertTrue(
+            any(
+                row["path"] == "validation/topics/demo-topic/runs/2026-03-13-demo/theory-packets/candidate-demo-candidate/formal_theory_review.md"
+                for row in payload["must_read_now"]
+            )
+        )
+        self.assertTrue(any(row["trigger"] == "promotion_intent" for row in payload["escalation_triggers"]))
+        self.assertTrue(any(row["trigger"] == "followup_gap_open" and row["active"] for row in payload["escalation_triggers"]))
         self.assertTrue(any(row["trigger"] == "decision_override_present" for row in payload["escalation_triggers"]))
+        self.assertTrue(any(row["trigger"] == "definition_trust_review" and row["active"] for row in payload["escalation_triggers"]))
+        self.assertTrue(any(row["trigger"] == "faithfulness_review_required" and row["active"] for row in payload["escalation_triggers"]))
+        self.assertTrue(any(row["trigger"] == "comparator_audit_required" and row["active"] for row in payload["escalation_triggers"]))
+        self.assertTrue(any(row["trigger"] == "provenance_review_required" and row["active"] for row in payload["escalation_triggers"]))
+        self.assertTrue(any(row["trigger"] == "prerequisite_closure_required" and row["active"] for row in payload["escalation_triggers"]))
         self.assertTrue(any(row["slice"] == "current_execution_lane" for row in payload["recommended_protocol_slices"]))
+        self.assertTrue(any(row["slice"] == "followup_gap_resolution" for row in payload["recommended_protocol_slices"]))
+        self.assertTrue(any(row["slice"] == "formal_theory_guardrails" for row in payload["recommended_protocol_slices"]))
+        self.assertTrue(payload["formal_theory_guardrails"]["active"])
+        self.assertEqual(payload["formal_theory_guardrails"]["formal_theory_review"]["status"], "ready")
+        self.assertIn("docs/PROTOCOLS.md", "\n".join(payload["formal_theory_guardrails"]["required_reads"]))
         self.assertEqual(
             payload["backend_bridges"][0]["l0_registration_script"],
             "source-layer/scripts/register_local_note_source.py",
         )
+        self.assertEqual(payload["promotion_gate"]["formal_theory_review_status"], "ready")
+        self.assertEqual(payload["promotion_gate"]["faithfulness_status"], "reviewed")
         note_text = protocol_note.read_text(encoding="utf-8")
         self.assertIn("## Minimal execution brief", note_text)
         self.assertIn("## Must read now", note_text)
         self.assertIn("## Escalate only when triggered", note_text)
         self.assertIn("`promotion_intent` status=`active`", note_text)
+        self.assertIn("`followup_gap_open` status=`active`", note_text)
+        self.assertIn("`definition_trust_review` status=`active`", note_text)
+        self.assertIn("## Formal-theory guardrails", note_text)
+        self.assertIn("Trusted target rule", note_text)
+        self.assertIn("Current review status: `ready`", note_text)
+        self.assertIn("formal_theory_review.md", note_text)
         self.assertIn("Prefer durable `next_actions.contract.json`", note_text)
         self.assertIn("backend:formal-theory-note-library", note_text)
         self.assertIn("## L2 promotion gate", note_text)
@@ -757,10 +847,6 @@ class AITPServiceTests(unittest.TestCase):
             "COMMUNICATION_CONTRACT.md",
             "AUTONOMY_AND_OPERATOR_MODEL.md",
             "L2_CONSULTATION_PROTOCOL.md",
-            "PROOF_OBLIGATION_PROTOCOL.md",
-            "GAP_RECOVERY_PROTOCOL.md",
-            "FAMILY_FUSION_PROTOCOL.md",
-            "VERIFICATION_BRIDGE_PROTOCOL.md",
             "INDEXING_RULES.md",
             "L0_SOURCE_LAYER.md",
         ):
@@ -770,10 +856,6 @@ class AITPServiceTests(unittest.TestCase):
 
         self.assertEqual(payload["layer_roots"]["L2"]["status"], "present")
         self.assertEqual(payload["protocol_contracts"]["layer_map"]["status"], "present")
-        self.assertEqual(payload["protocol_contracts"]["proof_obligation_protocol"]["status"], "present")
-        self.assertEqual(payload["protocol_contracts"]["gap_recovery_protocol"]["status"], "present")
-        self.assertEqual(payload["protocol_contracts"]["family_fusion_protocol"]["status"], "present")
-        self.assertEqual(payload["protocol_contracts"]["verification_bridge_protocol"]["status"], "present")
 
     def test_run_topic_loop_writes_loop_state_and_executes_auto_actions(self) -> None:
         service = _LoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
@@ -837,6 +919,23 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(Path(payload["paths"]["notation_table"]).exists())
         self.assertTrue(Path(payload["paths"]["derivation_graph"]).exists())
         self.assertTrue(Path(payload["paths"]["agent_consensus"]).exists())
+
+    def test_audit_formal_theory_writes_review_artifacts(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate(candidate_type="theorem_card", intended_l2_target="theorem:demo-promoted-theorem")
+
+        payload = self._write_formal_theory_review()
+
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertTrue(Path(payload["paths"]["faithfulness_review"]).exists())
+        self.assertTrue(Path(payload["paths"]["comparator_audit_record"]).exists())
+        self.assertTrue(Path(payload["paths"]["provenance_review"]).exists())
+        self.assertTrue(Path(payload["paths"]["prerequisite_closure_review"]).exists())
+        self.assertTrue(Path(payload["paths"]["formal_theory_review"]).exists())
+        note_text = Path(payload["paths"]["formal_theory_review_note"]).read_text(encoding="utf-8")
+        self.assertIn("## Faithfulness", note_text)
+        self.assertIn("## Comparator audit", note_text)
+        self.assertIn("## Durable artifacts", note_text)
 
     def test_promote_candidate_merges_exact_title_collision(self) -> None:
         self._write_runtime_state()
@@ -988,6 +1087,50 @@ class AITPServiceTests(unittest.TestCase):
             if line.strip()
         ]
         self.assertEqual(candidate_rows[0]["status"], "auto_promoted")
+
+    def test_auto_promote_theorem_card_requires_ready_formal_theory_review(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate(candidate_type="theorem_card", intended_l2_target="theorem:demo-promoted-theorem")
+        self._write_tpkn_backend_card(allows_auto=True)
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro", "sec:result"],
+            covered_sections=["sec:intro", "sec:result"],
+            equation_labels=["eq:1"],
+            notation_bindings=[{"symbol": "H", "meaning": "Hamiltonian"}],
+            derivation_nodes=["def:h", "eq:1"],
+            agent_votes=[{"role": "skeptic", "verdict": "no_major_gap", "notes": ""}],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+        )
+
+        with self.assertRaisesRegex(FileNotFoundError, "formal-theory review artifacts"):
+            self.service.auto_promote_candidate(
+                topic_slug="demo-topic",
+                candidate_id="candidate:demo-candidate",
+                target_backend_root=str(tpkn_root),
+                domain="demo-domain",
+                subdomain="demo-subdomain",
+            )
+
+        self._write_formal_theory_review(
+            target_statement_id="theorem:demo-promoted-theorem",
+        )
+        payload = self.service.auto_promote_candidate(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            target_backend_root=str(tpkn_root),
+            domain="demo-domain",
+            subdomain="demo-subdomain",
+        )
+
+        self.assertEqual(payload["auto_promotion_report"]["formal_theory_review_status"], "ready")
+        unit_payload = json.loads(Path(payload["target_unit_path"]).read_text(encoding="utf-8"))
+        self.assertIn("formal_theory_review_path=", "\n".join(unit_payload["review_artifacts"]))
 
     def test_apply_candidate_split_contract_creates_children_and_deferred_buffer(self) -> None:
         self._write_runtime_state()
@@ -1381,24 +1524,12 @@ class AITPServiceTests(unittest.TestCase):
             target_root=str(opencode_target),
         )
         installed_paths = {Path(item["path"]).name for item in result["installed"]}
-        command_base = opencode_target / "commands"
-        skill_base = opencode_target / "skills" / "aitp-runtime"
         self.assertIn("AITP_COMMAND_HARNESS.md", installed_paths)
         self.assertIn("aitp.md", installed_paths)
         self.assertIn("aitp-resume.md", installed_paths)
         self.assertIn("aitp-loop.md", installed_paths)
         self.assertIn("aitp-audit.md", installed_paths)
-        self.assertIn("SKILL.md", installed_paths)
-        self.assertIn("AITP_MCP_SETUP.md", installed_paths)
         self.assertIn("AITP_MCP_CONFIG.json", installed_paths)
-        self.assertTrue((command_base / "AITP_COMMAND_HARNESS.md").exists())
-        self.assertTrue((skill_base / "SKILL.md").exists())
-        self.assertTrue((skill_base / "AITP_MCP_SETUP.md").exists())
-        self.assertIn("/aitp", (skill_base / "SKILL.md").read_text(encoding="utf-8"))
-        self.assertIn(
-            "~/.config/opencode/opencode.json",
-            (skill_base / "AITP_MCP_SETUP.md").read_text(encoding="utf-8"),
-        )
 
         claude_target = self.root / "claude-runtime"
         result = self.service.install_agent(

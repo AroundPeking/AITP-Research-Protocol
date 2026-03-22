@@ -33,6 +33,10 @@ class RuntimeScriptTests(unittest.TestCase):
             "aitp_orchestrate_topic_test",
             "runtime/scripts/orchestrate_topic.py",
         )
+        self.closed_loop_v1 = _load_module(
+            "aitp_closed_loop_v1_test",
+            "runtime/scripts/closed_loop_v1.py",
+        )
         self.sync_topic_state = _load_module(
             "aitp_sync_topic_state_test",
             "runtime/scripts/sync_topic_state.py",
@@ -215,6 +219,95 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertEqual(len(actions), 1)
         self.assertEqual(actions[0]["action_type"], "reactivate_deferred_candidate")
         self.assertEqual(actions[0]["handler_args"]["entry_id"], "deferred:demo")
+
+    def test_ingest_execution_result_persists_structured_followup_gap_writeback(self) -> None:
+        topic_slug = "demo-topic"
+        run_id = "2026-03-21-demo"
+        self._write_json(
+            f"runtime/topics/{topic_slug}/selected_validation_route.json",
+            {
+                "route_id": "route:demo-topic:iqhe-proof",
+                "route_type": "formal",
+                "objective": "Recover the cited TKNN equivalence proof.",
+                "candidate_id": "candidate:demo-theorem-family",
+            },
+        )
+        self._write_json(
+            f"runtime/topics/{topic_slug}/execution_task.json",
+            {
+                "task_id": "recover-tknn-proof",
+                "summary": "Recover the missing cited TKNN proof locally.",
+                "candidate_id": "candidate:demo-theorem-family",
+                "research_mode": "formal_derivation",
+                "executor_kind": "codex",
+                "reasoning_profile": "high",
+            },
+        )
+        self._write_json(
+            f"validation/topics/{topic_slug}/runs/{run_id}/returned_execution_result.json",
+            {
+                "task_id": "recover-tknn-proof",
+                "status": "partial",
+                "what_was_attempted": "Tried to reconstruct the Hall-response equivalence from the current local branch.",
+                "what_actually_ran": "Recovered the local route up to the cited TKNN step but not the cited paper itself.",
+                "summary": "The route still depends on an un-ingested cited result.",
+                "limitations": [
+                    "The cited proof is still external to the current branch."
+                ],
+                "inconclusive": True,
+                "followup_gap_writeback": [
+                    {
+                        "gap_kind": "missing_cited_result",
+                        "title": "Recover the cited TKNN proof",
+                        "summary": "The Hall-response / Chern-number equivalence still delegates the microscopic proof to TKNN.",
+                        "blocker_reason": "The current branch has not yet ingested the cited paper that discharges the microscopic proof step.",
+                        "theorem_family_ids": [
+                            "theorem_family:iqhe-chern-response"
+                        ],
+                        "affected_unit_ids": [
+                            "theorem:integer-quantum-hall-response-equals-band-and-many-body-chern-number"
+                        ],
+                        "parent_unit_id": "theorem:integer-quantum-hall-response-equals-band-and-many-body-chern-number",
+                        "suggested_queries": [
+                            {
+                                "query": "TKNN integer quantum Hall Chern number proof",
+                                "reason": "Recover the cited microscopic proof from Layer 0.",
+                                "priority": "high",
+                                "target_source_type": "paper"
+                            }
+                        ],
+                        "reopen_conditions": [
+                            "Ingest the cited TKNN source and rebuild the local proof fragments."
+                        ]
+                    }
+                ]
+            },
+        )
+
+        payload = self.closed_loop_v1.ingest_execution_result(
+            self.knowledge_root,
+            {"topic_slug": topic_slug, "latest_run_id": run_id},
+            "aitp-cli",
+        )
+
+        gap_path = self.knowledge_root / "validation" / "topics" / topic_slug / "runs" / run_id / "followup_gap_writeback.json"
+        gap_note_path = self.knowledge_root / "validation" / "topics" / topic_slug / "runs" / run_id / "followup_gap_writeback.md"
+        followup_path = self.knowledge_root / "validation" / "topics" / topic_slug / "runs" / run_id / "literature_followup_queries.json"
+        feedback_status_path = self.knowledge_root / "feedback" / "topics" / topic_slug / "runs" / run_id / "status.json"
+
+        self.assertTrue(gap_path.exists())
+        self.assertTrue(gap_note_path.exists())
+        self.assertTrue(followup_path.exists())
+        gap_payload = json.loads(gap_path.read_text(encoding="utf-8"))
+        self.assertEqual(gap_payload["gaps"][0]["gap_kind"], "missing_cited_result")
+        self.assertEqual(gap_payload["gaps"][0]["return_to_stage"], "L0")
+        self.assertEqual(gap_payload["gaps"][0]["parent_task_id"], "recover-tknn-proof")
+        followup_payload = json.loads(followup_path.read_text(encoding="utf-8"))
+        self.assertEqual(followup_payload[0]["query"], "TKNN integer quantum Hall Chern number proof")
+        self.assertEqual(followup_payload[0]["triggered_by_gap_id"], gap_payload["gaps"][0]["gap_id"])
+        feedback_status = json.loads(feedback_status_path.read_text(encoding="utf-8"))
+        self.assertEqual(feedback_status["open_followup_gap_count"], 1)
+        self.assertEqual(payload["followup_gap_writeback"]["gap_count"], 1)
 
     def test_build_operator_console_starts_with_immediate_execution_contract(self) -> None:
         topic_state = {

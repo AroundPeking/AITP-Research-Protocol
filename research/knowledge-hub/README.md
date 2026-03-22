@@ -55,6 +55,7 @@ aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<
 aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
 aitp capability-audit --topic-slug <topic_slug>
 aitp coverage-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --source-section <section> --covered-section <section>
+aitp formal-theory-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --formal-theory-role trusted_target --statement-graph-role target_statement --faithfulness-status reviewed --faithfulness-strategy "<strategy>" --comparator-audit-status passed --attribution-requirement "<requirement>" --prerequisite-closure-status closed
 aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
@@ -154,6 +155,19 @@ execution contract first, defer deeper details until declared triggers fire,
 and never hide hard constraints.
 External runtimes should consume its trigger semantics from the JSON bundle and
 its schema contract rather than scraping markdown prose.
+If a closed-loop run still has open typed follow-up gaps, the runtime bundle
+should surface that ledger as part of the top-level execution contract rather
+than leaving it buried inside validation-only artifacts.
+If the topic is in a formal-theory lane, the runtime bundle should also surface
+which parts of the statement graph are trusted targets, which are intermediate
+theory or scaffolds, whether faithfulness has been reviewed, and whether
+prerequisite closure is still blocking honest promotion.
+When the candidate already has a durable formal-theory audit, the runtime
+bundle should point directly to:
+
+- `validation/topics/<topic_slug>/runs/<run_id>/theory-packets/<candidate_slug>/formal_theory_review.md`
+- `validation/topics/<topic_slug>/runs/<run_id>/theory-packets/<candidate_slug>/formal_theory_review.json`
+- the component review artifacts for faithfulness, comparator audit, provenance, and prerequisite closure
 
 The layer contracts above remain the higher-priority governance surface.
 External backends such as a separate formal-theory knowledge network, a
@@ -164,6 +178,16 @@ proof obligations, unresolved-gap routing, multi-source family fusion, and the
 selected verification bridge explicitly instead of collapsing them into one
 opaque prompt.
 
+For theory-formal work, runtime now exposes additional guardrails that remain
+hard blockers rather than optional documentation:
+
+- the trusted-target versus intermediate-theory boundary,
+- a separate faithfulness review gate,
+- comparator-style anti-cheat audits against nearby weakened statements,
+- explicit provenance and attribution review,
+- prerequisite closure as a default promotion gate,
+- contamination-aware benchmark governance for regression suites.
+
 Layer 2 now has two governed writeback paths:
 
 1. Human-reviewed `L2`:
@@ -172,6 +196,7 @@ Layer 2 now has two governed writeback paths:
    - `aitp promote ...`
 2. Theory-formal `L2_auto`:
    - `aitp coverage-audit ...`
+   - `aitp formal-theory-audit ...` when the candidate type is theorem-facing
    - `aitp auto-promote ...`
 
 The current public external writeback path targets the standalone

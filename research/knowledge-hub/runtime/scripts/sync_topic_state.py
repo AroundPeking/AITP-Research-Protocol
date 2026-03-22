@@ -398,6 +398,7 @@ def build_resume_markdown(state: dict) -> str:
             f"- Result manifest: `{closed_loop.get('result_id') or '(missing)'}`",
             f"- Latest decision: `{closed_loop.get('latest_decision') or '(missing)'}`",
             f"- Literature follow-ups: `{closed_loop.get('literature_followup_count', 0)}`",
+            f"- Follow-up gaps: `{closed_loop.get('followup_gap_count', 0)}`",
             f"- Deferred candidates: `{state.get('deferred_candidate_count', 0)}`",
             f"- Reactivatable deferred entries: `{state.get('reactivable_deferred_count', 0)}`",
             f"- Follow-up subtopics: `{state.get('followup_subtopic_count', 0)}`",
@@ -445,6 +446,8 @@ def build_resume_markdown(state: dict) -> str:
             f"- Decision ledger: `{pointers.get('decision_ledger_path') or '(missing)'}`",
             f"- Literature follow-ups: `{pointers.get('literature_followup_queries_path') or '(missing)'}`",
             f"- Literature follow-up receipts: `{pointers.get('literature_followup_receipts_path') or '(missing)'}`",
+            f"- Follow-up gap writeback: `{pointers.get('followup_gap_writeback_path') or '(missing)'}`",
+            f"- Follow-up gap writeback note: `{pointers.get('followup_gap_writeback_note_path') or '(missing)'}`",
             f"- Deferred buffer: `{pointers.get('deferred_buffer_path') or '(missing)'}`",
             f"- Deferred buffer note: `{pointers.get('deferred_buffer_note_path') or '(missing)'}`",
             f"- Follow-up subtopics: `{pointers.get('followup_subtopics_path') or '(missing)'}`",
@@ -632,6 +635,8 @@ def main() -> int:
         summary_parts.append(f"deferred={len(deferred_buffer.get('entries') or [])}")
     if followup_subtopics:
         summary_parts.append(f"followup_subtopics={len(followup_subtopics)}")
+    if closed_loop.get("followup_gaps"):
+        summary_parts.append(f"followup_gaps={len(closed_loop.get('followup_gaps') or [])}")
     summary_parts.append(f"mode={research_mode}")
     summary_parts.append(f"executor={active_executor_kind}")
     summary = (
@@ -668,6 +673,7 @@ def main() -> int:
         "deferred_candidate_count": len(deferred_buffer.get("entries") or []),
         "reactivable_deferred_count": reactivatable_deferred_count,
         "followup_subtopic_count": len(followup_subtopics),
+        "followup_gap_count": len(closed_loop.get("followup_gaps") or []),
         "promotion_gate": {
             "status": str(promotion_gate.get("status") or "not_requested"),
             "candidate_id": str(promotion_gate.get("candidate_id") or ""),
@@ -763,6 +769,8 @@ def main() -> int:
             "decision_ledger_path": closed_loop["paths"].get("decision_ledger_path"),
             "literature_followup_queries_path": closed_loop["paths"].get("literature_followup_path"),
             "literature_followup_receipts_path": closed_loop["paths"].get("literature_followup_receipts_path"),
+            "followup_gap_writeback_path": closed_loop["paths"].get("followup_gap_writeback_path"),
+            "followup_gap_writeback_note_path": closed_loop["paths"].get("followup_gap_writeback_note_path"),
         },
         "closed_loop": {
             "status": (closed_loop.get("latest_decision") or {}).get("decision")
@@ -773,6 +781,7 @@ def main() -> int:
             "result_id": (closed_loop.get("result_manifest") or {}).get("result_id"),
             "latest_decision": (closed_loop.get("latest_decision") or {}).get("decision"),
             "literature_followup_count": len(closed_loop.get("literature_followups") or []),
+            "followup_gap_count": len(closed_loop.get("followup_gaps") or []),
             "next_transition": closed_loop.get("next_transition"),
             "research_mode": research_mode,
             "executor_kind": active_executor_kind,

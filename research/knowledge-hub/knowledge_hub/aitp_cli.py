@@ -39,6 +39,29 @@ def _parse_agent_vote(value: str) -> dict[str, str]:
     return {"role": role, "verdict": verdict, "notes": note}
 
 
+def _parse_nearby_variant(value: str) -> dict[str, str]:
+    if "=" not in value:
+        raise argparse.ArgumentTypeError(
+            "nearby variants must use LABEL=RELATION:VERDICT or LABEL=RELATION:VERDICT:NOTE"
+        )
+    label, remainder = value.split("=", 1)
+    relation, sep, verdict_note = remainder.partition(":")
+    if not sep:
+        raise argparse.ArgumentTypeError(
+            "nearby variants must include relation and verdict separated by ':'"
+        )
+    verdict, _, note = verdict_note.partition(":")
+    label = label.strip()
+    relation = relation.strip()
+    verdict = verdict.strip()
+    note = note.strip()
+    if not label or not relation or not verdict:
+        raise argparse.ArgumentTypeError(
+            "nearby variants must include label, relation, and verdict"
+        )
+    return {"label": label, "relation": relation, "verdict": verdict, "notes": note}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AITP kernel CLI")
     parser.add_argument("--kernel-root", type=Path)
@@ -162,6 +185,40 @@ def build_parser() -> argparse.ArgumentParser:
     coverage_audit.add_argument("--skeptic-major-gap-count", type=int, default=0)
     coverage_audit.add_argument("--notes")
     coverage_audit.add_argument("--json", action="store_true")
+
+    formal_theory_audit = subparsers.add_parser(
+        "formal-theory-audit",
+        help="Record durable faithfulness, comparator, provenance, and prerequisite-closure audits for a candidate",
+    )
+    formal_theory_audit.add_argument("--topic-slug", required=True)
+    formal_theory_audit.add_argument("--candidate-id", required=True)
+    formal_theory_audit.add_argument("--run-id")
+    formal_theory_audit.add_argument("--updated-by", default="aitp-cli")
+    formal_theory_audit.add_argument("--formal-theory-role", required=True)
+    formal_theory_audit.add_argument("--statement-graph-role", required=True)
+    formal_theory_audit.add_argument("--definition-trust-tier")
+    formal_theory_audit.add_argument("--target-statement-id")
+    formal_theory_audit.add_argument("--statement-graph-parent", action="append", default=[])
+    formal_theory_audit.add_argument("--statement-graph-child", action="append", default=[])
+    formal_theory_audit.add_argument("--informal-statement")
+    formal_theory_audit.add_argument("--formal-target")
+    formal_theory_audit.add_argument("--faithfulness-status", default="pending")
+    formal_theory_audit.add_argument("--faithfulness-strategy")
+    formal_theory_audit.add_argument("--faithfulness-notes")
+    formal_theory_audit.add_argument("--comparator-audit-status", default="pending")
+    formal_theory_audit.add_argument("--comparator-risk", action="append", default=[])
+    formal_theory_audit.add_argument("--nearby-variant", action="append", default=[], type=_parse_nearby_variant)
+    formal_theory_audit.add_argument("--comparator-notes")
+    formal_theory_audit.add_argument("--provenance-kind", default="generated_from_scratch")
+    formal_theory_audit.add_argument("--attribution-requirement", action="append", default=[])
+    formal_theory_audit.add_argument("--provenance-source", action="append", default=[])
+    formal_theory_audit.add_argument("--provenance-notes")
+    formal_theory_audit.add_argument("--prerequisite-closure-status", default="pending")
+    formal_theory_audit.add_argument("--lean-prerequisite-id", action="append", default=[])
+    formal_theory_audit.add_argument("--supporting-obligation-id", action="append", default=[])
+    formal_theory_audit.add_argument("--formalization-blocker", action="append", default=[])
+    formal_theory_audit.add_argument("--prerequisite-notes")
+    formal_theory_audit.add_argument("--json", action="store_true")
 
     loop = subparsers.add_parser("loop", help="Run the safe AITP auto-continue loop")
     loop.add_argument("--topic")
@@ -417,6 +474,40 @@ def main() -> int:
         )
         _emit(payload, args.json)
         return 0 if payload.get("coverage_status") == "pass" else 1
+
+    if args.command == "formal-theory-audit":
+        payload = service.audit_formal_theory(
+            topic_slug=args.topic_slug,
+            candidate_id=args.candidate_id,
+            run_id=args.run_id,
+            updated_by=args.updated_by,
+            formal_theory_role=args.formal_theory_role,
+            statement_graph_role=args.statement_graph_role,
+            definition_trust_tier=args.definition_trust_tier,
+            target_statement_id=args.target_statement_id,
+            statement_graph_parents=args.statement_graph_parent,
+            statement_graph_children=args.statement_graph_child,
+            informal_statement=args.informal_statement,
+            formal_target=args.formal_target,
+            faithfulness_status=args.faithfulness_status,
+            faithfulness_strategy=args.faithfulness_strategy,
+            faithfulness_notes=args.faithfulness_notes,
+            comparator_audit_status=args.comparator_audit_status,
+            comparator_risks=args.comparator_risk,
+            nearby_variants=args.nearby_variant,
+            comparator_notes=args.comparator_notes,
+            provenance_kind=args.provenance_kind,
+            attribution_requirements=args.attribution_requirement,
+            provenance_sources=args.provenance_source,
+            provenance_notes=args.provenance_notes,
+            prerequisite_closure_status=args.prerequisite_closure_status,
+            lean_prerequisite_ids=args.lean_prerequisite_id,
+            supporting_obligation_ids=args.supporting_obligation_id,
+            formalization_blockers=args.formalization_blocker,
+            prerequisite_notes=args.prerequisite_notes,
+        )
+        _emit(payload, args.json)
+        return 0 if payload.get("overall_status") == "ready" else 1
 
     if args.command == "loop":
         payload = service.run_topic_loop(

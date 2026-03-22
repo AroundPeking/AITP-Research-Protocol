@@ -906,6 +906,10 @@ def build_interaction_state(
         topic_state["topic_slug"],
         topic_state.get("latest_run_id"),
     )
+    surfaces["runtime_followup_gaps"] = (
+        closed_loop["paths"].get("followup_gap_writeback_note_path")
+        or f"runtime/topics/{topic_state['topic_slug']}/(followup-gap-writeback-missing)"
+    )
     decision_payload = load_json(topic_runtime_root / "next_action_decision.json") or {}
     unfinished_payload = load_json(topic_runtime_root / "unfinished_work.json") or {}
 
@@ -985,6 +989,11 @@ def build_interaction_state(
                 "role": "parent-child lineage for cited-literature subtopics",
             },
             {
+                "surface": "runtime_followup_gaps",
+                "path": surfaces["runtime_followup_gaps"],
+                "role": "structured unresolved gap ledger from closed-loop result ingest",
+            },
+            {
                 "surface": "runtime_trajectory",
                 "path": closed_loop["paths"].get("trajectory_note_path")
                 or f"runtime/topics/{topic_state['topic_slug']}/(trajectory-log-missing)",
@@ -1019,6 +1028,8 @@ def build_interaction_state(
             "failure_classification_note_path": closed_loop["paths"].get("failure_classification_note_path"),
             "decision_ledger_path": closed_loop["paths"].get("decision_ledger_path"),
             "literature_followup_path": closed_loop["paths"].get("literature_followup_path"),
+            "followup_gap_writeback_path": closed_loop["paths"].get("followup_gap_writeback_path"),
+            "followup_gap_writeback_note_path": closed_loop["paths"].get("followup_gap_writeback_note_path"),
             "next_transition": closed_loop.get("next_transition"),
             "next_transition_reason": closed_loop.get("next_transition_reason"),
             "selected_route_id": (closed_loop.get("selected_route") or {}).get("route_id"),
@@ -1026,6 +1037,7 @@ def build_interaction_state(
             "result_id": (closed_loop.get("result_manifest") or {}).get("result_id"),
             "latest_decision": (closed_loop.get("latest_decision") or {}).get("decision"),
             "literature_followup_count": len(closed_loop.get("literature_followups") or []),
+            "followup_gap_count": len(closed_loop.get("followup_gaps") or []),
             "research_mode": topic_state.get("research_mode"),
             "executor_kind": topic_state.get("active_executor_kind"),
             "reasoning_profile": topic_state.get("active_reasoning_profile"),

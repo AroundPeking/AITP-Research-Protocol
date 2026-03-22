@@ -11,6 +11,7 @@ from pathlib import Path
 
 from closed_loop_policy import (
     closed_loop_policy_path_ref,
+    load_closed_loop_policy,
     result_ingest_policy,
     route_selection_policy,
 )
@@ -18,6 +19,7 @@ from research_mode_profiles import resolve_task_research_profile
 
 ROUTE_SELECTION_POLICY = route_selection_policy()
 RESULT_INGEST_POLICY = result_ingest_policy()
+FULL_CLOSED_LOOP_POLICY = load_closed_loop_policy()
 
 VALID_RESULT_STATUSES = set(RESULT_INGEST_POLICY.get("valid_result_statuses") or ["success", "failed", "partial"])
 VALID_DECISIONS = set(RESULT_INGEST_POLICY.get("valid_decisions") or ["keep", "revise", "discard", "defer"])
@@ -43,6 +45,26 @@ DECISION_RULES = list(RESULT_INGEST_POLICY.get("decision_rules") or [])
 CANDIDATE_STATUS_BY_DECISION = dict(RESULT_INGEST_POLICY.get("candidate_status_by_decision") or {})
 FOLLOWUP_POLICY = dict(RESULT_INGEST_POLICY.get("followup_policy") or {})
 FAILURE_CLASSIFICATION_POLICY = dict(RESULT_INGEST_POLICY.get("failure_classification") or {})
+FOLLOWUP_GAP_POLICY = dict(FULL_CLOSED_LOOP_POLICY.get("followup_gap_policy") or {})
+VALID_FOLLOWUP_GAP_KINDS = {
+    str(item).strip()
+    for item in (FOLLOWUP_GAP_POLICY.get("allowed_gap_kinds") or [])
+    if str(item).strip()
+}
+RETURN_TO_STAGE_BY_GAP_KIND = {
+    str(key).strip(): str(value).strip()
+    for key, value in (FOLLOWUP_GAP_POLICY.get("return_to_stage_by_kind") or {}).items()
+    if str(key).strip() and str(value).strip()
+}
+DEFAULT_GAP_PRIORITY_BY_STAGE = {
+    str(key).strip(): str(value).strip()
+    for key, value in (FOLLOWUP_GAP_POLICY.get("default_priority_by_stage") or {}).items()
+    if str(key).strip() and str(value).strip()
+}
+DEFAULT_FOLLOWUP_GAP_STATUS = str(FOLLOWUP_GAP_POLICY.get("default_status") or "open")
+DEFAULT_FOLLOWUP_GAP_TARGET_SOURCE_TYPE = str(
+    FOLLOWUP_GAP_POLICY.get("default_target_source_type") or "paper"
+)
 
 
 def now_iso() -> str:
@@ -203,6 +225,12 @@ def build_paths(knowledge_root: Path, topic_slug: str, run_id: str | None) -> di
         "literature_followup_receipts_path": (
             validation_run_root / "literature_followup_receipts.jsonl" if validation_run_root else None
         ),
+        "followup_gap_writeback_path": (
+            validation_run_root / "followup_gap_writeback.json" if validation_run_root else None
+        ),
+        "followup_gap_writeback_note_path": (
+            validation_run_root / "followup_gap_writeback.md" if validation_run_root else None
+        ),
         "feedback_status_path": feedback_run_root / "status.json" if feedback_run_root else None,
         "feedback_next_actions_path": feedback_run_root / "next_actions.md" if feedback_run_root else None,
         "execution_tasks_dir": validation_run_root / "execution-tasks" if validation_run_root else None,
@@ -248,6 +276,348 @@ def canonicalize_artifact_ref(ref: str) -> str:
             cleaned = cleaned[len(prefix):]
             break
     return cleaned
+
+
+def normalize_followup_query_rows(
+    value: object,
+    *,
+    default_reason: str,
+    default_priority: str,
+    default_target_source_type: str,
+    result_id: str,
+) -> list[dict]:
+    normalized: list[dict] = []
+    if not isinstance(value, list):
+        return normalized
+    for item in value:
+        if isinstance(item, str):
+            query = item.strip()
+            if not query:
+                continue
+            normalized.append(
+                {
+                    "query": query,
+                    "reason": default_reason,
+                    "priority": default_priority,
+                    "target_source_type": default_target_source_type,
+                    "triggered_by_result_id": result_id,
+                }
+            )
+            continue
+        if not isinstance(item, dict):
+            continue
+        query = str(item.get("query") or "").strip()
+        if not query:
+            continue
+        normalized.append(
+            {
+                "query": query,
+                "reason": str(item.get("reason") or default_reason),
+                "priority": str(item.get("priority") or default_priority),
+                "target_source_type": str(item.get("target_source_type") or default_target_source_type),
+                "triggered_by_result_id": result_id,
+            }
+        )
+    return normalized
+
+
+def build_declared_literature_followups(
+    returned_result: dict,
+    decision: dict,
+    route: dict,
+    task_payload: dict,
+    result_id: str,
+) -> list[dict]:
+    explicit = returned_result.get("literature_followup_queries") or returned_result.get("followup_queries")
+    default_target_source_type = str(FOLLOWUP_POLICY.get("default_target_source_type") or "paper")
+    default_priority = str(FOLLOWUP_POLICY.get("default_priority") or "medium")
+    max_queries = int(FOLLOWUP_POLICY.get("max_queries") or 3)
+    normalized = normalize_followup_query_rows(
+        explicit,
+        default_reason=str(returned_result.get("decision_reason") or decision["reason"]),
+        default_priority=default_priority,
+        default_target_source_type=default_target_source_type,
+        result_id=result_id,
+    )
+    if normalized:
+        return normalized[:max_queries]
+
+    needs_followup = any(
+        bool(returned_result.get(flag))
+        for flag in (FOLLOWUP_POLICY.get("trigger_flags") or [])
+    ) or decision["decision"] in set(FOLLOWUP_POLICY.get("trigger_decisions") or [])
+    if not needs_followup:
+        return []
+
+    base_terms = " ".join(
+        unique_list(
+            [
+                task_payload.get("task_id", ""),
+                route.get("route_type", ""),
+                route.get("objective", ""),
+            ]
+        )
+    )
+    queries = [
+        {
+            "query": f"{base_terms} {FOLLOWUP_POLICY.get('baseline_query_suffix') or 'limitation baseline comparison'}".strip(),
+            "reason": decision["reason"],
+            "priority": (
+                str(FOLLOWUP_POLICY.get("baseline_gap_priority") or default_priority)
+                if returned_result.get("missing_baseline_support")
+                else default_priority
+            ),
+            "target_source_type": default_target_source_type,
+            "triggered_by_result_id": result_id,
+        }
+    ]
+    if returned_result.get("contradiction_detected"):
+        queries.append(
+            {
+                "query": f"{base_terms} {FOLLOWUP_POLICY.get('contradiction_query_suffix') or 'contradiction sector dependence'}".strip(),
+                "reason": str(
+                    FOLLOWUP_POLICY.get("contradiction_reason")
+                    or "Returned result flagged a contradiction or mismatch that needs literature context."
+                ),
+                "priority": str(FOLLOWUP_POLICY.get("baseline_gap_priority") or default_priority),
+                "target_source_type": default_target_source_type,
+                "triggered_by_result_id": result_id,
+            }
+        )
+    return queries[:max_queries]
+
+
+def default_reopen_conditions(gap_kind: str, return_to_stage: str) -> list[str]:
+    if return_to_stage == "L0":
+        return ["Reopen after ingesting a new source that explicitly addresses the missing result."]
+    if return_to_stage == "L1":
+        return ["Reopen after the missing definition or notation is restated and anchored in provisional intake notes."]
+    if return_to_stage == "L4_formalization":
+        return ["Reopen after the mathematical formalization blocker is decomposed into explicit proof obligations."]
+    if gap_kind == "missing_derivation_step":
+        return ["Reopen after the omitted derivation step is written as a bounded derivation-step or proof-fragment note."]
+    return ["Reopen after the missing local support is added to the current Layer 3 branch."]
+
+
+def default_gap_title(gap_kind: str, route: dict, task_payload: dict, index: int) -> str:
+    objective = first_non_empty_text(route.get("objective"), task_payload.get("summary"), f"gap {index}")
+    return f"{gap_kind.replace('_', ' ')} for {objective}"
+
+
+def normalize_followup_gap_entries(
+    *,
+    returned_result: dict,
+    decision: dict,
+    route: dict,
+    task_payload: dict,
+    result_id: str,
+    paths: dict[str, Path | None],
+    knowledge_root: Path,
+) -> list[dict]:
+    if not FOLLOWUP_GAP_POLICY.get("enabled", True):
+        return []
+
+    explicit_rows = ensure_dict_list(returned_result.get("followup_gap_writeback"))
+    default_queries = build_declared_literature_followups(returned_result, decision, route, task_payload, result_id)
+    rows_to_normalize = explicit_rows
+    if not rows_to_normalize and default_queries:
+        rows_to_normalize = [
+            {
+                "gap_kind": "cross_paper_dependency",
+                "title": f"Bounded literature recovery for {first_non_empty_text(route.get('objective'), task_payload.get('task_id'), 'current route')}",
+                "summary": (
+                    "The returned result still depends on external literature or comparison work before the current "
+                    "route can be treated as complete."
+                ),
+                "blocker_reason": str(returned_result.get("decision_reason") or decision["reason"]),
+                "suggested_queries": default_queries,
+                "theorem_family_ids": [],
+                "affected_unit_ids": [],
+            }
+        ]
+
+    normalized: list[dict] = []
+    max_queries = int(FOLLOWUP_POLICY.get("max_queries") or 3)
+    for index, item in enumerate(rows_to_normalize, start=1):
+        gap_kind = str(item.get("gap_kind") or item.get("kind") or "").strip()
+        if not gap_kind or gap_kind not in VALID_FOLLOWUP_GAP_KINDS:
+            raise SystemExit(
+                f"Invalid followup_gap_writeback entry {index}: gap_kind must be one of {sorted(VALID_FOLLOWUP_GAP_KINDS)}."
+            )
+        return_to_stage = str(item.get("return_to_stage") or RETURN_TO_STAGE_BY_GAP_KIND.get(gap_kind) or "L3").strip()
+        if return_to_stage not in {"L0", "L1", "L3", "L4_formalization"}:
+            raise SystemExit(
+                f"Invalid followup_gap_writeback entry {index}: unsupported return_to_stage `{return_to_stage}`."
+            )
+        summary = str(item.get("summary") or "").strip()
+        blocker_reason = str(item.get("blocker_reason") or item.get("reason") or "").strip()
+        if not summary or not blocker_reason:
+            raise SystemExit(
+                f"Invalid followup_gap_writeback entry {index}: both `summary` and `blocker_reason` are required."
+            )
+        title = str(item.get("title") or default_gap_title(gap_kind, route, task_payload, index)).strip()
+        theorem_family_ids = unique_list(ensure_string_list(item.get("theorem_family_ids")))
+        affected_unit_ids = unique_list(ensure_string_list(item.get("affected_unit_ids")))
+        evidence_refs = unique_list(
+            [
+                canonicalize_artifact_ref(ref)
+                for ref in ensure_string_list(item.get("evidence_refs"))
+                if canonicalize_artifact_ref(ref)
+            ]
+            + [
+                ref
+                for ref in (
+                    relative_to_root(paths["returned_result_path"], knowledge_root),
+                    relative_to_root(paths["result_manifest_path"], knowledge_root),
+                    relative_to_root(paths["execution_task_path"], knowledge_root),
+                    relative_to_root(paths["selected_route_path"], knowledge_root),
+                )
+                if ref
+            ]
+        )
+        default_priority = str(
+            DEFAULT_GAP_PRIORITY_BY_STAGE.get(return_to_stage)
+            or FOLLOWUP_POLICY.get("default_priority")
+            or "medium"
+        )
+        suggested_queries = normalize_followup_query_rows(
+            item.get("suggested_queries") or item.get("literature_followup_queries"),
+            default_reason=blocker_reason,
+            default_priority=default_priority,
+            default_target_source_type=str(item.get("target_source_type") or DEFAULT_FOLLOWUP_GAP_TARGET_SOURCE_TYPE),
+            result_id=result_id,
+        )
+        if return_to_stage == "L0" and not suggested_queries:
+            query_terms = unique_list(
+                theorem_family_ids
+                + affected_unit_ids
+                + [
+                    title,
+                    summary,
+                    str(route.get("objective") or ""),
+                ]
+            )
+            query = " ".join(term for term in query_terms if term).strip()
+            if query:
+                suggested_queries = [
+                    {
+                        "query": query,
+                        "reason": blocker_reason,
+                        "priority": default_priority,
+                        "target_source_type": str(
+                            item.get("target_source_type") or DEFAULT_FOLLOWUP_GAP_TARGET_SOURCE_TYPE
+                        ),
+                        "triggered_by_result_id": result_id,
+                    }
+                ]
+        gap_slug = slugify(f"{route.get('route_id') or 'route'}-{index}-{title}")
+        normalized.append(
+            {
+                "gap_id": str(item.get("gap_id") or f"followup_gap:{gap_slug}"),
+                "gap_kind": gap_kind,
+                "title": title,
+                "summary": summary,
+                "blocker_reason": blocker_reason,
+                "parent_route_id": str(route.get("route_id") or ""),
+                "parent_task_id": str(task_payload.get("task_id") or ""),
+                "parent_candidate_id": str(item.get("parent_candidate_id") or task_payload.get("candidate_id") or ""),
+                "parent_unit_id": str(item.get("parent_unit_id") or ""),
+                "theorem_family_ids": theorem_family_ids,
+                "affected_unit_ids": affected_unit_ids,
+                "evidence_refs": evidence_refs,
+                "return_to_stage": return_to_stage,
+                "reopen_conditions": unique_list(
+                    ensure_string_list(item.get("reopen_conditions")) or default_reopen_conditions(gap_kind, return_to_stage)
+                ),
+                "status": str(item.get("status") or DEFAULT_FOLLOWUP_GAP_STATUS or "open"),
+                "suggested_queries": suggested_queries[:max_queries],
+                "notes": str(item.get("notes") or "").strip(),
+            }
+        )
+    return normalized
+
+
+def persist_followup_gap_writeback(
+    *,
+    knowledge_root: Path,
+    paths: dict[str, Path | None],
+    topic_slug: str,
+    run_id: str,
+    result_id: str,
+    updated_by: str,
+    gaps: list[dict],
+) -> dict | None:
+    if not gaps or paths["followup_gap_writeback_path"] is None or paths["followup_gap_writeback_note_path"] is None:
+        return None
+    payload = {
+        "gap_writeback_version": 1,
+        "topic_slug": topic_slug,
+        "run_id": run_id,
+        "result_id": result_id,
+        "updated_at": now_iso(),
+        "updated_by": updated_by,
+        "gaps": gaps,
+    }
+    write_json(paths["followup_gap_writeback_path"], payload)
+    lines = [
+        "# Follow-up gap writeback",
+        "",
+        f"- Topic slug: `{topic_slug}`",
+        f"- Run id: `{run_id}`",
+        f"- Result id: `{result_id}`",
+        f"- Updated by: `{updated_by}`",
+        f"- Gap count: `{len(gaps)}`",
+        "",
+    ]
+    for index, gap in enumerate(gaps, start=1):
+        lines.extend(
+            [
+                f"## {index}. {gap['title']}",
+                "",
+                f"- Gap id: `{gap['gap_id']}`",
+                f"- Gap kind: `{gap['gap_kind']}`",
+                f"- Return to stage: `{gap['return_to_stage']}`",
+                f"- Status: `{gap['status']}`",
+                f"- Parent route id: `{gap['parent_route_id']}`",
+                f"- Parent task id: `{gap['parent_task_id']}`",
+                f"- Parent candidate id: `{gap.get('parent_candidate_id') or '(none)'}`",
+                f"- Parent unit id: `{gap.get('parent_unit_id') or '(none)'}`",
+                f"- Theorem families: `{', '.join(gap.get('theorem_family_ids') or []) or '(none)'}`",
+                f"- Affected units: `{', '.join(gap.get('affected_unit_ids') or []) or '(none)'}`",
+                "",
+                "### Why it blocks",
+                "",
+                f"- {gap['blocker_reason']}",
+                "",
+                "### Summary",
+                "",
+                f"- {gap['summary']}",
+                "",
+                "### Reopen conditions",
+                "",
+            ]
+        )
+        for item in gap.get("reopen_conditions") or ["No explicit reopen condition recorded."]:
+            lines.append(f"- {item}")
+        lines.extend(["", "### Evidence refs", ""])
+        for item in gap.get("evidence_refs") or ["(none)"]:
+            lines.append(f"- `{item}`" if item != "(none)" else f"- {item}")
+        lines.extend(["", "### Suggested Layer-0 queries", ""])
+        for query in gap.get("suggested_queries") or []:
+            lines.append(
+                f"- `{query['query']}` priority=`{query['priority']}` target=`{query['target_source_type']}` reason=`{query['reason']}`"
+            )
+        if not (gap.get("suggested_queries") or []):
+            lines.append("- None.")
+        if gap.get("notes"):
+            lines.extend(["", "### Notes", "", f"- {gap['notes']}"])
+        lines.append("")
+    write_text(paths["followup_gap_writeback_note_path"], "\n".join(lines) + "\n")
+    return {
+        "path": relative_to_root(paths["followup_gap_writeback_path"], knowledge_root),
+        "note_path": relative_to_root(paths["followup_gap_writeback_note_path"], knowledge_root),
+        "gap_count": len(gaps),
+    }
 
 
 def task_priority(status: str | None) -> int:
@@ -490,6 +860,9 @@ def compute_closed_loop_status(
     )
     decision_rows = read_jsonl(paths["decision_ledger_path"]) if paths["decision_ledger_path"] else []
     literature_followups = read_json(paths["literature_followup_path"]) if paths["literature_followup_path"] else None
+    followup_gap_writeback = (
+        read_json(paths["followup_gap_writeback_path"]) if paths["followup_gap_writeback_path"] else None
+    )
     latest_decision = decision_rows[-1] if decision_rows else None
     route_candidate = None
 
@@ -533,6 +906,8 @@ def compute_closed_loop_status(
         "failure_classification": failure_classification,
         "latest_decision": latest_decision,
         "literature_followups": literature_followups if isinstance(literature_followups, list) else [],
+        "followup_gap_writeback": followup_gap_writeback,
+        "followup_gaps": list((followup_gap_writeback or {}).get("gaps") or []),
         "route_candidate": route_candidate,
         "next_transition": next_transition,
         "next_transition_reason": next_transition_reason,
@@ -1040,86 +1415,43 @@ def persist_failure_classification(
 
 
 def build_literature_followups(
+    followup_gaps: list[dict],
     returned_result: dict,
     decision: dict,
     route: dict,
     task_payload: dict,
     result_id: str,
 ) -> list[dict]:
-    explicit = returned_result.get("literature_followup_queries") or returned_result.get("followup_queries")
-    normalized: list[dict] = []
-    default_target_source_type = str(FOLLOWUP_POLICY.get("default_target_source_type") or "paper")
-    default_priority = str(FOLLOWUP_POLICY.get("default_priority") or "medium")
     max_queries = int(FOLLOWUP_POLICY.get("max_queries") or 3)
-    if isinstance(explicit, list):
-        for item in explicit:
-            if isinstance(item, str):
-                normalized.append(
-                    {
-                        "query": item,
-                        "reason": returned_result.get("decision_reason") or decision["reason"],
-                        "priority": default_priority,
-                        "target_source_type": default_target_source_type,
-                        "triggered_by_result_id": result_id,
-                    }
-                )
-                continue
-            if isinstance(item, dict) and item.get("query"):
-                normalized.append(
-                    {
-                        "query": str(item["query"]),
-                        "reason": str(item.get("reason") or decision["reason"]),
-                        "priority": str(item.get("priority") or default_priority),
-                        "target_source_type": str(item.get("target_source_type") or default_target_source_type),
-                        "triggered_by_result_id": result_id,
-                    }
-                )
-    if normalized:
-        return normalized[:max_queries]
-
-    needs_followup = any(
-        bool(returned_result.get(flag))
-        for flag in (FOLLOWUP_POLICY.get("trigger_flags") or [])
-    ) or decision["decision"] in set(FOLLOWUP_POLICY.get("trigger_decisions") or [])
-    if not needs_followup:
-        return []
-
-    base_terms = " ".join(
-        unique_list(
-            [
-                task_payload.get("task_id", ""),
-                route.get("route_type", ""),
-                route.get("objective", ""),
-            ]
-        )
-    )
-    queries = [
-        {
-            "query": f"{base_terms} {FOLLOWUP_POLICY.get('baseline_query_suffix') or 'limitation baseline comparison'}".strip(),
-            "reason": decision["reason"],
-            "priority": (
-                str(FOLLOWUP_POLICY.get("baseline_gap_priority") or default_priority)
-                if returned_result.get("missing_baseline_support")
-                else default_priority
-            ),
-            "target_source_type": default_target_source_type,
-            "triggered_by_result_id": result_id,
-        }
-    ]
-    if returned_result.get("contradiction_detected"):
-        queries.append(
-            {
-                "query": f"{base_terms} {FOLLOWUP_POLICY.get('contradiction_query_suffix') or 'contradiction sector dependence'}".strip(),
-                "reason": str(
-                    FOLLOWUP_POLICY.get("contradiction_reason")
-                    or "Returned result flagged a contradiction or mismatch that needs literature context."
-                ),
-                "priority": str(FOLLOWUP_POLICY.get("baseline_gap_priority") or default_priority),
-                "target_source_type": default_target_source_type,
-                "triggered_by_result_id": result_id,
-            }
-        )
-    return queries[:max_queries]
+    normalized: list[dict] = []
+    for gap in followup_gaps:
+        if str(gap.get("return_to_stage") or "") != "L0":
+            continue
+        for query in gap.get("suggested_queries") or []:
+            normalized.append(
+                {
+                    "query": str(query.get("query") or "").strip(),
+                    "reason": str(query.get("reason") or gap.get("blocker_reason") or decision["reason"]),
+                    "priority": str(query.get("priority") or FOLLOWUP_POLICY.get("default_priority") or "medium"),
+                    "target_source_type": str(
+                        query.get("target_source_type") or DEFAULT_FOLLOWUP_GAP_TARGET_SOURCE_TYPE
+                    ),
+                    "triggered_by_result_id": result_id,
+                    "triggered_by_gap_id": str(gap.get("gap_id") or ""),
+                    "gap_kind": str(gap.get("gap_kind") or ""),
+                }
+            )
+    deduped: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for row in normalized:
+        key = (row["query"], row["target_source_type"])
+        if not row["query"] or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    if deduped:
+        return deduped[:max_queries]
+    return build_declared_literature_followups(returned_result, decision, route, task_payload, result_id)
 
 
 def infer_decision(returned_result: dict, manifest_status: str, route: dict, task_payload: dict, updated_by: str) -> dict:
@@ -1181,6 +1513,7 @@ def build_next_actions(
     manifest_relpath: str,
     result_summary_relpath: str,
     followup_relpath: str | None,
+    followup_gap_relpath: str | None,
     decision: dict,
     returned_result: dict,
 ) -> list[str]:
@@ -1198,6 +1531,10 @@ def build_next_actions(
     if followup_relpath:
         actions.append(
             f"Run the bounded literature follow-up list in `{followup_relpath}` before strengthening the current claim."
+        )
+    if followup_gap_relpath:
+        actions.append(
+            f"Review `{followup_gap_relpath}` and resolve each open gap according to its declared return-to-stage before strengthening the current claim."
         )
     if returned_result.get("fixture_backed") or returned_result.get("non_scientific"):
         actions.append(
@@ -1306,7 +1643,32 @@ def ingest_execution_result(knowledge_root: Path, topic_state: dict, updated_by:
     decision["result_id"] = returned_result["result_id"]
     append_jsonl(paths["decision_ledger_path"], decision)  # type: ignore[arg-type]
 
-    followups = build_literature_followups(returned_result, decision, selected_route, task_payload, returned_result["result_id"])
+    followup_gaps = normalize_followup_gap_entries(
+        returned_result=returned_result,
+        decision=decision,
+        route=selected_route,
+        task_payload=task_payload,
+        result_id=returned_result["result_id"],
+        paths=paths,
+        knowledge_root=knowledge_root,
+    )
+    followup_gap_writeback = persist_followup_gap_writeback(
+        knowledge_root=knowledge_root,
+        paths=paths,
+        topic_slug=topic_slug,
+        run_id=run_id or "(missing)",
+        result_id=returned_result["result_id"],
+        updated_by=updated_by,
+        gaps=followup_gaps,
+    )
+    followups = build_literature_followups(
+        followup_gaps,
+        returned_result,
+        decision,
+        selected_route,
+        task_payload,
+        returned_result["result_id"],
+    )
     write_json(paths["literature_followup_path"], followups)  # type: ignore[arg-type]
 
     result_summary_lines = [
@@ -1351,6 +1713,9 @@ def ingest_execution_result(knowledge_root: Path, topic_state: dict, updated_by:
     result_summary_lines.extend(["", "## Governance surfaces", ""])
     result_summary_lines.append(f"- Trajectory log note: `{trajectory.get('note_path') or '(missing)'}`")
     result_summary_lines.append(f"- Failure classification note: `{failure_summary.get('note_path') or '(missing)'}`")
+    result_summary_lines.append(
+        f"- Follow-up gap writeback: `{(followup_gap_writeback or {}).get('note_path') or '(none)'}`"
+    )
     limitations = ensure_string_list(returned_result.get("limitations"))
     if missing_artifacts:
         limitations.append(f"Missing declared artifacts: {', '.join(missing_artifacts)}")
@@ -1383,12 +1748,15 @@ def ingest_execution_result(knowledge_root: Path, topic_state: dict, updated_by:
     feedback_status["last_result_manifest_path"] = relative_to_root(paths["result_manifest_path"], knowledge_root)
     feedback_status["last_trajectory_log_path"] = trajectory.get("path")
     feedback_status["last_failure_classification_path"] = failure_summary.get("path")
+    feedback_status["last_followup_gap_writeback_path"] = (followup_gap_writeback or {}).get("path")
+    feedback_status["open_followup_gap_count"] = len(followup_gaps)
     write_json(paths["feedback_status_path"], feedback_status)  # type: ignore[arg-type]
 
     next_actions = build_next_actions(
         manifest_relpath=relative_to_root(paths["result_manifest_path"], knowledge_root) or "(missing)",
         result_summary_relpath=relative_to_root(paths["result_summary_path"], knowledge_root) or "(missing)",
         followup_relpath=relative_to_root(paths["literature_followup_path"], knowledge_root),
+        followup_gap_relpath=(followup_gap_writeback or {}).get("note_path"),
         decision=decision,
         returned_result=returned_result,
     )
@@ -1403,6 +1771,8 @@ def ingest_execution_result(knowledge_root: Path, topic_state: dict, updated_by:
         "failure_classification": failure_classification,
         "decision": decision,
         "followups": followups,
+        "followup_gap_writeback": followup_gap_writeback,
+        "followup_gaps": followup_gaps,
     }
 
 

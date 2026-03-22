@@ -56,6 +56,32 @@
       "target_source_type": "paper"
     }
   ],
+  "followup_gap_writeback": [
+    {
+      "gap_kind": "missing_cited_result",
+      "title": "Example cited-result gap",
+      "summary": "The current execution result still depends on a cited source that was not locally reconstructed.",
+      "blocker_reason": "The derivation stops at an external reference rather than a locally validated proof fragment.",
+      "theorem_family_ids": [
+        "theorem_family:example-family"
+      ],
+      "affected_unit_ids": [
+        "theorem:example-theorem"
+      ],
+      "parent_unit_id": "theorem:example-theorem",
+      "suggested_queries": [
+        {
+          "query": "example cited proof paper",
+          "reason": "Recover the missing cited derivation from Layer 0.",
+          "priority": "high",
+          "target_source_type": "paper"
+        }
+      ],
+      "reopen_conditions": [
+        "Ingest a cited source that closes the missing result."
+      ]
+    }
+  ],
   "next_actions": [
     "Optional next action written back into feedback/next_actions.md"
   ]
