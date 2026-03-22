@@ -24,6 +24,15 @@ from _aitp_runtime_common import (
 
 RECEIPTS_FILENAME = "action_receipts.jsonl"
 NEXT_ACTION_DECISION_FILENAME = "next_action_decision.json"
+RUNTIME_CONTROLLER_ACTIONS = {
+    "apply_candidate_split_contract",
+    "reactivate_deferred_candidate",
+    "spawn_followup_subtopics",
+    "reintegrate_followup_subtopic",
+    "assess_topic_completion",
+    "prepare_lean_bridge",
+    "auto_promote_candidate",
+}
 
 
 def normalize_handler(handler: str | None) -> str | None:
@@ -44,6 +53,16 @@ def normalize_handler(handler: str | None) -> str | None:
         "run_literature_followup": "run_literature_followup",
         "run_literature_followup.py": "run_literature_followup",
     }.get(alias)
+
+
+def normalize_dispatch_target(handler: str | None, action_type: str | None) -> str | None:
+    handler_key = normalize_handler(handler)
+    if handler_key:
+        return handler_key
+    normalized_action_type = str(action_type or "").strip()
+    if normalized_action_type in RUNTIME_CONTROLLER_ACTIONS:
+        return normalized_action_type
+    return None
 
 
 def build_discover_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
@@ -157,6 +176,108 @@ def build_literature_followup_command(topic_slug: str, updated_by: str, handler_
     return command
 
 
+def build_runtime_controller_command(
+    topic_slug: str,
+    updated_by: str,
+    action_type: str,
+    handler_args: dict,
+) -> list[str]:
+    command = [
+        "python3",
+        str(ADAPTER_ROOT / "scripts" / "dispatch_runtime_controller_action.py"),
+        "--topic-slug",
+        topic_slug,
+        "--action-type",
+        action_type,
+        "--updated-by",
+        updated_by,
+    ]
+    option_map = (
+        ("run_id", "--run-id"),
+        ("entry_id", "--entry-id"),
+        ("query", "--query"),
+        ("receipt_id", "--receipt-id"),
+        ("child_topic_slug", "--child-topic-slug"),
+        ("candidate_id", "--candidate-id"),
+        ("backend_id", "--backend-id"),
+        ("target_backend_root", "--target-backend-root"),
+        ("domain", "--domain"),
+        ("subdomain", "--subdomain"),
+        ("source_id", "--source-id"),
+        ("source_section", "--source-section"),
+        ("source_section_title", "--source-section-title"),
+        ("notes", "--notes"),
+    )
+    for key, flag in option_map:
+        value = handler_args.get(key)
+        if value is not None and str(value).strip():
+            command.extend([flag, str(value)])
+    return command
+
+
+def build_apply_split_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "apply_candidate_split_contract",
+        handler_args,
+    )
+
+
+def build_reactivate_deferred_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "reactivate_deferred_candidate",
+        handler_args,
+    )
+
+
+def build_spawn_followup_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "spawn_followup_subtopics",
+        handler_args,
+    )
+
+
+def build_reintegrate_followup_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "reintegrate_followup_subtopic",
+        handler_args,
+    )
+
+
+def build_topic_completion_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "assess_topic_completion",
+        handler_args,
+    )
+
+
+def build_lean_bridge_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "prepare_lean_bridge",
+        handler_args,
+    )
+
+
+def build_auto_promote_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
+    return build_runtime_controller_command(
+        topic_slug,
+        updated_by,
+        "auto_promote_candidate",
+        handler_args,
+    )
+
+
 ALLOWLIST = {
     "discover_external_skills": build_discover_command,
     "sync_topic_state": build_sync_command,
@@ -164,12 +285,26 @@ ALLOWLIST = {
     "advance_closed_loop": build_advance_closed_loop_command,
     "dispatch_execution_task": build_execution_handoff_command,
     "run_literature_followup": build_literature_followup_command,
+    "apply_candidate_split_contract": build_apply_split_command,
+    "reactivate_deferred_candidate": build_reactivate_deferred_command,
+    "spawn_followup_subtopics": build_spawn_followup_command,
+    "reintegrate_followup_subtopic": build_reintegrate_followup_command,
+    "assess_topic_completion": build_topic_completion_command,
+    "prepare_lean_bridge": build_lean_bridge_command,
+    "auto_promote_candidate": build_auto_promote_command,
 }
 
 POST_REFRESH_HANDLERS = {
     "advance_closed_loop",
     "dispatch_execution_task",
     "run_literature_followup",
+    "apply_candidate_split_contract",
+    "reactivate_deferred_candidate",
+    "spawn_followup_subtopics",
+    "reintegrate_followup_subtopic",
+    "assess_topic_completion",
+    "prepare_lean_bridge",
+    "auto_promote_candidate",
 }
 
 
@@ -226,8 +361,8 @@ def dispatch_one(
     receipts_path: Path,
 ) -> tuple[dict, int]:
     row = dict(queue_rows[index])
-    handler_key = normalize_handler(row.get("handler"))
-    if handler_key not in ALLOWLIST:
+    dispatch_key = normalize_dispatch_target(row.get("handler"), row.get("action_type"))
+    if dispatch_key not in ALLOWLIST:
         raise SystemExit(
             f"Action {row.get('action_id')} is not allowlisted for auto-dispatch: {row.get('handler')}"
         )
@@ -237,7 +372,7 @@ def dispatch_one(
     running_row = {
         **row,
         "status": "running",
-        "handler_key": handler_key,
+        "handler_key": dispatch_key,
         "dispatch_count": dispatch_count,
         "last_dispatched_at": started_at,
         "last_dispatched_by": updated_by,
@@ -248,11 +383,11 @@ def dispatch_one(
     queue_path = topic_runtime_root(topic_slug) / "action_queue.jsonl"
     write_jsonl(queue_path, queue_rows)
 
-    command = ALLOWLIST[handler_key](topic_slug, updated_by, running_row.get("handler_args") or {})
+    command = ALLOWLIST[dispatch_key](topic_slug, updated_by, running_row.get("handler_args") or {})
     completed = subprocess.run(command, check=False, capture_output=True, text=True)
     refresh_command = None
     refresh_completed = None
-    if completed.returncode == 0 and handler_key in POST_REFRESH_HANDLERS:
+    if completed.returncode == 0 and dispatch_key in POST_REFRESH_HANDLERS:
         refresh_command = build_orchestrate_refresh_command(
             topic_slug,
             updated_by,
@@ -268,7 +403,7 @@ def dispatch_one(
         "updated_by": updated_by,
         "status": "completed" if completed.returncode == 0 else "failed",
         "handler": running_row.get("handler"),
-        "handler_key": handler_key,
+        "handler_key": dispatch_key,
         "command": quote_command(command),
         "started_at": started_at,
         "finished_at": finished_at,
@@ -334,8 +469,8 @@ def main() -> int:
         for index, row in enumerate(queue_rows):
             if not eligible_action(row, requested_action_id):
                 continue
-            handler_key = normalize_handler(row.get("handler"))
-            if handler_key in ALLOWLIST:
+            dispatch_key = normalize_dispatch_target(row.get("handler"), row.get("action_type"))
+            if dispatch_key in ALLOWLIST:
                 dispatch_index = index
                 break
             skipped.append(row.get("action_id") or f"index:{index}")

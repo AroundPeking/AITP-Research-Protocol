@@ -321,6 +321,74 @@ def aitp_audit_theory_coverage(
 
 
 @mcp.tool()
+def aitp_audit_formal_theory(
+    topic_slug: str,
+    candidate_id: str,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+    formal_theory_role: str = "trusted_target",
+    statement_graph_role: str = "target_statement",
+    definition_trust_tier: str | None = None,
+    target_statement_id: str | None = None,
+    statement_graph_parents: list[str] | None = None,
+    statement_graph_children: list[str] | None = None,
+    informal_statement: str | None = None,
+    formal_target: str | None = None,
+    faithfulness_status: str = "pending",
+    faithfulness_strategy: str | None = None,
+    faithfulness_notes: str | None = None,
+    comparator_audit_status: str = "pending",
+    comparator_risks: list[str] | None = None,
+    nearby_variants: list[dict[str, str]] | None = None,
+    comparator_notes: str | None = None,
+    provenance_kind: str = "generated_from_scratch",
+    attribution_requirements: list[str] | None = None,
+    provenance_sources: list[str] | None = None,
+    provenance_notes: str | None = None,
+    prerequisite_closure_status: str = "pending",
+    lean_prerequisite_ids: list[str] | None = None,
+    supporting_obligation_ids: list[str] | None = None,
+    formalization_blockers: list[str] | None = None,
+    prerequisite_notes: str | None = None,
+) -> str:
+    """Record durable formal-theory trust-boundary and prerequisite-closure audits for a candidate."""
+    try:
+        result = service.audit_formal_theory(
+            topic_slug=topic_slug,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            updated_by=updated_by,
+            formal_theory_role=formal_theory_role,
+            statement_graph_role=statement_graph_role,
+            definition_trust_tier=definition_trust_tier,
+            target_statement_id=target_statement_id,
+            statement_graph_parents=statement_graph_parents or [],
+            statement_graph_children=statement_graph_children or [],
+            informal_statement=informal_statement,
+            formal_target=formal_target,
+            faithfulness_status=faithfulness_status,
+            faithfulness_strategy=faithfulness_strategy,
+            faithfulness_notes=faithfulness_notes,
+            comparator_audit_status=comparator_audit_status,
+            comparator_risks=comparator_risks or [],
+            nearby_variants=nearby_variants or [],
+            comparator_notes=comparator_notes,
+            provenance_kind=provenance_kind,
+            attribution_requirements=attribution_requirements or [],
+            provenance_sources=provenance_sources or [],
+            provenance_notes=provenance_notes,
+            prerequisite_closure_status=prerequisite_closure_status,
+            lean_prerequisite_ids=lean_prerequisite_ids or [],
+            supporting_obligation_ids=supporting_obligation_ids or [],
+            formalization_blockers=formalization_blockers or [],
+            prerequisite_notes=prerequisite_notes,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@mcp.tool()
 def aitp_complete_topic(
     topic_slug: str,
     run_id: str | None = None,
