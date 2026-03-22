@@ -1985,6 +1985,25 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("aitp loop", skill_path.read_text(encoding="utf-8"))
         self.assertIn("aitp operation-init", skill_path.read_text(encoding="utf-8"))
         self.assertIn("codex mcp add aitp", setup_path.read_text(encoding="utf-8"))
+        wrapper_names = {Path(item["path"]).name for item in result["installed"] if item["kind"] == "wrapper"}
+        self.assertEqual(
+            wrapper_names,
+            {
+                "aitp",
+                "aitp.cmd",
+                "aitp-codex",
+                "aitp-codex.cmd",
+                "aitp-mcp",
+                "aitp-mcp.cmd",
+            },
+        )
+        aitp_cmd_path = codex_target / ".agents" / "bin" / "aitp.cmd"
+        self.assertTrue(aitp_cmd_path.exists())
+        self.assertIn("knowledge_hub.aitp_cli", aitp_cmd_path.read_text(encoding="utf-8"))
+        self.assertIn("AITP_KERNEL_ROOT", aitp_cmd_path.read_text(encoding="utf-8"))
+        aitp_shell_path = codex_target / ".agents" / "bin" / "aitp"
+        self.assertTrue(aitp_shell_path.exists())
+        self.assertIn("knowledge_hub.aitp_cli", aitp_shell_path.read_text(encoding="utf-8"))
 
         opencode_target = self.root / "opencode-commands"
         result = self.service.install_agent(

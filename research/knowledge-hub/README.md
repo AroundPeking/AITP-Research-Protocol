@@ -27,12 +27,23 @@ aitp --help
 aitp-codex --help
 ```
 
+For a Windows-native smoke test from a fresh clone, the repo-local launchers do
+not require WSL or a copied global `aitp` shim:
+
+```cmd
+scripts\aitp-local.cmd doctor
+scripts\aitp-codex-local.cmd --help
+```
+
 The public runtime defaults to the repo-local kernel root:
 
 - `research/knowledge-hub`
 
 So a normal standalone clone does not need the original private integration
 workspace just to run `aitp`.
+On Windows, the local launchers inject `research\knowledge-hub` onto
+`PYTHONPATH`, so the repo can run natively even before you choose a permanent
+Python install layout.
 
 `aitp doctor` should also report the fixed layer roots and key contract files so
 you can verify that the standalone install is structurally complete.

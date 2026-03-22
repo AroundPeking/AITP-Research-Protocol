@@ -14,6 +14,13 @@ python -m pip install -e research/knowledge-hub
 aitp doctor
 ```
 
+On Windows-native, you can also verify the repo-local launchers directly:
+
+```cmd
+scripts\aitp-local.cmd doctor
+scripts\aitp-codex-local.cmd --help
+```
+
 ## Install the Codex wrapper
 
 ```bash
@@ -32,7 +39,24 @@ way, install the project skill into that workspace root:
 aitp install-agent --agent codex --scope project --target-root /path/to/theory-workspace
 ```
 
-That writes `.agents/skills/aitp-runtime/` under the target workspace.
+That writes `.agents/skills/aitp-runtime/` plus workspace-local wrappers under
+`.agents/bin/`:
+
+- `aitp`
+- `aitp.cmd`
+- `aitp-codex`
+- `aitp-codex.cmd`
+- `aitp-mcp`
+- `aitp-mcp.cmd`
+
+Windows-native example:
+
+```cmd
+scripts\aitp-local.cmd install-agent --agent codex --scope project --target-root D:\theory-workspace
+```
+
+The generated `.agents\bin\aitp.cmd` and `.agents\bin\aitp-codex.cmd` wrappers
+pin `AITP_KERNEL_ROOT` to the cloned repository and do not depend on WSL.
 
 ## Recommended entrypoints
 

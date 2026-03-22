@@ -66,6 +66,13 @@ aitp doctor
 aitp install-agent --agent codex --scope user
 ```
 
+On Windows-native, the repo-local launchers work without WSL:
+
+```cmd
+scripts\aitp-local.cmd doctor
+scripts\aitp-codex-local.cmd --help
+```
+
 If your system Python is externally managed:
 
 ```bash
@@ -319,16 +326,29 @@ still three sibling repositories rather than one monorepo:
 - `Theoretical-Physics`
 - `theoretical-physics-knowledge-network`
 
-Recommended shell split:
-
-- use `WSL2 Ubuntu` for `aitp`, Python package work, and most protocol/runtime commands;
-- use native Windows editing tools for Obsidian, git inspection, and document work when convenient.
+Windows-native AITP is now supported directly. WSL is optional rather than the
+default path.
 
 Recommended bootstrap order:
 
 1. clone `AITP-Research-Protocol` and get `aitp` working first;
 2. clone `Theoretical-Physics` as the active workspace;
 3. clone `theoretical-physics-knowledge-network` as the clean public-backend publish target.
+
+Recommended first commands on a fresh Windows clone:
+
+```cmd
+scripts\aitp-local.cmd doctor
+scripts\aitp-local.cmd install-agent --agent codex --scope project --target-root D:\theory-workspace
+```
+
+That project install now writes both:
+
+- `.agents/skills/aitp-runtime/`
+- `.agents/bin/aitp(.cmd)`, `.agents/bin/aitp-codex(.cmd)`, and `.agents/bin/aitp-mcp(.cmd)`
+
+so a Windows workspace can re-enter AITP without depending on a copied WSL shim
+or the original private integration machine.
 
 The key boundary to preserve on Windows is this:
 

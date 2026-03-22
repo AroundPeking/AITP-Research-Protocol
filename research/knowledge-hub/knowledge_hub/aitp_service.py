@@ -154,6 +154,14 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def write_executable_text(path: Path, text: str) -> None:
+    write_text(path, text)
+    try:
+        path.chmod(path.stat().st_mode | 0o111)
+    except OSError:
+        pass
+
+
 def _coerce_path(value: Path | str) -> Path:
     return Path(value).expanduser().resolve()
 
@@ -185,27 +193,132 @@ class AITPService:
     def _format_command(self, argv: list[str]) -> str:
         return shlex.join(argv)
 
-    def _mcp_environment(self) -> dict[str, str]:
+    def _runtime_pythonpath(self) -> str:
+        entries = [str(self.kernel_root)]
+        existing = os.environ.get("PYTHONPATH", "")
+        if existing:
+            entries.extend(part for part in existing.split(os.pathsep) if part)
+
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for entry in entries:
+            if entry and entry not in seen:
+                seen.add(entry)
+                deduped.append(entry)
+        return os.pathsep.join(deduped)
+
+    def _runtime_environment(self) -> dict[str, str]:
         return {
             "AITP_KERNEL_ROOT": str(self.kernel_root),
             "AITP_REPO_ROOT": str(self.repo_root),
+            "PYTHONPATH": self._runtime_pythonpath(),
         }
+
+    def _mcp_environment(self) -> dict[str, str]:
+        return self._runtime_environment()
 
     def _resolve_aitp_mcp_command(self) -> list[str]:
         installed = shutil.which("aitp-mcp")
         if installed:
             return [installed]
 
-        repo_venv = self.repo_root / "research" / "knowledge-hub" / ".venv" / "bin" / "aitp-mcp"
-        if repo_venv.exists():
-            return [str(repo_venv)]
+        repo_venv_candidates = [
+            self.repo_root / "research" / "knowledge-hub" / ".venv" / "bin" / "aitp-mcp",
+            self.repo_root / "research" / "knowledge-hub" / ".venv" / "Scripts" / "aitp-mcp.exe",
+            self.repo_root / "research" / "knowledge-hub" / ".venv" / "Scripts" / "aitp-mcp.cmd",
+        ]
+        for candidate in repo_venv_candidates:
+            if candidate.exists():
+                return [str(candidate)]
 
-        fallback_python = shutil.which("python3") or sys.executable
-        fallback_module = self.repo_root / "research" / "knowledge-hub" / "knowledge_hub" / "aitp_mcp_server.py"
-        if fallback_module.exists():
-            return [fallback_python, str(fallback_module)]
+        fallback_python = shutil.which("python") or shutil.which("python3") or sys.executable
+        return [fallback_python, "-m", "knowledge_hub.aitp_mcp_server"]
 
         raise FileNotFoundError("Unable to resolve the aitp-mcp server command.")
+
+    def _workspace_root_from_target_root(self, target_root: str | None) -> Path:
+        if not target_root:
+            return self.repo_root
+
+        target_path = Path(target_root)
+        if target_path.name == "aitp-runtime" and target_path.parent.name == "skills":
+            parent = target_path.parent.parent
+            if parent.name == ".agents":
+                return parent.parent
+        return target_path
+
+    def _shell_wrapper_template(self, module: str) -> str:
+        pathsep = os.pathsep
+        return f"""#!/usr/bin/env bash
+set -euo pipefail
+
+export AITP_KERNEL_ROOT="{self.kernel_root.as_posix()}"
+export AITP_REPO_ROOT="{self.repo_root.as_posix()}"
+export PYTHONPATH="${{AITP_KERNEL_ROOT}}{pathsep}${{PYTHONPATH:-}}"
+
+if [ -n "${{AITP_PYTHON:-}}" ]; then
+  exec "${{AITP_PYTHON}}" -m {module} "$@"
+fi
+if command -v python3 >/dev/null 2>&1; then
+  exec python3 -m {module} "$@"
+fi
+exec python -m {module} "$@"
+"""
+
+    def _cmd_wrapper_template(self, module: str) -> str:
+        return f"""@ECHO off
+SETLOCAL
+
+SET "AITP_KERNEL_ROOT={self.kernel_root}"
+SET "AITP_REPO_ROOT={self.repo_root}"
+IF DEFINED PYTHONPATH (
+  SET "PYTHONPATH=%AITP_KERNEL_ROOT%;%PYTHONPATH%"
+) ELSE (
+  SET "PYTHONPATH=%AITP_KERNEL_ROOT%"
+)
+
+IF DEFINED AITP_PYTHON (
+  "%AITP_PYTHON%" -m {module} %*
+  EXIT /B %ERRORLEVEL%
+)
+
+where python >NUL 2>NUL
+IF %ERRORLEVEL% EQU 0 (
+  python -m {module} %*
+  EXIT /B %ERRORLEVEL%
+)
+
+where py >NUL 2>NUL
+IF %ERRORLEVEL% EQU 0 (
+  py -3 -m {module} %*
+  EXIT /B %ERRORLEVEL%
+)
+
+ECHO Python 3 launcher not found on PATH.>&2
+EXIT /B 127
+"""
+
+    def _install_workspace_cli_wrappers(self, workspace_root: Path, *, force: bool) -> list[dict[str, str]]:
+        bin_root = workspace_root / ".agents" / "bin"
+        bin_root.mkdir(parents=True, exist_ok=True)
+
+        wrappers = {
+            "aitp": ("knowledge_hub.aitp_cli", self._shell_wrapper_template("knowledge_hub.aitp_cli")),
+            "aitp-codex": ("knowledge_hub.aitp_codex", self._shell_wrapper_template("knowledge_hub.aitp_codex")),
+            "aitp-mcp": ("knowledge_hub.aitp_mcp_server", self._shell_wrapper_template("knowledge_hub.aitp_mcp_server")),
+        }
+
+        installed: list[dict[str, str]] = []
+        for stem, (module_name, shell_text) in wrappers.items():
+            shell_path = bin_root / stem
+            cmd_path = bin_root / f"{stem}.cmd"
+            if (shell_path.exists() or cmd_path.exists()) and not force:
+                raise FileExistsError(f"Refusing to overwrite wrapper files under {bin_root}")
+            write_executable_text(shell_path, shell_text)
+            write_text(cmd_path, self._cmd_wrapper_template(module_name))
+            installed.append({"agent": "codex", "path": str(shell_path), "kind": "wrapper"})
+            installed.append({"agent": "codex", "path": str(cmd_path), "kind": "wrapper"})
+        return installed
 
     def _runtime_root(self, topic_slug: str) -> Path:
         return self.kernel_root / "runtime" / "topics" / topic_slug
@@ -7226,6 +7339,10 @@ aitp audit $ARGUMENTS
                     setup_path = base / "AITP_MCP_SETUP.md"
                     write_text(setup_path, self._codex_mcp_setup_markdown())
                     installed.append({"agent": agent, "path": str(setup_path), "kind": "mcp-setup"})
+
+            if target_root or scope == "project":
+                workspace_root = self._workspace_root_from_target_root(target_root)
+                installed.extend(self._install_workspace_cli_wrappers(workspace_root, force=force))
 
             if install_mcp and not target_root and scope == "user":
                 installed.extend(self._install_codex_mcp(force=force))
