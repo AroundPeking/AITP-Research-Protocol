@@ -27,6 +27,22 @@ When deeper proof, gap, fusion, or verification triggers fire, the runtime
 surface must point back to the matching top-level kernel contracts rather than
 hiding those rules inside handler code.
 
+## Runtime lanes and maturity
+
+The runtime should stay explicit about which research lane is active.
+
+1. Toy-model numerics
+- Runtime shape: benchmark-validation -> target-scan -> benchmark-driven-recheck -> exit audit.
+- Current maturity: strongest lane. When a matching public or analytic benchmark exists, this lane can already reach a bounded end-to-end verdict.
+
+2. Formal theory and derivation
+- Runtime shape: source recovery -> atomization -> proof-obligation / regression -> promotion review.
+- Current maturity: active but not closed. The runtime can organize and audit this lane, but automated proof closure remains immature.
+
+3. Code-backed algorithm development
+- Runtime shape: reproduction -> validator / benchmark design -> bounded implementation validation -> trust audit.
+- Current maturity: active but not closed. The runtime can support bounded method-development work, but it should not yet be described as a general turnkey replacement for sustained large-codebase research development.
+
 ## Layout
 
 - `topics/<topic_slug>/topic_state.json`
@@ -103,7 +119,10 @@ hiding those rules inside handler code.
 - Runtime should materialize both an unfinished-work index and a next-action decision so the loop is inspectable rather than implicit.
 - Runtime should prefer declared contracts when they exist and only fall back to heuristics when they do not.
 - Runtime should also expose a conformance report so non-AITP operation becomes visible rather than implicit.
+- Runtime should record which research lane is active and report lane maturity honestly when summarizing topic status.
 - Runtime may materialize one thin closed-loop control step, but it must never claim that heavy execution already happened unless a returned execution result artifact is present.
+- For numerical topics, runtime should materialize benchmark-validation as a distinct step before target-model inference whenever a finite-size public or analytic benchmark exists for the observable family.
+- If a benchmark reveals a convention mismatch, normalization drift, or observable-definition mistake, runtime should demote the earlier target-model result to exploratory and queue a benchmark-driven recheck before treating the claim as trusted again.
 - Runtime should auto-promote theory-formal candidates only after explicit coverage and consensus artifacts exist.
 - Runtime should also require a regression gate, blocker clearance, and split honesty before theory-formal auto-promotion.
 - Runtime should keep wide or mixed candidates out of Layer 2 by splitting or parking them first.

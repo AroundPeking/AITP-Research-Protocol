@@ -307,6 +307,12 @@ theoretical-physics work.
 | Toy-model numerics | baseline papers, model specs, observables, scripts | controlled runs, convergence checks, benchmark comparison | validated workflows, benchmark notes, reusable operations |
 | Code-backed algorithm development | upstream codebases, papers, existing methods | reproduction, trust audit, implementation validation | trusted methods, reusable operation manifests, backend writeback |
 
+Current research-lane maturity is not uniform:
+
+- Toy-model numerics is currently the strongest end-to-end lane. When a matching public or analytic benchmark exists, AITP can already enforce the bounded route `benchmark -> target scan -> benchmark-driven recheck -> bounded conclusion`.
+- Formal theory and derivation is active but not closed. AITP can structure sectionized derivation recovery, proof obligations, and semi-formal theory packets, but broad automated proof closure should still be treated as immature.
+- Code-backed algorithm development is active but not closed. AITP can support reproduction, validator design, and bounded implementation validation, but it should not yet be described as a turnkey replacement for sustained large-codebase research development.
+
 ## AITP, TPKN, And The Workspace
 
 AITP is not the public knowledge base itself.
@@ -378,7 +384,7 @@ The key boundary to preserve on Windows is this:
 | Claude Code | `aitp install-agent --agent claude-code` | Skill + command bundle |
 | OpenCode | `aitp install-agent --agent opencode` | Skill + command harness + MCP config |
 
-Current maturity is not uniform:
+Adapter maturity is also not uniform:
 
 - `Codex` is the strongest path today because it supports both a bare-session skill install and the stronger `aitp-codex` wrapper.
 - `OpenClaw` and `Claude Code` already install explicit skill surfaces, and `OpenCode` now installs both a local `aitp-runtime` skill and the `/aitp*` command bundle, but none of them yet has a wrapper as strong as `aitp-codex`.

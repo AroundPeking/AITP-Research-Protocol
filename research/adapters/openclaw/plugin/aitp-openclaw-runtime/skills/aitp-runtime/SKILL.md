@@ -45,7 +45,15 @@ AITP_KERNEL_ROOT="$PWD/research/knowledge-hub" AITP_REPO_ROOT="$PWD" \
 
 - Reusable operations require `aitp operation-init ...` and `aitp trust-audit ...`
 - Numerical novelty requires `aitp baseline ...`
+- A new numerical observable should use a same-family public or analytic benchmark whenever one exists, and benchmark reproduction should stay separate from target-model inference
+- If a benchmark changes the observable convention or exposes a mismatch, demote the earlier target-model result and queue a benchmark-driven recheck
 - Theory-method understanding requires `aitp atomize ...`
+
+## Lane reporting
+
+- Report whether the active lane is toy-model numerics, formal theory and derivation, or code-backed algorithm development.
+- Treat toy-model numerics as the current strongest end-to-end lane.
+- Treat the formal-theory and code-backed lanes as active but not closed.
 
 ## Workspace assumptions
 

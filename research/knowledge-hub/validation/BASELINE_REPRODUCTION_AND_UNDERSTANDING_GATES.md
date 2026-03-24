@@ -22,6 +22,11 @@ Required rule:
 
 - reproduce at least one public baseline before treating new-topic numerical
   output as scientifically persuasive.
+- for a new observable family, the minimum trust gate is a benchmark in the
+  same observable family whenever a finite-size public or analytic benchmark
+  exists.
+- keep benchmark reproduction separate from target-model inference so method
+  trust can be audited independently from novelty.
 
 Acceptable baseline types:
 
@@ -43,6 +48,11 @@ Minimum recorded fields:
 - which code or workflow was used,
 - what agreement criterion was applied,
 - whether the baseline passed, failed, or remained inconclusive.
+
+If benchmark reproduction exposes a convention mismatch, normalization drift,
+sector mistake, or observable-definition change, AITP must freeze the target
+claim immediately, record which earlier artifacts are affected, and rerun the
+affected target-model diagnostics before restoring trusted status.
 
 If no acceptable public baseline exists, AITP must record that explicitly
 before proceeding and explain which weaker substitute was used.
@@ -86,5 +96,9 @@ These gates apply before:
 ## Current practical reading
 
 - new-topic numerical novelty requires a reproduced baseline first,
+- new-observable numerical novelty requires a same-family benchmark whenever a
+  finite-size public or analytic one exists,
+- benchmark disagreement demotes earlier target-model results until corrected
+  recheck artifacts land,
 - new-topic theoretical reuse requires atomic decomposition first,
 - otherwise the honest status is still exploratory or deferred.
