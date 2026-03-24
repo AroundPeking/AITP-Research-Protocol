@@ -4015,21 +4015,24 @@ EXIT /B 127
                 if not child_candidate_id:
                     continue
                 existing_child = ledger_index.get(child_candidate_id) or {}
-                child_row = {
-                    "candidate_id": child_candidate_id,
-                    "candidate_type": str(child_payload.get("candidate_type") or existing_child.get("candidate_type") or source_candidate.get("candidate_type") or ""),
-                    "title": str(child_payload.get("title") or existing_child.get("title") or child_candidate_id),
-                    "summary": str(child_payload.get("summary") or existing_child.get("summary") or ""),
-                    "topic_slug": topic_slug,
-                    "run_id": resolved_run_id,
-                    "origin_refs": list(child_payload.get("origin_refs") or existing_child.get("origin_refs") or source_candidate.get("origin_refs") or []),
-                    "question": str(child_payload.get("question") or existing_child.get("question") or source_candidate.get("question") or ""),
-                    "assumptions": list(child_payload.get("assumptions") or existing_child.get("assumptions") or source_candidate.get("assumptions") or []),
-                    "proposed_validation_route": str(child_payload.get("proposed_validation_route") or existing_child.get("proposed_validation_route") or source_candidate.get("proposed_validation_route") or ""),
-                    "intended_l2_targets": list(child_payload.get("intended_l2_targets") or existing_child.get("intended_l2_targets") or []),
-                    "status": str(child_payload.get("status") or existing_child.get("status") or "ready_for_validation"),
-                    "split_parent_id": source_candidate_id,
-                }
+                child_row = dict(existing_child)
+                child_row.update(
+                    {
+                        "candidate_id": child_candidate_id,
+                        "candidate_type": str(child_payload.get("candidate_type") or existing_child.get("candidate_type") or source_candidate.get("candidate_type") or ""),
+                        "title": str(child_payload.get("title") or existing_child.get("title") or child_candidate_id),
+                        "summary": str(child_payload.get("summary") or existing_child.get("summary") or ""),
+                        "topic_slug": topic_slug,
+                        "run_id": resolved_run_id,
+                        "origin_refs": list(child_payload.get("origin_refs") or existing_child.get("origin_refs") or source_candidate.get("origin_refs") or []),
+                        "question": str(child_payload.get("question") or existing_child.get("question") or source_candidate.get("question") or ""),
+                        "assumptions": list(child_payload.get("assumptions") or existing_child.get("assumptions") or source_candidate.get("assumptions") or []),
+                        "proposed_validation_route": str(child_payload.get("proposed_validation_route") or existing_child.get("proposed_validation_route") or source_candidate.get("proposed_validation_route") or ""),
+                        "intended_l2_targets": list(child_payload.get("intended_l2_targets") or existing_child.get("intended_l2_targets") or []),
+                        "status": str(child_payload.get("status") or existing_child.get("status") or "ready_for_validation"),
+                        "split_parent_id": source_candidate_id,
+                    }
+                )
                 if str(existing_child.get("status") or "") in {"promoted", "auto_promoted"}:
                     child_row = existing_child
                 else:

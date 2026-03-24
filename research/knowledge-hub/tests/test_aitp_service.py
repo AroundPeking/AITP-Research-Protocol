@@ -1288,6 +1288,92 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(deferred_payload["entries"][0]["status"], "buffered")
         self.assertEqual(deferred_payload["entries"][0]["entry_id"], "deferred:demo-caveat")
 
+    def test_apply_candidate_split_contract_preserves_existing_child_audit_fields(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+        run_root = self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo"
+        ledger_path = run_root / "candidate_ledger.jsonl"
+        existing_rows = [
+            json.loads(line)
+            for line in ledger_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        existing_rows.append(
+            {
+                "candidate_id": "candidate:demo-definition",
+                "candidate_type": "definition_card",
+                "title": "Demo Definition",
+                "summary": "Existing audited child candidate.",
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "origin_refs": [],
+                "question": "Can the bounded definition stay independently promotable?",
+                "assumptions": ["Bounded example."],
+                "proposed_validation_route": "bounded-smoke",
+                "intended_l2_targets": ["definition:demo-definition"],
+                "status": "ready_for_validation",
+                "split_parent_id": "candidate:demo-candidate",
+                "supporting_regression_question_ids": ["regression_question:demo-definition"],
+                "supporting_oracle_ids": ["question_oracle:demo-definition"],
+                "supporting_regression_run_ids": ["regression_run:demo-definition"],
+                "formal_theory_role": "trusted_target",
+                "statement_graph_role": "target_statement",
+                "target_statement_id": "definition:demo-definition",
+                "formal_theory_review_overall_status": "ready",
+            }
+        )
+        ledger_path.write_text(
+            "".join(json.dumps(row, ensure_ascii=True) + "\n" for row in existing_rows),
+            encoding="utf-8",
+        )
+
+        contract_path = run_root / "candidate_split.contract.json"
+        contract_path.write_text(
+            json.dumps(
+                {
+                    "contract_version": 1,
+                    "splits": [
+                        {
+                            "source_candidate_id": "candidate:demo-candidate",
+                            "reason": "Reapply the split contract with refreshed child copy.",
+                            "child_candidates": [
+                                {
+                                    "candidate_id": "candidate:demo-definition",
+                                    "candidate_type": "definition_card",
+                                    "title": "Demo Definition Refreshed",
+                                    "summary": "Updated child summary from the latest split contract.",
+                                    "origin_refs": [],
+                                    "question": "Can the refreshed bounded definition still be promoted independently?",
+                                    "assumptions": ["Bounded example."],
+                                    "proposed_validation_route": "bounded-smoke",
+                                    "intended_l2_targets": ["definition:demo-definition"],
+                                }
+                            ],
+                            "deferred_fragments": [],
+                        }
+                    ],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.service.apply_candidate_split_contract(topic_slug="demo-topic", updated_by="aitp-cli")
+
+        ledger_rows = [
+            json.loads(line)
+            for line in ledger_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        child_row = next(row for row in ledger_rows if row["candidate_id"] == "candidate:demo-definition")
+        self.assertEqual(child_row["title"], "Demo Definition Refreshed")
+        self.assertEqual(child_row["summary"], "Updated child summary from the latest split contract.")
+        self.assertEqual(child_row["supporting_regression_question_ids"], ["regression_question:demo-definition"])
+        self.assertEqual(child_row["formal_theory_role"], "trusted_target")
+        self.assertEqual(child_row["formal_theory_review_overall_status"], "ready")
+
     def test_reactivate_deferred_candidates_materializes_reactivated_candidate(self) -> None:
         self._write_runtime_state()
         self._write_candidate()
