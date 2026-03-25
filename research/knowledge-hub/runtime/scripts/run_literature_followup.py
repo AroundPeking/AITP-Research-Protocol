@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
+import sys
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -80,6 +82,23 @@ def fetch_url(url: str, timeout: int = 60) -> bytes:
         return response.read()
 
 
+def python_command() -> list[str]:
+    executable = str(getattr(sys, "executable", "") or "").strip()
+    if executable:
+        return [executable]
+
+    for candidate in ("python3", "python"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return [resolved]
+
+    launcher = shutil.which("py")
+    if launcher:
+        return [launcher, "-3"]
+
+    return ["python"]
+
+
 def search_arxiv(query: str, max_results: int) -> list[dict]:
     encoded = urllib.parse.urlencode(
         {"search_query": f"all:{query}", "start": 0, "max_results": max(max_results, 1)}
@@ -135,11 +154,12 @@ def main() -> int:
     matches = search_arxiv(args.query, args.max_results)
     register_script = knowledge_root / "source-layer" / "scripts" / "register_arxiv_source.py"
     registered_arxiv_ids: list[str] = []
+    py = python_command()
     for match in matches:
         arxiv_id = str(match["arxiv_id"])
         completed = subprocess.run(
             [
-                "python3",
+                *py,
                 str(register_script),
                 "--topic-slug",
                 args.topic_slug,

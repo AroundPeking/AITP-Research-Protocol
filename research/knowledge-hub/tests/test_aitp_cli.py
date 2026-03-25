@@ -231,6 +231,33 @@ class AITPCLITests(unittest.TestCase):
         self.assertTrue(coverage_args.split_required)
         self.assertTrue(coverage_args.cited_recovery_required)
 
+        formal_theory_args = parser.parse_args(
+            [
+                "formal-theory-audit",
+                "--topic-slug",
+                "demo-topic",
+                "--candidate-id",
+                "candidate:demo",
+                "--formal-theory-role",
+                "trusted_target",
+                "--statement-graph-role",
+                "target_statement",
+                "--faithfulness-status",
+                "reviewed",
+                "--faithfulness-strategy",
+                "bounded source-to-target map",
+                "--comparator-audit-status",
+                "passed",
+                "--attribution-requirement",
+                "Preserve source citation.",
+                "--prerequisite-closure-status",
+                "closed",
+            ]
+        )
+        self.assertEqual(formal_theory_args.command, "formal-theory-audit")
+        self.assertEqual(formal_theory_args.formal_theory_role, "trusted_target")
+        self.assertEqual(formal_theory_args.attribution_requirement[0], "Preserve source citation.")
+
         auto_promote_args = parser.parse_args(
             [
                 "auto-promote",
@@ -244,6 +271,42 @@ class AITPCLITests(unittest.TestCase):
         )
         self.assertEqual(auto_promote_args.command, "auto-promote")
         self.assertEqual(auto_promote_args.target_backend_root, "/tmp/tpkn")
+
+    def test_main_dispatches_formal_theory_audit(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.audit_formal_theory.return_value = {"overall_status": "ready"}
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "formal-theory-audit",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--candidate-id",
+                    "candidate:demo",
+                    "--formal-theory-role",
+                    "trusted_target",
+                    "--statement-graph-role",
+                    "target_statement",
+                    "--faithfulness-status",
+                    "reviewed",
+                    "--faithfulness-strategy",
+                    "bounded source-to-target map",
+                    "--comparator-audit-status",
+                    "passed",
+                    "--attribution-requirement",
+                    "Preserve source citation.",
+                    "--prerequisite-closure-status",
+                    "closed",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.audit_formal_theory.assert_called_once()
 
     def test_install_agent_accepts_claude_code(self) -> None:
         parser = aitp_cli.build_parser()

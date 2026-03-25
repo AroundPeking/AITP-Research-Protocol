@@ -65,21 +65,63 @@ def parse_find_output(raw_output: str) -> list[dict]:
     return candidates
 
 
+def failed_query_result(
+    query: str,
+    command: list[str],
+    *,
+    status: str,
+    error_kind: str,
+    message: str,
+    stdout: str = "",
+    stderr: str = "",
+) -> dict:
+    return {
+        "query": query,
+        "command": " ".join(command),
+        "status": status,
+        "error_kind": error_kind,
+        "error_message": message,
+        "raw_output": stdout,
+        "raw_error": stderr,
+        "candidates": [],
+    }
+
+
 def run_find_query(query: str) -> dict:
     command = ["npx", "--yes", "skills", "find", query]
-    completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    try:
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        return failed_query_result(
+            query,
+            command,
+            status="unavailable",
+            error_kind="command_not_found",
+            message=str(exc),
+        )
+
     stdout = strip_ansi(completed.stdout)
     stderr = strip_ansi(completed.stderr)
 
     if completed.returncode != 0:
-        raise SystemExit(
-            f"skills discovery failed for query {query!r}: exit={completed.returncode}\n{stderr or stdout}"
+        return failed_query_result(
+            query,
+            command,
+            status="unavailable",
+            error_kind="command_failed",
+            message=stderr or stdout or f"exit={completed.returncode}",
+            stdout=stdout,
+            stderr=stderr,
         )
 
     return {
         "query": query,
         "command": " ".join(command),
+        "status": "completed",
+        "error_kind": None,
+        "error_message": None,
         "raw_output": stdout,
+        "raw_error": stderr,
         "candidates": parse_find_output(stdout),
     }
 
@@ -131,16 +173,38 @@ def build_markdown_report(payload: dict) -> str:
         "",
     ]
 
+    if payload.get("overall_status") != "ready":
+        lines.extend(
+            [
+                "## Limitations",
+                "",
+                "- External skill discovery is running in degraded mode.",
+                "- Missing or failing `npx skills find` no longer blocks AITP topic bootstrap.",
+                "- Treat per-query status rows as authoritative before reusing any recommendation.",
+                "",
+            ]
+        )
+
     for query_result in payload["queries"]:
         lines.extend(
             [
                 f"## Query: `{query_result['query']}`",
                 "",
                 f"- Command: `{query_result['command']}`",
+                f"- Status: `{query_result.get('status') or 'unknown'}`",
                 f"- Candidate count: `{len(query_result['candidates'])}`",
                 "",
             ]
         )
+
+        if query_result.get("error_kind"):
+            lines.extend(
+                [
+                    f"- Error kind: `{query_result['error_kind']}`",
+                    f"- Error: `{query_result.get('error_message') or '(missing)'}`",
+                    "",
+                ]
+            )
 
         if not query_result["candidates"]:
             lines.extend(
@@ -210,6 +274,9 @@ def main() -> int:
         "protocol_path": "research/adapters/openclaw/SKILL_ADAPTATION_PROTOCOL.md",
         "queries": query_results,
     }
+    payload["overall_status"] = (
+        "ready" if all(result.get("status") == "completed" for result in query_results) else "degraded"
+    )
 
     write_json(output_dir / "skill_discovery.json", payload)
     write_text(output_dir / "skill_recommendations.md", build_markdown_report(payload))

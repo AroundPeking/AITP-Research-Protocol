@@ -3,6 +3,12 @@
 This starter pack shows the intended public route for connecting an external
 formal-theory note library to `L2`.
 
+The intended steady state is a semi-formal theory backend:
+
+- strong enough for controlled derivation and regression,
+- explicit enough for later translation into Lean,
+- but not falsely labeled as already theorem-prover-closed.
+
 It does not hard-wire one specific personal repository.
 It demonstrates the contract shape that another clone can adapt to its own
 formal-theory knowledge base.
@@ -11,6 +17,7 @@ For the stronger standalone typed-repository bridge, see:
 
 - `theoretical-physics-knowledge-network.json`
 - `../../runtime/scripts/run_tpkn_formal_promotion_smoke.sh`
+- `../../FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md`
 
 ## Included artifacts
 
@@ -37,6 +44,12 @@ The expected promotion targets are usually:
 - `derivation_object`
 - `bridge`
 - `warning_note`
+
+When the backend is Lean-facing or autoformalization-facing, keep
+`../../FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md` active as the companion
+contract for living upstream discussion/code references.
+Also keep `../../SEMI_FORMAL_THEORY_PROTOCOL.md` active so the working backend
+stays source-grounded and gap-honest before any Lean export.
 
 ## How to realize the backend card in a real clone
 

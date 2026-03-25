@@ -8,6 +8,7 @@ import subprocess
 
 from _aitp_runtime_common import (
     ADAPTER_ROOT,
+    python_command,
     quote_command,
 )
 
@@ -30,7 +31,7 @@ def main() -> int:
     args = build_parser().parse_args()
     max_steps = max(args.max_auto_actions, 0) if args.dispatch_auto else 0
     loop_command = [
-        "python3",
+        *python_command(),
         str(ADAPTER_ROOT / "scripts" / "aitp_loop.py"),
         "--updated-by",
         args.updated_by,

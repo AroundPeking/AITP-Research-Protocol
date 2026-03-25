@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -76,6 +78,25 @@ TPKN_UNIT_DIRS = {
     "model": "units/models",
     "source_map": "units/source-maps",
     "warning": "units/warnings",
+    "lemma": "units/lemmas",
+    "conjecture": "units/conjectures",
+    "theorem_family": "units/theorem-families",
+    "definition_family": "units/definition-families",
+    "notation_family": "units/notation-families",
+    "feasibility_question": "units/feasibility-questions",
+    "dependency_request": "units/dependency-requests",
+    "proof_search_request": "units/proof-search-requests",
+    "equation_context": "units/equation-contexts",
+    "proof_obligation": "units/proof-obligations",
+    "proof_state": "units/proof-states",
+    "dependency_graph_snapshot": "units/dependency-graph-snapshots",
+    "notation_map": "units/notation-maps",
+    "source_fusion_record": "units/source-fusion-records",
+    "conflict_record": "units/conflict-records",
+    "open_gap": "units/open-gaps",
+    "question_oracle": "units/question-oracles",
+    "regression_question": "units/regression-questions",
+    "followup_source_task": "units/followup-source-tasks",
 }
 
 SOURCE_MANIFEST_REQUIRED_URL_KEYS = ("abs", "pdf", "doi")
@@ -434,6 +455,149 @@ def ensure_source_manifest(
     return manifest_path, created
 
 
+def _title_from_identifier(identifier: str) -> str:
+    slug = identifier.split(":", 1)[-1]
+    words = [part for part in slug.replace("_", "-").split("-") if part]
+    if not words:
+        return identifier
+    return " ".join(word.capitalize() for word in words)
+
+
+def build_supporting_regression_question_unit(
+    *,
+    unit_id: str,
+    domain: str,
+    source_id: str,
+    source_section: str,
+    source_anchor_notes: str,
+    promoted_unit_id: str,
+    promoted_unit_title: str,
+    topic_slug: str,
+    oracle_id: str | None = None,
+) -> dict[str, Any]:
+    title = _title_from_identifier(unit_id)
+    return {
+        "id": unit_id,
+        "type": "regression_question",
+        "title": title,
+        "summary": (
+            f"AITP-generated supporting regression question for {promoted_unit_title}; "
+            "used to keep the promoted topic-completion surface explicit."
+        ),
+        "domain": domain,
+        "subdomain": "regression",
+        "tags": _dedupe_strings(["regression-question", topic_slug, promoted_unit_id.split(":", 1)[0]]),
+        "aliases": [],
+        "assumptions": [
+            "This supporting regression surface is auto-generated during AITP promotion.",
+        ],
+        "regime": f"Scoped regression surface for promoted unit {promoted_unit_id}.",
+        "scope": f"Supporting regression question attached to {promoted_unit_id}.",
+        "dependencies": [promoted_unit_id],
+        "related_units": [oracle_id] if oracle_id else [],
+        "source_anchors": [
+            {
+                "source_id": source_id,
+                "section": source_section,
+                "notes": source_anchor_notes,
+            }
+        ],
+        "formalization_status": "candidate",
+        "validation_status": "generated-support",
+        "maturity": "seed",
+        "representation": "AITP-generated supporting regression question.",
+        "prompt": (
+            f"State and explain {promoted_unit_title} while preserving the current bounded assumptions "
+            "and proof-status boundary."
+        ),
+        "question_family": "bridge",
+        "primary_retrieval_paths": [promoted_unit_id],
+        "pass_conditions": [
+            "The answer preserves the promoted theorem or concept boundary.",
+            "The answer does not overclaim proof completion beyond the current bounded surface.",
+        ],
+        "retrieval_hints": [
+            f"Use when checking whether {promoted_unit_id} remains stable under topic regression.",
+        ],
+        "created_at": today_iso(),
+        "updated_at": today_iso(),
+    }
+
+
+def build_supporting_question_oracle_unit(
+    *,
+    unit_id: str,
+    domain: str,
+    source_id: str,
+    source_section: str,
+    source_anchor_notes: str,
+    promoted_unit_id: str,
+    promoted_unit_title: str,
+    regression_question_id: str,
+    topic_slug: str,
+) -> dict[str, Any]:
+    title = _title_from_identifier(unit_id)
+    return {
+        "id": unit_id,
+        "type": "question_oracle",
+        "title": title,
+        "summary": (
+            f"AITP-generated supporting oracle for {promoted_unit_title}; "
+            "used to keep promotion-ready regression grading explicit."
+        ),
+        "domain": domain,
+        "subdomain": "regression",
+        "tags": _dedupe_strings(["question-oracle", topic_slug, promoted_unit_id.split(":", 1)[0]]),
+        "aliases": [],
+        "assumptions": [
+            "This supporting oracle is auto-generated during AITP promotion.",
+        ],
+        "regime": f"Scoped regression oracle for promoted unit {promoted_unit_id}.",
+        "scope": f"Supporting oracle attached to {promoted_unit_id}.",
+        "dependencies": [regression_question_id],
+        "related_units": [promoted_unit_id],
+        "source_anchors": [
+            {
+                "source_id": source_id,
+                "section": source_section,
+                "notes": source_anchor_notes,
+            }
+        ],
+        "formalization_status": "candidate",
+        "validation_status": "generated-support",
+        "maturity": "seed",
+        "representation": "AITP-generated supporting regression oracle.",
+        "prompt": f"Detailed oracle for {regression_question_id}.",
+        "mandatory_unit_ids": [promoted_unit_id],
+        "pass_conditions": [
+            "The answer preserves the promoted unit boundary.",
+            "The answer keeps the current proof-status caveat explicit.",
+        ],
+        "derivation_spine": [
+            f"recover-statement:{promoted_unit_id}",
+            "preserve-bounded-scope",
+            "preserve-proof-status-boundary",
+        ],
+        "failure_triggers": [
+            "Fail if the answer overclaims proof or formalization closure.",
+            "Fail if the answer drops the promoted unit's central statement.",
+        ],
+        "grading_rubric": [
+            "Pass when the promoted unit can be reconstructed faithfully at the current bounded scope.",
+            "Fail when the answer invents extra claims or drops the core statement.",
+        ],
+        "common_failure_patterns": [
+            "Overclaiming full formal proof closure.",
+            "Answering only vaguely without restating the promoted unit.",
+        ],
+        "retrieval_hints": [
+            f"Use when grading answers about {promoted_unit_id}.",
+        ],
+        "created_at": today_iso(),
+        "updated_at": today_iso(),
+    }
+
+
 def build_tpkn_unit(
     *,
     candidate: dict[str, Any],
@@ -460,6 +624,25 @@ def build_tpkn_unit(
     assumptions = [str(value) for value in candidate.get("assumptions") or [] if str(value).strip()]
     if not assumptions:
         assumptions = ["Promoted from an AITP candidate; refine assumptions in later review."]
+    supporting_regression_question_ids = _dedupe_strings(
+        list((regression_gate or {}).get("supporting_regression_question_ids") or candidate.get("supporting_regression_question_ids") or [])
+    )
+    supporting_oracle_ids = _dedupe_strings(
+        list((regression_gate or {}).get("supporting_oracle_ids") or candidate.get("supporting_oracle_ids") or [])
+    )
+    supporting_regression_run_ids = _dedupe_strings(
+        list((regression_gate or {}).get("supporting_regression_run_ids") or candidate.get("supporting_regression_run_ids") or [])
+    )
+    promotion_blockers = _dedupe_strings(
+        list((regression_gate or {}).get("promotion_blockers") or candidate.get("promotion_blockers") or [])
+    )
+    followup_gap_ids = _dedupe_strings(
+        list((regression_gate or {}).get("followup_gap_ids") or candidate.get("followup_gap_ids") or [])
+    )
+    split_required = bool((regression_gate or {}).get("split_required", candidate.get("split_required", False)))
+    cited_recovery_required = bool(
+        (regression_gate or {}).get("cited_recovery_required", candidate.get("cited_recovery_required", False))
+    )
     review_phrase = {
         "human": "after explicit human approval.",
         "ai_auto": "after passing the documented AI coverage and consensus gate.",
@@ -520,6 +703,13 @@ def build_tpkn_unit(
             or candidate.get("topic_completion_status")
             or "not_assessed"
         ),
+        "supporting_regression_question_ids": supporting_regression_question_ids,
+        "supporting_oracle_ids": supporting_oracle_ids,
+        "supporting_regression_run_ids": supporting_regression_run_ids,
+        "promotion_blockers": promotion_blockers,
+        "split_required": split_required,
+        "cited_recovery_required": cited_recovery_required,
+        "followup_gap_ids": followup_gap_ids,
         "canonical_layer": canonical_layer,
         "review_mode": review_mode,
         "promotion_route": promotion_route or "",
@@ -533,6 +723,41 @@ def build_tpkn_unit(
         "retrieval_hints": [
             f"Promoted from AITP candidate {candidate['candidate_id']}.",
         ],
+        "trust_boundary": (
+            "This is a semi-formal AITP Layer 2 unit: source-grounded and auditable, "
+            "but not itself a proof-assistant-certified artifact."
+        ),
+        "translation_readiness": (
+            "candidate"
+            if target_type in {
+                "concept",
+                "definition",
+                "notation",
+                "equation",
+                "assumption",
+                "regime",
+                "theorem",
+                "claim",
+                "proof_fragment",
+                "derivation_step",
+                "derivation",
+                "bridge",
+                "example",
+                "caveat",
+                "equivalence",
+                "symbol_binding",
+                "quantity",
+                "model",
+                "source_map",
+            }
+            else "future"
+        ),
+        "semi_formal_contract": [
+            "Keep the statement, assumptions, and regime explicit.",
+            "Keep source anchors and review artifacts explicit.",
+            "Do not treat Layer 2 promotion as proof-assistant closure.",
+            "Use later Lean export only after the bounded family is stable enough to translate cleanly.",
+        ],
         "created_at": today_iso(),
         "updated_at": today_iso(),
         "promotion": {
@@ -542,25 +767,13 @@ def build_tpkn_unit(
             "coverage_status": str((coverage or {}).get("status") or "not_audited"),
             "consensus_status": str((consensus or {}).get("status") or "not_requested"),
             "regression_gate_status": str((regression_gate or {}).get("status") or "not_audited"),
-            "supporting_regression_question_ids": _dedupe_strings(
-                list((regression_gate or {}).get("supporting_regression_question_ids") or candidate.get("supporting_regression_question_ids") or [])
-            ),
-            "supporting_oracle_ids": _dedupe_strings(
-                list((regression_gate or {}).get("supporting_oracle_ids") or candidate.get("supporting_oracle_ids") or [])
-            ),
-            "supporting_regression_run_ids": _dedupe_strings(
-                list((regression_gate or {}).get("supporting_regression_run_ids") or candidate.get("supporting_regression_run_ids") or [])
-            ),
-            "promotion_blockers": _dedupe_strings(
-                list((regression_gate or {}).get("promotion_blockers") or candidate.get("promotion_blockers") or [])
-            ),
+            "supporting_regression_question_ids": supporting_regression_question_ids,
+            "supporting_oracle_ids": supporting_oracle_ids,
+            "supporting_regression_run_ids": supporting_regression_run_ids,
+            "promotion_blockers": promotion_blockers,
             "blocking_reasons": _dedupe_strings(list((regression_gate or {}).get("blocking_reasons") or [])),
-            "cited_recovery_required": bool(
-                (regression_gate or {}).get("cited_recovery_required", candidate.get("cited_recovery_required", False))
-            ),
-            "followup_gap_ids": _dedupe_strings(
-                list((regression_gate or {}).get("followup_gap_ids") or candidate.get("followup_gap_ids") or [])
-            ),
+            "cited_recovery_required": cited_recovery_required,
+            "followup_gap_ids": followup_gap_ids,
             "split_clearance_status": str((regression_gate or {}).get("split_clearance_status") or "not_applicable"),
             "promotion_blockers_cleared": bool((regression_gate or {}).get("promotion_blockers_cleared", True)),
             "promoted_by": "",
@@ -610,6 +823,9 @@ def merge_tpkn_unit(
     merged["retrieval_hints"] = _dedupe_strings(list(existing_unit.get("retrieval_hints") or []) + list(incoming_unit.get("retrieval_hints") or []))
     merged["equivalence_refs"] = _dedupe_strings(list(existing_unit.get("equivalence_refs") or []) + list(incoming_unit.get("equivalence_refs") or []))
     merged["conflict_refs"] = _dedupe_strings(list(existing_unit.get("conflict_refs") or []) + list(incoming_unit.get("conflict_refs") or []))
+    merged["semi_formal_contract"] = _dedupe_strings(
+        list(existing_unit.get("semi_formal_contract") or []) + list(incoming_unit.get("semi_formal_contract") or [])
+    )
     merged["updated_at"] = today_iso()
 
     existing_layer = str(existing_unit.get("canonical_layer") or "")
@@ -618,6 +834,16 @@ def merge_tpkn_unit(
     merged["review_mode"] = str(existing_unit.get("review_mode") or incoming_unit.get("review_mode") or "human")
     merged["promotion_route"] = str(existing_unit.get("promotion_route") or incoming_unit.get("promotion_route") or "")
     merged["conflict_status"] = str(incoming_unit.get("conflict_status") or existing_unit.get("conflict_status") or "none")
+    merged["trust_boundary"] = str(
+        incoming_unit.get("trust_boundary")
+        or existing_unit.get("trust_boundary")
+        or "This is a semi-formal AITP Layer 2 unit."
+    )
+    merged["translation_readiness"] = str(
+        incoming_unit.get("translation_readiness")
+        or existing_unit.get("translation_readiness")
+        or "future"
+    )
 
     review_artifacts = _dedupe_strings(
         _normalize_metadata_entries(existing_unit.get("review_artifacts"))
@@ -635,6 +861,30 @@ def merge_tpkn_unit(
     regression_gate = incoming_unit.get("regression_gate") or existing_unit.get("regression_gate")
     if regression_gate:
         merged["regression_gate"] = regression_gate
+    merged["supporting_regression_question_ids"] = _dedupe_strings(
+        list(existing_unit.get("supporting_regression_question_ids") or [])
+        + list(incoming_unit.get("supporting_regression_question_ids") or [])
+    )
+    merged["supporting_oracle_ids"] = _dedupe_strings(
+        list(existing_unit.get("supporting_oracle_ids") or [])
+        + list(incoming_unit.get("supporting_oracle_ids") or [])
+    )
+    merged["supporting_regression_run_ids"] = _dedupe_strings(
+        list(existing_unit.get("supporting_regression_run_ids") or [])
+        + list(incoming_unit.get("supporting_regression_run_ids") or [])
+    )
+    merged["promotion_blockers"] = _dedupe_strings(
+        list(existing_unit.get("promotion_blockers") or [])
+        + list(incoming_unit.get("promotion_blockers") or [])
+    )
+    merged["followup_gap_ids"] = _dedupe_strings(
+        list(existing_unit.get("followup_gap_ids") or [])
+        + list(incoming_unit.get("followup_gap_ids") or [])
+    )
+    merged["split_required"] = bool(incoming_unit.get("split_required", existing_unit.get("split_required", False)))
+    merged["cited_recovery_required"] = bool(
+        incoming_unit.get("cited_recovery_required", existing_unit.get("cited_recovery_required", False))
+    )
     merged["topic_completion_status"] = str(
         incoming_unit.get("topic_completion_status")
         or existing_unit.get("topic_completion_status")
@@ -670,10 +920,30 @@ def unit_path_for(tpkn_root: Path, unit_type: str, unit_id: str) -> Path:
     return tpkn_root / relative_dir / f"{slug}.json"
 
 
-def run_tpkn_checks(tpkn_root: Path) -> dict[str, Any]:
+def run_tpkn_checks(tpkn_root: Path, *, scoped_paths: list[Path] | None = None) -> dict[str, Any]:
+    python_command = [sys.executable] if sys.executable else [shutil.which("python") or shutil.which("python3") or "python3"]
+    normalized_scope: list[str] = []
+    for path in scoped_paths or []:
+        try:
+            relative = path.resolve().relative_to(tpkn_root.resolve())
+        except ValueError:
+            continue
+        normalized_scope.append(str(relative))
+    if (tpkn_root / "scripts" / "check_protocol.py").exists() and (tpkn_root / "scripts" / "build.py").exists():
+        check_command = [*python_command, "scripts/check_protocol.py"]
+        build_command = [*python_command, "scripts/build.py"]
+        if normalized_scope:
+            check_command.extend(["--allow-unrelated-errors"])
+            build_command.extend(["--allow-unrelated-errors"])
+            for path in normalized_scope:
+                check_command.extend(["--scope", path])
+                build_command.extend(["--scope", path])
+    else:
+        check_command = [*python_command, "scripts/kb.py", "check"]
+        build_command = [*python_command, "scripts/kb.py", "build"]
     commands = {
-        "check": ["python3", "scripts/kb.py", "check"],
-        "build": ["python3", "scripts/kb.py", "build"],
+        "check": check_command,
+        "build": build_command,
     }
     results: dict[str, Any] = {}
     for key, command in commands.items():
@@ -691,5 +961,6 @@ def run_tpkn_checks(tpkn_root: Path) -> dict[str, Any]:
             "command": command,
             "stdout": completed.stdout.strip(),
             "stderr": completed.stderr.strip(),
+            "scoped_paths": normalized_scope,
         }
     return results

@@ -7,7 +7,9 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -58,6 +60,23 @@ def load_json(path: Path) -> dict | None:
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def python_command() -> list[str]:
+    executable = str(getattr(sys, "executable", "") or "").strip()
+    if executable:
+        return [executable]
+
+    for candidate in ("python3", "python"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return [resolved]
+
+    launcher = shutil.which("py")
+    if launcher:
+        return [launcher, "-3"]
+
+    return ["python"]
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -553,10 +572,13 @@ def topic_completion_actions(knowledge_root: Path, topic_state: dict, queue_meta
     if not candidate_rows and not followup_rows:
         return []
     completion_payload = load_json(knowledge_root / "runtime" / "topics" / topic_slug / TOPIC_COMPLETION_FILENAME) or {}
+    promotion_gate = load_json(knowledge_root / "runtime" / "topics" / topic_slug / "promotion_gate.json") or {}
+    gate_status = str(promotion_gate.get("status") or "").strip()
     needs_refresh = (
         str(completion_payload.get("run_id") or "") != run_id
         or int(completion_payload.get("candidate_count") or -1) != len(candidate_rows)
         or int(completion_payload.get("followup_subtopic_count") or -1) != len(followup_rows)
+        or (gate_status == "promoted" and str(completion_payload.get("status") or "") != "promoted")
     )
     if not needs_refresh:
         return []
@@ -575,6 +597,39 @@ def topic_completion_actions(knowledge_root: Path, topic_state: dict, queue_meta
             "declared_contract_path": queue_meta.get("declared_contract_path"),
         }
     ]
+
+
+def prune_obsolete_actions(knowledge_root: Path, topic_state: dict, queue: list[dict]) -> list[dict]:
+    topic_slug = topic_state["topic_slug"]
+    runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    promotion_gate = load_json(runtime_root / "promotion_gate.json") or {}
+    gate_status = str(promotion_gate.get("status") or "").strip()
+    completion_payload = load_json(runtime_root / TOPIC_COMPLETION_FILENAME) or {}
+    completion_status = str(completion_payload.get("status") or "").strip()
+    latest_run_id = str(topic_state.get("latest_run_id") or "").strip()
+
+    filtered: list[dict] = []
+    for row in queue:
+        action_type = str(row.get("action_type") or "").strip()
+        queue_source = str(row.get("queue_source") or "").strip()
+        handler_args = row.get("handler_args") or {}
+        action_run_id = str(handler_args.get("run_id") or "").strip()
+
+        if gate_status == "promoted":
+            if action_type == "auto_promote_candidate":
+                continue
+            if action_type == "assess_topic_completion" and queue_source == "heuristic" and not handler_args:
+                continue
+            if (
+                completion_status == "promoted"
+                and action_type == "assess_topic_completion"
+                and action_run_id
+                and action_run_id == latest_run_id
+            ):
+                continue
+
+        filtered.append(row)
+    return filtered
 
 
 def lean_bridge_actions(knowledge_root: Path, topic_state: dict, queue_meta: dict) -> list[dict]:
@@ -1029,6 +1084,7 @@ def materialize_action_queue(
     queue.extend(lean_bridge_actions(knowledge_root, topic_state, queue_meta))
     queue.extend(deferred_reactivation_actions(knowledge_root, topic_state, queue_meta))
     queue.extend(auto_promotion_actions(knowledge_root, topic_state, queue_meta))
+    queue = prune_obsolete_actions(knowledge_root, topic_state, queue)
 
     if not queue:
         queue.append(
@@ -1661,11 +1717,12 @@ def main() -> int:
     literature_followup_script = knowledge_root / "runtime" / "scripts" / "run_literature_followup.py"
     decision_script = knowledge_root / "runtime" / "scripts" / "decide_next_action.py"
     conformance_audit_script = knowledge_root / "runtime" / "scripts" / "audit_topic_conformance.py"
+    py = python_command()
 
     for arxiv_id in args.arxiv_id:
         subprocess.run(
             [
-                "python3",
+                *py,
                 str(register_arxiv),
                 "--topic-slug",
                 topic_slug,
@@ -1681,7 +1738,7 @@ def main() -> int:
     for local_note_path in args.local_note_path:
         subprocess.run(
             [
-                "python3",
+                *py,
                 str(register_local),
                 "--topic-slug",
                 topic_slug,
@@ -1694,7 +1751,7 @@ def main() -> int:
         )
 
     sync_cmd = [
-        "python3",
+        *py,
         str(sync_script),
         "--topic-slug",
         topic_slug,
@@ -1716,7 +1773,7 @@ def main() -> int:
 
     if args.skill_query:
         skill_cmd = [
-            "python3",
+            *py,
             str(skill_discovery_script),
             "--topic-slug",
             topic_slug,
@@ -1753,7 +1810,7 @@ def main() -> int:
     )
     subprocess.run(
         [
-            "python3",
+            *py,
             str(decision_script),
             "--topic-slug",
             topic_slug,
@@ -1780,7 +1837,7 @@ def main() -> int:
     write_text(topic_runtime_root / "agent_brief.md", build_agent_brief(topic_state, action_queue, interaction_state))
     subprocess.run(
         [
-            "python3",
+            *py,
             str(conformance_audit_script),
             "--topic-slug",
             topic_slug,

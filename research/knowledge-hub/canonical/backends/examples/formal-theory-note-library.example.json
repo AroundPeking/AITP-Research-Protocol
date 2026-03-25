@@ -8,8 +8,8 @@
     "__FORMAL_THEORY_BACKEND_ROOT__"
   ],
   "purpose": [
-    "Bridge an external formal-theory note library into AITP L2 without treating the backend root as canonical truth.",
-    "Seed concept, derivation_object, bridge, and warning_note candidates from human-maintained theory notes."
+    "Bridge an external semi-formal theory note library into AITP L2 without treating the backend root as canonical truth.",
+    "Seed concept, derivation_object, bridge, and warning_note candidates from human-maintained theory notes that are explicit enough for later formal export."
   ],
   "artifact_granularity": "One formal-theory note or one derivation-focused note is the atomic reusable backend artifact.",
   "source_policy": {
@@ -44,7 +44,8 @@
   "retrieval_hints": [
     "Prefer note-local definitions, equations, lemmas, and derivation skeletons before requesting new summary prose.",
     "When a backend note materially shapes L1, L3, or L4, register that concrete note into L0 first.",
-    "Do not infer canonical ontology from folder names alone; ontology must be written explicitly during L2 promotion."
+    "Do not infer canonical ontology from folder names alone; ontology must be written explicitly during L2 promotion.",
+    "Treat the backend as a semi-formal theory layer first; Lean translation is downstream work rather than the admission ticket for durable L2 use."
   ],
-  "notes": "This is a public example card for external formal-theory backends such as a standalone theoretical-physics knowledge network or local derivation-note vault."
+  "notes": "This is a public example card for external formal-theory backends such as a standalone theoretical-physics knowledge network or local derivation-note vault. The intended target is a source-grounded semi-formal backend whose artifacts can later be translated into Lean."
 }

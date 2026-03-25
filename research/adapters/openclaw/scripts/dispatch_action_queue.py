@@ -12,6 +12,7 @@ from _aitp_runtime_common import (
     KNOWLEDGE_ROOT,
     append_jsonl,
     now_iso,
+    python_command,
     quote_command,
     read_json,
     read_jsonl,
@@ -74,7 +75,7 @@ def build_discover_command(topic_slug: str, updated_by: str, handler_args: dict)
         raise SystemExit("discover_external_skills requires handler_args.queries")
 
     command = [
-        "python3",
+        *python_command(),
         str(ADAPTER_ROOT / "scripts" / "discover_external_skills.py"),
         "--topic-slug",
         topic_slug,
@@ -88,7 +89,7 @@ def build_discover_command(topic_slug: str, updated_by: str, handler_args: dict)
 
 def build_sync_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
     command = [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "sync_topic_state.py"),
         "--topic-slug",
         topic_slug,
@@ -105,7 +106,7 @@ def build_sync_command(topic_slug: str, updated_by: str, handler_args: dict) -> 
 def build_conformance_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
     phase = str(handler_args.get("phase") or "entry")
     return [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "audit_topic_conformance.py"),
         "--topic-slug",
         topic_slug,
@@ -119,7 +120,7 @@ def build_conformance_command(topic_slug: str, updated_by: str, handler_args: di
 def build_advance_closed_loop_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
     step = str(handler_args.get("step") or "auto")
     command = [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "advance_closed_loop.py"),
         "--topic-slug",
         topic_slug,
@@ -135,7 +136,7 @@ def build_advance_closed_loop_command(topic_slug: str, updated_by: str, handler_
 
 def build_execution_handoff_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
     command = [
-        "python3",
+        *python_command(),
         str(ADAPTER_ROOT / "scripts" / "dispatch_execution_task.py"),
         "--topic-slug",
         topic_slug,
@@ -156,7 +157,7 @@ def build_literature_followup_command(topic_slug: str, updated_by: str, handler_
         raise SystemExit("run_literature_followup requires handler_args.run_id")
 
     command = [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "run_literature_followup.py"),
         "--topic-slug",
         topic_slug,
@@ -183,7 +184,7 @@ def build_runtime_controller_command(
     handler_args: dict,
 ) -> list[str]:
     command = [
-        "python3",
+        *python_command(),
         str(ADAPTER_ROOT / "scripts" / "dispatch_runtime_controller_action.py"),
         "--topic-slug",
         topic_slug,
@@ -339,7 +340,7 @@ def load_decision_selected_action(topic_slug: str) -> dict:
 
 def build_orchestrate_refresh_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
     command = [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "orchestrate_topic.py"),
         "--topic-slug",
         topic_slug,

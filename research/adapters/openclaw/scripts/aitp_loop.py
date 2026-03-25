@@ -13,6 +13,7 @@ from _aitp_runtime_common import (
     KNOWLEDGE_ROOT,
     append_jsonl,
     now_iso,
+    python_command,
     quote_command,
     read_json,
     read_jsonl,
@@ -63,7 +64,7 @@ def resolve_requested_topic(args: argparse.Namespace) -> tuple[str, str]:
 
 def build_orchestrate_command(args: argparse.Namespace, topic_slug: str) -> list[str]:
     command = [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "orchestrate_topic.py"),
         "--updated-by",
         args.updated_by,
@@ -93,7 +94,7 @@ def build_orchestrate_command(args: argparse.Namespace, topic_slug: str) -> list
 
 def build_dispatch_command(topic_slug: str, updated_by: str, max_steps: int) -> list[str]:
     return [
-        "python3",
+        *python_command(),
         str(ADAPTER_ROOT / "scripts" / "dispatch_action_queue.py"),
         "--topic-slug",
         topic_slug,
@@ -106,7 +107,7 @@ def build_dispatch_command(topic_slug: str, updated_by: str, max_steps: int) -> 
 
 def build_exit_audit_command(topic_slug: str, updated_by: str) -> list[str]:
     return [
-        "python3",
+        *python_command(),
         str(KNOWLEDGE_ROOT / "runtime" / "scripts" / "audit_topic_conformance.py"),
         "--topic-slug",
         topic_slug,

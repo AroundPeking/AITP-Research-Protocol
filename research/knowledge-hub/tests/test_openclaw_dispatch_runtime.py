@@ -225,6 +225,8 @@ class DispatchActionQueueTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(len(commands), 2)
+        self.assertEqual(commands[0][0], sys.executable)
+        self.assertEqual(commands[1][0], sys.executable)
         self.assertIn("dispatch_runtime_controller_action.py", commands[0][1])
         self.assertIn("--action-type", commands[0])
         self.assertIn("assess_topic_completion", commands[0])
@@ -235,3 +237,66 @@ class DispatchActionQueueTests(unittest.TestCase):
         self.assertTrue(receipts_path.exists())
         receipt_rows = [json.loads(line) for line in receipts_path.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(receipt_rows[0]["handler_key"], "assess_topic_completion")
+
+
+class ExternalSkillDiscoveryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.output_dir = Path(self._tmpdir.name)
+        self.module = _load_module(
+            "aitp_discover_external_skills_test",
+            "research/adapters/openclaw/scripts/discover_external_skills.py",
+        )
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def test_discovery_degrades_when_npx_is_missing(self) -> None:
+        with mock.patch.object(self.module.subprocess, "run", side_effect=FileNotFoundError("npx missing")):
+            with mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "discover_external_skills.py",
+                    "--query",
+                    "operator algebra theorem packaging",
+                    "--output-dir",
+                    str(self.output_dir),
+                ],
+            ):
+                exit_code = self.module.main()
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads((self.output_dir / "skill_discovery.json").read_text(encoding="utf-8"))
+        report = (self.output_dir / "skill_recommendations.md").read_text(encoding="utf-8")
+        self.assertEqual(payload["overall_status"], "degraded")
+        self.assertEqual(payload["queries"][0]["status"], "unavailable")
+        self.assertEqual(payload["queries"][0]["error_kind"], "command_not_found")
+        self.assertIn("## Limitations", report)
+        self.assertIn("operator algebra theorem packaging", report)
+
+    def test_discovery_marks_ready_when_command_succeeds(self) -> None:
+        completed = mock.Mock(
+            returncode=0,
+            stdout="demo/repo@operator-skill 12 installs\n└ https://example.test/catalog\n",
+            stderr="",
+        )
+        with mock.patch.object(self.module.subprocess, "run", return_value=completed):
+            with mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "discover_external_skills.py",
+                    "--query",
+                    "operator algebra theorem packaging",
+                    "--output-dir",
+                    str(self.output_dir),
+                ],
+            ):
+                exit_code = self.module.main()
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads((self.output_dir / "skill_discovery.json").read_text(encoding="utf-8"))
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(payload["queries"][0]["status"], "completed")
+        self.assertEqual(payload["queries"][0]["candidates"][0]["skill_name"], "operator-skill")

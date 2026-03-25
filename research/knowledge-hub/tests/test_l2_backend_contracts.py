@@ -58,6 +58,7 @@ class L2BackendContractTests(unittest.TestCase):
         smoke_script = self.kernel_root / "runtime" / "scripts" / "run_formal_theory_backend_smoke.sh"
         self.assertTrue(smoke_script.exists())
         self.assertIn("run_formal_theory_backend_smoke.sh", starter)
+        self.assertIn("SEMI_FORMAL_THEORY_PROTOCOL.md", starter)
 
     def test_tpkn_backend_card_and_smoke_script_exist(self) -> None:
         payload = json.loads(
@@ -79,6 +80,24 @@ class L2BackendContractTests(unittest.TestCase):
         self.assertTrue(payload["source_policy"]["allows_auto_canonical_promotion"])
         self.assertTrue(smoke_script.exists())
         self.assertTrue(auto_smoke_script.exists())
+
+    def test_real_topic_acceptance_script_is_present_and_documented(self) -> None:
+        acceptance_script = (
+            self.kernel_root / "runtime" / "scripts" / "run_witten_topological_phases_formal_closure_acceptance.py"
+        )
+        readme = (self.kernel_root / "README.md").read_text(encoding="utf-8")
+        runtime_readme = (self.kernel_root / "runtime" / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(acceptance_script.exists())
+        self.assertIn("run_witten_topological_phases_formal_closure_acceptance.py", readme)
+        self.assertIn("run_witten_topological_phases_formal_closure_acceptance.py", runtime_readme)
+
+    def test_semi_formal_theory_protocol_is_present_and_documented(self) -> None:
+        protocol = self.kernel_root / "SEMI_FORMAL_THEORY_PROTOCOL.md"
+        readme = (self.kernel_root / "README.md").read_text(encoding="utf-8")
+        runtime_readme = (self.kernel_root / "runtime" / "README.md").read_text(encoding="utf-8")
+        self.assertTrue(protocol.exists())
+        self.assertIn("SEMI_FORMAL_THEORY_PROTOCOL.md", readme)
+        self.assertIn("SEMI_FORMAL_THEORY_PROTOCOL.md", runtime_readme)
 
     def test_toy_model_numeric_example_card_conforms_to_schema(self) -> None:
         payload = json.loads(

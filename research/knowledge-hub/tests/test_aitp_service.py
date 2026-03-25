@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 
 def _bootstrap_path() -> None:
@@ -114,6 +115,62 @@ class _LoopStubService(AITPService):
             "skill_discovery_path": str(runtime_root / "skill_discovery.json"),
             "skill_recommendations_path": str(runtime_root / "skill_recommendations.md"),
             "queries": queries,
+        }
+
+
+class _TailSyncLoopStubService(_LoopStubService):
+    def __init__(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        super().__init__(*args, **kwargs)
+        self.orchestrate_calls = 0
+
+    def orchestrate(self, **kwargs):  # noqa: ANN003
+        self.orchestrate_calls += 1
+        topic_slug = kwargs.get("topic_slug") or "demo-topic"
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": topic_slug,
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        if self.orchestrate_calls == 1:
+            queue_rows = [
+                {
+                    "action_id": "action:demo-topic:01",
+                    "status": "pending",
+                    "auto_runnable": True,
+                    "action_type": "skill_discovery",
+                    "handler_args": {"queries": ["finite-size benchmark"]},
+                }
+            ]
+        else:
+            queue_rows = [
+                {
+                    "action_id": "action:demo-topic:02",
+                    "status": "pending",
+                    "auto_runnable": False,
+                    "action_type": "manual_followup",
+                    "summary": "Move to the next bounded manual lane after the auto step finishes.",
+                }
+            ]
+        (runtime_root / "action_queue.jsonl").write_text(
+            "".join(
+                json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n"
+                for row in queue_rows
+            ),
+            encoding="utf-8",
+        )
+        return {
+            "topic_slug": topic_slug,
+            "runtime_root": str(runtime_root),
         }
 
 
@@ -690,9 +747,24 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(any(row["trigger"] == "decision_override_present" for row in payload["escalation_triggers"]))
         self.assertTrue(any(row["slice"] == "current_execution_lane" for row in payload["recommended_protocol_slices"]))
         self.assertTrue(
+            any(
+                row["trigger"] == "formal_theory_upstream_scan"
+                and "FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md" in row["required_reads"]
+                for row in payload["escalation_triggers"]
+            )
+        )
+        self.assertTrue(
+            any(
+                row["slice"] == "formal_theory_living_upstreams"
+                and "FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md" in row["paths"]
+                for row in payload["recommended_protocol_slices"]
+            )
+        )
+        self.assertTrue(
             any("proxy-success" in row or "missing execution evidence" in row for row in payload["active_hard_constraints"])
         )
         self.assertTrue(any("return to L0" in row for row in payload["active_hard_constraints"]))
+        self.assertTrue(any("physlib" in row or "Lean community discussion" in row for row in payload["active_hard_constraints"]))
         self.assertEqual(
             payload["backend_bridges"][0]["l0_registration_script"],
             "source-layer/scripts/register_local_note_source.py",
@@ -912,6 +984,9 @@ class AITPServiceTests(unittest.TestCase):
             "GAP_RECOVERY_PROTOCOL.md",
             "FAMILY_FUSION_PROTOCOL.md",
             "VERIFICATION_BRIDGE_PROTOCOL.md",
+            "FORMAL_THEORY_AUTOMATION_WORKFLOW.md",
+            "SECTION_FORMALIZATION_PROTOCOL.md",
+            "FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md",
             "INDEXING_RULES.md",
             "L0_SOURCE_LAYER.md",
         ):
@@ -926,6 +1001,12 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["protocol_contracts"]["gap_recovery_protocol"]["status"], "present")
         self.assertEqual(payload["protocol_contracts"]["family_fusion_protocol"]["status"], "present")
         self.assertEqual(payload["protocol_contracts"]["verification_bridge_protocol"]["status"], "present")
+        self.assertEqual(payload["protocol_contracts"]["formal_theory_automation_workflow"]["status"], "present")
+        self.assertEqual(payload["protocol_contracts"]["section_formalization_protocol"]["status"], "present")
+        self.assertEqual(
+            payload["protocol_contracts"]["formal_theory_upstream_reference_protocol"]["status"],
+            "present",
+        )
 
     def test_run_topic_loop_writes_loop_state_and_executes_auto_actions(self) -> None:
         service = _LoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
@@ -942,6 +1023,19 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["auto_actions"]["executed"][0]["status"], "completed")
         self.assertTrue(Path(payload["runtime_protocol"]["runtime_protocol_path"]).exists())
         self.assertTrue(Path(payload["runtime_protocol"]["runtime_protocol_note_path"]).exists())
+
+    def test_run_topic_loop_tail_syncs_after_budget_exhaustion(self) -> None:
+        service = _TailSyncLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        payload = service.run_topic_loop(
+            topic_slug="demo-topic",
+            human_request="finish the last auto step and resync runtime state",
+            max_auto_steps=1,
+        )
+
+        self.assertEqual(service.orchestrate_calls, 2)
+        self.assertEqual(payload["auto_actions"]["remaining_pending"], 1)
+        bundle = json.loads(Path(payload["runtime_protocol"]["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(bundle["minimal_execution_brief"]["selected_action_id"], "action:demo-topic:02")
 
     def test_request_and_approve_promotion_gate_write_runtime_artifacts(self) -> None:
         self._write_runtime_state()
@@ -963,6 +1057,48 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(approved["status"], "approved")
         gate_payload = json.loads(Path(approved["promotion_gate_path"]).read_text(encoding="utf-8"))
         self.assertEqual(gate_payload["approved_by"], "aitp-cli")
+
+    def test_assess_topic_completion_reports_promoted_when_gate_is_promoted(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+        self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro"],
+            covered_sections=["sec:intro"],
+            equation_labels=["eq:1"],
+            notation_bindings=[{"symbol": "H", "meaning": "Hamiltonian"}],
+            derivation_nodes=["def:h"],
+            agent_votes=[{"role": "skeptic", "verdict": "no_major_gap", "notes": ""}],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+            supporting_regression_question_ids=["regression_question:demo-definition"],
+            supporting_oracle_ids=["question_oracle:demo-definition"],
+            supporting_regression_run_ids=["regression_run:demo-definition"],
+        )
+        runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
+        (runtime_root / "promotion_gate.json").write_text(
+            json.dumps(
+                {
+                    "status": "promoted",
+                    "candidate_id": "candidate:demo-candidate",
+                    "promoted_units": ["concept:demo-promoted-concept"],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.assess_topic_completion(
+            topic_slug="demo-topic",
+            run_id="2026-03-13-demo",
+        )
+
+        self.assertEqual(payload["status"], "promoted")
 
     def test_audit_theory_coverage_writes_packet_artifacts(self) -> None:
         self._write_runtime_state()
@@ -1142,14 +1278,133 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(unit_payload["canonical_layer"], "L2_auto")
         self.assertEqual(unit_payload["review_mode"], "ai_auto")
         self.assertEqual(unit_payload["topic_completion_status"], "promotion-ready")
+        self.assertEqual(
+            unit_payload["supporting_regression_question_ids"],
+            ["regression_question:demo-definition"],
+        )
+        self.assertEqual(
+            unit_payload["supporting_oracle_ids"],
+            ["question_oracle:demo-definition"],
+        )
+        self.assertEqual(
+            unit_payload["supporting_regression_run_ids"],
+            ["regression_run:demo-definition"],
+        )
+        self.assertFalse(unit_payload["split_required"])
+        self.assertTrue((tpkn_root / "units" / "regression-questions" / "demo-definition.json").exists())
+        self.assertTrue((tpkn_root / "units" / "question-oracles" / "demo-definition.json").exists())
         self.assertIsInstance(unit_payload["review_artifacts"], list)
         self.assertIn("candidate_id=candidate:demo-candidate", unit_payload["review_artifacts"])
+        self.assertEqual(unit_payload["translation_readiness"], "candidate")
+        self.assertIn("semi-formal AITP Layer 2 unit", unit_payload["trust_boundary"])
+        self.assertIsInstance(unit_payload["semi_formal_contract"], list)
         candidate_rows = [
             json.loads(line)
             for line in (self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo" / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
         self.assertEqual(candidate_rows[0]["status"], "auto_promoted")
+
+    def test_audit_formal_theory_writes_review_artifacts_and_updates_candidate(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate(
+            candidate_type="theorem_card",
+            intended_l2_target="theorem:demo-topological-theorem",
+            title="Demo Topological Theorem",
+        )
+
+        payload = self.service.audit_formal_theory(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            formal_theory_role="trusted_target",
+            statement_graph_role="target_statement",
+            definition_trust_tier="scientific_source",
+            target_statement_id="theorem:demo-topological-theorem",
+            statement_graph_parents=["definition:chern-number"],
+            statement_graph_children=["corollary:demo-hall-response"],
+            informal_statement="A bounded theorem card for formal-theory review.",
+            formal_target="Demo.Topological.demo_theorem",
+            faithfulness_status="reviewed",
+            faithfulness_strategy="bounded source-to-target map",
+            comparator_audit_status="passed",
+            comparator_risks=["Nearby weakened statement could drop a hypothesis."],
+            nearby_variants=[
+                {
+                    "label": "demo weakened theorem",
+                    "relation": "weaker_variant",
+                    "verdict": "rejected",
+                    "notes": "Missing the source hypothesis.",
+                }
+            ],
+            provenance_kind="adapted_existing_formalization",
+            attribution_requirements=["Preserve upstream theorem citation."],
+            provenance_sources=["physlib:demo/theorem.lean@abc1234"],
+            prerequisite_closure_status="closed",
+            lean_prerequisite_ids=["physlib:chern-number"],
+            supporting_obligation_ids=["proof_obligation:demo-topological-theorem"],
+        )
+
+        formal_review_path = Path(payload["paths"]["formal_theory_review"])
+        self.assertTrue(formal_review_path.exists())
+        review_payload = json.loads(formal_review_path.read_text(encoding="utf-8"))
+        schemas_root = Path(__file__).resolve().parents[1] / "validation" / "schemas"
+        schema = json.loads((schemas_root / "formal-theory-review.schema.json").read_text(encoding="utf-8"))
+        comparator_schema = json.loads(
+            (schemas_root / "comparator-audit-record.schema.json").read_text(encoding="utf-8")
+        )
+        registry = Registry().with_resources(
+            [
+                (schema["$id"], Resource.from_contents(schema)),
+                (comparator_schema["$id"], Resource.from_contents(comparator_schema)),
+            ]
+        )
+        Draft202012Validator(schema, registry=registry).validate(review_payload)
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(review_payload["overall_status"], "ready")
+        self.assertEqual(
+            review_payload["faithfulness_review_path"],
+            "validation/topics/demo-topic/runs/2026-03-13-demo/theory-packets/candidate-demo-candidate/faithfulness_review.json",
+        )
+
+        candidate_rows = [
+            json.loads(line)
+            for line in (self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo" / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(candidate_rows[0]["formal_theory_review_overall_status"], "ready")
+        self.assertIn("formal_theory_review", candidate_rows[0]["theory_packet_refs"])
+
+    def test_auto_promote_candidate_requires_formal_theory_review_for_theory_formal_candidate_types(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate(
+            candidate_type="theorem_card",
+            intended_l2_target="theorem:demo-topological-theorem",
+            title="Demo Topological Theorem",
+        )
+        self._write_tpkn_backend_card(allows_auto=True)
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro"],
+            covered_sections=["sec:intro"],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+            supporting_regression_question_ids=["regression_question:demo-theorem"],
+            supporting_oracle_ids=["question_oracle:demo-theorem"],
+            supporting_regression_run_ids=["regression_run:demo-theorem"],
+        )
+
+        with self.assertRaisesRegex(FileNotFoundError, "formal_theory_review"):
+            self.service.auto_promote_candidate(
+                topic_slug="demo-topic",
+                candidate_id="candidate:demo-candidate",
+                target_backend_root=str(tpkn_root),
+                domain="demo-domain",
+                subdomain="demo-subdomain",
+            )
 
     def test_auto_promote_candidate_requires_passing_regression_gate(self) -> None:
         self._write_runtime_state()

@@ -290,11 +290,12 @@ surfaces under `runtime/topics/<topic_slug>/`:
 
 These surfaces are not decorative notes. They are the bounded shell that tells
 an agent what the active question is, what must be validated, whether the topic
-is promotion-ready, and whether the honest next move is to return to `L0` for
-missing sources or prior-work recovery.
+is promotion-ready, what the current semi-formal trust boundary is, and whether
+the honest next move is to return to `L0` for missing sources or prior-work
+recovery.
 
 They also expose whether child follow-up topics have been reintegrated and what
-the current Lean-ready declaration/export debt looks like.
+the current downstream formalization or Lean-export debt looks like.
 
 ## One Protocol, Three Research Lanes
 
@@ -303,15 +304,18 @@ theoretical-physics work.
 
 | Lane | Typical `L0` inputs | Typical `L4` work | Typical `L2` output |
 | --- | --- | --- | --- |
-| Formal theory and derivation | papers, definitions, prior claims, notebook traces | derivation review, proof-gap analysis, consistency checks | formal-theory backend objects, trusted derivation notes |
+| Formal theory and derivation | papers, definitions, prior claims, notebook traces | derivation review, proof-gap analysis, consistency checks, trust-boundary audits | semi-formal theory objects, trusted derivation notes, optional downstream Lean-ready packets |
 | Toy-model numerics | baseline papers, model specs, observables, scripts | controlled runs, convergence checks, benchmark comparison | validated workflows, benchmark notes, reusable operations |
 | Code-backed algorithm development | upstream codebases, papers, existing methods | reproduction, trust audit, implementation validation | trusted methods, reusable operation manifests, backend writeback |
 
-Current research-lane maturity is not uniform:
+For theory-heavy work, the default target is the semi-formal layer described in:
 
-- Toy-model numerics is currently the strongest end-to-end lane. When a matching public or analytic benchmark exists, AITP can already enforce the bounded route `benchmark -> target scan -> benchmark-driven recheck -> bounded conclusion`.
-- Formal theory and derivation is active but not closed. AITP can structure sectionized derivation recovery, proof obligations, and semi-formal theory packets, but broad automated proof closure should still be treated as immature.
-- Code-backed algorithm development is active but not closed. AITP can support reproduction, validator design, and bounded implementation validation, but it should not yet be described as a turnkey replacement for sustained large-codebase research development.
+- `research/knowledge-hub/SEMI_FORMAL_THEORY_PROTOCOL.md`
+
+AITP aims first for source-grounded, gap-honest, reusable theorem and
+derivation packets.
+Lean export remains a governed downstream bridge rather than the minimum bar
+for every `L2` theory artifact.
 
 ## AITP, TPKN, And The Workspace
 
@@ -384,7 +388,7 @@ The key boundary to preserve on Windows is this:
 | Claude Code | `aitp install-agent --agent claude-code` | Skill + command bundle |
 | OpenCode | `aitp install-agent --agent opencode` | Skill + command harness + MCP config |
 
-Adapter maturity is also not uniform:
+Current maturity is not uniform:
 
 - `Codex` is the strongest path today because it supports both a bare-session skill install and the stronger `aitp-codex` wrapper.
 - `OpenClaw` and `Claude Code` already install explicit skill surfaces, and `OpenCode` now installs both a local `aitp-runtime` skill and the `/aitp*` command bundle, but none of them yet has a wrapper as strong as `aitp-codex`.

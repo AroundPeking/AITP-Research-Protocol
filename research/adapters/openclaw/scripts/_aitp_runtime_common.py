@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import shlex
+import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -94,6 +96,23 @@ def relative_to_research(path: Path) -> str:
 
 def quote_command(command: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in command)
+
+
+def python_command() -> list[str]:
+    executable = str(getattr(sys, "executable", "") or "").strip()
+    if executable:
+        return [executable]
+
+    for candidate in ("python3", "python"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return [resolved]
+
+    launcher = shutil.which("py")
+    if launcher:
+        return [launcher, "-3"]
+
+    return ["python"]
 
 
 def trim_text(text: str | None, limit: int = 2000) -> str:

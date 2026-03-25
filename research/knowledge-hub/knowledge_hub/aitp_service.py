@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from .tpkn_bridge import (
+    build_supporting_question_oracle_unit,
+    build_supporting_regression_question_unit,
     build_tpkn_unit,
     choose_source_row,
     derive_tpkn_unit_id,
@@ -235,6 +237,20 @@ class AITPService:
         return [fallback_python, "-m", "knowledge_hub.aitp_mcp_server"]
 
         raise FileNotFoundError("Unable to resolve the aitp-mcp server command.")
+
+    def _resolve_runtime_python_command(self) -> list[str]:
+        override = os.environ.get("AITP_PYTHON", "").strip()
+        if override:
+            return [override]
+        if sys.executable:
+            return [sys.executable]
+        discovered = shutil.which("python") or shutil.which("python3")
+        if discovered:
+            return [discovered]
+        py_launcher = shutil.which("py")
+        if py_launcher:
+            return [py_launcher, "-3"]
+        return ["python3"]
 
     def _workspace_root_from_target_root(self, target_root: str | None) -> Path:
         if not target_root:
@@ -476,6 +492,30 @@ EXIT /B 127
 
     def _load_runtime_policy(self) -> dict[str, Any]:
         return read_json(self._runtime_policy_path()) or {}
+
+    def _theory_formal_candidate_types(self) -> set[str]:
+        runtime_policy = self._load_runtime_policy().get("auto_promotion_policy") or {}
+        configured = {
+            str(value).strip()
+            for value in (runtime_policy.get("theory_formal_candidate_types") or [])
+            if str(value).strip()
+        }
+        if configured:
+            return configured
+        return {
+            "definition_card",
+            "notation_card",
+            "equation_card",
+            "assumption_card",
+            "regime_card",
+            "theorem_card",
+            "proof_fragment",
+            "derivation_step",
+            "example_card",
+            "caveat_card",
+            "equivalence_map",
+            "symbol_binding",
+        }
 
     def _probe(self, argv: list[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(argv, check=False, capture_output=True, text=True)
@@ -1210,6 +1250,8 @@ EXIT /B 127
     ) -> dict[str, Any]:
         followup_rows = self._load_followup_subtopic_rows(topic_slug)
         reintegration_rows = self._load_followup_reintegration_rows(topic_slug)
+        promotion_gate = self._load_promotion_gate(topic_slug) or {}
+        gate_status = str(promotion_gate.get("status") or "").strip()
         policy = self._load_runtime_policy().get("followup_subtopic_policy") or {}
         unresolved_statuses = {
             str(value).strip()
@@ -1307,6 +1349,9 @@ EXIT /B 127
         if not candidate_rows and not followup_rows:
             status = "not_assessed"
             summary = "No candidate or follow-up completion surface exists yet."
+        elif gate_status == "promoted" and candidate_rows:
+            status = "promoted"
+            summary = "At least one regression-backed candidate has already been promoted through the active gate."
         elif blockers or unresolved_followup_child_topics or returned_with_gap_child_topics:
             status = "promotion-blocked"
             summary = "Topic completion is blocked by explicit candidate blockers or unreintegrated follow-up returns."
@@ -2673,6 +2718,11 @@ EXIT /B 127
             "derivation_graph": packet_root / "derivation_graph.json",
             "agent_consensus": packet_root / "agent_consensus.json",
             "regression_gate": packet_root / "regression_gate.json",
+            "faithfulness_review": packet_root / "faithfulness_review.json",
+            "comparator_audit_record": packet_root / "comparator_audit_record.json",
+            "provenance_review": packet_root / "provenance_review.json",
+            "prerequisite_closure_review": packet_root / "prerequisite_closure_review.json",
+            "formal_theory_review": packet_root / "formal_theory_review.json",
             "merge_report": packet_root / "merge_report.json",
             "auto_promotion_report": packet_root / "auto_promotion_report.json",
         }
@@ -3174,6 +3224,16 @@ EXIT /B 127
 
         runtime_protocol_note = self._relativize(runtime_root / "runtime_protocol.generated.md")
         research_guardrails_note = self._relativize(self.kernel_root / "RESEARCH_EXECUTION_GUARDRAILS.md")
+        formal_theory_upstream_note = self._relativize(
+            self.kernel_root / "FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md"
+        )
+        section_formalization_note = self._relativize(
+            self.kernel_root / "SECTION_FORMALIZATION_PROTOCOL.md"
+        )
+        formal_theory_active = (
+            str(active_research_contract.get("research_mode") or "").strip() == "formal_derivation"
+            or str(active_research_contract.get("template_mode") or "").strip() == "formal_theory"
+        )
         must_read_now: list[dict[str, str]] = [
             {
                 "path": runtime_protocol_note,
@@ -3526,6 +3586,12 @@ EXIT /B 127
                     if path
                 ],
             },
+            {
+                "trigger": "formal_theory_upstream_scan",
+                "active": formal_theory_active,
+                "condition": "Formal-theory topics should periodically consult the living Lean discussion/code upstreams before claiming novelty, choosing Lean target shapes, or exporting bridge packets.",
+                "required_reads": [formal_theory_upstream_note],
+            },
         ]
 
         recommended_protocol_slices = [
@@ -3593,6 +3659,16 @@ EXIT /B 127
                 "trigger": "verification_route_selection",
                 "paths": verification_route_reads,
             },
+            {
+                "slice": "formal_theory_living_upstreams",
+                "trigger": "formal_theory_upstream_scan",
+                "paths": [formal_theory_upstream_note],
+            },
+            {
+                "slice": "formal_theory_section_packets",
+                "trigger": "formal_theory_upstream_scan",
+                "paths": [section_formalization_note],
+            },
         ]
 
         active_hard_constraints = [
@@ -3603,6 +3679,8 @@ EXIT /B 127
             "Do not treat proxy-success signals as validation when the declared execution or proof evidence is still missing.",
             "If definitions, cited derivations, or prior-work comparisons are missing, return to L0 and persist the recovery artifacts before continuing.",
             "When a named trigger becomes active, read its mandatory deeper surfaces before continuing execution.",
+            "Do not collapse one compiled section packet into a whole-topic Lean completion claim.",
+            "Do not treat live Lean community discussion as theorem truth, and do not cite physlib without recording the consulted commit, path, or declaration surface.",
         ]
 
         editable_surfaces: list[dict[str, str]] = []
@@ -3801,7 +3879,7 @@ EXIT /B 127
             raise FileNotFoundError(f"Skill discovery script missing: {script_path}")
         output_dir = self._runtime_root(topic_slug)
         command = [
-            "python3",
+            *self._resolve_runtime_python_command(),
             str(script_path),
             "--topic-slug",
             topic_slug,
@@ -3865,7 +3943,7 @@ EXIT /B 127
             "runtime/scripts/run_literature_followup.py",
         )
         command = [
-            "python3",
+            *self._resolve_runtime_python_command(),
             str(handler_path),
             "--topic-slug",
             topic_slug,
@@ -3924,7 +4002,7 @@ EXIT /B 127
         handler_args = dict(row.get("handler_args") or {})
         handler_args.setdefault("topic_slug", topic_slug)
         handler_args.setdefault("updated_by", updated_by)
-        command = ["python3", str(handler_path)]
+        command = [*self._resolve_runtime_python_command(), str(handler_path)]
         for key, value in handler_args.items():
             if value is None:
                 continue
@@ -4018,19 +4096,19 @@ EXIT /B 127
                 child_row = dict(existing_child)
                 child_row.update(
                     {
-                        "candidate_id": child_candidate_id,
-                        "candidate_type": str(child_payload.get("candidate_type") or existing_child.get("candidate_type") or source_candidate.get("candidate_type") or ""),
-                        "title": str(child_payload.get("title") or existing_child.get("title") or child_candidate_id),
-                        "summary": str(child_payload.get("summary") or existing_child.get("summary") or ""),
-                        "topic_slug": topic_slug,
-                        "run_id": resolved_run_id,
-                        "origin_refs": list(child_payload.get("origin_refs") or existing_child.get("origin_refs") or source_candidate.get("origin_refs") or []),
-                        "question": str(child_payload.get("question") or existing_child.get("question") or source_candidate.get("question") or ""),
-                        "assumptions": list(child_payload.get("assumptions") or existing_child.get("assumptions") or source_candidate.get("assumptions") or []),
-                        "proposed_validation_route": str(child_payload.get("proposed_validation_route") or existing_child.get("proposed_validation_route") or source_candidate.get("proposed_validation_route") or ""),
-                        "intended_l2_targets": list(child_payload.get("intended_l2_targets") or existing_child.get("intended_l2_targets") or []),
-                        "status": str(child_payload.get("status") or existing_child.get("status") or "ready_for_validation"),
-                        "split_parent_id": source_candidate_id,
+                    "candidate_id": child_candidate_id,
+                    "candidate_type": str(child_payload.get("candidate_type") or existing_child.get("candidate_type") or source_candidate.get("candidate_type") or ""),
+                    "title": str(child_payload.get("title") or existing_child.get("title") or child_candidate_id),
+                    "summary": str(child_payload.get("summary") or existing_child.get("summary") or ""),
+                    "topic_slug": topic_slug,
+                    "run_id": resolved_run_id,
+                    "origin_refs": list(child_payload.get("origin_refs") or existing_child.get("origin_refs") or source_candidate.get("origin_refs") or []),
+                    "question": str(child_payload.get("question") or existing_child.get("question") or source_candidate.get("question") or ""),
+                    "assumptions": list(child_payload.get("assumptions") or existing_child.get("assumptions") or source_candidate.get("assumptions") or []),
+                    "proposed_validation_route": str(child_payload.get("proposed_validation_route") or existing_child.get("proposed_validation_route") or source_candidate.get("proposed_validation_route") or ""),
+                    "intended_l2_targets": list(child_payload.get("intended_l2_targets") or existing_child.get("intended_l2_targets") or []),
+                    "status": str(child_payload.get("status") or existing_child.get("status") or "ready_for_validation"),
+                    "split_parent_id": source_candidate_id,
                     }
                 )
                 if str(existing_child.get("status") or "") in {"promoted", "auto_promoted"}:
@@ -5302,7 +5380,7 @@ EXIT /B 127
 
         resolved_topic_slug = topic_slug or slugify(topic or "")
         command = [
-            "python3",
+            *self._resolve_runtime_python_command(),
             str(self._kernel_script("runtime/scripts/orchestrate_topic.py")),
             "--updated-by",
             updated_by,
@@ -5365,7 +5443,7 @@ EXIT /B 127
 
     def audit(self, *, topic_slug: str, phase: str = "entry", updated_by: str = "aitp-cli") -> dict[str, Any]:
         command = [
-            "python3",
+            *self._resolve_runtime_python_command(),
             str(self._kernel_script("runtime/scripts/audit_topic_conformance.py")),
             "--topic-slug",
             topic_slug,
@@ -5826,6 +5904,409 @@ EXIT /B 127
                 "derivation_graph": derivation_graph,
                 "agent_consensus": agent_consensus,
                 "regression_gate": regression_gate,
+            },
+        }
+
+    def audit_formal_theory(
+        self,
+        *,
+        topic_slug: str,
+        candidate_id: str,
+        run_id: str | None = None,
+        updated_by: str = "aitp-cli",
+        formal_theory_role: str = "trusted_target",
+        statement_graph_role: str = "target_statement",
+        definition_trust_tier: str | None = None,
+        target_statement_id: str | None = None,
+        statement_graph_parents: list[str] | None = None,
+        statement_graph_children: list[str] | None = None,
+        informal_statement: str | None = None,
+        formal_target: str | None = None,
+        faithfulness_status: str = "pending",
+        faithfulness_strategy: str | None = None,
+        faithfulness_notes: str | None = None,
+        comparator_audit_status: str = "pending",
+        comparator_risks: list[str] | None = None,
+        nearby_variants: list[dict[str, str]] | None = None,
+        comparator_notes: str | None = None,
+        provenance_kind: str = "generated_from_scratch",
+        attribution_requirements: list[str] | None = None,
+        provenance_sources: list[str] | None = None,
+        provenance_notes: str | None = None,
+        prerequisite_closure_status: str = "pending",
+        lean_prerequisite_ids: list[str] | None = None,
+        supporting_obligation_ids: list[str] | None = None,
+        formalization_blockers: list[str] | None = None,
+        prerequisite_notes: str | None = None,
+    ) -> dict[str, Any]:
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        if not resolved_run_id:
+            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+
+        candidate = self._load_candidate(topic_slug, resolved_run_id, candidate_id)
+        candidate_type = str(candidate.get("candidate_type") or "")
+        runtime_policy = self._load_runtime_policy()
+        trust_policy = runtime_policy.get("formal_theory_trust_boundary_policy") or {}
+        faithfulness_policy = runtime_policy.get("faithfulness_policy") or {}
+        comparator_policy = runtime_policy.get("comparator_audit_policy") or {}
+        provenance_policy = runtime_policy.get("provenance_review_policy") or {}
+        prerequisite_policy = runtime_policy.get("prerequisite_closure_policy") or {}
+
+        normalized_role = str(formal_theory_role or "").strip() or "trusted_target"
+        normalized_statement_graph_role = str(statement_graph_role or "").strip()
+        if not normalized_statement_graph_role:
+            raise ValueError("statement_graph_role is required")
+
+        trusted_roles = {
+            str(value).strip()
+            for value in (trust_policy.get("trusted_roles") or [])
+            if str(value).strip()
+        }
+        intermediate_roles = {
+            str(value).strip()
+            for value in (trust_policy.get("intermediate_roles") or [])
+            if str(value).strip()
+        }
+        supporting_roles = {
+            str(value).strip()
+            for value in (trust_policy.get("supporting_roles") or [])
+            if str(value).strip()
+        }
+        known_roles = trusted_roles | intermediate_roles | supporting_roles
+        if as_bool(trust_policy.get("enabled")) and known_roles and normalized_role not in known_roles:
+            raise ValueError(
+                "formal_theory_role must match the configured trust-boundary policy roles."
+            )
+
+        allowed_faithfulness_statuses = {
+            str(value).strip()
+            for value in (faithfulness_policy.get("allowed_statuses") or [])
+            if str(value).strip()
+        }
+        normalized_faithfulness_status = str(faithfulness_status or "").strip() or "pending"
+        if (
+            as_bool(faithfulness_policy.get("enabled"))
+            and allowed_faithfulness_statuses
+            and normalized_faithfulness_status not in allowed_faithfulness_statuses
+        ):
+            raise ValueError("faithfulness_status is not allowed by faithfulness_policy")
+
+        allowed_comparator_statuses = {
+            str(value).strip()
+            for value in (comparator_policy.get("allowed_statuses") or [])
+            if str(value).strip()
+        }
+        normalized_comparator_status = str(comparator_audit_status or "").strip() or "pending"
+        if (
+            as_bool(comparator_policy.get("enabled"))
+            and allowed_comparator_statuses
+            and normalized_comparator_status not in allowed_comparator_statuses
+        ):
+            raise ValueError("comparator_audit_status is not allowed by comparator_audit_policy")
+
+        allowed_provenance_kinds = {
+            str(value).strip()
+            for value in (provenance_policy.get("allowed_provenance_kinds") or [])
+            if str(value).strip()
+        }
+        normalized_provenance_kind = str(provenance_kind or "").strip() or "generated_from_scratch"
+        if (
+            as_bool(provenance_policy.get("enabled"))
+            and allowed_provenance_kinds
+            and normalized_provenance_kind not in allowed_provenance_kinds
+        ):
+            raise ValueError("provenance_kind is not allowed by provenance_review_policy")
+
+        allowed_prerequisite_statuses = {
+            str(value).strip()
+            for value in (prerequisite_policy.get("allowed_statuses") or [])
+            if str(value).strip()
+        }
+        normalized_prerequisite_status = str(prerequisite_closure_status or "").strip() or "pending"
+        if (
+            as_bool(prerequisite_policy.get("enabled"))
+            and allowed_prerequisite_statuses
+            and normalized_prerequisite_status not in allowed_prerequisite_statuses
+        ):
+            raise ValueError("prerequisite_closure_status is not allowed by prerequisite_closure_policy")
+
+        normalized_definition_trust_tier = str(definition_trust_tier or "").strip()
+        normalized_target_statement_id = (
+            str(target_statement_id or "").strip()
+            or str(formal_target or "").strip()
+            or str((candidate.get("intended_l2_targets") or [""])[0] or "").strip()
+            or candidate_id
+        )
+        normalized_parents = self._dedupe_strings(statement_graph_parents)
+        normalized_children = self._dedupe_strings(statement_graph_children)
+        normalized_attribution_requirements = self._dedupe_strings(attribution_requirements)
+        normalized_provenance_sources = self._dedupe_strings(provenance_sources)
+        normalized_lean_prerequisite_ids = self._dedupe_strings(lean_prerequisite_ids)
+        normalized_supporting_obligation_ids = self._dedupe_strings(supporting_obligation_ids)
+        normalized_formalization_blockers = self._dedupe_strings(formalization_blockers)
+        normalized_comparator_risks = self._dedupe_strings(comparator_risks)
+
+        normalized_nearby_variants: list[dict[str, str]] = []
+        for row in nearby_variants or []:
+            label = str(row.get("label") or "").strip()
+            relation = str(row.get("relation") or "").strip()
+            verdict = str(row.get("verdict") or "").strip()
+            notes = str(row.get("notes") or "").strip()
+            if not label or not relation or not verdict:
+                continue
+            normalized_nearby_variants.append(
+                {
+                    "label": label,
+                    "relation": relation,
+                    "verdict": verdict,
+                    "notes": notes,
+                }
+            )
+
+        comparator_goal = str(comparator_policy.get("comparator_goal") or "").strip()
+        normalized_faithfulness_strategy = str(faithfulness_strategy or "").strip()
+        normalized_faithfulness_notes = str(faithfulness_notes or "").strip()
+        normalized_informal_statement = str(informal_statement or "").strip() or str(candidate.get("summary") or "").strip()
+        normalized_formal_target = str(formal_target or "").strip()
+        normalized_comparator_notes = str(comparator_notes or "").strip()
+        normalized_provenance_notes = str(provenance_notes or "").strip()
+        normalized_prerequisite_notes = str(prerequisite_notes or "").strip()
+
+        blocking_reasons: list[str] = []
+        if as_bool(trust_policy.get("enabled")):
+            if trusted_roles and normalized_role not in trusted_roles:
+                if normalized_role in intermediate_roles:
+                    blocking_reasons.append("formal_theory_role_is_intermediate_theory")
+                elif normalized_role in supporting_roles:
+                    blocking_reasons.append("formal_theory_role_is_supporting_context")
+                else:
+                    blocking_reasons.append("formal_theory_role_not_trusted_target")
+
+        required_faithfulness_roles = {
+            str(value).strip()
+            for value in (faithfulness_policy.get("default_required_for_roles") or [])
+            if str(value).strip()
+        }
+        blocking_faithfulness_statuses = {
+            str(value).strip()
+            for value in (faithfulness_policy.get("blocking_statuses") or [])
+            if str(value).strip()
+        }
+        if normalized_role in required_faithfulness_roles:
+            if not normalized_faithfulness_strategy:
+                blocking_reasons.append("missing_faithfulness_strategy")
+            if normalized_faithfulness_status in blocking_faithfulness_statuses:
+                blocking_reasons.append("faithfulness_review_pending")
+
+        required_comparator_roles = {
+            str(value).strip()
+            for value in (comparator_policy.get("required_for_roles") or [])
+            if str(value).strip()
+        }
+        if normalized_role in required_comparator_roles:
+            if normalized_comparator_status == "failed":
+                blocking_reasons.append("comparator_audit_failed")
+            elif normalized_comparator_status != "passed":
+                blocking_reasons.append("comparator_audit_not_passed")
+
+        if as_bool(provenance_policy.get("enabled")):
+            if not normalized_attribution_requirements:
+                blocking_reasons.append("missing_attribution_requirements")
+            if (
+                normalized_provenance_kind
+                in {"retrieved_existing_formalization", "adapted_existing_formalization", "mixed"}
+                and not normalized_provenance_sources
+            ):
+                blocking_reasons.append("missing_provenance_sources")
+
+        required_prerequisite_roles = {
+            str(value).strip()
+            for value in (prerequisite_policy.get("default_required_for_roles") or [])
+            if str(value).strip()
+        }
+        blocking_prerequisite_statuses = {
+            str(value).strip()
+            for value in (prerequisite_policy.get("blocking_statuses") or [])
+            if str(value).strip()
+        }
+        if normalized_role in required_prerequisite_roles:
+            if normalized_prerequisite_status in blocking_prerequisite_statuses:
+                blocking_reasons.append("prerequisite_closure_incomplete")
+        if normalized_formalization_blockers:
+            blocking_reasons.append("formalization_blockers_present")
+
+        overall_status = "ready" if not blocking_reasons else "blocked"
+        updated_at = now_iso()
+        packet_paths = self._theory_packet_paths(topic_slug, resolved_run_id, candidate_id)
+
+        faithfulness_review = {
+            "schema_version": 1,
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": candidate_type,
+            "formal_theory_role": normalized_role,
+            "statement_graph_role": normalized_statement_graph_role,
+            "target_statement_id": normalized_target_statement_id,
+            "statement_graph_parents": normalized_parents,
+            "statement_graph_children": normalized_children,
+            "informal_statement": normalized_informal_statement,
+            "formal_target": normalized_formal_target,
+            "status": normalized_faithfulness_status,
+            "strategy": normalized_faithfulness_strategy,
+            "notes": normalized_faithfulness_notes,
+            "updated_at": updated_at,
+            "updated_by": updated_by,
+        }
+        comparator_audit_record = {
+            "schema_version": 1,
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": candidate_type,
+            "formal_theory_role": normalized_role,
+            "status": normalized_comparator_status,
+            "goal": comparator_goal,
+            "nearby_variants": normalized_nearby_variants,
+            "risks": normalized_comparator_risks,
+            "notes": normalized_comparator_notes,
+            "updated_at": updated_at,
+            "updated_by": updated_by,
+        }
+        provenance_review = {
+            "schema_version": 1,
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": candidate_type,
+            "provenance_kind": normalized_provenance_kind,
+            "attribution_requirements": normalized_attribution_requirements,
+            "provenance_sources": normalized_provenance_sources,
+            "notes": normalized_provenance_notes,
+            "updated_at": updated_at,
+            "updated_by": updated_by,
+        }
+        prerequisite_closure_review = {
+            "schema_version": 1,
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": candidate_type,
+            "formal_theory_role": normalized_role,
+            "status": normalized_prerequisite_status,
+            "lean_prerequisite_ids": normalized_lean_prerequisite_ids,
+            "supporting_obligation_ids": normalized_supporting_obligation_ids,
+            "formalization_blockers": normalized_formalization_blockers,
+            "notes": normalized_prerequisite_notes,
+            "updated_at": updated_at,
+            "updated_by": updated_by,
+        }
+
+        write_json(packet_paths["faithfulness_review"], faithfulness_review)
+        write_json(packet_paths["comparator_audit_record"], comparator_audit_record)
+        write_json(packet_paths["provenance_review"], provenance_review)
+        write_json(packet_paths["prerequisite_closure_review"], prerequisite_closure_review)
+
+        formal_theory_review = {
+            "schema_version": 1,
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": candidate_type,
+            "formal_theory_role": normalized_role,
+            "statement_graph_role": normalized_statement_graph_role,
+            "target_statement_id": normalized_target_statement_id,
+            "statement_graph_parents": normalized_parents,
+            "statement_graph_children": normalized_children,
+            "faithfulness_status": normalized_faithfulness_status,
+            "comparator_audit_status": normalized_comparator_status,
+            "comparator_risks": normalized_comparator_risks,
+            "nearby_variants": normalized_nearby_variants,
+            "provenance_kind": normalized_provenance_kind,
+            "prerequisite_closure_status": normalized_prerequisite_status,
+            "overall_status": overall_status,
+            "blocking_reasons": blocking_reasons,
+            "attribution_requirements": normalized_attribution_requirements,
+            "provenance_sources": normalized_provenance_sources,
+            "lean_prerequisite_ids": normalized_lean_prerequisite_ids,
+            "supporting_obligation_ids": normalized_supporting_obligation_ids,
+            "formalization_blockers": normalized_formalization_blockers,
+            "faithfulness_review_path": self._relativize(packet_paths["faithfulness_review"]),
+            "comparator_audit_record_path": self._relativize(packet_paths["comparator_audit_record"]),
+            "provenance_review_path": self._relativize(packet_paths["provenance_review"]),
+            "prerequisite_closure_review_path": self._relativize(packet_paths["prerequisite_closure_review"]),
+            "formal_theory_review_path": self._relativize(packet_paths["formal_theory_review"]),
+            "updated_at": updated_at,
+            "updated_by": updated_by,
+        }
+        if normalized_definition_trust_tier:
+            formal_theory_review["definition_trust_tier"] = normalized_definition_trust_tier
+        if normalized_faithfulness_strategy:
+            formal_theory_review["faithfulness_strategy"] = normalized_faithfulness_strategy
+        if normalized_faithfulness_notes:
+            formal_theory_review["faithfulness_notes"] = normalized_faithfulness_notes
+        if normalized_informal_statement:
+            formal_theory_review["informal_statement"] = normalized_informal_statement
+        if normalized_formal_target:
+            formal_theory_review["formal_target"] = normalized_formal_target
+        if comparator_goal:
+            formal_theory_review["comparator_goal"] = comparator_goal
+        if normalized_comparator_notes:
+            formal_theory_review["comparator_notes"] = normalized_comparator_notes
+        if normalized_provenance_notes:
+            formal_theory_review["provenance_notes"] = normalized_provenance_notes
+        if normalized_prerequisite_notes:
+            formal_theory_review["prerequisite_notes"] = normalized_prerequisite_notes
+
+        write_json(packet_paths["formal_theory_review"], formal_theory_review)
+
+        updated_candidate = dict(candidate)
+        updated_candidate["formal_theory_role"] = normalized_role
+        updated_candidate["statement_graph_role"] = normalized_statement_graph_role
+        updated_candidate["target_statement_id"] = normalized_target_statement_id
+        if normalized_definition_trust_tier:
+            updated_candidate["definition_trust_tier"] = normalized_definition_trust_tier
+        updated_candidate["faithfulness_status"] = normalized_faithfulness_status
+        updated_candidate["comparator_audit_status"] = normalized_comparator_status
+        updated_candidate["provenance_kind"] = normalized_provenance_kind
+        updated_candidate["prerequisite_closure_status"] = normalized_prerequisite_status
+        updated_candidate["formalization_blockers"] = normalized_formalization_blockers
+        updated_candidate["formal_theory_review_overall_status"] = overall_status
+        updated_candidate["formal_theory_blocking_reasons"] = blocking_reasons
+        theory_packet_refs = dict(updated_candidate.get("theory_packet_refs") or {})
+        theory_packet_refs.update(
+            {
+                "faithfulness_review": self._relativize(packet_paths["faithfulness_review"]),
+                "comparator_audit_record": self._relativize(packet_paths["comparator_audit_record"]),
+                "provenance_review": self._relativize(packet_paths["provenance_review"]),
+                "prerequisite_closure_review": self._relativize(packet_paths["prerequisite_closure_review"]),
+                "formal_theory_review": self._relativize(packet_paths["formal_theory_review"]),
+            }
+        )
+        updated_candidate["theory_packet_refs"] = theory_packet_refs
+        self._replace_candidate_row(topic_slug, resolved_run_id, candidate_id, updated_candidate)
+
+        return {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": candidate_id,
+            "candidate_type": candidate_type,
+            "target_statement_id": normalized_target_statement_id,
+            "overall_status": overall_status,
+            "blocking_reasons": blocking_reasons,
+            "paths": {
+                "faithfulness_review": str(packet_paths["faithfulness_review"]),
+                "comparator_audit_record": str(packet_paths["comparator_audit_record"]),
+                "provenance_review": str(packet_paths["provenance_review"]),
+                "prerequisite_closure_review": str(packet_paths["prerequisite_closure_review"]),
+                "formal_theory_review": str(packet_paths["formal_theory_review"]),
+            },
+            "artifacts": {
+                "faithfulness_review": faithfulness_review,
+                "comparator_audit_record": comparator_audit_record,
+                "provenance_review": provenance_review,
+                "prerequisite_closure_review": prerequisite_closure_review,
+                "formal_theory_review": formal_theory_review,
             },
         }
 
@@ -6510,7 +6991,69 @@ EXIT /B 127
         }
         write_json(packet_paths["merge_report"], merge_report)
         write_external_json(unit_path, unit_payload)
-        check_results = run_tpkn_checks(tpkn_root)
+        supporting_unit_paths: list[Path] = []
+        question_ids = list(unit_payload.get("supporting_regression_question_ids") or [])
+        oracle_ids = list(unit_payload.get("supporting_oracle_ids") or [])
+        for question_id in question_ids:
+            question_path = unit_path_for(tpkn_root, "regression_question", question_id)
+            matching_oracle_id = next(
+                (
+                    oracle_id
+                    for oracle_id in oracle_ids
+                    if oracle_id.split(":", 1)[-1] == question_id.split(":", 1)[-1]
+                ),
+                oracle_ids[0] if oracle_ids else None,
+            )
+            question_payload = build_supporting_regression_question_unit(
+                unit_id=question_id,
+                domain=default_domain,
+                source_id=resolved_source_id,
+                source_section=resolved_source_section,
+                source_anchor_notes=(
+                    f"AITP generated this supporting regression surface while promoting {candidate_id} "
+                    f"for topic {topic_slug}."
+                ),
+                promoted_unit_id=target_unit_id,
+                promoted_unit_title=str(unit_payload.get("title") or candidate.get("title") or target_unit_id),
+                topic_slug=topic_slug,
+                oracle_id=matching_oracle_id,
+            )
+            existing_question_payload = read_json(question_path)
+            if existing_question_payload is None or str(existing_question_payload.get("validation_status") or "") == "generated-support":
+                write_external_json(question_path, question_payload)
+            supporting_unit_paths.append(question_path)
+        for oracle_id in oracle_ids:
+            oracle_path = unit_path_for(tpkn_root, "question_oracle", oracle_id)
+            matching_question_id = next(
+                (
+                    question_id
+                    for question_id in question_ids
+                    if question_id.split(":", 1)[-1] == oracle_id.split(":", 1)[-1]
+                ),
+                question_ids[0] if question_ids else "",
+            )
+            oracle_payload = build_supporting_question_oracle_unit(
+                unit_id=oracle_id,
+                domain=default_domain,
+                source_id=resolved_source_id,
+                source_section=resolved_source_section,
+                source_anchor_notes=(
+                    f"AITP generated this supporting oracle while promoting {candidate_id} "
+                    f"for topic {topic_slug}."
+                ),
+                promoted_unit_id=target_unit_id,
+                promoted_unit_title=str(unit_payload.get("title") or candidate.get("title") or target_unit_id),
+                regression_question_id=matching_question_id,
+                topic_slug=topic_slug,
+            )
+            existing_oracle_payload = read_json(oracle_path)
+            if existing_oracle_payload is None or str(existing_oracle_payload.get("validation_status") or "") == "generated-support":
+                write_external_json(oracle_path, oracle_payload)
+            supporting_unit_paths.append(oracle_path)
+        check_results = run_tpkn_checks(
+            tpkn_root,
+            scoped_paths=[unit_path, manifest_path, *supporting_unit_paths],
+        )
 
         consultation_paths = self._record_l2_consultation(
             topic_slug=topic_slug,
@@ -6731,6 +7274,7 @@ EXIT /B 127
         coverage_summary = read_json(packet_paths["coverage_ledger"]) or {}
         consensus_summary = read_json(packet_paths["agent_consensus"]) or {}
         regression_summary = read_json(packet_paths["regression_gate"]) or {}
+        formal_theory_review = read_json(packet_paths["formal_theory_review"]) or {}
         structure_map = read_json(packet_paths["structure_map"]) or {}
         notation_table = read_json(packet_paths["notation_table"]) or {}
         derivation_graph = read_json(packet_paths["derivation_graph"]) or {}
@@ -6755,6 +7299,13 @@ EXIT /B 127
             regression_summary.get("status") or ""
         ) != "pass":
             raise PermissionError("Auto promotion requires a passing regression_gate.json status.")
+        if str(candidate.get("candidate_type") or "") in self._theory_formal_candidate_types():
+            if not packet_paths["formal_theory_review"].exists():
+                raise FileNotFoundError(
+                    "Missing theory packet artifacts for auto promotion: formal_theory_review"
+                )
+            if str(formal_theory_review.get("overall_status") or "") != "ready":
+                raise PermissionError("Auto promotion requires a ready formal_theory_review.json status.")
 
         gate_payload = {
             "topic_slug": topic_slug,
@@ -6773,6 +7324,7 @@ EXIT /B 127
             "coverage_status": str(coverage_summary.get("status") or "not_audited"),
             "consensus_status": str(consensus_summary.get("status") or "not_requested"),
             "regression_gate_status": str(regression_summary.get("status") or "not_audited"),
+            "formal_theory_review_status": str(formal_theory_review.get("overall_status") or "not_required"),
             "topic_completion_status": str(regression_summary.get("topic_completion_status") or "not_assessed"),
             "supporting_regression_question_ids": self._dedupe_strings(
                 list(regression_summary.get("supporting_regression_question_ids") or candidate.get("supporting_regression_question_ids") or [])
@@ -6831,6 +7383,16 @@ EXIT /B 127
             "promotion_gate_path": self._relativize(Path(gate_paths["promotion_gate_path"])),
             "candidate_id": candidate_id,
         }
+        if packet_paths["faithfulness_review"].exists():
+            review_artifacts["faithfulness_review_path"] = self._relativize(packet_paths["faithfulness_review"])
+        if packet_paths["comparator_audit_record"].exists():
+            review_artifacts["comparator_audit_record_path"] = self._relativize(packet_paths["comparator_audit_record"])
+        if packet_paths["provenance_review"].exists():
+            review_artifacts["provenance_review_path"] = self._relativize(packet_paths["provenance_review"])
+        if packet_paths["prerequisite_closure_review"].exists():
+            review_artifacts["prerequisite_closure_review_path"] = self._relativize(packet_paths["prerequisite_closure_review"])
+        if packet_paths["formal_theory_review"].exists():
+            review_artifacts["formal_theory_review_path"] = self._relativize(packet_paths["formal_theory_review"])
         promote_payload = self.promote_candidate(
             topic_slug=topic_slug,
             candidate_id=candidate_id,
@@ -6863,6 +7425,7 @@ EXIT /B 127
             "coverage_status": str(coverage_summary.get("status") or ""),
             "consensus_status": str(consensus_summary.get("status") or ""),
             "regression_gate_status": str(regression_summary.get("status") or ""),
+            "formal_theory_review_status": str(formal_theory_review.get("overall_status") or "not_required"),
             "topic_completion_status": str(regression_summary.get("topic_completion_status") or ""),
             "supporting_regression_question_ids": self._dedupe_strings(
                 list(regression_summary.get("supporting_regression_question_ids") or [])
@@ -6953,6 +7516,22 @@ EXIT /B 127
                 skill_queries=skill_queries or [],
                 human_request=human_request,
                 research_mode=research_mode,
+            )
+        if executed_auto_actions:
+            self.orchestrate(
+                topic_slug=resolved_topic_slug,
+                run_id=resolved_run_id,
+                control_note=control_note,
+                updated_by=updated_by,
+                skill_queries=skill_queries or [],
+                human_request=human_request,
+                research_mode=research_mode,
+            )
+            auto_queue_path = str(self._runtime_root(resolved_topic_slug) / "action_queue.jsonl")
+            remaining_pending = sum(
+                1
+                for row in read_jsonl(Path(auto_queue_path))
+                if str(row.get("status") or "").strip() == "pending"
             )
         auto_actions = {
             "queue_path": auto_queue_path,
@@ -7482,6 +8061,9 @@ aitp audit $ARGUMENTS
             "gap_recovery_protocol": self.kernel_root / "GAP_RECOVERY_PROTOCOL.md",
             "family_fusion_protocol": self.kernel_root / "FAMILY_FUSION_PROTOCOL.md",
             "verification_bridge_protocol": self.kernel_root / "VERIFICATION_BRIDGE_PROTOCOL.md",
+            "formal_theory_automation_workflow": self.kernel_root / "FORMAL_THEORY_AUTOMATION_WORKFLOW.md",
+            "section_formalization_protocol": self.kernel_root / "SECTION_FORMALIZATION_PROTOCOL.md",
+            "formal_theory_upstream_reference_protocol": self.kernel_root / "FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md",
             "indexing_rules": self.kernel_root / "INDEXING_RULES.md",
             "l0_source_layer": self.kernel_root / "L0_SOURCE_LAYER.md",
         }

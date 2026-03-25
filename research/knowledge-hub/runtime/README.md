@@ -27,22 +27,6 @@ When deeper proof, gap, fusion, or verification triggers fire, the runtime
 surface must point back to the matching top-level kernel contracts rather than
 hiding those rules inside handler code.
 
-## Runtime lanes and maturity
-
-The runtime should stay explicit about which research lane is active.
-
-1. Toy-model numerics
-- Runtime shape: benchmark-validation -> target-scan -> benchmark-driven-recheck -> exit audit.
-- Current maturity: strongest lane. When a matching public or analytic benchmark exists, this lane can already reach a bounded end-to-end verdict.
-
-2. Formal theory and derivation
-- Runtime shape: source recovery -> atomization -> proof-obligation / regression -> promotion review.
-- Current maturity: active but not closed. The runtime can organize and audit this lane, but automated proof closure remains immature.
-
-3. Code-backed algorithm development
-- Runtime shape: reproduction -> validator / benchmark design -> bounded implementation validation -> trust audit.
-- Current maturity: active but not closed. The runtime can support bounded method-development work, but it should not yet be described as a general turnkey replacement for sustained large-codebase research development.
-
 ## Layout
 
 - `topics/<topic_slug>/topic_state.json`
@@ -119,18 +103,20 @@ The runtime should stay explicit about which research lane is active.
 - Runtime should materialize both an unfinished-work index and a next-action decision so the loop is inspectable rather than implicit.
 - Runtime should prefer declared contracts when they exist and only fall back to heuristics when they do not.
 - Runtime should also expose a conformance report so non-AITP operation becomes visible rather than implicit.
-- Runtime should record which research lane is active and report lane maturity honestly when summarizing topic status.
 - Runtime may materialize one thin closed-loop control step, but it must never claim that heavy execution already happened unless a returned execution result artifact is present.
-- For numerical topics, runtime should materialize benchmark-validation as a distinct step before target-model inference whenever a finite-size public or analytic benchmark exists for the observable family.
-- If a benchmark reveals a convention mismatch, normalization drift, or observable-definition mistake, runtime should demote the earlier target-model result to exploratory and queue a benchmark-driven recheck before treating the claim as trusted again.
-- Runtime should auto-promote theory-formal candidates only after explicit coverage and consensus artifacts exist.
-- Runtime should also require a regression gate, blocker clearance, and split honesty before theory-formal auto-promotion.
+- Runtime should auto-promote theory-formal candidates only after explicit coverage, consensus, and formal-theory review artifacts exist.
+- Runtime should also require a ready `formal_theory_review.json`, a regression gate, blocker clearance, and split honesty before theory-formal auto-promotion.
+- Runtime should keep `SEMI_FORMAL_THEORY_PROTOCOL.md` visible so theory work is not misread as "Lean-first or it does not count".
+- Runtime should keep `FORMAL_THEORY_AUTOMATION_WORKFLOW.md` visible when operators need to know which lane is currently automated and which lane still requires bounded manual judgment.
+- Runtime should keep `SECTION_FORMALIZATION_PROTOCOL.md` visible when section-oriented formalization is active so one compiled section is not mistaken for whole-topic closure.
 - Runtime should keep wide or mixed candidates out of Layer 2 by splitting or parking them first.
 - Runtime may spawn independent follow-up subtopics when cited-literature gaps are explicit enough to deserve a fresh `L0 -> L1 -> L3 -> L4 -> L2` route.
 - Runtime should materialize a follow-up return packet for those child subtopics so reintegration is explicit rather than conversational.
 - Runtime should detect when a child return packet is no longer `pending_reentry` and queue parent-side reintegration automatically.
 - Runtime should also queue topic-completion refreshes and Lean-bridge refreshes when the latest run has outgrown the currently materialized shell surfaces.
 - Runtime should expose proof-completion review, gap recovery, family fusion, and verification-bridge triggers as explicit deeper reads when those situations arise.
+- Runtime should expose the current semi-formal trust boundary and downstream translation status when theory-formal artifacts are being reviewed.
+- Runtime should keep `FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md` visible when formal-theory or Lean-bridge work is active, and topic-local artifacts should record the consulted upstream thread URLs, archive URLs, commits, and file paths explicitly.
 
 ## Minimal required pointers
 
@@ -174,6 +160,22 @@ For internal runtime work, the lower-level orchestrator still exists:
 python3 runtime/scripts/orchestrate_topic.py \
   --topic-slug <topic_slug>
 ```
+
+For a bounded real-topic acceptance pass that exercises the reviewed controller
+bridge on the Witten topological-phases exemplar, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_witten_topological_phases_formal_closure_acceptance.py --json
+```
+
+That acceptance script keeps the topic real but the scope bounded: it builds a
+Witten Lecture Two theorem candidate, persists coverage and formal-theory
+review artifacts, dispatches `assess_topic_completion` and
+`prepare_lean_bridge` through the public runtime-controller bridge, and finally
+verifies `L2_auto` writeback into a disposable standalone TPKN clone.
+The acceptance target is a self-consistent semi-formal theory packet with an
+explicit Lean bridge, not a claim that the whole topic has already been fully
+formalized in Lean.
 
 For the minimal closed-loop v1, the external executor returns one JSON artifact at:
 
@@ -274,3 +276,4 @@ now proof-heavy, gap-heavy, fusion-heavy, or verification-heavy:
 - `GAP_RECOVERY_PROTOCOL.md`
 - `FAMILY_FUSION_PROTOCOL.md`
 - `VERIFICATION_BRIDGE_PROTOCOL.md`
+- `FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md`

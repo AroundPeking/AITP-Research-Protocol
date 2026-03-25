@@ -16,26 +16,6 @@ The scientific content inside them is expected to remain user-extensible so one
 clone can emphasize formal theory while another emphasizes toy-model numerics or
 code-backed method development.
 
-## Research Lanes And Current Maturity
-
-The public kernel supports three distinct research lanes. AITP should report
-them separately rather than speaking about one uniform capability.
-
-1. Toy-model numerics
-- Scope: benchmark-backed finite-model studies where the output is a numerical observable, bounded parameter verdict, or falsification claim.
-- Kernel role: preserve observable definitions, benchmark notes, method cards, validation artifacts, and reusable numerical operations.
-- Current maturity: strongest lane. When a matching public or analytic benchmark exists, the kernel can already govern `benchmark -> target scan -> benchmark-driven recheck -> bounded conclusion`.
-
-2. Formal theory and derivation
-- Scope: derivation reconstruction, theorem-family organization, proof obligations, semi-formal theory packets, and downstream Lean-facing bridges.
-- Kernel role: hold the cross-layer contracts, proof-facing artifacts, and formal-theory promotion rules needed for trustworthy writeback.
-- Current maturity: active but not closed. The kernel can already structure and audit this lane, but broad automated proof closure should still be treated as immature.
-
-3. Code-backed algorithm development
-- Scope: reproducibility diagnostics, validator design, scientific code study, and bounded implementation validation for mature research software.
-- Kernel role: govern the trust boundary between code execution, validation artifacts, and reusable method writeback.
-- Current maturity: active but not closed. Useful bounded progress is already possible, but the kernel should not yet be described as a turnkey replacement for sustained large-codebase research development.
-
 ## Quick Start
 
 From the repository root:
@@ -87,8 +67,8 @@ aitp operation-init --topic-slug <topic_slug> --run-id <run_id> --title "<operat
 aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<operation>" --baseline-status passed
 aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
 aitp capability-audit --topic-slug <topic_slug>
-aitp verify --topic-slug <topic_slug> --mode numeric
 aitp coverage-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --source-section <section> --covered-section <section>
+aitp formal-theory-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --formal-theory-role trusted_target --statement-graph-role target_statement
 aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <tpkn_root>
@@ -110,6 +90,10 @@ research/knowledge-hub/
   GAP_RECOVERY_PROTOCOL.md
   FAMILY_FUSION_PROTOCOL.md
   VERIFICATION_BRIDGE_PROTOCOL.md
+  SEMI_FORMAL_THEORY_PROTOCOL.md
+  FORMAL_THEORY_AUTOMATION_WORKFLOW.md
+  SECTION_FORMALIZATION_PROTOCOL.md
+  FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md
   TOPIC_COMPLETION_PROTOCOL.md
   INDEXING_RULES.md
   L0_SOURCE_LAYER.md
@@ -163,7 +147,10 @@ Deeper governance contracts surfaced through `aitp doctor`:
 - `GAP_RECOVERY_PROTOCOL.md`
 - `FAMILY_FUSION_PROTOCOL.md`
 - `VERIFICATION_BRIDGE_PROTOCOL.md`
-- `validation/BASELINE_REPRODUCTION_AND_UNDERSTANDING_GATES.md`
+- `SEMI_FORMAL_THEORY_PROTOCOL.md`
+- `FORMAL_THEORY_AUTOMATION_WORKFLOW.md`
+- `SECTION_FORMALIZATION_PROTOCOL.md`
+- `FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md`
 - `TOPIC_COMPLETION_PROTOCOL.md`
 
 ## Runtime Rule
@@ -200,15 +187,10 @@ The layer contracts above remain the higher-priority governance surface.
 External backends such as a separate formal-theory knowledge network, a
 software repository, or a result store should enter through the documented
 `L2` backend bridge rather than through hidden path assumptions.
-For numerical topics, the runtime should keep benchmark-validation separate
-from target-model inference. A new observable family should not be treated as
-trusted merely because one target-model figure looks plausible, and any
-benchmark-driven convention mismatch should demote the earlier target-model
-result until the corrected recheck lands.
 When proof-grade theory work is active, deeper protocol slices should expose
-proof obligations, unresolved-gap routing, multi-source family fusion, and the
-selected verification bridge explicitly instead of collapsing them into one
-opaque prompt.
+proof obligations, unresolved-gap routing, multi-source family fusion, the
+semi-formal trust boundary, and the selected verification bridge explicitly
+instead of collapsing them into one opaque prompt.
 
 The current runtime shell now also materializes:
 
@@ -229,12 +211,14 @@ Layer 2 now has two governed writeback paths:
    - `aitp promote ...`
 2. Theory-formal `L2_auto`:
    - `aitp coverage-audit ...`
+   - `aitp formal-theory-audit ...`
    - `aitp auto-promote ...`
 
 For theory-formal `L2_auto`, coverage and consensus are necessary but not
 sufficient.
-Auto-promotion should also remain blocked until the candidate is regression
-backed, blocker-clear, and split/gap honest.
+Auto-promotion should also remain blocked until the candidate has a ready
+`formal_theory_review.json` plus regression-backed, blocker-clear,
+split/gap-honest, semi-formal theory packets.
 
 The current public external writeback path targets the standalone
 `Theoretical-Physics-Knowledge-Network` repository through the backend card:
@@ -255,4 +239,12 @@ Public bounded smoke tests:
 research/knowledge-hub/runtime/scripts/run_formal_theory_backend_smoke.sh
 research/knowledge-hub/runtime/scripts/run_tpkn_formal_promotion_smoke.sh
 research/knowledge-hub/runtime/scripts/run_tpkn_formal_auto_promotion_smoke.sh
+python research/knowledge-hub/runtime/scripts/run_witten_topological_phases_formal_closure_acceptance.py --json
 ```
+
+The Witten acceptance script is the bounded real-topic closure check for the
+current semi-formal theory runtime lane: it seeds a real Lecture Two theorem
+candidate, runs coverage + formal-theory review, dispatches the reviewed
+controller actions for `topic_completion` and `lean_bridge`, and then validates
+`L2_auto` writeback into a disposable TPKN copy while keeping Lean export as a
+downstream bridge rather than the primary meaning of `L2` success.

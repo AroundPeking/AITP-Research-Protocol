@@ -320,6 +320,88 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertEqual(len(actions), 1)
         self.assertEqual(actions[0]["action_type"], "assess_topic_completion")
 
+    def test_topic_completion_actions_refresh_when_gate_promoted_but_completion_is_stale(self) -> None:
+        self._write_jsonl(
+            "feedback/topics/demo-topic/runs/2026-03-13-demo/candidate_ledger.jsonl",
+            [
+                {
+                    "candidate_id": "candidate:demo-definition",
+                    "candidate_type": "definition_card",
+                    "status": "auto_promoted",
+                }
+            ],
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/promotion_gate.json",
+            {
+                "status": "promoted",
+                "candidate_id": "candidate:demo-definition",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/topic_completion.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "promotion-ready",
+                "candidate_count": 1,
+                "followup_subtopic_count": 0,
+            },
+        )
+
+        actions = self.orchestrate_topic.topic_completion_actions(
+            self.knowledge_root,
+            {"topic_slug": "demo-topic", "latest_run_id": "2026-03-13-demo"},
+            {"declared_contract_path": None},
+        )
+
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0]["action_type"], "assess_topic_completion")
+
+    def test_materialize_action_queue_prunes_stale_promotion_review_after_gate_promoted(self) -> None:
+        self._write_json(
+            "runtime/topics/demo-topic/promotion_gate.json",
+            {
+                "status": "promoted",
+                "candidate_id": "candidate:demo-definition",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/topic_completion.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "promoted",
+                "candidate_count": 1,
+                "followup_subtopic_count": 0,
+            },
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L2",
+                "pending_actions": [
+                    "Review Layer 2 promotion for `candidate:demo-definition` now that coverage, formal-theory review, topic completion, and Lean bridge are all ready.",
+                    "Keep the abstract/concrete equivalence route as a separate follow-up lane instead of widening the current concrete bicommutant bridge candidate.",
+                    "Keep the multiplication-operator / masa example as its own follow-up lane after the concrete theorem-level package stabilizes.",
+                ],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        summaries = [str(row.get("summary") or "") for row in queue]
+        self.assertFalse(any(summary.startswith("Review Layer 2 promotion") for summary in summaries))
+        self.assertTrue(
+            any(summary.startswith("Keep the abstract/concrete equivalence route") for summary in summaries)
+        )
+
     def test_lean_bridge_actions_detect_missing_candidate_packet(self) -> None:
         self._write_json(
             "runtime/closed_loop_policies.json",
