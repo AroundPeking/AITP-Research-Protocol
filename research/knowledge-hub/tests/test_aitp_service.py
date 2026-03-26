@@ -1244,6 +1244,12 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["topic_slug"], remembered_topic)
         self.assertTrue(Path(payload["loop_state_path"]).exists())
         self.assertTrue(Path(payload["current_topic_memory_path"]).exists())
+        self.assertTrue(Path(payload["session_start_contract_path"]).exists())
+        self.assertTrue(Path(payload["session_start_note_path"]).exists())
+        session_contract = json.loads(Path(payload["session_start_contract_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(session_contract["routing"]["route"], "request_current_topic_reference")
+        self.assertTrue(session_contract["memory_resolution"]["used_current_topic_memory"])
+        self.assertIn("runtime_protocol.generated.md", Path(payload["session_start_note_path"]).read_text(encoding="utf-8"))
 
     def test_run_topic_loop_tail_syncs_after_budget_exhaustion(self) -> None:
         service = _TailSyncLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
@@ -1330,13 +1336,25 @@ class AITPServiceTests(unittest.TestCase):
             "trust_audit": {
                 "trust_report_path": "validation/topics/demo-topic/runs/2026-03-13-demo/trust_audit.md",
             },
+            "runtime_protocol": {
+                "runtime_protocol_note_path": "runtime/topics/demo-topic/runtime_protocol.generated.md",
+            },
+            "session_start": {
+                "session_start_contract_path": "runtime/topics/demo-topic/session_start.contract.json",
+                "session_start_note_path": "runtime/topics/demo-topic/session_start.generated.md",
+                "artifacts": {
+                    "runtime_protocol_note_path": "runtime/topics/demo-topic/runtime_protocol.generated.md",
+                },
+            },
         }
 
         prompt = build_codex_prompt(payload)
 
+        self.assertIn("session_start.generated.md", prompt)
         self.assertIn("innovation_direction.md", prompt)
         self.assertIn("innovation_decisions.jsonl", prompt)
         self.assertIn("authoritative translation of that request", prompt)
+        self.assertIn("authoritative translation of the user's chat request", prompt)
 
     def test_codex_parser_accepts_latest_topic_flag(self) -> None:
         parser = build_codex_parser()
@@ -2650,6 +2668,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(using_skill_path.exists())
         self.assertTrue(skill_path.exists())
         self.assertTrue(setup_path.exists())
+        self.assertIn("Use when starting any conversation", using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("If there is even a 1% chance", using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("innovation_direction.md", using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("继续这个 topic，方向改成 X", using_skill_path.read_text(encoding="utf-8"))
@@ -2659,6 +2678,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("--current-topic", using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("--latest-topic", skill_path.read_text(encoding="utf-8"))
         self.assertIn("--latest-topic", using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("session_start.generated.md", skill_path.read_text(encoding="utf-8"))
+        self.assertIn("session_start.generated.md", using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("aitp loop", skill_path.read_text(encoding="utf-8"))
         self.assertIn("aitp operation-init", skill_path.read_text(encoding="utf-8"))
         self.assertIn("codex mcp add aitp", setup_path.read_text(encoding="utf-8"))
@@ -2726,7 +2747,9 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(opencode_harness_path.exists())
         self.assertIn("Session-start routing invariant", opencode_using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("aitp session-start", opencode_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("session_start.generated.md", opencode_skill_path.read_text(encoding="utf-8"))
         self.assertIn("current-topic-memory", opencode_harness_path.read_text(encoding="utf-8"))
+        self.assertIn("session_start.generated.md", opencode_harness_path.read_text(encoding="utf-8"))
 
         claude_target = self.root / "claude-workspace"
         result = self.service.install_agent(
@@ -2748,4 +2771,6 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(claude_command_path.exists())
         self.assertIn("Use this skill to decide whether the current task must be governed by AITP", claude_using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("Session-start routing invariant", claude_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("session_start.generated.md", claude_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("session_start.generated.md", claude_command_path.read_text(encoding="utf-8"))
         self.assertIn("aitp session-start", claude_command_path.read_text(encoding="utf-8"))

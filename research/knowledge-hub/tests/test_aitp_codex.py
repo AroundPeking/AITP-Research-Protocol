@@ -51,9 +51,20 @@ class AITPCodexTests(unittest.TestCase):
             "trust_audit": {
                 "trust_report_path": "/tmp/validation/demo-topic/trust_audit.md",
             },
+            "runtime_protocol": {
+                "runtime_protocol_note_path": "/tmp/runtime/demo-topic/runtime_protocol.generated.md",
+            },
+            "session_start": {
+                "session_start_contract_path": "/tmp/runtime/demo-topic/session_start.contract.json",
+                "session_start_note_path": "/tmp/runtime/demo-topic/session_start.generated.md",
+                "artifacts": {
+                    "runtime_protocol_note_path": "/tmp/runtime/demo-topic/runtime_protocol.generated.md",
+                },
+            },
         }
         prompt = aitp_codex.build_codex_prompt(payload)
         self.assertIn("Use the installed `aitp-runtime` skill", prompt)
+        self.assertIn("/tmp/runtime/demo-topic/session_start.generated.md", prompt)
         self.assertIn("/tmp/runtime/demo-topic/agent_brief.md", prompt)
         self.assertIn("/tmp/innovation-direction.md", prompt)
         self.assertIn("trust: `blocked`", prompt)
@@ -75,6 +86,12 @@ class AITPCodexTests(unittest.TestCase):
         self.assertEqual(
             aitp_codex.extract_topic_direction_change("继续这个 topic，方向改成 concrete Jones realization"),
             "concrete Jones realization",
+        )
+        self.assertEqual(
+            aitp_codex.extract_topic_direction_change(
+                "继续这个 topic，方向改成 modular tensor category consistency checks，并先补验证路线。"
+            ),
+            "modular tensor category consistency checks",
         )
 
     def test_apply_topic_steering_translates_direction_change_into_service_call(self) -> None:

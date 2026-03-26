@@ -101,6 +101,7 @@ Session-start invariant:
 - if the user says `继续这个 topic`, `continue this topic`, `this topic`, or `current topic`, Codex should resolve that against durable current-topic memory first
 - it should only fall back to latest-topic memory if current-topic memory is missing
 - it should only ask for a slug when the request remains genuinely ambiguous after checking durable memory
+- it should materialize and read `session_start.generated.md` before `runtime_protocol.generated.md`
 
 ## Verify
 
@@ -108,6 +109,7 @@ Codex should now be able to:
 
 - use `using-aitp` to decide whether the task must enter AITP before any substantial response
 - enter topic work through the AITP runtime surface
+- read `session_start.generated.md` first
 - read `runtime_protocol.generated.md`
 - read `promotion_gate.md` when a candidate is approaching Layer 2
 - treat missing conformance as a hard failure for AITP work

@@ -55,6 +55,7 @@ Session-start invariant:
 - if the user says `继续这个 topic`, `continue this topic`, `this topic`, or `current topic`, Claude Code should treat that as a current-topic-memory request immediately
 - it should only fall back to the latest topic if current-topic memory is missing
 - it should only ask for a slug when the request remains genuinely ambiguous after checking durable memory
+- it should materialize and read `session_start.generated.md` before `runtime_protocol.generated.md`
 
 ## Verify
 
@@ -62,6 +63,7 @@ Claude Code should now be able to:
 
 - route substantial research work through `aitp session-start`
 - load the stricter `using-aitp` session-start constraint from `.claude/skills/using-aitp/`
+- read `session_start.generated.md` first
 - read the runtime protocol bundle first
 - resolve `继续这个 topic` against durable current-topic memory before asking for a slug
 - refuse to count missing-conformance work as AITP work

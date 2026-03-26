@@ -146,7 +146,8 @@ Expected behavior:
 
 - `codex` discovers `.agents/skills/using-aitp/SKILL.md` as the conversation-level gatekeeper;
 - `codex` reads `.agents/skills/aitp-runtime/SKILL.md`;
-- the first serious research action becomes `aitp bootstrap`, `aitp loop`, or `aitp resume`;
+- the first serious research action becomes hidden `aitp-codex "<task>"` or `aitp session-start "<task>"`;
+- it materializes `session_start.generated.md` and reads that before `runtime_protocol.generated.md`;
 - it reads the runtime bundle before continuing;
 - outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
 
@@ -165,6 +166,9 @@ In Codex App, the intended UX is natural language first rather than making the
 user remember these commands. With `using-aitp` installed, requests like
 `继续这个 topic，方向改成 X` should route through the hidden `aitp-codex`
 path instead of forcing the user to type shell syntax themselves.
+The durable `session_start.generated.md` artifact is now the first-read
+contract that makes that routing auditable and linear instead of just a soft
+instruction in the skill text.
 The plain `aitp-codex "<task>"` form is now the preferred shell mirror of that
 UX.
 That hidden route should prefer current-topic memory first, then the latest
@@ -190,6 +194,7 @@ Expected behavior:
 
 - OpenCode gets `.opencode/skills/using-aitp/SKILL.md`, `.opencode/skills/aitp-runtime/SKILL.md`, and the `/aitp` command bundle;
 - the session-start rule now routes natural-language requests through `aitp session-start "<task>"`, with current-topic memory taking priority for phrases like `继续这个 topic`;
+- it materializes `session_start.generated.md` first, then `runtime_protocol.generated.md`;
 - the command bundle remains the explicit fallback entry surface when skill loading is unavailable;
 - outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
 

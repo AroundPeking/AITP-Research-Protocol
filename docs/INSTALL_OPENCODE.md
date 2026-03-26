@@ -56,6 +56,8 @@ Then continue with `aitp loop ...` or `aitp resume ...` after the runtime
 bundle exists. The installed OpenCode skill and command bundle are now designed
 to treat `继续这个 topic`, `continue this topic`, `this topic`, and
 `current topic` as a current-topic-memory request before asking for a slug.
+The first-read startup contract is now `session_start.generated.md`, followed
+by `runtime_protocol.generated.md`.
 
 ## Verify
 
@@ -64,6 +66,7 @@ OpenCode should now be able to:
 - read the installed `using-aitp` and `aitp-runtime` skills when the active OpenCode setup loads the local skill root
 - enter the AITP runtime through the installed commands
 - resolve `继续这个 topic` against durable current-topic memory before asking for a slug
+- read `session_start.generated.md` first
 - read `runtime_protocol.generated.md` before doing deeper work
 - refresh conformance on exit
 

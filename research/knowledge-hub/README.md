@@ -80,6 +80,14 @@ aitp auto-promote --topic-slug <topic_slug> --candidate-id <candidate_id> --targ
 aitp install-agent --agent all --scope user
 ```
 
+`aitp session-start "<task>"` now writes a durable startup contract under
+`runtime/topics/<topic_slug>/session_start.contract.json` plus the human-readable
+`session_start.generated.md`. The intended read order is:
+
+1. `session_start.generated.md`
+2. `runtime_protocol.generated.md`
+3. the files listed under `Must read now`
+
 ## Fixed Layout
 
 ```text

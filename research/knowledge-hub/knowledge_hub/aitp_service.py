@@ -349,6 +349,13 @@ EXIT /B 127
             "note": runtime_root / "current_topic.md",
         }
 
+    def _session_start_paths(self, topic_slug: str) -> dict[str, Path]:
+        runtime_root = self._runtime_root(topic_slug)
+        return {
+            "json": runtime_root / "session_start.contract.json",
+            "note": runtime_root / "session_start.generated.md",
+        }
+
     def _control_note_path(self, topic_slug: str) -> Path:
         return self._runtime_root(topic_slug) / "control_note.md"
 
@@ -379,6 +386,15 @@ EXIT /B 127
 
     def _consultation_root(self, topic_slug: str) -> Path:
         return self.kernel_root / "consultation" / "topics" / topic_slug
+
+    def _normalize_artifact_path(self, value: str | Path | None) -> str | None:
+        raw = str(value or "").strip()
+        if not raw:
+            return None
+        path = Path(raw)
+        if path.is_absolute():
+            return self._relativize(path)
+        return path.as_posix()
 
     def _research_root(self) -> Path:
         return self.kernel_root.parent
@@ -2524,7 +2540,7 @@ EXIT /B 127
         cleaned = str(value or "").strip()
         cleaned = re.sub(r"^[\s\"'“”‘’`]+", "", cleaned)
         cleaned = re.split(
-            r"(?:\n|[，,;；]\s*(?:并且|并|然后|同时|and then|and|then)\b)",
+            r"(?:\n|[，,;；]\s*(?:并且|并|然后|同时)|[，,;；]\s*(?:and then|and|then)\b)",
             cleaned,
             maxsplit=1,
             flags=re.IGNORECASE,
@@ -2692,6 +2708,7 @@ EXIT /B 127
         max_auto_steps: int = 4,
         research_mode: str | None = None,
     ) -> dict[str, Any]:
+        pre_route_current_topic = read_json(self._current_topic_memory_paths()["json"]) or {}
         routing = self.route_codex_chat_request(
             task=task,
             explicit_topic_slug=explicit_topic_slug,
@@ -2711,6 +2728,14 @@ EXIT /B 127
             max_auto_steps=max_auto_steps,
             research_mode=research_mode,
         )
+        session_start = self._materialize_session_start_contract(
+            task=task,
+            routing=routing,
+            loop_payload=payload,
+            updated_by=updated_by,
+            pre_route_current_topic=pre_route_current_topic,
+        )
+        payload["session_start"] = session_start
         memory_paths = self._current_topic_memory_paths()
         return {
             "task": task,
@@ -2724,6 +2749,9 @@ EXIT /B 127
             "current_topic_memory": payload["current_topic_memory"],
             "current_topic_memory_path": str(memory_paths["json"]),
             "current_topic_note_path": str(memory_paths["note"]),
+            "session_start": session_start,
+            "session_start_contract_path": session_start["session_start_contract_path"],
+            "session_start_note_path": session_start["session_start_note_path"],
             "bootstrap": payload["bootstrap"],
             "entry_audit": payload["entry_audit"],
             "auto_actions": payload["auto_actions"],
@@ -3018,24 +3046,17 @@ EXIT /B 127
             lines.extend(["", f"- Declared next-actions contract: `{contract_path}`"])
         return "\n".join(lines) + "\n"
 
-    def materialize_steering_from_human_request(
+    def _materialize_steering_payload(
         self,
         *,
         topic_slug: str,
         run_id: str | None,
-        human_request: str | None,
+        steering: dict[str, Any],
+        raw_request: str,
         updated_by: str,
         topic_state: dict[str, Any] | None = None,
         control_note: str | None = None,
     ) -> dict[str, Any]:
-        steering = self._parse_human_steering_request(human_request)
-        if not steering.get("detected"):
-            return {
-                "detected": False,
-                "materialized": False,
-                "requires_reorchestrate": False,
-            }
-
         runtime_root = self._ensure_runtime_root(topic_slug)
         resolved_topic_state = dict(topic_state or read_json(runtime_root / "topic_state.json") or {})
         innovation_direction_path = self._innovation_direction_path(topic_slug)
@@ -3061,7 +3082,7 @@ EXIT /B 127
                 f"- Updated by: `{updated_by}`",
                 f"- Parsed decision: `{steering.get('decision') or '(missing)'}`",
                 f"- Parsed direction: `{steering.get('direction') or '(unchanged)'}`",
-                f"- Raw operator request: {steering.get('raw_request') or '(missing)'}",
+                f"- Raw operator request: {raw_request or '(missing)'}",
                 f"- Innovation decision log: `{innovation_decisions_rel}`",
                 "- Rule: if this steering changes scope, observables, deliverables, or acceptance tests, update the matching research-question or validation contract in the same step.",
                 "<!-- AITP:auto-steering:end -->",
@@ -3096,7 +3117,7 @@ EXIT /B 127
                 topic_slug=topic_slug,
                 run_id=run_id,
                 updated_by=updated_by,
-                steering={**steering, "raw_request": str(human_request or "").strip()},
+                steering={**steering, "raw_request": raw_request},
                 innovation_direction_path=innovation_direction_rel,
                 innovation_decisions_path=innovation_decisions_rel,
                 steering_contract=steering_contract,
@@ -3113,7 +3134,7 @@ EXIT /B 127
             "decision": steering.get("decision"),
             "direction": steering.get("direction"),
             "summary": steering.get("summary"),
-            "raw_request": str(human_request or "").strip(),
+            "raw_request": raw_request,
             "innovation_direction_path": innovation_direction_rel,
             "innovation_decisions_path": innovation_decisions_rel,
             "control_note_path": control_note_rel,
@@ -3139,6 +3160,94 @@ EXIT /B 127
             "target_action_id": steering_contract.get("action_id"),
             "target_action_summary": steering_contract.get("summary"),
         }
+
+    def materialize_steering_from_human_request(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None,
+        human_request: str | None,
+        updated_by: str,
+        topic_state: dict[str, Any] | None = None,
+        control_note: str | None = None,
+    ) -> dict[str, Any]:
+        steering = self._parse_human_steering_request(human_request)
+        if not steering.get("detected"):
+            return {
+                "detected": False,
+                "materialized": False,
+                "requires_reorchestrate": False,
+            }
+
+        return self._materialize_steering_payload(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            steering=steering,
+            raw_request=str(human_request or "").strip(),
+            updated_by=updated_by,
+            topic_state=topic_state,
+            control_note=control_note,
+        )
+
+    def steer_topic(
+        self,
+        *,
+        topic_slug: str,
+        innovation_direction: str,
+        decision: str = "continue",
+        run_id: str | None = None,
+        updated_by: str = "aitp-cli",
+        summary: str | None = None,
+        next_question: str | None = None,
+        target_action_id: str | None = None,
+        target_action_summary: str | None = None,
+        human_request: str | None = None,
+        topic_state: dict[str, Any] | None = None,
+        control_note: str | None = None,
+    ) -> dict[str, Any]:
+        resolved_direction = self._trim_steering_fragment(innovation_direction)
+        if not resolved_direction:
+            raise ValueError("innovation_direction must not be empty")
+
+        normalized_decision = str(decision or "continue").strip().lower()
+        directive: str | None = None
+        if normalized_decision in {"redirect", "branch"}:
+            directive = "human_redirect"
+        elif normalized_decision in {"pause", "stop"}:
+            directive = normalized_decision
+
+        if summary:
+            resolved_summary = summary
+        elif normalized_decision == "branch":
+            resolved_summary = f"Open a bounded branch toward `{resolved_direction}` while keeping the current topic auditable."
+        elif normalized_decision == "redirect":
+            resolved_summary = f"Redirect the active topic toward `{resolved_direction}`."
+        elif normalized_decision == "pause":
+            resolved_summary = "Pause automatic continuation until the updated operator steering is cleared."
+        elif normalized_decision == "stop":
+            resolved_summary = "Stop automatic continuation until the operator explicitly reopens the topic."
+        else:
+            resolved_summary = f"Continue the active topic under updated innovation direction `{resolved_direction}`."
+
+        steering = {
+            "detected": True,
+            "decision": normalized_decision,
+            "direction": resolved_direction,
+            "directive": directive,
+            "summary": resolved_summary,
+            "next_question": str(next_question or "").strip() or None,
+            "target_action_id": str(target_action_id or "").strip() or None,
+            "target_action_summary": str(target_action_summary or "").strip() or None,
+        }
+        return self._materialize_steering_payload(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            steering=steering,
+            raw_request=str(human_request or "").strip(),
+            updated_by=updated_by,
+            topic_state=topic_state,
+            control_note=control_note,
+        )
 
     def _load_action_queue(self, topic_slug: str) -> tuple[Path, list[dict[str, Any]]]:
         queue_path = self._runtime_root(topic_slug) / "action_queue.jsonl"
@@ -5586,6 +5695,274 @@ EXIT /B 127
             **payload,
             "current_topic_path": str(paths["json"]),
             "current_topic_note_path": str(paths["note"]),
+        }
+
+    def _render_session_start_note(self, payload: dict[str, Any]) -> str:
+        routing = payload.get("routing") or {}
+        memory_resolution = payload.get("memory_resolution") or {}
+        selected_action = payload.get("selected_action") or {}
+        must_read_now = payload.get("must_read_now") or []
+        linear_flow = payload.get("linear_flow") or []
+        hard_stops = payload.get("hard_stops") or []
+
+        memory_summary = str(memory_resolution.get("summary") or "(missing)")
+        lines = [
+            "# Session start contract",
+            "",
+            "This file is the durable session-start translation of the latest natural-language request.",
+            "Read it before `runtime_protocol.generated.md`, then follow the linear startup order below.",
+            "",
+            f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+            f"- Updated at: `{payload.get('updated_at') or '(missing)'}`",
+            f"- Updated by: `{payload.get('updated_by') or '(missing)'}`",
+            f"- Original request: {payload.get('task') or '(missing)'}",
+            f"- Route: `{routing.get('route') or '(missing)'}`",
+            f"- Routing reason: {routing.get('reason') or '(missing)'}",
+            f"- Memory resolution: {memory_summary}",
+            f"- Canonical entry: `{payload.get('canonical_entry') or '(missing)'}`",
+            "",
+            "## Read Next",
+            "",
+        ]
+        for index, item in enumerate(must_read_now, start=1):
+            lines.append(
+                f"{index}. `{item.get('path') or '(missing)'}`"
+                + (
+                    f" - {item.get('reason')}"
+                    if str(item.get("reason") or "").strip()
+                    else ""
+                )
+            )
+        if not must_read_now:
+            lines.append("1. `(missing)`")
+        lines.extend(["", "## Linear Flow", ""])
+        for index, item in enumerate(linear_flow, start=1):
+            lines.append(
+                f"{index}. {item.get('step') or '(missing)'}"
+                + (
+                    f" Result: {item.get('result')}."
+                    if str(item.get("result") or "").strip()
+                    else ""
+                )
+            )
+        if not linear_flow:
+            lines.append("1. Read the runtime protocol and continue with the bounded action.")
+        lines.extend(["", "## Selected Action", ""])
+        lines.append(f"- Action id: `{selected_action.get('action_id') or '(none)'}`")
+        lines.append(f"- Action type: `{selected_action.get('action_type') or '(none)'}`")
+        lines.append(f"- Summary: {selected_action.get('summary') or '(none)'}")
+        lines.extend(["", "## Hard Stops", ""])
+        for item in hard_stops:
+            lines.append(f"- {item}")
+        if not hard_stops:
+            lines.append("- Do not continue if required runtime artifacts are missing.")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _materialize_session_start_contract(
+        self,
+        *,
+        task: str,
+        routing: dict[str, Any],
+        loop_payload: dict[str, Any],
+        updated_by: str,
+        pre_route_current_topic: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        topic_slug = str(loop_payload.get("topic_slug") or routing.get("topic_slug") or "").strip()
+        if not topic_slug:
+            raise ValueError("Session-start contract requires a resolved topic slug.")
+
+        runtime_root = self._ensure_runtime_root(topic_slug)
+        session_paths = self._session_start_paths(topic_slug)
+        runtime_protocol_paths = loop_payload.get("runtime_protocol") or {}
+        runtime_protocol_path = self._normalize_artifact_path(runtime_protocol_paths.get("runtime_protocol_path"))
+        runtime_protocol_note_path = self._normalize_artifact_path(runtime_protocol_paths.get("runtime_protocol_note_path"))
+        runtime_bundle = read_json(Path(runtime_protocol_paths.get("runtime_protocol_path") or "")) or {}
+        loop_state = loop_payload.get("loop_state") or {}
+        steering_artifacts = loop_payload.get("steering_artifacts") or {}
+        bootstrap = loop_payload.get("bootstrap") or {}
+        pointers = (bootstrap.get("topic_state") or {}).get("pointers") or {}
+
+        pre_route_payload = pre_route_current_topic or {}
+        pre_route_topic_slug = str(pre_route_payload.get("topic_slug") or "").strip()
+        pre_route_current_valid = bool(
+            pre_route_topic_slug and (self._runtime_root(pre_route_topic_slug) / "topic_state.json").exists()
+        )
+        route_name = str(routing.get("route") or "")
+        current_topic_first_route = route_name in {
+            "explicit_current_topic",
+            "request_current_topic_reference",
+            "implicit_current_topic",
+        }
+        latest_only_route = route_name == "explicit_latest_topic"
+        explicit_route = route_name in {
+            "explicit_topic_slug",
+            "explicit_topic_title",
+            "request_named_existing_topic",
+            "request_new_topic",
+        }
+        used_current_topic_memory = (
+            current_topic_first_route and pre_route_current_valid and pre_route_topic_slug == topic_slug
+        )
+        used_latest_topic_fallback = (current_topic_first_route and not used_current_topic_memory) or latest_only_route
+
+        if used_current_topic_memory:
+            memory_summary = f"Resolved through durable current-topic memory: `{topic_slug}`."
+        elif used_latest_topic_fallback:
+            memory_summary = (
+                f"Current-topic memory was missing or stale, so session-start fell back to the latest topic: `{topic_slug}`."
+            )
+        elif explicit_route:
+            memory_summary = "Resolved from an explicit topic reference in the request or caller flags."
+        else:
+            memory_summary = "Resolved from the session-start routing layer."
+
+        must_read_now: list[dict[str, str]] = []
+        seen_paths: set[str] = set()
+
+        def _append_read(path_value: str | Path | None, reason: str) -> None:
+            normalized = self._normalize_artifact_path(path_value)
+            if not normalized or normalized in seen_paths:
+                return
+            seen_paths.add(normalized)
+            must_read_now.append({"path": normalized, "reason": reason})
+
+        _append_read(
+            runtime_protocol_note_path,
+            "Primary AITP runtime contract for this topic. Open this immediately after the session-start contract.",
+        )
+        for item in runtime_bundle.get("must_read_now") or []:
+            _append_read(item.get("path"), str(item.get("reason") or "").strip())
+
+        control_note_path = self._normalize_artifact_path(
+            steering_artifacts.get("control_note_path") or pointers.get("control_note_path")
+        )
+        innovation_direction_path = self._normalize_artifact_path(
+            steering_artifacts.get("innovation_direction_path") or pointers.get("innovation_direction_path")
+        )
+        innovation_decisions_path = self._normalize_artifact_path(
+            steering_artifacts.get("innovation_decisions_path") or pointers.get("innovation_decisions_path")
+        )
+
+        if steering_artifacts.get("detected"):
+            _append_read(
+                innovation_direction_path,
+                "Authoritative translation of the latest human steering into a durable innovation target.",
+            )
+            _append_read(
+                control_note_path,
+                "Authoritative translation of the latest human steering into an executable control note.",
+            )
+            _append_read(
+                innovation_decisions_path,
+                "Durable steering history for this topic. Open when the redirect history matters.",
+            )
+
+        selected_action = (runtime_bundle.get("minimal_execution_brief") or {})
+        selected_action_payload = {
+            "action_id": str(selected_action.get("selected_action_id") or ""),
+            "action_type": str(selected_action.get("selected_action_type") or ""),
+            "summary": str(selected_action.get("selected_action_summary") or ""),
+        }
+
+        linear_flow = [
+            {
+                "step": "Treat the original chat request as already routed; do not ask for a topic again unless durable memory is still ambiguous.",
+                "result": memory_summary,
+            },
+            {
+                "step": "Read `session_start.generated.md` first, then `runtime_protocol.generated.md`.",
+                "result": "Session-start defines the immediate startup order; the runtime bundle defines the topic contract.",
+            },
+            {
+                "step": "Finish the files listed under `Must read now` before touching the queue or giving a substantial research answer.",
+                "result": "Current topic state, question scope, validation route, and guardrails are loaded in a fixed order.",
+            },
+            {
+                "step": "If steering artifacts were auto-updated from the human request, treat `innovation_direction.md` and `control_note.md` as authoritative before continuing.",
+                "result": "Natural-language steering becomes durable protocol state before execution.",
+            },
+            {
+                "step": "Only then continue the currently selected bounded action and close with an exit audit when the step is done.",
+                "result": selected_action_payload["summary"] or "Continue the bounded topic lane declared in the runtime bundle.",
+            },
+        ]
+
+        hard_stops = [
+            "Do not skip session-start and jump straight into free-form explanation, browsing, or file editing for AITP-governed research work.",
+            "Do not continue if `runtime_protocol.generated.md` is missing.",
+            "Do not continue if conformance is not `pass`.",
+            "Do not replace durable current-topic routing with a fresh topic guess when session-start already resolved the topic.",
+            "Do not ignore `innovation_direction.md` or `control_note.md` after a steering request changed direction, paused work, or opened a branch.",
+        ]
+        if steering_artifacts.get("detected"):
+            hard_stops.append(
+                "This request carried human steering. `innovation_direction.md` and `control_note.md` must be read before deeper execution."
+            )
+
+        payload = {
+            "contract_kind": "session_start_contract",
+            "protocol_version": 1,
+            "topic_slug": topic_slug,
+            "updated_at": now_iso(),
+            "updated_by": updated_by,
+            "task": task,
+            "canonical_entry": f'aitp session-start "{task}"',
+            "routing": {
+                "route": route_name,
+                "reason": routing.get("reason"),
+                "topic_slug": topic_slug,
+                "topic_title": routing.get("topic"),
+            },
+            "memory_resolution": {
+                "current_topic_first": True,
+                "pre_route_current_topic_slug": pre_route_topic_slug or None,
+                "pre_route_current_topic_valid": pre_route_current_valid,
+                "used_current_topic_memory": used_current_topic_memory,
+                "used_latest_topic_fallback": used_latest_topic_fallback,
+                "summary": memory_summary,
+            },
+            "artifacts": {
+                "session_start_contract_path": self._normalize_artifact_path(session_paths["json"]),
+                "session_start_note_path": self._normalize_artifact_path(session_paths["note"]),
+                "runtime_protocol_path": runtime_protocol_path,
+                "runtime_protocol_note_path": runtime_protocol_note_path,
+                "loop_state_path": self._normalize_artifact_path(loop_payload.get("loop_state_path")),
+                "current_topic_memory_path": self._normalize_artifact_path(
+                    (loop_payload.get("current_topic_memory") or {}).get("current_topic_path")
+                ),
+                "current_topic_note_path": self._normalize_artifact_path(
+                    (loop_payload.get("current_topic_memory") or {}).get("current_topic_note_path")
+                ),
+                "innovation_direction_path": innovation_direction_path,
+                "innovation_decisions_path": innovation_decisions_path,
+                "control_note_path": control_note_path,
+            },
+            "must_read_now": must_read_now,
+            "linear_flow": linear_flow,
+            "selected_action": selected_action_payload,
+            "hard_stops": hard_stops,
+            "loop_state_summary": {
+                "entry_conformance": loop_state.get("entry_conformance"),
+                "exit_conformance": loop_state.get("exit_conformance"),
+                "capability_status": loop_state.get("capability_status"),
+                "trust_status": loop_state.get("trust_status"),
+                "promotion_gate_status": loop_state.get("promotion_gate_status"),
+            },
+            "steering": {
+                "detected": bool(steering_artifacts.get("detected")),
+                "decision": steering_artifacts.get("decision"),
+                "direction": steering_artifacts.get("direction"),
+                "summary": steering_artifacts.get("summary"),
+            },
+        }
+        write_json(session_paths["json"], payload)
+        write_text(session_paths["note"], self._render_session_start_note(payload))
+        return {
+            **payload,
+            "session_start_contract_path": str(session_paths["json"]),
+            "session_start_note_path": str(session_paths["note"]),
+            "runtime_root": str(runtime_root),
         }
 
     def recent_topics(self, *, limit: int = 10) -> list[dict[str, Any]]:
@@ -8448,7 +8825,8 @@ Before any substantial response in an AITP-governed workspace:
 2. check durable current-topic memory first with `aitp current-topic` or `runtime/current_topic.json`
 3. if the user says `继续这个 topic`, `continue this topic`, `this topic`, or `current topic`, resolve that to current-topic memory immediately
 4. only fall back to latest-topic memory if current-topic memory is missing
-5. only ask for a topic slug when both the request and durable memory remain genuinely ambiguous
+5. read `session_start.generated.md` before `runtime_protocol.generated.md`
+6. only ask for a topic slug when both the request and durable memory remain genuinely ambiguous
 
 This rule applies at session start, not later as a soft reminder.
 """
@@ -8459,7 +8837,7 @@ This rule applies at session start, not later as a soft reminder.
         )
         return f"""---
 name: aitp-runtime
-description: Route research work through the AITP kernel using the installable `aitp` CLI. Use when the task should follow the AITP layer architecture instead of ad hoc browsing.
+description: Route Codex research work through the AITP kernel using the installable `aitp` CLI. Use when the request is a theory topic, current-topic continuation, idea steering, derivation or validation planning, paper-learning task, or other AITP-governed execution instead of plain coding.
 ---
 
 # AITP Runtime
@@ -8471,12 +8849,14 @@ description: Route research work through the AITP kernel using the installable `
 1. In a bare `codex` research session, do not start with direct browsing or free-form synthesis.
 2. For session-start routing, prefer `aitp-codex "<task>"`. If you only need to materialize routing and the runtime bundle first, use `aitp session-start "<task>"`.
 3. If the topic is already obvious from current-topic memory, prefer plain `aitp-codex "<task>"` over asking the user for a slug.
-4. Read `runtime_protocol.generated.md` first, then the files listed under `Must read now`.
-5. Expand promotion, consultation, capability, or queue details only when the named trigger in the runtime bundle fires.
-6. Register reusable operations with `aitp operation-init ...`.
-7. For human-reviewed `L2`, use `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
-8. For theory-formal `L2_auto`, materialize coverage/consensus artifacts with `aitp coverage-audit ...` and then use `aitp auto-promote ...`.
-9. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
+4. Read `session_start.generated.md` first.
+5. Then read `runtime_protocol.generated.md`, then the files listed under `Must read now`.
+6. If session-start says steering files are authoritative, read `innovation_direction.md` and `control_note.md` before touching the queue.
+7. Expand promotion, consultation, capability, or queue details only when the named trigger in the runtime bundle fires.
+8. Register reusable operations with `aitp operation-init ...`.
+9. For human-reviewed `L2`, use `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
+10. For theory-formal `L2_auto`, materialize coverage/consensus artifacts with `aitp coverage-audit ...` and then use `aitp auto-promote ...`.
+11. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
@@ -8544,7 +8924,7 @@ Kernel root default: `{self.kernel_root}`
 
         return f"""---
 name: using-aitp
-description: Use at the start of any conversation in a workspace where AITP is installed, or whenever the task may involve theoretical-physics research, research protocol routing, or AITP-governed execution. Establishes whether work must first enter AITP before any substantial response.
+description: Use when starting any conversation in a workspace where AITP is installed, or when the user says things like `继续这个 topic`, `continue this topic`, `current topic`, `开一个新 topic`, `方向改成 X`, asks to study a paper, evaluate an idea, plan a derivation, or set a validation route. Establishes whether work must first enter AITP before ANY substantial response.
 ---
 
 # Using AITP
@@ -8584,9 +8964,10 @@ If the task is bucket `1`, you MUST:
 2. materialize or resume runtime state
 3. make sure `innovation_direction.md` and `control_note.md` are current before substantial execution continues
 4. if the operator speaks in natural steering language such as `继续这个 topic，方向改成 X`, translate that request into durable steering artifacts before continuing
-5. read `runtime_protocol.generated.md` first
-6. read the files named under `Must read now`
-7. only then continue with the task
+5. read `session_start.generated.md` first
+6. read `runtime_protocol.generated.md`
+7. read the files named under `Must read now`
+8. only then continue with the task
 
 If conformance fails, the work does not count as AITP work.
 
@@ -8597,8 +8978,9 @@ when the intent is already recoverable from durable routing memory.
 
 Preferred hidden routing:
 
-- If the user is clearly opening a new research topic, extract the topic title and route through `aitp session-start "<original request>"` or the stronger platform wrapper.
-- If the user says `继续这个 topic`, `continue this topic`, or otherwise refers to the active topic without naming a slug, route through `aitp session-start "<original request>"` or the stronger platform wrapper, letting current-topic memory win first.
+- If the user is clearly opening a new research topic, for example `开一个新 topic：Topological phases from modular data`, extract the topic title and route through `aitp session-start "<original request>"` or the stronger platform wrapper.
+- If the user says `继续这个 topic`, `continue this topic`, `current topic`, or otherwise refers to the active topic without naming a slug, route through `aitp session-start "<original request>"` or the stronger platform wrapper, letting current-topic memory win first.
+- If the user says `方向改成 X`, `continue this topic but focus on X`, `先补验证`, or another steering phrase, translate it into durable steering artifacts before continuing.
 - Resolve current-topic memory first and only fall back to the latest topic if that memory is missing, for example with `aitp-codex --latest-topic "<original request>"` on the Codex path.
 - If the user names a known topic slug, preserve that slug and continue without asking for it again.
 - Only ask the user to specify a topic manually when the topic reference is genuinely ambiguous.
@@ -8643,7 +9025,7 @@ first.
         )
         return f"""---
 name: aitp-runtime
-description: Route Claude Code through the AITP runtime so substantial research work stays auditable, resumable, and conformance-checked.
+description: Route Claude Code through the AITP runtime so natural-language research requests like `继续这个 topic`, new-topic creation, idea steering, and theory validation work become durable AITP state before execution.
 ---
 
 # AITP Runtime For Claude Code
@@ -8655,10 +9037,11 @@ description: Route Claude Code through the AITP runtime so substantial research 
 1. Start research-governed topic work with `aitp session-start "<task>"` whenever the user speaks in natural language.
 2. Use `aitp loop ...` or `aitp resume ...` after session-start has materialized the topic shell.
 3. Use `aitp bootstrap ...` only to create a new topic, then return to `aitp loop ...`.
-4. Read `runtime_protocol.generated.md` first, then follow its `Must read now` list before deeper work.
-5. Expand deferred surfaces only when the named trigger fires.
-6. Treat missing conformance as a hard failure for AITP work.
-7. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
+4. Read `session_start.generated.md` first.
+5. Then read `runtime_protocol.generated.md`, then follow its `Must read now` list before deeper work.
+6. Expand deferred surfaces only when the named trigger fires.
+7. Treat missing conformance as a hard failure for AITP work.
+8. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
@@ -8677,7 +9060,7 @@ Kernel root default: `{self.kernel_root}`
         )
         return f"""---
 name: aitp-runtime
-description: Route OpenCode through the AITP runtime so session-start routing, current-topic memory, and runtime artifacts stay strict instead of ad hoc.
+description: Route OpenCode through the AITP runtime so natural-language research requests like `继续这个 topic`, new-topic creation, idea steering, and theory validation work become durable AITP state before execution.
 ---
 
 # AITP Runtime For OpenCode
@@ -8689,10 +9072,11 @@ description: Route OpenCode through the AITP runtime so session-start routing, c
 1. Start research-governed topic work with `aitp session-start "<task>"` whenever the user speaks in natural language.
 2. Use `aitp loop ...` or `aitp resume ...` after session-start has materialized the topic shell.
 3. Use `aitp bootstrap ...` only to create a new topic, then return to `aitp loop ...`.
-4. Read `runtime_protocol.generated.md` first, then follow its `Must read now` list before deeper work.
-5. Expand deferred surfaces only when the named trigger fires.
-6. Treat missing conformance as a hard failure for AITP work.
-7. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
+4. Read `session_start.generated.md` first.
+5. Then read `runtime_protocol.generated.md`, then follow its `Must read now` list before deeper work.
+6. Expand deferred surfaces only when the named trigger fires.
+7. Treat missing conformance as a hard failure for AITP work.
+8. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
@@ -8760,13 +9144,14 @@ Required pattern:
 1. start session routing with `aitp session-start "<original request>"` whenever the user speaks in natural language
 2. treat `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as a current-topic-memory reference at session start
 3. use `aitp bootstrap` only to create a new topic shell, then return to `aitp loop`
-4. read `runtime_protocol.generated.md` first, then follow `Must read now`
-5. expand deferred surfaces only when the named trigger in the runtime bundle fires
-6. register reusable operations with `aitp operation-init`
-7. do the actual work
-8. request human approval before any human-reviewed `L2` promotion with `aitp request-promotion ...`
-9. for theory-formal `L2_auto`, materialize `coverage-audit` artifacts before `aitp auto-promote ...`
-10. close with `aitp audit --phase exit`
+4. read `session_start.generated.md` first
+5. then read `runtime_protocol.generated.md`, then follow `Must read now`
+6. expand deferred surfaces only when the named trigger in the runtime bundle fires
+7. register reusable operations with `aitp operation-init`
+8. do the actual work
+9. request human approval before any human-reviewed `L2` promotion with `aitp request-promotion ...`
+10. for theory-formal `L2_auto`, materialize `coverage-audit` artifacts before `aitp auto-promote ...`
+11. close with `aitp audit --phase exit`
 
 If method trust is missing:
 
@@ -8789,11 +9174,12 @@ User request: $ARGUMENTS
 
 1. Run `aitp session-start "$ARGUMENTS"` first.
 2. Treat `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as a current-topic-memory request immediately instead of asking for a slug.
-3. Read `runtime_protocol.generated.md` first, then follow `Must read now`.
-4. Expand deferred surfaces only when the named trigger in `runtime_protocol.generated.md` fires.
-5. If the work is heading toward human-reviewed `L2`, use `aitp request-promotion ...` and wait for a durable approval gate.
-6. If the work is heading toward theory-formal `L2_auto`, use `aitp coverage-audit ...` before `aitp auto-promote ...`.
-7. Continue the task only after the runtime artifacts exist and conformance passes.
+3. Read `session_start.generated.md` first.
+4. Then read `runtime_protocol.generated.md`, then follow `Must read now`.
+5. Expand deferred surfaces only when the named trigger in `runtime_protocol.generated.md` fires.
+6. If the work is heading toward human-reviewed `L2`, use `aitp request-promotion ...` and wait for a durable approval gate.
+7. If the work is heading toward theory-formal `L2_auto`, use `aitp coverage-audit ...` before `aitp auto-promote ...`.
+8. Continue the task only after the runtime artifacts exist and conformance passes.
 """
         elif name == "aitp-resume":
             body = """---
@@ -8812,7 +9198,7 @@ Run:
 aitp resume $ARGUMENTS
 ```
 
-Then read `runtime_protocol.generated.md` first, follow `Must read now`, and only expand deferred surfaces when the named trigger fires.
+Then read `session_start.generated.md` if it exists, then `runtime_protocol.generated.md`, follow `Must read now`, and only expand deferred surfaces when the named trigger fires.
 """
         elif name == "aitp-loop":
             body = """---
@@ -8831,7 +9217,7 @@ Run:
 aitp loop $ARGUMENTS
 ```
 
-Then read `runtime_protocol.generated.md` first, follow `Must read now`, and only expand deferred surfaces when the named trigger fires.
+Then read `session_start.generated.md` if it exists, then `runtime_protocol.generated.md`, follow `Must read now`, and only expand deferred surfaces when the named trigger fires.
 Inspect `loop_state.json` after the runtime contract if you need loop-exit status.
 If the loop surfaces a promotion-ready candidate, use `aitp request-promotion ...` for human-reviewed `L2`, or `aitp coverage-audit ...` before `aitp auto-promote ...` for theory-formal `L2_auto`.
 """
@@ -8865,9 +9251,10 @@ Arguments: $ARGUMENTS
 
 1. Run `aitp session-start "$ARGUMENTS"` first.
 2. Treat `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as a current-topic-memory request immediately instead of asking for a slug.
-3. Read `runtime_protocol.generated.md` first, then follow `Must read now`.
-4. Expand deferred surfaces only when the named trigger fires.
-5. Request human approval before any Layer 2 promotion.
+3. Read `session_start.generated.md` first.
+4. Then read `runtime_protocol.generated.md`, then follow `Must read now`.
+5. Expand deferred surfaces only when the named trigger fires.
+6. Request human approval before any Layer 2 promotion.
 """
         elif name == "aitp-loop":
             body = """---
@@ -8883,7 +9270,7 @@ Run:
 aitp loop $ARGUMENTS
 ```
 
-Then read `runtime_protocol.generated.md` first, follow `Must read now`, and only expand deferred surfaces when the named trigger fires.
+Then read `session_start.generated.md` if it exists, then `runtime_protocol.generated.md`, follow `Must read now`, and only expand deferred surfaces when the named trigger fires.
 Inspect `loop_state.json` after the runtime contract if you need loop-exit status.
 If the result should enter Layer 2, run `aitp request-promotion ...` first.
 """
