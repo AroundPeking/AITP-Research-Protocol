@@ -125,6 +125,14 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(lean_args.command, "lean-bridge")
         self.assertEqual(lean_args.candidate_id, "candidate:demo")
 
+        current_topic_args = parser.parse_args(["current-topic"])
+        self.assertEqual(current_topic_args.command, "current-topic")
+
+        session_start_args = parser.parse_args(["session-start", "继续这个 topic，方向改成 X"])
+        self.assertEqual(session_start_args.command, "session-start")
+        self.assertEqual(session_start_args.task, "继续这个 topic，方向改成 X")
+        self.assertFalse(session_start_args.current_topic)
+
     def test_main_dispatches_update_followup_return(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
@@ -148,6 +156,28 @@ class AITPCLITests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         mock_service.update_followup_return_packet.assert_called_once()
+
+    def test_main_dispatches_current_topic(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.get_current_topic_memory.return_value = {"topic_slug": "demo-topic"}
+            mock_factory.return_value = mock_service
+            with patch.object(sys, "argv", ["aitp", "current-topic"]):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.get_current_topic_memory.assert_called_once()
+
+    def test_main_dispatches_session_start(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.start_chat_session.return_value = {"topic_slug": "demo-topic", "routing": {"route": "implicit_current_topic"}}
+            mock_factory.return_value = mock_service
+            with patch.object(sys, "argv", ["aitp", "session-start", "继续这个 topic，方向改成 X"]):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.start_chat_session.assert_called_once()
 
     def test_promotion_commands_are_registered(self) -> None:
         parser = aitp_cli.build_parser()

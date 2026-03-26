@@ -21,6 +21,7 @@ def _bootstrap_path() -> None:
 _bootstrap_path()
 
 from knowledge_hub.aitp_service import AITPService
+from knowledge_hub.aitp_codex import build_codex_prompt, build_parser as build_codex_parser
 
 
 class _LoopStubService(AITPService):
@@ -171,6 +172,86 @@ class _TailSyncLoopStubService(_LoopStubService):
         return {
             "topic_slug": topic_slug,
             "runtime_root": str(runtime_root),
+        }
+
+
+class _SteeringLoopStubService(AITPService):
+    def __init__(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        super().__init__(*args, **kwargs)
+        self.orchestrate_calls: list[dict] = []
+
+    def orchestrate(self, **kwargs):  # noqa: ANN003
+        self.orchestrate_calls.append(dict(kwargs))
+        topic_slug = kwargs.get("topic_slug") or "demo-topic"
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        feedback_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / "2026-03-13-demo"
+        feedback_root.mkdir(parents=True, exist_ok=True)
+        (feedback_root / "next_actions.md").write_text(
+            "1. Continue the current bounded lane.\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": topic_slug,
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                    "pointers": {
+                        "next_actions_path": f"feedback/topics/{topic_slug}/runs/2026-03-13-demo/next_actions.md",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text("", encoding="utf-8")
+        (runtime_root / "agent_brief.md").write_text("# Brief\n", encoding="utf-8")
+        (runtime_root / "operator_console.md").write_text("# Console\n", encoding="utf-8")
+        (runtime_root / "conformance_report.md").write_text("# Conformance\n", encoding="utf-8")
+        return {
+            "topic_slug": topic_slug,
+            "runtime_root": str(runtime_root),
+            "topic_state": json.loads((runtime_root / "topic_state.json").read_text(encoding="utf-8")),
+            "files": {
+                "agent_brief": str(runtime_root / "agent_brief.md"),
+                "operator_console": str(runtime_root / "operator_console.md"),
+                "conformance_report": str(runtime_root / "conformance_report.md"),
+            },
+        }
+
+    def audit(self, *, topic_slug: str, phase: str = "entry", updated_by: str = "aitp-cli"):
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "conformance_state.json").write_text(
+            json.dumps({"overall_status": "pass"}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return {
+            "topic_slug": topic_slug,
+            "phase": phase,
+            "conformance_state": {"overall_status": "pass"},
+        }
+
+    def capability_audit(self, *, topic_slug: str, updated_by: str = "aitp-cli"):
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        payload = {
+            "topic_slug": topic_slug,
+            "overall_status": "ready",
+            "sections": {"runtime": {}},
+            "recommendations": [],
+        }
+        (runtime_root / "capability_registry.json").write_text(
+            json.dumps(payload, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "capability_report.md").write_text("# Capability audit\n", encoding="utf-8")
+        return {
+            **payload,
+            "capability_registry_path": str(runtime_root / "capability_registry.json"),
+            "capability_report_path": str(runtime_root / "capability_report.md"),
         }
 
 
@@ -1024,6 +1105,146 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(Path(payload["runtime_protocol"]["runtime_protocol_path"]).exists())
         self.assertTrue(Path(payload["runtime_protocol"]["runtime_protocol_note_path"]).exists())
 
+    def test_latest_topic_slug_uses_runtime_topic_index(self) -> None:
+        topic_index_path = self.kernel_root / "runtime" / "topic_index.jsonl"
+        topic_index_path.parent.mkdir(parents=True, exist_ok=True)
+        topic_index_path.write_text(
+            json.dumps(
+                {
+                    "topic_slug": "older-topic",
+                    "updated_at": "2026-03-26T09:00:00+08:00",
+                },
+                ensure_ascii=True,
+            )
+            + "\n"
+            + json.dumps(
+                {
+                    "topic_slug": "newer-topic",
+                    "updated_at": "2026-03-26T10:00:00+08:00",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(self.service.latest_topic_slug(), "newer-topic")
+
+    def test_current_topic_slug_prefers_current_memory_before_latest(self) -> None:
+        runtime_root = self.kernel_root / "runtime"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        topic_index_path = runtime_root / "topic_index.jsonl"
+        topic_index_path.write_text(
+            json.dumps(
+                {
+                    "topic_slug": "latest-topic",
+                    "updated_at": "2026-03-26T10:00:00+08:00",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        remembered_topic = "current-topic"
+        remembered_runtime_root = self.kernel_root / "runtime" / "topics" / remembered_topic
+        remembered_runtime_root.mkdir(parents=True, exist_ok=True)
+        (remembered_runtime_root / "topic_state.json").write_text(
+            json.dumps({"topic_slug": remembered_topic}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "current_topic.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": remembered_topic,
+                    "updated_at": "2026-03-26T11:00:00+08:00",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.assertEqual(self.service.current_topic_slug(), remembered_topic)
+
+    def test_route_codex_chat_request_detects_new_topic_from_natural_language(self) -> None:
+        routing = self.service.route_codex_chat_request(
+            task="帮我开一个新 topic：Topological phases from modular data，先做问题定义",
+        )
+
+        self.assertEqual(routing["route"], "request_new_topic")
+        self.assertEqual(routing["topic"], "Topological phases from modular data")
+        self.assertIsNone(routing["topic_slug"])
+
+    def test_route_codex_chat_request_prefers_current_topic_reference(self) -> None:
+        runtime_root = self.kernel_root / "runtime"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        remembered_topic = "demo-topic"
+        remembered_runtime_root = self.kernel_root / "runtime" / "topics" / remembered_topic
+        remembered_runtime_root.mkdir(parents=True, exist_ok=True)
+        (remembered_runtime_root / "topic_state.json").write_text(
+            json.dumps({"topic_slug": remembered_topic}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "current_topic.json").write_text(
+            json.dumps({"topic_slug": remembered_topic}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        routing = self.service.route_codex_chat_request(
+            task="继续这个 topic，方向改成 low-energy effective theory",
+        )
+
+        self.assertEqual(routing["route"], "request_current_topic_reference")
+        self.assertEqual(routing["topic_slug"], remembered_topic)
+
+    def test_route_codex_chat_request_matches_named_existing_slug(self) -> None:
+        topic_index_path = self.kernel_root / "runtime" / "topic_index.jsonl"
+        topic_index_path.parent.mkdir(parents=True, exist_ok=True)
+        topic_index_path.write_text(
+            json.dumps(
+                {
+                    "topic_slug": "topological-phases-from-modular-data",
+                    "updated_at": "2026-03-26T10:00:00+08:00",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        routing = self.service.route_codex_chat_request(
+            task="继续 topological-phases-from-modular-data 这个 topic，先补验证",
+        )
+
+        self.assertEqual(routing["route"], "request_named_existing_topic")
+        self.assertEqual(routing["topic_slug"], "topological-phases-from-modular-data")
+
+    def test_start_chat_session_materializes_current_topic_route(self) -> None:
+        runtime_root = self.kernel_root / "runtime"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        remembered_topic = "demo-topic"
+        remembered_runtime_root = self.kernel_root / "runtime" / "topics" / remembered_topic
+        remembered_runtime_root.mkdir(parents=True, exist_ok=True)
+        (remembered_runtime_root / "topic_state.json").write_text(
+            json.dumps({"topic_slug": remembered_topic}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "current_topic.json").write_text(
+            json.dumps({"topic_slug": remembered_topic}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        payload = service.start_chat_session(
+            task="继续这个 topic，方向改成 low-energy effective theory",
+        )
+
+        self.assertEqual(payload["routing"]["route"], "request_current_topic_reference")
+        self.assertEqual(payload["topic_slug"], remembered_topic)
+        self.assertTrue(Path(payload["loop_state_path"]).exists())
+        self.assertTrue(Path(payload["current_topic_memory_path"]).exists())
+
     def test_run_topic_loop_tail_syncs_after_budget_exhaustion(self) -> None:
         service = _TailSyncLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
         payload = service.run_topic_loop(
@@ -1037,41 +1258,109 @@ class AITPServiceTests(unittest.TestCase):
         bundle = json.loads(Path(payload["runtime_protocol"]["runtime_protocol_path"]).read_text(encoding="utf-8"))
         self.assertEqual(bundle["minimal_execution_brief"]["selected_action_id"], "action:demo-topic:02")
 
-    def test_steer_topic_writes_innovation_direction_and_control_note(self) -> None:
-        self._write_runtime_state()
-
-        payload = self.service.steer_topic(
+    def test_run_topic_loop_materializes_steering_artifacts_from_human_request(self) -> None:
+        service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        payload = service.run_topic_loop(
             topic_slug="demo-topic",
-            innovation_direction="Shift toward a bounded Jones-style concrete realization target.",
-            decision="continue",
-            human_request="continue this topic, direction changed to Jones concrete realization",
-            updated_by="codex",
+            human_request="继续这个 topic，方向改成 low-energy effective theory",
+            max_auto_steps=0,
         )
 
-        control_note_path = self.kernel_root / payload["control_note_path"]
-        innovation_direction_path = self.kernel_root / payload["innovation_direction_path"]
-        decisions_path = self.kernel_root / payload["innovation_decisions_path"]
+        runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
+        innovation_direction_path = runtime_root / "innovation_direction.md"
+        innovation_decisions_path = runtime_root / "innovation_decisions.jsonl"
+        control_note_path = runtime_root / "control_note.md"
+        next_actions_contract_path = (
+            self.kernel_root
+            / "feedback"
+            / "topics"
+            / "demo-topic"
+            / "runs"
+            / "2026-03-13-demo"
+            / "next_actions.contract.json"
+        )
 
-        self.assertTrue(control_note_path.exists())
+        self.assertEqual(payload["steering_artifacts"]["decision"], "redirect")
         self.assertTrue(innovation_direction_path.exists())
-        self.assertTrue(decisions_path.exists())
+        self.assertTrue(innovation_decisions_path.exists())
+        self.assertTrue(control_note_path.exists())
+        self.assertTrue(next_actions_contract_path.exists())
+        self.assertIn("low-energy effective theory", innovation_direction_path.read_text(encoding="utf-8"))
         self.assertIn("directive: human_redirect", control_note_path.read_text(encoding="utf-8"))
-        self.assertIn(
-            "Shift toward a bounded Jones-style concrete realization target.",
-            innovation_direction_path.read_text(encoding="utf-8"),
+        self.assertTrue((self.kernel_root / "runtime" / "current_topic.json").exists())
+        current_topic_payload = json.loads((self.kernel_root / "runtime" / "current_topic.json").read_text(encoding="utf-8"))
+        self.assertEqual(current_topic_payload["topic_slug"], "demo-topic")
+        contract_payload = json.loads(next_actions_contract_path.read_text(encoding="utf-8"))
+        self.assertEqual(contract_payload["actions"][0]["action_id"], "action:demo-topic:steering:operator-redirect")
+        self.assertIn("low-energy effective theory", contract_payload["actions"][0]["summary"])
+        self.assertEqual(len(service.orchestrate_calls), 2)
+        self.assertTrue(
+            str(service.orchestrate_calls[1].get("control_note") or "").endswith("runtime/topics/demo-topic/control_note.md")
         )
-        decision_rows = [
-            json.loads(line)
-            for line in decisions_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-        self.assertEqual(decision_rows[-1]["decision"], "continue")
-        topic_state = json.loads((self.kernel_root / "runtime" / "topics" / "demo-topic" / "topic_state.json").read_text(encoding="utf-8"))
-        self.assertEqual(topic_state["pointers"]["control_note_path"], payload["control_note_path"])
-        self.assertEqual(
-            topic_state["pointers"]["innovation_direction_path"],
-            payload["innovation_direction_path"],
-        )
+
+    def test_build_codex_prompt_includes_innovation_surfaces(self) -> None:
+        payload = {
+            "topic_slug": "demo-topic",
+            "run_id": "2026-03-13-demo",
+            "loop_state_path": "runtime/topics/demo-topic/loop_state.json",
+            "loop_state": {
+                "human_request": "continue the topic",
+                "exit_conformance": "pass",
+                "capability_status": "ready",
+                "trust_status": "pass",
+            },
+            "bootstrap": {
+                "runtime_root": "runtime/topics/demo-topic",
+                "files": {
+                    "agent_brief": "runtime/topics/demo-topic/agent_brief.md",
+                    "operator_console": "runtime/topics/demo-topic/operator_console.md",
+                    "conformance_report": "runtime/topics/demo-topic/conformance_report.md",
+                },
+                "topic_state": {
+                    "pointers": {
+                        "control_note_path": "runtime/topics/demo-topic/control_note.md",
+                        "innovation_direction_path": "runtime/topics/demo-topic/innovation_direction.md",
+                        "innovation_decisions_path": "runtime/topics/demo-topic/innovation_decisions.jsonl",
+                    }
+                },
+            },
+            "capability_audit": {
+                "capability_report_path": "runtime/topics/demo-topic/capability_report.md",
+            },
+            "trust_audit": {
+                "trust_report_path": "validation/topics/demo-topic/runs/2026-03-13-demo/trust_audit.md",
+            },
+        }
+
+        prompt = build_codex_prompt(payload)
+
+        self.assertIn("innovation_direction.md", prompt)
+        self.assertIn("innovation_decisions.jsonl", prompt)
+        self.assertIn("authoritative translation of that request", prompt)
+
+    def test_codex_parser_accepts_latest_topic_flag(self) -> None:
+        parser = build_codex_parser()
+        args = parser.parse_args(["--latest-topic", "继续这个 topic，方向改成 X"])
+
+        self.assertTrue(args.latest_topic)
+        self.assertEqual(args.task, "继续这个 topic，方向改成 X")
+
+    def test_codex_parser_accepts_current_topic_flag(self) -> None:
+        parser = build_codex_parser()
+        args = parser.parse_args(["--current-topic", "继续这个 topic"])
+
+        self.assertTrue(args.current_topic)
+        self.assertEqual(args.task, "继续这个 topic")
+
+    def test_codex_parser_accepts_plain_task_without_topic_flags(self) -> None:
+        parser = build_codex_parser()
+        args = parser.parse_args(["继续这个 topic，方向改成 X"])
+
+        self.assertEqual(args.task, "继续这个 topic，方向改成 X")
+        self.assertFalse(args.current_topic)
+        self.assertFalse(args.latest_topic)
+        self.assertIsNone(args.topic_slug)
+        self.assertIsNone(args.topic)
 
     def test_request_and_approve_promotion_gate_write_runtime_artifacts(self) -> None:
         self._write_runtime_state()
@@ -2362,6 +2651,14 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(skill_path.exists())
         self.assertTrue(setup_path.exists())
         self.assertIn("If there is even a 1% chance", using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("innovation_direction.md", using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("继续这个 topic，方向改成 X", using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("aitp-codex \"<task>\"", skill_path.read_text(encoding="utf-8"))
+        self.assertIn("aitp-codex \"<original request>\"", using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("--current-topic", skill_path.read_text(encoding="utf-8"))
+        self.assertIn("--current-topic", using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("--latest-topic", skill_path.read_text(encoding="utf-8"))
+        self.assertIn("--latest-topic", using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("aitp loop", skill_path.read_text(encoding="utf-8"))
         self.assertIn("aitp operation-init", skill_path.read_text(encoding="utf-8"))
         self.assertIn("codex mcp add aitp", setup_path.read_text(encoding="utf-8"))
@@ -2401,29 +2698,37 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(openclaw_using_skill_path.exists())
         self.assertTrue(openclaw_skill_path.exists())
         self.assertTrue(openclaw_setup_path.exists())
-        self.assertIn(
-            "Use this skill to decide whether the current task must be governed by AITP",
-            openclaw_using_skill_path.read_text(encoding="utf-8"),
-        )
+        self.assertIn("Use this skill to decide whether the current task must be governed by AITP", openclaw_using_skill_path.read_text(encoding="utf-8"))
         self.assertIn("AITP Runtime For OpenClaw", openclaw_skill_path.read_text(encoding="utf-8"))
         self.assertIn("mcporter config add aitp", openclaw_setup_path.read_text(encoding="utf-8"))
         self.assertFalse((openclaw_target / "SKILL.md").exists())
 
-        opencode_target = self.root / "opencode-commands"
+        opencode_target = self.root / "opencode-workspace"
         result = self.service.install_agent(
             agent="opencode",
             scope="user",
             target_root=str(opencode_target),
         )
         installed_paths = {Path(item["path"]).name for item in result["installed"]}
+        opencode_using_skill_path = opencode_target / ".opencode" / "skills" / "using-aitp" / "SKILL.md"
+        opencode_skill_path = opencode_target / ".opencode" / "skills" / "aitp-runtime" / "SKILL.md"
+        opencode_setup_path = opencode_target / ".opencode" / "skills" / "aitp-runtime" / "AITP_MCP_SETUP.md"
+        opencode_harness_path = opencode_target / ".opencode" / "commands" / "AITP_COMMAND_HARNESS.md"
         self.assertIn("AITP_COMMAND_HARNESS.md", installed_paths)
         self.assertIn("aitp.md", installed_paths)
         self.assertIn("aitp-resume.md", installed_paths)
         self.assertIn("aitp-loop.md", installed_paths)
         self.assertIn("aitp-audit.md", installed_paths)
         self.assertIn("AITP_MCP_CONFIG.json", installed_paths)
+        self.assertTrue(opencode_using_skill_path.exists())
+        self.assertTrue(opencode_skill_path.exists())
+        self.assertTrue(opencode_setup_path.exists())
+        self.assertTrue(opencode_harness_path.exists())
+        self.assertIn("Session-start routing invariant", opencode_using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("aitp session-start", opencode_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("current-topic-memory", opencode_harness_path.read_text(encoding="utf-8"))
 
-        claude_target = self.root / "claude-runtime"
+        claude_target = self.root / "claude-workspace"
         result = self.service.install_agent(
             agent="claude-code",
             scope="user",
@@ -2435,9 +2740,12 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("aitp-loop.md", installed_paths)
         self.assertIn("aitp-audit.md", installed_paths)
         self.assertIn("AITP_MCP_SETUP.md", installed_paths)
-        claude_using_skill_path = claude_target / "skills" / "using-aitp" / "SKILL.md"
+        claude_using_skill_path = claude_target / ".claude" / "skills" / "using-aitp" / "SKILL.md"
+        claude_skill_path = claude_target / ".claude" / "skills" / "aitp-runtime" / "SKILL.md"
+        claude_command_path = claude_target / ".claude" / "commands" / "aitp.md"
         self.assertTrue(claude_using_skill_path.exists())
-        self.assertIn(
-            "Use this skill to decide whether the current task must be governed by AITP",
-            claude_using_skill_path.read_text(encoding="utf-8"),
-        )
+        self.assertTrue(claude_skill_path.exists())
+        self.assertTrue(claude_command_path.exists())
+        self.assertIn("Use this skill to decide whether the current task must be governed by AITP", claude_using_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("Session-start routing invariant", claude_skill_path.read_text(encoding="utf-8"))
+        self.assertIn("aitp session-start", claude_command_path.read_text(encoding="utf-8"))

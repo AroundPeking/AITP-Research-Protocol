@@ -339,6 +339,25 @@ EXIT /B 127
     def _runtime_root(self, topic_slug: str) -> Path:
         return self.kernel_root / "runtime" / "topics" / topic_slug
 
+    def _runtime_topic_index_path(self) -> Path:
+        return self.kernel_root / "runtime" / "topic_index.jsonl"
+
+    def _current_topic_memory_paths(self) -> dict[str, Path]:
+        runtime_root = self.kernel_root / "runtime"
+        return {
+            "json": runtime_root / "current_topic.json",
+            "note": runtime_root / "current_topic.md",
+        }
+
+    def _control_note_path(self, topic_slug: str) -> Path:
+        return self._runtime_root(topic_slug) / "control_note.md"
+
+    def _innovation_direction_path(self, topic_slug: str) -> Path:
+        return self._runtime_root(topic_slug) / "innovation_direction.md"
+
+    def _innovation_decisions_path(self, topic_slug: str) -> Path:
+        return self._runtime_root(topic_slug) / "innovation_decisions.jsonl"
+
     def _validation_run_root(self, topic_slug: str, run_id: str) -> Path:
         return self.kernel_root / "validation" / "topics" / topic_slug / "runs" / run_id
 
@@ -551,39 +570,6 @@ EXIT /B 127
 
     def _topic_display_title(self, topic_slug: str) -> str:
         return topic_slug.replace("-", " ").strip().title() or topic_slug
-
-    def _runtime_pointer_path(
-        self,
-        *,
-        topic_slug: str,
-        pointer_key: str,
-        default_filename: str,
-    ) -> tuple[Path, str]:
-        runtime_root = self._runtime_root(topic_slug)
-        runtime_root.mkdir(parents=True, exist_ok=True)
-        try:
-            topic_state = self.get_runtime_state(topic_slug)
-        except FileNotFoundError:
-            path = runtime_root / default_filename
-            return path, self._relativize(path)
-
-        raw_path = str(((topic_state.get("pointers") or {}).get(pointer_key) or "")).strip()
-        if raw_path:
-            candidate = Path(raw_path)
-            resolved = candidate if candidate.is_absolute() else self.kernel_root / candidate
-            return resolved, self._relativize(resolved)
-
-        path = runtime_root / default_filename
-        return path, self._relativize(path)
-
-    def _yaml_quote(self, value: str) -> str:
-        return json.dumps(str(value), ensure_ascii=False)
-
-    def _yaml_list_block(self, values: list[str], *, indent: str = "  ") -> list[str]:
-        rows = [str(value).strip() for value in values if str(value).strip()]
-        if not rows:
-            return [f"{indent}[]"]
-        return [f"{indent}- {self._yaml_quote(value)}" for value in rows]
 
     def _template_mode_to_research_mode(self, template_mode: str | None) -> str:
         normalized = str(template_mode or "").strip().lower()
@@ -2534,6 +2520,626 @@ EXIT /B 127
         runtime_root.mkdir(parents=True, exist_ok=True)
         return runtime_root
 
+    def _trim_steering_fragment(self, value: str) -> str:
+        cleaned = str(value or "").strip()
+        cleaned = re.sub(r"^[\s\"'“”‘’`]+", "", cleaned)
+        cleaned = re.split(
+            r"(?:\n|[，,;；]\s*(?:并且|并|然后|同时|and then|and|then)\b)",
+            cleaned,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        return cleaned.strip(" \t\r\n.,;:!?\"'`，。；：！？“”‘’")
+
+    def _trim_topic_title_fragment(self, value: str) -> str:
+        cleaned = str(value or "").strip()
+        cleaned = re.sub(r"^[\s\"'“”‘’`]+", "", cleaned)
+        cleaned = re.split(
+            r"(?:\n|[，,;；]\s*(?:先做|先从|先|然后|并且|并|first|then|and)\s*)",
+            cleaned,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        return cleaned.strip(" \t\r\n.,;:!?\"'`，。；：！？“”‘’")
+
+    def _extract_direction_from_request(self, human_request: str) -> str | None:
+        if not human_request.strip():
+            return None
+
+        patterns = (
+            r"方向(?:改成|改为|变成|换成|换为|转成|转为)\s*[:：]?\s*(?P<direction>.+)",
+            r"(?:转向|聚焦到|聚焦于|重点放到|重点放在)\s*[:：]?\s*(?P<direction>.+)",
+            r"(?:focus on|redirect to|shift to|move to|change direction to)\s+(?P<direction>.+)",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, human_request, flags=re.IGNORECASE)
+            if not match:
+                continue
+            direction = self._trim_steering_fragment(match.group("direction"))
+            if direction:
+                return direction
+        return None
+
+    def _extract_new_topic_title(self, human_request: str | None) -> str | None:
+        raw_request = str(human_request or "").strip()
+        if not raw_request:
+            return None
+
+        patterns = (
+            r"(?:帮我|请)?(?:开|建|创建|新建|开始|启动)(?:一个)?(?:新的?)?\s*(?:topic|课题|主题)\s*[:：]?\s*(?P<title>.+)",
+            r"(?:new topic|start a new topic|open a new topic|create a new topic)\s*[:：]?\s*(?P<title>.+)",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, raw_request, flags=re.IGNORECASE)
+            if not match:
+                continue
+            title = self._trim_topic_title_fragment(match.group("title"))
+            if title:
+                return title
+        return None
+
+    def _find_known_topic_slug_in_request(self, human_request: str | None) -> str | None:
+        raw_request = str(human_request or "").strip().lower()
+        if not raw_request:
+            return None
+
+        candidate_slugs = [
+            str(row.get("topic_slug") or "").strip()
+            for row in self.recent_topics(limit=100)
+            if str(row.get("topic_slug") or "").strip()
+        ]
+        candidate_slugs.sort(key=len, reverse=True)
+        for slug in candidate_slugs:
+            pattern = r"(?<![a-z0-9-])" + re.escape(slug.lower()) + r"(?![a-z0-9-])"
+            if re.search(pattern, raw_request):
+                return slug
+        return None
+
+    def route_codex_chat_request(
+        self,
+        *,
+        task: str,
+        explicit_topic_slug: str | None = None,
+        explicit_topic: str | None = None,
+        explicit_current_topic: bool = False,
+        explicit_latest_topic: bool = False,
+    ) -> dict[str, Any]:
+        if explicit_topic_slug:
+            return {
+                "route": "explicit_topic_slug",
+                "topic_slug": explicit_topic_slug,
+                "topic": None,
+                "reason": "Caller supplied an explicit topic slug.",
+            }
+        if explicit_topic:
+            return {
+                "route": "explicit_topic_title",
+                "topic_slug": None,
+                "topic": explicit_topic,
+                "reason": "Caller supplied an explicit topic title.",
+            }
+        if explicit_current_topic:
+            resolved_topic_slug = self.current_topic_slug(fallback_to_latest=True)
+            return {
+                "route": "explicit_current_topic",
+                "topic_slug": resolved_topic_slug,
+                "topic": None,
+                "reason": "Caller explicitly requested the current topic route.",
+            }
+        if explicit_latest_topic:
+            resolved_topic_slug = self.latest_topic_slug()
+            return {
+                "route": "explicit_latest_topic",
+                "topic_slug": resolved_topic_slug,
+                "topic": None,
+                "reason": "Caller explicitly requested the latest topic route.",
+            }
+
+        resolved_slug = self._find_known_topic_slug_in_request(task)
+        if resolved_slug:
+            return {
+                "route": "request_named_existing_topic",
+                "topic_slug": resolved_slug,
+                "topic": None,
+                "reason": "The human request already names a known topic slug.",
+            }
+
+        new_topic_title = self._extract_new_topic_title(task)
+        if new_topic_title:
+            return {
+                "route": "request_new_topic",
+                "topic_slug": None,
+                "topic": new_topic_title,
+                "reason": "The human request clearly opens a new topic.",
+            }
+
+        if re.search(r"(?:这个\s*topic|当前\s*topic|这个\s*课题|当前\s*课题|this topic|current topic|active topic)", task, flags=re.IGNORECASE):
+            resolved_topic_slug = self.current_topic_slug(fallback_to_latest=True)
+            return {
+                "route": "request_current_topic_reference",
+                "topic_slug": resolved_topic_slug,
+                "topic": None,
+                "reason": "The human request refers to the current topic without naming a slug.",
+            }
+
+        try:
+            resolved_topic_slug = self.current_topic_slug(fallback_to_latest=True)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                "Unable to infer an AITP topic from this request. Say `开一个新 topic：...` or pass an explicit topic flag."
+            ) from exc
+
+        return {
+            "route": "implicit_current_topic",
+            "topic_slug": resolved_topic_slug,
+            "topic": None,
+            "reason": "No explicit topic was provided, so the request falls back to current-topic memory.",
+        }
+
+    def start_chat_session(
+        self,
+        *,
+        task: str,
+        explicit_topic_slug: str | None = None,
+        explicit_topic: str | None = None,
+        explicit_current_topic: bool = False,
+        explicit_latest_topic: bool = False,
+        statement: str | None = None,
+        run_id: str | None = None,
+        control_note: str | None = None,
+        updated_by: str = "aitp-session-start",
+        skill_queries: list[str] | None = None,
+        max_auto_steps: int = 4,
+        research_mode: str | None = None,
+    ) -> dict[str, Any]:
+        routing = self.route_codex_chat_request(
+            task=task,
+            explicit_topic_slug=explicit_topic_slug,
+            explicit_topic=explicit_topic,
+            explicit_current_topic=explicit_current_topic,
+            explicit_latest_topic=explicit_latest_topic,
+        )
+        payload = self.run_topic_loop(
+            topic_slug=routing.get("topic_slug"),
+            topic=routing.get("topic"),
+            statement=statement,
+            run_id=run_id,
+            control_note=control_note,
+            updated_by=updated_by,
+            human_request=task,
+            skill_queries=skill_queries,
+            max_auto_steps=max_auto_steps,
+            research_mode=research_mode,
+        )
+        memory_paths = self._current_topic_memory_paths()
+        return {
+            "task": task,
+            "routing": routing,
+            "topic_slug": payload["topic_slug"],
+            "run_id": payload.get("run_id"),
+            "loop_state_path": payload["loop_state_path"],
+            "runtime_protocol_path": payload["runtime_protocol"]["runtime_protocol_path"],
+            "capability_report_path": payload["capability_audit"]["capability_report_path"],
+            "trust_report_path": payload["trust_audit"]["trust_report_path"] if payload.get("trust_audit") else None,
+            "current_topic_memory": payload["current_topic_memory"],
+            "current_topic_memory_path": str(memory_paths["json"]),
+            "current_topic_note_path": str(memory_paths["note"]),
+            "bootstrap": payload["bootstrap"],
+            "entry_audit": payload["entry_audit"],
+            "auto_actions": payload["auto_actions"],
+            "exit_audit": payload["exit_audit"],
+            "loop_payload": payload,
+        }
+
+    def _parse_human_steering_request(self, human_request: str | None) -> dict[str, Any]:
+        raw_request = str(human_request or "").strip()
+        if not raw_request:
+            return {
+                "detected": False,
+                "decision": None,
+                "direction": None,
+                "directive": None,
+                "summary": None,
+            }
+
+        direction = self._extract_direction_from_request(raw_request)
+        decision: str | None = None
+        if re.search(r"(?:停止|先停|停下|stop\b|halt\b)", raw_request, flags=re.IGNORECASE):
+            decision = "stop"
+        elif re.search(r"(?:暂停|pause\b)", raw_request, flags=re.IGNORECASE):
+            decision = "pause"
+        elif re.search(r"(?:分支|分叉|branch\b)", raw_request, flags=re.IGNORECASE):
+            decision = "branch"
+        elif direction or re.search(r"(?:转向|redirect\b|focus on|shift to|move to)", raw_request, flags=re.IGNORECASE):
+            decision = "redirect"
+        elif re.search(r"(?:继续这个\s*topic|继续这个\s*课题|继续这个\s*主题|继续\b|接着做|continue\b|resume\b)", raw_request, flags=re.IGNORECASE):
+            decision = "continue"
+
+        if decision is None:
+            return {
+                "detected": False,
+                "decision": None,
+                "direction": direction,
+                "directive": None,
+                "summary": None,
+            }
+
+        directive: str | None = None
+        if decision in {"redirect", "branch"}:
+            directive = "human_redirect"
+        elif decision in {"pause", "stop"}:
+            directive = decision
+
+        if decision == "redirect":
+            summary = (
+                f"Redirect the active topic toward `{direction}`."
+                if direction
+                else "Redirect the active topic according to the latest persisted operator request."
+            )
+        elif decision == "branch":
+            summary = (
+                f"Open a bounded branch toward `{direction}` while keeping this topic auditable."
+                if direction
+                else "Open a bounded branch from the current topic while keeping the current evidence trail auditable."
+            )
+        elif decision == "pause":
+            summary = "Pause automatic continuation until the updated operator steering is cleared."
+        elif decision == "stop":
+            summary = "Stop automatic continuation until the operator explicitly reopens the topic."
+        else:
+            summary = "Continue the active topic under the current operator steering."
+
+        return {
+            "detected": True,
+            "decision": decision,
+            "direction": direction,
+            "directive": directive,
+            "summary": summary,
+        }
+
+    def _replace_marked_block(
+        self,
+        existing_text: str,
+        *,
+        start_marker: str,
+        end_marker: str,
+        replacement_block: str,
+    ) -> str:
+        pattern = re.compile(
+            re.escape(start_marker) + r".*?" + re.escape(end_marker),
+            flags=re.DOTALL,
+        )
+        if pattern.search(existing_text):
+            return pattern.sub(replacement_block, existing_text)
+
+        base = existing_text.rstrip()
+        if base:
+            return base + "\n\n" + replacement_block + "\n"
+        return replacement_block + "\n"
+
+    def _default_innovation_direction_text(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None,
+        updated_by: str,
+    ) -> str:
+        return "\n".join(
+            [
+                "# Innovation direction",
+                "",
+                f"topic_slug: `{topic_slug}`",
+                f"updated_by: `{updated_by}`",
+                f"updated_at: `{now_iso()}`",
+                f"run_id: `{run_id or '(none)'}`",
+                "",
+                "## 1) Initial idea and novelty target",
+                "",
+                "- Idea statement: _(fill manually if missing)_",
+                "- Why this direction is potentially new: _(fill manually if missing)_",
+                "- What would count as meaningful novelty: _(fill manually if missing)_",
+                "- What would count as `not new enough`: _(fill manually if missing)_",
+                "",
+                "## 2) Current evidence boundary",
+                "",
+                "- Highest reliable layer currently reached: _(fill manually if missing)_",
+                "- Strongest supporting evidence artifacts: _(fill manually if missing)_",
+                "- Strongest contradictory evidence artifacts: _(fill manually if missing)_",
+                "- Main unresolved gap: _(fill manually if missing)_",
+                "",
+                "## 3) Human steering decision (required)",
+                "",
+                "- Decision: _(latest auto-updated snapshot appears below)_",
+                "- Why this decision was chosen: _(fill manually if missing)_",
+                "- Resource/risk limit for next loop step: _(fill manually if missing)_",
+                "- Deadline or stop condition: _(fill manually if missing)_",
+                "",
+                "## 4) Next bounded question for AI",
+                "",
+                "- Next question: _(fill manually if missing)_",
+                "- Required deliverables: _(fill manually if missing)_",
+                "- Required checks: _(fill manually if missing)_",
+                "- Forbidden proxies: _(fill manually if missing)_",
+                "",
+                "## 5) Promotion posture",
+                "",
+                "- Promotion allowed this step: `no`",
+                "- If yes, which candidate IDs are eligible: _(fill manually if needed)_",
+                "- If no, what must be true first: _(fill manually if missing)_",
+            ]
+        )
+
+    def _materialize_steering_action_contract(
+        self,
+        *,
+        topic_slug: str,
+        topic_state: dict[str, Any],
+        steering: dict[str, Any],
+        updated_by: str,
+    ) -> dict[str, Any]:
+        next_actions_rel = str(((topic_state.get("pointers") or {}).get("next_actions_path") or "")).strip()
+        if not next_actions_rel:
+            return {
+                "path": None,
+                "action_id": None,
+                "summary": None,
+                "materialized": False,
+            }
+
+        next_actions_path = Path(next_actions_rel)
+        if not next_actions_path.is_absolute():
+            next_actions_path = self.kernel_root / next_actions_path
+        contract_path = next_actions_path.parent / "next_actions.contract.json"
+        direction = str(steering.get("direction") or "").strip()
+        decision = str(steering.get("decision") or "")
+
+        if decision == "branch":
+            summary = (
+                f"Open a bounded branch toward `{direction}` and refresh the matching research/validation contracts before execution."
+                if direction
+                else "Open a bounded branch from the current topic and refresh the matching research/validation contracts before execution."
+            )
+        else:
+            summary = (
+                f"Redirect the current bounded work toward `{direction}` and refresh the matching research/validation contracts before execution."
+                if direction
+                else "Redirect the current bounded work according to the persisted operator request and refresh the matching research/validation contracts before execution."
+            )
+
+        steering_action_id = f"action:{topic_slug}:steering:operator-redirect"
+        existing_payload = read_json(contract_path) or {}
+        existing_actions = []
+        for row in existing_payload.get("actions") or []:
+            if not isinstance(row, dict):
+                continue
+            action_id = str(row.get("action_id") or "").strip()
+            if action_id.startswith(f"action:{topic_slug}:steering:"):
+                continue
+            existing_actions.append(row)
+
+        steering_row = {
+            "action_id": steering_action_id,
+            "resume_stage": str(topic_state.get("resume_stage") or "L3"),
+            "action_type": "manual_followup",
+            "summary": summary,
+            "auto_runnable": False,
+            "enabled": True,
+            "handler_args": {
+                "source": "human_request_steering",
+                "decision": decision,
+                "direction": direction,
+            },
+        }
+        payload = dict(existing_payload)
+        payload["contract_version"] = 1
+        payload["updated_at"] = now_iso()
+        payload["updated_by"] = updated_by
+        payload["policy_note"] = (
+            "Top action auto-materialized from persisted operator steering so the redirected topic has a durable next step."
+        )
+        payload["append_runtime_actions"] = True
+        payload["append_skill_action_if_needed"] = True
+        payload["actions"] = [steering_row, *existing_actions]
+        write_json(contract_path, payload)
+        return {
+            "path": self._relativize(contract_path),
+            "action_id": steering_action_id,
+            "summary": summary,
+            "materialized": True,
+        }
+
+    def _render_control_note_markdown(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None,
+        updated_by: str,
+        steering: dict[str, Any],
+        innovation_direction_path: str,
+        innovation_decisions_path: str,
+        steering_contract: dict[str, Any] | None,
+    ) -> str:
+        summary = str(steering.get("summary") or "Persist the latest operator steering for this topic.")
+        direction = str(steering.get("direction") or "").strip()
+        directive = str(steering.get("directive") or "").strip()
+        decision = str(steering.get("decision") or "").strip()
+        target_action_id = str((steering_contract or {}).get("action_id") or "").strip()
+        target_action_summary = str((steering_contract or {}).get("summary") or "").strip()
+        target_artifacts = [
+            innovation_direction_path,
+            innovation_decisions_path,
+        ]
+        contract_path = str((steering_contract or {}).get("path") or "").strip()
+        if contract_path:
+            target_artifacts.append(contract_path)
+
+        lines = [
+            "---",
+            f"topic_slug: {topic_slug}",
+            f"updated_by: {updated_by}",
+            f"updated_at: {now_iso()}",
+            f"run_id: {run_id or '(none)'}",
+            f"summary: {summary}",
+        ]
+        if directive:
+            lines.append(f"directive: {directive}")
+        if decision in {"redirect", "branch"}:
+            lines.append("allow_override_unfinished: true")
+            lines.append("allow_override_decision_contract: true")
+        if target_action_id:
+            lines.append(f"target_action_id: {target_action_id}")
+        if target_action_summary:
+            lines.append(f"target_action_summary: {target_action_summary}")
+        if target_artifacts:
+            lines.extend(["target_artifacts:"] + [f"  - {artifact}" for artifact in target_artifacts])
+        stop_conditions = []
+        if decision in {"pause", "stop"}:
+            stop_conditions.append("Resume only after the operator records a new continue or redirect decision.")
+        elif decision in {"redirect", "branch"}:
+            stop_conditions.append("Replace this steering redirect once the ordinary queue and contracts absorb the new direction.")
+        if stop_conditions:
+            lines.extend(["stop_conditions:"] + [f"  - {condition}" for condition in stop_conditions])
+        lines.extend(
+            [
+                "---",
+                "",
+                "# Control note",
+                "",
+                f"- Decision: `{decision or '(missing)'}`",
+                f"- Direction: `{direction or '(unchanged)'}`",
+                f"- Innovation direction note: `{innovation_direction_path}`",
+                f"- Innovation decisions log: `{innovation_decisions_path}`",
+                f"- Raw operator request: {steering.get('raw_request') or '(missing)'}",
+                "",
+                "If this steering changes scope, observables, deliverables, or acceptance checks, update the matching research-question or validation contract in the same step.",
+            ]
+        )
+        if contract_path:
+            lines.extend(["", f"- Declared next-actions contract: `{contract_path}`"])
+        return "\n".join(lines) + "\n"
+
+    def materialize_steering_from_human_request(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None,
+        human_request: str | None,
+        updated_by: str,
+        topic_state: dict[str, Any] | None = None,
+        control_note: str | None = None,
+    ) -> dict[str, Any]:
+        steering = self._parse_human_steering_request(human_request)
+        if not steering.get("detected"):
+            return {
+                "detected": False,
+                "materialized": False,
+                "requires_reorchestrate": False,
+            }
+
+        runtime_root = self._ensure_runtime_root(topic_slug)
+        resolved_topic_state = dict(topic_state or read_json(runtime_root / "topic_state.json") or {})
+        innovation_direction_path = self._innovation_direction_path(topic_slug)
+        innovation_decisions_path = self._innovation_decisions_path(topic_slug)
+        innovation_direction_rel = self._relativize(innovation_direction_path)
+        innovation_decisions_rel = self._relativize(innovation_decisions_path)
+
+        existing_innovation_text = (
+            innovation_direction_path.read_text(encoding="utf-8")
+            if innovation_direction_path.exists()
+            else self._default_innovation_direction_text(
+                topic_slug=topic_slug,
+                run_id=run_id,
+                updated_by=updated_by,
+            )
+        )
+        auto_block = "\n".join(
+            [
+                "<!-- AITP:auto-steering:start -->",
+                "## Auto steering snapshot",
+                "",
+                f"- Updated at: `{now_iso()}`",
+                f"- Updated by: `{updated_by}`",
+                f"- Parsed decision: `{steering.get('decision') or '(missing)'}`",
+                f"- Parsed direction: `{steering.get('direction') or '(unchanged)'}`",
+                f"- Raw operator request: {steering.get('raw_request') or '(missing)'}",
+                f"- Innovation decision log: `{innovation_decisions_rel}`",
+                "- Rule: if this steering changes scope, observables, deliverables, or acceptance tests, update the matching research-question or validation contract in the same step.",
+                "<!-- AITP:auto-steering:end -->",
+            ]
+        )
+        updated_innovation_text = self._replace_marked_block(
+            existing_innovation_text,
+            start_marker="<!-- AITP:auto-steering:start -->",
+            end_marker="<!-- AITP:auto-steering:end -->",
+            replacement_block=auto_block,
+        )
+        write_text(innovation_direction_path, updated_innovation_text)
+
+        steering_contract = {
+            "path": None,
+            "action_id": None,
+            "summary": None,
+            "materialized": False,
+        }
+        if steering.get("decision") in {"redirect", "branch"}:
+            steering_contract = self._materialize_steering_action_contract(
+                topic_slug=topic_slug,
+                topic_state=resolved_topic_state,
+                steering=steering,
+                updated_by=updated_by,
+            )
+
+        control_note_rel = str(control_note or "").strip() or self._relativize(self._control_note_path(topic_slug))
+        if not control_note:
+            control_note_path = self._control_note_path(topic_slug)
+            control_note_text = self._render_control_note_markdown(
+                topic_slug=topic_slug,
+                run_id=run_id,
+                updated_by=updated_by,
+                steering={**steering, "raw_request": str(human_request or "").strip()},
+                innovation_direction_path=innovation_direction_rel,
+                innovation_decisions_path=innovation_decisions_rel,
+                steering_contract=steering_contract,
+            )
+            write_text(control_note_path, control_note_text)
+            control_note_rel = self._relativize(control_note_path)
+
+        decision_row = {
+            "decision_id": f"innovation-decision:{topic_slug}:{slugify(now_iso())}",
+            "topic_slug": topic_slug,
+            "run_id": run_id,
+            "updated_at": now_iso(),
+            "updated_by": updated_by,
+            "decision": steering.get("decision"),
+            "direction": steering.get("direction"),
+            "summary": steering.get("summary"),
+            "raw_request": str(human_request or "").strip(),
+            "innovation_direction_path": innovation_direction_rel,
+            "innovation_decisions_path": innovation_decisions_rel,
+            "control_note_path": control_note_rel,
+            "next_actions_contract_path": steering_contract.get("path"),
+            "target_action_id": steering_contract.get("action_id"),
+            "target_action_summary": steering_contract.get("summary"),
+        }
+        decision_rows = read_jsonl(innovation_decisions_path)
+        decision_rows.append(decision_row)
+        write_jsonl(innovation_decisions_path, decision_rows)
+
+        return {
+            "detected": True,
+            "materialized": True,
+            "requires_reorchestrate": True,
+            "decision": steering.get("decision"),
+            "direction": steering.get("direction"),
+            "summary": steering.get("summary"),
+            "control_note_path": control_note_rel,
+            "innovation_direction_path": innovation_direction_rel,
+            "innovation_decisions_path": innovation_decisions_rel,
+            "next_actions_contract_path": steering_contract.get("path"),
+            "target_action_id": steering_contract.get("action_id"),
+            "target_action_summary": steering_contract.get("summary"),
+        }
+
     def _load_action_queue(self, topic_slug: str) -> tuple[Path, list[dict[str, Any]]]:
         queue_path = self._runtime_root(topic_slug) / "action_queue.jsonl"
         return queue_path, read_jsonl(queue_path)
@@ -3297,6 +3903,14 @@ EXIT /B 127
                 "reason": "Current validation route, required checks, and failure modes for this topic.",
             }
         )
+        innovation_direction_path = str((topic_state.get("pointers") or {}).get("innovation_direction_path") or "")
+        if innovation_direction_path:
+            must_read_now.append(
+                {
+                    "path": innovation_direction_path,
+                    "reason": "Current human innovation target, steering decision, and novelty boundary for this topic.",
+                }
+            )
         must_read_now.append(
             {
                 "path": research_guardrails_note,
@@ -3382,6 +3996,7 @@ EXIT /B 127
                 )
 
         consultation_index_path = str((topic_state.get("pointers") or {}).get("consultation_index_path") or "")
+        innovation_decisions_path = str((topic_state.get("pointers") or {}).get("innovation_decisions_path") or "")
         closed_loop_surface = interaction_state.get("closed_loop") or {}
         latest_run_id = str(topic_state.get("latest_run_id") or "").strip()
         selected_action_handler_args = (selected_pending_action or {}).get("handler_args") or {}
@@ -3420,6 +4035,14 @@ EXIT /B 127
                     "path": consultation_index_path,
                     "trigger": "non_trivial_consultation",
                     "reason": "Consultation details are only mandatory when L2 memory materially changes the current work.",
+                }
+            )
+        if innovation_decisions_path:
+            may_defer_until_trigger.append(
+                {
+                    "path": innovation_decisions_path,
+                    "trigger": "decision_override_present",
+                    "reason": "Open the steering decision log when you need the durable history behind a control-note redirect.",
                 }
             )
         capability_report_path = runtime_root / "capability_report.md"
@@ -4735,6 +5358,35 @@ EXIT /B 127
             ]
         )
 
+    def _opencode_mcp_setup_markdown(self, *, scope: str, target_root: str | None) -> str:
+        if target_root:
+            config_path = self._agent_hidden_root(
+                target_root=target_root,
+                scope=scope,
+                hidden_dir=".opencode",
+                user_root=Path.home() / ".config" / "opencode",
+                project_root=self.repo_root / ".opencode",
+            ) / "AITP_MCP_CONFIG.json"
+        elif scope == "project":
+            config_path = self.repo_root / ".opencode" / "opencode.json"
+        else:
+            config_path = Path.home() / ".config" / "opencode" / "opencode.json"
+
+        return "\n".join(
+            [
+                "# OpenCode MCP setup",
+                "",
+                "OpenCode should expose an `aitp` local MCP server entry.",
+                "",
+                "Expected config path:",
+                "",
+                f"- `{config_path}`",
+                "",
+                "If config mutation is disabled, copy the generated MCP block into your active OpenCode config manually.",
+                "",
+            ]
+        )
+
     def _opencode_mcp_entry(self) -> dict[str, Any]:
         return {
             "type": "local",
@@ -4785,6 +5437,24 @@ EXIT /B 127
             return self.repo_root / "skills" / "aitp-runtime"
         return Path.home() / ".openclaw" / "skills" / "aitp-runtime"
 
+    def _agent_hidden_root(
+        self,
+        *,
+        target_root: str | None,
+        scope: str,
+        hidden_dir: str,
+        user_root: Path,
+        project_root: Path,
+    ) -> Path:
+        if target_root:
+            target_path = Path(target_root)
+            if target_path.name == hidden_dir:
+                return target_path
+            return target_path / hidden_dir
+        if scope == "project":
+            return project_root
+        return user_root
+
     def _install_codex_mcp(self, *, force: bool) -> list[dict[str, str]]:
         codex = shutil.which("codex")
         if codex is None:
@@ -4829,7 +5499,13 @@ EXIT /B 127
         target_root: str | None,
     ) -> list[dict[str, str]]:
         if target_root:
-            base = Path(target_root)
+            base = self._agent_hidden_root(
+                target_root=target_root,
+                scope=scope,
+                hidden_dir=".opencode",
+                user_root=Path.home() / ".config" / "opencode",
+                project_root=self.repo_root / ".opencode",
+            )
             config_path = base / "AITP_MCP_CONFIG.json"
             self._write_json_file(config_path, {"mcp": {"aitp": self._opencode_mcp_entry()}})
             return [{"agent": "opencode", "path": str(config_path), "kind": "mcp-config"}]
@@ -4857,183 +5533,96 @@ EXIT /B 127
             raise FileNotFoundError(f"Runtime state missing for topic {topic_slug}")
         return topic_state
 
-    def steer_topic(
-        self,
-        *,
-        topic_slug: str,
-        innovation_direction: str,
-        decision: str = "continue",
-        run_id: str | None = None,
-        updated_by: str = "aitp-cli",
-        summary: str | None = None,
-        next_question: str | None = None,
-        target_action_id: str | None = None,
-        target_action_summary: str | None = None,
-        human_request: str | None = None,
-    ) -> dict[str, Any]:
-        direction_text = str(innovation_direction or "").strip()
-        if not direction_text:
-            raise ValueError("innovation_direction is required")
+    def get_current_topic_memory(self) -> dict[str, Any]:
+        payload = read_json(self._current_topic_memory_paths()["json"])
+        if payload is None:
+            raise FileNotFoundError("Current topic memory has not been materialized yet.")
+        return payload
 
-        topic_state = self.get_runtime_state(topic_slug)
-        runtime_root = self._runtime_root(topic_slug)
-        runtime_root.mkdir(parents=True, exist_ok=True)
-        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
-        normalized_decision = str(decision or "continue").strip().lower() or "continue"
-        if normalized_decision not in {"continue", "branch", "redirect", "stop"}:
-            raise ValueError("decision must be one of continue, branch, redirect, or stop")
-
-        control_note_path, control_note_rel = self._runtime_pointer_path(
-            topic_slug=topic_slug,
-            pointer_key="control_note_path",
-            default_filename="control_note.md",
-        )
-        innovation_direction_path, innovation_direction_rel = self._runtime_pointer_path(
-            topic_slug=topic_slug,
-            pointer_key="innovation_direction_path",
-            default_filename="innovation_direction.md",
-        )
-        innovation_decisions_path, innovation_decisions_rel = self._runtime_pointer_path(
-            topic_slug=topic_slug,
-            pointer_key="innovation_decisions_path",
-            default_filename="innovation_decisions.jsonl",
-        )
-
-        steering_summary = (
-            str(summary).strip()
-            if summary and str(summary).strip()
-            else f"Continue `{topic_slug}` under updated innovation direction: {direction_text}"
-        )
-        steering_next_question = (
-            str(next_question).strip()
-            if next_question and str(next_question).strip()
-            else f"What is the next bounded AITP step under innovation direction: {direction_text}?"
-        )
-        steering_target_summary = (
-            str(target_action_summary).strip()
-            if target_action_summary and str(target_action_summary).strip()
-            else f"Continue the topic under updated innovation direction: {direction_text}"
-        )
-        control_directive = "stop" if normalized_decision == "stop" else "human_redirect"
-        allow_override = normalized_decision != "stop"
-
-        control_lines = [
-            "---",
-            f"directive: {control_directive}",
-            f"allow_override_unfinished: {'true' if allow_override else 'false'}",
-            f"allow_override_decision_contract: {'true' if allow_override else 'false'}",
-        ]
-        if target_action_id:
-            control_lines.append(f"target_action_id: {self._yaml_quote(target_action_id)}")
-        control_lines.append(f"target_action_summary: {self._yaml_quote(steering_target_summary)}")
-        control_lines.append("target_artifacts:")
-        control_lines.extend(self._yaml_list_block([innovation_direction_rel]))
-        control_lines.append("evidence_refs:")
-        control_lines.extend(self._yaml_list_block([innovation_direction_rel]))
-        control_lines.append("stop_conditions:")
-        control_lines.extend(
-            self._yaml_list_block(
-                [
-                    "Refresh runtime state and read the updated innovation direction before trusting any previous route.",
-                ]
-            )
-        )
-        control_lines.extend(
+    def _render_current_topic_note(self, payload: dict[str, Any]) -> str:
+        return "\n".join(
             [
-                f"summary: {self._yaml_quote(steering_summary)}",
-                "---",
+                "# Current topic memory",
                 "",
-                "# Control note",
+                f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+                f"- Updated at: `{payload.get('updated_at') or '(missing)'}`",
+                f"- Updated by: `{payload.get('updated_by') or '(missing)'}`",
+                f"- Source: `{payload.get('source') or '(missing)'}`",
+                f"- Resume stage: `{payload.get('resume_stage') or '(missing)'}`",
+                f"- Latest run id: `{payload.get('run_id') or '(none)'}`",
+                f"- Runtime root: `{payload.get('runtime_root') or '(missing)'}`",
+                f"- Human request: {payload.get('human_request') or '(missing)'}",
+                f"- Summary: {payload.get('summary') or '(missing)'}",
                 "",
-                f"- Topic slug: `{topic_slug}`",
-                f"- Updated by: `{updated_by}`",
-                f"- Updated at: `{now_iso()}`",
-                f"- Run id: `{resolved_run_id or '(none)'}`",
-                f"- Steering decision: `{normalized_decision}`",
-                f"- Innovation direction: {direction_text}",
-                f"- Triggering request: {human_request or '(none provided)'}",
-                "",
-                "## Why this control note exists",
-                "",
-                f"- {steering_summary}",
-                "",
-                "## Next bounded question",
-                "",
-                f"- {steering_next_question}",
-                "",
-                "## Rule",
-                "",
-                "- If direction, scope, deliverables, or acceptance criteria change again, update this note and `innovation_direction.md` together before resuming the loop.",
+                "This is the workspace-facing memory used to resolve natural-language requests such as `继续这个 topic` before falling back to the latest topic index.",
                 "",
             ]
         )
-        write_text(control_note_path, "\n".join(control_lines))
 
-        innovation_lines = [
-            "# Innovation direction",
-            "",
-            f"- Topic slug: `{topic_slug}`",
-            f"- Updated by: `{updated_by}`",
-            f"- Updated at: `{now_iso()}`",
-            f"- Run id: `{resolved_run_id or '(none)'}`",
-            f"- Decision ledger: `{innovation_decisions_rel}`",
-            f"- Paired control note: `{control_note_rel}`",
-            "",
-            "## Current direction",
-            "",
-            direction_text,
-            "",
-            "## Steering decision",
-            "",
-            f"- Decision: `{normalized_decision}`",
-            f"- Summary: {steering_summary}",
-            f"- Triggering request: {human_request or '(none provided)'}",
-            f"- Next bounded question: {steering_next_question}",
-            "",
-            "## Update rule",
-            "",
-            "- This note is the durable human novelty/scope surface.",
-            "- If the direction changes, refresh this note and the paired control note in the same step.",
-            "",
-        ]
-        write_text(innovation_direction_path, "\n".join(innovation_lines))
-
-        decision_row = {
+    def remember_current_topic(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str,
+        source: str,
+        human_request: str | None = None,
+    ) -> dict[str, Any]:
+        topic_state = self.get_runtime_state(topic_slug)
+        payload = {
             "topic_slug": topic_slug,
-            "run_id": resolved_run_id,
             "updated_at": now_iso(),
             "updated_by": updated_by,
-            "decision": normalized_decision,
-            "innovation_direction": direction_text,
-            "summary": steering_summary,
-            "next_question": steering_next_question,
-            "human_request": human_request or "",
-            "control_note_path": control_note_rel,
-            "innovation_direction_path": innovation_direction_rel,
+            "source": source,
+            "run_id": str(topic_state.get("latest_run_id") or ""),
+            "resume_stage": str(topic_state.get("resume_stage") or ""),
+            "runtime_root": str(self._runtime_root(topic_slug)),
+            "human_request": str(human_request or "").strip(),
+            "summary": str(topic_state.get("summary") or topic_state.get("resume_reason") or ""),
         }
-        decision_rows = read_jsonl(innovation_decisions_path)
-        decision_rows.append(decision_row)
-        write_jsonl(innovation_decisions_path, decision_rows)
-
-        topic_state.setdefault("pointers", {})
-        topic_state["updated_at"] = now_iso()
-        topic_state["updated_by"] = updated_by
-        topic_state["pointers"]["control_note_path"] = control_note_rel
-        topic_state["pointers"]["innovation_direction_path"] = innovation_direction_rel
-        topic_state["pointers"]["innovation_decisions_path"] = innovation_decisions_rel
-        write_json(runtime_root / "topic_state.json", topic_state)
-
+        paths = self._current_topic_memory_paths()
+        write_json(paths["json"], payload)
+        write_text(paths["note"], self._render_current_topic_note(payload))
         return {
-            "topic_slug": topic_slug,
-            "run_id": resolved_run_id,
-            "decision": normalized_decision,
-            "innovation_direction": direction_text,
-            "summary": steering_summary,
-            "next_question": steering_next_question,
-            "control_note_path": control_note_rel,
-            "innovation_direction_path": innovation_direction_rel,
-            "innovation_decisions_path": innovation_decisions_rel,
+            **payload,
+            "current_topic_path": str(paths["json"]),
+            "current_topic_note_path": str(paths["note"]),
         }
+
+    def recent_topics(self, *, limit: int = 10) -> list[dict[str, Any]]:
+        rows = read_jsonl(self._runtime_topic_index_path())
+        if not rows:
+            return []
+        ordered = sorted(
+            rows,
+            key=lambda row: str(row.get("updated_at") or ""),
+        )
+        ordered.reverse()
+        return ordered[: max(1, limit)]
+
+    def latest_topic_slug(self) -> str:
+        rows = self.recent_topics(limit=1)
+        if not rows:
+            raise FileNotFoundError("No runtime topics have been materialized yet.")
+        topic_slug = str(rows[0].get("topic_slug") or "").strip()
+        if not topic_slug:
+            raise FileNotFoundError("Runtime topic index is present but missing a valid topic slug.")
+        return topic_slug
+
+    def current_topic_slug(self, *, fallback_to_latest: bool = True) -> str:
+        try:
+            payload = self.get_current_topic_memory()
+        except FileNotFoundError:
+            payload = None
+
+        topic_slug = str((payload or {}).get("topic_slug") or "").strip()
+        if topic_slug:
+            topic_state_path = self._runtime_root(topic_slug) / "topic_state.json"
+            if topic_state_path.exists():
+                return topic_slug
+
+        if fallback_to_latest:
+            return self.latest_topic_slug()
+        raise FileNotFoundError("Current topic memory is missing or stale, and latest-topic fallback is disabled.")
 
     def new_topic(
         self,
@@ -5061,6 +5650,12 @@ EXIT /B 127
             skill_queries=skill_queries,
             human_request=human_request or question,
             research_mode=research_mode,
+        )
+        self.remember_current_topic(
+            topic_slug=payload["topic_slug"],
+            updated_by=updated_by,
+            source="new-topic",
+            human_request=human_request or question,
         )
         payload["template_mode"] = mode or self._research_mode_to_template_mode(
             str((payload.get("topic_state") or {}).get("research_mode") or research_mode or "")
@@ -5139,7 +5734,7 @@ EXIT /B 127
     ) -> dict[str, Any]:
         research_mode = self._template_mode_to_research_mode(mode) if mode else None
         if max_auto_steps <= 0:
-            return self.orchestrate(
+            payload = self.orchestrate(
                 topic=topic,
                 topic_slug=topic_slug,
                 statement=question,
@@ -5150,6 +5745,13 @@ EXIT /B 127
                 human_request=human_request or question,
                 research_mode=research_mode,
             )
+            self.remember_current_topic(
+                topic_slug=payload["topic_slug"],
+                updated_by=updated_by,
+                source="work",
+                human_request=human_request or question,
+            )
+            return payload
         return self.run_topic_loop(
             topic=topic,
             topic_slug=topic_slug,
@@ -7683,12 +8285,13 @@ EXIT /B 127
         if not topic_slug and not topic:
             raise ValueError("Provide topic_slug or topic.")
 
+        active_control_note = control_note
         bootstrap = self.orchestrate(
             topic_slug=topic_slug,
             topic=topic,
             statement=statement,
             run_id=run_id,
-            control_note=control_note,
+            control_note=active_control_note,
             updated_by=updated_by,
             human_request=human_request,
             skill_queries=skill_queries or [],
@@ -7696,6 +8299,28 @@ EXIT /B 127
         )
         resolved_topic_slug = bootstrap["topic_slug"]
         resolved_run_id = self._resolve_run_id(resolved_topic_slug, run_id)
+        steering_artifacts = self.materialize_steering_from_human_request(
+            topic_slug=resolved_topic_slug,
+            run_id=resolved_run_id,
+            human_request=human_request,
+            updated_by=updated_by,
+            topic_state=bootstrap.get("topic_state"),
+            control_note=active_control_note,
+        )
+        if steering_artifacts.get("requires_reorchestrate"):
+            active_control_note = str(
+                steering_artifacts.get("control_note_path") or active_control_note or ""
+            ).strip() or active_control_note
+            bootstrap = self.orchestrate(
+                topic_slug=resolved_topic_slug,
+                run_id=resolved_run_id,
+                control_note=active_control_note,
+                updated_by=updated_by,
+                skill_queries=skill_queries or [],
+                human_request=human_request,
+                research_mode=research_mode,
+            )
+            resolved_run_id = self._resolve_run_id(resolved_topic_slug, run_id)
 
         entry_audit = self.audit(topic_slug=resolved_topic_slug, phase="entry", updated_by=updated_by)
         executed_auto_actions: list[dict[str, Any]] = []
@@ -7722,7 +8347,7 @@ EXIT /B 127
             self.orchestrate(
                 topic_slug=resolved_topic_slug,
                 run_id=resolved_run_id,
-                control_note=control_note,
+                control_note=active_control_note,
                 updated_by=updated_by,
                 skill_queries=skill_queries or [],
                 human_request=human_request,
@@ -7732,7 +8357,7 @@ EXIT /B 127
             self.orchestrate(
                 topic_slug=resolved_topic_slug,
                 run_id=resolved_run_id,
-                control_note=control_note,
+                control_note=active_control_note,
                 updated_by=updated_by,
                 skill_queries=skill_queries or [],
                 human_request=human_request,
@@ -7761,6 +8386,12 @@ EXIT /B 127
             except FileNotFoundError:
                 trust = None
         exit_audit = self.audit(topic_slug=resolved_topic_slug, phase="exit", updated_by=updated_by)
+        current_topic_memory = self.remember_current_topic(
+            topic_slug=resolved_topic_slug,
+            updated_by=updated_by,
+            source="run_topic_loop",
+            human_request=human_request,
+        )
 
         loop_state = {
             "topic_slug": resolved_topic_slug,
@@ -7777,6 +8408,8 @@ EXIT /B 127
             "promotion_gate_status": str((self._load_promotion_gate(resolved_topic_slug) or {}).get("status") or "not_requested"),
             "auto_actions_executed": auto_actions["executed"],
             "remaining_pending_actions": auto_actions["remaining_pending"],
+            "steering": steering_artifacts,
+            "current_topic_memory": current_topic_memory,
         }
         loop_state_path = self._loop_state_path(resolved_topic_slug)
         loop_history_path = self._loop_history_path(resolved_topic_slug)
@@ -7801,10 +8434,29 @@ EXIT /B 127
             "loop_state_path": str(loop_state_path),
             "loop_history_path": str(loop_history_path),
             "loop_state": loop_state,
+            "steering_artifacts": steering_artifacts,
+            "current_topic_memory": current_topic_memory,
             "runtime_protocol": protocol_paths,
         }
 
+    def _session_start_routing_block(self, *, hidden_entry: str) -> str:
+        return f"""## Session-start routing invariant
+
+Before any substantial response in an AITP-governed workspace:
+
+1. materialize session state through {hidden_entry}
+2. check durable current-topic memory first with `aitp current-topic` or `runtime/current_topic.json`
+3. if the user says `继续这个 topic`, `continue this topic`, `this topic`, or `current topic`, resolve that to current-topic memory immediately
+4. only fall back to latest-topic memory if current-topic memory is missing
+5. only ask for a topic slug when both the request and durable memory remain genuinely ambiguous
+
+This rule applies at session start, not later as a soft reminder.
+"""
+
     def _codex_skill_template(self) -> str:
+        session_start = self._session_start_routing_block(
+            hidden_entry="plain `aitp-codex \"<original request>\"` when possible, or `aitp session-start \"<original request>\"` when you only need to materialize the routing and runtime bundle first"
+        )
         return f"""---
 name: aitp-runtime
 description: Route research work through the AITP kernel using the installable `aitp` CLI. Use when the task should follow the AITP layer architecture instead of ad hoc browsing.
@@ -7812,22 +8464,26 @@ description: Route research work through the AITP kernel using the installable `
 
 # AITP Runtime
 
+{session_start}
+
 ## Required entry
 
-1. In a bare `codex` research session, do not start with direct browsing or free-form synthesis; enter through `aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...` first.
-2. For Codex-driven implementation or execution work inside an active topic, prefer `aitp-codex --topic-slug <topic_slug> "<task>"`.
-3. Read `runtime_protocol.generated.md` first, then the files listed under `Must read now`.
-4. Expand promotion, consultation, capability, or queue details only when the named trigger in the runtime bundle fires.
-5. Register reusable operations with `aitp operation-init ...`.
-6. For human-reviewed `L2`, use `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
-7. For theory-formal `L2_auto`, materialize coverage/consensus artifacts with `aitp coverage-audit ...` and then use `aitp auto-promote ...`.
-8. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
+1. In a bare `codex` research session, do not start with direct browsing or free-form synthesis.
+2. For session-start routing, prefer `aitp-codex "<task>"`. If you only need to materialize routing and the runtime bundle first, use `aitp session-start "<task>"`.
+3. If the topic is already obvious from current-topic memory, prefer plain `aitp-codex "<task>"` over asking the user for a slug.
+4. Read `runtime_protocol.generated.md` first, then the files listed under `Must read now`.
+5. Expand promotion, consultation, capability, or queue details only when the named trigger in the runtime bundle fires.
+6. Register reusable operations with `aitp operation-init ...`.
+7. For human-reviewed `L2`, use `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
+8. For theory-formal `L2_auto`, materialize coverage/consensus artifacts with `aitp coverage-audit ...` and then use `aitp auto-promote ...`.
+9. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
 - If the conformance audit fails, the run does not count as AITP work.
 - If the task is theoretical-physics research rather than plain coding, staying inside AITP is mandatory.
 - Prefer durable control notes and contract files over Python heuristic defaults.
+- Keep `innovation_direction.md` and `control_note.md` current before substantial execution continues.
 - Every reusable operation must pass through `aitp trust-audit ...` before AITP treats it as trusted.
 - If a new numerical backend or diagnostic is being trusted, scaffold a baseline first with `aitp baseline ...`.
 - If a derivation-heavy method is being claimed as understood, scaffold atomic understanding first with `aitp atomize ...`.
@@ -7838,10 +8494,13 @@ description: Route research work through the AITP kernel using the installable `
 ## Common commands
 
 ```bash
+aitp session-start "<task>"
+aitp-codex "<task>"
+aitp-codex --current-topic "<task>"
 aitp-codex --topic-slug <topic_slug> "<task>"
+aitp-codex --latest-topic "<task>"
 aitp loop --topic-slug <topic_slug> --human-request "<task>" --skill-query "<capability gap>"
 aitp resume --topic-slug <topic_slug> --human-request "<task>"
-aitp steer-topic --topic-slug <topic_slug> --innovation-direction "<direction>" --decision continue
 aitp coverage-audit --topic-slug <topic_slug> --candidate-id <candidate_id> --source-section <section> --covered-section <section>
 aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id> --backend-id backend:theoretical-physics-knowledge-network
 aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
@@ -7861,17 +8520,27 @@ Kernel root default: `{self.kernel_root}`
 
     def _using_aitp_skill_template(self, platform: str) -> str:
         if platform == "codex":
-            runtime_reference = "the installed `aitp-runtime` skill"
+            runtime_reference = "the installed `aitp-runtime` skill and the `aitp-codex` wrapper"
             entry_commands = (
-                "`aitp new-topic ...`, `aitp resume ...`, `aitp loop ...`, or "
-                "`aitp-codex --topic-slug <topic_slug> \"<task>\"`"
+                "`aitp session-start \"<task>\"`, `aitp new-topic ...`, `aitp resume ...`, `aitp loop ...`, "
+                "`aitp-codex \"<task>\"`, `aitp-codex --current-topic \"<task>\"`, "
+                "`aitp-codex --latest-topic \"<task>\"`, or `aitp-codex --topic-slug <topic_slug> \"<task>\"`"
             )
+            hidden_entry = "plain `aitp-codex \"<original request>\"`"
         elif platform == "claude-code":
-            runtime_reference = "the installed `aitp-runtime` skill and `/aitp*` commands"
-            entry_commands = "`aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...`"
+            runtime_reference = "the installed `aitp-runtime` skill, the `using-aitp` gatekeeper, and the `/aitp*` commands"
+            entry_commands = "`aitp session-start \"<task>\"`, `aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...`"
+            hidden_entry = "plain `aitp session-start \"<original request>\"`"
+        elif platform == "opencode":
+            runtime_reference = "the installed `aitp-runtime` skill, the `using-aitp` gatekeeper, and the local `/aitp*` command bundle"
+            entry_commands = "`aitp session-start \"<task>\"`, `aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...`"
+            hidden_entry = "plain `aitp session-start \"<original request>\"`"
         else:
             runtime_reference = "the installed `aitp-runtime` skill"
-            entry_commands = "`aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...`"
+            entry_commands = "`aitp session-start \"<task>\"`, `aitp loop ...`, `aitp resume ...`, or `aitp bootstrap ...`"
+            hidden_entry = "plain `aitp session-start \"<original request>\"`"
+
+        session_start = self._session_start_routing_block(hidden_entry=hidden_entry)
 
         return f"""---
 name: using-aitp
@@ -7893,6 +8562,8 @@ Do not start with free-form browsing, free-form explanation, or ad hoc file
 editing if the task should actually be inside AITP.
 </EXTREMELY-IMPORTANT>
 
+{session_start}
+
 ## Mandatory triage
 
 Before doing substantial work, classify the task into one of these buckets:
@@ -7911,31 +8582,29 @@ If the task is bucket `1`, you MUST:
 
 1. enter through {runtime_reference}
 2. materialize or resume runtime state
-3. read `runtime_protocol.generated.md` first
-4. read the files named under `Must read now`
-5. if the human changed novelty direction, scope, deliverables, or acceptance criteria, update both:
-   - `runtime/topics/<topic_slug>/innovation_direction.md`
-   - `runtime/topics/<topic_slug>/control_note.md`
-6. only then continue with the task
+3. make sure `innovation_direction.md` and `control_note.md` are current before substantial execution continues
+4. if the operator speaks in natural steering language such as `继续这个 topic，方向改成 X`, translate that request into durable steering artifacts before continuing
+5. read `runtime_protocol.generated.md` first
+6. read the files named under `Must read now`
+7. only then continue with the task
 
 If conformance fails, the work does not count as AITP work.
 
-## Steering rule
+## Natural-language routing
 
-When the operator says the direction changed, do not treat that as mere chat.
-Persist it into AITP steering surfaces first.
+Do not make the user translate a clear research request into AITP shell syntax
+when the intent is already recoverable from durable routing memory.
 
-For example, in Codex, treat:
+Preferred hidden routing:
 
-- `continue this topic, direction changed to X`
-- `继续这个 topic，方向改成 X`
+- If the user is clearly opening a new research topic, extract the topic title and route through `aitp session-start "<original request>"` or the stronger platform wrapper.
+- If the user says `继续这个 topic`, `continue this topic`, or otherwise refers to the active topic without naming a slug, route through `aitp session-start "<original request>"` or the stronger platform wrapper, letting current-topic memory win first.
+- Resolve current-topic memory first and only fall back to the latest topic if that memory is missing, for example with `aitp-codex --latest-topic "<original request>"` on the Codex path.
+- If the user names a known topic slug, preserve that slug and continue without asking for it again.
+- Only ask the user to specify a topic manually when the topic reference is genuinely ambiguous.
 
-as the equivalent of:
-
-```bash
-aitp steer-topic --topic-slug <topic_slug> --innovation-direction "X" --decision continue
-aitp-codex --topic-slug <topic_slug> "Continue the topic under updated direction: X"
-```
+The user experience target is: natural language first, AITP commands hidden in
+the implementation path.
 
 ## Allowed exception
 
@@ -7969,6 +8638,9 @@ first.
 """
 
     def _claude_code_skill_template(self) -> str:
+        session_start = self._session_start_routing_block(
+            hidden_entry="plain `aitp session-start \"<original request>\"` before the first substantial Claude Code response"
+        )
         return f"""---
 name: aitp-runtime
 description: Route Claude Code through the AITP runtime so substantial research work stays auditable, resumable, and conformance-checked.
@@ -7976,21 +8648,57 @@ description: Route Claude Code through the AITP runtime so substantial research 
 
 # AITP Runtime For Claude Code
 
+{session_start}
+
 ## Required entry
 
-1. Start topic work with `aitp loop ...` when possible.
-2. Use `aitp bootstrap ...` only to create a new topic, then return to `aitp loop ...`.
-3. Read `runtime_protocol.generated.md` first, then follow its `Must read now` list before deeper work.
-4. Expand deferred surfaces only when the named trigger fires.
-5. Treat missing conformance as a hard failure for AITP work.
-6. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
+1. Start research-governed topic work with `aitp session-start "<task>"` whenever the user speaks in natural language.
+2. Use `aitp loop ...` or `aitp resume ...` after session-start has materialized the topic shell.
+3. Use `aitp bootstrap ...` only to create a new topic, then return to `aitp loop ...`.
+4. Read `runtime_protocol.generated.md` first, then follow its `Must read now` list before deeper work.
+5. Expand deferred surfaces only when the named trigger fires.
+6. Treat missing conformance as a hard failure for AITP work.
+7. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
 - Charter first, adapter second.
 - Contracts before hidden heuristics.
 - Do not silently upgrade exploratory output into reusable knowledge.
+- Keep `innovation_direction.md` and `control_note.md` current before substantial execution continues.
 - Use `aitp baseline ...`, `aitp atomize ...`, and `aitp trust-audit ...` before claiming method reuse.
+
+Kernel root default: `{self.kernel_root}`
+"""
+
+    def _opencode_skill_template(self) -> str:
+        session_start = self._session_start_routing_block(
+            hidden_entry="plain `aitp session-start \"<original request>\"` before the first substantial OpenCode response"
+        )
+        return f"""---
+name: aitp-runtime
+description: Route OpenCode through the AITP runtime so session-start routing, current-topic memory, and runtime artifacts stay strict instead of ad hoc.
+---
+
+# AITP Runtime For OpenCode
+
+{session_start}
+
+## Required entry
+
+1. Start research-governed topic work with `aitp session-start "<task>"` whenever the user speaks in natural language.
+2. Use `aitp loop ...` or `aitp resume ...` after session-start has materialized the topic shell.
+3. Use `aitp bootstrap ...` only to create a new topic, then return to `aitp loop ...`.
+4. Read `runtime_protocol.generated.md` first, then follow its `Must read now` list before deeper work.
+5. Expand deferred surfaces only when the named trigger fires.
+6. Treat missing conformance as a hard failure for AITP work.
+7. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
+
+## Hard rules
+
+- OpenCode should feel natural-language first, but routing must still become durable AITP state immediately.
+- Keep `innovation_direction.md` and `control_note.md` current before substantial execution continues.
+- Use `aitp baseline ...`, `aitp atomize ...`, and `aitp trust-audit ...` before claiming reusable method progress.
 
 Kernel root default: `{self.kernel_root}`
 """
@@ -8049,15 +8757,16 @@ letting topic work drift into ad hoc file browsing.
 
 Required pattern:
 
-1. enter through `aitp loop` whenever the topic already exists
-2. use `aitp bootstrap` only to create a new topic shell, then return to `aitp loop`
-3. read `runtime_protocol.generated.md` first, then follow `Must read now`
-4. expand deferred surfaces only when the named trigger in the runtime bundle fires
-5. register reusable operations with `aitp operation-init`
-6. do the actual work
-7. request human approval before any human-reviewed `L2` promotion with `aitp request-promotion ...`
-8. for theory-formal `L2_auto`, materialize `coverage-audit` artifacts before `aitp auto-promote ...`
-9. close with `aitp audit --phase exit`
+1. start session routing with `aitp session-start "<original request>"` whenever the user speaks in natural language
+2. treat `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as a current-topic-memory reference at session start
+3. use `aitp bootstrap` only to create a new topic shell, then return to `aitp loop`
+4. read `runtime_protocol.generated.md` first, then follow `Must read now`
+5. expand deferred surfaces only when the named trigger in the runtime bundle fires
+6. register reusable operations with `aitp operation-init`
+7. do the actual work
+8. request human approval before any human-reviewed `L2` promotion with `aitp request-promotion ...`
+9. for theory-formal `L2_auto`, materialize `coverage-audit` artifacts before `aitp auto-promote ...`
+10. close with `aitp audit --phase exit`
 
 If method trust is missing:
 
@@ -8078,8 +8787,8 @@ Before doing substantial work, read `./AITP_COMMAND_HARNESS.md`.
 
 User request: $ARGUMENTS
 
-1. If the topic already exists, run `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
-2. If the topic is new, run `aitp bootstrap --topic "<topic>" --statement "$ARGUMENTS"` and then `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
+1. Run `aitp session-start "$ARGUMENTS"` first.
+2. Treat `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as a current-topic-memory request immediately instead of asking for a slug.
 3. Read `runtime_protocol.generated.md` first, then follow `Must read now`.
 4. Expand deferred surfaces only when the named trigger in `runtime_protocol.generated.md` fires.
 5. If the work is heading toward human-reviewed `L2`, use `aitp request-promotion ...` and wait for a durable approval gate.
@@ -8154,8 +8863,8 @@ description: Enter the AITP runtime for a Claude Code research task
 
 Arguments: $ARGUMENTS
 
-1. If the topic exists, run `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
-2. If the topic is new, run `aitp bootstrap --topic "<topic>" --statement "$ARGUMENTS"` and then `aitp loop --topic-slug <topic_slug> --human-request "$ARGUMENTS"`.
+1. Run `aitp session-start "$ARGUMENTS"` first.
+2. Treat `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as a current-topic-memory request immediately instead of asking for a slug.
 3. Read `runtime_protocol.generated.md` first, then follow `Must read now`.
 4. Expand deferred surfaces only when the named trigger fires.
 5. Request human approval before any Layer 2 promotion.
@@ -8296,19 +9005,45 @@ aitp audit $ARGUMENTS
             return installed
 
         if agent == "opencode":
-            base = (
-                Path(target_root)
-                if target_root
-                else (home / ".config" / "opencode" / "commands" if scope == "user" else self.repo_root / ".opencode" / "commands")
+            target_base = self._agent_hidden_root(
+                target_root=target_root,
+                scope=scope,
+                hidden_dir=".opencode",
+                user_root=home / ".config" / "opencode",
+                project_root=self.repo_root / ".opencode",
             )
-            base.mkdir(parents=True, exist_ok=True)
-            harness_path = base / "AITP_COMMAND_HARNESS.md"
+            skill_base = target_base / "skills" / "aitp-runtime"
+            command_base = target_base / "commands"
+            using_skill_base = target_base / "skills" / "using-aitp"
+            skill_base.mkdir(parents=True, exist_ok=True)
+            command_base.mkdir(parents=True, exist_ok=True)
+            using_skill_base.mkdir(parents=True, exist_ok=True)
+
+            using_skill_path = using_skill_base / "SKILL.md"
+            if using_skill_path.exists() and not force:
+                raise FileExistsError(f"Refusing to overwrite {using_skill_path}")
+            write_text(using_skill_path, self._using_aitp_skill_template("opencode"))
+            installed.append({"agent": agent, "path": str(using_skill_path), "kind": "skill"})
+
+            skill_path = skill_base / "SKILL.md"
+            if skill_path.exists() and not force:
+                raise FileExistsError(f"Refusing to overwrite {skill_path}")
+            write_text(skill_path, self._opencode_skill_template())
+            installed.append({"agent": agent, "path": str(skill_path), "kind": "skill"})
+
+            setup_path = skill_base / "AITP_MCP_SETUP.md"
+            if setup_path.exists() and not force:
+                raise FileExistsError(f"Refusing to overwrite {setup_path}")
+            write_text(setup_path, self._opencode_mcp_setup_markdown(scope=scope, target_root=target_root))
+            installed.append({"agent": agent, "path": str(setup_path), "kind": "mcp-setup"})
+
+            harness_path = command_base / "AITP_COMMAND_HARNESS.md"
             if harness_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {harness_path}")
             write_text(harness_path, self._opencode_harness_template())
             installed.append({"agent": agent, "path": str(harness_path), "kind": "command-harness"})
             for command_name in ("aitp", "aitp-resume", "aitp-loop", "aitp-audit"):
-                command_path = base / f"{command_name}.md"
+                command_path = command_base / f"{command_name}.md"
                 if command_path.exists() and not force:
                     raise FileExistsError(f"Refusing to overwrite {command_path}")
                 write_text(command_path, self._opencode_command_template(command_name))
@@ -8319,24 +9054,21 @@ aitp audit $ARGUMENTS
             return installed
 
         if agent == "claude-code":
-            if target_root:
-                target_base = Path(target_root)
-                skill_base = target_base / "skills" / "aitp-runtime"
-                command_base = target_base / "commands"
-            elif scope == "user":
-                target_base = home / ".claude"
-                skill_base = target_base / "skills" / "aitp-runtime"
-                command_base = target_base / "commands"
-            else:
-                target_base = self.repo_root / ".claude"
-                skill_base = target_base / "skills" / "aitp-runtime"
-                command_base = target_base / "commands"
+            target_base = self._agent_hidden_root(
+                target_root=target_root,
+                scope=scope,
+                hidden_dir=".claude",
+                user_root=home / ".claude",
+                project_root=self.repo_root / ".claude",
+            )
+            skill_base = target_base / "skills" / "aitp-runtime"
+            command_base = target_base / "commands"
 
             skill_base.mkdir(parents=True, exist_ok=True)
             command_base.mkdir(parents=True, exist_ok=True)
-
             using_skill_base = skill_base.parent / "using-aitp"
             using_skill_base.mkdir(parents=True, exist_ok=True)
+
             using_skill_path = using_skill_base / "SKILL.md"
             if using_skill_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {using_skill_path}")

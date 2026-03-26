@@ -56,9 +56,13 @@ surface rather than topic-local convention.
 
 ```bash
 aitp bootstrap --topic "<topic>" --statement "<statement>"
+aitp session-start "<task>"
 aitp resume --topic-slug <topic_slug> --human-request "<task>"
 aitp loop --topic-slug <topic_slug> --human-request "<task>" --skill-query "<capability gap>"
+aitp-codex "<task>"
+aitp-codex --current-topic "<task>"
 aitp-codex --topic-slug <topic_slug> "<task>"
+aitp current-topic
 aitp audit --topic-slug <topic_slug> --phase exit
 aitp ci-check --topic-slug <topic_slug>
 aitp baseline --topic-slug <topic_slug> --run-id <run_id> --title "<baseline title>" --reference "<source>" --agreement-criterion "<criterion>"

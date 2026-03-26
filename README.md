@@ -154,21 +154,22 @@ For execution-heavy work inside an already active topic, use the stronger
 wrapper:
 
 ```bash
+aitp session-start "<task>"
+aitp-codex "<task>"
+aitp-codex --current-topic "<task>"
 aitp-codex --topic-slug <topic_slug> "<task>"
+aitp-codex --latest-topic "<task>"
 ```
 
-If the operator changes direction mid-topic, persist that steering update
-first:
-
-```bash
-aitp steer-topic --topic-slug <topic_slug> --innovation-direction "<new direction>" --decision continue
-aitp-codex --topic-slug <topic_slug> "Continue the topic under updated direction: <new direction>"
-```
-
-Inside Codex, the natural-language forms
-`continue this topic, direction changed to <new direction>` and
-`继续这个 topic，方向改成 <new direction>` now map to the same steering
-operation before the loop resumes.
+In Codex App, the intended UX is natural language first rather than making the
+user remember these commands. With `using-aitp` installed, requests like
+`继续这个 topic，方向改成 X` should route through the hidden `aitp-codex`
+path instead of forcing the user to type shell syntax themselves.
+The plain `aitp-codex "<task>"` form is now the preferred shell mirror of that
+UX.
+That hidden route should prefer current-topic memory first, then the latest
+topic index, and only ask for a slug when the reference is genuinely
+ambiguous.
 
 ### 2. Bare OpenCode In A Theory Workspace
 
@@ -187,14 +188,14 @@ opencode
 
 Expected behavior:
 
-- OpenCode gets a local `skills/aitp-runtime/SKILL.md` plus the `/aitp` command bundle;
-- the skill nudges bare sessions toward `aitp bootstrap`, `aitp loop`, or `aitp resume` when the local skill root is active;
+- OpenCode gets `.opencode/skills/using-aitp/SKILL.md`, `.opencode/skills/aitp-runtime/SKILL.md`, and the `/aitp` command bundle;
+- the session-start rule now routes natural-language requests through `aitp session-start "<task>"`, with current-topic memory taking priority for phrases like `继续这个 topic`;
 - the command bundle remains the explicit fallback entry surface when skill loading is unavailable;
 - outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
 
-OpenCode does not yet have a wrapper as strong as `aitp-codex`, so
-execution-heavy work should still re-enter through `aitp loop` and the
-installed `/aitp*` commands.
+OpenCode still does not have a full execution wrapper as strong as
+`aitp-codex`, but its session-start routing is now aligned with the same
+current-topic-first rule used by Codex and Claude Code.
 
 ### 3. OpenClaw For Bounded Autonomous Research
 
@@ -243,6 +244,9 @@ aitp bootstrap --topic "<topic>" --human-request "<task>"
 
 # open a new topic with an explicit shell contract
 aitp new-topic --topic "<topic>" --question "<bounded question>" --mode formal_theory
+
+# materialize natural-language routing at session start
+aitp session-start "<task>"
 
 # do one bounded unit of work
 aitp loop --topic-slug <topic_slug> --human-request "<task>" --max-auto-steps 1
@@ -404,8 +408,9 @@ The key boundary to preserve on Windows is this:
 
 Current maturity is not uniform:
 
-- `Codex` is the strongest path today because it supports both a bare-session skill install and the stronger `aitp-codex` wrapper.
-- `OpenClaw` and `Claude Code` already install explicit skill surfaces, and `OpenCode` now installs both a local `aitp-runtime` skill and the `/aitp*` command bundle, but none of them yet has a wrapper as strong as `aitp-codex`.
+- `Codex` is still the strongest path today because it supports both a bare-session skill install and the stronger `aitp-codex` wrapper.
+- `Claude Code` and `OpenCode` now share the same stricter `aitp session-start` routing rule, with native `.claude` / `.opencode` project installs and current-topic-first resolution for natural-language requests.
+- `OpenClaw` keeps the bounded autonomous loop path and MCP bridge notes, while `Codex` remains the most opinionated end-to-end execution surface.
 
 ## Design Boundaries
 

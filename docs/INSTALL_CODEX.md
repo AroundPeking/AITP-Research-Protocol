@@ -73,25 +73,34 @@ aitp loop --topic "<topic>" --human-request "<task>"
 For Codex-driven implementation or execution:
 
 ```bash
+aitp session-start "<task>"
+aitp-codex "<task>"
+aitp-codex --current-topic "<task>"
 aitp-codex --topic-slug <topic_slug> "<task>"
+aitp-codex --latest-topic "<task>"
 ```
 
-If the operator changes direction mid-topic, persist that steering update
-before continuing:
+With `using-aitp` installed, the intended Codex App UX is still natural language
+first. For example, the user should be able to say:
 
-```bash
-aitp steer-topic --topic-slug <topic_slug> --innovation-direction "<new direction>" --decision continue
-aitp-codex --topic-slug <topic_slug> "Continue the topic under updated direction: <new direction>"
-```
+- `帮我开一个新 topic：Topological phases from modular data。先做问题定义、范围和初始验证路线。`
+- `继续这个 topic，方向改成 low-energy effective theory`
 
-Codex also recognizes the natural-language shortcut:
+and let the hidden implementation path route through `aitp-codex`.
 
-```text
-continue this topic, direction changed to <new direction>
-继续这个 topic，方向改成 <new direction>
-```
+The preferred hidden routing order is:
 
-and translates it into the equivalent AITP steering update plus resume flow.
+1. plain `aitp-codex "<task>"` with auto-routing
+2. `aitp session-start "<task>"` when you want to materialize routing and runtime state before continuing
+3. `--current-topic`
+4. `--latest-topic`
+5. explicit `--topic-slug`
+
+Session-start invariant:
+
+- if the user says `继续这个 topic`, `continue this topic`, `this topic`, or `current topic`, Codex should resolve that against durable current-topic memory first
+- it should only fall back to latest-topic memory if current-topic memory is missing
+- it should only ask for a slug when the request remains genuinely ambiguous after checking durable memory
 
 ## Verify
 
@@ -103,7 +112,6 @@ Codex should now be able to:
 - read `promotion_gate.md` when a candidate is approaching Layer 2
 - treat missing conformance as a hard failure for AITP work
 - use `aitp-codex` as the stronger wrapper path for coding tasks
-- require `innovation_direction.md` and the paired `control_note` to be updated when the human changes novelty direction or scope
 - require `aitp request-promotion ...` plus human approval before `aitp promote ...`
 
 ## Manual fallback

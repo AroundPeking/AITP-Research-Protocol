@@ -352,6 +352,28 @@ def build_parser() -> argparse.ArgumentParser:
     state.add_argument("--topic-slug", required=True)
     state.add_argument("--json", action="store_true")
 
+    current_topic = subparsers.add_parser("current-topic", help="Read the current-topic routing memory")
+    current_topic.add_argument("--json", action="store_true")
+
+    session_start = subparsers.add_parser(
+        "session-start",
+        help="Materialize AITP routing and runtime state from a natural-language session-start request",
+    )
+    session_topic_group = session_start.add_mutually_exclusive_group(required=False)
+    session_topic_group.add_argument("--topic-slug")
+    session_topic_group.add_argument("--topic")
+    session_topic_group.add_argument("--current-topic", action="store_true")
+    session_topic_group.add_argument("--latest-topic", action="store_true")
+    session_start.add_argument("--statement")
+    session_start.add_argument("--run-id")
+    session_start.add_argument("--control-note")
+    session_start.add_argument("--updated-by", default="aitp-session-start")
+    session_start.add_argument("--skill-query", action="append", default=[])
+    session_start.add_argument("--max-auto-steps", type=int, default=4)
+    session_start.add_argument("--research-mode")
+    session_start.add_argument("--json", action="store_true")
+    session_start.add_argument("task", help="Natural-language research request to route into AITP")
+
     request_promotion = subparsers.add_parser("request-promotion", help="Request human approval before Layer 2 promotion")
     request_promotion.add_argument("--topic-slug", required=True)
     request_promotion.add_argument("--candidate-id", required=True)
@@ -453,6 +475,12 @@ def main() -> int:
             skill_queries=args.skill_query,
             human_request=args.human_request,
         )
+        service.remember_current_topic(
+            topic_slug=payload["topic_slug"],
+            updated_by=args.updated_by,
+            source="bootstrap",
+            human_request=args.human_request or args.statement,
+        )
         _emit(payload, args.json)
         return 0
 
@@ -481,6 +509,12 @@ def main() -> int:
             arxiv_ids=args.arxiv_id,
             local_note_paths=args.local_note_path,
             skill_queries=args.skill_query,
+            human_request=args.human_request,
+        )
+        service.remember_current_topic(
+            topic_slug=payload["topic_slug"],
+            updated_by=args.updated_by,
+            source="resume",
             human_request=args.human_request,
         )
         _emit(payload, args.json)
@@ -770,6 +804,29 @@ def main() -> int:
 
     if args.command == "state":
         payload = {"topic_state": service.get_runtime_state(args.topic_slug)}
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "current-topic":
+        payload = {"current_topic": service.get_current_topic_memory()}
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "session-start":
+        payload = service.start_chat_session(
+            task=args.task,
+            explicit_topic_slug=args.topic_slug,
+            explicit_topic=args.topic,
+            explicit_current_topic=args.current_topic,
+            explicit_latest_topic=args.latest_topic,
+            statement=args.statement,
+            run_id=args.run_id,
+            control_note=args.control_note,
+            updated_by=args.updated_by,
+            skill_queries=args.skill_query,
+            max_auto_steps=args.max_auto_steps,
+            research_mode=args.research_mode,
+        )
         _emit(payload, args.json)
         return 0
 
