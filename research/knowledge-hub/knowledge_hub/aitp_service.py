@@ -359,6 +359,20 @@ class AITPService:
     def _research_root(self) -> Path:
         return self.kernel_root.parent
 
+    def _canonical_repo_asset_text(self, relative_path: str, *, fallback_text: str | None = None) -> str:
+        candidate = self.repo_root / relative_path
+        if candidate.exists():
+            return candidate.read_text(encoding="utf-8")
+        if fallback_text is not None:
+            return fallback_text
+        raise FileNotFoundError(f"Canonical repo asset missing: {candidate}")
+
+    def _canonical_skill_text(self, skill_name: str, *, fallback_text: str | None = None) -> str:
+        return self._canonical_repo_asset_text(
+            f"skills/{skill_name}/SKILL.md",
+            fallback_text=fallback_text,
+        )
+
     def _operation_id(self, value: str) -> str:
         if value.startswith("operation:"):
             return value
@@ -5371,6 +5385,22 @@ class AITPService:
                     },
                 ]
             )
+            if str(idea_packet.get("status") or "").strip() == "needs_clarification":
+                must_read_now.insert(
+                    1,
+                    {
+                        "path": str(idea_packet.get("note_path") or ""),
+                        "reason": "Clarify the current idea packet before deeper execution.",
+                    },
+                )
+            if str(operator_checkpoint.get("status") or "").strip() == "requested":
+                must_read_now.insert(
+                    1,
+                    {
+                        "path": str(operator_checkpoint.get("note_path") or ""),
+                        "reason": "Resolve the active operator checkpoint before deeper execution.",
+                    },
+                )
         else:
             if str(operator_checkpoint.get("status") or "").strip() == "requested":
                 must_read_now.append(
@@ -7179,7 +7209,13 @@ export default AITPPlugin;
         plugin_path = plugin_root / "aitp.js"
         if plugin_path.exists() and not force:
             raise FileExistsError(f"Refusing to overwrite {plugin_path}")
-        write_text(plugin_path, self._opencode_plugin_template())
+        write_text(
+            plugin_path,
+            self._canonical_repo_asset_text(
+                ".opencode/plugins/aitp.js",
+                fallback_text=self._opencode_plugin_template(),
+            ),
+        )
         return [{"agent": "opencode", "path": str(plugin_path), "kind": "plugin"}]
 
     def _claude_session_start_hook_template(self) -> str:
@@ -7293,17 +7329,35 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
         session_start_path = hook_root / "session-start"
         if session_start_path.exists() and not force:
             raise FileExistsError(f"Refusing to overwrite {session_start_path}")
-        write_executable_text(session_start_path, self._claude_session_start_hook_template())
+        write_executable_text(
+            session_start_path,
+            self._canonical_repo_asset_text(
+                "hooks/session-start",
+                fallback_text=self._claude_session_start_hook_template(),
+            ),
+        )
 
         run_hook_path = hook_root / "run-hook.cmd"
         if run_hook_path.exists() and not force:
             raise FileExistsError(f"Refusing to overwrite {run_hook_path}")
-        write_text(run_hook_path, self._claude_hook_wrapper_template())
+        write_text(
+            run_hook_path,
+            self._canonical_repo_asset_text(
+                "hooks/run-hook.cmd",
+                fallback_text=self._claude_hook_wrapper_template(),
+            ),
+        )
 
         hooks_json_path = hook_root / "hooks.json"
         if hooks_json_path.exists() and not force:
             raise FileExistsError(f"Refusing to overwrite {hooks_json_path}")
-        write_text(hooks_json_path, self._claude_hooks_manifest_template())
+        write_text(
+            hooks_json_path,
+            self._canonical_repo_asset_text(
+                "hooks/hooks.json",
+                fallback_text=self._claude_hooks_manifest_template(),
+            ),
+        )
 
         settings_path = base / "settings.json"
         if settings_path.exists():
@@ -11032,13 +11086,25 @@ Kernel root default: `{self.kernel_root}`
                 using_skill_path = using_skill_base / "SKILL.md"
                 if using_skill_path.exists() and not force:
                     raise FileExistsError(f"Refusing to overwrite {using_skill_path}")
-                write_text(using_skill_path, self._using_aitp_skill_template("codex"))
+                write_text(
+                    using_skill_path,
+                    self._canonical_skill_text(
+                        "using-aitp",
+                        fallback_text=self._using_aitp_skill_template("codex"),
+                    ),
+                )
                 installed.append({"agent": agent, "path": str(using_skill_path), "kind": "skill"})
 
                 skill_path = base / "SKILL.md"
                 if skill_path.exists() and not force:
                     raise FileExistsError(f"Refusing to overwrite {skill_path}")
-                write_text(skill_path, self._codex_skill_template())
+                write_text(
+                    skill_path,
+                    self._canonical_skill_text(
+                        "aitp-runtime",
+                        fallback_text=self._codex_skill_template(),
+                    ),
+                )
                 installed.append({"agent": agent, "path": str(skill_path), "kind": "skill"})
 
                 if target_root or scope == "project":
@@ -11092,13 +11158,25 @@ Kernel root default: `{self.kernel_root}`
             using_skill_path = using_skill_base / "SKILL.md"
             if using_skill_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {using_skill_path}")
-            write_text(using_skill_path, self._using_aitp_skill_template("opencode"))
+            write_text(
+                using_skill_path,
+                self._canonical_skill_text(
+                    "using-aitp",
+                    fallback_text=self._using_aitp_skill_template("opencode"),
+                ),
+            )
             installed.append({"agent": agent, "path": str(using_skill_path), "kind": "skill"})
 
             skill_path = skill_base / "SKILL.md"
             if skill_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {skill_path}")
-            write_text(skill_path, self._opencode_skill_template())
+            write_text(
+                skill_path,
+                self._canonical_skill_text(
+                    "aitp-runtime",
+                    fallback_text=self._opencode_skill_template(),
+                ),
+            )
             installed.append({"agent": agent, "path": str(skill_path), "kind": "skill"})
 
             setup_path = skill_base / "AITP_MCP_SETUP.md"
@@ -11130,13 +11208,25 @@ Kernel root default: `{self.kernel_root}`
             using_skill_path = using_skill_base / "SKILL.md"
             if using_skill_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {using_skill_path}")
-            write_text(using_skill_path, self._using_aitp_skill_template("claude-code"))
+            write_text(
+                using_skill_path,
+                self._canonical_skill_text(
+                    "using-aitp",
+                    fallback_text=self._using_aitp_skill_template("claude-code"),
+                ),
+            )
             installed.append({"agent": agent, "path": str(using_skill_path), "kind": "skill"})
 
             skill_path = skill_base / "SKILL.md"
             if skill_path.exists() and not force:
                 raise FileExistsError(f"Refusing to overwrite {skill_path}")
-            write_text(skill_path, self._claude_code_skill_template())
+            write_text(
+                skill_path,
+                self._canonical_skill_text(
+                    "aitp-runtime",
+                    fallback_text=self._claude_code_skill_template(),
+                ),
+            )
             installed.append({"agent": agent, "path": str(skill_path), "kind": "skill"})
 
             setup_path = skill_base / "AITP_MCP_SETUP.md"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import tempfile
 import textwrap
 import unittest
@@ -306,9 +307,19 @@ class AITPServiceTests(unittest.TestCase):
         self.root = Path(self._tmpdir.name)
         self.kernel_root = self.root / "kernel"
         self.repo_root = self.root / "repo"
+        self.package_root = Path(__file__).resolve().parents[1]
         self.kernel_root.mkdir(parents=True)
         self.repo_root.mkdir(parents=True)
         (self.kernel_root / "canonical").mkdir(parents=True, exist_ok=True)
+        (self.kernel_root / "schemas").mkdir(parents=True, exist_ok=True)
+        (self.kernel_root / "runtime" / "schemas").mkdir(parents=True, exist_ok=True)
+        for schema_path in (self.package_root / "schemas").glob("*.json"):
+            shutil.copyfile(schema_path, self.kernel_root / "schemas" / schema_path.name)
+        runtime_bundle_schema = self.package_root / "runtime" / "schemas" / "progressive-disclosure-runtime-bundle.schema.json"
+        shutil.copyfile(
+            runtime_bundle_schema,
+            self.kernel_root / "runtime" / "schemas" / runtime_bundle_schema.name,
+        )
         self.service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
 
     def tearDown(self) -> None:
@@ -809,6 +820,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["priority_rules"][0]["source"], "control_note_or_decision_contract")
         self.assertEqual(payload["action_queue_surface"]["queue_source"], "heuristic")
         self.assertEqual(payload["active_research_contract"]["question_id"], "research_question:demo-topic")
+        self.assertEqual(payload["idea_packet"]["status"], "approved_for_execution")
+        self.assertEqual(payload["operator_checkpoint"]["status"], "cancelled")
         self.assertEqual(payload["active_research_contract"]["template_mode"], "formal_theory")
         self.assertEqual(payload["backend_bridges"][0]["backend_id"], "backend:formal-theory-note-library")
         self.assertEqual(payload["promotion_gate"]["status"], "approved")
@@ -818,12 +831,12 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["lean_bridge"]["status"], "empty")
         self.assertEqual(payload["minimal_execution_brief"]["selected_action_id"], "action:demo-topic:01")
         self.assertEqual(payload["minimal_execution_brief"]["queue_source"], "heuristic")
-        self.assertEqual(payload["must_read_now"][0]["path"], "runtime/topics/demo-topic/runtime_protocol.generated.md")
+        self.assertEqual(payload["load_profile"], "light")
+        self.assertEqual(payload["must_read_now"][0]["path"], "runtime/topics/demo-topic/topic_state.json")
         self.assertEqual(payload["must_read_now"][1]["path"], "runtime/topics/demo-topic/research_question.contract.md")
-        self.assertEqual(payload["must_read_now"][2]["path"], "runtime/topics/demo-topic/topic_dashboard.md")
-        self.assertEqual(payload["must_read_now"][3]["path"], "runtime/topics/demo-topic/topic_completion.md")
-        self.assertEqual(payload["must_read_now"][4]["path"], "runtime/topics/demo-topic/validation_contract.active.md")
-        self.assertTrue(any(row["path"] == "RESEARCH_EXECUTION_GUARDRAILS.md" for row in payload["must_read_now"]))
+        self.assertEqual(payload["must_read_now"][2]["path"], "runtime/topics/demo-topic/control_note.md")
+        self.assertEqual(payload["must_read_now"][3]["path"], "runtime/topics/demo-topic/operator_console.md")
+        self.assertFalse(any(row["path"] == "RESEARCH_EXECUTION_GUARDRAILS.md" for row in payload["must_read_now"]))
         self.assertEqual(payload["escalation_triggers"][1]["trigger"], "promotion_intent")
         self.assertTrue(any(row["trigger"] == "decision_override_present" for row in payload["escalation_triggers"]))
         self.assertTrue(any(row["slice"] == "current_execution_lane" for row in payload["recommended_protocol_slices"]))
@@ -863,10 +876,12 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("## Lean bridge", note_text)
         self.assertIn("## Minimal execution brief", note_text)
         self.assertIn("## Must read now", note_text)
+        self.assertIn("## Idea packet", note_text)
+        self.assertIn("## Operator checkpoint", note_text)
         self.assertIn("## Escalate only when triggered", note_text)
         self.assertIn("`promotion_intent` status=`active`", note_text)
         self.assertIn("Prefer durable `next_actions.contract.json`", note_text)
-        self.assertIn("RESEARCH_EXECUTION_GUARDRAILS.md", note_text)
+        self.assertNotIn("RESEARCH_EXECUTION_GUARDRAILS.md", note_text)
         self.assertIn("backend:formal-theory-note-library", note_text)
         self.assertIn("## L2 promotion gate", note_text)
         self.assertIn("source-layer/scripts/register_local_note_source.py", note_text)
@@ -926,6 +941,10 @@ class AITPServiceTests(unittest.TestCase):
 
         self.assertTrue(Path(payload["research_question_contract_path"]).exists())
         self.assertTrue(Path(payload["validation_contract_path"]).exists())
+        self.assertTrue(Path(payload["idea_packet_path"]).exists())
+        self.assertTrue(Path(payload["operator_checkpoint_path"]).exists())
+        self.assertTrue(Path(payload["operator_checkpoint_note_path"]).exists())
+        self.assertTrue(Path(payload["operator_checkpoint_ledger_path"]).exists())
         self.assertTrue(Path(payload["topic_dashboard_path"]).exists())
         self.assertTrue(Path(payload["promotion_readiness_path"]).exists())
         self.assertTrue(Path(payload["gap_map_path"]).exists())
@@ -933,12 +952,59 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(Path(payload["lean_bridge_path"]).exists())
         self.assertEqual(payload["research_question_contract"]["research_mode"], "formal_derivation")
         self.assertEqual(payload["validation_contract"]["validation_mode"], "formal")
+        self.assertEqual(payload["idea_packet"]["status"], "approved_for_execution")
+        self.assertEqual(payload["operator_checkpoint"]["status"], "cancelled")
+        self.assertIn("topic_state_explainability", payload)
         self.assertEqual(payload["validation_contract"]["status"], "deferred")
         self.assertTrue(payload["open_gap_summary"]["requires_l0_return"])
         dashboard_text = Path(payload["topic_dashboard_path"]).read_text(encoding="utf-8")
         gap_text = Path(payload["gap_map_path"]).read_text(encoding="utf-8")
+        self.assertIn("Idea packet", dashboard_text)
+        self.assertIn("operator_checkpoint.active.md", dashboard_text)
+        self.assertIn("## Last evidence return", dashboard_text)
+        self.assertIn("## Active human need", dashboard_text)
         self.assertIn("return to L0", dashboard_text)
         self.assertIn("return to L0", gap_text)
+
+    def test_ensure_topic_shell_surfaces_materializes_idea_packet_for_vague_topic(self) -> None:
+        runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Topological phases from modular data",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        idea_packet_path = Path(payload["idea_packet_path"])
+        idea_packet_note_path = Path(payload["idea_packet_note_path"])
+        operator_checkpoint_path = Path(payload["operator_checkpoint_path"])
+        operator_checkpoint_note_path = Path(payload["operator_checkpoint_note_path"])
+        self.assertTrue(idea_packet_path.exists())
+        self.assertTrue(idea_packet_note_path.exists())
+        self.assertTrue(operator_checkpoint_path.exists())
+        self.assertTrue(operator_checkpoint_note_path.exists())
+        idea_packet = json.loads(idea_packet_path.read_text(encoding="utf-8"))
+        operator_checkpoint = json.loads(operator_checkpoint_path.read_text(encoding="utf-8"))
+        self.assertEqual(idea_packet["status"], "needs_clarification")
+        self.assertEqual(operator_checkpoint["status"], "requested")
+        self.assertEqual(operator_checkpoint["checkpoint_kind"], "scope_ambiguity")
+        self.assertIn("novelty_target", idea_packet["missing_fields"])
+        self.assertTrue(idea_packet["clarification_questions"])
+        dashboard_text = Path(payload["topic_dashboard_path"]).read_text(encoding="utf-8")
+        self.assertIn("needs_clarification", dashboard_text)
+        self.assertIn("Idea packet summary", dashboard_text)
+        self.assertIn("scope_ambiguity", dashboard_text)
 
     def test_topic_status_and_prepare_verification_surface_new_shell_fields(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -976,7 +1042,11 @@ class AITPServiceTests(unittest.TestCase):
 
         status_payload = self.service.topic_status(topic_slug="demo-topic")
         self.assertEqual(status_payload["topic_slug"], "demo-topic")
+        self.assertIn("topic_state", status_payload)
+        self.assertIn("topic_state_explainability", status_payload)
         self.assertIn("active_research_contract", status_payload)
+        self.assertIn("idea_packet", status_payload)
+        self.assertIn("operator_checkpoint", status_payload)
         self.assertIn("topic_completion", status_payload)
         self.assertIn("lean_bridge", status_payload)
         self.assertTrue(
@@ -991,6 +1061,137 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(verification_payload["validation_contract"]["validation_mode"], "formal")
         self.assertIn("proof or derivation step", verification_payload["validation_contract"]["verification_focus"])
         self.assertTrue(Path(verification_payload["runtime_protocol"]["runtime_protocol_path"]).exists())
+
+    def test_runtime_bundle_and_session_start_require_idea_packet_when_clarification_needed(self) -> None:
+        runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Topological phases from modular data",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        protocol_paths = self.service._materialize_runtime_protocol_bundle(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+            human_request="Topological phases from modular data",
+        )
+        bundle = json.loads(Path(protocol_paths["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(bundle["idea_packet"]["status"], "needs_clarification")
+        self.assertEqual(bundle["operator_checkpoint"]["status"], "requested")
+        self.assertEqual(bundle["operator_checkpoint"]["checkpoint_kind"], "scope_ambiguity")
+        self.assertTrue(any(row["path"].endswith("idea_packet.md") for row in bundle["must_read_now"]))
+        self.assertTrue(any(row["path"].endswith("operator_checkpoint.active.md") for row in bundle["must_read_now"]))
+        self.assertTrue(any("idea_packet.md" in row for row in bundle["active_hard_constraints"]))
+        self.assertTrue(any("operator_checkpoint.active.md" in row for row in bundle["active_hard_constraints"]))
+
+        session_payload = self.service._materialize_session_start_contract(
+            task="Topological phases from modular data",
+            routing={
+                "route": "request_new_topic",
+                "reason": "No durable current topic matched the request.",
+                "topic_slug": "demo-topic",
+                "topic": "Demo Topic",
+            },
+            loop_payload={
+                "topic_slug": "demo-topic",
+                "runtime_protocol": protocol_paths,
+                "loop_state": {
+                    "entry_conformance": "pass",
+                    "exit_conformance": "pass",
+                    "capability_status": "ready",
+                    "trust_status": "pass",
+                },
+                "steering_artifacts": {},
+                "bootstrap": {"topic_state": {"pointers": {}}},
+                "current_topic_memory": {},
+            },
+            updated_by="aitp-session-start",
+        )
+        self.assertTrue(any(row["path"].endswith("idea_packet.md") for row in session_payload["must_read_now"]))
+        self.assertTrue(any(row["path"].endswith("operator_checkpoint.active.md") for row in session_payload["must_read_now"]))
+        self.assertTrue(any("idea_packet.md" in row for row in session_payload["hard_stops"]))
+        self.assertTrue(any("operator_checkpoint.active.md" in row for row in session_payload["hard_stops"]))
+
+    def test_answer_operator_checkpoint_updates_ledger_and_operator_console(self) -> None:
+        runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Topological phases from modular data",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "operator_console.md").write_text("# Console\n", encoding="utf-8")
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+        self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
+
+        answered = self.service.answer_operator_checkpoint(
+            topic_slug="demo-topic",
+            answer="First constrain novelty target to modular-invariant diagnostics and keep numerics out of scope.",
+            updated_by="human",
+        )
+
+        self.assertEqual(answered["operator_checkpoint"]["status"], "answered")
+        self.assertFalse(answered["operator_checkpoint"]["active"])
+        self.assertIn("modular-invariant diagnostics", answered["operator_checkpoint"]["answer"])
+        self.assertEqual(answered["topic_state_explainability"]["active_human_need"]["status"], "none")
+        ledger_rows = [
+            json.loads(line)
+            for line in Path(payload["operator_checkpoint_ledger_path"]).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(ledger_rows[-2]["status"], "requested")
+        self.assertEqual(ledger_rows[-1]["status"], "answered")
+        console_text = (runtime_root / "operator_console.md").read_text(encoding="utf-8")
+        self.assertIn("## Active operator checkpoint", console_text)
+        self.assertIn("`answered`", console_text)
+
+    def test_pending_human_promotion_gate_creates_operator_checkpoint(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Establish a bounded validation route and then review promotion readiness for the current topic.",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self._write_candidate()
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
+        self.assertEqual(payload["operator_checkpoint"]["checkpoint_kind"], "promotion_approval")
+        checkpoint_note = Path(payload["operator_checkpoint_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("candidate:demo-candidate", checkpoint_note)
+        self.assertIn("backend:theoretical-physics-knowledge-network", checkpoint_note)
 
     def test_operation_trust_registry_blocks_until_gate_is_satisfied(self) -> None:
         self._write_runtime_state()
@@ -1027,6 +1228,7 @@ class AITPServiceTests(unittest.TestCase):
 
     def test_capability_audit_writes_registry(self) -> None:
         self._write_runtime_state()
+        self.service.ensure_topic_shell_surfaces(topic_slug="demo-topic", updated_by="aitp-cli")
         self.service.scaffold_operation(
             topic_slug="demo-topic",
             run_id="2026-03-13-demo",
@@ -1052,6 +1254,111 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["overall_status"], "ready")
         self.assertEqual(payload["sections"]["layers"]["L2"]["status"], "present")
         self.assertEqual(payload["sections"]["capabilities"]["operation_trust"]["status"], "present")
+        self.assertEqual(payload["sections"]["runtime"]["idea_packet.json"]["status"], "present")
+        self.assertEqual(payload["sections"]["runtime"]["operator_checkpoint.active.json"]["status"], "present")
+        self.assertEqual(payload["sections"]["runtime"]["operator_checkpoints.jsonl"]["status"], "present")
+
+    def test_status_explainability_uses_returned_execution_result(self) -> None:
+        runtime_root = self._write_runtime_state()
+        returned_result_path = (
+            self.kernel_root
+            / "validation"
+            / "topics"
+            / "demo-topic"
+            / "runs"
+            / "2026-03-13-demo"
+            / "returned_execution_result.json"
+        )
+        returned_result_path.parent.mkdir(parents=True, exist_ok=True)
+        returned_result_path.write_text(
+            json.dumps(
+                {
+                    "result_id": "result:demo",
+                    "status": "partial",
+                    "summary": "Recovered the missing cited definition but left one bounded open gap.",
+                    "updated_at": "2026-03-27T00:00:00+08:00",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                    "pointers": {
+                        "returned_execution_result_path": "validation/topics/demo-topic/runs/2026-03-13-demo/returned_execution_result.json",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Continue the bounded derivation after inspecting the returned result.",
+                    "decision_surface": {
+                        "selected_action_id": "action:demo-topic:proof",
+                        "decision_source": "heuristic",
+                        "next_action_decision_note_path": "runtime/topics/demo-topic/next_action_decision.md",
+                    },
+                    "action_queue_surface": {
+                        "queue_source": "heuristic",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:proof",
+                    "status": "pending",
+                    "action_type": "proof_review",
+                    "summary": "Inspect the returned result and continue the bounded proof review.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "operator_console.md").write_text("# Console\n", encoding="utf-8")
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        explainability = payload["topic_state_explainability"]
+        self.assertEqual(explainability["last_evidence_return"]["kind"], "returned_execution_result")
+        self.assertEqual(explainability["last_evidence_return"]["record_id"], "result:demo")
+        self.assertIn("Recovered the missing cited definition", explainability["last_evidence_return"]["summary"])
+        self.assertEqual(explainability["next_bounded_action"]["action_type"], "proof_review")
+        topic_state = json.loads((runtime_root / "topic_state.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            topic_state["status_explainability"]["last_evidence_return"]["kind"],
+            "returned_execution_result",
+        )
+        dashboard_text = Path(payload["topic_dashboard_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Why this topic is here", dashboard_text)
+        self.assertIn("## Last evidence return", dashboard_text)
+        self.assertIn("result:demo", dashboard_text)
+        console_text = (runtime_root / "operator_console.md").read_text(encoding="utf-8")
+        self.assertIn("## Topic explainability", console_text)
+        self.assertIn("Recovered the missing cited definition", console_text)
 
     def test_doctor_reports_layer_roots_and_protocol_contracts(self) -> None:
         for filename in (
@@ -2707,18 +3014,14 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(using_skill_path.exists())
         self.assertTrue(skill_path.exists())
         self.assertTrue(setup_path.exists())
+        canonical_using_skill = (self.package_root.parent.parent / "skills" / "using-aitp" / "SKILL.md").read_text(encoding="utf-8")
+        canonical_runtime_skill = (self.package_root.parent.parent / "skills" / "aitp-runtime" / "SKILL.md").read_text(encoding="utf-8")
         using_skill_text = using_skill_path.read_text(encoding="utf-8")
         skill_text = skill_path.read_text(encoding="utf-8")
-        self.assertIn("Use when starting any conversation", using_skill_text)
-        self.assertIn("small chance", using_skill_text)
-        self.assertIn("innovation_direction.md", using_skill_path.read_text(encoding="utf-8"))
-        self.assertIn("继续这个 topic，方向改成 X", using_skill_path.read_text(encoding="utf-8"))
+        self.assertEqual(using_skill_text, canonical_using_skill)
+        self.assertEqual(skill_text, canonical_runtime_skill)
         self.assertNotIn("aitp-codex", using_skill_text)
         self.assertNotIn("aitp-codex", skill_text)
-        self.assertIn("runtime_protocol.generated.md", skill_text)
-        self.assertIn("session_start.generated.md", skill_text)
-        self.assertIn("aitp loop", skill_text)
-        self.assertIn("aitp operation-init", skill_text)
         self.assertIn("codex mcp add aitp", setup_path.read_text(encoding="utf-8"))
         self.assertFalse(any(item["kind"] == "wrapper" for item in result["installed"]))
         self.assertFalse((codex_target / ".agents" / "bin").exists())
@@ -2755,17 +3058,18 @@ class AITPServiceTests(unittest.TestCase):
         opencode_skill_path = opencode_target / ".opencode" / "skills" / "aitp-runtime" / "SKILL.md"
         opencode_setup_path = opencode_target / ".opencode" / "skills" / "aitp-runtime" / "AITP_MCP_SETUP.md"
         opencode_plugin_path = opencode_target / ".opencode" / "plugins" / "aitp.js"
+        canonical_using_skill = (self.package_root.parent.parent / "skills" / "using-aitp" / "SKILL.md").read_text(encoding="utf-8")
+        canonical_runtime_skill = (self.package_root.parent.parent / "skills" / "aitp-runtime" / "SKILL.md").read_text(encoding="utf-8")
+        canonical_opencode_plugin = (self.package_root.parent.parent / ".opencode" / "plugins" / "aitp.js").read_text(encoding="utf-8")
         self.assertIn("aitp.js", installed_paths)
         self.assertIn("AITP_MCP_CONFIG.json", installed_paths)
         self.assertTrue(opencode_using_skill_path.exists())
         self.assertTrue(opencode_skill_path.exists())
         self.assertTrue(opencode_setup_path.exists())
         self.assertTrue(opencode_plugin_path.exists())
-        self.assertIn("Session-start routing invariant", opencode_using_skill_path.read_text(encoding="utf-8"))
-        self.assertIn("OpenCode plugin bootstrap", opencode_skill_path.read_text(encoding="utf-8"))
-        plugin_text = opencode_plugin_path.read_text(encoding="utf-8")
-        self.assertIn("experimental.chat.system.transform", plugin_text)
-        self.assertIn("using-aitp", plugin_text)
+        self.assertEqual(opencode_using_skill_path.read_text(encoding="utf-8"), canonical_using_skill)
+        self.assertEqual(opencode_skill_path.read_text(encoding="utf-8"), canonical_runtime_skill)
+        self.assertEqual(opencode_plugin_path.read_text(encoding="utf-8"), canonical_opencode_plugin)
         self.assertFalse((opencode_target / ".opencode" / "commands").exists())
 
         claude_target = self.root / "claude-workspace"
@@ -2784,14 +3088,23 @@ class AITPServiceTests(unittest.TestCase):
         claude_using_skill_path = claude_target / ".claude" / "skills" / "using-aitp" / "SKILL.md"
         claude_skill_path = claude_target / ".claude" / "skills" / "aitp-runtime" / "SKILL.md"
         claude_hook_path = claude_target / ".claude" / "hooks" / "session-start"
+        claude_run_hook_path = claude_target / ".claude" / "hooks" / "run-hook.cmd"
+        claude_hooks_json_path = claude_target / ".claude" / "hooks" / "hooks.json"
         claude_settings_path = claude_target / ".claude" / "settings.json"
+        canonical_claude_hook = (self.package_root.parent.parent / "hooks" / "session-start").read_text(encoding="utf-8")
+        canonical_claude_run_hook = (self.package_root.parent.parent / "hooks" / "run-hook.cmd").read_text(encoding="utf-8")
+        canonical_claude_hooks_json = (self.package_root.parent.parent / "hooks" / "hooks.json").read_text(encoding="utf-8")
         self.assertTrue(claude_using_skill_path.exists())
         self.assertTrue(claude_skill_path.exists())
         self.assertTrue(claude_hook_path.exists())
+        self.assertTrue(claude_run_hook_path.exists())
+        self.assertTrue(claude_hooks_json_path.exists())
         self.assertTrue(claude_settings_path.exists())
-        self.assertIn("Use this skill to decide whether the current task must be governed by AITP", claude_using_skill_path.read_text(encoding="utf-8"))
-        self.assertIn("Claude SessionStart bootstrap", claude_skill_path.read_text(encoding="utf-8"))
-        self.assertIn("using-aitp", claude_hook_path.read_text(encoding="utf-8"))
+        self.assertEqual(claude_using_skill_path.read_text(encoding="utf-8"), canonical_using_skill)
+        self.assertEqual(claude_skill_path.read_text(encoding="utf-8"), canonical_runtime_skill)
+        self.assertEqual(claude_hook_path.read_text(encoding="utf-8"), canonical_claude_hook)
+        self.assertEqual(claude_run_hook_path.read_text(encoding="utf-8"), canonical_claude_run_hook)
+        self.assertEqual(claude_hooks_json_path.read_text(encoding="utf-8"), canonical_claude_hooks_json)
         settings_payload = json.loads(claude_settings_path.read_text(encoding="utf-8"))
         self.assertIn("SessionStart", settings_payload["hooks"])
         self.assertFalse((claude_target / ".claude" / "commands").exists())
