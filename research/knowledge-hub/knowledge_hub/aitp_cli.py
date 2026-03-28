@@ -539,7 +539,15 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--no-mcp", action="store_true")
     install.add_argument("--json", action="store_true")
 
+    migrate = subparsers.add_parser("migrate-local-install", help="Converge a mixed local AITP install to the canonical repo-backed install")
+    migrate.add_argument("--workspace-root", required=True)
+    migrate.add_argument("--backup-root")
+    migrate.add_argument("--agent", choices=["codex", "claude-code", "opencode"], action="append", default=[])
+    migrate.add_argument("--with-mcp", action="store_true")
+    migrate.add_argument("--json", action="store_true")
+
     doctor = subparsers.add_parser("doctor", help="Show AITP CLI install status")
+    doctor.add_argument("--workspace-root")
     doctor.add_argument("--json", action="store_true")
 
     return parser
@@ -1128,8 +1136,18 @@ def main() -> int:
         _emit(payload, args.json)
         return 0
 
+    if args.command == "migrate-local-install":
+        payload = service.migrate_local_install(
+            workspace_root=args.workspace_root,
+            backup_root=args.backup_root,
+            agents=args.agent or None,
+            with_mcp=args.with_mcp,
+        )
+        _emit(payload, args.json)
+        return 0
+
     if args.command == "doctor":
-        payload = service.ensure_cli_installed()
+        payload = service.ensure_cli_installed(workspace_root=args.workspace_root)
         _emit(payload, args.json)
         return 0
 

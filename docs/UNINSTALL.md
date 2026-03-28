@@ -29,6 +29,11 @@ None of these should require a custom `/aitp` command bundle for normal use.
 Uninstall the assets that match the mode you actually used. Do not assume that
 every platform writes the same files.
 
+If your machine is in a mixed state rather than a clean canonical install, do
+not start with uninstall. First inspect or converge the install through:
+
+- [`docs/MIGRATE_LOCAL_INSTALL.md`](MIGRATE_LOCAL_INSTALL.md)
+
 The commands below use POSIX-style `rm`. On Windows, remove the same paths with
 PowerShell `Remove-Item -Recurse -Force` or with File Explorer.
 

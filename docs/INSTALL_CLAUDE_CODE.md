@@ -17,6 +17,11 @@ python -m pip install -e research/knowledge-hub
 aitp doctor
 ```
 
+If this machine previously used an older workspace-backed editable install,
+first converge the local install:
+
+- [`docs/MIGRATE_LOCAL_INSTALL.md`](MIGRATE_LOCAL_INSTALL.md)
+
 ## Preferred install
 
 Install the AITP Claude plugin from this repository so Claude Code can load:

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from .decision_point_handler import get_all_decision_points, list_pending_decision_points
 from .decision_trace_handler import get_decision_traces
@@ -359,6 +360,9 @@ class AITPService:
     def _research_root(self) -> Path:
         return self.kernel_root.parent
 
+    def _canonical_package_root(self) -> Path:
+        return self.repo_root / "research" / "knowledge-hub"
+
     def _canonical_repo_asset_text(self, relative_path: str, *, fallback_text: str | None = None) -> str:
         candidate = self.repo_root / relative_path
         if candidate.exists():
@@ -372,6 +376,110 @@ class AITPService:
             f"skills/{skill_name}/SKILL.md",
             fallback_text=fallback_text,
         )
+
+    def _pip_show_package(self, package_name: str) -> dict[str, str]:
+        completed = subprocess.run(
+            [sys.executable, "-m", "pip", "show", package_name],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            return {}
+        payload: dict[str, str] = {}
+        for raw_line in completed.stdout.splitlines():
+            if ":" not in raw_line:
+                continue
+            key, value = raw_line.split(":", 1)
+            payload[key.strip().lower()] = value.strip()
+        return payload
+
+    def _text_matches_canonical(self, path: Path, canonical_relative_path: str) -> bool:
+        canonical_path = self.repo_root / canonical_relative_path
+        if not path.exists() or not canonical_path.exists():
+            return False
+        return path.read_text(encoding="utf-8") == canonical_path.read_text(encoding="utf-8")
+
+    def _workspace_legacy_entrypoints(self, workspace_root: Path) -> list[Path]:
+        return [
+            path
+            for path in (
+                workspace_root / "AITP_COMMAND_HARNESS.md",
+                workspace_root / "AITP_MCP_CONFIG.json",
+                workspace_root / "aitp.md",
+                workspace_root / "aitp-loop.md",
+                workspace_root / "aitp-resume.md",
+                workspace_root / "aitp-audit.md",
+            )
+            if path.exists()
+        ]
+
+    def _claude_legacy_command_paths(self) -> list[Path]:
+        command_root = Path.home() / ".claude" / "commands"
+        if not command_root.exists():
+            return []
+        return sorted(command_root.glob("aitp*.md"))
+
+    def _ensure_opencode_plugin_enabled(self) -> dict[str, Any]:
+        config_path = Path.home() / ".config" / "opencode" / "opencode.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        if config_path.exists():
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
+        else:
+            payload = {"$schema": "https://opencode.ai/config.json"}
+        plugin_rows = payload.setdefault("plugin", [])
+        if not isinstance(plugin_rows, list):
+            plugin_rows = []
+            payload["plugin"] = plugin_rows
+        canonical_plugin = "aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"
+        if canonical_plugin not in plugin_rows:
+            plugin_rows.append(canonical_plugin)
+        write_json(config_path, payload)
+        return {"config_path": str(config_path), "plugin_entry": canonical_plugin}
+
+    def _opencode_plugin_enabled(self) -> tuple[bool, Path, list[str]]:
+        config_path = Path.home() / ".config" / "opencode" / "opencode.json"
+        if not config_path.exists():
+            return False, config_path, []
+        try:
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return False, config_path, []
+        plugin_rows = payload.get("plugin")
+        if not isinstance(plugin_rows, list):
+            return False, config_path, []
+        normalized_rows = [str(item) for item in plugin_rows]
+        enabled = any("aitp@" in item for item in normalized_rows)
+        return enabled, config_path, normalized_rows
+
+    def _claude_hook_status(self) -> dict[str, Any]:
+        base = Path.home() / ".claude"
+        return {
+            "using_skill": (base / "skills" / "using-aitp" / "SKILL.md").exists(),
+            "runtime_skill": (base / "skills" / "aitp-runtime" / "SKILL.md").exists(),
+            "session_start_hook": (base / "hooks" / "session-start").exists(),
+            "hook_wrapper": (base / "hooks" / "run-hook.cmd").exists(),
+            "hooks_manifest": (base / "hooks" / "hooks.json").exists(),
+            "settings": (base / "settings.json").exists(),
+        }
+
+    def _codex_skill_status(self) -> dict[str, Any]:
+        using_path = Path.home() / ".agents" / "skills" / "using-aitp" / "SKILL.md"
+        runtime_path = Path.home() / ".agents" / "skills" / "aitp-runtime" / "SKILL.md"
+        return {
+            "using_skill_path": str(using_path),
+            "runtime_skill_path": str(runtime_path),
+            "using_skill_present": using_path.exists(),
+            "runtime_skill_present": runtime_path.exists(),
+            "using_skill_matches_canonical": self._text_matches_canonical(using_path, "skills/using-aitp/SKILL.md"),
+            "runtime_skill_matches_canonical": self._text_matches_canonical(runtime_path, "skills/aitp-runtime/SKILL.md"),
+        }
+
+    def _backup_and_move(self, path: Path, backup_root: Path, backup_subdir: str) -> dict[str, str]:
+        destination = backup_root / backup_subdir / path.name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(path), str(destination))
+        return {"original_path": str(path), "backup_path": str(destination)}
 
     def _operation_id(self, value: str) -> str:
         if value.startswith("operation:"):
@@ -11242,19 +11350,26 @@ Kernel root default: `{self.kernel_root}`
 
         raise ValueError(f"Unsupported agent: {agent}")
 
-    def ensure_cli_installed(self) -> dict[str, Any]:
+    def ensure_cli_installed(self, *, workspace_root: str | None = None) -> dict[str, Any]:
         command_path = shutil.which("aitp")
         mcp_path = shutil.which("aitp-mcp")
         codex_path = shutil.which("codex")
         mcporter_path = shutil.which("mcporter")
-        opencode_config = Path.home() / ".config" / "opencode" / "opencode.json"
-        opencode_has_aitp = False
-        if opencode_config.exists():
-            try:
-                opencode_payload = json.loads(opencode_config.read_text(encoding="utf-8"))
-                opencode_has_aitp = bool(opencode_payload.get("mcp", {}).get("aitp"))
-            except json.JSONDecodeError:
-                opencode_has_aitp = False
+        workspace_path = (
+            Path(workspace_root).expanduser().resolve()
+            if workspace_root
+            else (self.repo_root.parents[1] / "Theoretical-Physics" if (self.repo_root.parents[1] / "Theoretical-Physics").exists() else Path.cwd().resolve())
+        )
+        pip_payload = self._pip_show_package("aitp-kernel")
+        editable_location = str(pip_payload.get("editable project location") or "").strip()
+        version = str(pip_payload.get("version") or "").strip()
+        canonical_package_root = str(self._canonical_package_root().resolve())
+        stale_cli = bool(editable_location) and Path(editable_location).resolve() != self._canonical_package_root().resolve()
+        codex_skill_status = self._codex_skill_status()
+        claude_hook_status = self._claude_hook_status()
+        opencode_plugin_enabled, opencode_config_path, opencode_plugins = self._opencode_plugin_enabled()
+        legacy_entrypoints = self._workspace_legacy_entrypoints(workspace_path)
+        legacy_claude_commands = self._claude_legacy_command_paths()
         layer_roots = {
             "L0": str(self.kernel_root / "source-layer"),
             "L1": str(self.kernel_root / "intake"),
@@ -11286,17 +11401,137 @@ Kernel root default: `{self.kernel_root}`
             "indexing_rules": self.kernel_root / "INDEXING_RULES.md",
             "l0_source_layer": self.kernel_root / "L0_SOURCE_LAYER.md",
         }
+        issues: list[str] = []
+        if stale_cli:
+            issues.append("stale_cli")
+        if legacy_entrypoints:
+            issues.append("legacy_workspace_entrypoints_present")
+        if not codex_skill_status["using_skill_present"] or not codex_skill_status["runtime_skill_present"]:
+            issues.append("codex_skill_surface_missing")
+        elif not codex_skill_status["using_skill_matches_canonical"] or not codex_skill_status["runtime_skill_matches_canonical"]:
+            issues.append("codex_skill_surface_stale")
+        if not all(claude_hook_status.values()):
+            issues.append("claude_hook_surface_incomplete")
+        if legacy_claude_commands:
+            issues.append("claude_legacy_commands_present")
+        if not opencode_plugin_enabled:
+            issues.append("opencode_plugin_not_enabled")
+        overall_status = "clean" if not issues else "mixed_install"
         return {
+            "overall_status": overall_status,
+            "issues": issues,
             "aitp": command_path,
             "aitp_mcp": mcp_path,
             "codex": codex_path,
             "mcporter": mcporter_path,
             "kernel_root": str(self.kernel_root),
             "repo_root": str(self.repo_root),
-            "opencode_has_aitp_mcp": opencode_has_aitp,
+            "workspace_root": str(workspace_path),
+            "package": {
+                "name": "aitp-kernel",
+                "version": version,
+                "editable_project_location": editable_location,
+                "canonical_package_root": canonical_package_root,
+                "matches_canonical": not stale_cli and bool(editable_location),
+            },
+            "command_paths": {
+                "aitp": command_path or "",
+                "aitp_mcp": mcp_path or "",
+            },
+            "codex_skill_surface": codex_skill_status,
+            "claude_hook_surface": {
+                **claude_hook_status,
+                "legacy_command_paths": [str(path) for path in legacy_claude_commands],
+            },
+            "opencode_plugin_surface": {
+                "enabled": opencode_plugin_enabled,
+                "config_path": str(opencode_config_path),
+                "plugins": opencode_plugins,
+            },
+            "legacy_workspace_entrypoints": [str(path) for path in legacy_entrypoints],
             "layer_roots": layer_status,
             "protocol_contracts": {
                 name: {"path": str(path), "status": "present" if path.exists() else "missing"}
                 for name, path in contract_paths.items()
             },
+        }
+
+    def migrate_local_install(
+        self,
+        *,
+        workspace_root: str,
+        backup_root: str | None = None,
+        agents: list[str] | None = None,
+        with_mcp: bool = False,
+    ) -> dict[str, Any]:
+        workspace_path = Path(workspace_root).expanduser().resolve()
+        timestamp = datetime.now().astimezone().strftime("%Y%m%d-%H%M%S")
+        resolved_backup_root = (
+            Path(backup_root).expanduser().resolve()
+            if backup_root
+            else (workspace_path / "archive" / "aitp-local-migration" / timestamp).resolve()
+        )
+        resolved_backup_root.mkdir(parents=True, exist_ok=True)
+
+        before = self.ensure_cli_installed(workspace_root=str(workspace_path))
+        backup_log: list[dict[str, str]] = []
+        for path in self._workspace_legacy_entrypoints(workspace_path):
+            backup_log.append(self._backup_and_move(path, resolved_backup_root, "workspace-root-legacy"))
+        for path in self._claude_legacy_command_paths():
+            backup_log.append(self._backup_and_move(path, resolved_backup_root, "claude-legacy-commands"))
+
+        pip_before = self._pip_show_package("aitp-kernel")
+        editable_location = str(pip_before.get("editable project location") or "").strip()
+        canonical_package_root = self._canonical_package_root().resolve()
+        pip_actions: list[dict[str, Any]] = []
+        if not editable_location or Path(editable_location).resolve() != canonical_package_root:
+            uninstall_cmd = [sys.executable, "-m", "pip", "uninstall", "-y", "aitp-kernel"]
+            uninstall_run = subprocess.run(uninstall_cmd, check=False, capture_output=True, text=True)
+            pip_actions.append(
+                {
+                    "step": "uninstall_old_aitp_kernel",
+                    "command": uninstall_cmd,
+                    "returncode": uninstall_run.returncode,
+                    "stdout": uninstall_run.stdout.strip(),
+                    "stderr": uninstall_run.stderr.strip(),
+                }
+            )
+            install_cmd = [sys.executable, "-m", "pip", "install", "-e", str(canonical_package_root)]
+            install_run = subprocess.run(install_cmd, check=False, capture_output=True, text=True)
+            if install_run.returncode != 0:
+                raise RuntimeError(install_run.stderr.strip() or install_run.stdout.strip() or "pip install failed")
+            pip_actions.append(
+                {
+                    "step": "install_canonical_aitp_kernel",
+                    "command": install_cmd,
+                    "returncode": install_run.returncode,
+                    "stdout": install_run.stdout.strip(),
+                    "stderr": install_run.stderr.strip(),
+                }
+            )
+
+        refreshed_agents = agents or ["codex", "claude-code", "opencode"]
+        installed_assets: list[dict[str, str]] = []
+        for agent in refreshed_agents:
+            installed_assets.extend(
+                self.install_agent(
+                    agent=agent,
+                    scope="user",
+                    force=True,
+                    install_mcp=with_mcp,
+                )["installed"]
+            )
+        opencode_plugin_update = self._ensure_opencode_plugin_enabled()
+        after = self.ensure_cli_installed(workspace_root=str(workspace_path))
+        return {
+            "status": "success",
+            "workspace_root": str(workspace_path),
+            "backup_root": str(resolved_backup_root),
+            "backup_log": backup_log,
+            "pip_before": pip_before,
+            "pip_actions": pip_actions,
+            "installed_assets": installed_assets,
+            "opencode_plugin_update": opencode_plugin_update,
+            "doctor_before": before,
+            "doctor_after": after,
         }

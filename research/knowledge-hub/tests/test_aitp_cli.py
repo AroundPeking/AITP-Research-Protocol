@@ -558,6 +558,19 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(args.command, "install-agent")
         self.assertEqual(args.agent, "claude-code")
 
+    def test_migrate_local_install_and_doctor_workspace_flags_are_registered(self) -> None:
+        parser = aitp_cli.build_parser()
+        migrate_args = parser.parse_args(
+            ["migrate-local-install", "--workspace-root", "D:\\BaiduSyncdisk\\Theoretical-Physics", "--agent", "codex"]
+        )
+        self.assertEqual(migrate_args.command, "migrate-local-install")
+        self.assertEqual(migrate_args.workspace_root, "D:\\BaiduSyncdisk\\Theoretical-Physics")
+        self.assertEqual(migrate_args.agent, ["codex"])
+
+        doctor_args = parser.parse_args(["doctor", "--workspace-root", "D:\\BaiduSyncdisk\\Theoretical-Physics"])
+        self.assertEqual(doctor_args.command, "doctor")
+        self.assertEqual(doctor_args.workspace_root, "D:\\BaiduSyncdisk\\Theoretical-Physics")
+
 
 if __name__ == "__main__":
     unittest.main()

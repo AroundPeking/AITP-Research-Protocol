@@ -156,6 +156,11 @@ workspace-seeding path. The public default is the same shape as Superpowers:
 skill discovery for Codex, plugin bootstrap for OpenCode, and SessionStart
 bootstrap for Claude Code.
 
+If you previously installed AITP from an older private workspace checkout,
+converge your machine first:
+
+- [`docs/MIGRATE_LOCAL_INSTALL.md`](docs/MIGRATE_LOCAL_INSTALL.md)
+
 If you are choosing from scratch:
 
 - use `Codex` when you want the cleanest current end-to-end AITP experience;
@@ -604,6 +609,7 @@ Kernel contract surface:
 
 Install guides:
 
+- [`docs/MIGRATE_LOCAL_INSTALL.md`](docs/MIGRATE_LOCAL_INSTALL.md)
 - [`docs/INSTALL_CODEX.md`](docs/INSTALL_CODEX.md)
 - [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md)
 - [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md)

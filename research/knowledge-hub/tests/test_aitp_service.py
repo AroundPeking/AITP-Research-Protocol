@@ -6,6 +6,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import sys
 
@@ -1395,6 +1396,77 @@ class AITPServiceTests(unittest.TestCase):
             payload["protocol_contracts"]["formal_theory_upstream_reference_protocol"]["status"],
             "present",
         )
+
+    def test_doctor_detects_mixed_install_signals(self) -> None:
+        workspace_root = self.root / "Theoretical-Physics"
+        workspace_root.mkdir(parents=True, exist_ok=True)
+        (workspace_root / "AITP_COMMAND_HARNESS.md").write_text("legacy\n", encoding="utf-8")
+        codex_using = Path.home() / ".agents" / "skills" / "using-aitp"
+        codex_runtime = Path.home() / ".agents" / "skills" / "aitp-runtime"
+        codex_using.mkdir(parents=True, exist_ok=True)
+        codex_runtime.mkdir(parents=True, exist_ok=True)
+        (codex_using / "SKILL.md").write_text(
+            (self.package_root.parent.parent / "skills" / "using-aitp" / "SKILL.md").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        (codex_runtime / "SKILL.md").write_text(
+            (self.package_root.parent.parent / "skills" / "aitp-runtime" / "SKILL.md").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        with patch.object(self.service, "_pip_show_package", return_value={"version": "0.3.1", "editable project location": str(self.root / "old-workspace" / "research" / "knowledge-hub")}):
+            with patch("knowledge_hub.aitp_service.shutil.which", side_effect=lambda name: "C:\\temp\\aitp.exe" if name == "aitp" else ""):
+                payload = self.service.ensure_cli_installed(workspace_root=str(workspace_root))
+
+        self.assertEqual(payload["overall_status"], "mixed_install")
+        self.assertIn("stale_cli", payload["issues"])
+        self.assertIn("legacy_workspace_entrypoints_present", payload["issues"])
+
+    def test_migrate_local_install_moves_workspace_legacy_and_records_pip_actions(self) -> None:
+        workspace_root = self.root / "Theoretical-Physics"
+        workspace_root.mkdir(parents=True, exist_ok=True)
+        for name in ("AITP_COMMAND_HARNESS.md", "aitp.md", "aitp-loop.md"):
+            (workspace_root / name).write_text("legacy\n", encoding="utf-8")
+
+        install_calls: list[tuple[str, bool]] = []
+
+        def fake_install_agent(*, agent: str, scope: str = "user", target_root: str | None = None, force: bool = True, install_mcp: bool = True):
+            install_calls.append((agent, install_mcp))
+            return {"installed": [{"agent": agent, "path": f"/tmp/{agent}", "kind": "skill"}]}
+
+        def fake_run(argv, check=False, capture_output=True, text=True):  # noqa: ANN001
+            class Result:
+                def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+                    self.returncode = returncode
+                    self.stdout = stdout
+                    self.stderr = stderr
+
+            if argv[:4] == [__import__("sys").executable, "-m", "pip", "show"]:
+                return Result(
+                    0,
+                    "Name: aitp-kernel\nVersion: 0.3.1\nEditable project location: D:\\old-workspace\\research\\knowledge-hub\n",
+                )
+            if argv[:4] == [__import__("sys").executable, "-m", "pip", "uninstall"]:
+                return Result(0, "uninstalled", "")
+            if argv[:4] == [__import__("sys").executable, "-m", "pip", "install"]:
+                return Result(0, "installed", "")
+            return Result(0, "", "")
+
+        with patch("knowledge_hub.aitp_service.subprocess.run", side_effect=fake_run):
+            with patch.object(self.service, "install_agent", side_effect=fake_install_agent):
+                with patch.object(self.service, "_ensure_opencode_plugin_enabled", return_value={"config_path": "C:\\temp\\opencode.json", "plugin_entry": "aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"}):
+                    result = self.service.migrate_local_install(
+                        workspace_root=str(workspace_root),
+                        agents=["codex", "claude-code", "opencode"],
+                        with_mcp=False,
+                    )
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(len(result["backup_log"]), 3)
+        self.assertTrue((Path(result["backup_root"]) / "workspace-root-legacy" / "AITP_COMMAND_HARNESS.md").exists())
+        self.assertFalse((workspace_root / "AITP_COMMAND_HARNESS.md").exists())
+        self.assertIn(("codex", False), install_calls)
+        self.assertIn(("claude-code", False), install_calls)
+        self.assertIn(("opencode", False), install_calls)
 
     def test_run_topic_loop_writes_loop_state_and_executes_auto_actions(self) -> None:
         service = _LoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
