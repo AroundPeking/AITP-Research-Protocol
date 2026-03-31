@@ -261,10 +261,13 @@ The Jones Chapter 4 acceptance script is the bounded formal-theory acceptance
 for the current Jones benchmark topic: it reuses the active
 `jones-von-neumann-algebras` topic, seeds a new Chapter 4 finite-dimensional
 finite-product candidate around the compile-checked theorem packet, runs
-coverage + formal-theory review, dispatches the reviewed controller actions for
-`topic_completion`, `lean_bridge`, and `auto_promote_candidate`, and verifies
-that the resulting packet stays honest about still missing the stronger
-algebra-level product theorem and the later whole-book routes.
+coverage + formal-theory review, records theorem-facing strategy memory,
+compiles a formal-theory `topic_skill_projection`, human-promotes that
+projection into `units/topic-skill-projections/`, dispatches the reviewed
+controller actions for `topic_completion`, `lean_bridge`, and
+`auto_promote_candidate`, and verifies that both the projection and the theorem
+packet stay honest about still missing the stronger algebra-level product
+theorem and the later whole-book routes.
 
 The scRPA thesis acceptance script is a real-topic shell acceptance for the
 formal-theory lane: it opens a topic from the master's-thesis scRPA chapter,
@@ -280,6 +283,11 @@ opens a `code_method` topic around that workflow, records a baseline-gated
 coding operation plus strategy memory, compiles a `topic_skill_projection`, and
 verifies that operation trust and runtime surfaces stay inside AITP instead of
 turning into an untracked coding side quest.
+
+`topic_skill_projection` is reusable execution memory. When the lane is
+`formal_theory`, that means the projection tells the next agent what theorem-
+facing artifacts to read and what bounded route is safe to reuse; it is not a
+theorem certificate and it does not stand in for proof closure.
 
 ## AITP And GSD
 

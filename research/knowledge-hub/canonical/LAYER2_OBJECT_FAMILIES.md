@@ -334,7 +334,8 @@ Use for:
 - validated reusable execution projections compiled from a mature topic,
 - lane-specific startup/read-order contracts,
 - benchmark-first or trust-gated execution capsules,
-- topic-derived agent-facing route memory that is stable enough for reuse.
+- topic-derived agent-facing route memory that is stable enough for reuse,
+- bounded formal-theory execution capsules whose theorem-facing trust artifacts are already explicit and ready.
 
 `payload` should usually include:
 - `source_topic_slug`
@@ -352,7 +353,13 @@ Use for:
 Do not use for:
 - raw runtime state for the current active topic,
 - unvalidated prompt fragments,
-- ad hoc operator notes that have not yet stabilized across runs.
+- ad hoc operator notes that have not yet stabilized across runs,
+- theorem certificates, proof-complete packets, or any object whose main identity is mathematical truth rather than reusable execution guidance.
+
+For `formal_theory`:
+- require an active run plus explicit theorem-facing trust artifacts before treating the projection as reusable,
+- treat the projection as a read-order and route-memory capsule, not as a promoted theorem statement,
+- keep promotion human-reviewed even when neighboring theory packets can enter `L2_auto`.
 
 ### 20. `bridge`
 

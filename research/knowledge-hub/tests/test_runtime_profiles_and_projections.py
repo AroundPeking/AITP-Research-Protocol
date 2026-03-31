@@ -403,6 +403,53 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         )
         self.assertTrue(Path(projection_result["path"]).exists())
 
+    def test_topic_skill_projection_schema_accepts_formal_theory_payload(self) -> None:
+        schema = json.loads(
+            (self.kernel_root / "schemas" / "topic-skill-projection.schema.json").read_text(encoding="utf-8")
+        )
+        payload = {
+            "id": "topic_skill_projection:formal-demo",
+            "topic_slug": "formal-demo",
+            "source_topic_slug": "formal-demo",
+            "run_id": "run-formal-001",
+            "title": "Formal Demo Topic Skill Projection",
+            "summary": "Reusable execution projection for a bounded formal-theory seed.",
+            "lane": "formal_theory",
+            "status": "blocked",
+            "status_reason": "Projection is blocked until a ready formal_theory_review.json and promotion-ready topic_completion state exist for the active run.",
+            "candidate_id": None,
+            "intended_l2_target": None,
+            "entry_signals": ["lane=formal_theory", "formal_theory_review=missing"],
+            "required_first_reads": [
+                "validation/topics/formal-demo/runs/run-formal-001/theory-packets/candidate-demo/formal_theory_review.json"
+            ],
+            "required_first_routes": [
+                "Read the reviewed theorem-facing packet before reusing the bounded formal-theory route."
+            ],
+            "benchmark_first_rules": [
+                "Do not reuse the route until theorem-facing trust artifacts are ready."
+            ],
+            "operator_checkpoint_rules": [
+                "Require explicit human approval before promoting a formal-theory topic-skill projection."
+            ],
+            "operation_trust_requirements": [
+                "formal_theory_review.json must report overall_status=ready before route reuse."
+            ],
+            "strategy_guidance": [
+                "Treat the projection as execution memory, not theorem certification."
+            ],
+            "forbidden_proxies": [
+                "Do not treat the projection itself as a theorem certificate or proof-complete artifact."
+            ],
+            "derived_from_artifacts": [
+                "runtime/topics/formal-demo/topic_completion.json",
+                "feedback/topics/formal-demo/runs/run-formal-001/strategy_memory.jsonl"
+            ],
+            "updated_at": "2026-04-01T00:00:00+00:00",
+            "updated_by": "test",
+        }
+        jsonschema.validate(payload, schema)
+
     def test_resolve_load_profile_uses_light_by_default_and_full_for_escalation_requests(self) -> None:
         light, light_reason = self.service._resolve_load_profile(
             explicit_load_profile=None,

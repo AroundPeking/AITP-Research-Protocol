@@ -94,6 +94,15 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("symbol_binding", canonical_targets)
         self.assertIn("topic_skill_projection", canonical_targets)
 
+    def test_topic_skill_projection_schema_supports_formal_theory_contract(self) -> None:
+        payload = self._read_json("schemas/topic-skill-projection.schema.json")
+        lane_values = set(payload["properties"]["lane"]["enum"])
+        self.assertIn("formal_theory", lane_values)
+        self.assertIn("status_reason", payload["required"])
+        self.assertIn("required_first_reads", payload["required"])
+        self.assertIn("forbidden_proxies", payload["required"])
+        self.assertIn("theorem certificate", payload["description"])
+
     def test_consult_and_promotion_schemas_include_new_theory_surface(self) -> None:
         consult_payload = self._read_json("consultation/schemas/consult-request.schema.json")
         requested_unit_types = set(consult_payload["properties"]["requested_unit_types"]["items"]["enum"])

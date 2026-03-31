@@ -86,7 +86,42 @@ def copy_tpkn_tree(source_root: Path, target_root: Path) -> None:
     shutil.copytree(
         source_root,
         target_root,
-        ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache", "portal", "indexes"),
+        ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache", ".lake", "portal", "indexes"),
+    )
+
+
+def ensure_kb_entrypoint(target_root: Path) -> None:
+    scripts_root = target_root / "scripts"
+    scripts_root.mkdir(parents=True, exist_ok=True)
+    kb_path = scripts_root / "kb.py"
+    if kb_path.exists():
+        return
+    kb_path.write_text(
+        textwrap.dedent(
+            """\
+            from __future__ import annotations
+
+            import subprocess
+            import sys
+            from pathlib import Path
+
+            ROOT = Path(__file__).resolve().parents[1]
+
+            def main() -> int:
+                if len(sys.argv) < 2:
+                    return 1
+                command = sys.argv[1]
+                if command == "check":
+                    return subprocess.call([sys.executable, str(ROOT / "scripts" / "check_protocol.py")], cwd=ROOT)
+                if command == "build":
+                    return subprocess.call([sys.executable, str(ROOT / "scripts" / "build.py")], cwd=ROOT)
+                return 1
+
+            if __name__ == "__main__":
+                raise SystemExit(main())
+            """
+        ),
+        encoding="utf-8",
     )
 
 
@@ -372,6 +407,7 @@ def main() -> int:
     if args.tpkn_template_root:
         tpkn_template_root = discover_tpkn_template_root(repo_root, args.tpkn_template_root)
         copy_tpkn_tree(tpkn_template_root, tpkn_work_root)
+        ensure_kb_entrypoint(tpkn_work_root)
         tpkn_template_root_value = str(tpkn_template_root)
     else:
         create_minimal_tpkn_backend(tpkn_work_root)
@@ -558,6 +594,51 @@ def main() -> int:
         ],
         prerequisite_notes="The current Chapter 4 target is intentionally limited to the finite-dimensional theorem packet already validated against the Lean benchmark.",
     )
+    formal_review_path = (
+        kernel_root
+        / "validation"
+        / "topics"
+        / args.topic_slug
+        / "runs"
+        / args.run_id
+        / "theory-packets"
+        / CANDIDATE_SLUG
+        / "formal_theory_review.json"
+    )
+    coverage_ledger_path = (
+        kernel_root
+        / "validation"
+        / "topics"
+        / args.topic_slug
+        / "runs"
+        / args.run_id
+        / "theory-packets"
+        / CANDIDATE_SLUG
+        / "coverage_ledger.json"
+    )
+    strategy_memory = service.record_strategy_memory(
+        topic_slug=args.topic_slug,
+        run_id=args.run_id,
+        strategy_type="verification_guardrail",
+        summary=(
+            "Read the ready formal-theory review packet before reusing the bounded Jones Chapter 4 theorem-facing route."
+        ),
+        outcome="helpful",
+        lane="formal_theory",
+        confidence=0.84,
+        evidence_refs=[str(formal_review_path), str(coverage_ledger_path)],
+        reuse_conditions=[
+            "bounded Jones Chapter 4 finite-dimensional theorem packet",
+            "formal_theory review overall_status=ready",
+            "topic completion promotion-ready or promoted",
+        ],
+        do_not_apply_when=[
+            "the route still lacks a ready formal_theory_review.json",
+            "the task is claiming the stronger algebra-level product theorem rather than the bounded theorem packet",
+        ],
+        human_note="Use the projection only as theorem-facing execution memory, not as theorem certification.",
+        updated_by=args.updated_by,
+    )
 
     verification = service.prepare_verification(
         topic_slug=args.topic_slug,
@@ -581,6 +662,43 @@ def main() -> int:
             "--json",
         ],
         env,
+    )
+    projection_payload = service.project_topic_skill(
+        topic_slug=args.topic_slug,
+        updated_by=args.updated_by,
+    )
+    projection = projection_payload["topic_skill_projection"]
+    projection_candidate = projection_payload["topic_skill_projection_candidate"]
+    check(
+        str(projection.get("status") or "") == "available",
+        "Expected the Jones formal-theory topic-skill projection to be available.",
+    )
+    check(
+        projection_candidate is not None,
+        "Expected the Jones formal-theory topic-skill projection to materialize an L3 candidate.",
+    )
+    projection_request = service.request_promotion(
+        topic_slug=args.topic_slug,
+        candidate_id=projection_candidate["candidate_id"],
+        run_id=args.run_id,
+        backend_id="backend:theoretical-physics-knowledge-network",
+        target_backend_root=str(tpkn_work_root),
+        requested_by=args.updated_by,
+    )
+    projection_approve = service.approve_promotion(
+        topic_slug=args.topic_slug,
+        candidate_id=projection_candidate["candidate_id"],
+        run_id=args.run_id,
+        approved_by=args.updated_by,
+    )
+    projection_promote = service.promote_candidate(
+        topic_slug=args.topic_slug,
+        candidate_id=projection_candidate["candidate_id"],
+        run_id=args.run_id,
+        promoted_by=args.updated_by,
+        target_backend_root=str(tpkn_work_root),
+        domain="operator-algebras",
+        subdomain="finite-dimensional-von-neumann-algebras",
     )
     lean_bridge = run_python_json(
         [
@@ -650,11 +768,14 @@ def main() -> int:
     )
 
     exit_audit = service.audit(topic_slug=args.topic_slug, phase="exit", updated_by=args.updated_by)
+    status_payload = service.topic_status(topic_slug=args.topic_slug, updated_by=args.updated_by)
 
     topic_completion_path = kernel_root / "runtime" / "topics" / args.topic_slug / "topic_completion.json"
     lean_bridge_path = kernel_root / "runtime" / "topics" / args.topic_slug / "lean_bridge.active.json"
     validation_contract_path = kernel_root / "runtime" / "topics" / args.topic_slug / "validation_contract.active.json"
     promotion_gate_path = kernel_root / "runtime" / "topics" / args.topic_slug / "promotion_gate.json"
+    projection_path = kernel_root / "runtime" / "topics" / args.topic_slug / "topic_skill_projection.active.json"
+    projection_note_path = kernel_root / "runtime" / "topics" / args.topic_slug / "topic_skill_projection.active.md"
     theory_packet_root = (
         kernel_root
         / "validation"
@@ -680,13 +801,26 @@ def main() -> int:
         "Expected auto promotion to return a source_manifest_path.",
     )
     source_manifest_path = Path(str(auto_promotion.get("source_manifest_path") or ""))
+    theorem_promotion_gate_payload = json.loads(promotion_gate_path.read_text(encoding="utf-8"))
+    theorem_promoted_unit_ids = theorem_promotion_gate_payload.get("promoted_units") or []
+    check(theorem_promoted_unit_ids, "Expected at least one promoted theorem unit id in promotion_gate.json.")
+    theorem_promoted_unit_slug = str(theorem_promoted_unit_ids[0]).split(":", 1)[-1]
+    theorem_promoted_unit_path = tpkn_work_root / "units" / "theorems" / f"{theorem_promoted_unit_slug}.json"
+    ensure_exists(theorem_promoted_unit_path)
+    theorem_promoted_unit_payload = json.loads(theorem_promoted_unit_path.read_text(encoding="utf-8"))
+    projection_promoted_unit_path = Path(str(projection_promote["target_unit_path"]))
+    ensure_exists(projection_promoted_unit_path)
+    projection_promoted_unit_payload = json.loads(projection_promoted_unit_path.read_text(encoding="utf-8"))
 
     for path in (
         candidate_ledger_path,
+        Path(strategy_memory["strategy_memory_path"]),
         topic_completion_path,
         lean_bridge_path,
         validation_contract_path,
         promotion_gate_path,
+        projection_path,
+        projection_note_path,
         theory_packet_root / "coverage_ledger.json",
         theory_packet_root / "formal_theory_review.json",
         lean_packet_root / "lean_ready_packet.json",
@@ -694,12 +828,19 @@ def main() -> int:
         lean_packet_root / "proof_state.json",
         theory_packet_root / "auto_promotion_report.json",
         source_manifest_path,
+        projection_promoted_unit_path,
+        theorem_promoted_unit_path,
     ):
         ensure_exists(path)
 
     candidate_rows = read_jsonl(candidate_ledger_path)
     candidate_payload = next(
         row for row in candidate_rows if str(row.get("candidate_id") or "").strip() == CANDIDATE_ID
+    )
+    projection_candidate_payload = next(
+        row
+        for row in candidate_rows
+        if str(row.get("candidate_id") or "").strip() == str(projection_candidate["candidate_id"] or "").strip()
     )
     topic_completion_payload = json.loads(topic_completion_path.read_text(encoding="utf-8"))
     lean_bridge_payload = json.loads(lean_bridge_path.read_text(encoding="utf-8"))
@@ -710,13 +851,6 @@ def main() -> int:
         for packet in lean_bridge_payload.get("packets") or []
         if str(packet.get("candidate_id") or "").strip() == CANDIDATE_ID
     )
-    promoted_unit_ids = promotion_gate_payload.get("promoted_units") or []
-    check(promoted_unit_ids, "Expected at least one promoted unit id in promotion_gate.json.")
-    promoted_unit_slug = str(promoted_unit_ids[0]).split(":", 1)[-1]
-    promoted_unit_path = tpkn_work_root / "units" / "theorems" / f"{promoted_unit_slug}.json"
-    ensure_exists(promoted_unit_path)
-    promoted_unit_payload = json.loads(promoted_unit_path.read_text(encoding="utf-8"))
-
     check(str(coverage.get("coverage_status") or "") == "pass", "Expected Jones Chapter 4 coverage audit to pass.")
     check(str(formal_review.get("overall_status") or "") == "ready", "Expected Jones Chapter 4 formal theory review to be ready.")
     check(
@@ -728,24 +862,53 @@ def main() -> int:
         "Expected the Jones Chapter 4 Lean bridge packet to be ready.",
     )
     check(
-        str(promotion_gate_payload.get("status") or "") == "promoted",
-        "Expected the Jones Chapter 4 promotion gate to finish in promoted status.",
+        str(theorem_promotion_gate_payload.get("status") or "") == "promoted",
+        "Expected the Jones Chapter 4 theorem promotion gate to finish in promoted status.",
     )
     check(
         str(candidate_payload.get("status") or "") == "auto_promoted",
         "Expected the Jones Chapter 4 candidate ledger row to end in auto_promoted status.",
     )
     check(
-        str(promoted_unit_payload.get("canonical_layer") or "") == "L2_auto",
+        str(theorem_promoted_unit_payload.get("canonical_layer") or "") == "L2_auto",
         "Expected the promoted Jones Chapter 4 unit to land in canonical_layer L2_auto.",
     )
     check(
-        str(promoted_unit_payload.get("review_mode") or "") == "ai_auto",
+        str(theorem_promoted_unit_payload.get("review_mode") or "") == "ai_auto",
         "Expected the promoted Jones Chapter 4 unit to preserve ai_auto review mode.",
     )
     check(
         str(topic_completion_payload.get("status") or "") in {"promotion-ready", "promoted"},
         "Expected Jones topic-completion status to remain promotion-ready or promoted.",
+    )
+    check(
+        str(projection_candidate_payload.get("candidate_type") or "") == "topic_skill_projection",
+        "Expected the Jones projection candidate ledger row to be topic_skill_projection.",
+    )
+    check(
+        str(projection_candidate_payload.get("promotion_mode") or "") == "human",
+        "Expected the Jones projection candidate to stay on the human-reviewed route.",
+    )
+    check(
+        str(projection_promote.get("target_unit_path") or "").replace("\\", "/").endswith("/units/topic-skill-projections/jones-von-neumann-algebras.json"),
+        "Expected the Jones projection promotion to land in units/topic-skill-projections/.",
+    )
+    check(
+        str(projection_promoted_unit_payload.get("type") or "") == "topic_skill_projection",
+        "Expected the promoted Jones projection unit type to be topic_skill_projection.",
+    )
+    check(
+        str(status_payload["topic_skill_projection"]["status"]) == "available",
+        "Expected topic status to surface the available Jones formal-theory projection.",
+    )
+    projection_note_row = next(
+        row
+        for row in status_payload["must_read_now"]
+        if str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+    )
+    check(
+        "theorem-facing route" in str(projection_note_row.get("reason") or ""),
+        "Expected runtime read-path reason to mention the theorem-facing route for the Jones projection.",
     )
 
     payload = {
@@ -759,7 +922,8 @@ def main() -> int:
         "formal_theory_review_status": formal_review["overall_status"],
         "topic_completion_status": topic_completion_payload.get("status"),
         "lean_bridge_status": candidate_lean_packet.get("status"),
-        "auto_promotion_status": promotion_gate_payload.get("status"),
+        "auto_promotion_status": theorem_promotion_gate_payload.get("status"),
+        "topic_skill_projection_status": status_payload["topic_skill_projection"]["status"],
         "artifacts": {
             "topic_state": orchestrated["files"]["topic_state"],
             "runtime_protocol": orchestrated["files"]["runtime_protocol"],
@@ -767,6 +931,9 @@ def main() -> int:
             "validation_contract": str(validation_contract_path),
             "topic_completion": str(topic_completion_path),
             "lean_bridge": str(lean_bridge_path),
+            "topic_skill_projection": str(projection_path),
+            "topic_skill_projection_note": str(projection_note_path),
+            "strategy_memory": str(strategy_memory["strategy_memory_path"]),
             "lean_ready_packet": str(lean_packet_root / "lean_ready_packet.json"),
             "proof_obligations": str(lean_packet_root / "proof_obligations.json"),
             "proof_state": str(lean_packet_root / "proof_state.json"),
@@ -774,7 +941,8 @@ def main() -> int:
             "formal_theory_review": str(theory_packet_root / "formal_theory_review.json"),
             "auto_promotion_report": str(theory_packet_root / "auto_promotion_report.json"),
             "promotion_gate": str(promotion_gate_path),
-            "promoted_unit": str(promoted_unit_path),
+            "promoted_theorem_unit": str(theorem_promoted_unit_path),
+            "promoted_projection_unit": str(projection_promoted_unit_path),
             "source_manifest": str(source_manifest_path),
             "conformance_report": exit_audit["conformance_report_path"],
         },
@@ -783,6 +951,17 @@ def main() -> int:
             "lean_bridge": lean_bridge,
             "auto_promotion": auto_promotion,
             "topic_completion_after_promotion": final_completion,
+        },
+        "projection_payload": {
+            "strategy_memory": strategy_memory,
+            "project_topic_skill": projection_payload,
+            "request_promotion": projection_request,
+            "approve_promotion": projection_approve,
+            "promote": projection_promote,
+            "topic_status": {
+                "topic_skill_projection": status_payload["topic_skill_projection"],
+                "must_read_now": status_payload["must_read_now"],
+            },
         },
         "verification_payload": verification,
     }

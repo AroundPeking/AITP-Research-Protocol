@@ -115,6 +115,9 @@ hiding those rules inside handler code.
 - Runtime should expose the human-visible operator contract rather than forcing the next agent or human to reconstruct it manually.
 - Runtime should expose why the topic is at its current stage, what the last durable evidence return was, and whether an active human checkpoint is blocking the next step.
 - Runtime may materialize a topic-skill projection when the lane is mature enough to reuse, but that projection is not the same thing as the raw live topic state.
+- For `formal_theory`, a topic-skill projection only counts as mature enough to
+  reuse when theorem-facing trust artifacts are ready; even then it is reusable
+  execution memory, not a theorem certificate.
 - Runtime should expose the minimum sufficient execution contract first, then defer deeper protocol slices until declared triggers fire.
 - Runtime should expose the global research-flow guardrails early enough that
   scope, deliverables, acceptance tests, and forbidden proxies stay visible.
@@ -218,10 +221,13 @@ python research/knowledge-hub/runtime/scripts/run_jones_chapter4_finite_product_
 That acceptance script stays on the existing `jones-von-neumann-algebras`
 topic, writes a new Chapter 4 finite-product candidate around the current
 compile-checked theorem packet, persists coverage and formal-theory review
-artifacts, dispatches `assess_topic_completion`, `prepare_lean_bridge`, and
-`auto_promote_candidate` through the public runtime-controller bridge, and
-checks that the resulting `L2_auto` writeback still keeps the stronger
-algebra-level product theorem and later whole-book routes explicitly open.
+artifacts, records theorem-facing strategy memory, compiles a
+`topic_skill_projection`, human-promotes that projection into
+`units/topic-skill-projections/`, dispatches `assess_topic_completion`,
+`prepare_lean_bridge`, and `auto_promote_candidate` through the public
+runtime-controller bridge, and checks that the resulting `L2_auto` theorem
+writeback and `L2` execution projection both keep the stronger algebra-level
+product theorem and later whole-book routes explicitly open.
 
 For a bounded code-backed acceptance pass that keeps benchmark-first discipline
 inside AITP, run:
@@ -235,6 +241,10 @@ opens a `code_method` topic around the resulting benchmark note, records a
 baseline-gated coding operation plus strategy memory, and verifies that
 operation trust stays visible in AITP runtime surfaces before any broader
 workflow claim is allowed.
+
+The analogous future formal-theory seed should follow the same rule: a runtime
+projection may tell the next agent what to read and how to enter the route, but
+it must not be mistaken for proof closure or theorem certification.
 
 For the minimal closed-loop v1, the external executor returns one JSON artifact at:
 

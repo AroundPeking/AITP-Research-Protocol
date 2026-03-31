@@ -108,6 +108,18 @@ class L2BackendContractTests(unittest.TestCase):
         self.assertIn("run_scrpa_thesis_topic_acceptance.py", runbook)
         self.assertIn("run_tfim_benchmark_code_method_acceptance.py", runbook)
 
+    def test_jones_acceptance_docs_reference_formal_theory_projection_outputs(self) -> None:
+        readme = (self.kernel_root / "README.md").read_text(encoding="utf-8")
+        runtime_readme = (self.kernel_root / "runtime" / "README.md").read_text(encoding="utf-8")
+        runbook = (self.kernel_root / "runtime" / "AITP_TEST_RUNBOOK.md").read_text(encoding="utf-8")
+
+        self.assertIn("human-promotes", readme)
+        self.assertIn("units/topic-skill-projections/", readme)
+        self.assertIn("human-promotes", runtime_readme)
+        self.assertIn("units/topic-skill-projections/", runtime_readme)
+        self.assertIn("topic_skill_projection.active.json|md", runbook)
+        self.assertIn("units/topic-skill-projections/", runbook)
+
     def test_semi_formal_theory_protocol_is_present_and_documented(self) -> None:
         protocol = self.kernel_root / "SEMI_FORMAL_THEORY_PROTOCOL.md"
         readme = (self.kernel_root / "README.md").read_text(encoding="utf-8")

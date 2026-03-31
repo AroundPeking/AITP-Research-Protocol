@@ -1154,6 +1154,158 @@ class AITPServiceTests(unittest.TestCase):
             rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
             self.assertFalse(any(row.get("candidate_type") == "topic_skill_projection" for row in rows))
 
+    def test_project_topic_skill_available_for_formal_theory_lane(self) -> None:
+        runtime_root = self._write_runtime_state(run_id="run-001")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self._write_candidate(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            candidate_type="theorem_card",
+            intended_l2_target="theorem:demo-formal-target",
+            title="Demo Formal Theorem",
+        )
+        self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro"],
+            covered_sections=["sec:intro"],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+            supporting_regression_question_ids=["regression_question:demo-theorem"],
+            supporting_oracle_ids=["question_oracle:demo-theorem"],
+            supporting_regression_run_ids=["regression_run:demo-theorem"],
+            topic_completion_status="promotion-ready",
+        )
+        self.service.audit_formal_theory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            candidate_id="candidate:demo-candidate",
+            formal_theory_role="trusted_target",
+            statement_graph_role="target_statement",
+            target_statement_id="theorem:demo-formal-target",
+            statement_graph_parents=["definition:demo-parent"],
+            statement_graph_children=["proof_fragment:demo-child"],
+            informal_statement="A bounded theorem-facing fixture for topic-skill projection gating.",
+            formal_target="Demo.FormTheory.demo_target",
+            faithfulness_status="reviewed",
+            faithfulness_strategy="bounded theorem-facing fixture",
+            comparator_audit_status="passed",
+            provenance_kind="adapted_existing_formalization",
+            attribution_requirements=["Preserve the bounded theorem-facing anchors."],
+            provenance_sources=["physlib:demo/formal-target.lean@abc1234"],
+            prerequisite_closure_status="closed",
+            lean_prerequisite_ids=["physlib:demo-parent"],
+            supporting_obligation_ids=["proof_obligation:demo-formal-target"],
+        )
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            strategy_type="verification_guardrail",
+            summary="Read the reviewed theorem-facing packet before reusing the formal-theory route.",
+            outcome="helpful",
+            lane="formal_theory",
+            confidence=0.81,
+            evidence_refs=[
+                "validation/topics/demo-topic/runs/run-001/theory-packets/candidate-demo-candidate/formal_theory_review.json"
+            ],
+        )
+
+        payload = self.service.project_topic_skill(topic_slug="demo-topic")
+
+        projection = payload["topic_skill_projection"]
+        self.assertEqual(projection["status"], "available")
+        self.assertEqual(projection["lane"], "formal_theory")
+        self.assertTrue(any("formal_theory_review.json" in row for row in projection["required_first_reads"]))
+        candidate_rows = [
+            json.loads(line)
+            for line in (self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "run-001" / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        projection_row = next(row for row in candidate_rows if row["candidate_type"] == "topic_skill_projection")
+        self.assertEqual(projection_row["promotion_mode"], "human")
+        self.assertIn("formal-theory route", projection_row["question"])
+        self.assertEqual(projection_row["proposed_validation_route"], "human-reviewed formal-theory topic-skill projection promotion")
+        status_payload = self.service.topic_status(topic_slug="demo-topic")
+        projection_note_row = next(
+            row for row in status_payload["must_read_now"] if str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+        )
+        self.assertIn("formal-theory lane", projection_note_row["reason"])
+        self.assertIn("theorem-facing route", projection_note_row["reason"])
+        self.assertNotIn("benchmark-first route", projection_note_row["reason"])
+
+    def test_project_topic_skill_blocks_for_formal_theory_without_ready_review(self) -> None:
+        runtime_root = self._write_runtime_state(run_id="run-001")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self._write_candidate(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            candidate_type="theorem_card",
+            intended_l2_target="theorem:demo-formal-target",
+            title="Demo Formal Theorem",
+        )
+        self.service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro"],
+            covered_sections=["sec:intro"],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+            supporting_regression_question_ids=["regression_question:demo-theorem"],
+            supporting_oracle_ids=["question_oracle:demo-theorem"],
+            supporting_regression_run_ids=["regression_run:demo-theorem"],
+            topic_completion_status="promotion-ready",
+        )
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            strategy_type="verification_guardrail",
+            summary="Do not reuse the theorem-facing route until the review ledger is ready.",
+            outcome="helpful",
+            lane="formal_theory",
+            confidence=0.78,
+        )
+
+        payload = self.service.project_topic_skill(topic_slug="demo-topic")
+
+        self.assertEqual(payload["topic_skill_projection"]["status"], "blocked")
+        self.assertIn("formal_theory_review", payload["topic_skill_projection"]["status_reason"])
+        ledger_path = self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "run-001" / "candidate_ledger.jsonl"
+        if ledger_path.exists():
+            rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            self.assertFalse(any(row.get("candidate_type") == "topic_skill_projection" for row in rows))
+
     def test_ensure_topic_shell_surfaces_writes_contracts_dashboard_and_gap_map(self) -> None:
         runtime_root = self._write_runtime_state()
         (runtime_root / "topic_state.json").write_text(

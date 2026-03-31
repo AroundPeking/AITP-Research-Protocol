@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://aitp.dev/schemas/topic-skill-projection.schema.json",
   "title": "TopicSkillProjection",
-  "description": "Runtime-derived reusable execution projection for a mature topic.",
+  "description": "Runtime-derived reusable execution projection for a mature topic. In the formal_theory lane this is reusable execution memory, not a theorem certificate.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -53,6 +53,7 @@
     },
     "lane": {
       "type": "string",
+      "description": "The topic lane this projection is derived from. formal_theory projections remain theorem-facing execution memory rather than theorem truth claims.",
       "enum": [
         "formal_theory",
         "toy_numeric",
@@ -69,7 +70,8 @@
     },
     "status_reason": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Human-readable explanation for why the projection is available, blocked, or not applicable. For formal_theory this should name the gating trust artifacts."
     },
     "candidate_id": {
       "type": [
@@ -92,6 +94,7 @@
     },
     "required_first_reads": {
       "type": "array",
+      "description": "Files the next agent should read before reusing the route. For formal_theory this should include theorem-facing trust artifacts before any theorem-level reuse claim.",
       "items": {
         "type": "string",
         "minLength": 1
@@ -127,6 +130,7 @@
     },
     "strategy_guidance": {
       "type": "array",
+      "description": "Reusable route guidance distilled from strategy memory. Guidance may steer execution, but does not by itself certify theorem truth or proof closure.",
       "items": {
         "type": "string",
         "minLength": 1
@@ -134,6 +138,7 @@
     },
     "forbidden_proxies": {
       "type": "array",
+      "description": "Reusable anti-proxy rules. For formal_theory this should forbid treating the projection itself as theorem certification or proof-complete evidence.",
       "items": {
         "type": "string",
         "minLength": 1

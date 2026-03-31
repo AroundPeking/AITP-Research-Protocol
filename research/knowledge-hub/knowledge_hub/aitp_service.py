@@ -588,6 +588,22 @@ class AITPService:
             "note": runtime_root / "topic_skill_projection.active.md",
         }
 
+    def _topic_skill_projection_read_reason(self, payload: dict[str, Any]) -> str:
+        lane = str(payload.get("lane") or "").strip()
+        if lane == "formal_theory":
+            return "Validated topic-skill projection for this formal-theory lane. Read it before reusing the theorem-facing route."
+        if lane == "code_method":
+            return "Validated topic-skill projection for this code-method lane. Read it before reusing the benchmark-first route."
+        return "Validated topic-skill projection for this lane. Read it before reusing the bounded route."
+
+    def _topic_skill_projection_deferred_reason(self, payload: dict[str, Any]) -> str:
+        lane = str(payload.get("lane") or "").strip()
+        if lane == "formal_theory":
+            return "The projection becomes mandatory once this topic's theorem-facing route is stable enough to reuse or promote."
+        if lane == "code_method":
+            return "The projection becomes mandatory once this topic's code-method route is stable enough to reuse or promote."
+        return "The projection becomes mandatory once this topic's bounded route is stable enough to reuse or promote."
+
     def _topic_dashboard_path(self, topic_slug: str) -> Path:
         return self._runtime_root(topic_slug) / "topic_dashboard.md"
 
@@ -1003,12 +1019,26 @@ class AITPService:
         strategy_memory: dict[str, Any],
         topic_completion: dict[str, Any],
         open_gap_summary: dict[str, Any],
+        candidate_rows: list[dict[str, Any]],
     ) -> dict[str, Any]:
         latest_run_id = str(topic_state.get("latest_run_id") or "").strip()
         lane = self._lane_for_modes(
             template_mode=research_contract.get("template_mode"),
             research_mode=research_contract.get("research_mode"),
         )
+        formal_theory_context = self._formal_theory_projection_candidate_context(
+            topic_slug=topic_slug,
+            run_id=latest_run_id or None,
+            candidate_rows=candidate_rows,
+        )
+        formal_theory_candidate_id = str((formal_theory_context or {}).get("candidate_id") or "").strip()
+        formal_theory_review_path = (formal_theory_context or {}).get("review_path")
+        formal_theory_review_status = str((formal_theory_context or {}).get("review_status") or "missing").strip()
+        formal_theory_completion_status = str(
+            (formal_theory_context or {}).get("completion_status")
+            or topic_completion.get("status")
+            or "not_assessed"
+        ).strip()
         trust_audit_path = (
             self._trust_audit_path(topic_slug, latest_run_id)
             if latest_run_id
@@ -1030,6 +1060,7 @@ class AITPService:
                 self._normalize_artifact_path(strategy_memory.get("latest_path")),
                 self._relativize(trust_audit_path) if trust_audit_path.exists() else "",
                 self._relativize(self._topic_completion_paths(topic_slug)["json"]),
+                self._relativize(formal_theory_review_path) if isinstance(formal_theory_review_path, Path) and formal_theory_review_path.exists() else "",
                 self._relativize(self._gap_map_path(topic_slug)),
                 *[str(row.get("path") or "") for row in operation_manifests],
             ]
@@ -1039,8 +1070,21 @@ class AITPService:
                 f"lane={lane}",
                 f"selected_action={str((selected_pending_action or {}).get('summary') or '').strip() or '(none)'}",
                 f"strategy_memory_status={strategy_memory.get('status') or 'absent'}",
-                f"operation_count={len(operation_manifests)}",
-                f"operation_trust={str((trust_audit or {}).get('overall_status') or 'missing')}",
+                (
+                    f"theorem_candidate={formal_theory_candidate_id or '(none)'}"
+                    if lane == "formal_theory"
+                    else f"operation_count={len(operation_manifests)}"
+                ),
+                (
+                    f"formal_theory_review={formal_theory_review_status}"
+                    if lane == "formal_theory"
+                    else f"operation_trust={str((trust_audit or {}).get('overall_status') or 'missing')}"
+                ),
+                (
+                    f"topic_completion={formal_theory_completion_status}"
+                    if lane == "formal_theory"
+                    else ""
+                ),
             ]
         )
         required_first_reads = self._dedupe_strings(
@@ -1048,7 +1092,16 @@ class AITPService:
                 self._relativize(self._research_question_contract_paths(topic_slug)["note"]),
                 self._relativize(self._validation_contract_paths(topic_slug)["note"]),
                 self._normalize_artifact_path(strategy_memory.get("latest_path")),
-                self._relativize(trust_audit_path) if trust_audit_path.exists() else "",
+                (
+                    self._relativize(formal_theory_review_path)
+                    if lane == "formal_theory" and isinstance(formal_theory_review_path, Path) and formal_theory_review_path.exists()
+                    else self._relativize(trust_audit_path) if trust_audit_path.exists() else ""
+                ),
+                (
+                    self._relativize(self._topic_completion_paths(topic_slug)["note"])
+                    if lane == "formal_theory"
+                    else ""
+                ),
                 *[
                     str(row.get("summary_path") or row.get("path") or "")
                     for row in operation_manifests
@@ -1058,32 +1111,47 @@ class AITPService:
         required_first_routes: list[str] = []
         benchmark_first_rules: list[str] = []
         operation_trust_requirements: list[str] = []
-        for manifest in operation_manifests:
-            title_hint = str(manifest.get("title") or manifest.get("operation_id") or "(missing)")
-            baseline_required = bool(manifest.get("baseline_required"))
-            atomic_required = bool(manifest.get("atomic_understanding_required"))
-            baseline_status = str(manifest.get("baseline_status") or "missing")
-            atomic_status = str(manifest.get("atomic_understanding_status") or "missing")
-            if baseline_required:
-                required_first_routes.append(
-                    f"Close the declared benchmark/baseline for `{title_hint}` before broader workflow claims."
-                )
-                benchmark_first_rules.append(
-                    f"`{title_hint}` requires baseline status `{baseline_status}` before route reuse is trusted."
-                )
-            if atomic_required:
-                required_first_routes.append(
-                    f"Complete atomic understanding for `{title_hint}` before claiming reusable method understanding."
-                )
-            operation_trust_requirements.append(
-                f"`{title_hint}`: baseline_required={str(baseline_required).lower()}, "
-                f"baseline_status={baseline_status}, atomic_understanding_required={str(atomic_required).lower()}, "
-                f"atomic_understanding_status={atomic_status}."
+        if lane == "formal_theory":
+            candidate_label = formal_theory_candidate_id or "the active theorem-facing candidate"
+            required_first_routes.extend(
+                [
+                    f"Read `formal_theory_review.json` for `{candidate_label}` before reusing the theorem-facing route.",
+                    "Check that `topic_completion.json` still reports `promotion-ready` or `promoted` before treating the route as reusable.",
+                ]
             )
-        if not benchmark_first_rules:
             benchmark_first_rules.append(
-                "Do not claim reusable code-method confidence without a persisted benchmark or trust-ready operation artifact."
+                f"`{candidate_label}` requires `formal_theory_review.json` overall_status `ready` and topic completion `promotion-ready` or `promoted` before route reuse is trusted."
             )
+            operation_trust_requirements.append(
+                f"`{candidate_label}`: formal_theory_review_status={formal_theory_review_status}, topic_completion_status={formal_theory_completion_status}, strategy_memory_rows={int(strategy_memory.get('row_count') or 0)}."
+            )
+        else:
+            for manifest in operation_manifests:
+                title_hint = str(manifest.get("title") or manifest.get("operation_id") or "(missing)")
+                baseline_required = bool(manifest.get("baseline_required"))
+                atomic_required = bool(manifest.get("atomic_understanding_required"))
+                baseline_status = str(manifest.get("baseline_status") or "missing")
+                atomic_status = str(manifest.get("atomic_understanding_status") or "missing")
+                if baseline_required:
+                    required_first_routes.append(
+                        f"Close the declared benchmark/baseline for `{title_hint}` before broader workflow claims."
+                    )
+                    benchmark_first_rules.append(
+                        f"`{title_hint}` requires baseline status `{baseline_status}` before route reuse is trusted."
+                    )
+                if atomic_required:
+                    required_first_routes.append(
+                        f"Complete atomic understanding for `{title_hint}` before claiming reusable method understanding."
+                    )
+                operation_trust_requirements.append(
+                    f"`{title_hint}`: baseline_required={str(baseline_required).lower()}, "
+                    f"baseline_status={baseline_status}, atomic_understanding_required={str(atomic_required).lower()}, "
+                    f"atomic_understanding_status={atomic_status}."
+                )
+            if not benchmark_first_rules:
+                benchmark_first_rules.append(
+                    "Do not claim reusable code-method confidence without a persisted benchmark or trust-ready operation artifact."
+                )
         operator_checkpoint_rules = [
             "Raise an operator checkpoint when benchmark mismatch or validation-route ambiguity changes the bounded route.",
             "Require explicit human approval before any L2 promotion of a topic-skill projection.",
@@ -1093,12 +1161,47 @@ class AITPService:
             list(research_contract.get("forbidden_proxies") or [])
             + [
                 "Do not treat raw code changes, unreviewed configs, or prose-only workflow descriptions as a reusable topic-skill projection.",
-                "Do not claim broader workflow portability before the benchmark-first gate and operation-trust audit are both satisfied.",
+                (
+                    "Do not treat the projection itself as a theorem certificate, proof closure, or completed formal result."
+                    if lane == "formal_theory"
+                    else "Do not claim broader workflow portability before the benchmark-first gate and operation-trust audit are both satisfied."
+                ),
             ]
         )
         strategy_guidance = self._dedupe_strings(list(strategy_memory.get("guidance") or []))
 
-        if lane != "code_method":
+        if lane == "formal_theory":
+            if not latest_run_id:
+                status = "blocked"
+                status_reason = "Projection is blocked because the topic has no active run id yet."
+            elif not formal_theory_context:
+                status = "not_applicable"
+                status_reason = "Topic-skill projection is not applicable because the active run has no theorem-facing candidate rows."
+            elif not isinstance(formal_theory_review_path, Path) or not formal_theory_review_path.exists():
+                status = "blocked"
+                status_reason = (
+                    f"Projection is blocked until `{formal_theory_candidate_id or 'the active theorem-facing candidate'}` "
+                    "has a durable formal_theory_review.json artifact."
+                )
+            elif formal_theory_review_status != "ready":
+                status = "blocked"
+                status_reason = (
+                    f"Projection is blocked until `{formal_theory_candidate_id or 'the active theorem-facing candidate'}` "
+                    "has formal_theory_review overall_status `ready`."
+                )
+            elif formal_theory_completion_status not in {"promotion-ready", "promoted"}:
+                status = "blocked"
+                status_reason = "Projection is blocked until topic completion reaches `promotion-ready` or `promoted`."
+            elif int(strategy_memory.get("row_count") or 0) <= 0:
+                status = "blocked"
+                status_reason = "Projection is blocked until at least one run-local strategy-memory row exists."
+            else:
+                status = "available"
+                status_reason = (
+                    "Projection is available because the topic is formal_theory, the active theorem-facing review is ready, "
+                    "topic completion is promotion-ready, and route-level strategy memory exists."
+                )
+        elif lane != "code_method":
             status = "not_applicable"
             status_reason = "Topic-skill projection v1 only applies to the code_method lane."
         elif not latest_run_id:
@@ -1121,7 +1224,11 @@ class AITPService:
             )
 
         summary = (
-            "Validated reusable execution projection for the topic's benchmark-first code-method route."
+            (
+                "Validated reusable execution projection for the topic's theorem-facing formal-theory route."
+                if lane == "formal_theory"
+                else "Validated reusable execution projection for the topic's benchmark-first code-method route."
+            )
             if status == "available"
             else "Topic-skill projection is not yet reusable enough to treat as an L2-ready execution projection."
         )
@@ -1169,6 +1276,26 @@ class AITPService:
             return None
         if not candidate_id:
             return None
+        lane = str(projection.get("lane") or "").strip()
+        trust_ref_path = str(
+            next(
+                (
+                    item
+                    for item in projection.get("derived_from_artifacts") or []
+                    if str(item).endswith("formal_theory_review.json")
+                ),
+                "",
+            )
+            if lane == "formal_theory"
+            else next(
+                (
+                    item
+                    for item in projection.get("derived_from_artifacts") or []
+                    if str(item).endswith("trust_audit.json")
+                ),
+                "",
+            )
+        )
         candidate_row = {
             "candidate_id": candidate_id,
             "candidate_type": "topic_skill_projection",
@@ -1186,23 +1313,47 @@ class AITPService:
                     "summary": "Run-local route memory contributing to the projection.",
                 },
                 {
-                    "id": f"trust_audit:{resolved_run_id}",
+                    "id": (
+                        f"formal_theory_review:{resolved_run_id}"
+                        if lane == "formal_theory"
+                        else f"trust_audit:{resolved_run_id}"
+                    ),
                     "layer": "L4",
-                    "object_type": "operation_trust_audit",
-                    "path": str(next((item for item in projection.get("derived_from_artifacts") or [] if str(item).endswith("trust_audit.json")), "")),
-                    "title": "Operation trust audit",
-                    "summary": "Passing operation-trust evidence used to validate the code-method projection.",
+                    "object_type": (
+                        "formal_theory_review"
+                        if lane == "formal_theory"
+                        else "operation_trust_audit"
+                    ),
+                    "path": trust_ref_path,
+                    "title": (
+                        "Formal theory review"
+                        if lane == "formal_theory"
+                        else "Operation trust audit"
+                    ),
+                    "summary": (
+                        "Ready theorem-facing review evidence used to validate the formal-theory projection."
+                        if lane == "formal_theory"
+                        else "Passing operation-trust evidence used to validate the code-method projection."
+                    ),
                 },
             ],
             "question": (
-                f"How should the topic `{topic_slug}` be entered and advanced as a reusable benchmark-first code-method route?"
+                (
+                    f"How should the topic `{topic_slug}` be entered and advanced as a reusable theorem-facing formal-theory route?"
+                    if lane == "formal_theory"
+                    else f"How should the topic `{topic_slug}` be entered and advanced as a reusable benchmark-first code-method route?"
+                )
             ),
             "assumptions": self._dedupe_strings(list(projection.get("benchmark_first_rules") or [])),
-            "proposed_validation_route": "human-reviewed topic-skill projection promotion",
+            "proposed_validation_route": (
+                "human-reviewed formal-theory topic-skill projection promotion"
+                if lane == "formal_theory"
+                else "human-reviewed topic-skill projection promotion"
+            ),
             "intended_l2_targets": [str(projection.get("intended_l2_target") or "")],
             "status": "ready_for_validation",
             "promotion_mode": "human",
-            "topic_completion_status": "regression-stable",
+            "topic_completion_status": "promotion-ready" if lane == "formal_theory" else "regression-stable",
         }
         self._replace_candidate_row(topic_slug, resolved_run_id, candidate_id, candidate_row)
         return candidate_row
@@ -1673,6 +1824,45 @@ class AITPService:
             return []
         ledger_path = self._candidate_ledger_path(topic_slug, run_id)
         return [row for row in read_jsonl(ledger_path) if isinstance(row, dict)]
+
+    def _formal_theory_projection_candidate_context(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None,
+        candidate_rows: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not run_id:
+            return None
+        fallback: dict[str, Any] | None = None
+        for row in candidate_rows:
+            candidate_id = str(row.get("candidate_id") or "").strip()
+            candidate_type = str(row.get("candidate_type") or "").strip()
+            if not candidate_id or candidate_type not in self._theory_formal_candidate_types():
+                continue
+            packet_paths = self._theory_packet_paths(topic_slug, run_id, candidate_id)
+            review_path = packet_paths["formal_theory_review"]
+            review_payload = read_json(review_path) if review_path.exists() else None
+            review_status = str(
+                (review_payload or {}).get("overall_status")
+                or row.get("formal_theory_review_overall_status")
+                or "missing"
+            ).strip()
+            completion_status = str(row.get("topic_completion_status") or "not_assessed").strip()
+            context = {
+                "candidate_row": row,
+                "candidate_id": candidate_id,
+                "candidate_type": candidate_type,
+                "review_path": review_path,
+                "review_payload": review_payload or {},
+                "review_status": review_status,
+                "completion_status": completion_status,
+            }
+            if fallback is None:
+                fallback = context
+            if review_path.exists() and review_status == "ready" and completion_status in {"promotion-ready", "promoted"}:
+                return context
+        return fallback
 
     def _derive_promotion_readiness(
         self,
@@ -4202,6 +4392,7 @@ class AITPService:
             strategy_memory=strategy_memory,
             topic_completion=topic_completion,
             open_gap_summary=open_gap_summary,
+            candidate_rows=candidate_rows,
         )
         topic_skill_projection_written = write_topic_skill_projection(
             topic_slug,
@@ -6530,7 +6721,7 @@ class AITPService:
                 must_read_now.append(
                     {
                         "path": str(topic_skill_projection.get("note_path")),
-                        "reason": "Validated topic-skill projection for this code-method lane. Read it before reusing the benchmark-first route.",
+                        "reason": self._topic_skill_projection_read_reason(topic_skill_projection),
                     }
                 )
             if str(idea_packet.get("status") or "").strip() == "needs_clarification":
@@ -6603,7 +6794,7 @@ class AITPService:
                 must_read_now.append(
                     {
                         "path": str(topic_skill_projection.get("note_path")),
-                        "reason": "Validated topic-skill projection for this code-method lane. Read it before reusing the benchmark-first route.",
+                        "reason": self._topic_skill_projection_read_reason(topic_skill_projection),
                     }
                 )
             must_read_now.append(
@@ -6762,7 +6953,7 @@ class AITPService:
                 {
                     "path": str(topic_skill_projection.get("note_path")),
                     "trigger": "verification_route_selection",
-                    "reason": "The projection becomes mandatory once this topic's code-method route is stable enough to reuse or promote.",
+                    "reason": self._topic_skill_projection_deferred_reason(topic_skill_projection),
                 }
             )
         for path in theory_packet_reads:

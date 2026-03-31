@@ -184,6 +184,8 @@ python research/knowledge-hub/runtime/scripts/run_jones_chapter4_finite_product_
 Pass condition:
 - the active `jones-von-neumann-algebras` topic gets a new bounded Chapter 4 candidate run
 - `coverage_ledger.json`, `formal_theory_review.json`, `proof_obligations.json`, and `proof_state.json` are materialized for that candidate
+- `topic_skill_projection.active.json|md` is materialized and surfaced through runtime status as a `formal_theory` projection
+- the projection is human-promoted into `units/topic-skill-projections/`
 - the Lean bridge packet is `ready`
 - `promotion_gate.json` ends in `promoted` and the promoted unit lands in `L2_auto`
 - the resulting packet stays honest about not yet proving the stronger algebra-level product theorem or the later whole-book routes

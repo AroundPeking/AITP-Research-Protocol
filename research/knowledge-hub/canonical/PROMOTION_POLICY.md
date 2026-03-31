@@ -98,6 +98,10 @@ For the first version of `topic_skill_projection`:
 - do not allow `L2_auto`
 - require a mature topic runtime, passing operation-trust evidence, and
   run-local strategy memory before promotion review
+- for `formal_theory`, also require a ready `formal_theory_review.json` plus a
+  `topic_completion.json` status of `promotion-ready` or `promoted`
+- treat the promoted object as reusable execution memory, not a theorem
+  certificate or proof-complete mathematical result
 
 ### Reconciliation route: `L2_auto -> L2`
 
