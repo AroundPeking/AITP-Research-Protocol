@@ -48,6 +48,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("theorem_card", candidate_types)
         self.assertIn("notation_card", candidate_types)
         self.assertIn("equivalence_map", candidate_types)
+        self.assertIn("topic_skill_projection", candidate_types)
         statuses = set(payload["properties"]["status"]["enum"])
         self.assertIn("auto_promoted", statuses)
         self.assertIn("split_into_children", statuses)
@@ -64,6 +65,7 @@ class SchemaContractTests(unittest.TestCase):
         unit_types = set(payload["properties"]["unit_type"]["enum"])
         self.assertIn("equation_card", unit_types)
         self.assertIn("proof_fragment", unit_types)
+        self.assertIn("topic_skill_projection", unit_types)
         maturity_states = set(payload["properties"]["maturity"]["enum"])
         self.assertIn("auto_validated", maturity_states)
         route_states = set(payload["properties"]["promotion"]["properties"]["route"]["enum"])
@@ -90,6 +92,7 @@ class SchemaContractTests(unittest.TestCase):
         canonical_targets = set(payload["properties"]["canonical_targets"]["items"]["enum"])
         self.assertIn("theorem_card", canonical_targets)
         self.assertIn("symbol_binding", canonical_targets)
+        self.assertIn("topic_skill_projection", canonical_targets)
 
     def test_consult_and_promotion_schemas_include_new_theory_surface(self) -> None:
         consult_payload = self._read_json("consultation/schemas/consult-request.schema.json")
@@ -138,6 +141,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("open_gap_summary", payload["properties"])
         self.assertIn("topic_completion", payload["properties"])
         self.assertIn("lean_bridge", payload["properties"])
+        self.assertIn("topic_skill_projection", payload["properties"])
         self.assertIn("followup_gap_writeback_count", payload["properties"]["open_gap_summary"]["properties"])
         self.assertIn("regression_manifest", payload["properties"]["topic_completion"]["properties"])
         self.assertIn("completion_gate_checks", payload["properties"]["topic_completion"]["properties"])
@@ -151,6 +155,11 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("consultation_memory", slice_names)
         self.assertIn("proof_completion_and_coverage", slice_names)
         self.assertIn("verification_route_selection", slice_names)
+        retrieval_profiles = self._read_json("canonical/retrieval_profiles.json")
+        l3_types = set(retrieval_profiles["profiles"]["l3_candidate_formation"]["preferred_unit_types"])
+        l4_types = set(retrieval_profiles["profiles"]["l4_adjudication"]["preferred_unit_types"])
+        self.assertIn("topic_skill_projection", l3_types)
+        self.assertIn("topic_skill_projection", l4_types)
 
     def test_closed_loop_policy_candidate_statuses_match_candidate_schema(self) -> None:
         candidate_payload = self._read_json("feedback/schemas/candidate.schema.json")

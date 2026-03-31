@@ -1342,6 +1342,10 @@ def build_operator_console(topic_state: dict, interaction_state: dict, queue: li
     decision_surface = interaction_state.get("decision_surface") or {}
     queue_surface = interaction_state.get("action_queue_surface") or {}
     promotion_gate = topic_state.get("promotion_gate") or {}
+    status_explainability = topic_state.get("status_explainability") or {}
+    current_route_choice = status_explainability.get("current_route_choice") or {}
+    last_evidence_return = status_explainability.get("last_evidence_return") or {}
+    active_human_need = status_explainability.get("active_human_need") or {}
     selected_action_id = str(decision_surface.get("selected_action_id") or "")
     selected_action = next(
         (action for action in queue if str(action.get("action_id") or "") == selected_action_id),
@@ -1404,6 +1408,19 @@ def build_operator_console(topic_state: dict, interaction_state: dict, queue: li
     ]
     for name, active, note in trigger_rows:
         lines.append(f"- `{name}` status=`{'active' if active else 'inactive'}`: {note}")
+
+    if status_explainability:
+        lines.extend(
+            [
+                "",
+                "## Topic explainability",
+                "",
+                f"- Why here: {status_explainability.get('why_this_topic_is_here') or '(missing)'}",
+                f"- Current route: {current_route_choice.get('next_action_summary') or '(none)'}",
+                f"- Last evidence: {last_evidence_return.get('summary') or '(none)'}",
+                f"- Human need: {active_human_need.get('summary') or '(none)'}",
+            ]
+        )
 
     lines.extend(
         [

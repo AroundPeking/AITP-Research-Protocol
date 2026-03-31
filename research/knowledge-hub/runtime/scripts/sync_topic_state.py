@@ -302,6 +302,165 @@ def infer_resume_state(
     return "L0", "L0", "No layer artifacts were found for this topic."
 
 
+def first_text(*values: object) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def derive_last_evidence_return(
+    *,
+    feedback_status: dict | None,
+    closed_loop: dict,
+) -> dict:
+    result_manifest = closed_loop.get("result_manifest") or {}
+    closed_loop_paths = closed_loop.get("paths") or {}
+    latest_decision = closed_loop.get("latest_decision") or {}
+    if result_manifest:
+        return {
+            "status": "present",
+            "kind": "result_manifest",
+            "path": str(closed_loop_paths.get("result_manifest_path") or ""),
+            "record_id": str(result_manifest.get("result_id") or ""),
+            "recorded_at": first_text(
+                result_manifest.get("updated_at"),
+                result_manifest.get("ingested_at"),
+                latest_decision.get("decided_at"),
+            ),
+            "summary": first_text(
+                result_manifest.get("summary"),
+                latest_decision.get("reason"),
+                f"Closed-loop result manifest is `{result_manifest.get('status') or 'present'}`.",
+            ),
+        }
+    if feedback_status:
+        return {
+            "status": "present",
+            "kind": "feedback_status",
+            "path": str(feedback_status.get("last_result_manifest_path") or ""),
+            "record_id": str(
+                feedback_status.get("last_result_id") or feedback_status.get("last_closed_loop_decision_id") or ""
+            ),
+            "recorded_at": first_text(feedback_status.get("last_updated")),
+            "summary": first_text(
+                feedback_status.get("summary"),
+                (
+                    f"Feedback stage `{feedback_status.get('stage') or '(missing)'}` "
+                    f"with candidate status `{feedback_status.get('candidate_status') or '(missing)'}`."
+                ),
+            ),
+        }
+    return {
+        "status": "missing",
+        "kind": "none",
+        "path": "",
+        "record_id": "",
+        "recorded_at": "",
+        "summary": "No durable evidence-return artifact is currently recorded for this topic.",
+    }
+
+
+def derive_status_explainability(
+    *,
+    topic_slug: str,
+    resume_stage: str,
+    resume_reason: str,
+    pending_actions: list[str],
+    topic_runtime_root: Path,
+    feedback_status: dict | None,
+    closed_loop: dict,
+    next_action_decision_note_path: Path,
+) -> dict:
+    idea_packet = read_json(topic_runtime_root / "idea_packet.json") or {}
+    operator_checkpoint = read_json(topic_runtime_root / "operator_checkpoint.active.json") or {}
+    last_evidence_return = derive_last_evidence_return(
+        feedback_status=feedback_status,
+        closed_loop=closed_loop,
+    )
+    next_action_summary = first_text(pending_actions[0] if pending_actions else "")
+    active_human_need: dict
+    blocker_summary: list[str]
+    if str(operator_checkpoint.get("status") or "").strip() == "requested":
+        blocker_summary = [
+            str(item).strip()
+            for item in (operator_checkpoint.get("blocker_summary") or [])
+            if str(item).strip()
+        ]
+        active_human_need = {
+            "status": "requested",
+            "kind": str(operator_checkpoint.get("checkpoint_kind") or ""),
+            "path": relative_path(topic_runtime_root / "operator_checkpoint.active.md", topic_runtime_root.parents[2]) or "",
+            "summary": str(operator_checkpoint.get("question") or ""),
+        }
+        why_this_topic_is_here = first_text(
+            blocker_summary[0] if blocker_summary else "",
+            operator_checkpoint.get("question"),
+            "AITP paused at an active operator checkpoint.",
+        )
+    elif str(idea_packet.get("status") or "").strip() == "needs_clarification":
+        blocker_summary = [
+            str(item).strip()
+            for item in (idea_packet.get("clarification_questions") or [])
+            if str(item).strip()
+        ]
+        active_human_need = {
+            "status": "requested",
+            "kind": "idea_packet_clarification",
+            "path": relative_path(topic_runtime_root / "idea_packet.md", topic_runtime_root.parents[2]) or "",
+            "summary": str(idea_packet.get("status_reason") or ""),
+        }
+        why_this_topic_is_here = first_text(
+            blocker_summary[0] if blocker_summary else "",
+            idea_packet.get("status_reason"),
+            "AITP is holding at the research-intent gate.",
+        )
+    else:
+        blocker_summary = []
+        active_human_need = {
+            "status": "none",
+            "kind": "none",
+            "path": "",
+            "summary": "No active human checkpoint is currently blocking the bounded loop.",
+        }
+        why_this_topic_is_here = first_text(
+            (
+                f"The topic is currently following `{next_action_summary}` at stage `{resume_stage}`."
+                if next_action_summary
+                else ""
+            ),
+            resume_reason,
+            "AITP is holding the current bounded route defined by the runtime state.",
+        )
+    return {
+        "topic_slug": topic_slug,
+        "current_status_summary": (
+            f"Stage `{resume_stage}`; "
+            f"next `{next_action_summary or 'No bounded action is currently selected.'}`; "
+            f"human need `{active_human_need['kind']}`; "
+            f"last evidence `{last_evidence_return['kind']}`."
+        ),
+        "why_this_topic_is_here": why_this_topic_is_here,
+        "current_route_choice": {
+            "resume_stage": resume_stage,
+            "selected_route_id": str((closed_loop.get("selected_route") or {}).get("route_id") or ""),
+            "execution_task_id": str((closed_loop.get("execution_task") or {}).get("task_id") or ""),
+            "next_action_summary": next_action_summary,
+            "next_action_decision_note_path": relative_path(next_action_decision_note_path, topic_runtime_root.parents[2]) or "",
+            "selected_validation_route_path": str((closed_loop.get("paths") or {}).get("selected_route_path") or ""),
+        },
+        "last_evidence_return": last_evidence_return,
+        "active_human_need": active_human_need,
+        "blocker_summary": blocker_summary,
+        "next_bounded_action": {
+            "status": "selected" if next_action_summary else "missing",
+            "summary": next_action_summary or "No bounded action is currently selected.",
+        },
+        "updated_at": now_iso(),
+    }
+
+
 def build_resume_markdown(state: dict) -> str:
     pointers = state["pointers"]
     layer_status = state["layer_status"]
@@ -309,6 +468,16 @@ def build_resume_markdown(state: dict) -> str:
     promotion_gate = state.get("promotion_gate") or {}
     closed_loop = state.get("closed_loop") or {}
     research_mode_profile = state.get("research_mode_profile") or {}
+    status_explainability = state.get("status_explainability") or {}
+    current_route_choice = status_explainability.get("current_route_choice") or {}
+    last_evidence_return = status_explainability.get("last_evidence_return") or {}
+    active_human_need = status_explainability.get("active_human_need") or {}
+    blocker_summary = status_explainability.get("blocker_summary") or []
+    summary = (
+        state.get("summary")
+        or status_explainability.get("why_this_topic_is_here")
+        or state["resume_reason"]
+    )
     lines = [
         "# Topic runtime resume",
         "",
@@ -325,6 +494,10 @@ def build_resume_markdown(state: dict) -> str:
         "## Resume reason",
         "",
         f"- {state['resume_reason']}",
+        "",
+        "## Why this topic is here",
+        "",
+        f"- {status_explainability.get('why_this_topic_is_here') or state['resume_reason']}",
         "",
         "## Research-mode governance",
         "",
@@ -403,6 +576,40 @@ def build_resume_markdown(state: dict) -> str:
             f"- Reactivatable deferred entries: `{state.get('reactivable_deferred_count', 0)}`",
             f"- Follow-up subtopics: `{state.get('followup_subtopic_count', 0)}`",
             "",
+            "## Current route choice",
+            "",
+            f"- Selected route: `{current_route_choice.get('selected_route_id') or '(missing)'}`",
+            f"- Execution task: `{current_route_choice.get('execution_task_id') or '(missing)'}`",
+            f"- Next bounded action: {current_route_choice.get('next_action_summary') or '(none)'}",
+            f"- Next-action decision note: `{current_route_choice.get('next_action_decision_note_path') or '(missing)'}`",
+            f"- Selected validation route: `{current_route_choice.get('selected_validation_route_path') or '(missing)'}`",
+            "",
+            "## Last evidence return",
+            "",
+            f"- Status: `{last_evidence_return.get('status') or '(missing)'}`",
+            f"- Kind: `{last_evidence_return.get('kind') or '(missing)'}`",
+            f"- Record id: `{last_evidence_return.get('record_id') or '(none)'}`",
+            f"- Recorded at: `{last_evidence_return.get('recorded_at') or '(unknown)'}`",
+            f"- Path: `{last_evidence_return.get('path') or '(missing)'}`",
+            f"- Summary: {last_evidence_return.get('summary') or '(none)'}",
+            "",
+            "## Active human need",
+            "",
+            f"- Status: `{active_human_need.get('status') or '(missing)'}`",
+            f"- Kind: `{active_human_need.get('kind') or '(missing)'}`",
+            f"- Path: `{active_human_need.get('path') or '(missing)'}`",
+            f"- Summary: {active_human_need.get('summary') or '(none)'}",
+            "",
+            "## Blocker summary",
+            "",
+        ]
+    )
+    for item in blocker_summary or ["(none)"]:
+        lines.append(f"- {item}")
+
+    lines.extend(
+        [
+            "",
             "## Pending actions",
             "",
         ]
@@ -457,7 +664,7 @@ def build_resume_markdown(state: dict) -> str:
             "",
             "## Summary",
             "",
-            f"- {state['summary']}",
+            f"- {summary}",
             "",
         ]
     )
@@ -619,6 +826,16 @@ def main() -> int:
     next_action_decision_contract_note_path = topic_runtime_root / NEXT_ACTION_DECISION_CONTRACT_NOTE_FILENAME
     action_queue_contract_generated_path = topic_runtime_root / ACTION_QUEUE_CONTRACT_GENERATED_FILENAME
     action_queue_contract_generated_note_path = topic_runtime_root / ACTION_QUEUE_CONTRACT_GENERATED_NOTE_FILENAME
+    status_explainability = derive_status_explainability(
+        topic_slug=topic_slug,
+        resume_stage=resume_stage,
+        resume_reason=resume_reason,
+        pending_actions=pending_actions,
+        topic_runtime_root=topic_runtime_root,
+        feedback_status=feedback_status,
+        closed_loop=closed_loop,
+        next_action_decision_note_path=next_action_decision_note_path,
+    )
 
     summary_parts = []
     if intake_status:
@@ -795,6 +1012,7 @@ def main() -> int:
             "trajectory_event_count": len(closed_loop.get("trajectory_log") or []),
             "failure_severity": (closed_loop.get("failure_classification") or {}).get("severity"),
         },
+        "status_explainability": status_explainability,
         "summary": summary,
     }
 

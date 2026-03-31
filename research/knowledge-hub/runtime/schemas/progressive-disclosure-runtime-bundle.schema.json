@@ -23,6 +23,8 @@
     "operator_checkpoint",
     "promotion_readiness",
     "open_gap_summary",
+    "strategy_memory",
+    "topic_skill_projection",
     "topic_completion",
     "lean_bridge",
     "minimal_execution_brief",
@@ -678,6 +680,229 @@
           "minLength": 1
         },
         "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "strategy_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "lane",
+        "row_count",
+        "relevant_count",
+        "helpful_count",
+        "harmful_count",
+        "latest_path",
+        "relevant_paths",
+        "guidance",
+        "summary"
+      ],
+      "properties": {
+        "topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "latest_run_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "absent",
+            "available"
+          ]
+        },
+        "lane": {
+          "type": "string",
+          "minLength": 1
+        },
+        "row_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "relevant_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "helpful_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "harmful_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latest_path": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "relevant_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "guidance": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "topic_skill_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "topic_slug",
+        "source_topic_slug",
+        "run_id",
+        "title",
+        "summary",
+        "lane",
+        "status",
+        "status_reason",
+        "candidate_id",
+        "intended_l2_target",
+        "entry_signals",
+        "required_first_reads",
+        "required_first_routes",
+        "benchmark_first_rules",
+        "operator_checkpoint_rules",
+        "operation_trust_requirements",
+        "strategy_guidance",
+        "forbidden_proxies",
+        "derived_from_artifacts"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lane": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "blocked",
+            "not_applicable"
+          ]
+        },
+        "status_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_id": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "intended_l2_target": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "entry_signals": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_first_reads": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_first_routes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "benchmark_first_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "operator_checkpoint_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "operation_trust_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "strategy_guidance": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forbidden_proxies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "derived_from_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "path": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "note_path": {
+          "$ref": "#/$defs/nullable_string"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_by": {
           "type": "string",
           "minLength": 1
         }

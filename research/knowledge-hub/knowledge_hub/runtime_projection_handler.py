@@ -53,6 +53,8 @@ def _packet_type_for_candidate_type(candidate_type: str) -> str:
         return "theorem"
     if normalized in {"method", "workflow"}:
         return "method"
+    if normalized == "topic_skill_projection":
+        return "code_method"
     if normalized == "validation_pattern":
         return "regression_status"
     return "concept"
@@ -90,6 +92,18 @@ def write_promotion_readiness_projection(
     path = _runtime_topic_root(topic_slug, kernel_root) / "promotion_readiness.json"
     _write_json(path, payload)
     return {"promotion_readiness": payload, "path": str(path)}
+
+
+def write_topic_skill_projection(
+    topic_slug: str,
+    payload: dict[str, Any],
+    *,
+    kernel_root: Path | None = None,
+) -> dict[str, Any]:
+    _validate("topic-skill-projection", payload, kernel_root)
+    path = _runtime_topic_root(topic_slug, kernel_root) / "topic_skill_projection.active.json"
+    _write_json(path, payload)
+    return {"topic_skill_projection": payload, "path": str(path)}
 
 
 def write_knowledge_packets(

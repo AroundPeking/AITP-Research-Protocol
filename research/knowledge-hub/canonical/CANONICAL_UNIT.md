@@ -120,6 +120,7 @@ Default storage projection:
 - `derivation_object` -> `canonical/derivation-objects/`
 - `method` -> `canonical/methods/`
 - `workflow` -> `canonical/workflows/`
+- `topic_skill_projection` -> `canonical/topic-skill-projections/`
 - `bridge` -> `canonical/bridges/`
 - `example_card` -> backend-defined examples storage
 - `caveat_card` -> backend-defined caveats storage

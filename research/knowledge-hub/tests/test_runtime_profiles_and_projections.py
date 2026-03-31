@@ -22,6 +22,7 @@ from knowledge_hub.aitp_service import AITPService  # noqa: E402
 from knowledge_hub.runtime_projection_handler import (  # noqa: E402
     build_knowledge_packets_from_candidates,
     write_promotion_trace,
+    write_topic_skill_projection,
     write_topic_synopsis,
 )
 
@@ -38,6 +39,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             "topic-synopsis.schema.json",
             "knowledge-packet.schema.json",
             "promotion-trace.schema.json",
+            "topic-skill-projection.schema.json",
         ):
             source = self.package_root / "schemas" / name
             target = self.kernel_root / "schemas" / name
@@ -297,7 +299,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         }
 
     def test_new_projection_schemas_validate_and_are_mirrored(self) -> None:
-        for name in ("topic-synopsis", "knowledge-packet", "promotion-trace"):
+        for name in ("topic-synopsis", "knowledge-packet", "promotion-trace", "topic-skill-projection"):
             public_path = self.repo_root / "schemas" / f"{name}.schema.json"
             kernel_path = self.package_root / "schemas" / f"{name}.schema.json"
             public_payload = json.loads(public_path.read_text(encoding="utf-8"))
@@ -369,6 +371,37 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         }
         promotion_trace_result = write_promotion_trace("demo-topic", promotion_trace, kernel_root=self.kernel_root)
         self.assertTrue(Path(promotion_trace_result["path"]).exists())
+
+        topic_skill_projection = {
+            "id": "topic_skill_projection:demo-topic",
+            "topic_slug": "demo-topic",
+            "source_topic_slug": "demo-topic",
+            "run_id": "run-001",
+            "title": "Demo Topic Skill Projection",
+            "summary": "Reusable execution projection for the bounded benchmark-first route.",
+            "lane": "toy_numeric",
+            "status": "available",
+            "status_reason": "Ready because the benchmark lane is stable enough to reuse.",
+            "candidate_id": "candidate:topic-skill-projection-demo-topic",
+            "intended_l2_target": "topic_skill_projection:demo-topic",
+            "entry_signals": ["lane=toy_numeric"],
+            "required_first_reads": ["runtime/topics/demo-topic/research_question.contract.md"],
+            "required_first_routes": ["Close the exact benchmark before broader inference."],
+            "benchmark_first_rules": ["Reproduce the small exact benchmark before route reuse."],
+            "operator_checkpoint_rules": ["Raise an operator checkpoint on benchmark mismatch."],
+            "operation_trust_requirements": ["Trust audit must pass before reuse."],
+            "strategy_guidance": ["Reuse the benchmark-first route."],
+            "forbidden_proxies": ["Do not treat prose-only confidence as benchmark closure."],
+            "derived_from_artifacts": ["validation/topics/demo-topic/runs/run-001/trust_audit.json"],
+            "updated_at": "2026-03-28T00:00:00+00:00",
+            "updated_by": "test",
+        }
+        projection_result = write_topic_skill_projection(
+            "demo-topic",
+            topic_skill_projection,
+            kernel_root=self.kernel_root,
+        )
+        self.assertTrue(Path(projection_result["path"]).exists())
 
     def test_resolve_load_profile_uses_light_by_default_and_full_for_escalation_requests(self) -> None:
         light, light_reason = self.service._resolve_load_profile(

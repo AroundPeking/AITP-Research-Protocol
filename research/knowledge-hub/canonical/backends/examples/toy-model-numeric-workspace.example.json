@@ -38,6 +38,7 @@
   "canonical_targets": [
     "method",
     "workflow",
+    "topic_skill_projection",
     "validation_pattern",
     "warning_note"
   ],

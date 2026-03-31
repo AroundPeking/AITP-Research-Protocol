@@ -46,11 +46,14 @@ L2 stores reusable research objects such as:
 - derivation objects,
 - methods,
 - workflows,
+- topic-skill projections,
 - warnings,
 - validation patterns,
 - bridge notes.
 
 L2 is the active memory surface of the system.
+That includes reusable execution memory, not only reusable knowledge
+statements.
 
 ### L3 — Exploratory research and candidate formation
 

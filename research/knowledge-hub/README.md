@@ -128,7 +128,7 @@ Public layer semantics:
 
 - `L0`: source entry, survey, and acquisition
 - `L1`: analysis and provisional understanding
-- `L2`: long-term reusable knowledge
+- `L2`: long-term reusable knowledge and execution projections
 - `L3`: exploratory conclusions and candidate reusable material
 - `L4`: planning, execution, validation, and adjudication
 
@@ -245,7 +245,9 @@ research/knowledge-hub/runtime/scripts/run_formal_theory_backend_smoke.sh
 research/knowledge-hub/runtime/scripts/run_tpkn_formal_promotion_smoke.sh
 research/knowledge-hub/runtime/scripts/run_tpkn_formal_auto_promotion_smoke.sh
 python research/knowledge-hub/runtime/scripts/run_witten_topological_phases_formal_closure_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_jones_chapter4_finite_product_formal_closure_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_scrpa_thesis_topic_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_tfim_benchmark_code_method_acceptance.py --json
 ```
 
 The Witten acceptance script is the bounded real-topic closure check for the
@@ -255,6 +257,15 @@ controller actions for `topic_completion` and `lean_bridge`, and then validates
 `L2_auto` writeback into a disposable TPKN copy while keeping Lean export as a
 downstream bridge rather than the primary meaning of `L2` success.
 
+The Jones Chapter 4 acceptance script is the bounded formal-theory acceptance
+for the current Jones benchmark topic: it reuses the active
+`jones-von-neumann-algebras` topic, seeds a new Chapter 4 finite-dimensional
+finite-product candidate around the compile-checked theorem packet, runs
+coverage + formal-theory review, dispatches the reviewed controller actions for
+`topic_completion`, `lean_bridge`, and `auto_promote_candidate`, and verifies
+that the resulting packet stays honest about still missing the stronger
+algebra-level product theorem and the later whole-book routes.
+
 The scRPA thesis acceptance script is a real-topic shell acceptance for the
 formal-theory lane: it opens a topic from the master's-thesis scRPA chapter,
 introduction, abstract, and conclusion, verifies that the topic lands in the
@@ -262,3 +273,25 @@ formal-theory lane, stays in the light runtime profile, materializes the new
 projection surfaces, and keeps the first honest next step at the thesis-to-L0
 source-recovery boundary instead of pretending numerical closure already
 exists.
+
+The TFIM code-method acceptance script is the bounded code-backed benchmark
+lane: it runs the public exact-diagonalization helper on the tiny TFIM config,
+opens a `code_method` topic around that workflow, records a baseline-gated
+coding operation plus strategy memory, compiles a `topic_skill_projection`, and
+verifies that operation trust and runtime surfaces stay inside AITP instead of
+turning into an untracked coding side quest.
+
+## AITP And GSD
+
+This repository may be developed with `GSD`, but active research topics still
+belong to `AITP`.
+
+Use `GSD` when the job is changing this repository itself: runtime code, docs,
+tests, adapters, packaging, and acceptance scripts.
+
+Use `AITP` when the job is advancing a topic, even when that topic includes
+code, benchmarks, or method validation.
+
+The explicit coexistence rule is documented here:
+
+- `../docs/AITP_GSD_WORKFLOW_CONTRACT.md`

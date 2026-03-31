@@ -180,7 +180,7 @@ chat transcript.
 | `L1` | Provisional understanding | analysis notes, derivation sketches, concept structure |
 | `L3` | Exploratory but not yet trusted outputs | candidate claims, explanatory notes, tentative reusable material |
 | `L4` | Validation and adjudication | baseline runs, trust audits, implementation checks, operator decisions |
-| `L2` | Long-term trusted memory | promoted knowledge, reusable workflows, stable backends |
+| `L2` | Long-term trusted memory | promoted knowledge, reusable workflows, topic-skill projections, stable backends |
 
 The default non-trivial route is:
 
@@ -204,6 +204,15 @@ flowchart LR
 ## How You Actually Use It
 
 AITP currently has four public workflows that matter.
+
+Before choosing a workflow, keep one routing rule explicit:
+
+- use `AITP` for topic-governed research work
+- use `GSD` for implementing or maintaining this repository itself
+
+The detailed coexistence rule lives at:
+
+- [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md)
 
 ### What A Real Topic Should Feel Like
 
@@ -614,6 +623,7 @@ Install guides:
 - [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md)
 - [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md)
 - [`docs/INSTALL_OPENCODE.md`](docs/INSTALL_OPENCODE.md)
+- [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md)
 - [`docs/UNINSTALL.md`](docs/UNINSTALL.md)
 
 Protocol objects:

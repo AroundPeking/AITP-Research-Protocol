@@ -328,7 +328,33 @@ Do not use for:
 - a single theorem-style derivation,
 - content whose main value is conceptual explanation rather than process.
 
-### 19. `bridge`
+### 19. `topic_skill_projection`
+
+Use for:
+- validated reusable execution projections compiled from a mature topic,
+- lane-specific startup/read-order contracts,
+- benchmark-first or trust-gated execution capsules,
+- topic-derived agent-facing route memory that is stable enough for reuse.
+
+`payload` should usually include:
+- `source_topic_slug`
+- `lane`
+- `entry_signals`
+- `required_first_reads`
+- `required_first_routes`
+- `benchmark_first_rules`
+- `operator_checkpoint_rules`
+- `operation_trust_requirements`
+- `strategy_guidance`
+- `forbidden_proxies`
+- `derived_from_artifacts`
+
+Do not use for:
+- raw runtime state for the current active topic,
+- unvalidated prompt fragments,
+- ad hoc operator notes that have not yet stabilized across runs.
+
+### 20. `bridge`
 
 Use for:
 - structural links across topics,
@@ -346,7 +372,7 @@ Do not use for:
 - vague "related to" links with no real structure,
 - unresolved bridge ideas that still belong in the backlog.
 
-### 20. `validation_pattern`
+### 21. `validation_pattern`
 
 Use for:
 - reusable check templates,
@@ -366,7 +392,7 @@ Do not use for:
 - records of a single run outcome,
 - broad method notes without a check goal.
 
-### 21. `warning_note`
+### 22. `warning_note`
 
 Use for:
 - portable traps,

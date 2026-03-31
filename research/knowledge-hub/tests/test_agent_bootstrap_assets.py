@@ -60,6 +60,15 @@ class AgentBootstrapAssetTests(unittest.TestCase):
         self.assertIn("Lane 2: Toy numerics topic", journey_doc)
         self.assertIn("Lane 3: Code-backed method topic", journey_doc)
 
+    def test_readmes_link_to_aitp_gsd_workflow_contract(self) -> None:
+        root_readme = (self.repo_root / "README.md").read_text(encoding="utf-8")
+        kernel_readme = (self.repo_root / "research" / "knowledge-hub" / "README.md").read_text(encoding="utf-8")
+        workflow_contract = (self.repo_root / "docs" / "AITP_GSD_WORKFLOW_CONTRACT.md").read_text(encoding="utf-8")
+
+        self.assertIn("docs/AITP_GSD_WORKFLOW_CONTRACT.md", root_readme)
+        self.assertIn("../docs/AITP_GSD_WORKFLOW_CONTRACT.md", kernel_readme)
+        self.assertIn("AITP governs research topics. GSD governs implementation of AITP itself.", workflow_contract)
+
 
 if __name__ == "__main__":
     unittest.main()

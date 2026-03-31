@@ -26,6 +26,7 @@ Store only material that is worth reusing across topics or runs:
 - derivation objects,
 - method notes,
 - workflows,
+- topic-skill projections,
 - bridge notes,
 - validation patterns,
 - warning notes.
@@ -37,6 +38,7 @@ Typed families:
 - `derivation_object`
 - `method`
 - `workflow`
+- `topic_skill_projection`
 - `bridge`
 - `validation_pattern`
 - `warning_note`

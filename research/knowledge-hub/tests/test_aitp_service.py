@@ -450,6 +450,7 @@ class AITPServiceTests(unittest.TestCase):
                 "derivation_object",
                 "method",
                 "workflow",
+                "topic_skill_projection",
                 "bridge",
                 "example_card",
                 "caveat_card",
@@ -498,6 +499,7 @@ class AITPServiceTests(unittest.TestCase):
             "units/derivation-steps",
             "units/derivations",
             "units/methods",
+            "units/topic-skill-projections",
             "units/bridges",
             "units/examples",
             "units/caveats",
@@ -549,6 +551,7 @@ class AITPServiceTests(unittest.TestCase):
                     "derivation_step": ROOT / "units" / "derivation-steps",
                     "derivation": ROOT / "units" / "derivations",
                     "method": ROOT / "units" / "methods",
+                    "topic_skill_projection": ROOT / "units" / "topic-skill-projections",
                     "bridge": ROOT / "units" / "bridges",
                     "example": ROOT / "units" / "examples",
                     "caveat": ROOT / "units" / "caveats",
@@ -831,6 +834,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["promotion_gate"]["status"], "approved")
         self.assertEqual(payload["promotion_readiness"]["status"], "approved")
         self.assertEqual(payload["open_gap_summary"]["status"], "clear")
+        self.assertEqual(payload["strategy_memory"]["status"], "absent")
+        self.assertEqual(payload["topic_skill_projection"]["status"], "not_applicable")
         self.assertEqual(payload["topic_completion"]["status"], "not_assessed")
         self.assertEqual(payload["lean_bridge"]["status"], "empty")
         self.assertEqual(payload["minimal_execution_brief"]["selected_action_id"], "action:demo-topic:01")
@@ -876,6 +881,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("## Active research contract", note_text)
         self.assertIn("## Promotion readiness", note_text)
         self.assertIn("## Open gap summary", note_text)
+        self.assertIn("## Strategy memory", note_text)
+        self.assertIn("## Topic skill projection", note_text)
         self.assertIn("## Topic completion", note_text)
         self.assertIn("## Lean bridge", note_text)
         self.assertIn("## Minimal execution brief", note_text)
@@ -888,7 +895,264 @@ class AITPServiceTests(unittest.TestCase):
         self.assertNotIn("RESEARCH_EXECUTION_GUARDRAILS.md", note_text)
         self.assertIn("backend:formal-theory-note-library", note_text)
         self.assertIn("## L2 promotion gate", note_text)
-        self.assertIn("source-layer/scripts/register_local_note_source.py", note_text)
+
+    def test_record_strategy_memory_writes_jsonl_row(self) -> None:
+        self._write_runtime_state()
+
+        payload = self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="2026-03-13-demo",
+            strategy_type="verification_guardrail",
+            summary="Check sign conventions before merging derivation branches.",
+            outcome="helpful",
+            confidence=0.78,
+            input_context={"method_surface": "derivation"},
+            evidence_refs=["validation/topics/demo-topic/runs/2026-03-13-demo/result_summary.md"],
+            reuse_conditions=["multi-source derivation merge"],
+            do_not_apply_when=["single-source closed derivation"],
+            human_note="Keep this as a default bounded review step.",
+            updated_by="human",
+        )
+
+        path = Path(payload["strategy_memory_path"])
+        self.assertTrue(path.exists())
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["strategy_type"], "verification_guardrail")
+        self.assertEqual(rows[0]["outcome"], "helpful")
+        self.assertEqual(rows[0]["lane"], "code_method")
+        self.assertIn("multi-source derivation merge", rows[0]["reuse_conditions"])
+
+    def test_topic_status_surfaces_relevant_strategy_memory(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                    "last_materialized_stage": "L3",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Continue the derivation review.",
+                    "action_queue_surface": {
+                        "queue_source": "heuristic",
+                    },
+                    "decision_surface": {
+                        "decision_mode": "continue_unfinished",
+                        "decision_source": "heuristic",
+                        "decision_contract_status": "missing",
+                        "control_note_path": None,
+                        "selected_action_id": "action:demo-topic:proof",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:proof",
+                    "status": "pending",
+                    "action_type": "proof_review",
+                    "summary": "Check sign conventions before combining the derivation branches.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="2026-03-13-demo",
+            strategy_type="verification_guardrail",
+            summary="Check sign conventions before combining derivation branches.",
+            outcome="helpful",
+            confidence=0.81,
+            lane="formal_theory",
+            reuse_conditions=["combining derivation branches", "sign conventions"],
+            updated_by="aitp-cli",
+        )
+
+        payload = self.service.topic_status(topic_slug="demo-topic")
+
+        self.assertEqual(payload["strategy_memory"]["status"], "available")
+        self.assertGreaterEqual(payload["strategy_memory"]["relevant_count"], 1)
+        self.assertTrue(payload["strategy_memory"]["guidance"])
+        self.assertTrue(
+            any(
+                str(row.get("path") or "").endswith("strategy_memory.jsonl")
+                for row in payload["must_read_now"]
+            )
+        )
+
+    def test_project_topic_skill_available_for_code_method_lane(self) -> None:
+        runtime_root = self._write_runtime_state(run_id="run-001")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                    "last_materialized_stage": "L3",
+                    "research_mode": "exploratory_general",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Keep the benchmark-first code-method route bounded.",
+                    "action_queue_surface": {
+                        "queue_source": "heuristic",
+                    },
+                    "decision_surface": {
+                        "decision_mode": "continue_unfinished",
+                        "decision_source": "heuristic",
+                        "decision_contract_status": "missing",
+                        "control_note_path": None,
+                        "selected_action_id": "action:demo-topic:code",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:code",
+                    "status": "pending",
+                    "action_type": "benchmark",
+                    "summary": "Close the exact benchmark before broader code-method confidence.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        self.service.scaffold_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            title="TFIM exact-diagonalization benchmark workflow",
+            kind="coding",
+            summary="Benchmark-first code-backed route.",
+        )
+        self.service.update_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            operation="TFIM exact-diagonalization benchmark workflow",
+            baseline_status="passed",
+            artifact_paths=["validation/topics/demo-topic/runs/run-001/results/benchmark.json"],
+        )
+        self.service.audit_operation_trust(
+            topic_slug="demo-topic",
+            run_id="run-001",
+        )
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            strategy_type="verification_guardrail",
+            summary="Close the exact benchmark before broader code-method confidence.",
+            outcome="helpful",
+            lane="code_method",
+            confidence=0.82,
+            evidence_refs=["validation/topics/demo-topic/runs/run-001/trust_audit.json"],
+        )
+
+        payload = self.service.project_topic_skill(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        projection = payload["topic_skill_projection"]
+        self.assertEqual(projection["status"], "available")
+        self.assertEqual(projection["lane"], "code_method")
+        self.assertTrue(Path(payload["topic_skill_projection_path"]).exists())
+        self.assertTrue(Path(payload["topic_skill_projection_note_path"]).exists())
+        self.assertIn("benchmark-first", projection["summary"])
+        candidate_rows = [
+            json.loads(line)
+            for line in (self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "run-001" / "candidate_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        projection_row = next(row for row in candidate_rows if row["candidate_type"] == "topic_skill_projection")
+        self.assertEqual(projection_row["intended_l2_targets"], ["topic_skill_projection:demo-topic"])
+
+        status_payload = self.service.topic_status(topic_slug="demo-topic")
+        self.assertEqual(status_payload["topic_skill_projection"]["status"], "available")
+        self.assertTrue(
+            any(
+                str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+                for row in status_payload["must_read_now"]
+            )
+        )
+
+    def test_project_topic_skill_blocks_without_trust_gate(self) -> None:
+        runtime_root = self._write_runtime_state(run_id="run-001")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                    "research_mode": "exploratory_general",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.service.scaffold_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            title="TFIM exact-diagonalization benchmark workflow",
+            kind="coding",
+        )
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            strategy_type="verification_guardrail",
+            summary="Close the exact benchmark before broader code-method confidence.",
+            outcome="helpful",
+            lane="code_method",
+            confidence=0.8,
+        )
+
+        payload = self.service.project_topic_skill(topic_slug="demo-topic")
+
+        self.assertEqual(payload["topic_skill_projection"]["status"], "blocked")
+        ledger_path = self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "run-001" / "candidate_ledger.jsonl"
+        if ledger_path.exists():
+            rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            self.assertFalse(any(row.get("candidate_type") == "topic_skill_projection" for row in rows))
 
     def test_ensure_topic_shell_surfaces_writes_contracts_dashboard_and_gap_map(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -1165,6 +1429,95 @@ class AITPServiceTests(unittest.TestCase):
         console_text = (runtime_root / "operator_console.md").read_text(encoding="utf-8")
         self.assertIn("## Active operator checkpoint", console_text)
         self.assertIn("`answered`", console_text)
+
+    def test_answer_operator_checkpoint_materializes_redirect_steering(self) -> None:
+        runtime_root = self._write_runtime_state()
+        feedback_root = self.kernel_root / "feedback" / "topics" / "demo-topic" / "runs" / "2026-03-13-demo"
+        feedback_root.mkdir(parents=True, exist_ok=True)
+        next_actions_path = feedback_root / "next_actions.md"
+        next_actions_path.write_text("1. Continue the current bounded lane.\n", encoding="utf-8")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                    "pointers": {
+                        "next_actions_path": "feedback/topics/demo-topic/runs/2026-03-13-demo/next_actions.md",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Need an explicit stop/continue decision for the active topic.",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:steer",
+                    "status": "pending",
+                    "action_type": "manual_followup",
+                    "summary": "AITP needs a continue or branch decision before the bounded loop can proceed.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "operator_console.md").write_text("# Console\n", encoding="utf-8")
+
+        service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        payload = service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+        self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
+        self.assertEqual(
+            payload["operator_checkpoint"]["checkpoint_kind"],
+            "stop_continue_branch_redirect_decision",
+        )
+
+        answered = service.answer_operator_checkpoint(
+            topic_slug="demo-topic",
+            answer="Redirect the active topic toward low-energy effective theory.",
+            updated_by="human",
+        )
+
+        innovation_direction_path = runtime_root / "innovation_direction.md"
+        innovation_decisions_path = runtime_root / "innovation_decisions.jsonl"
+        control_note_path = runtime_root / "control_note.md"
+        next_actions_contract_path = feedback_root / "next_actions.contract.json"
+
+        self.assertTrue(answered["steering_artifacts"]["materialized"])
+        self.assertEqual(answered["steering_artifacts"]["decision"], "redirect")
+        self.assertTrue(innovation_direction_path.exists())
+        self.assertTrue(innovation_decisions_path.exists())
+        self.assertTrue(control_note_path.exists())
+        self.assertTrue(next_actions_contract_path.exists())
+        self.assertIn("low-energy effective theory", innovation_direction_path.read_text(encoding="utf-8"))
+        self.assertIn("directive: human_redirect", control_note_path.read_text(encoding="utf-8"))
+        contract_payload = json.loads(next_actions_contract_path.read_text(encoding="utf-8"))
+        self.assertEqual(contract_payload["actions"][0]["action_id"], "action:demo-topic:steering:operator-redirect")
+        self.assertEqual(len(service.orchestrate_calls), 1)
+        self.assertTrue(
+            str(service.orchestrate_calls[0].get("control_note") or "").endswith("runtime/topics/demo-topic/control_note.md")
+        )
+        self.assertEqual(answered["topic_state_explainability"]["active_human_need"]["status"], "none")
 
     def test_pending_human_promotion_gate_creates_operator_checkpoint(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -1455,13 +1808,14 @@ class AITPServiceTests(unittest.TestCase):
             return Result(0, "", "")
 
         with patch("knowledge_hub.aitp_service.subprocess.run", side_effect=fake_run):
-            with patch.object(self.service, "install_agent", side_effect=fake_install_agent):
-                with patch.object(self.service, "_ensure_opencode_plugin_enabled", return_value={"config_path": "C:\\temp\\opencode.json", "plugin_entry": "aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"}):
-                    result = self.service.migrate_local_install(
-                        workspace_root=str(workspace_root),
-                        agents=["codex", "claude-code", "opencode"],
-                        with_mcp=False,
-                    )
+            with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                with patch.object(self.service, "install_agent", side_effect=fake_install_agent):
+                    with patch.object(self.service, "_ensure_opencode_plugin_enabled", return_value={"config_path": "C:\\temp\\opencode.json", "plugin_entry": "aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"}):
+                        result = self.service.migrate_local_install(
+                            workspace_root=str(workspace_root),
+                            agents=["codex", "claude-code", "opencode"],
+                            with_mcp=False,
+                        )
 
         self.assertEqual(result["status"], "success")
         self.assertEqual(len(result["backup_log"]), 3)
@@ -2004,6 +2358,133 @@ class AITPServiceTests(unittest.TestCase):
             if line.strip()
         ]
         self.assertEqual(candidate_rows[0]["status"], "promoted")
+
+    def test_promote_topic_skill_projection_writes_tpkn_projection_unit(self) -> None:
+        runtime_root = self._write_runtime_state(run_id="run-001")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                    "research_mode": "exploratory_general",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.service.scaffold_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            title="TFIM exact-diagonalization benchmark workflow",
+            kind="coding",
+        )
+        self.service.update_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            operation="TFIM exact-diagonalization benchmark workflow",
+            baseline_status="passed",
+            artifact_paths=["validation/topics/demo-topic/runs/run-001/results/benchmark.json"],
+        )
+        self.service.audit_operation_trust(topic_slug="demo-topic", run_id="run-001")
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            strategy_type="verification_guardrail",
+            summary="Close the exact benchmark before broader code-method confidence.",
+            outcome="helpful",
+            lane="code_method",
+            confidence=0.82,
+        )
+        projection_payload = self.service.project_topic_skill(topic_slug="demo-topic")
+        projection_candidate = projection_payload["topic_skill_projection_candidate"]
+        self.assertIsNotNone(projection_candidate)
+
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id=projection_candidate["candidate_id"],
+            run_id="run-001",
+            backend_id="backend:theoretical-physics-knowledge-network",
+            target_backend_root=str(tpkn_root),
+        )
+        self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id=projection_candidate["candidate_id"],
+            run_id="run-001",
+        )
+
+        payload = self.service.promote_candidate(
+            topic_slug="demo-topic",
+            candidate_id=projection_candidate["candidate_id"],
+            run_id="run-001",
+            target_backend_root=str(tpkn_root),
+            domain="demo-domain",
+            subdomain="code-method",
+        )
+
+        unit_path = Path(payload["target_unit_path"])
+        self.assertTrue(unit_path.exists())
+        self.assertIn("topic-skill-projections", str(unit_path).replace("\\", "/"))
+        unit_payload = json.loads(unit_path.read_text(encoding="utf-8"))
+        self.assertEqual(unit_payload["type"], "topic_skill_projection")
+        self.assertEqual(unit_payload["canonical_layer"], "L2")
+
+    def test_auto_promote_rejects_topic_skill_projection(self) -> None:
+        runtime_root = self._write_runtime_state(run_id="run-001")
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                    "research_mode": "exploratory_general",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.service.scaffold_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            title="TFIM exact-diagonalization benchmark workflow",
+            kind="coding",
+        )
+        self.service.update_operation(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            operation="TFIM exact-diagonalization benchmark workflow",
+            baseline_status="passed",
+        )
+        self.service.audit_operation_trust(topic_slug="demo-topic", run_id="run-001")
+        self.service.record_strategy_memory(
+            topic_slug="demo-topic",
+            run_id="run-001",
+            strategy_type="verification_guardrail",
+            summary="Close the exact benchmark before broader code-method confidence.",
+            outcome="helpful",
+            lane="code_method",
+            confidence=0.82,
+        )
+        projection_payload = self.service.project_topic_skill(topic_slug="demo-topic")
+        projection_candidate = projection_payload["topic_skill_projection_candidate"]
+        self.assertIsNotNone(projection_candidate)
+        self._write_tpkn_backend_card(allows_auto=True)
+        tpkn_root = self._write_fake_tpkn_repo()
+
+        with self.assertRaisesRegex(PermissionError, "human-reviewed only"):
+            self.service.auto_promote_candidate(
+                topic_slug="demo-topic",
+                candidate_id=projection_candidate["candidate_id"],
+                run_id="run-001",
+                target_backend_root=str(tpkn_root),
+                domain="demo-domain",
+                subdomain="code-method",
+            )
 
     def test_auto_promote_candidate_writes_l2_auto_unit_and_report(self) -> None:
         self._write_runtime_state()

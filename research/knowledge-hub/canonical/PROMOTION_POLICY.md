@@ -51,6 +51,7 @@ Typical candidates:
 - a clean concept definition,
 - a narrow source-anchored claim card,
 - a small warning note about a documented limitation.
+- a validated `topic_skill_projection` whose route rules are stable enough for reuse.
 
 Do not treat `L1 -> L2` as the default.
 
@@ -87,6 +88,16 @@ Typical candidates:
 - a notation card with explicit binding context.
 
 Do not treat `L1 -> L2_auto` as the default.
+
+### Topic-skill projection rule
+
+For the first version of `topic_skill_projection`:
+
+- allow only the human-reviewed route `L3 -> L4 -> L2`
+- do not allow `L1 -> L2`
+- do not allow `L2_auto`
+- require a mature topic runtime, passing operation-trust evidence, and
+  run-local strategy memory before promotion review
 
 ### Reconciliation route: `L2_auto -> L2`
 

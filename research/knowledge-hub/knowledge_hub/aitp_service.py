@@ -21,6 +21,7 @@ from .runtime_projection_handler import (
     write_pending_decisions_projection,
     write_promotion_readiness_projection,
     write_promotion_trace,
+    write_topic_skill_projection,
     write_topic_synopsis,
 )
 from .tpkn_bridge import (
@@ -577,6 +578,16 @@ class AITPService:
             "ledger": runtime_root / "operator_checkpoints.jsonl",
         }
 
+    def _strategy_memory_path(self, topic_slug: str, run_id: str) -> Path:
+        return self._feedback_run_root(topic_slug, run_id) / "strategy_memory.jsonl"
+
+    def _topic_skill_projection_paths(self, topic_slug: str) -> dict[str, Path]:
+        runtime_root = self._runtime_root(topic_slug)
+        return {
+            "json": runtime_root / "topic_skill_projection.active.json",
+            "note": runtime_root / "topic_skill_projection.active.md",
+        }
+
     def _topic_dashboard_path(self, topic_slug: str) -> Path:
         return self._runtime_root(topic_slug) / "topic_dashboard.md"
 
@@ -724,6 +735,478 @@ class AITPService:
             return "toy_numeric"
         return "code_method"
 
+    def _load_strategy_memory_rows(self, topic_slug: str) -> list[dict[str, Any]]:
+        runs_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs"
+        if not runs_root.exists():
+            return []
+        rows: list[dict[str, Any]] = []
+        for path in sorted(runs_root.glob("*/strategy_memory.jsonl")):
+            for raw_row in read_jsonl(path):
+                if not isinstance(raw_row, dict):
+                    continue
+                row = dict(raw_row)
+                row["path"] = self._relativize(path)
+                row["run_id"] = str(row.get("run_id") or path.parent.name)
+                row["timestamp"] = str(row.get("timestamp") or "")
+                row["strategy_id"] = str(row.get("strategy_id") or "")
+                row["strategy_type"] = str(row.get("strategy_type") or "")
+                row["summary"] = str(row.get("summary") or "")
+                row["lane"] = str(row.get("lane") or "")
+                row["outcome"] = str(row.get("outcome") or "")
+                try:
+                    row["confidence"] = float(row.get("confidence") or 0.0)
+                except (TypeError, ValueError):
+                    row["confidence"] = 0.0
+                row["reuse_conditions"] = self._dedupe_strings(
+                    [str(item) for item in (row.get("reuse_conditions") or [])]
+                )
+                row["do_not_apply_when"] = self._dedupe_strings(
+                    [str(item) for item in (row.get("do_not_apply_when") or [])]
+                )
+                input_context = row.get("input_context")
+                row["input_context"] = input_context if isinstance(input_context, dict) else {}
+                row["evidence_refs"] = self._dedupe_strings(
+                    [str(item) for item in (row.get("evidence_refs") or [])]
+                )
+                rows.append(row)
+        rows.sort(
+            key=lambda item: (
+                str(item.get("timestamp") or ""),
+                str(item.get("run_id") or ""),
+                str(item.get("strategy_id") or ""),
+            ),
+            reverse=True,
+        )
+        return rows
+
+    def _strategy_memory_match_score(
+        self,
+        row: dict[str, Any],
+        *,
+        lane: str,
+        current_context_text: str,
+    ) -> int:
+        score = 0
+        if lane and str(row.get("lane") or "").strip() == lane:
+            score += 2
+        if str(row.get("outcome") or "").strip() in {"helpful", "harmful"}:
+            score += 1
+        row_text_parts = [
+            str(row.get("summary") or ""),
+            str(row.get("strategy_type") or ""),
+            str(row.get("human_note") or ""),
+            *[str(item) for item in (row.get("reuse_conditions") or [])],
+            *[str(item) for item in (row.get("do_not_apply_when") or [])],
+            *[
+                str(value)
+                for value in ((row.get("input_context") or {}) if isinstance(row.get("input_context"), dict) else {}).values()
+            ],
+        ]
+        current_tokens = set(re.findall(r"[a-z0-9_]+", current_context_text.lower()))
+        row_tokens = set(re.findall(r"[a-z0-9_]+", " ".join(row_text_parts).lower()))
+        overlap = current_tokens & row_tokens
+        if overlap:
+            score += min(len(overlap), 4)
+        return score
+
+    def _derive_strategy_memory_summary(
+        self,
+        *,
+        topic_slug: str,
+        latest_run_id: str | None,
+        selected_pending_action: dict[str, Any] | None,
+        research_contract: dict[str, Any],
+        validation_contract: dict[str, Any],
+    ) -> dict[str, Any]:
+        rows = self._load_strategy_memory_rows(topic_slug)
+        lane = self._lane_for_modes(
+            template_mode=research_contract.get("template_mode"),
+            research_mode=research_contract.get("research_mode"),
+        )
+        if not rows:
+            return {
+                "topic_slug": topic_slug,
+                "latest_run_id": latest_run_id or "",
+                "status": "absent",
+                "lane": lane,
+                "row_count": 0,
+                "relevant_count": 0,
+                "helpful_count": 0,
+                "harmful_count": 0,
+                "latest_path": None,
+                "relevant_paths": [],
+                "guidance": [],
+                "summary": "No run-local strategy memory is currently recorded for this topic.",
+            }
+
+        current_context_text = " ".join(
+            [
+                str((selected_pending_action or {}).get("summary") or ""),
+                str(research_contract.get("question") or ""),
+                str(validation_contract.get("verification_focus") or ""),
+            ]
+        )
+        scored_rows = [
+            {
+                **row,
+                "match_score": self._strategy_memory_match_score(
+                    row,
+                    lane=lane,
+                    current_context_text=current_context_text,
+                ),
+            }
+            for row in rows
+        ]
+        relevant_rows = [
+            row for row in scored_rows if int(row.get("match_score") or 0) > 0
+        ][:3]
+        guidance: list[str] = []
+        for row in relevant_rows:
+            outcome = str(row.get("outcome") or "").strip()
+            if outcome == "helpful":
+                prefix = "Reuse"
+            elif outcome == "harmful":
+                prefix = "Avoid"
+            else:
+                prefix = "Review"
+            guidance.append(f"{prefix}: {row.get('summary') or '(missing)'}")
+        helpful_count = sum(1 for row in rows if str(row.get("outcome") or "").strip() == "helpful")
+        harmful_count = sum(1 for row in rows if str(row.get("outcome") or "").strip() == "harmful")
+        latest_path = str(rows[0].get("path") or "") or None
+        summary = (
+            f"{len(rows)} strategy-memory row(s) recorded for lane `{lane}`; "
+            f"{len(relevant_rows)} relevant to the current bounded route."
+        )
+        if guidance:
+            summary += " " + guidance[0]
+        return {
+            "topic_slug": topic_slug,
+            "latest_run_id": latest_run_id or "",
+            "status": "available",
+            "lane": lane,
+            "row_count": len(rows),
+            "relevant_count": len(relevant_rows),
+            "helpful_count": helpful_count,
+            "harmful_count": harmful_count,
+            "latest_path": latest_path,
+            "relevant_paths": self._dedupe_strings(
+                [str(row.get("path") or "") for row in relevant_rows if str(row.get("path") or "").strip()]
+            ),
+            "guidance": guidance,
+            "summary": summary,
+        }
+
+    def record_strategy_memory(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str,
+        strategy_type: str,
+        summary: str,
+        outcome: str,
+        updated_by: str = "aitp-cli",
+        lane: str | None = None,
+        strategy_id: str | None = None,
+        input_context: dict[str, Any] | None = None,
+        confidence: float | int | None = None,
+        evidence_refs: list[str] | None = None,
+        reuse_conditions: list[str] | None = None,
+        do_not_apply_when: list[str] | None = None,
+        human_note: str | None = None,
+    ) -> dict[str, Any]:
+        valid_strategy_types = {
+            "search_route",
+            "verification_guardrail",
+            "debug_pattern",
+            "resource_plan",
+            "scope_control",
+        }
+        valid_outcomes = {"helpful", "neutral", "harmful", "inconclusive"}
+        normalized_strategy_type = str(strategy_type or "").strip()
+        normalized_outcome = str(outcome or "").strip()
+        if normalized_strategy_type not in valid_strategy_types:
+            raise ValueError(f"strategy_type must be one of {sorted(valid_strategy_types)}")
+        if normalized_outcome not in valid_outcomes:
+            raise ValueError(f"outcome must be one of {sorted(valid_outcomes)}")
+        normalized_summary = str(summary or "").strip()
+        if not normalized_summary:
+            raise ValueError("summary must not be empty")
+        normalized_confidence = float(confidence if confidence is not None else 0.5)
+        if not 0.0 <= normalized_confidence <= 1.0:
+            raise ValueError("confidence must be within [0, 1]")
+
+        topic_state = read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
+        research_contract = read_json(self._research_question_contract_paths(topic_slug)["json"]) or {}
+        resolved_lane = str(lane or "").strip() or self._lane_for_modes(
+            template_mode=research_contract.get("template_mode"),
+            research_mode=research_contract.get("research_mode") or topic_state.get("research_mode"),
+        )
+        timestamp = now_iso()
+        resolved_strategy_id = str(strategy_id or "").strip() or (
+            f"strat-{normalized_strategy_type}-{slugify(timestamp)}"
+        )
+        row = {
+            "timestamp": timestamp,
+            "topic_slug": topic_slug,
+            "run_id": run_id,
+            "lane": resolved_lane,
+            "strategy_id": resolved_strategy_id,
+            "strategy_type": normalized_strategy_type,
+            "summary": normalized_summary,
+            "input_context": input_context if isinstance(input_context, dict) else {},
+            "outcome": normalized_outcome,
+            "confidence": normalized_confidence,
+            "evidence_refs": self._dedupe_strings([str(item) for item in (evidence_refs or [])]),
+            "reuse_conditions": self._dedupe_strings([str(item) for item in (reuse_conditions or [])]),
+            "do_not_apply_when": self._dedupe_strings([str(item) for item in (do_not_apply_when or [])]),
+            "human_note": str(human_note or "").strip(),
+            "updated_by": updated_by,
+        }
+        path = self._strategy_memory_path(topic_slug, run_id)
+        rows = read_jsonl(path)
+        rows.append(row)
+        write_jsonl(path, rows)
+        return {
+            "topic_slug": topic_slug,
+            "run_id": run_id,
+            "strategy_memory_path": str(path),
+            "strategy_memory_entry": row,
+        }
+
+    def _load_operation_manifests(self, topic_slug: str, run_id: str | None) -> list[dict[str, Any]]:
+        resolved_run_id = str(run_id or "").strip()
+        if not resolved_run_id:
+            return []
+        operations_root = self._validation_run_root(topic_slug, resolved_run_id) / "operations"
+        if not operations_root.exists():
+            return []
+        rows: list[dict[str, Any]] = []
+        for manifest_path in sorted(operations_root.glob("*/operation_manifest.json")):
+            manifest = read_json(manifest_path)
+            if not isinstance(manifest, dict):
+                continue
+            row = dict(manifest)
+            row["path"] = self._relativize(manifest_path)
+            row["summary_path"] = self._relativize(manifest_path.parent / "operation_summary.md")
+            rows.append(row)
+        return rows
+
+    def _derive_topic_skill_projection(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str,
+        topic_state: dict[str, Any],
+        research_contract: dict[str, Any],
+        validation_contract: dict[str, Any],
+        selected_pending_action: dict[str, Any] | None,
+        strategy_memory: dict[str, Any],
+        topic_completion: dict[str, Any],
+        open_gap_summary: dict[str, Any],
+    ) -> dict[str, Any]:
+        latest_run_id = str(topic_state.get("latest_run_id") or "").strip()
+        lane = self._lane_for_modes(
+            template_mode=research_contract.get("template_mode"),
+            research_mode=research_contract.get("research_mode"),
+        )
+        trust_audit_path = (
+            self._trust_audit_path(topic_slug, latest_run_id)
+            if latest_run_id
+            else self._runtime_root(topic_slug) / "missing-trust-audit.json"
+        )
+        trust_audit = read_json(trust_audit_path) if trust_audit_path.exists() else None
+        operation_manifests = self._load_operation_manifests(topic_slug, latest_run_id or None)
+        title = f"{str(research_contract.get('title') or self._topic_display_title(topic_slug))} Topic Skill Projection"
+        projection_id = f"topic_skill_projection:{slugify(topic_slug)}"
+        candidate_hash = hashlib.sha1(topic_slug.encode("utf-8")).hexdigest()[:8]
+        candidate_slug = slugify(topic_slug)[:24].rstrip("-")
+        candidate_id = f"candidate:topic-skill-proj-{candidate_slug}-{candidate_hash}"
+        intended_l2_target = projection_id
+        derived_from_artifacts = self._dedupe_strings(
+            [
+                self._relativize(self._research_question_contract_paths(topic_slug)["json"]),
+                self._relativize(self._validation_contract_paths(topic_slug)["json"]),
+                self._relativize(self._runtime_root(topic_slug) / "topic_state.json"),
+                self._normalize_artifact_path(strategy_memory.get("latest_path")),
+                self._relativize(trust_audit_path) if trust_audit_path.exists() else "",
+                self._relativize(self._topic_completion_paths(topic_slug)["json"]),
+                self._relativize(self._gap_map_path(topic_slug)),
+                *[str(row.get("path") or "") for row in operation_manifests],
+            ]
+        )
+        entry_signals = self._dedupe_strings(
+            [
+                f"lane={lane}",
+                f"selected_action={str((selected_pending_action or {}).get('summary') or '').strip() or '(none)'}",
+                f"strategy_memory_status={strategy_memory.get('status') or 'absent'}",
+                f"operation_count={len(operation_manifests)}",
+                f"operation_trust={str((trust_audit or {}).get('overall_status') or 'missing')}",
+            ]
+        )
+        required_first_reads = self._dedupe_strings(
+            [
+                self._relativize(self._research_question_contract_paths(topic_slug)["note"]),
+                self._relativize(self._validation_contract_paths(topic_slug)["note"]),
+                self._normalize_artifact_path(strategy_memory.get("latest_path")),
+                self._relativize(trust_audit_path) if trust_audit_path.exists() else "",
+                *[
+                    str(row.get("summary_path") or row.get("path") or "")
+                    for row in operation_manifests
+                ],
+            ]
+        )
+        required_first_routes: list[str] = []
+        benchmark_first_rules: list[str] = []
+        operation_trust_requirements: list[str] = []
+        for manifest in operation_manifests:
+            title_hint = str(manifest.get("title") or manifest.get("operation_id") or "(missing)")
+            baseline_required = bool(manifest.get("baseline_required"))
+            atomic_required = bool(manifest.get("atomic_understanding_required"))
+            baseline_status = str(manifest.get("baseline_status") or "missing")
+            atomic_status = str(manifest.get("atomic_understanding_status") or "missing")
+            if baseline_required:
+                required_first_routes.append(
+                    f"Close the declared benchmark/baseline for `{title_hint}` before broader workflow claims."
+                )
+                benchmark_first_rules.append(
+                    f"`{title_hint}` requires baseline status `{baseline_status}` before route reuse is trusted."
+                )
+            if atomic_required:
+                required_first_routes.append(
+                    f"Complete atomic understanding for `{title_hint}` before claiming reusable method understanding."
+                )
+            operation_trust_requirements.append(
+                f"`{title_hint}`: baseline_required={str(baseline_required).lower()}, "
+                f"baseline_status={baseline_status}, atomic_understanding_required={str(atomic_required).lower()}, "
+                f"atomic_understanding_status={atomic_status}."
+            )
+        if not benchmark_first_rules:
+            benchmark_first_rules.append(
+                "Do not claim reusable code-method confidence without a persisted benchmark or trust-ready operation artifact."
+            )
+        operator_checkpoint_rules = [
+            "Raise an operator checkpoint when benchmark mismatch or validation-route ambiguity changes the bounded route.",
+            "Require explicit human approval before any L2 promotion of a topic-skill projection.",
+            "Translate continue/branch/redirect answers into durable steering artifacts before deeper execution continues.",
+        ]
+        forbidden_proxies = self._dedupe_strings(
+            list(research_contract.get("forbidden_proxies") or [])
+            + [
+                "Do not treat raw code changes, unreviewed configs, or prose-only workflow descriptions as a reusable topic-skill projection.",
+                "Do not claim broader workflow portability before the benchmark-first gate and operation-trust audit are both satisfied.",
+            ]
+        )
+        strategy_guidance = self._dedupe_strings(list(strategy_memory.get("guidance") or []))
+
+        if lane != "code_method":
+            status = "not_applicable"
+            status_reason = "Topic-skill projection v1 only applies to the code_method lane."
+        elif not latest_run_id:
+            status = "blocked"
+            status_reason = "Projection is blocked because the topic has no active run id yet."
+        elif not operation_manifests:
+            status = "blocked"
+            status_reason = "Projection is blocked because no operation manifests exist for the active run."
+        elif not trust_audit or str(trust_audit.get("overall_status") or "") != "pass":
+            status = "blocked"
+            status_reason = "Projection is blocked until operation trust passes for the active run."
+        elif int(strategy_memory.get("row_count") or 0) <= 0:
+            status = "blocked"
+            status_reason = "Projection is blocked until at least one run-local strategy-memory row exists."
+        else:
+            status = "available"
+            status_reason = (
+                "Projection is available because the topic is code_method, has trust-ready operation manifests, "
+                "and carries route-level strategy memory."
+            )
+
+        summary = (
+            "Validated reusable execution projection for the topic's benchmark-first code-method route."
+            if status == "available"
+            else "Topic-skill projection is not yet reusable enough to treat as an L2-ready execution projection."
+        )
+        return {
+            "id": projection_id,
+            "topic_slug": topic_slug,
+            "source_topic_slug": topic_slug,
+            "run_id": latest_run_id,
+            "title": title,
+            "summary": summary,
+            "lane": lane,
+            "status": status,
+            "status_reason": status_reason,
+            "candidate_id": candidate_id if status == "available" else None,
+            "intended_l2_target": intended_l2_target if status == "available" else None,
+            "entry_signals": entry_signals,
+            "required_first_reads": required_first_reads,
+            "required_first_routes": self._dedupe_strings(required_first_routes),
+            "benchmark_first_rules": self._dedupe_strings(benchmark_first_rules),
+            "operator_checkpoint_rules": operator_checkpoint_rules,
+            "operation_trust_requirements": self._dedupe_strings(operation_trust_requirements),
+            "strategy_guidance": strategy_guidance,
+            "forbidden_proxies": forbidden_proxies,
+            "derived_from_artifacts": derived_from_artifacts,
+            "updated_at": now_iso(),
+            "updated_by": updated_by,
+        }
+
+    def _sync_topic_skill_projection_candidate(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None,
+        projection: dict[str, Any],
+        updated_by: str,
+    ) -> dict[str, Any] | None:
+        resolved_run_id = str(run_id or "").strip()
+        candidate_id = str(
+            projection.get("candidate_id") or f"candidate:topic-skill-projection-{slugify(topic_slug)}"
+        ).strip()
+        if resolved_run_id and str(projection.get("status") or "") != "available":
+            self._remove_candidate_row(topic_slug, resolved_run_id, candidate_id)
+            return None
+        if not resolved_run_id:
+            return None
+        if not candidate_id:
+            return None
+        candidate_row = {
+            "candidate_id": candidate_id,
+            "candidate_type": "topic_skill_projection",
+            "title": str(projection.get("title") or candidate_id),
+            "summary": str(projection.get("summary") or ""),
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "origin_refs": [
+                {
+                    "id": f"strategy_memory:{resolved_run_id}",
+                    "layer": "L3",
+                    "object_type": "strategy_memory",
+                    "path": str(next((item for item in projection.get("derived_from_artifacts") or [] if str(item).endswith("strategy_memory.jsonl")), "")),
+                    "title": "Strategy memory",
+                    "summary": "Run-local route memory contributing to the projection.",
+                },
+                {
+                    "id": f"trust_audit:{resolved_run_id}",
+                    "layer": "L4",
+                    "object_type": "operation_trust_audit",
+                    "path": str(next((item for item in projection.get("derived_from_artifacts") or [] if str(item).endswith("trust_audit.json")), "")),
+                    "title": "Operation trust audit",
+                    "summary": "Passing operation-trust evidence used to validate the code-method projection.",
+                },
+            ],
+            "question": (
+                f"How should the topic `{topic_slug}` be entered and advanced as a reusable benchmark-first code-method route?"
+            ),
+            "assumptions": self._dedupe_strings(list(projection.get("benchmark_first_rules") or [])),
+            "proposed_validation_route": "human-reviewed topic-skill projection promotion",
+            "intended_l2_targets": [str(projection.get("intended_l2_target") or "")],
+            "status": "ready_for_validation",
+            "promotion_mode": "human",
+            "topic_completion_status": "regression-stable",
+        }
+        self._replace_candidate_row(topic_slug, resolved_run_id, candidate_id, candidate_row)
+        return candidate_row
+
     def _resolve_load_profile(
         self,
         *,
@@ -796,9 +1279,255 @@ class AITPService:
                 return values
         return self._dedupe_strings(defaults)
 
-    def _coalesce_string(self, existing: Any, default: str) -> str:
+    def _distill_from_sources(
+        self,
+        source_rows: list[dict[str, Any]],
+        topic_slug: str,
+    ) -> dict[str, Any]:
+        """从已注册的 source 中提取 initial_idea, novelty_target. first_validation_route.
+
+        这是 source-to-question 蒸馏的核心逻辑。
+        改进版本：过滤 REV 注释、从原始文件读取、智能提取 novelty。
+        """
+        if not source_rows:
+            return {
+                "distilled_initial_idea": "",
+                "distilled_novelty_target": "",
+                "distilled_first_validation_route": "",
+                "distilled_lane": "",
+            }
+
+        all_previews: list[dict[str, str]] = []
+        all_claims: list[dict[str, str]] = []
+        all_titles: list[str] = []
+
+        for row in source_rows:
+            source_id = str(row.get("source_id") or "")
+            source_type = str(row.get("source_type") or "")
+            title = str(row.get("title") or "")
+            provenance = row.get("provenance") or {}
+            absolute_path = str(provenance.get("absolute_path") or "") if isinstance(provenance, dict) else ""
+
+            if title:
+                all_titles.append(title)
+
+            # 构建 snapshot 路径
+            safe_source_id = source_id.replace(":", "-")
+            snapshot_path = (
+                self.kernel_root
+                / "source-layer"
+                / "topics"
+                / topic_slug
+                / "sources"
+                / safe_source_id
+                / "snapshot.md"
+            )
+
+            snapshot_text = ""
+            if snapshot_path.exists():
+                snapshot_text = snapshot_path.read_text(encoding="utf-8")
+
+            # 从 summary 中提取（通常是更好的内容）
+            summary = str(row.get("summary") or "")
+
+            # 从 snapshot 中提取 Preview 部分
+            preview_content = ""
+            if snapshot_text:
+                preview_match = re.search(
+                    r"## Preview\s*\n(.*?)(?=\n##|\Z)",
+                    snapshot_text,
+                    re.DOTALL,
+                )
+                if preview_match:
+                    preview_content = preview_match.group(1).strip()
+
+            # 过滤掉 REV 注释，只保留实际内容
+            if preview_content:
+                # 移除 LaTeX 注释行（以 % 开头的行）
+                lines = preview_content.split("\n")
+                content_lines = [
+                    line for line in lines
+                    if not line.strip().startswith("%")
+                ]
+                filtered_content = "\n".join(content_lines).strip()
+                if filtered_content:
+                    preview_content = filtered_content
+
+            # 如果 Preview 只有注释，尝试从原始文件读取
+            if (not preview_content or preview_content.startswith("%")) and absolute_path:
+                original_path = Path(absolute_path)
+                if original_path.exists() and original_path.suffix.lower() in [".tex", ".md", ".txt"]:
+                    try:
+                        original_text = original_path.read_text(encoding="utf-8")
+                        # 提取前 500 字符作为 preview
+                        # 跳过 LaTeX 导言
+                        if original_path.suffix.lower() == ".tex":
+                            # 跳过注释和导言，找第一个 \section 或 \chapter
+                            section_match = re.search(
+                                r"\\(?:section|chapter|subsection)\*?\{[^}]+\}[^}]*",
+                                original_text,
+                                re.IGNORECASE | re.DOTALL,
+                            )
+                            if section_match:
+                                start_pos = section_match.start()
+                                # 取 section 之后的 500 字符
+                                preview_content = original_text[start_pos:start_pos + 500].strip()
+                            else:
+                                # 没找到 section，取前 500 字符（过滤注释）
+                                lines = original_text.split("\n")
+                                content_lines = [line for line in lines if not line.strip().startswith("%")]
+                                preview_content = "\n".join(content_lines[:30])[:500].strip()
+                        else:
+                            preview_content = original_text[:500].strip()
+                    except Exception:
+                        pass
+
+            # 如果还是没有，用 summary
+            if not preview_content and summary:
+                # 过滤 summary 中的注释
+                lines = summary.split("\n")
+                content_lines = [line for line in lines if not line.strip().startswith("%")]
+                preview_content = "\n".join(content_lines)[:300].strip()
+
+            if preview_content:
+                all_previews.append({
+                    "source_id": source_id,
+                    "source_type": source_type,
+                    "title": title,
+                    "preview": preview_content,
+                })
+
+            # 从多个来源提取 novelty claims
+            # 1. 从 REV 注释
+            if snapshot_text:
+                rev_matches = re.findall(
+                    r"%\s*\[REV\]\s*\[([^\]]+)\]",
+                    snapshot_text,
+                )
+                for match in rev_matches:
+                    tag = match.strip()
+                    lower_tag = tag.lower()
+                    if any(kw in lower_tag for kw in ["novel", "new", "change", "add", "improve", "extend", "mainline", "introduce"]):
+                        all_claims.append({
+                            "source_id": source_id,
+                            "claim": tag,
+                            "priority": 1 if "novel" in lower_tag else 2,
+                        })
+
+            # 2. 从 title 中提取（包含关键词的）
+            title_lower = title.lower()
+            if any(kw in title_lower for kw in ["novel", "new", "first", "closure", "variational", "derivation"]):
+                all_claims.append({
+                    "source_id": source_id,
+                    "claim": f"Title indicates: {title}",
+                    "priority": 3,
+                })
+
+            # 3. 从 summary 中提取关键词
+            summary_lower = summary.lower()
+            novelty_keywords = ["novel", "new contribution", "we show", "we prove", "we derive", "closure", "variational"]
+            for kw in novelty_keywords:
+                if kw in summary_lower:
+                    # 提取包含关键词的句子
+                    sentences = re.split(r"[.!?]", summary)
+                    for sent in sentences:
+                        if kw in sent.lower():
+                            all_claims.append({
+                                "source_id": source_id,
+                                "claim": sent.strip()[:100],
+                                "priority": 2,
+                            })
+                            break
+
+        # 蒸馏结果
+        distilled_initial_idea = ""
+        distilled_novelty_target = ""
+        distilled_first_validation_route = ""
+        distilled_lane = ""
+
+        # 合并 previews 作为 initial_idea
+        if all_previews:
+            preview_parts = []
+            for p in all_previews[:3]:  # 只取前 3 个 source
+                preview_text = p.get("preview", "")
+                title = p.get("title", "")
+                # 取第一段有效内容
+                first_para = preview_text.split("\n\n")[0] if preview_text else ""
+                if first_para and len(first_para) > 20:  # 过滤太短的内容
+                    preview_parts.append(f"[{title}] {first_para[:200]}")
+            if preview_parts:
+                distilled_initial_idea = " ".join(preview_parts)
+
+        # 如果没有 preview，用 titles
+        if not distilled_initial_idea and all_titles:
+            distilled_initial_idea = f"Research topic: {', '.join(all_titles[:3])}"
+
+        # 提取最相关的 novelty claim（按优先级排序）
+        if all_claims:
+            # 按优先级排序
+            sorted_claims = sorted(all_claims, key=lambda x: x.get("priority", 3))
+            if sorted_claims:
+                distilled_novelty_target = sorted_claims[0].get("claim", "")
+
+        # 根据 source 类型推断 lane 和 first_validation_route
+        source_types = set(
+            str(row.get("source_type") or "").lower() for row in source_rows
+        )
+
+        # 扩展类型映射
+        formal_types = ["paper", "thesis", "article", "local_note", "book", "lecture", "derivation"]
+        numerical_types = ["benchmark", "code", "implementation", "numerical", "experiment"]
+
+        if any(t in source_types for t in formal_types):
+            distilled_lane = "formal_theory"
+            # 根据 source 特性生成更具体的 first_validation_route
+            if "thesis" in source_types:
+                distilled_first_validation_route = (
+                    f"Extract the core thesis claim from {', '.join(all_titles[:2])}, "
+                    "then identify the key definitions and first bounded proof obligation."
+                )
+            else:
+                distilled_first_validation_route = (
+                    "Derive the first bounded question from the source material, "
+                    "then identify the key definitions and proof obligations."
+                )
+        elif any(t in source_types for t in numerical_types):
+            distilled_lane = "numerical"
+            distilled_first_validation_route = (
+                "Reproduce the baseline benchmark before trusting new results. "
+                "then validate the observable definitions and normalization."
+            )
+        else:
+            distilled_lane = "exploratory"
+            distilled_first_validation_route = (
+                "Define the scope boundaries and first validation artifact."
+            )
+
+        return {
+            "distilled_initial_idea": distilled_initial_idea,
+            "distilled_novelty_target": distilled_novelty_target,
+            "distilled_first_validation_route": distilled_first_validation_route,
+            "distilled_lane": distilled_lane,
+        }
+
+    def _coalesce_string(self, existing: Any, *defaults: str) -> str:
+        """Coalesce existing value with multiple fallback defaults.
+
+        Args:
+            existing: The existing value to check first
+            *defaults: One or more fallback values, tried in order
+
+        Returns:
+            The first non-empty string among existing and defaults
+        """
         resolved = str(existing or "").strip()
-        return resolved or default
+        if resolved:
+            return resolved
+        for default in defaults:
+            candidate = str(default or "").strip()
+            if candidate:
+                return candidate
+        return ""
 
     def _slug_to_camel(self, value: str) -> str:
         cleaned = re.sub(r"[^a-zA-Z0-9]+", " ", str(value or "").strip())
@@ -1157,11 +1886,25 @@ class AITPService:
             or str(interaction_state.get("human_request") or "").strip()
         )
         actionable_request = self._request_looks_actionable(request_text)
+
+        # 从 source 中蒸馏信息（新增功能）
+        distilled = self._distill_from_sources(source_rows or [], topic_slug)
+
+        distilled_initial_idea = str(distilled.get("distilled_initial_idea") or "").strip()
+        distilled_novelty_target = str(distilled.get("distilled_novelty_target") or "").strip()
+        distilled_first_validation_route = str(
+            distilled.get("distilled_first_validation_route") or ""
+        ).strip()
         initial_idea = self._coalesce_string(
             existing_idea_packet.get("initial_idea"),
-            request_text or str(existing_research.get("question") or "").strip(),
+            str(existing_research.get("question") or "").strip(),
+            distilled_initial_idea,
+            request_text,
         )
-        novelty_target = self._coalesce_string(existing_idea_packet.get("novelty_target"), "")
+        novelty_target = self._coalesce_string(
+            existing_idea_packet.get("novelty_target"),
+            distilled_novelty_target,
+        )
         non_goals = self._coalesce_list(
             existing_idea_packet.get("non_goals"),
             list(existing_research.get("non_goals") or []),
@@ -1170,6 +1913,7 @@ class AITPService:
             existing_idea_packet.get("first_validation_route"),
             str(existing_validation.get("verification_focus") or "").strip()
             or str(validation_contract.get("verification_focus") or "").strip()
+            or distilled_first_validation_route
             or str((selected_pending_action or {}).get("summary") or "").strip()
             or "Define the first bounded validation route before deeper execution.",
         )
@@ -1195,7 +1939,11 @@ class AITPService:
         execution_context_signals: list[str] = []
         if str(topic_state.get("latest_run_id") or "").strip():
             execution_context_signals.append("latest_run_id")
-        if source_rows:
+        if source_rows and (
+            distilled_initial_idea
+            or distilled_novelty_target
+            or distilled_first_validation_route
+        ):
             execution_context_signals.append("l0_sources")
         if str((selected_pending_action or {}).get("action_id") or "").strip():
             execution_context_signals.append("selected_action")
@@ -1723,10 +2471,46 @@ class AITPService:
             operator_checkpoint=payload,
             topic_status_explainability=topic_status_explainability,
         )
+        steering_artifacts: dict[str, Any] = {
+            "detected": False,
+            "materialized": False,
+            "requires_reorchestrate": False,
+        }
+        if str(payload.get("checkpoint_kind") or "").strip() in {
+            "novelty_direction_choice",
+            "stop_continue_branch_redirect_decision",
+        }:
+            steering_artifacts = self.materialize_steering_from_human_request(
+                topic_slug=topic_slug,
+                run_id=str(topic_state.get("latest_run_id") or payload.get("run_id") or "").strip() or None,
+                human_request=answer_text,
+                updated_by=updated_by,
+                topic_state=topic_state,
+            )
+            if steering_artifacts.get("requires_reorchestrate"):
+                self.orchestrate(
+                    topic_slug=topic_slug,
+                    run_id=str(topic_state.get("latest_run_id") or payload.get("run_id") or "").strip() or None,
+                    control_note=str(steering_artifacts.get("control_note_path") or "").strip() or None,
+                    updated_by=updated_by,
+                    human_request=answer_text,
+                )
+                refreshed = self.ensure_topic_shell_surfaces(
+                    topic_slug=topic_slug,
+                    updated_by=updated_by,
+                    human_request=answer_text,
+                )
+                return {
+                    **result,
+                    "operator_checkpoint": refreshed.get("operator_checkpoint") or payload,
+                    "topic_state_explainability": refreshed.get("topic_state_explainability") or topic_status_explainability,
+                    "steering_artifacts": steering_artifacts,
+                }
         return {
             **result,
             "operator_checkpoint": payload,
             "topic_state_explainability": topic_status_explainability,
+            "steering_artifacts": steering_artifacts,
         }
 
     def _derive_last_evidence_return(
@@ -2064,6 +2848,58 @@ class AITPService:
             lines.append(f"- `{item}`")
         return "\n".join(lines) + "\n"
 
+    def _render_topic_skill_projection_markdown(self, payload: dict[str, Any]) -> str:
+        lines = [
+            "# Topic skill projection",
+            "",
+            f"- Projection id: `{payload.get('id') or '(missing)'}`",
+            f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+            f"- Source topic slug: `{payload.get('source_topic_slug') or '(missing)'}`",
+            f"- Run id: `{payload.get('run_id') or '(missing)'}`",
+            f"- Lane: `{payload.get('lane') or '(missing)'}`",
+            f"- Status: `{payload.get('status') or '(missing)'}`",
+            f"- Candidate id: `{payload.get('candidate_id') or '(none)'}`",
+            f"- Intended L2 target: `{payload.get('intended_l2_target') or '(none)'}`",
+            "",
+            "## Summary",
+            "",
+            payload.get("summary") or "(missing)",
+            "",
+            "## Status reason",
+            "",
+            payload.get("status_reason") or "(missing)",
+            "",
+            "## Entry signals",
+            "",
+        ]
+        for item in payload.get("entry_signals") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Required first reads", ""])
+        for item in payload.get("required_first_reads") or ["(none)"]:
+            lines.append(f"- `{item}`")
+        lines.extend(["", "## Required first routes", ""])
+        for item in payload.get("required_first_routes") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Benchmark-first rules", ""])
+        for item in payload.get("benchmark_first_rules") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Operator checkpoint rules", ""])
+        for item in payload.get("operator_checkpoint_rules") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Operation trust requirements", ""])
+        for item in payload.get("operation_trust_requirements") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Strategy guidance", ""])
+        for item in payload.get("strategy_guidance") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Forbidden proxies", ""])
+        for item in payload.get("forbidden_proxies") or ["(none)"]:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Derived from artifacts", ""])
+        for item in payload.get("derived_from_artifacts") or ["(none)"]:
+            lines.append(f"- `{item}`")
+        return "\n".join(lines) + "\n"
+
     def _render_topic_dashboard_markdown(
         self,
         *,
@@ -2078,6 +2914,8 @@ class AITPService:
         validation_contract: dict[str, Any],
         promotion_readiness: dict[str, Any],
         open_gap_summary: dict[str, Any],
+        strategy_memory: dict[str, Any],
+        topic_skill_projection: dict[str, Any],
         topic_completion: dict[str, Any],
         lean_bridge: dict[str, Any],
     ) -> str:
@@ -2179,6 +3017,25 @@ class AITPService:
             "",
             open_gap_summary.get("summary") or "(missing)",
             "",
+            "## Strategy memory",
+            "",
+            f"- Status: `{strategy_memory.get('status') or '(missing)'}`",
+            f"- Lane: `{strategy_memory.get('lane') or '(missing)'}`",
+            f"- Row count: `{strategy_memory.get('row_count') or 0}`",
+            f"- Relevant count: `{strategy_memory.get('relevant_count') or 0}`",
+            f"- Latest path: `{strategy_memory.get('latest_path') or '(none)'}`",
+            "",
+            strategy_memory.get("summary") or "(missing)",
+            "",
+            "## Topic skill projection",
+            "",
+            f"- Status: `{topic_skill_projection.get('status') or '(missing)'}`",
+            f"- Projection id: `{topic_skill_projection.get('id') or '(missing)'}`",
+            f"- Projection note: `{topic_skill_projection.get('note_path') or '(missing)'}`",
+            f"- Intended L2 target: `{topic_skill_projection.get('intended_l2_target') or '(none)'}`",
+            "",
+            topic_skill_projection.get("summary") or "(missing)",
+            "",
             "## Topic completion summary",
             "",
             topic_completion.get("summary") or "(missing)",
@@ -2186,6 +3043,17 @@ class AITPService:
             "## Lean bridge summary",
             "",
             lean_bridge.get("summary") or "(missing)",
+            "",
+        ])
+        for item in strategy_memory.get("guidance") or []:
+            if item == (strategy_memory.get("guidance") or [None])[0]:
+                lines.extend(["## Strategy guidance", ""])
+            lines.append(f"- {item}")
+        for item in topic_skill_projection.get("required_first_routes") or []:
+            if item == (topic_skill_projection.get("required_first_routes") or [None])[0]:
+                lines.extend(["", "## Projection route guidance", ""])
+            lines.append(f"- {item}")
+        lines.extend([
             "",
             "## Immediate next actions",
             "",
@@ -2760,6 +3628,8 @@ class AITPService:
             current_candidate_id = str(row.get("candidate_id") or "").strip()
             if not current_candidate_id or not run_id:
                 continue
+            if str(row.get("candidate_type") or "").strip() == "topic_skill_projection":
+                continue
             packet_paths = self._lean_bridge_packet_paths(topic_slug, run_id, current_candidate_id)
             theory_packet_paths = self._theory_packet_paths(topic_slug, run_id, current_candidate_id)
             coverage_ledger = read_json(theory_packet_paths["coverage_ledger"]) or {}
@@ -3094,6 +3964,7 @@ class AITPService:
         validation_paths = self._validation_contract_paths(topic_slug)
         idea_packet_paths = self._idea_packet_paths(topic_slug)
         operator_checkpoint_paths = self._operator_checkpoint_paths(topic_slug)
+        topic_skill_projection_paths = self._topic_skill_projection_paths(topic_slug)
         dashboard_path = self._topic_dashboard_path(topic_slug)
         readiness_path = self._promotion_readiness_path(topic_slug)
         gap_map_path = self._gap_map_path(topic_slug)
@@ -3102,6 +3973,12 @@ class AITPService:
         existing_validation = read_json(validation_paths["json"]) or {}
         existing_idea_packet = read_json(idea_packet_paths["json"]) or {}
         existing_operator_checkpoint = read_json(operator_checkpoint_paths["json"]) or {}
+        source_rows = read_jsonl(self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl")
+        distilled = self._distill_from_sources(source_rows or [], topic_slug)
+        distilled_initial_idea = str(distilled.get("distilled_initial_idea") or "").strip()
+        distilled_first_validation_route = str(
+            distilled.get("distilled_first_validation_route") or ""
+        ).strip()
 
         research_mode = str(
             resolved_topic_state.get("research_mode")
@@ -3124,6 +4001,7 @@ class AITPService:
         selected_action_summary = str((selected_pending_action or {}).get("summary") or "").strip()
         active_question = self._coalesce_string(
             existing_research.get("question"),
+            distilled_initial_idea,
             human_request
             or str(resolved_interaction_state.get("human_request") or "").strip()
             or f"Clarify, validate, and persist the bounded theoretical-physics question for {title}.",
@@ -3254,6 +4132,7 @@ class AITPService:
             "template_mode": template_mode,
             "verification_focus": self._coalesce_string(
                 existing_validation.get("verification_focus"),
+                distilled_first_validation_route,
                 selected_action_summary or promotion_readiness["summary"],
             ),
             "validation_mode": validation_mode,
@@ -3306,6 +4185,44 @@ class AITPService:
                 artifact_defaults,
             ),
         }
+        strategy_memory = self._derive_strategy_memory_summary(
+            topic_slug=topic_slug,
+            latest_run_id=latest_run_id or None,
+            selected_pending_action=selected_pending_action,
+            research_contract=research_contract,
+            validation_contract=validation_contract,
+        )
+        topic_skill_projection = self._derive_topic_skill_projection(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+            topic_state=resolved_topic_state,
+            research_contract=research_contract,
+            validation_contract=validation_contract,
+            selected_pending_action=selected_pending_action,
+            strategy_memory=strategy_memory,
+            topic_completion=topic_completion,
+            open_gap_summary=open_gap_summary,
+        )
+        topic_skill_projection_written = write_topic_skill_projection(
+            topic_slug,
+            topic_skill_projection,
+            kernel_root=self.kernel_root,
+        )
+        write_text(
+            topic_skill_projection_paths["note"],
+            self._render_topic_skill_projection_markdown(topic_skill_projection),
+        )
+        topic_skill_projection_surface = {
+            **topic_skill_projection_written["topic_skill_projection"],
+            "path": self._relativize(Path(topic_skill_projection_written["path"])),
+            "note_path": self._relativize(topic_skill_projection_paths["note"]),
+        }
+        topic_skill_projection_candidate = self._sync_topic_skill_projection_candidate(
+            topic_slug=topic_slug,
+            run_id=latest_run_id or None,
+            projection=topic_skill_projection_surface,
+            updated_by=updated_by,
+        )
         idea_packet = self._derive_idea_packet(
             topic_slug=topic_slug,
             updated_by=updated_by,
@@ -3381,6 +4298,8 @@ class AITPService:
                 validation_contract=validation_contract,
                 promotion_readiness=promotion_readiness,
                 open_gap_summary=open_gap_summary,
+                strategy_memory=strategy_memory,
+                topic_skill_projection=topic_skill_projection_surface,
                 topic_completion=topic_completion,
                 lean_bridge=lean_bridge,
             ),
@@ -3403,6 +4322,8 @@ class AITPService:
             "operator_checkpoint_note_path": operator_checkpoint_paths_written["operator_checkpoint_note_path"],
             "operator_checkpoint_ledger_path": operator_checkpoint_paths_written["operator_checkpoint_ledger_path"],
             "topic_dashboard_path": str(dashboard_path),
+            "topic_skill_projection_path": str(topic_skill_projection_paths["json"]),
+            "topic_skill_projection_note_path": str(topic_skill_projection_paths["note"]),
             "promotion_readiness_path": str(readiness_path),
             "gap_map_path": str(gap_map_path),
             "topic_completion_path": topic_completion["topic_completion_path"],
@@ -3420,6 +4341,9 @@ class AITPService:
             "topic_state_explainability": topic_status_explainability,
             "promotion_readiness": promotion_readiness,
             "open_gap_summary": open_gap_summary,
+            "strategy_memory": strategy_memory,
+            "topic_skill_projection": topic_skill_projection_surface,
+            "topic_skill_projection_candidate": topic_skill_projection_candidate,
             "topic_completion": topic_completion,
             "lean_bridge": lean_bridge,
         }
@@ -4620,6 +5544,20 @@ class AITPService:
             rows.append(updated_row)
         write_jsonl(ledger_path, rows)
 
+    def _remove_candidate_row(
+        self,
+        topic_slug: str,
+        run_id: str,
+        candidate_id: str,
+    ) -> None:
+        ledger_path = self._candidate_ledger_path(topic_slug, run_id)
+        rows = [
+            row
+            for row in read_jsonl(ledger_path)
+            if str(row.get("candidate_id") or "").strip() != candidate_id
+        ]
+        write_jsonl(ledger_path, rows)
+
     def _detect_tpkn_root(self) -> Path | None:
         env_override = os.environ.get("AITP_TPKN_ROOT")
         candidates: list[Path] = []
@@ -4942,6 +5880,8 @@ class AITPService:
         operator_checkpoint = payload.get("operator_checkpoint") or {}
         promotion_readiness = payload.get("promotion_readiness") or {}
         open_gap_summary = payload.get("open_gap_summary") or {}
+        strategy_memory = payload.get("strategy_memory") or {}
+        topic_skill_projection = payload.get("topic_skill_projection") or {}
         topic_completion = payload.get("topic_completion") or {}
         lean_bridge = payload.get("lean_bridge") or {}
         must_read_now = payload.get("must_read_now") or []
@@ -5030,6 +5970,28 @@ class AITPService:
             "",
             f"{open_gap_summary.get('summary') or '(missing)'}",
             "",
+            "## Strategy memory",
+            "",
+            f"- Status: `{strategy_memory.get('status') or '(missing)'}`",
+            f"- Lane: `{strategy_memory.get('lane') or '(missing)'}`",
+            f"- Row count: `{strategy_memory.get('row_count') or 0}`",
+            f"- Relevant count: `{strategy_memory.get('relevant_count') or 0}`",
+            f"- Helpful count: `{strategy_memory.get('helpful_count') or 0}`",
+            f"- Harmful count: `{strategy_memory.get('harmful_count') or 0}`",
+            f"- Latest path: `{strategy_memory.get('latest_path') or '(none)'}`",
+            "",
+            f"{strategy_memory.get('summary') or '(missing)'}",
+            "",
+            "## Topic skill projection",
+            "",
+            f"- Status: `{topic_skill_projection.get('status') or '(missing)'}`",
+            f"- Projection id: `{topic_skill_projection.get('id') or '(missing)'}`",
+            f"- Candidate id: `{topic_skill_projection.get('candidate_id') or '(none)'}`",
+            f"- Note path: `{topic_skill_projection.get('note_path') or '(missing)'}`",
+            f"- Intended L2 target: `{topic_skill_projection.get('intended_l2_target') or '(none)'}`",
+            "",
+            f"{topic_skill_projection.get('summary') or '(missing)'}",
+            "",
             "## Topic completion",
             "",
             f"- Status: `{topic_completion.get('status') or '(missing)'}`",
@@ -5070,6 +6032,14 @@ class AITPService:
         )
         for item in minimal.get("immediate_blocked_work") or ["Do not treat deferred surfaces as optional once their trigger fires."]:
             lines.append(f"- {item}")
+        if strategy_memory.get("guidance"):
+            lines.extend(["", "## Strategy guidance", ""])
+            for item in strategy_memory.get("guidance") or []:
+                lines.append(f"- {item}")
+        if topic_skill_projection.get("required_first_routes"):
+            lines.extend(["", "## Projection route guidance", ""])
+            for item in topic_skill_projection.get("required_first_routes") or []:
+                lines.append(f"- {item}")
         lines.extend(
             [
                 "",
@@ -5348,6 +6318,58 @@ class AITPService:
         promotion_readiness["path"] = self._relativize(Path(shell_surfaces["promotion_readiness_path"]))
         open_gap_summary = dict(shell_surfaces["open_gap_summary"])
         open_gap_summary["path"] = self._relativize(Path(shell_surfaces["gap_map_path"]))
+        strategy_memory = dict(
+            shell_surfaces.get("strategy_memory")
+            or {
+                "topic_slug": topic_slug,
+                "latest_run_id": str(topic_state.get("latest_run_id") or ""),
+                "status": "absent",
+                "lane": self._lane_for_modes(
+                    template_mode=research_contract.get("template_mode"),
+                    research_mode=research_contract.get("research_mode"),
+                ),
+                "row_count": 0,
+                "relevant_count": 0,
+                "helpful_count": 0,
+                "harmful_count": 0,
+                "latest_path": None,
+                "relevant_paths": [],
+                "guidance": [],
+                "summary": "No run-local strategy memory is currently recorded for this topic.",
+            }
+        )
+        topic_skill_projection = dict(
+            shell_surfaces.get("topic_skill_projection")
+            or {
+                "id": f"topic_skill_projection:{slugify(topic_slug)}",
+                "topic_slug": topic_slug,
+                "source_topic_slug": topic_slug,
+                "run_id": str(topic_state.get("latest_run_id") or ""),
+                "title": f"{self._topic_display_title(topic_slug)} Topic Skill Projection",
+                "summary": "No validated topic-skill projection is currently available for this topic.",
+                "lane": self._lane_for_modes(
+                    template_mode=research_contract.get("template_mode"),
+                    research_mode=research_contract.get("research_mode"),
+                ),
+                "status": "not_applicable",
+                "status_reason": "No topic-skill projection was materialized for this topic.",
+                "candidate_id": None,
+                "intended_l2_target": None,
+                "entry_signals": [],
+                "required_first_reads": [],
+                "required_first_routes": [],
+                "benchmark_first_rules": [],
+                "operator_checkpoint_rules": [],
+                "operation_trust_requirements": [],
+                "strategy_guidance": [],
+                "forbidden_proxies": [],
+                "derived_from_artifacts": [],
+                "path": None,
+                "note_path": None,
+                "updated_at": now_iso(),
+                "updated_by": updated_by,
+            }
+        )
         topic_completion = dict(shell_surfaces["topic_completion"])
         topic_completion["path"] = self._relativize(Path(shell_surfaces["topic_completion_note_path"]))
         lean_bridge = dict(shell_surfaces["lean_bridge"])
@@ -5497,6 +6519,20 @@ class AITPService:
                     },
                 ]
             )
+            if strategy_memory.get("relevant_count") and strategy_memory.get("latest_path"):
+                must_read_now.append(
+                    {
+                        "path": str(strategy_memory.get("latest_path")),
+                        "reason": "Recent strategy memory overlaps with the current route. Consult it before trusting heuristic route selection.",
+                    }
+                )
+            if str(topic_skill_projection.get("status") or "") == "available" and topic_skill_projection.get("note_path"):
+                must_read_now.append(
+                    {
+                        "path": str(topic_skill_projection.get("note_path")),
+                        "reason": "Validated topic-skill projection for this code-method lane. Read it before reusing the benchmark-first route.",
+                    }
+                )
             if str(idea_packet.get("status") or "").strip() == "needs_clarification":
                 must_read_now.insert(
                     1,
@@ -5554,6 +6590,20 @@ class AITPService:
                     {
                         "path": innovation_direction_path,
                         "reason": "Current human innovation target, steering decision, and novelty boundary for this topic.",
+                    }
+                )
+            if strategy_memory.get("relevant_count") and strategy_memory.get("latest_path"):
+                must_read_now.append(
+                    {
+                        "path": str(strategy_memory.get("latest_path")),
+                        "reason": "Recent strategy memory overlaps with the current route. Consult it before trusting heuristic route selection.",
+                    }
+                )
+            if str(topic_skill_projection.get("status") or "") == "available" and topic_skill_projection.get("note_path"):
+                must_read_now.append(
+                    {
+                        "path": str(topic_skill_projection.get("note_path")),
+                        "reason": "Validated topic-skill projection for this code-method lane. Read it before reusing the benchmark-first route.",
                     }
                 )
             must_read_now.append(
@@ -5697,6 +6747,22 @@ class AITPService:
                     "path": self._relativize(capability_report_path),
                     "trigger": "capability_gap_blocker",
                     "reason": "Capability details are only mandatory when a missing workflow or backend is the honest blocker.",
+                }
+            )
+        if strategy_memory.get("row_count") and strategy_memory.get("latest_path") and not strategy_memory.get("relevant_count"):
+            may_defer_until_trigger.append(
+                {
+                    "path": str(strategy_memory.get("latest_path")),
+                    "trigger": "verification_route_selection",
+                    "reason": "Consult prior strategy memory when a later route choice starts resembling an earlier lane or guardrail pattern.",
+                }
+            )
+        if str(topic_skill_projection.get("status") or "") != "available" and topic_skill_projection.get("note_path"):
+            may_defer_until_trigger.append(
+                {
+                    "path": str(topic_skill_projection.get("note_path")),
+                    "trigger": "verification_route_selection",
+                    "reason": "The projection becomes mandatory once this topic's code-method route is stable enough to reuse or promote.",
                 }
             )
         for path in theory_packet_reads:
@@ -6050,6 +7116,19 @@ class AITPService:
                     "role": "Human-readable topic summary for operator review and correction.",
                 },
                 {
+                    "surface": "topic_skill_projection",
+                    "path": str(
+                        topic_skill_projection.get("note_path")
+                        or self._relativize(
+                            Path(
+                                shell_surfaces.get("topic_skill_projection_note_path")
+                                or self._topic_skill_projection_paths(topic_slug)["note"]
+                            )
+                        )
+                    ),
+                    "role": "Review the reusable execution projection derived from this mature topic.",
+                },
+                {
                     "surface": "promotion_readiness",
                     "path": self._relativize(Path(shell_surfaces["promotion_readiness_path"])),
                     "role": "Review promotion blockers, ready candidates, and gate state.",
@@ -6111,6 +7190,8 @@ class AITPService:
             "operator_checkpoint": operator_checkpoint,
             "promotion_readiness": promotion_readiness,
             "open_gap_summary": open_gap_summary,
+            "strategy_memory": strategy_memory,
+            "topic_skill_projection": topic_skill_projection,
             "topic_completion": topic_completion,
             "lean_bridge": lean_bridge,
             "minimal_execution_brief": {
@@ -6149,6 +7230,10 @@ class AITPService:
                 {
                     "source": "generated_queue_contract",
                     "rule": "Treat generated queue-contract snapshots as editable protocol surfaces, not hidden implementation detail.",
+                },
+                {
+                    "source": "strategy_memory",
+                    "rule": "When a route resembles a previously recorded helpful or harmful pattern, consult strategy memory before trusting heuristic route selection.",
                 },
                 {
                     "source": "heuristic_queue",
@@ -7989,6 +9074,7 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "pending_decisions": bundle.get("pending_decisions") or {},
             "promotion_readiness": bundle.get("promotion_readiness") or {},
+            "topic_skill_projection": bundle.get("topic_skill_projection") or {},
         }
 
     def topic_status(
@@ -8025,6 +9111,8 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
             "operator_checkpoint": bundle.get("operator_checkpoint") or {},
             "promotion_readiness": bundle.get("promotion_readiness") or {},
             "open_gap_summary": bundle.get("open_gap_summary") or {},
+            "strategy_memory": bundle.get("strategy_memory") or {},
+            "topic_skill_projection": bundle.get("topic_skill_projection") or {},
             "topic_completion": bundle.get("topic_completion") or {},
             "lean_bridge": bundle.get("lean_bridge") or {},
             "must_read_now": bundle.get("must_read_now") or [],
@@ -8055,9 +9143,39 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "pending_decisions": bundle.get("pending_decisions") or {},
             "open_gap_summary": bundle.get("open_gap_summary") or {},
+            "strategy_memory": bundle.get("strategy_memory") or {},
+            "topic_skill_projection": bundle.get("topic_skill_projection") or {},
             "topic_completion": bundle.get("topic_completion") or {},
             "runtime_protocol_note_path": protocol_paths["runtime_protocol_note_path"],
         }
+
+    def project_topic_skill(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str = "aitp-cli",
+        human_request: str | None = None,
+        refresh_runtime_bundle: bool = True,
+    ) -> dict[str, Any]:
+        shell_surfaces = self.ensure_topic_shell_surfaces(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+            human_request=human_request,
+        )
+        result = {
+            "topic_slug": topic_slug,
+            "topic_skill_projection": shell_surfaces.get("topic_skill_projection") or {},
+            "topic_skill_projection_candidate": shell_surfaces.get("topic_skill_projection_candidate"),
+            "topic_skill_projection_path": shell_surfaces.get("topic_skill_projection_path"),
+            "topic_skill_projection_note_path": shell_surfaces.get("topic_skill_projection_note_path"),
+        }
+        if refresh_runtime_bundle:
+            result["runtime_protocol"] = self._materialize_runtime_protocol_bundle(
+                topic_slug=topic_slug,
+                updated_by=updated_by,
+                human_request=human_request,
+            )
+        return result
 
     def work_topic(
         self,
@@ -10418,6 +11536,8 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
         if not resolved_run_id:
             raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
         candidate = self._load_candidate(topic_slug, resolved_run_id, candidate_id)
+        if str(candidate.get("candidate_type") or "") == "topic_skill_projection":
+            raise PermissionError("topic_skill_projection is human-reviewed only in v1 and may not enter L2_auto.")
         resolved_backend_id = backend_id or "backend:theoretical-physics-knowledge-network"
         card_path, card_payload = self._load_backend_card(resolved_backend_id)
         if not self._backend_allows_auto_promotion(card_payload):

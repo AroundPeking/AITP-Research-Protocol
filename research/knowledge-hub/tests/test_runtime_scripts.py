@@ -492,6 +492,18 @@ class RuntimeScriptTests(unittest.TestCase):
         topic_state = {
             "topic_slug": "demo-topic",
             "promotion_gate": {"status": "approved"},
+            "status_explainability": {
+                "why_this_topic_is_here": "AITP is waiting on a bounded capability-gap step.",
+                "current_route_choice": {
+                    "next_action_summary": "Find the missing bounded workflow.",
+                },
+                "last_evidence_return": {
+                    "summary": "No durable evidence-return artifact is currently recorded for this topic.",
+                },
+                "active_human_need": {
+                    "summary": "No active human checkpoint is currently blocking the bounded loop.",
+                },
+            },
             "pointers": {
                 "promotion_gate_path": "runtime/topics/demo-topic/promotion_gate.json",
                 "promotion_gate_note_path": "runtime/topics/demo-topic/promotion_gate.md",
@@ -557,8 +569,177 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertIn("## Immediate execution contract", rendered)
         self.assertIn("### Do now", rendered)
         self.assertIn("### Escalate when", rendered)
+        self.assertIn("## Topic explainability", rendered)
+        self.assertIn("AITP is waiting on a bounded capability-gap step.", rendered)
         self.assertIn("`promotion_intent` status=`active`", rendered)
         self.assertIn("## Deferred surfaces and human edit areas", rendered)
+
+    def test_build_resume_markdown_renders_status_explainability(self) -> None:
+        state = {
+            "topic_slug": "demo-topic",
+            "updated_at": "2026-03-28T10:00:00+08:00",
+            "updated_by": "codex",
+            "last_materialized_stage": "L4",
+            "resume_stage": "L3",
+            "latest_run_id": "2026-03-20-demo",
+            "research_mode": "formal_derivation",
+            "active_executor_kind": "codex",
+            "active_reasoning_profile": "bounded",
+            "resume_reason": "Latest closed-loop decision is revise; resume exploratory work in Layer 3.",
+            "source_count": 2,
+            "pending_actions": ["Inspect the returned result and continue the bounded proof review."],
+            "deferred_candidate_count": 0,
+            "reactivable_deferred_count": 0,
+            "followup_subtopic_count": 0,
+            "research_mode_profile": {
+                "profile_path": "runtime/research_modes/formal_derivation.json",
+                "label": "Formal derivation",
+                "description": "Formal derivation profile.",
+                "reproducibility_expectations": ["Keep derivation anchors explicit."],
+                "note_expectations": ["Write a human-readable derivation note."],
+            },
+            "backend_bridges": [],
+            "promotion_gate": {"status": "not_requested"},
+            "layer_status": {
+                "L0": {"status": "present"},
+                "L1": {"status": "present"},
+                "L3": {"status": "active"},
+                "L4": {"status": "revise"},
+            },
+            "closed_loop": {
+                "status": "revise",
+                "selected_route_id": "route:demo",
+                "task_id": "task:demo",
+                "result_id": "result:demo",
+                "latest_decision": "revise",
+                "literature_followup_count": 0,
+                "followup_gap_count": 0,
+            },
+            "status_explainability": {
+                "why_this_topic_is_here": "The topic is currently following `Inspect the returned result and continue the bounded proof review.` at stage `L3`.",
+                "current_route_choice": {
+                    "selected_route_id": "route:demo",
+                    "execution_task_id": "task:demo",
+                    "next_action_summary": "Inspect the returned result and continue the bounded proof review.",
+                    "next_action_decision_note_path": "runtime/topics/demo-topic/next_action_decision.md",
+                    "selected_validation_route_path": "runtime/topics/demo-topic/selected_validation_route.json",
+                },
+                "last_evidence_return": {
+                    "status": "present",
+                    "kind": "result_manifest",
+                    "record_id": "result:demo",
+                    "recorded_at": "2026-03-28T09:00:00+08:00",
+                    "path": "validation/topics/demo-topic/runs/2026-03-20-demo/result_manifest.json",
+                    "summary": "Closed-loop result manifest is `partial`.",
+                },
+                "active_human_need": {
+                    "status": "none",
+                    "kind": "none",
+                    "path": "",
+                    "summary": "No active human checkpoint is currently blocking the bounded loop.",
+                },
+                "blocker_summary": [],
+            },
+            "pointers": {
+                "l0_source_index_path": "source-layer/topics/demo-topic/source_index.jsonl",
+                "intake_status_path": "intake/topics/demo-topic/status.json",
+                "feedback_status_path": "feedback/topics/demo-topic/runs/2026-03-20-demo/status.json",
+                "next_actions_path": "feedback/topics/demo-topic/runs/2026-03-20-demo/next_actions.md",
+                "next_actions_contract_path": "feedback/topics/demo-topic/runs/2026-03-20-demo/next_actions.contract.json",
+                "promotion_decision_path": "validation/topics/demo-topic/runs/2026-03-20-demo/promotion_decisions.jsonl",
+                "consultation_index_path": "consultation/topics/demo-topic/consultation_index.jsonl",
+                "control_note_path": "",
+                "innovation_direction_path": "",
+                "innovation_decisions_path": "",
+                "unfinished_work_path": "runtime/topics/demo-topic/unfinished_work.json",
+                "unfinished_work_note_path": "runtime/topics/demo-topic/unfinished_work.md",
+                "next_action_decision_path": "runtime/topics/demo-topic/next_action_decision.json",
+                "next_action_decision_note_path": "runtime/topics/demo-topic/next_action_decision.md",
+                "next_action_decision_contract_path": "runtime/topics/demo-topic/next_action_decision.contract.json",
+                "next_action_decision_contract_note_path": "runtime/topics/demo-topic/next_action_decision.contract.md",
+                "action_queue_contract_generated_path": "runtime/topics/demo-topic/action_queue_contract.generated.json",
+                "action_queue_contract_generated_note_path": "runtime/topics/demo-topic/action_queue_contract.generated.md",
+                "selected_validation_route_path": "runtime/topics/demo-topic/selected_validation_route.json",
+                "execution_task_path": "runtime/topics/demo-topic/execution_task.json",
+                "execution_notes_path": "validation/topics/demo-topic/runs/2026-03-20-demo/execution_notes",
+                "returned_execution_result_path": "validation/topics/demo-topic/runs/2026-03-20-demo/returned_execution_result.json",
+                "result_manifest_path": "validation/topics/demo-topic/runs/2026-03-20-demo/result_manifest.json",
+                "trajectory_log_path": "validation/topics/demo-topic/runs/2026-03-20-demo/trajectory_log.jsonl",
+                "trajectory_note_path": "validation/topics/demo-topic/runs/2026-03-20-demo/result_summary.md",
+                "failure_classification_path": "validation/topics/demo-topic/runs/2026-03-20-demo/failure_classification.json",
+                "failure_classification_note_path": "validation/topics/demo-topic/runs/2026-03-20-demo/failure_classification.md",
+                "decision_ledger_path": "validation/topics/demo-topic/runs/2026-03-20-demo/decision_ledger.jsonl",
+                "literature_followup_queries_path": "",
+                "literature_followup_receipts_path": "",
+                "followup_gap_writeback_path": "",
+                "followup_gap_writeback_note_path": "",
+                "deferred_buffer_path": "",
+                "deferred_buffer_note_path": "",
+                "followup_subtopics_path": "",
+                "followup_subtopics_note_path": "",
+                "promotion_gate_path": "runtime/topics/demo-topic/promotion_gate.json",
+                "promotion_gate_note_path": "runtime/topics/demo-topic/promotion_gate.md",
+            },
+        }
+
+        rendered = self.sync_topic_state.build_resume_markdown(state)
+
+        self.assertIn("## Why this topic is here", rendered)
+        self.assertIn("## Current route choice", rendered)
+        self.assertIn("## Last evidence return", rendered)
+        self.assertIn("## Active human need", rendered)
+        self.assertIn("result:demo", rendered)
+
+    def test_derive_status_explainability_prioritizes_operator_checkpoint(self) -> None:
+        topic_runtime_root = self.knowledge_root / "runtime" / "topics" / "demo-topic"
+        topic_runtime_root.mkdir(parents=True, exist_ok=True)
+        (topic_runtime_root / "operator_checkpoint.active.json").write_text(
+            json.dumps(
+                {
+                    "status": "requested",
+                    "checkpoint_kind": "promotion_approval",
+                    "question": "Should the current candidate be promoted?",
+                    "blocker_summary": ["Promotion is waiting for an explicit human decision."],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        explainability = self.sync_topic_state.derive_status_explainability(
+            topic_slug="demo-topic",
+            resume_stage="L3",
+            resume_reason="Latest closed-loop decision is revise; resume exploratory work in Layer 3.",
+            pending_actions=["Inspect the returned result and continue the bounded proof review."],
+            topic_runtime_root=topic_runtime_root,
+            feedback_status=None,
+            closed_loop={
+                "result_manifest": {
+                    "result_id": "result:demo",
+                    "status": "partial",
+                },
+                "paths": {
+                    "result_manifest_path": "validation/topics/demo-topic/runs/2026-03-20-demo/result_manifest.json",
+                },
+                "selected_route": {
+                    "route_id": "route:demo",
+                },
+                "execution_task": {
+                    "task_id": "task:demo",
+                },
+                "latest_decision": {
+                    "reason": "The returned result still needs bounded manual review.",
+                },
+            },
+            next_action_decision_note_path=topic_runtime_root / "next_action_decision.md",
+        )
+
+        self.assertEqual(explainability["active_human_need"]["kind"], "promotion_approval")
+        self.assertEqual(explainability["last_evidence_return"]["kind"], "result_manifest")
+        self.assertEqual(explainability["last_evidence_return"]["record_id"], "result:demo")
+        self.assertIn("Promotion is waiting for an explicit human decision.", explainability["why_this_topic_is_here"])
 
     def test_build_agent_brief_starts_with_immediate_execution_contract(self) -> None:
         topic_state = {

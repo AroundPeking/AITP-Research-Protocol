@@ -171,3 +171,34 @@ Pass condition:
 - the runtime stays in the `light` profile
 - `topic_synopsis.json`, `pending_decisions.json`, and `promotion_readiness.json` are materialized
 - the topic remains honest about still needing thesis-grounded source/candidate tightening before any stronger closure claim
+
+## 10. Real-topic acceptance: Jones Chapter 4 finite-product lane
+
+Use this when you want a real formal-theory acceptance pass on the active Jones
+benchmark topic rather than on a disposable synthetic theorem card.
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_jones_chapter4_finite_product_formal_closure_acceptance.py --json
+```
+
+Pass condition:
+- the active `jones-von-neumann-algebras` topic gets a new bounded Chapter 4 candidate run
+- `coverage_ledger.json`, `formal_theory_review.json`, `proof_obligations.json`, and `proof_state.json` are materialized for that candidate
+- the Lean bridge packet is `ready`
+- `promotion_gate.json` ends in `promoted` and the promoted unit lands in `L2_auto`
+- the resulting packet stays honest about not yet proving the stronger algebra-level product theorem or the later whole-book routes
+
+## 11. Real-topic acceptance: code-backed benchmark-first lane
+
+Use this when you want a real code-backed topic acceptance that keeps a tiny
+exact benchmark in front of broader workflow claims.
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_tfim_benchmark_code_method_acceptance.py --json
+```
+
+Pass condition:
+- the topic lands in the `code_method` lane
+- the runtime stays in the `light` profile
+- a coding operation manifest exists and passes the baseline-first trust audit
+- run-local strategy memory is recorded and surfaced through runtime status

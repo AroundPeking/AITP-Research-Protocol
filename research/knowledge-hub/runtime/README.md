@@ -35,8 +35,24 @@ hiding those rules inside handler code.
   - human-readable resume brief
 - `topics/<topic_slug>/interaction_state.json`
   - machine-readable human-input, autonomy, and layer-edit contract
+- `topics/<topic_slug>/idea_packet.json`
+  - machine-readable research-intent gate for idea-first or vague-topic starts
+- `topics/<topic_slug>/idea_packet.md`
+  - human-readable idea packet with novelty target, non-goals, first validation route, and evidence bar
+- `topics/<topic_slug>/operator_checkpoint.active.json`
+  - machine-readable active human-checkpoint surface
+- `topics/<topic_slug>/operator_checkpoint.active.md`
+  - human-readable active operator checkpoint
+- `topics/<topic_slug>/operator_checkpoints.jsonl`
+  - append-only checkpoint ledger across requested/answered/superseded/cancelled states
 - `topics/<topic_slug>/operator_console.md`
   - human-readable operator view of the active loops and editable surfaces
+- `topics/<topic_slug>/topic_dashboard.md`
+  - human-readable status and explainability surface: why the topic is here, last evidence return, next action, and active human need
+- `topics/<topic_slug>/topic_skill_projection.active.json`
+  - machine-readable reusable execution projection derived from a mature topic when the lane is stable enough
+- `topics/<topic_slug>/topic_skill_projection.active.md`
+  - human-readable topic-skill projection with required reads, route rules, and anti-proxy constraints
 - `topics/<topic_slug>/loop_state.json`
   - latest loop-level execution summary
 - `topics/<topic_slug>/loop_history.jsonl`
@@ -97,6 +113,8 @@ hiding those rules inside handler code.
 - Every active topic should refresh its runtime state after a meaningful `L1`, `L3`, or `L4` update.
 - The resume target should prefer the fallback route implied by the latest decision artifact when one exists.
 - Runtime should expose the human-visible operator contract rather than forcing the next agent or human to reconstruct it manually.
+- Runtime should expose why the topic is at its current stage, what the last durable evidence return was, and whether an active human checkpoint is blocking the next step.
+- Runtime may materialize a topic-skill projection when the lane is mature enough to reuse, but that projection is not the same thing as the raw live topic state.
 - Runtime should expose the minimum sufficient execution contract first, then defer deeper protocol slices until declared triggers fire.
 - Runtime should expose the global research-flow guardrails early enough that
   scope, deliverables, acceptance tests, and forbidden proxies stay visible.
@@ -130,6 +148,15 @@ Each `topic_state.json` should point to:
 - active control-plane note when present,
 - current `innovation_direction.md` when the human has redirected novelty or scope,
 - the `innovation_decisions.jsonl` ledger when steering updates have occurred.
+
+Each `topic_state.json` should also remain a machine-readable status answer surface.
+In particular, `status_explainability` should summarize:
+
+- why the topic is in its current state,
+- the current route choice and bounded next action,
+- the last durable evidence return,
+- the active human need, if any,
+- the current blocker summary.
 
 ## Resume semantics
 
@@ -180,6 +207,34 @@ verifies `L2_auto` writeback into a disposable standalone TPKN clone.
 The acceptance target is a self-consistent semi-formal theory packet with an
 explicit Lean bridge, not a claim that the whole topic has already been fully
 formalized in Lean.
+
+For a bounded real-topic acceptance pass that exercises the same controller
+bridge on the Jones Chapter 4 finite-dimensional benchmark, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_jones_chapter4_finite_product_formal_closure_acceptance.py --json
+```
+
+That acceptance script stays on the existing `jones-von-neumann-algebras`
+topic, writes a new Chapter 4 finite-product candidate around the current
+compile-checked theorem packet, persists coverage and formal-theory review
+artifacts, dispatches `assess_topic_completion`, `prepare_lean_bridge`, and
+`auto_promote_candidate` through the public runtime-controller bridge, and
+checks that the resulting `L2_auto` writeback still keeps the stronger
+algebra-level product theorem and later whole-book routes explicitly open.
+
+For a bounded code-backed acceptance pass that keeps benchmark-first discipline
+inside AITP, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_tfim_benchmark_code_method_acceptance.py --json
+```
+
+That acceptance script runs the tiny public TFIM exact-diagonalization helper,
+opens a `code_method` topic around the resulting benchmark note, records a
+baseline-gated coding operation plus strategy memory, and verifies that
+operation trust stays visible in AITP runtime surfaces before any broader
+workflow claim is allowed.
 
 For the minimal closed-loop v1, the external executor returns one JSON artifact at:
 
