@@ -19,3 +19,6 @@ research/knowledge-hub/data/topics/
 research/knowledge-hub/data/queries/
 
 research/adapters/openclaw/state/
+
+# GSD worktree artifacts
+.sisyphus/
