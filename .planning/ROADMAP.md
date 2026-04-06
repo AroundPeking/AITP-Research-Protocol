@@ -258,3 +258,169 @@ paths to use real service methods.
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+---
+
+## L2 Knowledge Graph Evolution (conceptual audit 2026-04-07)
+
+**Context:** Deep review of AITP from a theoretical physicist collaborator
+perspective. The core finding is that AITP manages metadata about research
+without doing research, and the L2 knowledge base (the "active research
+memory") is completely empty despite an elaborate 22-type ontology and 11-type
+edge schema. The following items capture the design changes needed to evolve
+L2 from an empty filing cabinet into a knowledge graph that grows with each
+research discussion.
+
+**Design reference:** Inspired by math community practices (Lean, formal
+knowledge graphs) but adapted for theoretical physics where physical intuition,
+overlapping assumptions, and less systematic technique relationships require a
+rougher but still auditable structure. Key principle: each node has keywords,
+title, and summary; AI searches to find nodes then follows dependency edges to
+gather all needed context — similar to how physicists find literature.
+
+### Phase 999.13: Implement Graph Traversal And Search (BACKLOG)
+**Goal:** The L2 knowledge graph has 11 typed edge relations defined in
+`edge.schema.json` and retrieval profiles with `edge_expansion` fields, but
+zero graph traversal code exists. `edges.jsonl` is empty. The
+`l2_compiler.py` only does tag grouping, no graph expansion. Implement:
+(1) A `graph_expand(node_id, edge_types, max_depth)` function (~50-80 lines)
+supporting BFS along dependency edges. (2) Integration with L2 consultation so
+that a search hit on a concept node automatically expands its `depends_on`,
+`uses_method`, and `warned_by` neighbors. (3) Token-budget-aware expansion that
+returns index-level summaries first, full payloads only on explicit AI request.
+**Source:** L2 knowledge graph conceptual audit 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.14: Add Physical Picture Object Type (BACKLOG)
+**Goal:** Theoretical physics has "physical intuition/images" (物理图像) that
+don't fit any of the existing 22 canonical types. A physicist's mental model
+— flux attachment as composite fermions, Luttinger liquid picture, mean-field
+decoupling channels — is neither a formal concept nor a theorem. Add a
+`physical_picture` object type with payload fields: `picture_description`
+(informal but precise physical image), `formal_analog` (link to theorem or
+definition), `intuitive_arguments` (heuristic reasoning chain),
+`known_limitations` (where the picture breaks down), `domain`,
+`subdomain`. This bridges the gap between physical intuition (how physicists
+actually think) and formal statements (what AITP currently stores).
+**Source:** L2 knowledge graph conceptual audit 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.15: Define MVP Type Subset For Knowledge Graph Seed (BACKLOG)
+**Goal:** 22 object families are too heavy for starting a knowledge graph in
+one direction. Define a minimal viable subset of 5-6 core types:
+`concept` (atomic concepts), `theorem_card` (conclusions/theorems),
+`method` (related techniques), `assumption_card` (physics assumptions),
+`physical_picture` (physical intuition — see 999.14), `warning_note` (known
+traps). Update `canonical-unit.schema.json` to mark the remaining types as
+`extended` rather than `core`. Update retrieval profiles to prefer core types
+by default. Ensure the full 22-type schema remains available for future
+expansion.
+**Source:** L2 knowledge graph conceptual audit 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.16: Add Lightweight Knowledge Entry Path (BACKLOG)
+**Goal:** The current L3→L4→L2 promotion pipeline (14 gate checks) is too
+heavy for recording a concept mentioned during a research discussion. Add a
+lightweight entry path: (1) CLI command `aitp note-concept --title "..." --summary
+"..." --tags "..." --type concept` that creates a staging entry without
+requiring a topic context. (2) During topic discussions, AI auto-suggests
+staging entries when it identifies recordable knowledge points. (3) Staging
+entries are automatically discoverable by subsequent topic work. (4) Periodic
+batch review of staging → promotion (e.g., per milestone). The existing
+`l2_staging.py` provides the foundation; this item adds the lightweight CLI
+and auto-suggestion integration.
+**Source:** L2 knowledge graph conceptual audit 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.17: Implement Progressive Disclosure Retrieval For AI Context (BACKLOG)
+**Goal:** AI should receive a knowledge index first (like skill indexes) and
+expand details on demand, not load the entire knowledge base into context.
+Implement a 3-step retrieval flow: (1) AI constructs query from
+human_request + topic_context → calls L2 search (BM25 or keyword match). (2)
+Returns index layer: per hit {id, title, summary(≤2 sentences), tags,
+maturity}. AI selects relevant nodes. (3) AI requests expansion → returns full
+payload + one-hop dependency edge summaries. Optional deep crawl with token
+budget limit (~4000 tokens per knowledge packet). This connects the existing
+`knowledge-packet.schema.json` design to actual runtime retrieval code.
+**Source:** L2 knowledge graph conceptual audit 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.18: Seed First Direction Knowledge Graph (BACKLOG)
+**Goal:** The L2 knowledge base is completely empty (0 canonical units, 0
+edges). Before building more pipeline infrastructure, manually seed a real
+knowledge graph for one small direction (e.g., Haldane-Shastry chaos
+transition or quantum Hall effects). Steps: (1) Create 10-20 core concept
+nodes using the MVP type subset (see 999.15). (2) Manually establish
+dependency edges between them. (3) Implement basic search + one-hop graph
+traversal (see 999.13). (4) Validate that AI can search → expand → crawl
+edges to retrieve relevant knowledge. (5) Use this as the regression baseline
+for all subsequent L2 infrastructure work. The principle: build data first,
+then refine the pipeline around real data.
+**Source:** L2 knowledge graph conceptual audit 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+---
+
+## Conceptual Gaps (not yet scoped as backlog items)
+
+The following deeper conceptual gaps were identified but are not yet specific
+enough for backlog entries. They should be revisited as the L2 knowledge graph
+matures:
+
+- **No symbolic/analytical reasoning path**: The execution and validation
+  infrastructure only handles numerical code execution, not mathematical
+  derivation, proof checking, limiting-case analysis, or dimensional analysis.
+  Theoretical physics primarily advances through math, not code.
+
+- **No research judgment in decision-making**: `decide_next_action.py` uses
+  keyword substring matching and queue ordering. A real collaborator decides
+  based on what is most promising, what is blocking other work, and research
+  momentum. The system has no concept of "I'm making progress, keep going"
+  vs "I'm stuck, switch direction."
+
+- **Layer model too rigid for real research**: The L0→L1→L3→L4→L2 pipeline
+  with explicit prohibitions (no L1→L4→L2) forces serialization of what is
+  inherently parallel and iterative in real research.
+
+- **No model of creativity, taste, or physical intuition**: The CHARTER has
+  10 principles all about discipline and process. Nothing about what makes a
+  problem interesting, what makes an approach elegant, or when to pursue a
+  surprising result.
+
+- **No cross-session collaborator learning**: "Resume from JSON state" is not
+  the same as "remember the context of our conversation." No mechanism for
+  the AI to learn the researcher's reasoning style, preferred formalisms, or
+  ongoing concerns across topics.
+
+- **Bureaucracy-to-research ratio too high**: A single topic step produces 14+
+  administrative artifacts. orchestrate_topic.py runs 7+ subprocess calls
+  before any research happens. Need a "quick exploration" mode for 30-minute
+  idea sessions without full topic bootstrap.
+
+- **Source fidelity not graded**: Papers, arXiv preprints, blog posts, YouTube
+  videos, and hallway conversations are registered identically. A physicist
+  assigns very different trust levels to these.
