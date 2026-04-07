@@ -22,13 +22,15 @@ Public starter pack for formal-theory backends:
 
 Public paired-backend docs for the theoretical-physics knowledge network:
 - `THEORETICAL_PHYSICS_BACKEND_PAIRING.md`
+- `THEORETICAL_PHYSICS_PAIRED_BACKEND_CONTRACT.md`
 - `theoretical-physics-brain.json`
 - `theoretical-physics-knowledge-network.json`
 
 When both backend cards are active in a clone, treat them as two governed
 downstream implementations of the same formal-theory knowledge network:
 - `theoretical-physics-brain.json`: operator-facing human-readable notes
-- `theoretical-physics-knowledge-network.json`: typed structured companion
+- `theoretical-physics-knowledge-network.json`: machine-primary typed
+  structured companion
 
 Public starter pack for toy-model numeric backends:
 - `TOY_MODEL_NUMERIC_BACKEND_STARTER.md`

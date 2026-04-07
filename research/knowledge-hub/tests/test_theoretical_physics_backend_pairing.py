@@ -66,6 +66,15 @@ class TheoreticalPhysicsBackendPairingTests(unittest.TestCase):
         self.assertIn("downstream L2", note)
         self.assertIn("backend debt", note)
 
+    def test_paired_backend_contract_locks_operator_and_machine_primary_roles(self) -> None:
+        contract = (
+            self.backends_root / "THEORETICAL_PHYSICS_PAIRED_BACKEND_CONTRACT.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("operator-primary", contract)
+        self.assertIn("machine-primary", contract)
+        self.assertIn("no silent hierarchy", contract)
+        self.assertIn("canonical / compiled / staging", contract)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,6 +3,10 @@
 This note defines the supported paired-backend configuration for formal-theory
 knowledge downstream of AITP.
 
+For the stronger role and alignment contract, also read:
+
+- `THEORETICAL_PHYSICS_PAIRED_BACKEND_CONTRACT.md`
+
 ## Backend pair
 
 - `backend:theoretical-physics-brain`
@@ -24,6 +28,10 @@ This means:
 - both are governed by the same AITP promotion gates;
 - both are post-promotion storage targets, not scratch-space substitutes;
 - drift between the pair is backend debt that must be surfaced explicitly.
+- the human-readable backend is operator-primary;
+- the typed backend is machine-primary;
+- authority remains with the shared promotion and alignment contract rather
+  than with one serialization format.
 
 ## Alignment requirements
 
@@ -37,6 +45,29 @@ When a promotion packet lands in one or both backends, preserve alignment for:
 
 If one backend currently cannot express the full structure of the other, record
 that reduction honestly rather than silently broadening or weakening the claim.
+
+## Relation to `L2` trust surfaces
+
+The paired backend split is not the same thing as:
+
+- canonical `L2`
+- compiled `L2`
+- staging `L2`
+
+Those three names describe AITP trust posture inside the `L2` governance
+plane.
+
+The paired backends instead describe downstream knowledge realizations:
+
+- one human-readable realization
+- one typed realization
+
+So:
+
+- the human-readable backend is not merely a compiled markdown helper;
+- the typed backend is not globally authoritative just because it is typed;
+- compiled helper surfaces may summarize promoted knowledge, but they do not
+  replace either paired realization.
 
 ## What the pair is not
 

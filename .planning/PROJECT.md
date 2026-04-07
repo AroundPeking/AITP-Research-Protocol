@@ -1,95 +1,368 @@
-# AITP vNext Runtime Hardening
+# AITP Runtime And Knowledge Foundations
 
 ## What This Is
 
-This is the brownfield GSD planning layer for the canonical `AITP-Research-Protocol` repository. It turns the current AITP runtime-hardening push into explicit phases so protocol work, runtime changes, acceptance cases, and product-facing routing decisions can be executed and reviewed without losing the protocol-first character of the repo.
+This is the brownfield GSD planning layer for the canonical
+`AITP-Research-Protocol` repository.
+
+It tracks repo implementation work without replacing the protocol itself:
+GSD organizes execution, while AITP runtime artifacts remain the source of
+truth for research state.
 
 ## Core Value
 
-AITP must turn vague but meaningful research starts into bounded, durable, and explainable runtime state without pretending uncertainty is already resolved.
+AITP must turn vague but meaningful research starts into bounded, durable, and
+explainable runtime state without pretending uncertainty is already resolved.
 
-## Current Milestone: v1.2 Projection-First Formal-Theory Seed
+## Current State
 
-**Goal:** Extend `topic_skill_projection` beyond the TFIM `code_method` exemplar into one bounded `formal_theory` seed lane with explicit trust gates and human-reviewed promotion.
+`v1.27 Capability-Audit And Runtime-Sync Boundary Extraction And Closure`
+shipped on 2026-04-07.
 
-**Target features:**
-- formal-theory applicability rules for `topic_skill_projection`
-- Jones Chapter 4 finite-product seed acceptance
-- runtime read-path exposure without adapter/bootstrap auto-load
-- docs that keep execution projection separate from theorem truth claims
+It delivered:
+
+- capability-audit assembly, recommendation synthesis, and capability report
+  persistence now live behind `knowledge_hub/capability_audit_support.py`
+- resume-stage inference, evidence-return explainability, and resume-note
+  rendering now live behind `runtime/scripts/sync_topic_state_support.py`
+- `aitp_service.py` dropped again to `6459` lines while
+  `sync_topic_state.py` now keeps its explainability/render boundary outside
+  the CLI shell, and targeted regressions plus maintainability budgets stayed
+  green
+
+`v1.26` remains the latest shipped milestone immediately underneath this work:
+
+- interaction-surface plus chat-routing boundary extraction and closure
+
+## Future Horizon
+
+After `v1.27`, the next likely work splits into two tracks:
+
+- keep turning doctrine into the next runtime hotspot such as
+  `closed_loop_v1.py`
+- keep extracting the next remaining service hotspot out of `aitp_service.py`,
+  especially steering payloads or innovation-direction helpers
+
+After that stabilization, keep `L5 Publication Factory` as the final
+output-layer expansion.
+
+Its intended meaning remains:
+
+- `L0-L4` do the research honestly
+- `L2` preserves reusable knowledge
+- `L5` turns completed work into publication-grade outputs
+
+`L5` stays downstream of evidence and may not invent new scientific truth.
+
+Detailed parking-lot candidates now live in `.planning/BACKLOG.md` with any
+accumulated phase context under `.planning/backlog/`.
+
+## Completed Milestones
+
+### v1.27 Capability-Audit And Runtime-Sync Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `capability_audit_support.py` now owns capability-audit assembly,
+  recommendation synthesis, and capability report persistence
+- `sync_topic_state_support.py` now owns resume-stage inference,
+  evidence-return explainability, and resume-note rendering
+- `AITPService.capability_audit()` now acts as a thin stable façade
+- targeted runtime-script/service regressions and maintainability budgets
+  stayed green
+
+### v1.26 Interaction-Surface And Chat-Routing Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `runtime/scripts/interaction_surface_support.py` now owns interaction-state
+  assembly plus operator-console and agent-brief rendering support
+- `AITPService.route_codex_chat_request()` and
+  `AITPService.start_chat_session()` now act as thin stable façades over
+  `chat_session_support.py`
+- targeted runtime-script/service regressions and maintainability budgets
+  stayed green
+
+### v1.25 Contract-Aware Checkpoint/Append Closure And Loop-Execution Boundary Extraction (shipped 2026-04-07)
+
+- `runtime/scripts/orchestrator_contract_support.py` now owns contract-aware
+  queue shaping, checkpoint append gating, and runtime-appended action assembly
+- active `operator_checkpoint.active.json` now acts as an explicit append gate
+  even before a refreshed runtime bundle catches up
+- `AITPService.run_topic_loop()` now acts as a thin stable façade over
+  `topic_loop_support.py`
+- targeted runtime-script/service regressions and maintainability budgets
+  stayed green
+
+### v1.24 Source Distillation Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `source_distillation_support.py` now owns source-backed idea distillation,
+  preview fallback recovery, novelty extraction, and lane/first-route inference
+- `AITPService._distill_from_sources()` now acts as a thin stable façade
+- targeted source-backed topic-start regressions and maintainability budgets
+  stayed green
+
+### v1.23 Topic-Skill Projection Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `topic_skill_projection_support.py` now owns topic-skill projection context
+  derivation, route/read guidance assembly, and lane-specific availability gating
+- `AITPService._derive_topic_skill_projection()` now acts as a thin stable façade
+- targeted topic-skill projection regressions and maintainability budgets stayed green
+
+### v1.22 Theory-Coverage Audit Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `theory_coverage_audit_support.py` now owns theory-coverage normalization,
+  packet artifact construction, regression-gate assembly, and candidate ledger updates
+- `AITPService.audit_theory_coverage()` now acts as a thin stable façade
+- targeted theory-coverage regressions and maintainability budgets stayed green
+
+### v1.21 Lean-Bridge Materialization Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `lean_bridge_support.py` now owns Lean-bridge packet construction,
+  proof-obligation materialization, and active index synthesis
+- `AITPService._materialize_lean_bridge()` now acts as a thin stable façade
+- targeted lean-bridge regressions and maintainability budgets stayed green
+
+### v1.20 Candidate Promotion Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `candidate_promotion_support.py` now owns candidate-promotion preparation,
+  TPKN writeback materialization, consultation logging, and promotion-state
+  finalization
+- `AITPService.promote_candidate()` now acts as a thin stable façade
+- targeted promotion regressions and maintainability budgets stayed green
+
+### v1.19 Formal-Theory Audit Boundary Extraction And Closure (shipped 2026-04-07)
+
+- `formal_theory_audit_support.py` now owns formal-theory audit normalization,
+  blocker evaluation, artifact writing, and candidate ledger updates
+- `AITPService.audit_formal_theory()` now acts as a thin stable façade
+- targeted formal-theory regressions and maintainability budgets stayed green
+
+### v1.18 Declarative Append Policy Closure And Promotion-Gate Boundary Seed (shipped 2026-04-07)
+
+- declared append policy now suppresses helper-produced runtime-appended
+  system actions instead of only the closed-loop branch
+- active operator checkpoints now suppress those helper-produced
+  runtime-appended actions too, while capability-gap skill append stays under
+  its own explicit flag
+- `promotion_gate_support.py` now owns shared promotion-gate markdown,
+  persistence, logging, and human approval lifecycle support
+
+### v1.17 Checkpoint-Aware Queue Shaping And Auto-Promotion Extraction (shipped 2026-04-07)
+
+- queue shaping now respects explicit human-checkpoint posture for narrow
+  runtime-appended suppression cases
+- `auto_promote_candidate` now lives in
+  `knowledge_hub/auto_promotion_support.py`
+- `aitp_service.py` dropped to `8836` lines with regression and
+  maintainability guards still green
+
+### v1.16 Contract-Aware Queue Shaping Seed (shipped 2026-04-07)
+
+- queue materialization now suppresses mismatched runtime-appended actions in
+  first explicit contract-aware cases
+- runtime-script regression locks promotion and consultation shaping cases
+- maintainability budgets stayed green
+
+### v1.15 Queue Materialization And Auto-Action Boundary Extraction (shipped 2026-04-07)
+
+- queue materialization now starts honoring the explicit runtime contract
+- auto-action execution left `aitp_service.py`
+- regression and maintainability guards stayed green
+
+### v1.14 Mode-Aware Queue And Decision Routing Seed (shipped 2026-04-06)
+
+- decision surfaces now read runtime contract hints for queue ordering and
+  selected-action choice
+- `decide_next_action.py` is now watchlisted explicitly
+- runtime-script and service regressions lock the first queue/decision hookup
+
+### v1.13 Transition-Aware Auto-Handler Routing Seed (shipped 2026-04-06)
+
+- auto-handler execution now reads the explicit runtime contract
+- backedge transitions now gate the wrong auto handlers
+- capability-gap skill discovery remains allowed as a recovery lane
+
+### v1.12 Runtime Mode And Transition Contract Seed (shipped 2026-04-06)
+
+- runtime mode/transition policy extracted into a dedicated support module
+- mode and transition posture now exposed explicitly in the bundle contract
+- schema/docs/tests updated to lock the new runtime contract
+
+### v1.11 Ontology, Mode, And Context-Policy Formalization (shipped 2026-04-06)
+
+- transition/backedge doctrine added and cross-linked
+- light-profile mandatory context reduced to the true primary surfaces
+- runtime docs/tests updated to lock the new progressive-disclosure contract
+
+### v1.10 Followup And Closed-Loop Decomposition (shipped 2026-04-05)
+
+- follow-up orchestration extracted from `aitp_service.py`
+- deferred-buffer and reintegration/writeback flows extracted from
+  `aitp_service.py`
+- tighter service budget plus docs/test closure
+
+### v1.9 Topic Shell Assembly Decomposition (shipped 2026-04-05)
+
+- topic-shell assembly extracted from `aitp_service.py`
+- topic dashboard and shell-surface derivation extracted from
+  `aitp_service.py`
+- tighter service budget plus docs/test closure
+
+### v1.8 Continued Kernel Decomposition (shipped 2026-04-05)
+
+- template/session-start rendering extracted from `aitp_service.py`
+- pure contract/note markdown rendering extracted from `aitp_service.py`
+- runtime bundle and session-start materialization extracted from
+  `aitp_service.py`
+- tighter service budget plus docs/test closure
+
+### v1.7 Kernel Decomposition And Maintainability Guard (shipped 2026-04-05)
+
+- front-door support extracted from `aitp_service.py`
+- agent-install/bootstrap support extracted from `aitp_service.py`
+- front-door command family extracted from `aitp_cli.py`
+- tighter maintainability budgets plus docs/test closure
+
+### v1.6 Runtime Front-Door Parity Hardening (shipped 2026-04-05)
+
+- explicit runtime/front-door support matrix through `aitp doctor`
+- Codex baseline plus Claude/OpenCode parity-target diagnostics
+- migration before/after convergence reporting
+- docs and regression closure for runtime maturity language
+
+### v1.5 L2 Knowledge Compiler And Hygiene (shipped 2026-04-05)
+
+- compiled `L2`, replay, hygiene, staging, and closure docs/tests
+
+### v1.4 Runtime Simplification And Reuse Foundations (shipped 2026-04-04)
+
+- runtime simplification, boundary extraction, checkpoints, routing, reuse
+
+### v1.3 Multi-Topic Parallel Execution (shipped 2026-04-04)
+
+- authoritative multi-topic runtime control
+
+### v1.2 Projection-First Formal-Theory Seed (shipped 2026-04-01)
+
+- bounded `formal_theory` projection seed
+
+### v1.1 L2 Topic-Skill Projection (shipped 2026-04-01)
+
+- first-class `topic_skill_projection`
+
+### v1.0 Runtime Hardening (shipped 2026-03-31)
+
+- source-grounded topic starts and explicit AITP x GSD workflow contract
 
 ## Requirements
 
 ### Validated
 
-- [x] Phase 6 decision points, traces, chronicles, and lightweight runtime exist in the protocol/runtime surface.
-- [x] Current-topic memory and topic resume surfaces are already durable across sessions.
-- [x] Natural-language-first bootstrap exists across Codex, Claude Code, OpenCode, and OpenClaw adapters.
-- [x] Source-heavy starts now prefer source-grounded `idea_packet`, research-question, and validation-route defaults over generic request text or heuristic queue blur.
-- [x] Runtime status explainability now answers why a topic is here, what the route is, what the last evidence return was, and what human need remains.
-- [x] Steering checkpoints can now materialize durable steering artifacts when the answer itself changes route semantics.
-- [x] Run-local strategy memory can now be written, surfaced in runtime status, and consulted as bounded route guidance.
-- [x] A real code-backed benchmark-first acceptance lane exists for the TFIM exact-diagonalization helper.
-- [x] The repo now has an explicit AITP x GSD workflow contract for everyday use.
-- [x] `topic_skill_projection` now exists as a first-class L2 family with runtime projection artifacts, TFIM seed acceptance, and human-reviewed promotion into backend `units/topic-skill-projections/`. - v1.1
+- [x] `L0 -> L1 -> L3 -> L4 -> L2` remains the stable protocol kernel.
+- [x] Multi-topic runtime control is authoritative and scheduler-based.
+- [x] `L2` now has compiled, replay, hygiene, and staging support.
+- [x] Runtime/front-door support is now diagnosable through `aitp doctor`.
+- [x] Topic-shell assembly now lives outside `aitp_service.py`.
+- [x] Follow-up / deferred-buffer / reintegration flows now live outside
+  `aitp_service.py`.
+- [x] Maintainability budgets tightened again after the new extractions.
+- [x] Docs and regression coverage now lock the newly extracted boundaries.
+- [x] Transition/backedge doctrine is now explicit and cross-linked.
+- [x] Light-profile runtime bundles now keep machine/control surfaces deferred
+  unless the relevant trigger fires.
+- [x] Runtime docs and acceptance expectations now reflect the new
+  progressive-disclosure contract.
+- [x] Runtime bundles now expose explicit mode and transition contract fields.
+- [x] Mode/transition policy now lives outside the bundle materializer.
+- [x] Auto-handler execution now obeys the first transition-aware contract
+  gate.
+- [x] Queue ordering and selected-action choice now obey the first
+  contract-aware routing hints.
+- [x] Queue materialization now obeys the first contract-aware routing hints.
+- [x] Auto-action execution boundary now lives outside `aitp_service.py`.
+- [x] Queue materialization now performs the first narrow contract-aware
+  shaping step, not only reordering.
+- [x] Declared `append_runtime_actions=false` now suppresses helper-produced
+  runtime-appended system actions while leaving capability-gap skill append
+  under its own explicit contract flag.
+- [x] Shared promotion-gate lifecycle helpers now live outside
+  `aitp_service.py`.
+- [x] Shared formal-theory audit helpers now live outside
+  `aitp_service.py`.
+- [x] Shared candidate promotion helpers now live outside
+  `aitp_service.py`.
+- [x] Shared lean-bridge materialization helpers now live outside
+  `aitp_service.py`.
+- [x] Shared theory-coverage audit helpers now live outside
+  `aitp_service.py`.
+- [x] Shared topic-skill projection helpers now live outside
+  `aitp_service.py`.
+- [x] Shared source-distillation helpers now live outside `aitp_service.py`.
+- [x] Shared topic-loop helpers now live outside `aitp_service.py`.
+- [x] Shared chat-routing and session-start helpers now live outside
+  `aitp_service.py`.
+- [x] Shared capability-audit helpers now live outside `aitp_service.py`.
+- [x] Contract-aware queue policy helpers now live outside `orchestrate_topic.py`.
+- [x] Shared interaction-surface helpers now live outside `orchestrate_topic.py`.
+- [x] Shared runtime-sync explainability/resume helpers now live outside
+  `sync_topic_state.py`.
 
 ### Active
 
-- [ ] Define the next milestone as a projection-first formal-theory seed lane instead of another packaging-only cycle.
-- [ ] Decide and scope the first formal-theory seed exemplar for `topic_skill_projection`, with Jones Chapter 4 finite-product closure as the current default candidate.
-- [ ] Keep adapter/bootstrap auto-load out of scope until a non-`code_method` projection seed closes honestly.
+No post-`v1.27` milestone is active yet.
+
+Choose the next milestone from `.planning/BACKLOG.md`, then create a fresh
+`.planning/REQUIREMENTS.md` and `.planning/ROADMAP.md`.
 
 ### Out of Scope
 
-- Replacing AITP's `L0 -> L1 -> L3 -> L4 -> L2` model with generic software-project milestones — the runtime remains authoritative for research state.
-- Marketplace-grade packaging in this milestone — local convergence matters more than public polish right now.
-- Broad feature expansion before topic-start sharpness improves — the bottleneck is the first bounded question, not more surface area.
+- `L5 Publication Factory`
+- new major protocol features
+- marketplace packaging
+- broad OpenClaw redesign
 
 ## Context
 
-- The canonical public/protocol repo is `D:\BaiduSyncdisk\repos\AITP-Research-Protocol`; this is the checkout where protocol and runtime changes should be developed.
-- Existing handoff notes on `2026-03-28` and `2026-03-29` identify the main bottleneck as source/thesis-to-question distillation, especially for formal-theory starts.
-- Commit `6445c59` shipped the `topic_skill_projection` milestone: schema, runtime compiler path, TFIM seed acceptance, and human-reviewed promotion are now live in the codebase.
-- The current local planning gap is no longer whether execution projections belong in L2; it is whether the same projection-first model can survive a bounded `formal_theory` seed without weakening trust gates.
-- `research/knowledge-hub/` is the installable runtime surface; repo changes should preserve adapter compatibility and protocol honesty.
+- `v1.17` left helper-produced `runtime_appended` actions partially outside
+  the declared append-policy switch, even though those helpers already mark
+  themselves as `runtime_appended`.
+- `v1.24` extracted the shared source-distillation boundary into a dedicated
+  support module without changing the public service method.
+- `v1.27` extracted the shared capability-audit boundary and the shared
+  runtime-sync explainability/resume boundary.
+- The main service façade is now `6459` lines with a `140`-line longest
+  function, while `sync_topic_state.py` keeps only the CLI shell and remaining
+  sync orchestration around a new support boundary, so maintainability work
+  remains real and the next bounded targets are steering payloads or
+  `closed_loop_v1.py`.
+- The detailed backlog parking lot now lives in `.planning/BACKLOG.md` instead
+  of the active milestone roadmap surface.
 
 ## Constraints
 
-- **Protocol**: Keep AITP protocol-first — GSD organizes execution, but AITP runtime artifacts remain the source of truth for research state.
-- **Compatibility**: Do not break existing CLI, adapters, or runtime artifacts that already back current-topic continuation.
-- **Brownfield**: Work with the existing dirty tree carefully; do not overwrite unrelated user changes.
-- **Scientific Trust**: Prefer bounded, honest defaults over aggressive inference when source evidence is weak.
+- **Protocol:** Do not change the research-layer kernel while decomposing code.
+- **Behavior:** Preserve CLI/runtime behavior during extraction.
+- **Brownfield:** Work with the existing dirty tree carefully and avoid
+  overwriting unrelated changes.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use GSD as a planning overlay for this repo | The codebase has active work but no phase/project scaffold yet | ✓ Good |
-| Anchor the current milestone on topic-start sharpness and status explainability | Prior handoff notes identify this as the highest-value bottleneck | ✓ Good |
-| Preserve protocol docs as the authority and use implementation-focused phases in GSD | Execution tracking should reflect real repo work without rewriting protocol semantics | ✓ Good |
-| Treat source-grounded topic starts as higher priority than generic human-request defaults | The real bottleneck was thesis/paper to bounded question, not more protocol surface area | ✓ Good |
-| Treat steering answers as durable route changes when they express continue/branch/redirect semantics | Answered checkpoints were otherwise archived without changing the loop | ✓ Good |
-| Keep strategy memory non-promotional and surface it through runtime guidance instead of hidden heuristics | Route memory should influence bounded choices without pretending to be scientific truth | ✓ Good |
-| Prove the code-method lane with a benchmark-first acceptance script instead of a synthetic stub | Code-backed work needed a real bounded exemplar to validate the lane model | ✓ Good |
-| Write an explicit AITP x GSD coexistence note | The repo needed a durable answer to when coding belongs to AITP topics versus GSD repo execution | ✓ Good |
-| Treat reusable execution memory as a real L2 family instead of leaving it hidden inside runtime state | `topic_skill_projection` needed to be promotable, reviewable, and backend-addressable rather than a local heuristic only | ✓ Good |
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition:**
-1. Requirements invalidated? Move them to Out of Scope with reason.
-2. Requirements validated? Move them to Validated with a phase or milestone reference.
-3. New requirements emerged? Add them to Active.
-4. Decisions worth preserving? Append them to Key Decisions.
-5. If the product meaning drifted, update "What This Is" before more execution work lands.
-
-**After each milestone:**
-1. Review the whole document against what actually shipped.
-2. Re-check Core Value against what the repo is now optimizing for.
-3. Move shipped requirements to Validated and prune stale Active items.
-4. Refresh Context with the real codebase state and the next milestone gap.
+| Keep doing maintainability work before `L5` | A fragile kernel would make the final writing layer harder to trust and evolve | ✓ Locked |
+| Use doctrine and runtime behavior changes together | The user wants real harness behavior, not standalone concept notes | ✓ Locked |
+| Reduce light-profile mandatory context instead of adding more bundle prose | Too much mandatory context would suppress model intelligence and violate progressive disclosure | ✓ Locked |
+| Extract runtime mode policy into its own helper boundary | Explicit runtime contracts should not come at the cost of re-centralizing bundle logic | ✓ Locked |
+| Let backedge transitions gate handler execution before rewriting the full orchestrator | The safest first hookup is to stop clearly wrong auto execution before reworking queue generation | ✓ Locked |
+| Let decision selection consume the explicit contract before rewriting full queue materialization | This keeps the next hookup bounded while still moving control authority downward from the bundle into real routing logic | ✓ Locked |
+| Combine queue-materialization work with one real service extraction in the same milestone | The user explicitly wants both tracks to keep moving, so the roadmap should not force a false serial choice | ✓ Locked |
+| Keep queue shaping narrow and explicit | The user does not want Python to become a hidden research brain, so shaping should only suppress mismatched runtime-appended actions that the explicit contract already rules out | ✓ Locked |
+| Extract the source-grounded distillation boundary before deeper orchestrator work | `_distill_from_sources` was the next narrow, high-leverage service hotspot with stable topic-start regressions already surrounding it | ✓ Locked |
+| Treat active `operator_checkpoint.active.json` as an explicit append gate | The durable checkpoint surface should govern queue expansion even before the derived bundle refresh catches up | ✓ Locked |
+| Extract `run_topic_loop` before broader chat-routing decomposition | The loop/execution cluster was the next stable public service façade that could shrink without widening the API | ✓ Locked |
+| Extract operator-facing interaction surfaces before deeper runtime rewrites | `build_interaction_state`, `build_operator_console`, and `build_agent_brief` were the next stable orchestrator hotspot cluster with narrow rendering-oriented behavior | ✓ Locked |
+| Extract chat routing together with session-start orchestration | `route_codex_chat_request` and `start_chat_session` form one public entry surface and should stay behaviorally aligned behind one helper boundary | ✓ Locked |
+| Extract capability audit as one bounded surface | `capability_audit()` was the next stable service hotspot with focused tests and a clear report boundary | ✓ Locked |
+| Extract runtime-sync explainability together with resume rendering | `infer_resume_state`, `derive_status_explainability`, and `build_resume_markdown` form one coherent operator-facing sync slice | ✓ Locked |
+| Keep maintainability budgets green instead of loosening them for doctrine work | Guardrails should resist regression even when the milestone focus shifts | ✓ Locked |
+| Keep `L5 Publication Factory` as a future final layer | Writing stays downstream of evidence and validation | ✓ Locked |
 
 ---
-*Last updated: 2026-04-01 after shipping `topic_skill_projection` and resetting next-milestone direction*
+*Last updated: 2026-04-07 after shipping v1.27*

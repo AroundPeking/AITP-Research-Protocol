@@ -180,6 +180,9 @@ Rules:
 
 - the pairing must be named explicitly in protocol docs or backend notes;
 - neither backend becomes privileged by serialization format alone;
+- the human-facing backend may be operator-primary and the typed backend may be
+  machine-primary, but those are role distinctions rather than silent
+  authority grants;
 - normal promotion gates still decide whether writeback is allowed;
 - semantic identity, source anchors, assumptions, regime limits, and unresolved
   boundaries must stay aligned across the pair;
