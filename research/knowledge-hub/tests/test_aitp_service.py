@@ -1460,7 +1460,23 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("## What This Does Not Yet Justify", result_brief_note)
 
     def test_ensure_topic_shell_surfaces_result_brief_blocks_on_pending_decisions(self) -> None:
-        self._write_runtime_state()
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:benchmark",
+                    "status": "pending",
+                    "action_type": "benchmark",
+                    "summary": "Select the benchmark route and proceed.",
+                    "auto_runnable": False,
+                    "queue_source": "declared_contract",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
         with patch(
             "knowledge_hub.aitp_service.list_pending_decision_points",
@@ -1470,12 +1486,22 @@ class AITPServiceTests(unittest.TestCase):
                 topic_slug="demo-topic",
                 updated_by="aitp-cli",
             )
+            bundle_paths = self.service._materialize_runtime_protocol_bundle(
+                topic_slug="demo-topic",
+                updated_by="aitp-cli",
+                human_request="continue this topic",
+                load_profile="light",
+            )
 
         result_brief_payload = json.loads(
             Path(payload["result_brief_path"]).read_text(encoding="utf-8")
         )
+        bundle = json.loads(Path(bundle_paths["runtime_protocol_path"]).read_text(encoding="utf-8"))
         self.assertEqual(result_brief_payload["interaction_class"], "checkpoint_question")
         self.assertIn("decision:demo-blocking", result_brief_payload["what_changed"])
+        self.assertEqual(bundle["interaction_contract"]["interaction_class"], "checkpoint_question")
+        self.assertIn("decision:demo-blocking", bundle["interaction_contract"]["stop_reason"])
+        self.assertEqual(bundle["result_brief"]["interaction_class"], "checkpoint_question")
 
     def test_topic_status_and_prepare_verification_surface_new_shell_fields(self) -> None:
         runtime_root = self._write_runtime_state()

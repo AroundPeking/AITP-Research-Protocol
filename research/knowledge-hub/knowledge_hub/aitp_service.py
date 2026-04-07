@@ -2306,6 +2306,7 @@ class AITPService:
         validation_contract: dict[str, Any],
         promotion_gate: dict[str, Any],
         selected_pending_action: dict[str, Any] | None,
+        pending_decisions: dict[str, Any] | None,
         decision_surface: dict[str, Any],
         dashboard_path: Path,
         idea_packet_paths: dict[str, Path],
@@ -2344,6 +2345,21 @@ class AITPService:
                 self._relativize(research_paths["note"]),
                 self._relativize(validation_paths["note"]),
             ]
+        elif int((pending_decisions or {}).get("blocking_count") or 0) > 0:
+            unresolved_ids = [
+                str(item).strip()
+                for item in (pending_decisions or {}).get("unresolved_ids") or []
+                if str(item).strip()
+            ]
+            checkpoint_kind = "pending_decisions"
+            if unresolved_ids:
+                question = f"Resolve blocking pending decisions before continuing: {', '.join(unresolved_ids)}."
+            else:
+                question = "Resolve blocking pending decisions before continuing execution."
+            required_response = "Close the blocking pending decisions and sync their durable traces."
+            blocker_summary = unresolved_ids or [question]
+            evidence_refs = [self._relativize(dashboard_path)]
+            response_channels = [self._relativize(dashboard_path)]
         elif promotion_status in {"requested", "pending_human_approval"}:
             checkpoint_kind = "promotion_approval"
             candidate_id = str(promotion_gate.get("candidate_id") or "").strip() or "(missing)"
@@ -4532,6 +4548,15 @@ class AITPService:
             validation_contract=validation_contract,
             selected_pending_action=selected_pending_action,
         )
+        pending_decisions = list_pending_decision_points(topic_slug, kernel_root=self.kernel_root)
+        pending_decisions_payload = {
+            "blocking_count": sum(1 for row in pending_decisions if row.get("blocking")),
+            "unresolved_ids": [
+                str(row.get("id") or "").strip()
+                for row in pending_decisions
+                if str(row.get("id") or "").strip()
+            ],
+        }
         operator_checkpoint, superseded_checkpoint = self._derive_operator_checkpoint(
             topic_slug=topic_slug,
             updated_by=updated_by,
@@ -4541,6 +4566,7 @@ class AITPService:
             validation_contract=validation_contract,
             promotion_gate=resolved_promotion_gate,
             selected_pending_action=selected_pending_action,
+            pending_decisions=pending_decisions_payload,
             decision_surface=decision_surface,
             dashboard_path=dashboard_path,
             idea_packet_paths=idea_packet_paths,
@@ -4564,15 +4590,6 @@ class AITPService:
             "path": self._relativize(Path(operator_checkpoint_paths_written["operator_checkpoint_path"])),
             "note_path": self._relativize(Path(operator_checkpoint_paths_written["operator_checkpoint_note_path"])),
             "ledger_path": self._relativize(Path(operator_checkpoint_paths_written["operator_checkpoint_ledger_path"])),
-        }
-        pending_decisions = list_pending_decision_points(topic_slug, kernel_root=self.kernel_root)
-        pending_decisions_payload = {
-            "blocking_count": sum(1 for row in pending_decisions if row.get("blocking")),
-            "unresolved_ids": [
-                str(row.get("id") or "").strip()
-                for row in pending_decisions
-                if str(row.get("id") or "").strip()
-            ],
         }
         topic_status_explainability = self._derive_topic_status_explainability(
             topic_slug=topic_slug,
