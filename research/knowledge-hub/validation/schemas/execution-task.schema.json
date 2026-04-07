@@ -37,7 +37,8 @@
         "exploratory_general",
         "first_principles",
         "toy_model",
-        "formal_derivation"
+        "formal_derivation",
+        "theory_synthesis"
       ]
     },
     "research_mode_profile_path": {

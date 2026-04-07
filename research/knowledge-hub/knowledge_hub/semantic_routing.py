@@ -29,13 +29,19 @@ def canonical_template_mode(research_mode: str | None) -> str:
 def canonical_lane(*, template_mode: str | None, research_mode: str | None) -> str:
     normalized_template = _normalize(template_mode)
     normalized_research = _normalize(research_mode)
-    if normalized_template == "formal_theory" or normalized_research == "formal_derivation":
+    if normalized_research == "formal_derivation":
         return "formal_theory"
     if normalized_research == "first_principles":
         return "first_principles"
     if normalized_research == "theory_synthesis":
         return "theory_synthesis"
-    if normalized_template == "toy_numeric" or normalized_research == "toy_model":
+    if normalized_research == "toy_model":
+        return "toy_numeric"
+    if normalized_research and normalized_research != "exploratory_general":
+        return "code_method"
+    if normalized_template == "formal_theory":
+        return "formal_theory"
+    if normalized_template == "toy_numeric":
         return "toy_numeric"
     return "code_method"
 
@@ -43,8 +49,14 @@ def canonical_lane(*, template_mode: str | None, research_mode: str | None) -> s
 def canonical_validation_mode(template_mode: str | None, research_mode: str | None) -> str:
     normalized_template = _normalize(template_mode)
     normalized_research = _normalize(research_mode)
-    if normalized_template == "formal_theory" or normalized_research == "formal_derivation":
+    if normalized_research == "formal_derivation":
         return "formal"
-    if normalized_template == "toy_numeric" or normalized_research in {"toy_model", "first_principles"}:
+    if normalized_research in {"toy_model", "first_principles"}:
+        return "numerical"
+    if normalized_research and normalized_research != "exploratory_general":
+        return "hybrid"
+    if normalized_template == "formal_theory":
+        return "formal"
+    if normalized_template == "toy_numeric":
         return "numerical"
     return "hybrid"

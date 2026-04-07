@@ -182,6 +182,11 @@ class SchemaContractTests(unittest.TestCase):
         self.assertTrue((policy_payload.get("candidate_split_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("deferred_buffer_policy") or {}).get("auto_reactivate"))
 
+    def test_execution_task_schema_accepts_theory_synthesis(self) -> None:
+        payload = self._read_json("validation/schemas/execution-task.schema.json")
+        research_modes = set(payload["properties"]["research_mode"]["enum"])
+        self.assertIn("theory_synthesis", research_modes)
+
 
 if __name__ == "__main__":
     unittest.main()

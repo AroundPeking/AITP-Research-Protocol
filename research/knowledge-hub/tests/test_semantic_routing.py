@@ -31,3 +31,11 @@ def test_canonical_template_mode_for_theory_synthesis() -> None:
 
 def test_canonical_validation_mode_for_first_principles() -> None:
     assert canonical_validation_mode("toy_numeric", "first_principles") == "numerical"
+
+
+def test_canonical_lane_prefers_specific_research_mode_over_template() -> None:
+    assert canonical_lane(template_mode="formal_theory", research_mode="theory_synthesis") == "theory_synthesis"
+
+
+def test_canonical_validation_mode_prefers_specific_research_mode_over_template() -> None:
+    assert canonical_validation_mode("formal_theory", "theory_synthesis") == "hybrid"
