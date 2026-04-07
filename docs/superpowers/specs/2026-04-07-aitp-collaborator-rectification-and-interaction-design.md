@@ -393,6 +393,174 @@ Keep the current shell discipline, but separate:
 
 more clearly.
 
+## Workflow Routing Rule
+
+This design should also make the operational division between
+`Superpowers-style workflow shells`, `AITP`, and `GSD` explicit.
+
+They should not be treated as three competing orchestrators.
+
+They live at different levels.
+
+### 1. Superpowers-style shell
+
+Role:
+
+- natural-language-first entry,
+- workflow gating,
+- progressive disclosure,
+- and front-door routing into the correct deeper system.
+
+It answers:
+
+- how does the user enter the work naturally?
+
+It must not become the durable source of truth for:
+
+- research state,
+- promotion state,
+- or repo-development state.
+
+### 2. AITP
+
+Role:
+
+- topic-governed research execution,
+- research-state materialization,
+- validation,
+- checkpoints,
+- and promotion-routing semantics.
+
+It answers:
+
+- where is this research topic now,
+- what is the next bounded research action,
+- what evidence exists,
+- and what is trusted enough to reuse?
+
+### 3. GSD
+
+Role:
+
+- repository implementation planning and execution for AITP itself.
+
+It answers:
+
+- how should this repository be changed, planned, verified, and summarized?
+
+It must not replace:
+
+- topic runtime state,
+- topic validation state,
+- or scientific trust state.
+
+### 4. Default routing law
+
+Use this routing order:
+
+1. natural-language user entry first lands on the `Superpowers-style` shell;
+2. if an explicit or implied research topic is active, `AITP` wins;
+3. if the task is about changing the AITP repository itself, `GSD` wins.
+
+Short form:
+
+- `Superpowers` routes
+- `AITP` governs research
+- `GSD` governs implementation of AITP itself
+
+### 5. Topic-first rule
+
+If the next step needs any of the following, start in `AITP`:
+
+- durable topic state,
+- steering,
+- validation-route choice,
+- checkpoint semantics,
+- promotion semantics,
+- source recovery,
+- or topic-governed code execution.
+
+This remains true even when the immediate work includes code.
+
+### 6. Code boundary rule
+
+Code is not automatically `GSD`.
+
+Distinguish:
+
+- `code as research evidence`
+- `code as repo maintenance`
+
+#### Code as research evidence
+
+Use `AITP` when code exists to:
+
+- reproduce a benchmark,
+- validate an observable,
+- run a bounded implementation route inside a topic,
+- record operation trust,
+- or support a declared topic validation path.
+
+In this case, success is judged by the topic contract.
+
+#### Code as repo maintenance
+
+Use `GSD` when code exists to:
+
+- improve AITP runtime behavior generally,
+- add tests, schemas, docs, or packaging,
+- improve adapters or installs,
+- or add capabilities that future topics may use.
+
+In this case, success is judged by repository behavior.
+
+### 7. Mixed-task rule
+
+Some tasks genuinely have both layers.
+
+When that happens:
+
+- start in `AITP` if there is a real active research topic;
+- record the actual research state and blocker there first;
+- then capture the general product/runtime gap as `GSD` follow-up.
+
+Typical pattern:
+
+- topic-governed diagnosis or execution in `AITP`
+- generalization into repo improvement in `GSD`
+
+The reverse order should be rare and should happen only when the topic cannot
+continue at all because a baseline repository/runtime surface is broken.
+
+### 8. Anti-patterns
+
+Do not:
+
+- treat `GSD` summaries as the scientific source of truth for a topic;
+- force every topic-governed coding task into repo-maintenance workflow;
+- use `Superpowers-style` routing without durable AITP runtime materialization;
+- let repository-maintenance work pollute active topic artifacts as if it were
+  scientific progress.
+
+### 9. Operational question sequence
+
+When routing a mixed or ambiguous task, ask these questions in order:
+
+1. Is there an explicit or implied active research topic?
+2. Does the next honest step need topic state, validation, steering, or
+   promotion semantics?
+3. Is the code or document change part of topic evidence, or part of AITP
+   product maintenance?
+4. Where should the source of truth land:
+   topic runtime artifacts or repository planning/execution artifacts?
+
+Route like this:
+
+- if `1` or `2` is yes, start in `AITP`
+- if only `3` is yes and it is repo maintenance, use `GSD`
+- always let `Superpowers-style` entry remain the front door instead of making
+  the user choose protocol jargon first
+
 ## Human Interaction And Stop Policy
 
 This is the main interaction contract required before claiming stronger AITP
