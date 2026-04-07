@@ -6771,6 +6771,14 @@ class AITPService:
                     },
                 ]
             )
+            if pending_decisions_payload.get("blocking_count", 0) > 0:
+                must_read_now.insert(
+                    1,
+                    {
+                        "path": self._relativize(Path(pending_decisions_written["path"])),
+                        "reason": "Blocking pending decisions are active; resolve them before deeper execution.",
+                    },
+                )
             if strategy_memory.get("relevant_count") and strategy_memory.get("latest_path"):
                 must_read_now.append(
                     {
@@ -6814,6 +6822,13 @@ class AITPService:
                     {
                         "path": str(idea_packet.get("note_path") or ""),
                         "reason": "Clarify the idea packet before substantive execution. This is the active intent gate for the topic.",
+                    }
+                )
+            if pending_decisions_payload.get("blocking_count", 0) > 0:
+                must_read_now.append(
+                    {
+                        "path": self._relativize(Path(pending_decisions_written["path"])),
+                        "reason": "Blocking pending decisions are active; resolve them before deeper execution.",
                     }
                 )
             must_read_now.extend(
@@ -7075,6 +7090,11 @@ class AITPService:
                 f"Clarify `{idea_packet.get('note_path') or '(missing)'}` and then synchronize the research and validation contracts.",
                 "Limit the next step to intent clarification, scope tightening, and first-lane selection.",
             ]
+        if pending_decisions_payload.get("blocking_count", 0) > 0:
+            immediate_allowed_work = [
+                f"Resolve blocking decisions in `{pending_decisions_written['path']}` before deeper execution.",
+                "Limit the next step to closing the blocking decision points and syncing their durable traces.",
+            ]
 
         immediate_blocked_work = [
             "Do not promote or auto-promote material into Layer 2 unless the promotion trigger fires and the gate artifacts allow it.",
@@ -7089,6 +7109,10 @@ class AITPService:
         if str(operator_checkpoint.get("status") or "").strip() == "requested":
             immediate_blocked_work.append(
                 "Do not continue deeper research execution until the active operator checkpoint is answered or cancelled."
+            )
+        if pending_decisions_payload.get("blocking_count", 0) > 0:
+            immediate_blocked_work.append(
+                "Do not continue bounded execution until blocking pending decisions are resolved."
             )
 
         control_note_status = str(decision_surface.get("control_note_status") or "missing")
@@ -7326,6 +7350,10 @@ class AITPService:
         if str(operator_checkpoint.get("status") or "").strip() == "requested":
             active_hard_constraints.append(
                 f"Do not continue deeper execution until `{operator_checkpoint.get('note_path') or '(missing)'}` is answered or cancelled."
+            )
+        if pending_decisions_payload.get("blocking_count", 0) > 0:
+            active_hard_constraints.append(
+                f"Do not continue deeper execution until blocking decisions in `{pending_decisions_written['path']}` are resolved."
             )
 
         editable_surfaces: list[dict[str, str]] = []
@@ -9089,6 +9117,14 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
                 operator_checkpoint_note_path,
                 "Resolve the active operator checkpoint before deeper execution continues.",
             )
+        pending_decisions = runtime_bundle.get("pending_decisions") or {}
+        pending_decision_blockers = int(pending_decisions.get("blocking_count") or 0)
+        pending_decisions_path = self._normalize_artifact_path(pending_decisions.get("path"))
+        if pending_decision_blockers > 0:
+            _append_read(
+                pending_decisions_path,
+                "Resolve blocking pending decisions before deeper execution continues.",
+            )
 
         selected_action = (runtime_bundle.get("minimal_execution_brief") or {})
         selected_action_payload = {
@@ -9131,8 +9167,19 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
                     "result": "AITP stops at a durable operator checkpoint instead of silently guessing the human decision.",
                 },
             )
+        if pending_decision_blockers > 0:
+            linear_flow.insert(
+                2,
+                {
+                    "step": "Resolve the blocking pending decision(s) before touching the queue or continuing bounded execution.",
+                    "result": "AITP pauses execution until blocking decisions are closed in durable decision traces.",
+                },
+            )
         linear_flow.insert(
-            2 + int(operator_checkpoint_status == "requested") + int(idea_packet_status == "needs_clarification"),
+            2
+            + int(operator_checkpoint_status == "requested")
+            + int(idea_packet_status == "needs_clarification")
+            + int(pending_decision_blockers > 0),
             {
                 "step": "Finish the files listed under `Must read now` before touching the queue or giving a substantial research answer.",
                 "result": "Current topic state, question scope, validation route, and guardrails are loaded in a fixed order.",
@@ -9153,6 +9200,10 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
         if operator_checkpoint_status == "requested":
             hard_stops.append(
                 "Do not continue deeper execution until `operator_checkpoint.active.md` is answered or cancelled."
+            )
+        if pending_decision_blockers > 0:
+            hard_stops.append(
+                "Do not continue deeper execution until blocking pending decisions are resolved."
             )
         if steering_artifacts.get("detected"):
             hard_stops.append(

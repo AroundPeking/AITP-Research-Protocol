@@ -584,6 +584,25 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(interaction_contract["interaction_class"], "checkpoint_question")
         self.assertEqual(interaction_contract["stop_status"], "checkpoint_required")
         self.assertEqual(interaction_contract["primary_result_shape"], "checkpoint_card")
+        self.assertTrue(
+            all(
+                "Continue bounded" not in item
+                and "Resume bounded" not in item
+                for item in bundle["minimal_execution_brief"]["immediate_allowed_work"]
+            )
+        )
+        self.assertTrue(
+            any(
+                "blocking pending decisions" in item
+                for item in bundle["minimal_execution_brief"]["immediate_blocked_work"]
+            )
+        )
+        self.assertTrue(
+            any(
+                "blocking decisions" in item
+                for item in bundle["active_hard_constraints"]
+            )
+        )
 
 
 if __name__ == "__main__":

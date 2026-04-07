@@ -1539,6 +1539,65 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(any("idea_packet.md" in row for row in session_payload["hard_stops"]))
         self.assertTrue(any("operator_checkpoint.active.md" in row for row in session_payload["hard_stops"]))
 
+    def test_session_start_blocks_on_pending_decision_blockers(self) -> None:
+        runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Continue the bounded topic lane.",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch(
+            "knowledge_hub.aitp_service.list_pending_decision_points",
+            return_value=[
+                {"id": "decision:demo-blocking", "blocking": True}
+            ],
+        ):
+            protocol_paths = self.service._materialize_runtime_protocol_bundle(
+                topic_slug="demo-topic",
+                updated_by="aitp-cli",
+                human_request="Continue the bounded topic lane.",
+            )
+
+        session_payload = self.service._materialize_session_start_contract(
+            task="Continue the bounded topic lane.",
+            routing={
+                "route": "request_current_topic_reference",
+                "reason": "User referenced the current topic.",
+                "topic_slug": "demo-topic",
+                "topic": "Demo Topic",
+            },
+            loop_payload={
+                "topic_slug": "demo-topic",
+                "runtime_protocol": protocol_paths,
+                "loop_state": {
+                    "entry_conformance": "pass",
+                    "exit_conformance": "pass",
+                    "capability_status": "ready",
+                    "trust_status": "pass",
+                },
+                "steering_artifacts": {},
+                "bootstrap": {"topic_state": {"pointers": {}}},
+                "current_topic_memory": {},
+            },
+            updated_by="aitp-session-start",
+        )
+        self.assertTrue(any("pending_decisions" in row["path"] for row in session_payload["must_read_now"]))
+        self.assertTrue(any("blocking pending decisions" in row for row in session_payload["hard_stops"]))
+        self.assertTrue(
+            any(
+                "blocking pending decision" in row.get("step", "")
+                for row in session_payload["linear_flow"]
+            )
+        )
+
     def test_answer_operator_checkpoint_updates_ledger_and_operator_console(self) -> None:
         runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
         runtime_root.mkdir(parents=True, exist_ok=True)
