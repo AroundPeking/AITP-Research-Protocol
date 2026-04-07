@@ -669,3 +669,30 @@ Priority: MEDIUM — overlaps with 999.24 (quick exploration mode).
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.32: Research Trajectory Recording And Mode Learning (BACKLOG)
+
+**Goal:** The current system implements a predetermined L0->L1->L3->L4->L2
+pipeline. Real research is organic — physicists switch between literature
+survey, intuition exploration, calculation, formal derivation, and writing
+without following a fixed sequence. Add: (1) A `research_trajectory_log` that
+records every human-AI interaction with mode tags (literature_survey,
+intuition_exploration, calculation, formal_derivation, writing) — not what
+the pipeline says the mode should be, but what the researcher actually does.
+(2) A `research_mode_detector` that infers the current mode from interaction
+content (papers being discussed -> literature_survey; equations being derived ->
+formal_derivation; quick "what if" questions -> intuition_exploration). (3)
+A case study library — structured records of complete research arcs (from
+question to result including dead ends) that the AI can reference for decision
+making. (4) Pattern extraction — after accumulating trajectory data, identify
+common research patterns (e.g., "physicists typically read 3-5 papers before
+attempting a calculation" or "intuition exploration often precedes formal
+derivation by 1-2 sessions"). Use these patterns to inform routing and
+suggestions instead of hardcoded rules. Priority: HIGH — this is the
+foundational change that enables all other research quality improvements.
+**Source:** Research workflow learning discussion 2026-04-07
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
