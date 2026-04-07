@@ -157,18 +157,14 @@
           "type": "string",
           "enum": [
             "silent_continue",
-            "non_blocking_update",
-            "checkpoint_question",
-            "hard_stop"
+            "checkpoint_question"
           ]
         },
         "stop_status": {
           "type": "string",
           "enum": [
             "continue",
-            "checkpoint_required",
-            "blocked",
-            "complete"
+            "checkpoint_required"
           ]
         },
         "stop_reason": {
@@ -178,9 +174,7 @@
           "type": "string",
           "enum": [
             "status_update",
-            "result_brief",
-            "checkpoint_card",
-            "topic_replay_bundle"
+            "checkpoint_card"
           ]
         },
         "next_action_summary": {
@@ -230,18 +224,14 @@
           "type": "string",
           "enum": [
             "silent_continue",
-            "non_blocking_update",
-            "checkpoint_question",
-            "hard_stop"
+            "checkpoint_question"
           ]
         },
         "stop_status": {
           "type": "string",
           "enum": [
             "continue",
-            "checkpoint_required",
-            "blocked",
-            "complete"
+            "checkpoint_required"
           ]
         },
         "stop_reason": {
@@ -251,9 +241,7 @@
           "type": "string",
           "enum": [
             "status_update",
-            "result_brief",
-            "checkpoint_card",
-            "topic_replay_bundle"
+            "checkpoint_card"
           ]
         }
       }
