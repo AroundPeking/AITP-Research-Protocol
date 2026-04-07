@@ -17,6 +17,7 @@
     "research_mode",
     "load_profile",
     "topic_synopsis",
+    "interaction_contract",
     "pending_decisions",
     "active_research_contract",
     "idea_packet",
@@ -152,6 +153,36 @@
             "type": "string"
           }
         },
+        "interaction_class": {
+          "type": "string",
+          "enum": [
+            "silent_continue",
+            "non_blocking_update",
+            "checkpoint_question",
+            "hard_stop"
+          ]
+        },
+        "stop_status": {
+          "type": "string",
+          "enum": [
+            "continue",
+            "checkpoint_required",
+            "blocked",
+            "complete"
+          ]
+        },
+        "stop_reason": {
+          "type": "string"
+        },
+        "primary_result_shape": {
+          "type": "string",
+          "enum": [
+            "status_update",
+            "result_brief",
+            "checkpoint_card",
+            "topic_replay_bundle"
+          ]
+        },
         "next_action_summary": {
           "type": "string",
           "minLength": 1
@@ -182,6 +213,48 @@
         "path": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "interaction_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "interaction_class",
+        "stop_status",
+        "stop_reason",
+        "primary_result_shape"
+      ],
+      "properties": {
+        "interaction_class": {
+          "type": "string",
+          "enum": [
+            "silent_continue",
+            "non_blocking_update",
+            "checkpoint_question",
+            "hard_stop"
+          ]
+        },
+        "stop_status": {
+          "type": "string",
+          "enum": [
+            "continue",
+            "checkpoint_required",
+            "blocked",
+            "complete"
+          ]
+        },
+        "stop_reason": {
+          "type": "string"
+        },
+        "primary_result_shape": {
+          "type": "string",
+          "enum": [
+            "status_update",
+            "result_brief",
+            "checkpoint_card",
+            "topic_replay_bundle"
+          ]
         }
       }
     },

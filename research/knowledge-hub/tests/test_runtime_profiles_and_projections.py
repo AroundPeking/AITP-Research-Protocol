@@ -497,6 +497,11 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(bundle["must_read_now"][0]["path"], "runtime/topics/demo-topic/topic_state.json")
         self.assertIn("topic_synopsis", bundle)
         self.assertIn("pending_decisions", bundle)
+        self.assertIn("interaction_contract", bundle)
+        self.assertIn("interaction_class", bundle["topic_synopsis"])
+        self.assertIn("stop_status", bundle["topic_synopsis"])
+        self.assertIn("stop_reason", bundle["topic_synopsis"])
+        self.assertIn("primary_result_shape", bundle["topic_synopsis"])
         self.assertTrue((self.runtime_root / "topic_synopsis.json").exists())
         self.assertTrue((self.runtime_root / "pending_decisions.json").exists())
         self.assertTrue((self.runtime_root / "promotion_readiness.json").exists())
@@ -525,6 +530,34 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(bundle["load_profile"], "full")
         self.assertGreater(len(bundle["must_read_now"]), 4)
         self.assertIn("topic_dashboard.md", json.dumps(bundle["must_read_now"]))
+
+    def test_runtime_bundle_surfaces_checkpoint_interaction_contract(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        shell_surfaces["operator_checkpoint"] = {
+            **shell_surfaces["operator_checkpoint"],
+            "status": "requested",
+            "question": "Confirm the benchmark route before continuing.",
+            "blocker_summary": ["Awaiting operator confirmation."],
+        }
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="continue this topic",
+                    load_profile="light",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        interaction_contract = bundle["interaction_contract"]
+        self.assertEqual(interaction_contract["interaction_class"], "checkpoint_question")
+        self.assertEqual(interaction_contract["stop_status"], "checkpoint_required")
+        self.assertEqual(interaction_contract["primary_result_shape"], "checkpoint_card")
+        self.assertIn("Confirm the benchmark route", interaction_contract["stop_reason"])
+        synopsis = bundle["topic_synopsis"]
+        self.assertEqual(synopsis["interaction_class"], "checkpoint_question")
+        self.assertEqual(synopsis["stop_status"], "checkpoint_required")
+        self.assertEqual(synopsis["primary_result_shape"], "checkpoint_card")
 
 
 if __name__ == "__main__":

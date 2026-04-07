@@ -66,6 +66,36 @@
         "type": "string"
       }
     },
+    "interaction_class": {
+      "type": "string",
+      "enum": [
+        "silent_continue",
+        "non_blocking_update",
+        "checkpoint_question",
+        "hard_stop"
+      ]
+    },
+    "stop_status": {
+      "type": "string",
+      "enum": [
+        "continue",
+        "checkpoint_required",
+        "blocked",
+        "complete"
+      ]
+    },
+    "stop_reason": {
+      "type": "string"
+    },
+    "primary_result_shape": {
+      "type": "string",
+      "enum": [
+        "status_update",
+        "result_brief",
+        "checkpoint_card",
+        "topic_replay_bundle"
+      ]
+    },
     "next_action_summary": {
       "type": "string",
       "minLength": 1

@@ -118,6 +118,14 @@ class SchemaContractTests(unittest.TestCase):
         repo_payload = self._read_repo_json("schemas/topic-synopsis.schema.json")
         repo_lane_values = set(repo_payload["properties"]["lane"]["enum"])
         self.assertEqual(repo_lane_values, expected_lanes)
+        for field in (
+            "interaction_class",
+            "stop_status",
+            "stop_reason",
+            "primary_result_shape",
+        ):
+            self.assertIn(field, payload["properties"])
+            self.assertIn(field, repo_payload["properties"])
 
     def test_consult_and_promotion_schemas_include_new_theory_surface(self) -> None:
         consult_payload = self._read_json("consultation/schemas/consult-request.schema.json")
@@ -162,6 +170,8 @@ class SchemaContractTests(unittest.TestCase):
         self.assertEqual(payload["properties"]["bundle_kind"]["const"], "progressive_disclosure_runtime_bundle")
         self.assertEqual(payload["properties"]["protocol_version"]["const"], 1)
         self.assertIn("active_research_contract", payload["properties"])
+        self.assertIn("interaction_contract", payload["properties"])
+        self.assertIn("interaction_contract", payload["required"])
         self.assertIn("promotion_readiness", payload["properties"])
         self.assertIn("open_gap_summary", payload["properties"])
         self.assertIn("topic_completion", payload["properties"])

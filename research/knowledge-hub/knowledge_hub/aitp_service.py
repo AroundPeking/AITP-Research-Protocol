@@ -1998,6 +1998,53 @@ class AITPService:
             "summary": summary,
         }
 
+    def _derive_interaction_contract(
+        self,
+        *,
+        idea_packet: dict[str, Any],
+        operator_checkpoint: dict[str, Any],
+    ) -> dict[str, str]:
+        checkpoint_status = str(operator_checkpoint.get("status") or "").strip()
+        idea_status = str(idea_packet.get("status") or "").strip()
+        if checkpoint_status == "requested":
+            stop_reason = str(operator_checkpoint.get("question") or "").strip()
+            if not stop_reason:
+                stop_reason = "; ".join(
+                    str(item).strip()
+                    for item in (operator_checkpoint.get("blocker_summary") or [])
+                    if str(item).strip()
+                )
+            if not stop_reason:
+                stop_reason = "Resolve the active operator checkpoint before deeper execution."
+            return {
+                "interaction_class": "checkpoint_question",
+                "stop_status": "checkpoint_required",
+                "stop_reason": stop_reason,
+                "primary_result_shape": "checkpoint_card",
+            }
+        if idea_status == "needs_clarification":
+            stop_reason = str(idea_packet.get("status_reason") or "").strip()
+            if not stop_reason:
+                stop_reason = "; ".join(
+                    str(item).strip()
+                    for item in (idea_packet.get("clarification_questions") or [])
+                    if str(item).strip()
+                )
+            if not stop_reason:
+                stop_reason = "Clarify the idea packet before deeper execution."
+            return {
+                "interaction_class": "checkpoint_question",
+                "stop_status": "checkpoint_required",
+                "stop_reason": stop_reason,
+                "primary_result_shape": "checkpoint_card",
+            }
+        return {
+            "interaction_class": "silent_continue",
+            "stop_status": "continue",
+            "stop_reason": "Ready to continue bounded execution.",
+            "primary_result_shape": "status_update",
+        }
+
     def _request_looks_actionable(self, request: str | None) -> bool:
         raw_request = str(request or "").strip()
         if not raw_request:
@@ -6606,6 +6653,10 @@ class AITPService:
             promotion_readiness,
             kernel_root=self.kernel_root,
         )
+        interaction_contract = self._derive_interaction_contract(
+            idea_packet=idea_packet,
+            operator_checkpoint=operator_checkpoint,
+        )
         topic_synopsis_payload = {
             "id": f"topic_synopsis:{topic_slug}",
             "topic_slug": topic_slug,
@@ -6620,6 +6671,10 @@ class AITPService:
             "open_gap_summary": str(open_gap_summary.get("summary") or ""),
             "pending_decision_count": len(pending_decisions),
             "knowledge_packet_paths": knowledge_packet_paths,
+            "interaction_class": interaction_contract["interaction_class"],
+            "stop_status": interaction_contract["stop_status"],
+            "stop_reason": interaction_contract["stop_reason"],
+            "primary_result_shape": interaction_contract["primary_result_shape"],
             "updated_at": now_iso(),
             "updated_by": updated_by,
         }
@@ -7359,6 +7414,7 @@ class AITPService:
                 **topic_synopsis_written["topic_synopsis"],
                 "path": self._relativize(Path(topic_synopsis_written["path"])),
             },
+            "interaction_contract": interaction_contract,
             "pending_decisions": {
                 **pending_decisions_written["pending_decisions"],
                 "path": self._relativize(Path(pending_decisions_written["path"])),
