@@ -1630,13 +1630,13 @@ class AITPService:
                     "then identify the key definitions and proof obligations."
                 )
         elif any(t in source_types for t in numerical_types):
-            distilled_lane = "numerical"
+            distilled_lane = "toy_numeric"
             distilled_first_validation_route = (
                 "Reproduce the baseline benchmark before trusting new results. "
                 "then validate the observable definitions and normalization."
             )
         else:
-            distilled_lane = "exploratory"
+            distilled_lane = "code_method"
             distilled_first_validation_route = (
                 "Define the scope boundaries and first validation artifact."
             )

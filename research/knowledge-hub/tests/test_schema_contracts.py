@@ -103,6 +103,22 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("forbidden_proxies", payload["required"])
         self.assertIn("theorem certificate", payload["description"])
 
+    def test_topic_synopsis_schema_expands_lane_enum(self) -> None:
+        expected_lanes = {
+            "formal_theory",
+            "toy_numeric",
+            "first_principles",
+            "theory_synthesis",
+            "code_method",
+        }
+        payload = self._read_json("schemas/topic-synopsis.schema.json")
+        lane_values = set(payload["properties"]["lane"]["enum"])
+        self.assertEqual(lane_values, expected_lanes)
+
+        repo_payload = self._read_repo_json("schemas/topic-synopsis.schema.json")
+        repo_lane_values = set(repo_payload["properties"]["lane"]["enum"])
+        self.assertEqual(repo_lane_values, expected_lanes)
+
     def test_consult_and_promotion_schemas_include_new_theory_surface(self) -> None:
         consult_payload = self._read_json("consultation/schemas/consult-request.schema.json")
         requested_unit_types = set(consult_payload["properties"]["requested_unit_types"]["items"]["enum"])

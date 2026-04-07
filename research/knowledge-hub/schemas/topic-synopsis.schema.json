@@ -41,6 +41,8 @@
       "enum": [
         "formal_theory",
         "toy_numeric",
+        "first_principles",
+        "theory_synthesis",
         "code_method"
       ]
     },

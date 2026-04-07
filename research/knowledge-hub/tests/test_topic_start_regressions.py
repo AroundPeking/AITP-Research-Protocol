@@ -160,6 +160,21 @@ class TopicStartRegressionTests(unittest.TestCase):
         )
         self.assertEqual(explainability["active_human_need"]["status"], "none")
 
+    def test_source_distillation_maps_numerical_lane_to_toy_numeric(self) -> None:
+        distilled = self.service._distill_from_sources(
+            [
+                {
+                    "source_id": "code:demo-source",
+                    "source_type": "numerical",
+                    "title": "Benchmark Run",
+                    "summary": "Baseline benchmark for regression tests.",
+                }
+            ],
+            "demo-numerical-topic",
+        )
+
+        self.assertEqual(distilled["distilled_lane"], "toy_numeric")
+
     def test_explicit_idea_packet_fields_override_source_distillation(self) -> None:
         runtime_root, _ = self._write_source_backed_topic(
             human_request="Continue with the thesis topic.",
