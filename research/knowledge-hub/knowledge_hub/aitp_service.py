@@ -40,6 +40,11 @@ from .tpkn_bridge import (
     unit_path_for,
     write_json as write_external_json,
 )
+from .semantic_routing import (
+    canonical_lane,
+    canonical_template_mode,
+    canonical_validation_mode,
+)
 
 
 def _looks_like_repo_root(path: Path) -> bool:
@@ -725,31 +730,13 @@ class AITPService:
         return mapping.get(normalized, normalized or "exploratory_general")
 
     def _research_mode_to_template_mode(self, research_mode: str | None) -> str:
-        normalized = str(research_mode or "").strip().lower()
-        mapping = {
-            "formal_derivation": "formal_theory",
-            "toy_model": "toy_numeric",
-            "first_principles": "toy_numeric",
-            "exploratory_general": "code_method",
-        }
-        return mapping.get(normalized, "code_method")
+        return canonical_template_mode(research_mode)
 
-    def _validation_mode_for_template(self, template_mode: str | None) -> str:
-        normalized = str(template_mode or "").strip().lower()
-        if normalized == "formal_theory":
-            return "formal"
-        if normalized == "toy_numeric":
-            return "numerical"
-        return "hybrid"
+    def _validation_mode_for_template(self, template_mode: str | None, research_mode: str | None = None) -> str:
+        return canonical_validation_mode(template_mode, research_mode)
 
     def _lane_for_modes(self, *, template_mode: str | None, research_mode: str | None) -> str:
-        normalized_template = str(template_mode or "").strip().lower()
-        normalized_research = str(research_mode or "").strip().lower()
-        if normalized_template == "formal_theory" or normalized_research == "formal_derivation":
-            return "formal_theory"
-        if normalized_template == "toy_numeric" or normalized_research in {"toy_model", "first_principles"}:
-            return "toy_numeric"
-        return "code_method"
+        return canonical_lane(template_mode=template_mode, research_mode=research_mode)
 
     def _load_strategy_memory_rows(self, topic_slug: str) -> list[dict[str, Any]]:
         runs_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs"
@@ -4182,7 +4169,7 @@ class AITPService:
         ).strip()
         validation_mode = str(
             existing_validation.get("validation_mode")
-            or self._validation_mode_for_template(template_mode)
+            or self._validation_mode_for_template(template_mode, research_mode)
         ).strip()
         title = self._coalesce_string(
             existing_research.get("title"),
