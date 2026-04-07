@@ -126,6 +126,8 @@ class SchemaContractTests(unittest.TestCase):
         ):
             self.assertIn(field, payload["properties"])
             self.assertIn(field, repo_payload["properties"])
+            self.assertIn(field, payload["required"])
+            self.assertIn(field, repo_payload["required"])
 
     def test_consult_and_promotion_schemas_include_new_theory_surface(self) -> None:
         consult_payload = self._read_json("consultation/schemas/consult-request.schema.json")
