@@ -16,7 +16,14 @@ M1 freezes the following node families as the Layer 2 MVP surface:
 - `physical_picture`
 - `warning_note`
 
-These families are the reusable semantic center for the M1 topic result brief and related canonical writeback surfaces.
+Within the current contract sources, `concept`, `theorem_card`, `method`,
+`assumption_card`, and `warning_note` are the active typed vocabulary already
+represented by the current canonical-unit schema and Layer 2 typed-family docs.
+
+`physical_picture` is RESERVED by the M1 contract and is NOT yet active in the
+current canonical-unit schema or the current typed L2 vocabulary. M1 freezes it
+as intended vocabulary only, so downstream docs can name the target shape
+without claiming present-day canonical storage support.
 
 ## Immediate next extension family
 
@@ -24,7 +31,10 @@ The first extension family after the M1 freeze is:
 
 - `negative_result`
 
-It is intentionally seeded as the immediate next extension family, but it is not activated as required populated graph data in M1.
+`negative_result` is also RESERVED by the M1 contract as a next-extension /
+deferred family. It is NOT yet active in the current canonical-unit schema or
+the current typed L2 vocabulary, and it is not activated as required populated
+graph data in M1.
 
 ## MVP edge families
 
@@ -43,7 +53,13 @@ These edge families are the minimum reusable relation set for semantically meani
 ## Activation rule
 
 M1 freezes the contract.
-That means the node and edge families above are the declared Layer 2 MVP vocabulary, but M1 does not require seeded graph data, traversal infrastructure, or populated retrieval built around those families.
+That means the node and edge families above are the declared intended Layer 2
+MVP vocabulary, but M1 does not claim that every reserved family already has
+current schema support, current object-family support, seeded graph data,
+traversal infrastructure, or populated retrieval built around it.
 
-M2 activates seeded graph data, traversal, and populated retrieval on top of this frozen contract.
-Until then, new work may reference the vocabulary, but it should not silently expand the contract without an explicit follow-on decision.
+M2 activates schema/object-family support plus seeded graph data, traversal,
+and populated retrieval on top of this frozen contract.
+Until then, new work may reference the frozen vocabulary, but it should not
+silently expand the contract or imply current canonical storage support without
+an explicit follow-on decision.
