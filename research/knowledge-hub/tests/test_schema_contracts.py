@@ -196,6 +196,23 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("topic_skill_projection", l3_types)
         self.assertIn("topic_skill_projection", l4_types)
 
+    def test_result_brief_schema_requires_core_summary_fields(self) -> None:
+        payload = self._read_json("runtime/schemas/result-brief.schema.json")
+        self.assertEqual(payload["properties"]["kind"]["const"], "result_brief")
+        for field in (
+            "kind",
+            "topic_slug",
+            "interaction_class",
+            "what_changed",
+            "evidence_summary",
+            "scope_summary",
+            "non_claims",
+        ):
+            self.assertIn(field, payload["required"])
+        interaction_enum = set(payload["properties"]["interaction_class"]["enum"])
+        self.assertIn("silent_continue", interaction_enum)
+        self.assertIn("checkpoint_question", interaction_enum)
+
     def test_closed_loop_policy_candidate_statuses_match_candidate_schema(self) -> None:
         candidate_payload = self._read_json("feedback/schemas/candidate.schema.json")
         candidate_statuses = set(candidate_payload["properties"]["status"]["enum"])

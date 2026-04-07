@@ -1426,6 +1426,24 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("Idea packet summary", dashboard_text)
         self.assertIn("scope_ambiguity", dashboard_text)
 
+    def test_ensure_topic_shell_surfaces_writes_result_brief(self) -> None:
+        self._write_runtime_state()
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        result_brief_path = Path(payload["result_brief_path"])
+        result_brief_note_path = Path(payload["result_brief_note_path"])
+        self.assertTrue(result_brief_path.exists())
+        self.assertTrue(result_brief_note_path.exists())
+        result_brief_note = result_brief_note_path.read_text(encoding="utf-8")
+        self.assertIn("## What Changed", result_brief_note)
+        self.assertIn("## Evidence", result_brief_note)
+        self.assertIn("## Scope", result_brief_note)
+        self.assertIn("## What This Does Not Yet Justify", result_brief_note)
+
     def test_topic_status_and_prepare_verification_surface_new_shell_fields(self) -> None:
         runtime_root = self._write_runtime_state()
         (runtime_root / "interaction_state.json").write_text(

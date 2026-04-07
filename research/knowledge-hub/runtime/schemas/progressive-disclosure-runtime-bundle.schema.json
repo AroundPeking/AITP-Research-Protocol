@@ -18,6 +18,7 @@
     "load_profile",
     "topic_synopsis",
     "interaction_contract",
+    "result_brief",
     "pending_decisions",
     "active_research_contract",
     "idea_packet",
@@ -243,6 +244,65 @@
             "status_update",
             "checkpoint_card"
           ]
+        }
+      }
+    },
+    "result_brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "topic_slug",
+        "interaction_class",
+        "what_changed",
+        "evidence_summary",
+        "scope_summary",
+        "non_claims",
+        "path",
+        "note_path"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "result_brief"
+        },
+        "topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "interaction_class": {
+          "type": "string",
+          "enum": [
+            "silent_continue",
+            "checkpoint_question"
+          ]
+        },
+        "what_changed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "non_claims": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note_path": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

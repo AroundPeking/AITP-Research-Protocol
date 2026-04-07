@@ -612,6 +612,13 @@ class AITPService:
     def _topic_dashboard_path(self, topic_slug: str) -> Path:
         return self._runtime_root(topic_slug) / "topic_dashboard.md"
 
+    def _result_brief_paths(self, topic_slug: str) -> dict[str, Path]:
+        runtime_root = self._runtime_root(topic_slug)
+        return {
+            "json": runtime_root / "result_brief.latest.json",
+            "note": runtime_root / "result_brief.latest.md",
+        }
+
     def _promotion_readiness_path(self, topic_slug: str) -> Path:
         return self._runtime_root(topic_slug) / "promotion_readiness.md"
 
@@ -3090,6 +3097,32 @@ class AITPService:
             lines.append(f"- `{item}`")
         return "\n".join(lines) + "\n"
 
+    def _render_result_brief_markdown(self, payload: dict[str, Any]) -> str:
+        lines = [
+            "# Result brief",
+            "",
+            f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+            f"- Interaction class: `{payload.get('interaction_class') or '(missing)'}`",
+            "",
+            "## What Changed",
+            "",
+            payload.get("what_changed") or "(missing)",
+            "",
+            "## Evidence",
+            "",
+            payload.get("evidence_summary") or "(missing)",
+            "",
+            "## Scope",
+            "",
+            payload.get("scope_summary") or "(missing)",
+            "",
+            "## What This Does Not Yet Justify",
+            "",
+        ]
+        for item in payload.get("non_claims") or ["(missing)"]:
+            lines.append(f"- {item}")
+        return "\n".join(lines) + "\n"
+
     def _render_topic_skill_projection_markdown(self, payload: dict[str, Any]) -> str:
         lines = [
             "# Topic skill projection",
@@ -4208,6 +4241,7 @@ class AITPService:
         operator_checkpoint_paths = self._operator_checkpoint_paths(topic_slug)
         topic_skill_projection_paths = self._topic_skill_projection_paths(topic_slug)
         dashboard_path = self._topic_dashboard_path(topic_slug)
+        result_brief_paths = self._result_brief_paths(topic_slug)
         readiness_path = self._promotion_readiness_path(topic_slug)
         gap_map_path = self._gap_map_path(topic_slug)
 
@@ -4522,6 +4556,51 @@ class AITPService:
             open_gap_summary=open_gap_summary,
             validation_contract=validation_contract,
         )
+        pending_decisions = list_pending_decision_points(topic_slug, kernel_root=self.kernel_root)
+        pending_decisions_payload = {
+            "blocking_count": sum(1 for row in pending_decisions if row.get("blocking")),
+            "unresolved_ids": [
+                str(row.get("id") or "").strip()
+                for row in pending_decisions
+                if str(row.get("id") or "").strip()
+            ],
+        }
+        interaction_contract = self._derive_interaction_contract(
+            idea_packet=idea_packet,
+            operator_checkpoint=operator_checkpoint_surface,
+            pending_decisions=pending_decisions_payload,
+        )
+        last_evidence_return = topic_status_explainability.get("last_evidence_return") or {}
+        scope_parts = self._dedupe_strings(
+            [
+                str(research_contract.get("question") or "").strip(),
+                str((research_contract.get("scope") or [None])[0] or "").strip(),
+                f"Bounded action: {selected_action_summary}" if selected_action_summary else "",
+            ]
+        )
+        non_claims = self._dedupe_strings(list(idea_packet.get("non_goals") or []))
+        if not non_claims:
+            non_claims = self._dedupe_strings(list(research_contract.get("non_goals") or []))
+        if not non_claims:
+            non_claims = ["(missing)"]
+        result_brief = {
+            "$schema": "https://aitp.local/schemas/result-brief.schema.json",
+            "kind": "result_brief",
+            "topic_slug": topic_slug,
+            "interaction_class": interaction_contract["interaction_class"],
+            "what_changed": self._coalesce_string(
+                str(topic_status_explainability.get("why_this_topic_is_here") or "").strip(),
+                str(topic_status_explainability.get("current_status_summary") or "").strip(),
+                "(missing)",
+            ),
+            "evidence_summary": str(last_evidence_return.get("summary") or "").strip() or "(missing)",
+            "scope_summary": " ".join(scope_parts).strip() or "(missing)",
+            "non_claims": non_claims,
+            "updated_at": now_iso(),
+            "updated_by": updated_by,
+        }
+        write_json(result_brief_paths["json"], result_brief)
+        write_text(result_brief_paths["note"], self._render_result_brief_markdown(result_brief))
         topic_state_path = runtime_root / "topic_state.json"
         if topic_state_path.exists() and resolved_topic_state:
             resolved_topic_state = dict(resolved_topic_state)
@@ -4567,6 +4646,8 @@ class AITPService:
             "topic_dashboard_path": str(dashboard_path),
             "topic_skill_projection_path": str(topic_skill_projection_paths["json"]),
             "topic_skill_projection_note_path": str(topic_skill_projection_paths["note"]),
+            "result_brief_path": str(result_brief_paths["json"]),
+            "result_brief_note_path": str(result_brief_paths["note"]),
             "promotion_readiness_path": str(readiness_path),
             "gap_map_path": str(gap_map_path),
             "topic_completion_path": topic_completion["topic_completion_path"],
@@ -4587,6 +4668,7 @@ class AITPService:
             "strategy_memory": strategy_memory,
             "topic_skill_projection": topic_skill_projection_surface,
             "topic_skill_projection_candidate": topic_skill_projection_candidate,
+            "result_brief": result_brief,
             "topic_completion": topic_completion,
             "lean_bridge": lean_bridge,
         }
@@ -6676,6 +6758,25 @@ class AITPService:
             operator_checkpoint=operator_checkpoint,
             pending_decisions=pending_decisions_payload,
         )
+        result_brief = dict(shell_surfaces.get("result_brief") or {})
+        if not result_brief:
+            topic_status_explainability = shell_surfaces.get("topic_state_explainability") or {}
+            last_evidence_return = topic_status_explainability.get("last_evidence_return") or {}
+            result_brief = {
+                "kind": "result_brief",
+                "topic_slug": topic_slug,
+                "interaction_class": interaction_contract["interaction_class"],
+                "what_changed": str(topic_status_explainability.get("current_status_summary") or "").strip(),
+                "evidence_summary": str(last_evidence_return.get("summary") or "").strip(),
+                "scope_summary": str(active_research_contract.get("question") or "").strip(),
+                "non_claims": self._dedupe_strings(list(idea_packet.get("non_goals") or [])),
+            }
+        result_brief["path"] = self._relativize(
+            Path(shell_surfaces.get("result_brief_path") or self._result_brief_paths(topic_slug)["json"])
+        )
+        result_brief["note_path"] = self._relativize(
+            Path(shell_surfaces.get("result_brief_note_path") or self._result_brief_paths(topic_slug)["note"])
+        )
         topic_synopsis_payload = {
             "id": f"topic_synopsis:{topic_slug}",
             "topic_slug": topic_slug,
@@ -7466,6 +7567,7 @@ class AITPService:
                 **pending_decisions_written["pending_decisions"],
                 "path": self._relativize(Path(pending_decisions_written["path"])),
             },
+            "result_brief": result_brief,
             "active_research_contract": active_research_contract,
             "idea_packet": idea_packet,
             "operator_checkpoint": operator_checkpoint,

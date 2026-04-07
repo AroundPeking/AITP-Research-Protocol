@@ -170,6 +170,26 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         followup_reintegration_note = self._write_surface("runtime/topics/demo-topic/followup_reintegration.md", "# Follow-up reintegration\n")
         followup_gap_writeback_jsonl = self._write_surface("runtime/topics/demo-topic/followup_gap_writeback.jsonl", "")
         followup_gap_writeback_note = self._write_surface("runtime/topics/demo-topic/followup_gap_writeback.md", "# Follow-up gap writeback\n")
+        result_brief_json = self._write_surface(
+            "runtime/topics/demo-topic/result_brief.latest.json",
+            json.dumps(
+                {
+                    "kind": "result_brief",
+                    "topic_slug": "demo-topic",
+                    "interaction_class": "silent_continue",
+                    "what_changed": "No significant change recorded.",
+                    "evidence_summary": "No durable evidence return recorded yet.",
+                    "scope_summary": "Continue the bounded toy-numeric lane.",
+                    "non_claims": ["No new claims are justified without benchmark evidence."],
+                },
+                indent=2,
+            )
+            + "\n",
+        )
+        result_brief_note = self._write_surface(
+            "runtime/topics/demo-topic/result_brief.latest.md",
+            "# Result brief\n",
+        )
 
         return {
             "research_question_contract_path": research_json,
@@ -192,6 +212,8 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             "followup_reintegration_note_path": followup_reintegration_note,
             "followup_gap_writeback_path": followup_gap_writeback_jsonl,
             "followup_gap_writeback_note_path": followup_gap_writeback_note,
+            "result_brief_path": result_brief_json,
+            "result_brief_note_path": result_brief_note,
             "research_question_contract": {
                 "question_id": "research_question:demo-topic",
                 "title": "Demo Topic",
@@ -295,6 +317,15 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
                 "path": "runtime/topics/demo-topic/lean_bridge.active.md",
                 "updated_at": "2026-03-28T00:00:00+00:00",
                 "updated_by": "test",
+            },
+            "result_brief": {
+                "kind": "result_brief",
+                "topic_slug": "demo-topic",
+                "interaction_class": "silent_continue",
+                "what_changed": "No significant change recorded.",
+                "evidence_summary": "No durable evidence return recorded yet.",
+                "scope_summary": "Continue the bounded toy-numeric lane.",
+                "non_claims": ["No new claims are justified without benchmark evidence."],
             },
         }
 
@@ -498,9 +529,13 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertIn("topic_synopsis", bundle)
         self.assertIn("pending_decisions", bundle)
         self.assertIn("interaction_contract", bundle)
+        self.assertIn("result_brief", bundle)
         self.assertEqual(bundle["interaction_contract"]["interaction_class"], "silent_continue")
         self.assertEqual(bundle["interaction_contract"]["stop_status"], "continue")
         self.assertEqual(bundle["interaction_contract"]["primary_result_shape"], "status_update")
+        self.assertEqual(bundle["result_brief"]["kind"], "result_brief")
+        self.assertTrue(bundle["result_brief"]["path"])
+        self.assertTrue(bundle["result_brief"]["note_path"])
         self.assertIn("interaction_class", bundle["topic_synopsis"])
         self.assertIn("stop_status", bundle["topic_synopsis"])
         self.assertIn("stop_reason", bundle["topic_synopsis"])
