@@ -2003,9 +2003,11 @@ class AITPService:
         *,
         idea_packet: dict[str, Any],
         operator_checkpoint: dict[str, Any],
+        pending_decisions: dict[str, Any],
     ) -> dict[str, str]:
         checkpoint_status = str(operator_checkpoint.get("status") or "").strip()
         idea_status = str(idea_packet.get("status") or "").strip()
+        blocking_count = int(pending_decisions.get("blocking_count") or 0)
         if checkpoint_status == "requested":
             stop_reason = str(operator_checkpoint.get("question") or "").strip()
             if not stop_reason:
@@ -2016,6 +2018,22 @@ class AITPService:
                 )
             if not stop_reason:
                 stop_reason = "Resolve the active operator checkpoint before deeper execution."
+            return {
+                "interaction_class": "checkpoint_question",
+                "stop_status": "checkpoint_required",
+                "stop_reason": stop_reason,
+                "primary_result_shape": "checkpoint_card",
+            }
+        if blocking_count > 0:
+            unresolved_ids = [
+                str(item).strip()
+                for item in (pending_decisions.get("unresolved_ids") or [])
+                if str(item).strip()
+            ]
+            if unresolved_ids:
+                stop_reason = f"Blocking pending decisions require resolution: {', '.join(unresolved_ids)}."
+            else:
+                stop_reason = "Blocking pending decisions require resolution before deeper execution."
             return {
                 "interaction_class": "checkpoint_question",
                 "stop_status": "checkpoint_required",
@@ -6656,6 +6674,7 @@ class AITPService:
         interaction_contract = self._derive_interaction_contract(
             idea_packet=idea_packet,
             operator_checkpoint=operator_checkpoint,
+            pending_decisions=pending_decisions_payload,
         )
         topic_synopsis_payload = {
             "id": f"topic_synopsis:{topic_slug}",

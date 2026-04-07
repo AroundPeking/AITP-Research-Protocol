@@ -498,6 +498,9 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertIn("topic_synopsis", bundle)
         self.assertIn("pending_decisions", bundle)
         self.assertIn("interaction_contract", bundle)
+        self.assertEqual(bundle["interaction_contract"]["interaction_class"], "silent_continue")
+        self.assertEqual(bundle["interaction_contract"]["stop_status"], "continue")
+        self.assertEqual(bundle["interaction_contract"]["primary_result_shape"], "status_update")
         self.assertIn("interaction_class", bundle["topic_synopsis"])
         self.assertIn("stop_status", bundle["topic_synopsis"])
         self.assertIn("stop_reason", bundle["topic_synopsis"])
@@ -558,6 +561,29 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(synopsis["interaction_class"], "checkpoint_question")
         self.assertEqual(synopsis["stop_status"], "checkpoint_required")
         self.assertEqual(synopsis["primary_result_shape"], "checkpoint_card")
+
+    def test_runtime_bundle_blocks_on_pending_decision_blockers(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                with patch(
+                    "knowledge_hub.aitp_service.list_pending_decision_points",
+                    return_value=[
+                        {"id": "decision:demo-blocking", "blocking": True}
+                    ],
+                ):
+                    result = self.service._materialize_runtime_protocol_bundle(
+                        topic_slug="demo-topic",
+                        updated_by="test",
+                        human_request="continue this topic",
+                        load_profile="light",
+                    )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        interaction_contract = bundle["interaction_contract"]
+        self.assertEqual(interaction_contract["interaction_class"], "checkpoint_question")
+        self.assertEqual(interaction_contract["stop_status"], "checkpoint_required")
+        self.assertEqual(interaction_contract["primary_result_shape"], "checkpoint_card")
 
 
 if __name__ == "__main__":
