@@ -9,6 +9,7 @@ Core docs:
 - `CANONICAL_UNIT.md`
 - `canonical-unit.schema.json`
 - `LAYER2_OBJECT_FAMILIES.md`
+- `L2_MVP_CONTRACT.md`
 - `L2_BACKEND_BRIDGE.md`
 - `L2_BACKEND_INTEGRATION_PROTOCOL.md`
 - `PROMOTION_POLICY.md`

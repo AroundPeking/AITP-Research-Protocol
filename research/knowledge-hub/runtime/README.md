@@ -49,6 +49,10 @@ hiding those rules inside handler code.
   - human-readable operator view of the active loops and editable surfaces
 - `topics/<topic_slug>/topic_dashboard.md`
   - human-readable status and explainability surface: why the topic is here, last evidence return, next action, and active human need
+- `topics/<topic_slug>/result_brief.latest.json`
+  - machine-readable latest result brief surface for retrieval and downstream adapters
+- `topics/<topic_slug>/result_brief.latest.md`
+  - human-readable latest result brief surface paired with the JSON brief
 - `topics/<topic_slug>/topic_skill_projection.active.json`
   - machine-readable reusable execution projection derived from a mature topic when the lane is stable enough
 - `topics/<topic_slug>/topic_skill_projection.active.md`

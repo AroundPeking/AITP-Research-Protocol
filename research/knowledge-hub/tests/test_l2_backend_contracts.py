@@ -157,6 +157,40 @@ class L2BackendContractTests(unittest.TestCase):
         self.assertIn("run_toy_model_numeric_backend_smoke.sh", starter)
         self.assertIn("tfim_exact_diagonalization.py", starter)
 
+    def test_l2_mvp_contract_and_result_brief_surfaces_are_documented(self) -> None:
+        canonical_readme = (self.kernel_root / "canonical" / "README.md").read_text(encoding="utf-8")
+        runtime_readme = (self.kernel_root / "runtime" / "README.md").read_text(encoding="utf-8")
+        contract_path = self.kernel_root / "canonical" / "L2_MVP_CONTRACT.md"
+
+        self.assertTrue(contract_path.exists())
+        contract = contract_path.read_text(encoding="utf-8")
+
+        self.assertIn("L2_MVP_CONTRACT.md", canonical_readme)
+        self.assertIn("Purpose", contract)
+        self.assertIn("MVP node families", contract)
+        self.assertIn("concept", contract)
+        self.assertIn("theorem_card", contract)
+        self.assertIn("method", contract)
+        self.assertIn("assumption_card", contract)
+        self.assertIn("physical_picture", contract)
+        self.assertIn("warning_note", contract)
+        self.assertIn("Immediate next extension family", contract)
+        self.assertIn("negative_result", contract)
+        self.assertIn("MVP edge families", contract)
+        self.assertIn("depends_on", contract)
+        self.assertIn("uses_method", contract)
+        self.assertIn("valid_under", contract)
+        self.assertIn("warns_about", contract)
+        self.assertIn("contradicts", contract)
+        self.assertIn("analogy_to", contract)
+        self.assertIn("derived_from_source", contract)
+        self.assertIn("Activation rule", contract)
+        self.assertIn("M1 freezes the contract", contract)
+        self.assertIn("M2 activates seeded graph data", contract)
+        self.assertIn("populated retrieval", contract)
+        self.assertIn("topics/<topic_slug>/result_brief.latest.json", runtime_readme)
+        self.assertIn("topics/<topic_slug>/result_brief.latest.md", runtime_readme)
+
 
 if __name__ == "__main__":
     unittest.main()
