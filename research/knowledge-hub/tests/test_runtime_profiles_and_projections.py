@@ -119,9 +119,11 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             json.dumps(
                 {
                     "source_id": "paper:demo-benchmark",
+                    "canonical_source_id": "source_identity:arxiv:demo-benchmark",
                     "source_type": "paper",
                     "title": "Demo Benchmark Paper",
                     "summary": "Primary benchmark paper for the bounded route.",
+                    "references": ["doi:10.1000/shared-demo-reference"],
                 },
                 separators=(",", ":"),
             )
@@ -995,6 +997,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertFalse(bundle["exploration_window"]["closure_required"])
         self.assertTrue(bundle["exploration_window"]["path"])
         self.assertTrue(bundle["exploration_window"]["note_path"])
+        self.assertEqual(bundle["exploration_window"]["carrier_path"], "exploration_window.json")
         note_path = self.kernel_root / bundle["exploration_window"]["note_path"]
         self.assertTrue(note_path.exists())
         note_text = note_path.read_text(encoding="utf-8")
@@ -1003,6 +1006,174 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertTrue(
             any("exploration_window.md" in item.get("path", "") for item in bundle["must_read_now"])
         )
+
+    def test_runtime_bundle_surfaces_source_identity_and_neighbor_signals(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        (self.kernel_root / "source-layer" / "global_index.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "source_id": "paper:demo-benchmark",
+                            "canonical_source_id": "source_identity:arxiv:demo-benchmark",
+                            "topic_slug": "demo-topic",
+                            "source_type": "paper",
+                            "title": "Demo Benchmark Paper",
+                            "local_path": "source-layer/topics/demo-topic/sources/paper-demo-benchmark/source.json",
+                            "acquired_at": "2026-03-28T00:00:00+00:00",
+                            "references": ["doi:10.1000/shared-demo-reference"],
+                        },
+                        separators=(",", ":"),
+                    ),
+                    json.dumps(
+                        {
+                            "source_id": "paper:neighbor-benchmark",
+                            "canonical_source_id": "source_identity:arxiv:demo-benchmark",
+                            "topic_slug": "neighbor-topic",
+                            "source_type": "paper",
+                            "title": "Neighbor Benchmark Paper",
+                            "local_path": "source-layer/topics/neighbor-topic/sources/paper-neighbor-benchmark/source.json",
+                            "acquired_at": "2026-03-28T00:00:00+00:00",
+                            "references": ["doi:10.1000/shared-demo-reference"],
+                        },
+                        separators=(",", ":"),
+                    ),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="continue this topic",
+                    load_profile="light",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        l0_sources = bundle["l0_sources"]
+        self.assertEqual(
+            l0_sources["canonical_source_ids"],
+            ["source_identity:arxiv:demo-benchmark"],
+        )
+        self.assertGreaterEqual(l0_sources["cross_topic_match_count"], 1)
+        self.assertEqual(l0_sources["citation_edges"][0]["target_ref"], "doi:10.1000/shared-demo-reference")
+        self.assertEqual(l0_sources["source_neighbors"][0]["relation_kind"], "shared_identity")
+
+    def test_runtime_bundle_surfaces_intake_assumptions_regimes_and_reading_depth_labels(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        (self.kernel_root / "intake" / "topics" / "demo-topic" / "source_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:demo-benchmark",
+                    "assumptions": ["translational invariance"],
+                    "regimes": ["strong coupling"],
+                    "reading_depth_label": "abstract_only",
+                },
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="continue this topic",
+                    load_profile="light",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        l1_understanding = bundle["l1_understanding"]
+        self.assertEqual(l1_understanding["assumptions"], ["translational invariance"])
+        self.assertEqual(l1_understanding["regimes"], ["strong coupling"])
+        self.assertEqual(l1_understanding["reading_depth_labels"], ["abstract_only"])
+
+    def test_runtime_bundle_surfaces_contradiction_and_notation_tension_candidates(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        (self.kernel_root / "intake" / "topics" / "demo-topic" / "source_index.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "source_id": "paper:demo-benchmark",
+                            "contradiction_candidates": [
+                                {
+                                    "kind": "assumption_conflict",
+                                    "against_source_id": "paper:prior-source",
+                                    "detail": "non-relativistic limit vs relativistic limit",
+                                }
+                            ],
+                            "notation_tension_candidates": [
+                                {
+                                    "meaning": "stress",
+                                    "existing_symbol": "sigma",
+                                    "incoming_symbol": "tau",
+                                }
+                            ],
+                        },
+                        separators=(",", ":"),
+                    )
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="continue this topic",
+                    load_profile="light",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        l1_understanding = bundle["l1_understanding"]
+        self.assertEqual(l1_understanding["contradiction_candidates"][0]["kind"], "assumption_conflict")
+        self.assertEqual(l1_understanding["notation_tension_candidates"][0]["meaning"], "stress")
+
+    def test_topic_status_surfaces_source_intelligence_summary(self) -> None:
+        (self.kernel_root / "source-layer" / "global_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:demo-benchmark",
+                    "canonical_source_id": "source_identity:arxiv:demo-benchmark",
+                    "topic_slug": "demo-topic",
+                    "references": ["doi:10.1000/shared-demo-reference"],
+                },
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (self.kernel_root / "intake" / "topics" / "demo-topic" / "source_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:demo-benchmark",
+                    "assumptions": ["translational invariance"],
+                    "regimes": ["strong coupling"],
+                    "reading_depth_label": "abstract_only",
+                },
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        status = self.service.topic_status(topic_slug="demo-topic", updated_by="test")
+
+        self.assertEqual(
+            status["source_intelligence"]["canonical_source_ids"],
+            ["source_identity:arxiv:demo-benchmark"],
+        )
+        self.assertIn("canonical", status["source_intelligence_summary"].lower())
 
     def test_task_type_biases_interaction_posture_even_without_exploration_keyword(self) -> None:
         shell_surfaces = self._shell_surfaces()

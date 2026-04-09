@@ -22,6 +22,7 @@ if %ERRORLEVEL% equ 0 (
     exit /b %ERRORLEVEL%
 )
 
+echo WARNING: AITP session initialization could not run because bash is not available 1>&2
 exit /b 0
 CMDBLOCK
 

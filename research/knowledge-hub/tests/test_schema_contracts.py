@@ -193,8 +193,17 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("source_fidelity_summary", payload["$defs"]["layer_projection"]["properties"])
         self.assertIn("citation_graph_status", payload["$defs"]["layer_projection"]["properties"])
         self.assertIn("citation_graph_summary", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("canonical_source_ids", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("cross_topic_match_count", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("citation_edges", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("source_neighbors", payload["$defs"]["layer_projection"]["properties"])
         self.assertIn("reading_depth", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("reading_depth_labels", payload["$defs"]["layer_projection"]["properties"])
         self.assertIn("assumption_quality", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("assumptions", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("regimes", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("contradiction_candidates", payload["$defs"]["layer_projection"]["properties"])
+        self.assertIn("notation_tension_candidates", payload["$defs"]["layer_projection"]["properties"])
         self.assertIn("analytic_check_families", payload["$defs"]["layer_projection"]["properties"])
         self.assertIn("active_research_contract", payload["properties"])
         self.assertIn("interaction_contract", payload["properties"])
@@ -275,6 +284,14 @@ class SchemaContractTests(unittest.TestCase):
         l4_types = set(retrieval_profiles["profiles"]["l4_adjudication"]["preferred_unit_types"])
         self.assertIn("topic_skill_projection", l3_types)
         self.assertIn("topic_skill_projection", l4_types)
+
+    def test_exploration_window_schema_is_present_and_mirrored(self) -> None:
+        public_payload = self._read_repo_json("schemas/exploration-window.schema.json")
+        kernel_payload = self._read_json("schemas/exploration-window.schema.json")
+        self.assertEqual(public_payload, kernel_payload)
+        self.assertIn("time_window", public_payload["properties"])
+        self.assertIn("active_scope", public_payload["properties"])
+        self.assertIn("constraints", public_payload["properties"])
 
     def test_result_brief_schema_requires_core_summary_fields(self) -> None:
         payload = self._read_json("runtime/schemas/result-brief.schema.json")

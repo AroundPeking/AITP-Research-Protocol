@@ -62,6 +62,83 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def dedupe_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        normalized = str(value or "").strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
+
+
+def build_source_intelligence_state(*, l0_source_rows: list[dict], intake_source_rows: list[dict]) -> dict:
+    canonical_source_ids = dedupe_strings(
+        [str(row.get("canonical_source_id") or "").strip() for row in l0_source_rows]
+    )
+    assumptions = dedupe_strings(
+        [
+            str(value).strip()
+            for row in intake_source_rows
+            for value in list(row.get("assumptions") or [])
+            if str(value).strip()
+        ]
+    )
+    regimes = dedupe_strings(
+        [
+            str(value).strip()
+            for row in intake_source_rows
+            for value in list(row.get("regimes") or [])
+            if str(value).strip()
+        ]
+    )
+    reading_depth_labels = dedupe_strings(
+        [
+            str(row.get("reading_depth_label") or "").strip()
+            for row in intake_source_rows
+            if str(row.get("reading_depth_label") or "").strip()
+        ]
+    )
+    contradiction_candidates = [
+        item
+        for row in intake_source_rows
+        for item in list(row.get("contradiction_candidates") or [])
+        if isinstance(item, dict)
+    ]
+    notation_tension_candidates = [
+        item
+        for row in intake_source_rows
+        for item in list(row.get("notation_tension_candidates") or [])
+        if isinstance(item, dict)
+    ]
+    citation_edge_count = sum(len(list(row.get("references") or [])) for row in l0_source_rows)
+    neighbor_signal_count = sum(len(list(row.get("source_neighbors") or [])) for row in l0_source_rows)
+    summary_parts = [
+        f"canonical={len(canonical_source_ids)}",
+        f"citations={citation_edge_count}",
+        f"neighbors={neighbor_signal_count}",
+        f"assumptions={len(assumptions)}",
+        f"regimes={len(regimes)}",
+        f"contradictions={len(contradiction_candidates)}",
+        f"notation_tensions={len(notation_tension_candidates)}",
+    ]
+    return {
+        "canonical_source_ids": canonical_source_ids,
+        "citation_edge_count": citation_edge_count,
+        "neighbor_signal_count": neighbor_signal_count,
+        "assumptions": assumptions,
+        "regimes": regimes,
+        "reading_depth_labels": reading_depth_labels,
+        "contradiction_candidates": contradiction_candidates,
+        "notation_tension_candidates": notation_tension_candidates,
+        "contradiction_candidate_count": len(contradiction_candidates),
+        "notation_tension_count": len(notation_tension_candidates),
+        "summary": "Source intelligence: " + ", ".join(summary_parts),
+    }
+
+
 def parse_next_actions(path: Path) -> list[str]:
     if not path.exists():
         return []
@@ -464,6 +541,7 @@ def derive_status_explainability(
 def build_resume_markdown(state: dict) -> str:
     pointers = state["pointers"]
     layer_status = state["layer_status"]
+    source_intelligence = state.get("source_intelligence") or {}
     backend_bridges = state.get("backend_bridges") or []
     promotion_gate = state.get("promotion_gate") or {}
     closed_loop = state.get("closed_loop") or {}
@@ -610,6 +688,18 @@ def build_resume_markdown(state: dict) -> str:
     lines.extend(
         [
             "",
+            "## Source intelligence",
+            "",
+            f"- Canonical source ids: `{len(source_intelligence.get('canonical_source_ids') or [])}`",
+            f"- Citation edges: `{source_intelligence.get('citation_edge_count', 0)}`",
+            f"- Neighbor signals: `{source_intelligence.get('neighbor_signal_count', 0)}`",
+            f"- Assumptions: `{len(source_intelligence.get('assumptions') or [])}`",
+            f"- Regimes: `{len(source_intelligence.get('regimes') or [])}`",
+            f"- Reading depths: `{', '.join(source_intelligence.get('reading_depth_labels') or []) or '(none)'}`",
+            f"- Contradiction candidates: `{source_intelligence.get('contradiction_candidate_count', 0)}`",
+            f"- Notation tensions: `{source_intelligence.get('notation_tension_count', 0)}`",
+            f"- Summary: {source_intelligence.get('summary') or '(none)'}",
+            "",
             "## Pending actions",
             "",
         ]
@@ -702,6 +792,7 @@ def main() -> int:
         detected_run_id = latest_run_id(validation_runs_root) or latest_run_id(feedback_runs_root)
 
     l0_source_index_path = source_layer_topic_root / "source_index.jsonl"
+    intake_source_index_path = intake_topic_root / "source_index.jsonl"
     intake_status_path = intake_topic_root / "status.json"
     feedback_status_path = (
         feedback_runs_root / detected_run_id / "status.json" if detected_run_id else None
@@ -717,6 +808,7 @@ def main() -> int:
     consultation_index_path = consultation_root / "consultation_index.jsonl"
 
     l0_source_rows = read_jsonl(l0_source_index_path)
+    intake_source_rows = read_jsonl(intake_source_index_path)
     intake_status = read_json(intake_status_path)
     feedback_status = read_json(feedback_status_path) if feedback_status_path else None
     promotion_rows = read_jsonl(promotion_decisions_path) if promotion_decisions_path else []
@@ -784,6 +876,10 @@ def main() -> int:
         for entry in (deferred_buffer.get("entries") or [])
         if str(entry.get("status") or "") == "buffered"
         and buffer_entry_ready_for_reactivation(entry, source_ids, source_text, child_topic_slugs)
+    )
+    source_intelligence = build_source_intelligence_state(
+        l0_source_rows=l0_source_rows,
+        intake_source_rows=intake_source_rows,
     )
 
     resume_stage, last_materialized_stage, resume_reason = infer_resume_state(
@@ -891,6 +987,7 @@ def main() -> int:
         "source_count": len(l0_source_rows),
         "backend_bridge_count": len(backend_bridges),
         "backend_bridges": backend_bridges,
+        "source_intelligence": source_intelligence,
         "deferred_candidate_count": len(deferred_buffer.get("entries") or []),
         "reactivable_deferred_count": reactivatable_deferred_count,
         "followup_subtopic_count": len(followup_subtopics),
@@ -932,6 +1029,7 @@ def main() -> int:
         },
         "pointers": {
             "l0_source_index_path": relative_path(l0_source_index_path, knowledge_root),
+            "intake_source_index_path": relative_path(intake_source_index_path, knowledge_root),
             "intake_status_path": relative_path(intake_status_path, knowledge_root),
             "feedback_status_path": relative_path(feedback_status_path, knowledge_root),
             "next_actions_path": relative_path(next_actions_path, knowledge_root),

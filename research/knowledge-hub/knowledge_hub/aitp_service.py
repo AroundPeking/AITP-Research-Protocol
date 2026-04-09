@@ -58,6 +58,7 @@ from .semantic_routing import (
     canonical_template_mode,
     canonical_validation_mode,
 )
+from .source_intelligence import build_source_intelligence
 
 
 def _looks_like_repo_root(path: Path) -> bool:
@@ -2223,6 +2224,7 @@ class AITPService:
     ) -> dict[str, Any]:
         source_index_path = self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl"
         source_rows = read_jsonl(source_index_path)
+        global_index_rows = read_jsonl(self.kernel_root / "source-layer" / "global_index.jsonl")
         source_ids = self._dedupe_strings(
             [str(row.get("source_id") or "").strip() for row in source_rows if str(row.get("source_id") or "").strip()]
         )
@@ -2261,6 +2263,11 @@ class AITPService:
         )
         fidelity_summary = self._source_fidelity_summary(fidelity_counts)
         citation_signals = self._citation_graph_signals(source_rows)
+        source_intelligence = build_source_intelligence(
+            topic_slug=topic_slug,
+            source_rows=source_rows,
+            global_rows=global_index_rows,
+        )
         if source_rows:
             status = "present"
             summary = (
@@ -2287,6 +2294,11 @@ class AITPService:
             "citation_signal_count": citation_signals["citation_signal_count"],
             "citation_graph_status": citation_signals["citation_graph_status"],
             "citation_graph_summary": citation_signals["citation_graph_summary"],
+            "canonical_source_ids": source_intelligence["canonical_source_ids"],
+            "cross_topic_match_count": source_intelligence["cross_topic_match_count"],
+            "citation_edges": source_intelligence["citation_edges"],
+            "source_neighbors": source_intelligence["source_neighbors"],
+            "neighbor_signal_count": source_intelligence["neighbor_signal_count"],
             "backend_bridge_count": len(backend_bridges),
             "next_allowed_transitions": ["L1", "L3-A", "L4"],
             "consumed_by": ["L1", "L3-A", "L4", "H-plane"],
@@ -2295,7 +2307,9 @@ class AITPService:
     def _derive_l1_understanding_projection(self, *, topic_slug: str) -> dict[str, Any]:
         intake_root = self.kernel_root / "intake" / "topics" / topic_slug
         intake_status_path = intake_root / "status.json"
+        intake_source_index_path = intake_root / "source_index.jsonl"
         intake_status = read_json(intake_status_path) or {}
+        intake_source_rows = read_jsonl(intake_source_index_path)
         notation_table_path = intake_root / "notation_table.md"
         assumption_table_path = intake_root / "assumption_table.md"
         regime_table_path = intake_root / "regime_table.md"
@@ -2321,6 +2335,41 @@ class AITPService:
             claim_extraction_path=claim_extraction_path,
             explicit_value=str(intake_status.get("assumption_quality") or "").strip(),
         )
+        assumptions = self._dedupe_strings(
+            [
+                str(value).strip()
+                for row in intake_source_rows
+                for value in list(row.get("assumptions") or [])
+                if str(value).strip()
+            ]
+        )
+        regimes = self._dedupe_strings(
+            [
+                str(value).strip()
+                for row in intake_source_rows
+                for value in list(row.get("regimes") or [])
+                if str(value).strip()
+            ]
+        )
+        reading_depth_labels = self._dedupe_strings(
+            [
+                str(row.get("reading_depth_label") or "").strip()
+                for row in intake_source_rows
+                if str(row.get("reading_depth_label") or "").strip()
+            ]
+        )
+        contradiction_candidates = [
+            item
+            for row in intake_source_rows
+            for item in list(row.get("contradiction_candidates") or [])
+            if isinstance(item, dict)
+        ]
+        notation_tension_candidates = [
+            item
+            for row in intake_source_rows
+            for item in list(row.get("notation_tension_candidates") or [])
+            if isinstance(item, dict)
+        ]
         if intake_root.exists() or intake_status:
             status = "present"
             summary = str(intake_status.get("summary") or "").strip() or (
@@ -2337,7 +2386,12 @@ class AITPService:
             "intake_stage": intake_stage or "missing",
             "next_stage": next_stage or None,
             "reading_depth": reading_depth,
+            "reading_depth_labels": reading_depth_labels,
             "assumption_quality": assumption_quality,
+            "assumptions": assumptions,
+            "regimes": regimes,
+            "contradiction_candidates": contradiction_candidates,
+            "notation_tension_candidates": notation_tension_candidates,
             "notation_table_path": self._relativize(notation_table_path) if notation_table_path.exists() else None,
             "assumption_table_path": self._relativize(assumption_table_path) if assumption_table_path.exists() else None,
             "regime_table_path": self._relativize(regime_table_path) if regime_table_path.exists() else None,
@@ -7183,6 +7237,32 @@ class AITPService:
             "note": runtime_root / "exploration_window.md",
         }
 
+    def _exploration_window_carrier_path(self) -> Path:
+        return self.kernel_root / "exploration_window.json"
+
+    def _default_exploration_window_carrier(self) -> dict[str, Any]:
+        return {
+            "window_version": 1,
+            "time_window": {
+                "opened_at": None,
+                "closes_at": None,
+            },
+            "active_scope": {
+                "topic_slug": None,
+                "question": None,
+            },
+            "constraints": {
+                "blocked_layers": [],
+                "notes": [],
+            },
+        }
+
+    def _ensure_exploration_window_carrier(self) -> Path:
+        carrier_path = self._exploration_window_carrier_path()
+        if not carrier_path.exists():
+            write_json(carrier_path, self._default_exploration_window_carrier())
+        return carrier_path
+
     def _task_type_lane_guidance_paths(self, topic_slug: str) -> dict[str, Path]:
         runtime_root = self._runtime_root(topic_slug)
         return {
@@ -8439,6 +8519,7 @@ class AITPService:
             promotion_readiness=promotion_readiness,
         )
         exploration_paths = self._exploration_window_paths(topic_slug)
+        exploration_carrier_path = self._ensure_exploration_window_carrier()
         exploration_question = (
             str(human_request or "").strip()
             or str(interaction_state.get("human_request") or "").strip()
@@ -8469,6 +8550,7 @@ class AITPService:
             **exploration_window,
             "path": self._relativize(exploration_paths["json"]),
             "note_path": self._relativize(exploration_paths["note"]),
+            "carrier_path": self._relativize(exploration_carrier_path),
         }
         task_type_lane_guidance_paths = self._task_type_lane_guidance_paths(topic_slug)
         task_type_lane_guidance = self._derive_task_type_lane_guidance(
@@ -11545,6 +11627,24 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
         bundle = read_json(Path(protocol_paths["runtime_protocol_path"])) or {}
         topic_state = read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
         minimal = bundle.get("minimal_execution_brief") or {}
+        source_intelligence = topic_state.get("source_intelligence") or {
+            "canonical_source_ids": (bundle.get("l0_sources") or {}).get("canonical_source_ids") or [],
+            "citation_edge_count": len((bundle.get("l0_sources") or {}).get("citation_edges") or []),
+            "neighbor_signal_count": (bundle.get("l0_sources") or {}).get("neighbor_signal_count", 0),
+            "assumptions": (bundle.get("l1_understanding") or {}).get("assumptions") or [],
+            "regimes": (bundle.get("l1_understanding") or {}).get("regimes") or [],
+            "reading_depth_labels": (bundle.get("l1_understanding") or {}).get("reading_depth_labels") or [],
+            "contradiction_candidate_count": len((bundle.get("l1_understanding") or {}).get("contradiction_candidates") or []),
+            "notation_tension_count": len((bundle.get("l1_understanding") or {}).get("notation_tension_candidates") or []),
+        }
+        source_intelligence_summary = str(source_intelligence.get("summary") or "").strip() or (
+            "Source intelligence: "
+            f"canonical={len(source_intelligence.get('canonical_source_ids') or [])}, "
+            f"citations={source_intelligence.get('citation_edge_count', 0)}, "
+            f"neighbors={source_intelligence.get('neighbor_signal_count', 0)}, "
+            f"assumptions={len(source_intelligence.get('assumptions') or [])}, "
+            f"regimes={len(source_intelligence.get('regimes') or [])}."
+        )
         return {
             "topic_slug": topic_slug,
             "title": str(((bundle.get("active_research_contract") or {}).get("title") or self._topic_display_title(topic_slug))),
@@ -11558,6 +11658,10 @@ exec bash \"${SCRIPT_DIR}/${SCRIPT_NAME}\" \"$@\"
             "runtime_protocol_note_path": protocol_paths["runtime_protocol_note_path"],
             "topic_state": topic_state,
             "topic_state_explainability": (topic_state.get("status_explainability") or {}),
+            "source_intelligence": source_intelligence,
+            "source_intelligence_summary": source_intelligence_summary,
+            "l0_sources": bundle.get("l0_sources") or {},
+            "l1_understanding": bundle.get("l1_understanding") or {},
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "pending_decisions": bundle.get("pending_decisions") or {},
             "active_research_contract": bundle.get("active_research_contract") or {},

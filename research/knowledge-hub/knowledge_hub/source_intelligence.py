@@ -1,0 +1,439 @@
+from __future__ import annotations
+
+import hashlib
+import re
+from typing import Any
+
+STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "this",
+    "to",
+    "with",
+}
+
+ARXIV_RE = re.compile(r"\b(?:arxiv:)?(?P<id>\d{4}\.\d{4,5}(?:v\d+)?)\b", re.IGNORECASE)
+DOI_RE = re.compile(r"\b10\.\d{4,9}/[^\s<>{}\[\]|\"']+", re.IGNORECASE)
+
+REGIME_PATTERNS = (
+    "strong coupling",
+    "weak coupling",
+    "continuum limit",
+    "perturbative",
+    "non-relativistic",
+    "relativistic",
+    "finite temperature",
+    "zero temperature",
+)
+
+ASSUMPTION_PATTERNS = (
+    re.compile(r"\bassum(?:e|es|ed|ing)\s+(?P<clause>[^.;,\n]+)", re.IGNORECASE),
+    re.compile(r"\bunder the assumption(?:s)?\s+(?:that\s+)?(?P<clause>[^.;,\n]+)", re.IGNORECASE),
+)
+
+NOTATION_PATTERNS = (
+    re.compile(r"\b(?P<symbol>[A-Za-z][A-Za-z0-9_-]*)\s+(?:denotes|represents|labels|means)\s+(?P<meaning>[^.;,\n]+)", re.IGNORECASE),
+    re.compile(r"\b(?P<symbol>[A-Za-z][A-Za-z0-9_-]*)\s+for\s+(?P<meaning>[^.;,\n]+)", re.IGNORECASE),
+)
+
+CONTRADICTION_PAIRS = (
+    ("non-relativistic", "relativistic"),
+    ("strong coupling", "weak coupling"),
+    ("zero temperature", "finite temperature"),
+)
+
+
+def _slugify(text: str) -> str:
+    lowered = text.lower()
+    lowered = re.sub(r"[^a-z0-9]+", "-", lowered)
+    lowered = re.sub(r"-+", "-", lowered).strip("-")
+    return lowered or "source"
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        normalized = str(value or "").strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
+
+
+def normalize_arxiv_id(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    raw = raw.rsplit("/", 1)[-1]
+    raw = raw.lower().removeprefix("arxiv:")
+    return re.sub(r"v\d+$", "", raw)
+
+
+def normalize_doi(value: str) -> str:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    raw = raw.removeprefix("https://doi.org/")
+    raw = raw.removeprefix("http://doi.org/")
+    raw = raw.rstrip(").,;")
+    return raw
+
+
+def derive_canonical_source_id(
+    *,
+    source_type: str,
+    title: str,
+    summary: str,
+    provenance: dict[str, Any] | None,
+    locator: dict[str, Any] | None,
+) -> str:
+    provenance = provenance or {}
+    locator = locator or {}
+
+    doi = normalize_doi(
+        provenance.get("doi")
+        or provenance.get("journal_url")
+        or provenance.get("source_url")
+    )
+    if doi.startswith("10."):
+        return f"source_identity:doi:{_slugify(doi)}"
+
+    arxiv_id = normalize_arxiv_id(
+        provenance.get("arxiv_id")
+        or provenance.get("versioned_id")
+        or provenance.get("abs_url")
+    )
+    if arxiv_id:
+        return f"source_identity:arxiv:{_slugify(arxiv_id)}"
+
+    backend_id = str(provenance.get("backend_id") or "").strip()
+    backend_relative_path = str(locator.get("backend_relative_path") or "").strip()
+    if backend_id and backend_relative_path:
+        fingerprint = hashlib.sha1(f"{backend_id}::{backend_relative_path}".encode("utf-8")).hexdigest()[:16]
+        return f"source_identity:backend:{fingerprint}"
+
+    absolute_path = str(provenance.get("absolute_path") or "").strip()
+    if absolute_path:
+        fingerprint = hashlib.sha1(absolute_path.encode("utf-8")).hexdigest()[:16]
+        return f"source_identity:file:{fingerprint}"
+
+    fingerprint = hashlib.sha1(
+        f"{source_type}::{title.strip().lower()}::{summary.strip().lower()}".encode("utf-8")
+    ).hexdigest()[:16]
+    return f"source_identity:content:{fingerprint}"
+
+
+def extract_reference_ids(*, text: str, provenance: dict[str, Any] | None = None) -> list[str]:
+    provenance = provenance or {}
+    combined = " ".join(
+        [
+            str(text or ""),
+            str(provenance.get("doi") or ""),
+            str(provenance.get("references") or ""),
+        ]
+    )
+    refs: list[str] = []
+    refs.extend(f"arxiv:{_slugify(normalize_arxiv_id(match.group('id')))}" for match in ARXIV_RE.finditer(combined))
+    refs.extend(f"doi:{_slugify(normalize_doi(match.group(0)))}" for match in DOI_RE.finditer(combined))
+
+    explicit_refs = provenance.get("references") or []
+    if isinstance(explicit_refs, list):
+        for value in explicit_refs:
+            normalized = str(value or "").strip()
+            if not normalized:
+                continue
+            lower = normalized.lower()
+            if lower.startswith("doi:"):
+                refs.append(f"doi:{_slugify(lower.split(':', 1)[1])}")
+            elif lower.startswith("arxiv:"):
+                refs.append(f"arxiv:{_slugify(lower.split(':', 1)[1])}")
+            else:
+                refs.append(normalized)
+
+    normalized_refs: list[str] = []
+    for ref in refs:
+        token = str(ref or "").strip()
+        if not token:
+            continue
+        if token.startswith("doi:") or token.startswith("arxiv:"):
+            normalized_refs.append(token)
+        elif "/" in token or token.startswith("10."):
+            normalized_refs.append(f"doi:{_slugify(token)}")
+        else:
+            normalized_refs.append(token)
+    return _dedupe_strings(normalized_refs)
+
+
+def extract_neighbor_terms(*, title: str, summary: str, limit: int = 12) -> list[str]:
+    tokens = re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", f"{title} {summary}".lower())
+    filtered = [token for token in tokens if token not in STOPWORDS]
+    ordered = _dedupe_strings(filtered)
+    return ordered[:limit]
+
+
+def detect_assumptions(*, text: str) -> list[str]:
+    assumptions: list[str] = []
+    for pattern in ASSUMPTION_PATTERNS:
+        for match in pattern.finditer(text):
+            clause = re.sub(r"\s+", " ", str(match.group("clause") or "").strip())
+            if clause:
+                assumptions.append(clause)
+    return _dedupe_strings(assumptions)
+
+
+def detect_regimes(*, text: str) -> list[str]:
+    lowered = text.lower()
+    return [phrase for phrase in REGIME_PATTERNS if phrase in lowered]
+
+
+def infer_reading_depth_label(
+    *,
+    source_type: str,
+    provenance: dict[str, Any] | None,
+    locator: dict[str, Any] | None,
+) -> str:
+    provenance = provenance or {}
+    locator = locator or {}
+    if source_type == "local_note":
+        return "full_read"
+    if str(locator.get("extracted_source_dir") or "").strip() or str(locator.get("downloaded_source_bundle") or "").strip():
+        return "full_read"
+    if str(provenance.get("pdf_url") or "").strip() or str(provenance.get("abs_url") or "").strip():
+        return "abstract_only"
+    return "skim"
+
+
+def detect_notation_candidates(*, text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for pattern in NOTATION_PATTERNS:
+        for match in pattern.finditer(text):
+            symbol = re.sub(r"\s+", " ", str(match.group("symbol") or "").strip())
+            meaning = re.sub(r"\s+", " ", str(match.group("meaning") or "").strip())
+            key = (symbol.lower(), meaning.lower())
+            if not symbol or not meaning or key in seen:
+                continue
+            seen.add(key)
+            rows.append({"symbol": symbol, "meaning": meaning})
+    return rows
+
+
+def detect_contradiction_candidates(
+    *,
+    existing_rows: list[dict[str, Any]],
+    assumptions: list[str],
+    regimes: list[str],
+) -> list[dict[str, str]]:
+    incoming_text = " ".join(list(assumptions) + list(regimes)).lower()
+    candidates: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in existing_rows:
+        existing_text = " ".join(list(row.get("assumptions") or []) + list(row.get("regimes") or [])).lower()
+        if not existing_text:
+            continue
+        for left, right in CONTRADICTION_PAIRS:
+            if left in incoming_text and right in existing_text:
+                key = (str(row.get("source_id") or ""), f"{left} vs {right}")
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidates.append(
+                    {
+                        "kind": "assumption_conflict",
+                        "against_source_id": str(row.get("source_id") or ""),
+                        "detail": f"{left} vs {right}",
+                    }
+                )
+            elif right in incoming_text and left in existing_text:
+                key = (str(row.get("source_id") or ""), f"{right} vs {left}")
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidates.append(
+                    {
+                        "kind": "assumption_conflict",
+                        "against_source_id": str(row.get("source_id") or ""),
+                        "detail": f"{right} vs {left}",
+                    }
+                )
+    return candidates
+
+
+def detect_notation_tension_candidates(
+    *,
+    existing_rows: list[dict[str, Any]],
+    notation_candidates: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    tensions: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for row in existing_rows:
+        for existing_binding in list(row.get("notation_candidates") or []):
+            existing_symbol = str(existing_binding.get("symbol") or "").strip()
+            existing_meaning = str(existing_binding.get("meaning") or "").strip().lower()
+            if not existing_symbol or not existing_meaning:
+                continue
+            for incoming_binding in notation_candidates:
+                incoming_symbol = str(incoming_binding.get("symbol") or "").strip()
+                incoming_meaning = str(incoming_binding.get("meaning") or "").strip().lower()
+                if not incoming_symbol or not incoming_meaning:
+                    continue
+                if incoming_meaning != existing_meaning or incoming_symbol.lower() == existing_symbol.lower():
+                    continue
+                key = (existing_meaning, existing_symbol.lower(), incoming_symbol.lower())
+                if key in seen:
+                    continue
+                seen.add(key)
+                tensions.append(
+                    {
+                        "meaning": existing_meaning,
+                        "existing_symbol": existing_symbol,
+                        "incoming_symbol": incoming_symbol,
+                        "against_source_id": str(row.get("source_id") or ""),
+                    }
+                )
+    return tensions
+
+
+def build_source_intelligence(
+    *,
+    topic_slug: str,
+    source_rows: list[dict[str, Any]],
+    global_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    canonical_source_ids = _dedupe_strings(
+        [
+            str(row.get("canonical_source_id") or "").strip()
+            or derive_canonical_source_id(
+                source_type=str(row.get("source_type") or ""),
+                title=str(row.get("title") or ""),
+                summary=str(row.get("summary") or ""),
+                provenance=row.get("provenance") or {},
+                locator=row.get("locator") or {},
+            )
+            for row in source_rows
+        ]
+    )
+
+    citation_edges: list[dict[str, Any]] = []
+    source_neighbors: list[dict[str, Any]] = []
+    seen_neighbor_keys: set[tuple[str, str, str]] = set()
+
+    local_rows: list[dict[str, Any]] = []
+    for row in source_rows:
+        local_rows.append(
+            {
+                **row,
+                "canonical_source_id": str(row.get("canonical_source_id") or "").strip()
+                or derive_canonical_source_id(
+                    source_type=str(row.get("source_type") or ""),
+                    title=str(row.get("title") or ""),
+                    summary=str(row.get("summary") or ""),
+                    provenance=row.get("provenance") or {},
+                    locator=row.get("locator") or {},
+                ),
+                "references": _dedupe_strings(list(row.get("references") or [])),
+                "neighbor_terms": extract_neighbor_terms(
+                    title=str(row.get("title") or ""),
+                    summary=str(row.get("summary") or ""),
+                ),
+            }
+        )
+
+    local_source_ids = {str(row.get("source_id") or "").strip() for row in local_rows}
+
+    for row in local_rows:
+        source_id = str(row.get("source_id") or "").strip()
+        canonical_id = str(row.get("canonical_source_id") or "").strip()
+        references = list(row.get("references") or [])
+        for target_ref in references:
+            citation_edges.append(
+                {
+                    "source_id": source_id,
+                    "target_ref": target_ref,
+                    "target_source_id": None,
+                    "relation": "cites",
+                }
+            )
+
+        local_terms = set(row.get("neighbor_terms") or [])
+        local_refs = set(references)
+        for global_row in global_rows:
+            neighbor_source_id = str(global_row.get("source_id") or "").strip()
+            if not neighbor_source_id or neighbor_source_id == source_id:
+                continue
+            neighbor_topic_slug = str(global_row.get("topic_slug") or "").strip()
+            neighbor_canonical_id = str(global_row.get("canonical_source_id") or "").strip()
+            neighbor_refs = set(global_row.get("references") or [])
+            neighbor_terms = set(global_row.get("neighbor_terms") or [])
+            relation_kind = ""
+            if canonical_id and canonical_id == neighbor_canonical_id:
+                relation_kind = "shared_identity"
+            elif local_refs and neighbor_refs and local_refs.intersection(neighbor_refs):
+                relation_kind = "shared_reference"
+            elif local_terms and neighbor_terms and len(local_terms.intersection(neighbor_terms)) >= 2:
+                relation_kind = "keyword_overlap"
+            if not relation_kind:
+                continue
+            key = (source_id, neighbor_source_id, relation_kind)
+            if key in seen_neighbor_keys:
+                continue
+            seen_neighbor_keys.add(key)
+            source_neighbors.append(
+                {
+                    "source_id": source_id,
+                    "neighbor_source_id": neighbor_source_id,
+                    "neighbor_topic_slug": neighbor_topic_slug,
+                    "neighbor_canonical_source_id": neighbor_canonical_id or None,
+                    "relation_kind": relation_kind,
+                    "shared_reference_count": len(local_refs.intersection(neighbor_refs)),
+                    "shared_term_count": len(local_terms.intersection(neighbor_terms)),
+                    "cross_topic": bool(neighbor_topic_slug and neighbor_topic_slug != topic_slug),
+                }
+            )
+
+    source_neighbors.sort(
+        key=lambda row: (
+            {"shared_identity": 0, "shared_reference": 1, "keyword_overlap": 2}.get(
+                str(row.get("relation_kind") or ""),
+                9,
+            ),
+            str(row.get("neighbor_topic_slug") or ""),
+            str(row.get("neighbor_source_id") or ""),
+        )
+    )
+    citation_edges.sort(key=lambda row: (str(row.get("source_id") or ""), str(row.get("target_ref") or "")))
+
+    cross_topic_match_count = len(
+        {
+            str(row.get("neighbor_source_id") or "")
+            for row in source_neighbors
+            if row.get("cross_topic")
+        }
+    )
+
+    return {
+        "canonical_source_ids": canonical_source_ids,
+        "cross_topic_match_count": cross_topic_match_count,
+        "citation_edges": citation_edges,
+        "source_neighbors": source_neighbors,
+        "neighbor_signal_count": len(source_neighbors),
+    }

@@ -486,6 +486,7 @@ def build_unfinished_work(topic_state: dict, queue_rows: list[dict], control_not
         "queue_head_action_id": pending_items[0]["action_id"] if pending_items else None,
         "ordered_pending_actions": pending_items,
         "runtime_state_refs": runtime_state_refs(topic_state),
+        "source_intelligence": topic_state.get("source_intelligence") or {},
         "human_note_surfaces": note_surfaces,
         "closed_loop": topic_state.get("closed_loop") or {},
     }

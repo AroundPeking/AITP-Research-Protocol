@@ -6,9 +6,26 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import textwrap
 from datetime import datetime
 from pathlib import Path
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from knowledge_hub.source_intelligence import (
+    derive_canonical_source_id,
+    detect_assumptions,
+    detect_contradiction_candidates,
+    detect_notation_candidates,
+    detect_notation_tension_candidates,
+    detect_regimes,
+    extract_neighbor_terms,
+    extract_reference_ids,
+    infer_reading_depth_label,
+)
 
 
 def now_iso() -> str:
@@ -223,8 +240,11 @@ def register_local_note_source(
     layer0_topic_root = knowledge_root / "source-layer" / "topics" / topic_slug
     layer0_source_root = layer0_topic_root / "sources" / source_slug
     layer0_source_root.mkdir(parents=True, exist_ok=True)
+    topic_index_path = layer0_topic_root / "source_index.jsonl"
+    existing_topic_rows = load_jsonl(topic_index_path)
 
     preview = note_path.read_text(encoding="utf-8", errors="replace")
+    preview_summary = short_summary(preview)
     provenance = {
         "origin": "local note",
         "absolute_path": str(note_path),
@@ -245,8 +265,36 @@ def register_local_note_source(
             provenance["backend_card_path"] = backend_metadata["backend_card_path"]
         locator["backend_relative_path"] = backend_metadata["backend_relative_path"]
 
+    canonical_source_id = derive_canonical_source_id(
+        source_type="local_note",
+        title=resolved_title,
+        summary=preview_summary,
+        provenance=provenance,
+        locator=locator,
+    )
+    references = extract_reference_ids(text=preview, provenance=provenance)
+    neighbor_terms = extract_neighbor_terms(title=resolved_title, summary=preview_summary)
+    assumptions = detect_assumptions(text=preview)
+    regimes = detect_regimes(text=preview)
+    reading_depth_label = infer_reading_depth_label(
+        source_type="local_note",
+        provenance=provenance,
+        locator=locator,
+    )
+    notation_candidates = detect_notation_candidates(text=preview)
+    contradiction_candidates = detect_contradiction_candidates(
+        existing_rows=existing_topic_rows,
+        assumptions=assumptions,
+        regimes=regimes,
+    )
+    notation_tension_candidates = detect_notation_tension_candidates(
+        existing_rows=existing_topic_rows,
+        notation_candidates=notation_candidates,
+    )
+
     payload = {
         "source_id": source_id,
+        "canonical_source_id": canonical_source_id,
         "source_type": "local_note",
         "title": resolved_title,
         "topic_slug": topic_slug,
@@ -254,7 +302,15 @@ def register_local_note_source(
         "locator": locator,
         "acquired_at": acquired_at,
         "registered_by": registered_by,
-        "summary": short_summary(preview),
+        "summary": preview_summary,
+        "references": references,
+        "neighbor_terms": neighbor_terms,
+        "assumptions": assumptions,
+        "regimes": regimes,
+        "reading_depth_label": reading_depth_label,
+        "notation_candidates": notation_candidates,
+        "contradiction_candidates": contradiction_candidates,
+        "notation_tension_candidates": notation_tension_candidates,
     }
 
     ensure_topic_json(layer0_topic_root / "topic.json", topic_slug, "source_active", acquired_at)
@@ -290,10 +346,9 @@ def register_local_note_source(
         encoding="utf-8",
     )
 
-    topic_index_path = layer0_topic_root / "source_index.jsonl"
     write_jsonl(
         topic_index_path,
-        append_unique(load_jsonl(topic_index_path), payload, ("source_id",)),
+        append_unique(existing_topic_rows, payload, ("source_id",)),
     )
 
     global_index_path = knowledge_root / "source-layer" / "global_index.jsonl"
@@ -303,6 +358,7 @@ def register_local_note_source(
             load_jsonl(global_index_path),
             {
                 "source_id": source_id,
+                "canonical_source_id": canonical_source_id,
                 "topic_slug": topic_slug,
                 "source_type": payload["source_type"],
                 "title": payload["title"],
@@ -312,6 +368,8 @@ def register_local_note_source(
                 "backend_artifact_kind": payload["provenance"].get("backend_artifact_kind"),
                 "backend_card_path": payload["provenance"].get("backend_card_path"),
                 "backend_relative_path": payload["locator"].get("backend_relative_path"),
+                "references": references,
+                "neighbor_terms": neighbor_terms,
                 "acquired_at": acquired_at,
             },
             ("source_id", "topic_slug"),

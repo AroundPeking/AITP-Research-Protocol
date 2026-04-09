@@ -37,6 +37,10 @@ class RuntimeScriptTests(unittest.TestCase):
             "aitp_sync_topic_state_test",
             "runtime/scripts/sync_topic_state.py",
         )
+        self.decide_next_action = _load_module(
+            "aitp_decide_next_action_test",
+            "runtime/scripts/decide_next_action.py",
+        )
 
     def tearDown(self) -> None:
         self._tmpdir.cleanup()
@@ -808,6 +812,65 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertIn("`decision_override_present` status=`active`", rendered)
         self.assertIn("`non_trivial_consultation` status=`active`", rendered)
         self.assertIn("## Deferred surfaces and exact pointers", rendered)
+
+    def test_build_source_intelligence_state_summarizes_runtime_read_path(self) -> None:
+        payload = self.sync_topic_state.build_source_intelligence_state(
+            l0_source_rows=[
+                {
+                    "source_id": "paper:demo-source",
+                    "canonical_source_id": "source_identity:arxiv:demo-source",
+                    "references": ["doi:10.1000/demo"],
+                }
+            ],
+            intake_source_rows=[
+                {
+                    "assumptions": ["translational invariance"],
+                    "regimes": ["strong coupling"],
+                    "reading_depth_label": "abstract_only",
+                    "contradiction_candidates": [{"kind": "assumption_conflict"}],
+                    "notation_tension_candidates": [{"meaning": "stress"}],
+                }
+            ],
+        )
+
+        self.assertEqual(payload["canonical_source_ids"], ["source_identity:arxiv:demo-source"])
+        self.assertEqual(payload["citation_edge_count"], 1)
+        self.assertEqual(payload["assumptions"], ["translational invariance"])
+        self.assertEqual(payload["regimes"], ["strong coupling"])
+        self.assertEqual(payload["reading_depth_labels"], ["abstract_only"])
+        self.assertEqual(payload["contradiction_candidate_count"], 1)
+        self.assertEqual(payload["notation_tension_count"], 1)
+
+    def test_build_unfinished_work_carries_source_intelligence(self) -> None:
+        payload = self.decide_next_action.build_unfinished_work(
+            {
+                "topic_slug": "demo-topic",
+                "updated_by": "test",
+                "resume_stage": "L1",
+                "source_intelligence": {
+                    "canonical_source_ids": ["source_identity:arxiv:demo-source"],
+                    "contradiction_candidate_count": 1,
+                },
+                "pointers": {},
+            },
+            [],
+            {},
+        )
+
+        self.assertEqual(
+            payload["source_intelligence"]["canonical_source_ids"],
+            ["source_identity:arxiv:demo-source"],
+        )
+        self.assertEqual(payload["source_intelligence"]["contradiction_candidate_count"], 1)
+
+    def test_windows_run_hook_emits_visible_warning_when_bash_is_missing(self) -> None:
+        hook_path = Path(__file__).resolve().parents[3] / "hooks" / "run-hook.cmd"
+        hook_text = hook_path.read_text(encoding="utf-8")
+        self.assertIn(
+            "WARNING: AITP session initialization could not run because bash is not available",
+            hook_text,
+        )
+        self.assertIn("1>&2", hook_text)
 
 
 if __name__ == "__main__":
