@@ -48,6 +48,10 @@ class SchemaContractTests(unittest.TestCase):
             "failure_modes",
         ):
             self.assertIn(field, validation_payload["properties"])
+        intake = research_payload["properties"]["l1_source_intake"]["properties"]
+        self.assertIn("notation_rows", intake)
+        self.assertIn("contradiction_candidates", intake)
+        self.assertIn("notation_tension_candidates", intake)
 
     def test_candidate_schema_includes_theory_granular_types_and_auto_status(self) -> None:
         payload = self._read_json("feedback/schemas/candidate.schema.json")
@@ -127,6 +131,12 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("assumption_rows", intake)
         self.assertIn("regime_rows", intake)
         self.assertIn("reading_depth_rows", intake)
+        self.assertIn("notation_rows", intake)
+        self.assertIn("contradiction_candidates", intake)
+        self.assertIn("notation_tension_candidates", intake)
+        self.assertIn("notation_rows", intake)
+        self.assertIn("contradiction_candidates", intake)
+        self.assertIn("notation_tension_candidates", intake)
 
     def test_consult_and_promotion_schemas_include_new_theory_surface(self) -> None:
         consult_payload = self._read_json("consultation/schemas/consult-request.schema.json")
@@ -184,6 +194,10 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("topic_skill_projection", payload["properties"])
         self.assertIn("l1_source_intake", payload["properties"]["topic_synopsis"]["properties"])
         self.assertIn("l1_source_intake", payload["properties"]["active_research_contract"]["properties"])
+        topic_intake = payload["$defs"]["l1_source_intake"]["properties"]
+        self.assertIn("notation_rows", topic_intake)
+        self.assertIn("contradiction_candidates", topic_intake)
+        self.assertIn("notation_tension_candidates", topic_intake)
         self.assertIn("runtime_focus", payload["properties"]["topic_synopsis"]["properties"])
         self.assertIn("truth_sources", payload["properties"]["topic_synopsis"]["properties"])
         self.assertIn("blocked_by_details", payload["properties"]["dependency_state"]["properties"])
@@ -203,6 +217,10 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("consultation_memory", slice_names)
         self.assertIn("proof_completion_and_coverage", slice_names)
         self.assertIn("verification_route_selection", slice_names)
+        intake = payload["$defs"]["l1_source_intake"]["properties"]
+        self.assertIn("notation_rows", intake)
+        self.assertIn("contradiction_candidates", intake)
+        self.assertIn("notation_tension_candidates", intake)
         retrieval_profiles = self._read_json("canonical/retrieval_profiles.json")
         l3_types = set(retrieval_profiles["profiles"]["l3_candidate_formation"]["preferred_unit_types"])
         l4_types = set(retrieval_profiles["profiles"]["l4_adjudication"]["preferred_unit_types"])

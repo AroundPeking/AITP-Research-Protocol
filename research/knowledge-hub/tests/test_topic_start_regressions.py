@@ -310,6 +310,71 @@ class TopicStartRegressionTests(unittest.TestCase):
         self.assertIn("zero temperature", json.dumps(l1_source_intake["regime_rows"]))
         self.assertEqual(l1_source_intake["reading_depth_rows"][0]["reading_depth"], "full_read")
 
+    def test_source_backed_topic_start_surfaces_contradiction_and_notation_tension(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root, thesis_path = self._write_source_backed_topic(topic_slug=topic_slug)
+        source_root = self.kernel_root / "source-layer" / "topics" / topic_slug
+        second_path = self.root / "inputs" / "demo-note.md"
+        second_path.write_text(
+            "# Conflicting follow-up note\n\n"
+            "We assume the same closure target only in the strong coupling limit.\n"
+            "K denotes the diagonal generator.\n",
+            encoding="utf-8",
+        )
+        source_rows = [
+            {
+                "source_id": "thesis:demo-source",
+                "source_type": "thesis",
+                "title": "Diagonal Gauge Freedom in scRPA",
+                "summary": (
+                    "We assume fractional occupations remain bounded in the weak coupling limit at zero temperature. "
+                    "H denotes the diagonal generator."
+                ),
+                "provenance": {
+                    "absolute_path": str(thesis_path),
+                },
+            },
+            {
+                "source_id": "local_note:demo-conflict",
+                "source_type": "local_note",
+                "title": "Conflicting diagonal-generator note",
+                "summary": (
+                    "We assume the same closure target only in the strong coupling limit. "
+                    "K denotes the diagonal generator."
+                ),
+                "provenance": {
+                    "absolute_path": str(second_path),
+                },
+            },
+        ]
+        (source_root / "source_index.jsonl").write_text(
+            "\n".join(json.dumps(row, ensure_ascii=True) for row in source_rows) + "\n",
+            encoding="utf-8",
+        )
+        conflict_snapshot_root = source_root / "sources" / "local_note-demo-conflict"
+        conflict_snapshot_root.mkdir(parents=True, exist_ok=True)
+        conflict_snapshot_root.joinpath("snapshot.md").write_text(
+            "# Snapshot\n\n"
+            "## Preview\n"
+            "We assume the same closure target only in the strong coupling limit.\n"
+            "K denotes the diagonal generator.\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug=topic_slug,
+            updated_by="aitp-cli",
+        )
+
+        l1_source_intake = payload["research_question_contract"]["l1_source_intake"]
+        self.assertTrue(l1_source_intake["contradiction_candidates"])
+        self.assertTrue(l1_source_intake["notation_tension_candidates"])
+        self.assertTrue(any(row["detail"] == "strong coupling vs weak coupling" for row in l1_source_intake["contradiction_candidates"]))
+        self.assertTrue(any(row["existing_symbol"] == "H" and row["incoming_symbol"] == "K" for row in l1_source_intake["notation_tension_candidates"]))
+        note_text = Path(payload["research_question_contract_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Contradiction candidates", note_text)
+        self.assertIn("## Notation-alignment tension", note_text)
+
 
 if __name__ == "__main__":
     unittest.main()

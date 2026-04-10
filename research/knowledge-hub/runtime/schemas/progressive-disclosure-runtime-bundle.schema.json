@@ -2196,6 +2196,24 @@
           "items": {
             "$ref": "#/$defs/l1_reading_depth_row"
           }
+        },
+        "notation_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/l1_notation_row"
+          }
+        },
+        "contradiction_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/l1_contradiction_candidate"
+          }
+        },
+        "notation_tension_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/l1_notation_tension_candidate"
+          }
         }
       }
     },
@@ -2307,6 +2325,179 @@
           ]
         },
         "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "l1_notation_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "source_title",
+        "source_type",
+        "symbol",
+        "meaning",
+        "reading_depth",
+        "evidence_excerpt"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_title": {
+          "type": "string"
+        },
+        "source_type": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "meaning": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reading_depth": {
+          "type": "string",
+          "enum": [
+            "full_read",
+            "abstract_only",
+            "skim"
+          ]
+        },
+        "evidence_excerpt": {
+          "type": "string"
+        }
+      }
+    },
+    "l1_contradiction_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_id",
+        "source_title",
+        "source_type",
+        "reading_depth",
+        "against_source_id",
+        "against_source_title",
+        "against_source_type",
+        "against_reading_depth",
+        "detail"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_title": {
+          "type": "string"
+        },
+        "source_type": {
+          "type": "string"
+        },
+        "reading_depth": {
+          "type": "string",
+          "enum": [
+            "full_read",
+            "abstract_only",
+            "skim"
+          ]
+        },
+        "against_source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "against_source_title": {
+          "type": "string"
+        },
+        "against_source_type": {
+          "type": "string"
+        },
+        "against_reading_depth": {
+          "type": "string",
+          "enum": [
+            "full_read",
+            "abstract_only",
+            "skim"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "l1_notation_tension_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "source_title",
+        "source_type",
+        "reading_depth",
+        "against_source_id",
+        "against_source_title",
+        "against_source_type",
+        "against_reading_depth",
+        "meaning",
+        "existing_symbol",
+        "incoming_symbol"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_title": {
+          "type": "string"
+        },
+        "source_type": {
+          "type": "string"
+        },
+        "reading_depth": {
+          "type": "string",
+          "enum": [
+            "full_read",
+            "abstract_only",
+            "skim"
+          ]
+        },
+        "against_source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "against_source_title": {
+          "type": "string"
+        },
+        "against_source_type": {
+          "type": "string"
+        },
+        "against_reading_depth": {
+          "type": "string",
+          "enum": [
+            "full_read",
+            "abstract_only",
+            "skim"
+          ]
+        },
+        "meaning": {
+          "type": "string",
+          "minLength": 1
+        },
+        "existing_symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "incoming_symbol": {
           "type": "string",
           "minLength": 1
         }

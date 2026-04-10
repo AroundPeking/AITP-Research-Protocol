@@ -1770,6 +1770,109 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("## Source-backed assumptions", research_note)
         self.assertIn("## Reading depth", research_note)
 
+    def test_ensure_topic_shell_surfaces_persists_l1_conflict_candidates(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L1",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Resolve the conflicting bounded derivation assumptions.",
+                    "decision_surface": {
+                        "selected_action_id": "action:demo-topic:conflict",
+                        "decision_source": "heuristic",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:conflict",
+                    "status": "pending",
+                    "action_type": "manual_followup",
+                    "summary": "Adjudicate the contradiction and notation mismatch between the active sources.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        source_root = self.kernel_root / "source-layer" / "topics" / "demo-topic"
+        source_root.mkdir(parents=True, exist_ok=True)
+        source_rows = [
+            {
+                "source_id": "paper:weak-coupling",
+                "source_type": "paper",
+                "title": "Weak-coupling closure",
+                "summary": (
+                    "We assume the closure remains controlled in the weak coupling limit. "
+                    "H denotes the diagonal generator."
+                ),
+                "provenance": {
+                    "abs_url": "https://example.org/weak",
+                },
+            },
+            {
+                "source_id": "paper:strong-coupling",
+                "source_type": "paper",
+                "title": "Strong-coupling closure",
+                "summary": (
+                    "We assume the same closure target only in the strong coupling limit. "
+                    "K denotes the diagonal generator."
+                ),
+                "provenance": {
+                    "abs_url": "https://example.org/strong",
+                },
+            },
+        ]
+        (source_root / "source_index.jsonl").write_text(
+            "\n".join(json.dumps(row, ensure_ascii=True) for row in source_rows) + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        l1_source_intake = payload["research_question_contract"]["l1_source_intake"]
+        self.assertEqual(len(l1_source_intake["notation_rows"]), 2)
+        self.assertEqual(len(l1_source_intake["contradiction_candidates"]), 1)
+        self.assertEqual(len(l1_source_intake["notation_tension_candidates"]), 1)
+        self.assertEqual(
+            l1_source_intake["contradiction_candidates"][0]["detail"],
+            "strong coupling vs weak coupling",
+        )
+        self.assertEqual(
+            l1_source_intake["notation_tension_candidates"][0]["meaning"],
+            "the diagonal generator",
+        )
+        self.assertIn(
+            "Contradiction candidate: strong coupling vs weak coupling",
+            json.dumps(payload["research_question_contract"]["open_ambiguities"]),
+        )
+
     def test_topic_status_and_prepare_verification_surface_new_shell_fields(self) -> None:
         runtime_root = self._write_runtime_state()
         (runtime_root / "interaction_state.json").write_text(

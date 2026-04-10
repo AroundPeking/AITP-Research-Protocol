@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from .runtime_projection_handler import write_topic_skill_projection
+from .source_intelligence import (
+    detect_contradiction_candidates,
+    detect_notation_candidates,
+    detect_notation_tension_candidates,
+)
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -63,6 +68,9 @@ def _empty_l1_source_intake() -> dict[str, Any]:
         "assumption_rows": [],
         "regime_rows": [],
         "reading_depth_rows": [],
+        "notation_rows": [],
+        "contradiction_candidates": [],
+        "notation_tension_candidates": [],
     }
 
 
@@ -124,6 +132,113 @@ def _normalize_reading_depth_rows(rows: Any) -> list[dict[str, str]]:
     return normalized
 
 
+def _normalize_notation_rows(rows: Any) -> list[dict[str, str]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        symbol = str(row.get("symbol") or "").strip()
+        meaning = str(row.get("meaning") or "").strip()
+        if not source_id or not symbol or not meaning:
+            continue
+        key = (source_id.lower(), symbol.lower(), meaning.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "source_title": str(row.get("source_title") or "").strip(),
+                "source_type": str(row.get("source_type") or "").strip(),
+                "symbol": symbol,
+                "meaning": meaning,
+                "reading_depth": str(row.get("reading_depth") or "").strip() or "skim",
+                "evidence_excerpt": str(row.get("evidence_excerpt") or "").strip(),
+            }
+        )
+    return normalized
+
+
+def _normalize_contradiction_candidates(rows: Any) -> list[dict[str, str]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        detail = str(row.get("detail") or "").strip()
+        if not source_id or not against_source_id or not detail:
+            continue
+        key = (source_id.lower(), against_source_id.lower(), detail.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "kind": str(row.get("kind") or "").strip() or "assumption_conflict",
+                "source_id": source_id,
+                "source_title": str(row.get("source_title") or "").strip(),
+                "source_type": str(row.get("source_type") or "").strip(),
+                "reading_depth": str(row.get("reading_depth") or "").strip() or "skim",
+                "against_source_id": against_source_id,
+                "against_source_title": str(row.get("against_source_title") or "").strip(),
+                "against_source_type": str(row.get("against_source_type") or "").strip(),
+                "against_reading_depth": str(row.get("against_reading_depth") or "").strip() or "skim",
+                "detail": detail,
+            }
+        )
+    return normalized
+
+
+def _normalize_notation_tension_candidates(rows: Any) -> list[dict[str, str]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        meaning = str(row.get("meaning") or "").strip()
+        incoming_symbol = str(row.get("incoming_symbol") or "").strip()
+        existing_symbol = str(row.get("existing_symbol") or "").strip()
+        if not source_id or not against_source_id or not meaning or not incoming_symbol or not existing_symbol:
+            continue
+        key = (
+            source_id.lower(),
+            against_source_id.lower(),
+            meaning.lower(),
+            incoming_symbol.lower(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "source_title": str(row.get("source_title") or "").strip(),
+                "source_type": str(row.get("source_type") or "").strip(),
+                "reading_depth": str(row.get("reading_depth") or "").strip() or "skim",
+                "against_source_id": against_source_id,
+                "against_source_title": str(row.get("against_source_title") or "").strip(),
+                "against_source_type": str(row.get("against_source_type") or "").strip(),
+                "against_reading_depth": str(row.get("against_reading_depth") or "").strip() or "skim",
+                "meaning": meaning,
+                "existing_symbol": existing_symbol,
+                "incoming_symbol": incoming_symbol,
+            }
+        )
+    return normalized
+
+
 def _normalize_l1_source_intake(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return _empty_l1_source_intake()
@@ -138,6 +253,11 @@ def _normalize_l1_source_intake(payload: Any) -> dict[str, Any]:
             required_field="regime",
         ),
         "reading_depth_rows": _normalize_reading_depth_rows(payload.get("reading_depth_rows")),
+        "notation_rows": _normalize_notation_rows(payload.get("notation_rows")),
+        "contradiction_candidates": _normalize_contradiction_candidates(payload.get("contradiction_candidates")),
+        "notation_tension_candidates": _normalize_notation_tension_candidates(
+            payload.get("notation_tension_candidates")
+        ),
     }
     if normalized["source_count"] <= 0:
         source_keys = {
@@ -151,9 +271,136 @@ def _normalize_l1_source_intake(payload: Any) -> dict[str, Any]:
 
 def _coalesce_l1_source_intake(existing: Any, default: dict[str, Any]) -> dict[str, Any]:
     normalized_existing = _normalize_l1_source_intake(existing)
-    if any(normalized_existing[key] for key in ("assumption_rows", "regime_rows", "reading_depth_rows")):
+    if any(
+        normalized_existing[key]
+        for key in (
+            "assumption_rows",
+            "regime_rows",
+            "reading_depth_rows",
+            "notation_rows",
+            "contradiction_candidates",
+            "notation_tension_candidates",
+        )
+    ):
         return normalized_existing
     return _normalize_l1_source_intake(default)
+
+
+def _summary_excerpt(row: dict[str, Any]) -> str:
+    summary = re.sub(r"\s+", " ", str(row.get("summary") or "").strip())
+    return summary[:220]
+
+
+def _derive_l1_conflict_intake(
+    source_rows: list[dict[str, Any]],
+    l1_source_intake: dict[str, Any],
+) -> dict[str, Any]:
+    reading_depth_by_source = {
+        str(row.get("source_id") or "").strip(): str(row.get("reading_depth") or "").strip() or "skim"
+        for row in l1_source_intake.get("reading_depth_rows") or []
+        if str(row.get("source_id") or "").strip()
+    }
+    assumptions_by_source: dict[str, list[str]] = {}
+    for row in l1_source_intake.get("assumption_rows") or []:
+        source_id = str(row.get("source_id") or "").strip()
+        if source_id:
+            assumptions_by_source.setdefault(source_id, []).append(str(row.get("assumption") or "").strip())
+    regimes_by_source: dict[str, list[str]] = {}
+    for row in l1_source_intake.get("regime_rows") or []:
+        source_id = str(row.get("source_id") or "").strip()
+        if source_id:
+            regimes_by_source.setdefault(source_id, []).append(str(row.get("regime") or "").strip())
+
+    notation_rows: list[dict[str, str]] = []
+    contradiction_candidates: list[dict[str, str]] = []
+    notation_tension_candidates: list[dict[str, str]] = []
+    processed_rows: list[dict[str, Any]] = []
+    processed_by_source: dict[str, dict[str, Any]] = {}
+
+    for row in source_rows:
+        source_id = str(row.get("source_id") or "").strip()
+        source_title = str(row.get("title") or "").strip()
+        source_type = str(row.get("source_type") or "").strip()
+        if not source_id:
+            continue
+        reading_depth = reading_depth_by_source.get(source_id, "skim")
+        text = " ".join(part for part in (str(row.get("summary") or "").strip(), source_title) if part).strip()
+        notation_candidates = detect_notation_candidates(text=text)
+        excerpt = _summary_excerpt(row)
+        for candidate in notation_candidates:
+            notation_rows.append(
+                {
+                    "source_id": source_id,
+                    "source_title": source_title,
+                    "source_type": source_type,
+                    "symbol": str(candidate.get("symbol") or "").strip(),
+                    "meaning": str(candidate.get("meaning") or "").strip(),
+                    "reading_depth": reading_depth,
+                    "evidence_excerpt": excerpt,
+                }
+            )
+
+        for candidate in detect_contradiction_candidates(
+            existing_rows=processed_rows,
+            assumptions=assumptions_by_source.get(source_id, []),
+            regimes=regimes_by_source.get(source_id, []),
+        ):
+            against_source_id = str(candidate.get("against_source_id") or "").strip()
+            against_row = processed_by_source.get(against_source_id, {})
+            contradiction_candidates.append(
+                {
+                    "kind": str(candidate.get("kind") or "").strip() or "assumption_conflict",
+                    "source_id": source_id,
+                    "source_title": source_title,
+                    "source_type": source_type,
+                    "reading_depth": reading_depth,
+                    "against_source_id": against_source_id,
+                    "against_source_title": str(against_row.get("source_title") or "").strip(),
+                    "against_source_type": str(against_row.get("source_type") or "").strip(),
+                    "against_reading_depth": str(against_row.get("reading_depth") or "").strip() or "skim",
+                    "detail": str(candidate.get("detail") or "").strip(),
+                }
+            )
+
+        for tension in detect_notation_tension_candidates(
+            existing_rows=processed_rows,
+            notation_candidates=notation_candidates,
+        ):
+            against_source_id = str(tension.get("against_source_id") or "").strip()
+            against_row = processed_by_source.get(against_source_id, {})
+            notation_tension_candidates.append(
+                {
+                    "source_id": source_id,
+                    "source_title": source_title,
+                    "source_type": source_type,
+                    "reading_depth": reading_depth,
+                    "against_source_id": against_source_id,
+                    "against_source_title": str(against_row.get("source_title") or "").strip(),
+                    "against_source_type": str(against_row.get("source_type") or "").strip(),
+                    "against_reading_depth": str(against_row.get("reading_depth") or "").strip() or "skim",
+                    "meaning": str(tension.get("meaning") or "").strip(),
+                    "existing_symbol": str(tension.get("existing_symbol") or "").strip(),
+                    "incoming_symbol": str(tension.get("incoming_symbol") or "").strip(),
+                }
+            )
+
+        processed_row = {
+            "source_id": source_id,
+            "source_title": source_title,
+            "source_type": source_type,
+            "reading_depth": reading_depth,
+            "assumptions": assumptions_by_source.get(source_id, []),
+            "regimes": regimes_by_source.get(source_id, []),
+            "notation_candidates": notation_candidates,
+        }
+        processed_rows.append(processed_row)
+        processed_by_source[source_id] = processed_row
+
+    return {
+        "notation_rows": _normalize_notation_rows(notation_rows),
+        "contradiction_candidates": _normalize_contradiction_candidates(contradiction_candidates),
+        "notation_tension_candidates": _normalize_notation_tension_candidates(notation_tension_candidates),
+    }
 
 
 def _l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
@@ -192,21 +439,33 @@ def _l1_interpretation_focus_lines(l1_source_intake: dict[str, Any]) -> list[str
 
 
 def _l1_open_ambiguity_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
     partial_depth_rows = [
         row
         for row in l1_source_intake.get("reading_depth_rows") or []
         if str(row.get("reading_depth") or "").strip() != "full_read"
     ]
-    if not partial_depth_rows:
-        return []
-    labels = [
-        f"{row['source_id']}={row['reading_depth']}"
-        for row in partial_depth_rows[:4]
-        if str(row.get("source_id") or "").strip()
-    ]
-    if not labels:
-        return []
-    return [f"Reading-depth limits still apply for: {', '.join(labels)}"]
+    if partial_depth_rows:
+        labels = [
+            f"{row['source_id']}={row['reading_depth']}"
+            for row in partial_depth_rows[:4]
+            if str(row.get("source_id") or "").strip()
+        ]
+        if labels:
+            lines.append(f"Reading-depth limits still apply for: {', '.join(labels)}")
+    for row in l1_source_intake.get("contradiction_candidates") or []:
+        detail = str(row.get("detail") or "").strip()
+        if detail:
+            lines.append(f"Contradiction candidate: {detail}")
+    for row in l1_source_intake.get("notation_tension_candidates") or []:
+        meaning = str(row.get("meaning") or "").strip()
+        existing_symbol = str(row.get("existing_symbol") or "").strip()
+        incoming_symbol = str(row.get("incoming_symbol") or "").strip()
+        if meaning and existing_symbol and incoming_symbol:
+            lines.append(
+                f"Notation tension: `{existing_symbol}` vs `{incoming_symbol}` for `{meaning}`"
+            )
+    return lines
 
 
 def derive_open_gap_summary(
@@ -1354,6 +1613,12 @@ def ensure_topic_shell_surfaces(
     l1_source_intake = _coalesce_l1_source_intake(
         existing_research.get("l1_source_intake"),
         distilled_l1_source_intake,
+    )
+    l1_source_intake.update(
+        _derive_l1_conflict_intake(
+            source_rows=source_rows,
+            l1_source_intake=l1_source_intake,
+        )
     )
     research_contract = {
         "contract_version": 1,

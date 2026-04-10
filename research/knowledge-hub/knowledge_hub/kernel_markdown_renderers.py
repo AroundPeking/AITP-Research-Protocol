@@ -46,6 +46,34 @@ def _append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any])
             )
         else:
             lines.append(f"- {row}")
+    lines.extend(["", "## Notation rows", ""])
+    for row in l1_source_intake.get("notation_rows") or ["(none)"]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('source_id') or '(missing)'}` [{row.get('reading_depth') or 'skim'}]: "
+                f"`{row.get('symbol') or '(missing)'}` => `{row.get('meaning') or '(missing)'}`"
+            )
+        else:
+            lines.append(f"- {row}")
+    lines.extend(["", "## Contradiction candidates", ""])
+    for row in l1_source_intake.get("contradiction_candidates") or ["(none)"]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('source_id') or '(missing)'}` vs `{row.get('against_source_id') or '(missing)'}`: "
+                f"{row.get('detail') or '(missing)'}"
+            )
+        else:
+            lines.append(f"- {row}")
+    lines.extend(["", "## Notation-alignment tension", ""])
+    for row in l1_source_intake.get("notation_tension_candidates") or ["(none)"]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('source_id') or '(missing)'}` vs `{row.get('against_source_id') or '(missing)'}`: "
+                f"`{row.get('existing_symbol') or '(missing)'}` vs `{row.get('incoming_symbol') or '(missing)'}` "
+                f"for `{row.get('meaning') or '(missing)'}`"
+            )
+        else:
+            lines.append(f"- {row}")
 
 
 def render_operator_checkpoint_markdown(payload: dict[str, Any]) -> str:
