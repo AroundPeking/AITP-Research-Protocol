@@ -1,13 +1,14 @@
 <div align="center">
   <img src="./.github/assets/aitp-mark.svg" width="116" alt="AITP AI monogram" />
   <h1>AITP Research Charter and Kernel</h1>
-  <p><strong>Protocol-first infrastructure for building an AI Theoretical Physicist that behaves like a disciplined research participant rather than a free-form chat agent.</strong></p>
+  <p><strong>A research protocol that turns your AI coding agent into a disciplined theoretical-physics collaborator — one that keeps evidence separate from conjecture, remembers your topics across sessions, and only promotes results to trusted memory after you approve them.</strong></p>
   <p>
-    <a href="#quick-start">Quick Start</a> ·
-    <a href="./docs/USER_TOPIC_JOURNEY.md">User Journey</a> ·
+    <a href="#how-it-works">How it works</a> ·
+    <a href="#installation">Installation</a> ·
+    <a href="#the-basic-workflow">Workflow</a> ·
     <a href="#research-model">Research Model</a> ·
-    <a href="#how-you-actually-use-it">Usage</a> ·
-    <a href="#runtime-support-matrix">Runtime Support</a> ·
+    <a href="#whats-inside">What's Inside</a> ·
+    <a href="#philosophy">Philosophy</a> ·
     <a href="#read-next">Docs</a>
   </p>
 </div>
@@ -25,190 +26,93 @@
   <img src="https://img.shields.io/badge/research-protocol--first-8BEFF7?style=flat-square&labelColor=0B1220" alt="Protocol-first" />
 </p>
 
-> Charter above runtime. Protocol above heuristics. Agents are executors, not the source of truth.
+## How it works
 
-AITP stabilizes the research protocol, not one frozen implementation. Agents
-may use different scripts, prompts, and task decompositions, but they must
-preserve the layer model, durable artifacts, evidence boundaries, and governed
-promotion gates that make the work auditable and reusable.
+It starts when you describe what you want to study — in plain language, the way you would explain it to a colleague. AITP takes that description and turns it into a bounded research topic with a clear question, scope, and validation plan. You don't need to learn any special commands; just talk.
 
-AITP is not trying to make an AI sound like a physicist. It is trying to make
-an AI work more like a theoretical physicist:
+Once the topic is set up, your AI agent does the actual research work — gathering sources, reading papers, sketching derivations, or running benchmarks — inside a layered protocol that keeps every piece of evidence traceable. Exploratory notes and tentative claims stay clearly labeled as such. Nothing gets promoted to "trusted" status just because the agent sounds confident.
 
-- source-grounded before confident;
-- explicit about assumptions, gaps, and validation debt;
-- able to continue a real topic over time instead of improvising per chat;
-- accountable to a human research partner who still owns direction and novelty.
+When the work reaches a natural checkpoint, AITP presents what it found, what gaps remain, and whether the results are ready for your review. You decide what gets promoted to reusable memory. This is the human gate — the agent executes, but you own the trust decisions.
 
-## Why AITP
+Everything is durable. You can close your laptop, come back days later, say "continue this topic," and the agent picks up exactly where it left off — with full context of what was done, what was decided, and what is still open. For the full experience, see [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md).
 
-Large models can already write research-sounding prose. That is cheap.
+## Installation
 
-AITP exists to enforce the parts that are not cheap:
-
-- evidence stays separate from conjecture;
-- bounded steps replace hidden freestyle workflows;
-- reusable memory is earned instead of assumed;
-- failed attempts and uncertainty remain visible;
-- humans stay legitimate at high-impact decision points.
-
-## Core Idea
-
-AITP is an AI Theoretical Physicist research protocol.
-
-In product terms:
-
-`AITP = Superpowers-style interaction layer + layered theoretical-physics research kernel + native agent execution capabilities`
-
-The intended workflow is not:
-
-- human throws prompts over the wall;
-- AI returns polished research-sounding text;
-- everyone pretends this is a research process.
-
-The intended workflow is:
-
-- the human proposes or steers the research idea;
-- the AI executes bounded research work inside a durable protocol;
-- the human guides direction, standards, and innovation at the points that
-  matter;
-- both can resume the same topic without reconstructing context from chat.
-
-The relationship is closer to `research collaborator + advisor + operator`
-than to `user + tool`.
-
-If you want to see what that should feel like for a real topic, read:
-
-- [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md)
-- [`docs/MULTI_TOPIC_RUNTIME.md`](docs/MULTI_TOPIC_RUNTIME.md)
-
-In other words, AITP wants the AI to behave like a disciplined junior or
-mid-level theoretical-physics collaborator whose work is inspectable, whose
-state is durable, and whose authority stops at explicit human gates.
-
-## Why The UX Looks Like Superpowers
-
-AITP now deliberately converges on the same outer-install shape as
-Superpowers:
-
-- Codex: native skill discovery
-- OpenCode: plugin bootstrap
-- Claude Code: SessionStart bootstrap
-
-That convergence is about user experience, not identity.
-
-Superpowers' core lesson is correct: the agent should enter the right workflow
-before it starts doing substantial work, and the user should not need to learn
-a front-door command language first.
-
-AITP keeps that outer principle, but its inner target is different. Superpowers
-is a general coding workflow framework. AITP is a theory-research protocol with
-layered memory, promotion gates, gap recovery, and explicit scientific trust
-boundaries.
-
-The explicit design rule is:
-
-- borrow workflow shells
-- preserve protocol kernel
-
-That boundary is documented here:
-
-- [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md)
-
-## What You Get
-
-| Surface | What it does | Where it lives |
-| --- | --- | --- |
-| Charter | Defines what counts as disciplined AI-assisted theoretical-physics work | `docs/CHARTER.md`, `docs/AGENT_MODEL.md` |
-| Protocol contracts | Defines durable artifacts, promotion gates, and trust boundaries | `contracts/`, `schemas/` |
-| Standalone kernel | Ships the public `L0-L4` runtime, audits, and CLI/MCP surfaces | `research/knowledge-hub/` |
-| Research-flow guardrails | Forces explicit research contracts, bounded action packets, and anti-proxy verification rules | `research/knowledge-hub/RESEARCH_EXECUTION_GUARDRAILS.md` |
-| Adapters | Makes Codex, OpenClaw, Claude Code, and OpenCode enter through AITP | `adapters/`, `docs/INSTALL_*.md` |
-
-## Quick Start
-
-The fastest useful path is still the Codex path:
+### Quick Start
 
 ```bash
 git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git
 cd AITP-Research-Protocol
-
 python -m pip install -e research/knowledge-hub
 aitp doctor
 ```
 
-On Windows-native, the repo-local launchers work without WSL:
+Then install the platform adapter you use:
 
-```cmd
-scripts\aitp-local.cmd doctor
-```
-
-If `aitp` is not on `PATH` yet, you can also use the same launcher for the
-shared first-run path:
-
-```cmd
-scripts\aitp-local.cmd bootstrap --topic "Jones Chapter 4 finite-dimensional backbone" --statement "Start from the finite-dimensional backbone and record the first honest closure target."
-scripts\aitp-local.cmd loop --topic-slug jones-chapter-4-finite-dimensional-backbone --human-request "Continue with the first bounded route and stop before expensive execution." --max-auto-steps 1
-scripts\aitp-local.cmd status --topic-slug jones-chapter-4-finite-dimensional-backbone
-```
-
-Then install the platform surface you actually use:
-
-- Start here: [`docs/INSTALL.md`](docs/INSTALL.md)
-- Codex: follow [`./.codex/INSTALL.md`](.codex/INSTALL.md)
-- OpenCode: follow [`./.opencode/INSTALL.md`](.opencode/INSTALL.md)
-- Claude Code: follow [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md)
-- OpenClaw: follow [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md)
-
-If you want the clearest picture of the intended user experience before you
-install anything, start with:
-
-- [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
-- [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md)
-
-If your system Python is externally managed:
+### Codex (recommended)
 
 ```bash
-python3 -m pip install --break-system-packages --user -e research/knowledge-hub
+mkdir -p ~/.agents/skills
+git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git ~/.codex/aitp
+python -m pip install -e ~/.codex/aitp/research/knowledge-hub
+ln -s ~/.codex/aitp/skills ~/.agents/skills/aitp
 ```
 
-`aitp install-agent` still exists, but it is now the compatibility and
-workspace-seeding path. The public default is the same shape as Superpowers:
-skill discovery for Codex, plugin bootstrap for OpenCode, and SessionStart
-bootstrap for Claude Code.
+See [`.codex/INSTALL.md`](.codex/INSTALL.md) for details.
 
-If you previously installed AITP from an older private workspace checkout,
-converge your machine first:
+### OpenCode
 
-- [`docs/MIGRATE_LOCAL_INSTALL.md`](docs/MIGRATE_LOCAL_INSTALL.md)
+Add to your `opencode.json`:
 
-If you are choosing from scratch:
+```json
+{ "plugin": ["aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"] }
+```
 
-- use `Codex` when you want the cleanest current end-to-end AITP experience;
-- use `OpenCode` when you want plugin-based natural-language routing;
-- use `Claude Code` when you want the same gatekeeper model through
-  SessionStart;
-- use `OpenClaw` when you explicitly want bounded autonomous loop execution.
+See [`.opencode/INSTALL.md`](.opencode/INSTALL.md) for details.
+
+### Claude Code
+
+```bash
+/plugin install aitp
+```
+
+See [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md) for details.
+
+### OpenClaw
+
+```bash
+aitp install-agent --agent openclaw --scope user
+```
+
+See [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md) for details.
+
+For Windows-specific instructions, migration from older installs, and troubleshooting, see [`docs/INSTALL.md`](docs/INSTALL.md).
+
+## The Basic Workflow
+
+1. **Topic bootstrap** — You describe what you want to study. AITP sets up a research topic with a bounded question, scope, and validation contract. No special commands needed.
+
+2. **Source acquisition (L0)** — AITP gathers papers, notes, and upstream references. Everything is traceable back to its origin.
+
+3. **Analysis and exploration (L1, L3)** — The agent reads, annotates, sketches derivations, or runs benchmarks. Exploratory outputs are clearly labeled as candidates, not conclusions.
+
+4. **Validation and trust audit (L4)** — When results look promising, AITP runs explicit checks — consistency, convergence, reproduction — before asking whether the work is ready.
+
+5. **Promotion to reusable memory (L2)** — Only after your explicit approval does material move into long-term trusted memory. The agent cannot promote on its own.
 
 ## Research Model
 
-AITP keeps research state in layers instead of flattening everything into one
-chat transcript.
+AITP keeps research state in layers instead of flattening everything into one chat transcript.
 
-| Layer | Purpose | Typical contents |
+| Layer | Purpose | What goes here |
 | --- | --- | --- |
-| `L0` | Source acquisition and traceability | papers, notes, source maps, upstream code references |
-| `L1` | Provisional understanding | analysis notes, derivation sketches, concept structure |
-| `L3` | Exploratory but not yet trusted outputs | candidate claims, explanatory notes, tentative reusable material |
-| `L4` | Validation and adjudication | baseline runs, trust audits, implementation checks, operator decisions |
-| `L2` | Long-term trusted memory | promoted knowledge, reusable workflows, topic-skill projections, stable backends |
+| **L0** | Source acquisition | papers, notes, upstream code references |
+| **L1** | Provisional understanding | analysis notes, derivation sketches |
+| **L3** | Exploratory outputs | candidate claims, tentative material |
+| **L4** | Validation and trust audit | checks, benchmarks, human decisions |
+| **L2** | Long-term trusted memory | promoted knowledge, reusable workflows |
 
-The default non-trivial route is:
-
-`L0 -> L1 -> L3 -> L4 -> L2`
-
-`L2` is intentionally last. Exploratory work does not become reusable memory
-just because an agent sounds confident.
+The default route is `L0 → L1 → L3 → L4 → L2`. Layer 2 is intentionally last — exploratory work does not become reusable memory just because the agent sounds confident.
 
 ```mermaid
 flowchart LR
@@ -222,549 +126,70 @@ flowchart LR
     G -->|not yet| E
 ```
 
-## How You Actually Use It
+## What's Inside
 
-AITP currently has four public workflows that matter.
+### Three Research Lanes
 
-Before choosing a workflow, keep one routing rule explicit:
+The same protocol kernel drives different categories of theoretical-physics work.
 
-- use `AITP` for topic-governed research work
-- use `GSD` for implementing or maintaining this repository itself
-
-The detailed coexistence rule lives at:
-
-- [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md)
-- [`docs/MULTI_TOPIC_RUNTIME.md`](docs/MULTI_TOPIC_RUNTIME.md)
-
-### What A Real Topic Should Feel Like
-
-The target experience is:
-
-- the user starts in natural language;
-- AITP only asks short route-changing questions when it must;
-- ordinary topic work stays in a light runtime profile;
-- only benchmark mismatches, scope changes, promotion, or exit audit force the
-  runtime to expand;
-- the user can later ask what happened, why a route was chosen, and what is
-  still open.
-
-That journey is described in:
-
-- [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md)
-
-### 1. Codex With Native Skill Discovery
-
-Use this when you want a normal `codex` conversation, but you want theory work
-to route through AITP automatically.
-
-```bash
-# one-time install
-git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git ~/.codex/aitp
-python -m pip install -e ~/.codex/aitp/research/knowledge-hub
-
-# expose the skills
-mkdir -p ~/.agents/skills
-ln -s ~/.codex/aitp/skills ~/.agents/skills/aitp
-```
-
-Expected behavior:
-
-- `codex` discovers `using-aitp` as the conversation-level gatekeeper;
-- `codex` loads `aitp-runtime` only after AITP claims the task;
-- natural-language requests such as `继续这个 topic，方向改成 X` route through the current-topic-first AITP entry path;
-- it reads the runtime bundle before continuing;
-- outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
-
-Manual fallback:
-
-```bash
-aitp session-start "<task>"
-```
-
-### Multi-Topic Runtime
-
-AITP now supports multiple active topics in one workspace.
-
-The key public surfaces are:
-
-- `aitp topics`
-- `aitp current-topic`
-- `aitp focus-topic --topic-slug <topic_slug>`
-- `aitp pause-topic --topic-slug <topic_slug>`
-- `aitp resume-topic --topic-slug <topic_slug>`
-
-The model is:
-
-- `runtime/active_topics.json` is the authoritative registry
-- `runtime/current_topic.json` is the focused-topic compatibility projection
-- `aitp loop` may use a scheduler when no explicit topic is provided
-
-Details:
-
-- [`docs/MULTI_TOPIC_RUNTIME.md`](docs/MULTI_TOPIC_RUNTIME.md)
-- [`docs/MIGRATE_MULTI_TOPIC.md`](docs/MIGRATE_MULTI_TOPIC.md)
-
-The user experience target is natural language first. The user should not need
-to remember wrappers or front-door shell commands.
-
-AITP should also stay light by default. In ordinary topic work the runtime
-should only require the minimum topic surfaces needed to continue safely, and
-only expand into the full runtime bundle when something important happens.
-
-### 2. OpenCode With Plugin Bootstrap
-
-Use this when you want OpenCode to feel natural-language first, but still enter
-AITP before substantive theory work.
-
-```bash
-# add the plugin to opencode.json
-{
-  "plugin": ["aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"]
-}
-```
-
-Expected behavior:
-
-- the plugin registers the AITP `skills/` directory;
-- the plugin injects `using-aitp` through `experimental.chat.system.transform`;
-- natural-language requests route through the same current-topic-first AITP entry path used by Codex;
-- outputs stay in `L1`, `L3`, or `L4` until a human approves `L2` promotion.
-
-Manual fallback remains `aitp session-start "<task>"`, but the public default
-is plugin bootstrap rather than `/aitp` command bundles.
-
-### 3. Claude Code With SessionStart Bootstrap
-
-Use this when you want Claude Code to enter AITP at conversation start instead
-of relying on explicit slash commands.
-
-Install the AITP Claude plugin or the compatibility hook bundle described in
-[`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md).
-
-Expected behavior:
-
-- Claude Code receives `using-aitp` through SessionStart bootstrap;
-- research requests route into AITP before any substantial response;
-- current-topic continuation and steering updates stay natural-language first;
-- `runtime_protocol.generated.md` remains the first runtime checklist after routing succeeds.
-
-### 4. OpenClaw For Bounded Autonomous Research
-
-Use this when you want bounded autonomous progress under heartbeat or
-control-note constraints, without giving the runtime permission to invent its
-own protocol.
-
-```bash
-# one-time user install
-aitp install-agent --agent openclaw --scope user
-
-# do one bounded step
-aitp loop --topic-slug <topic_slug> --human-request "<task>" --max-auto-steps 1
-```
-
-If you want a workspace-local OpenClaw skill surface:
-
-```bash
-aitp install-agent --agent openclaw --scope project --target-root /path/to/openclaw-workspace
-```
-
-On Windows-native, the equivalent entrypoints are:
-
-```cmd
-scripts\aitp-local.cmd install-agent --agent openclaw --scope project --target-root D:\openclaw-workspace
-scripts\install-openclaw-plugin-local.cmd --target-root D:\openclaw-workspace
-```
-
-Expected behavior:
-
-- OpenClaw re-enters through `aitp loop`;
-- it refreshes runtime state and decision surfaces;
-- it performs one bounded next step and writes human-readable artifacts;
-- anything destined for `L2` still waits for explicit human approval.
-
-## Core Runtime Commands
-
-If you remember only one command block, remember this one:
-
-```bash
-# install a runtime adapter
-aitp install-agent --agent codex --scope user
-
-# open a new topic
-aitp bootstrap --topic "<topic>" --human-request "<task>"
-
-# open a new topic with an explicit shell contract
-aitp new-topic --topic "<topic>" --question "<bounded question>" --mode formal_theory
-
-# materialize natural-language routing at session start
-aitp session-start "<task>"
-
-# do one bounded unit of work
-aitp loop --topic-slug <topic_slug> --human-request "<task>" --max-auto-steps 1
-
-# inspect the shell before continuing
-aitp status --topic-slug <topic_slug>
-aitp next --topic-slug <topic_slug>
-aitp capability-audit --topic-slug <topic_slug>
-aitp paired-backend-audit --topic-slug <topic_slug>
-aitp h-plane-audit --topic-slug <topic_slug>
-
-# run one bounded shell-driven step
-aitp work --topic-slug <topic_slug> --question "<task>" --max-auto-steps 1
-
-# switch the active validation lane
-aitp verify --topic-slug <topic_slug> --mode proof
-
-# assess topic-completion and follow-up return debt
-aitp complete-topic --topic-slug <topic_slug>
-
-# let a child topic publish its return packet before parent reintegration
-aitp update-followup-return --topic-slug <child_topic_slug> --return-status recovered_units --return-artifact-path <artifact>
-
-# reintegrate a bounded child follow-up topic
-aitp reintegrate-followup --topic-slug <parent_topic_slug> --child-topic-slug <child_topic_slug>
-
-# export Lean-ready declaration packets
-aitp lean-bridge --topic-slug <topic_slug> --candidate-id <candidate_id>
-
-# work on bounded L2 MVP memory without bypassing promotion gates
-aitp seed-l2-direction --direction tfim-benchmark-first
-aitp consult-l2 --query-text "TFIM exact diagonalization benchmark workflow" --retrieval-profile l3_candidate_formation
-aitp compile-l2-map
-aitp compile-l2-graph-report
-aitp audit-l2-hygiene
-
-# inspect cross-topic Layer 0 source reuse
-aitp compile-source-catalog
-aitp trace-source-citations --canonical-source-id source_identity:doi:10-1000-shared-paper
-aitp compile-source-family --source-type paper
-aitp export-source-bibtex --canonical-source-id source_identity:doi:10-1000-shared-paper --include-neighbors
-aitp import-bibtex-sources --topic-slug <topic_slug> --bibtex-path <path-to-bib-file>
-
-# continue an existing topic without re-bootstrap
-aitp resume --topic-slug <topic_slug> --human-request "<task>"
-
-# move mature material toward L2 only after approval
-aitp request-promotion --topic-slug <topic_slug> --candidate-id <candidate_id> --backend-id <backend_id>
-aitp approve-promotion --topic-slug <topic_slug> --candidate-id <candidate_id>
-aitp promote --topic-slug <topic_slug> --candidate-id <candidate_id> --target-backend-root <backend_root>
-```
-
-Operating rule:
-
-- `bootstrap` opens the topic shell;
-- `new-topic`, `status`, `next`, `work`, and `verify` expose a GPD-like command shell without changing the AITP layer model;
-- `loop` and `resume` do the actual bounded work;
-- `update-followup-return` records the child-side return contract before parent reintegration;
-- `complete-topic` now reports an explicit regression manifest and completion-gate checks;
-- `lean-bridge` now exports declaration packets together with proof-obligation and proof-state sidecars;
-- the runtime queue now also auto-appends refresh actions for topic completion, Lean bridge, and child-follow-up reintegration when those shell surfaces go stale;
-- `L3` and `L4` are normal destinations for exploratory output;
-- `L2` requires an explicit approval artifact.
-
-Every materialized topic now also refreshes a small set of durable shell
-surfaces under `runtime/topics/<topic_slug>/`:
-
-- `research_question.contract.{json,md}`
-- `validation_contract.active.{json,md}`
-- `topic_dashboard.md`
-- `promotion_readiness.md`
-- `gap_map.md`
-- `topic_completion.{json,md}`
-- `lean_bridge.active.{json,md}`
-- `followup_reintegration.{jsonl,md}`
-
-These surfaces are not decorative notes. They are the bounded shell that tells
-an agent what the active question is, what must be validated, whether the topic
-is promotion-ready, what the current semi-formal trust boundary is, and whether
-the honest next move is to return to `L0` for missing sources or prior-work
-recovery.
-
-They also expose whether child follow-up topics have been reintegrated and what
-the current downstream formalization or Lean-export debt looks like.
-
-## One Protocol, Three Research Lanes
-
-AITP is deliberately general. The same kernel can drive different categories of
-theoretical-physics work.
-
-| Lane | Typical `L0` inputs | Typical `L4` work | Typical `L2` output |
+| Lane | Typical inputs | Validation | Trusted output |
 | --- | --- | --- | --- |
-| Formal theory and derivation | papers, definitions, prior claims, notebook traces | derivation review, proof-gap analysis, consistency checks, trust-boundary audits | semi-formal theory objects, trusted derivation notes, optional downstream Lean-ready packets |
-| Toy-model numerics | baseline papers, model specs, observables, scripts | controlled runs, convergence checks, benchmark comparison | validated workflows, benchmark notes, reusable operations |
-| Code-backed algorithm development | upstream codebases, papers, existing methods | reproduction, trust audit, implementation validation | trusted methods, reusable operation manifests, backend writeback |
-
-Code-backed work inside AITP is not a detached coding task.
-The outer user experience should still feel like a Superpowers-style natural
-language workflow, but the resulting code, benchmark evidence, validation
-state, and reusable method outputs still belong to the active AITP topic and
-its promotion gates.
-
-For theory-heavy work, the default target is the semi-formal layer described in:
-
-- `research/knowledge-hub/SEMI_FORMAL_THEORY_PROTOCOL.md`
-
-AITP aims first for source-grounded, gap-honest, reusable theorem and
-derivation packets.
-Lean export remains a governed downstream bridge rather than the minimum bar
-for every `L2` theory artifact.
-
-## AITP, TPKN, And The Workspace
-
-AITP is not the public knowledge base itself.
-
-In the current multi-repo setup, the roles are:
-
-- `AITP-Research-Protocol`
-  - the protocol kernel;
-  - owns `L0-L4` routing, runtime state, gap recovery, validation, promotion, and backend bridges.
-- `theoretical-physics-knowledge-network`
-  - the public typed knowledge backend;
-  - owns canonical `sources/`, `units/`, `edges/`, retrieval indexes, and the human-facing `portal/`.
-- `Theoretical-Physics`
-  - the active private development workspace;
-  - owns the Obsidian vault, working mirrors, Share_work handoff notes, and staging code that may later publish into the public backend.
-
-Operationally, the intended direction is:
-
-`AITP runtime -> validated output -> TPKN backend`
-
-The workspace exists to do active development and mirror work without forcing
-the public backend repo to become the only editable surface.
-
-## Windows Handoff
-
-If development moves to another Windows machine, the recommended mental model is
-still three sibling repositories rather than one monorepo:
-
-- `AITP-Research-Protocol`
-- `Theoretical-Physics`
-- `theoretical-physics-knowledge-network`
-
-Windows-native AITP is now supported directly. WSL is optional rather than the
-default path.
-
-Recommended bootstrap order:
-
-1. clone `AITP-Research-Protocol` and get `aitp` working first;
-2. clone `Theoretical-Physics` as the active workspace;
-3. clone `theoretical-physics-knowledge-network` as the clean public-backend publish target.
-
-Recommended first commands on a fresh Windows clone:
-
-```cmd
-scripts\aitp-local.cmd doctor
-scripts\aitp-local.cmd install-agent --agent codex --scope project --target-root D:\theory-workspace
-```
-
-That project install now writes both:
-
-- `.agents/skills/aitp-runtime/`
-- `.agents/skills/using-aitp/`
-
-so a Windows workspace can re-enter AITP without depending on a copied WSL shim.
-
-The key boundary to preserve on Windows is this:
-
-- AITP decides how research flows and when material is ready.
-- TPKN is where trusted, typed knowledge lands.
-- The private workspace is where iterative editing and mirror work can stay messy without polluting the public backend history.
-
-## Runtime Support Matrix
-
-| Runtime | Public install path | Enforcement surface | Current role |
-| --- | --- | --- | --- |
-| Codex | [`.codex/INSTALL.md`](.codex/INSTALL.md) | Native skill discovery + `using-aitp` gatekeeper | Current baseline |
-| Claude Code | [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md) | SessionStart hook + `using-aitp` bootstrap | Parity target |
-| OpenCode | [`.opencode/INSTALL.md`](.opencode/INSTALL.md) | Plugin bootstrap + `using-aitp` injection | Parity target |
-| OpenClaw | `aitp install-agent --agent openclaw` | Skill + MCP bridge setup note | Specialized lane |
-
-Current maturity is not uniform:
-
-- `Codex` is the current baseline runtime for the cleanest end-to-end AITP use.
-- `Claude Code` and `OpenCode` are parity targets: their front doors are now diagnosable and much more converged, but they are not documented as Codex-level deep execution lanes yet.
-- `OpenClaw` keeps the bounded autonomous loop path and MCP bridge notes; it is a specialized lane, not part of the front-door parity target set.
-- `aitp install-agent` remains the compatibility path for seeded workspaces and manual fallbacks.
-
-To inspect what is actually converged on your current machine, run
-`aitp doctor --json`.
-
-That is the machine-local truth surface for:
-
-- Codex baseline readiness
-- Claude Code front-door readiness
-- OpenCode preferred-versus-compatibility readiness
-- OpenClaw specialized-lane visibility
-
-The doctor JSON now also exposes:
-
-- `runtime_convergence`
-- `full_convergence_repair`
-- `runtime_support_matrix.runtimes.<runtime>.remediation`
-
-It also exposes:
-
-- `control_plane_contracts`
-- `control_plane_surfaces`
-
-Those fields point operators at the control-plane architecture docs plus the
-runtime audit/status entrypoints:
-
-- `aitp capability-audit --topic-slug <topic_slug>`
-- `aitp paired-backend-audit --topic-slug <topic_slug>`
-- `aitp h-plane-audit --topic-slug <topic_slug>`
-
-Current automation target:
-
-- high-automation research collaboration, not fake full autonomy;
-- the human still owns direction, novelty, expensive route choices, and final
-  trusted promotion decisions;
-- AITP should do as much bounded execution work as possible before it asks.
-
-## Install And Remove
-
-For platform-specific install steps, see:
-
-- [`docs/INSTALL.md`](docs/INSTALL.md)
-- [`docs/INSTALL_CODEX.md`](docs/INSTALL_CODEX.md)
-- [`docs/INSTALL_OPENCODE.md`](docs/INSTALL_OPENCODE.md)
-- [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md)
-- [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md)
-
-To remove adapter assets or the editable runtime install, see:
-
-- [`docs/UNINSTALL.md`](docs/UNINSTALL.md)
-
-## Design Boundaries
-
-AITP is protocol-first. Python does not get to quietly decide the science.
-
-The runtime is trusted to:
-
-- materialize protocol and state artifacts;
-- build deterministic projections;
-- run conformance, capability, and trust audits;
-- execute explicit handlers;
-- expose a thin `aitp` CLI and optional `aitp-mcp` surface.
-
-It is not trusted to:
-
-- redefine the charter;
-- silently merge evidence, derivation, and conjecture;
-- silently redefine scope, observables, or deliverables mid-run;
-- substitute polished prose or missing execution evidence for declared checks;
-- promote material into `L2` without an explicit gate.
-
-## Public Acceptance Checks
-
-The standalone kernel also ships bounded acceptance scripts for real protocol
-surfaces. Two relevant examples for current source and intake maturity are:
-
-```bash
-python research/knowledge-hub/runtime/scripts/run_source_catalog_acceptance.py --json
-python research/knowledge-hub/runtime/scripts/run_l1_method_specificity_acceptance.py --json
-```
-
-The second script is the bounded `L1` intake check for
-`method_specificity_rows` through production `status --json`.
-
-## Repository Map
-
-```text
-AITP-Research-Protocol/
-├── README.md
-├── AGENTS.md
-├── docs/
-├── contracts/
-├── schemas/
-├── adapters/
-├── reference-runtime/
-└── research/
-    ├── adapters/
-    │   └── openclaw/
-    └── knowledge-hub/
-        ├── LAYER_MAP.md
-        ├── ROUTING_POLICY.md
-        ├── COMMUNICATION_CONTRACT.md
-        ├── AUTONOMY_AND_OPERATOR_MODEL.md
-        ├── L2_CONSULTATION_PROTOCOL.md
-        ├── L5_PUBLICATION_FACTORY_PROTOCOL.md
-        ├── INDEXING_RULES.md
-        ├── L0_SOURCE_LAYER.md
-        ├── setup.py
-        ├── schemas/
-        ├── knowledge_hub/
-        ├── source-layer/
-        ├── intake/
-        ├── canonical/
-        ├── feedback/
-        ├── consultation/
-        ├── runtime/
-        └── validation/
-```
-
-## Read Next
-
-Core charter and architecture:
-
-- [`docs/CHARTER.md`](docs/CHARTER.md)
-- [`docs/AGENT_MODEL.md`](docs/AGENT_MODEL.md)
-- [`docs/CONTEXT_LOADING.md`](docs/CONTEXT_LOADING.md)
-- [`docs/architecture.md`](docs/architecture.md)
-- [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md)
-- [`docs/LESSONS_FROM_GET_PHYSICS_DONE.md`](docs/LESSONS_FROM_GET_PHYSICS_DONE.md)
-
-Kernel contract surface:
-
-- [`research/knowledge-hub/LAYER_MAP.md`](research/knowledge-hub/LAYER_MAP.md)
-- [`research/knowledge-hub/ROUTING_POLICY.md`](research/knowledge-hub/ROUTING_POLICY.md)
-- [`research/knowledge-hub/COMMUNICATION_CONTRACT.md`](research/knowledge-hub/COMMUNICATION_CONTRACT.md)
-- [`research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md`](research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md)
-- [`research/knowledge-hub/L2_CONSULTATION_PROTOCOL.md`](research/knowledge-hub/L2_CONSULTATION_PROTOCOL.md)
-- [`research/knowledge-hub/L5_PUBLICATION_FACTORY_PROTOCOL.md`](research/knowledge-hub/L5_PUBLICATION_FACTORY_PROTOCOL.md)
-- [`research/knowledge-hub/INDEXING_RULES.md`](research/knowledge-hub/INDEXING_RULES.md)
-
-Install guides:
-
-- [`docs/INSTALL.md`](docs/INSTALL.md)
-- [`docs/QUICKSTART.md`](docs/QUICKSTART.md)
-- [`docs/MIGRATE_LOCAL_INSTALL.md`](docs/MIGRATE_LOCAL_INSTALL.md)
-- [`docs/INSTALL_CODEX.md`](docs/INSTALL_CODEX.md)
-- [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md)
-- [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md)
-- [`docs/INSTALL_OPENCODE.md`](docs/INSTALL_OPENCODE.md)
-- [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md)
-- [`docs/UNINSTALL.md`](docs/UNINSTALL.md)
-
-Protocol objects:
-
-- [`contracts/research-question.md`](contracts/research-question.md)
-- [`contracts/candidate-claim.md`](contracts/candidate-claim.md)
-- [`contracts/derivation.md`](contracts/derivation.md)
-- [`contracts/validation.md`](contracts/validation.md)
-- [`contracts/operation.md`](contracts/operation.md)
-- [`contracts/promotion-or-reject.md`](contracts/promotion-or-reject.md)
+| **Formal theory and derivation** | papers, definitions, prior claims | proof-gap analysis, consistency checks | semi-formal theory objects, Lean-ready packets |
+| **Toy-model numerics** | model specs, observables, scripts | convergence checks, benchmarks | validated workflows, reusable operations |
+| **Code-backed algorithm development** | upstream codebases, existing methods | reproduction, trust audit | trusted methods, backend writeback |
+
+### Capabilities
+
+- **Multi-topic runtime** — Work on several research topics in one workspace. Switch between them with natural language.
+- **Cross-session memory** — Every topic survives session resets. Resume days later with full context.
+- **Lean-ready export** — Bridge validated theory results into Lean 4 declaration packets with proof-obligation sidecars.
+- **Bounded autonomous execution** — Run multi-step research loops with explicit human gates at decision points (OpenClaw).
+
+### Runtime Support
+
+| Runtime | Install path | Role |
+| --- | --- | --- |
+| **Codex** | [`.codex/INSTALL.md`](.codex/INSTALL.md) | Baseline — cleanest end-to-end experience |
+| **OpenCode** | [`.opencode/INSTALL.md`](.opencode/INSTALL.md) | Plugin-based natural-language routing |
+| **Claude Code** | [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md) | SessionStart bootstrap |
+| **OpenClaw** | [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md) | Bounded autonomous research loops |
+
+Run `aitp doctor --json` to check what is converged on your machine.
+
+## Philosophy
+
+- **Evidence before confidence** — sources stay separate from speculation at every layer
+- **Bounded steps, not freestyle** — every unit of work has a clear question and scope
+- **Humans own trust** — nothing becomes reusable memory without explicit approval
+- **Durable by default** — research state survives session resets and machine changes
+- **Light until it matters** — ordinary work stays minimal; the runtime only expands when something important happens
 
 ## Current Status
 
-The repository is already more than a static protocol archive:
+- Ships a standalone installable kernel under `research/knowledge-hub`
+- Supports Codex, OpenCode, Claude Code, and OpenClaw front doors
+- Multi-topic runtime with natural-language switching
+- Explicit human approval gate before L2 promotion
+- Bridges into the [Theoretical-Physics-Knowledge-Network](https://github.com/bhjia-phys/Theoretical-Physics-Knowledge-Network) formal-theory backend
 
-- it ships a standalone installable kernel under `research/knowledge-hub`;
-- it exposes fixed `L0-L4` research surfaces plus `consultation/`, `runtime/`, and `schemas/`;
-- it exposes Superpowers-style outer installs for Codex, OpenCode, and Claude Code;
-- it includes an explicit human approval gate before `L2` promotion;
-- it can bridge into the standalone `Theoretical-Physics-Knowledge-Network` formal-theory backend without hard-wiring one private knowledge base as the only destination.
+In progress: expanding multi-runtime smoke testing and shrinking the compatibility installer as native platform installs mature.
 
-Still in progress:
+## Contributing
 
-- OpenClaw still uses a different bounded-loop surface than the three bootstrap-first chat runtimes;
-- the compatibility installer should keep shrinking as native platform installs become sufficient;
-- multi-runtime smoke testing should keep expanding.
+AITP stabilizes the research protocol, not one frozen implementation. Contributions that preserve the layer model, durable artifacts, evidence boundaries, and governed promotion gates are welcome.
 
-## See Also
+See [`docs/CHARTER.md`](docs/CHARTER.md) for what counts as disciplined AI-assisted theoretical-physics work.
 
-- [`docs/design-principles.md`](docs/design-principles.md)
-- [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md)
-- [`docs/roadmap.md`](docs/roadmap.md)
-- [`docs/benchmark-cases.md`](docs/benchmark-cases.md)
-- [`reference-runtime/README.md`](reference-runtime/README.md)
+## License
+
+MIT License — see [`LICENSE`](LICENSE) file for details.
+
+## Read Next
+
+- [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — detailed walkthrough with a real topic
+- [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md) — what AITP feels like in practice
+- [`docs/INSTALL.md`](docs/INSTALL.md) — all installation details and troubleshooting
+- [`docs/CHARTER.md`](docs/CHARTER.md) — the full research charter
+- [`docs/architecture.md`](docs/architecture.md) — technical architecture
+- [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md) — why the UX converges on Superpowers' install shape
+- [`docs/roadmap.md`](docs/roadmap.md) — development roadmap
