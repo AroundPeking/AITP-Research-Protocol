@@ -1,48 +1,45 @@
-# Requirements: v1.66 PyPI Publishable Package
+# Requirements: v1.67 Cross-Runtime Deep Execution Parity
 
 ## Milestone Goal
 
-Replace repo-clone plus editable-install onboarding with a versioned `pip
-install aitp-kernel` path while preserving honest migration and contributor
-workflows.
+Move Claude Code and OpenCode from install/front-door parity targets to honest
+deep-execution parity probes against the Codex baseline, while keeping
+OpenClaw explicitly deferred as a specialized lane.
 
 ## Active Requirements
 
-### Packaging Contract
+### Parity Contract
 
-- [x] `REQ-PKG-01`: the public distribution builds as `aitp-kernel` wheel and
-  sdist artifacts while preserving the `aitp` CLI entrypoint and contributor
-  editable-install lane.
-- [x] `REQ-PKG-02`: package metadata, `aitp --version`, and install diagnostics
-  expose one shared semver from a single source of truth.
-- [x] `REQ-PKG-03`: built distributions include the runtime assets needed for
-  `aitp doctor`, `bootstrap`, and the shared first-run path outside a git
-  checkout.
+- [ ] `REQ-PARITY-01`: the repository distinguishes install/front-door
+  readiness from deep-execution readiness through one explicit runtime parity
+  contract instead of treating a green `doctor` row as sufficient proof.
+- [ ] `REQ-PARITY-02`: Codex remains the declared baseline runtime with one
+  bounded real-topic execution lane and artifact-quality bar that parity
+  targets must be compared against.
 
-### Public Install And Migration
+### Runtime Probes
 
-- [x] `REQ-PUB-01`: a clean Python 3.10+ environment on Linux and Windows can
-  `pip install aitp-kernel` and then run `aitp --version` plus `aitp doctor`.
-- [x] `REQ-PUB-02`: newcomer-facing docs and READMEs default to the PyPI
-  install path, while editable install remains documented as a contributor /
-  local-dev lane.
-- [x] `REQ-PUB-03`: the repository documents a repeatable release workflow for
-  building and publishing versioned distributions.
+- [ ] `REQ-PARITY-03`: Claude Code has one bounded real-topic deep-execution
+  probe that enters through its supported bootstrap surface, reaches durable
+  AITP artifacts, and records where it matches or falls short of the Codex
+  baseline.
+- [ ] `REQ-PARITY-04`: OpenCode has one bounded real-topic deep-execution
+  probe that enters through its supported bootstrap surface, reaches durable
+  AITP artifacts, and records where it matches or falls short of the Codex
+  baseline.
 
-### Verification
+### Verification And Closure
 
-- [x] `REQ-VERIFY-01`: the milestone closes with distribution build
-  verification, clean-install smoke coverage, and regression coverage for
-  migrated install diagnostics.
+- [ ] `REQ-VERIFY-01`: the milestone closes with targeted regression coverage,
+  one shared parity audit/report surface, and bounded acceptance evidence for
+  Codex, Claude Code, and OpenCode.
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-PKG-01 | Phase 131 | Complete |
-| REQ-PKG-02 | Phase 131 | Complete |
-| REQ-PKG-03 | Phase 131 | Complete |
-| REQ-PUB-01 | Phase 133 | Complete |
-| REQ-PUB-02 | Phase 132 | Complete |
-| REQ-PUB-03 | Phase 132 | Complete |
-| REQ-VERIFY-01 | Phase 133 | Complete |
+| REQ-PARITY-01 | Phase 134 | Pending |
+| REQ-PARITY-02 | Phase 134 | Pending |
+| REQ-PARITY-03 | Phase 135 | Pending |
+| REQ-PARITY-04 | Phase 136 | Pending |
+| REQ-VERIFY-01 | Phase 137 | Pending |

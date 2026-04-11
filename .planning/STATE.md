@@ -1,29 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.66
-milestone_name: PyPI Publishable Package
-status: milestone_complete
-stopped_at: "Phase 133 complete; v1.66 closed and awaiting next milestone selection"
-last_updated: "2026-04-11T16:45:00+08:00"
+milestone: v1.67
+milestone_name: Cross-Runtime Deep Execution Parity
+status: milestone_active
+stopped_at: "Milestone opened; next active step is planning Phase 134"
+last_updated: "2026-04-11T17:05:00+08:00"
 last_activity: 2026-04-11
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.66` complete; Phase `133` implemented and verified
+Status: milestone `v1.67` active; no phase planned yet
 
 ## Immediate Next Step
 
-- latest closed milestone: `v1.66` `PyPI Publishable Package`
-- next command boundary: select the next bounded milestone from backlog
+- current milestone: `v1.67` `Cross-Runtime Deep Execution Parity`
+- next phase boundary: plan Phase `134`
+- active scope is the runtime parity cluster:
+  - `999.44` cross-runtime deep execution parity
+  - Codex baseline vs Claude Code and OpenCode parity probes
+  - honest parity-gap reporting and closure evidence
 - protected closed scope:
   - keep `999.48` through `999.51` closed unless a fresh install/adoption
     regression reopens them

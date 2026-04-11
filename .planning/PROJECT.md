@@ -42,6 +42,7 @@ The previously scoped GSD mainline is implemented through:
 - `v1.63`
 - `v1.64`
 - `v1.65`
+- `v1.66`
 
 That closes the current bounded chain through the install/adoption readiness
 surface, but
@@ -49,9 +50,30 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: none selected
+- Active milestone: `v1.67` `Cross-Runtime Deep Execution Parity`
 - Latest closed milestone: `v1.66` `PyPI Publishable Package`
-- Next boundary: select the next milestone from backlog
+- Next boundary: discuss and plan Phase `134`
+
+## Current Milestone: v1.67 Cross-Runtime Deep Execution Parity
+
+**Goal:** Move Claude Code and OpenCode from install/front-door parity targets
+to honest deep-execution parity probes against the Codex baseline, while
+keeping OpenClaw deferred as a specialized lane.
+
+**Target features:**
+- one explicit artifact-level parity contract that distinguishes install
+  readiness from deep-execution readiness
+- one bounded real-topic acceptance route for Claude Code against the Codex
+  baseline
+- one bounded real-topic acceptance route for OpenCode against the Codex
+  baseline
+- one honest closure report that says where parity is reached and where a
+  runtime still falls short
+
+**Explicitly deferred from this milestone:**
+- reopening install/adoption work closed in `v1.65` and `v1.66`
+- OpenClaw deep-parity expansion
+- multi-user research-utility validation beyond runtime parity evidence
 
 ## Latest Closed Milestone: v1.66 PyPI Publishable Package
 
@@ -260,9 +282,9 @@ already-shipped surfaces.
 
 This does **not** mean AITP is finished.
 
-It means `v1.66` is now the active PyPI packaging milestone and the next step
-is selecting the next bounded milestone without reopening `999.48` through
+It means `v1.67` is now the active runtime-parity milestone and the next step
+is discussing and planning Phase `134` without reopening `999.48` through
 `999.51`.
 
 ---
-*Last updated: 2026-04-11 after closing v1.66 PyPI Publishable Package*
+*Last updated: 2026-04-11 after opening v1.67 Cross-Runtime Deep Execution Parity*

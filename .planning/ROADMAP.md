@@ -1,27 +1,27 @@
-# Roadmap: v1.66 PyPI Publishable Package
+# Roadmap: v1.67 Cross-Runtime Deep Execution Parity
 
 ## Result
 
-`v1.66` is complete.
+`v1.67` is active.
 
 ## Phases
 
-- [x] **Phase 131: Package Identity And Distribution Asset Contract**
-- [x] **Phase 132: PyPI Install Surface And Migration**
-- [x] **Phase 133: Closure And Clean-Install Audit**
+- [ ] **Phase 134: Runtime Parity Contract And Shared Acceptance Harness**
+- [ ] **Phase 135: Claude Code Deep-Execution Probe**
+- [ ] **Phase 136: OpenCode Deep-Execution Probe**
+- [ ] **Phase 137: Closure And Cross-Runtime Audit**
 
 ## Target Outcome
 
-- one public package name that installs without repo-local editable
-  paths
-- one distribution contract that ships the runtime assets and surfaces one
-  shared semver through `aitp --version`
-- one migration and verification surface that keeps editable installs available
-  for contributors while making PyPI the default newcomer path
-- one real clean-install smoke path that proves the package works in an
-  isolated virtualenv instead of only through repo-local development flows
+- one explicit distinction between front-door install parity and deep-execution
+  parity
+- one Codex baseline execution bar that is stable enough to compare other
+  runtimes against
+- one bounded real-topic parity probe for Claude Code
+- one bounded real-topic parity probe for OpenCode
+- one honest closure report naming equivalent surfaces, degraded surfaces, and
+  still-open parity gaps
 
 ## Next Step
 
-Select the next milestone from backlog without reopening `999.48` through
-`999.51` as substitute work.
+Plan Phase `134`.

@@ -50,7 +50,7 @@ Completed milestone chain:
 
 ## Current Active Milestone
 
-- none selected
+- `v1.67` `Cross-Runtime Deep Execution Parity`
 
 ## Current Status
 
@@ -59,4 +59,6 @@ Completed milestone chain:
   remains the closed baseline from `v1.65`
 - `v1.66` closed the deferred `999.48` public-package milestone with real
   clean-install smoke evidence
-- next command boundary: select the next milestone from backlog
+- `v1.67` is now open for the deferred Codex/Claude/OpenCode deep-execution
+  parity milestone
+- next command boundary: discuss and plan Phase `134`

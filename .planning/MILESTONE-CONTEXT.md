@@ -1,6 +1,6 @@
 # Milestone Context
 
-Current milestone: none selected
+Current milestone: `v1.67` `Cross-Runtime Deep Execution Parity`
 
 ## Latest Closed Milestone
 
@@ -8,34 +8,36 @@ Current milestone: none selected
 
 ## Why It Was Next
 
-The backlog promotion override explicitly put `999.48` before the just-closed
-install/adoption hardening cluster.
+The installation/adoption promotion override is now closed through `v1.65` and
+`v1.66`.
 
 `v1.65` shipped the doctor, quickstart, and Windows-native first-use surfaces.
-The remaining adjacent adoption blocker is that the public install still starts
-with a repo clone plus editable install.
+`v1.66` shipped the public-package and clean-install proof.
+The remaining adjacent user-priority gap is that Codex remains the only honest
+deep-execution baseline while Claude Code and OpenCode are still parity
+targets.
 
 That means the next bounded milestone should focus on:
 
-- `999.48` PyPI publishable package
-- public versioned installation and release workflow
-- migration away from editable-install-first newcomer docs
+- `999.44` cross-runtime deep execution parity
+- Codex vs Claude Code vs OpenCode bounded execution evidence
+- honest parity gaps and remediation instead of install-only green checks
 
 ## What This Closure Protects
 
-- Do not reopen `999.49` through `999.51` as substitute work for package
-  publication.
+- Do not reopen `999.48` through `999.51` as substitute work for runtime
+  parity.
 - Keep OpenClaw as a specialized lane rather than expanding this milestone into
   broader runtime parity.
-- Avoid broad repository restructuring unless it is directly required to ship a
-  public `aitp-kernel` package while preserving the `aitp` CLI.
+- Avoid broad research-utility or multi-user validation scope until the runtime
+  parity baseline itself is honestly measured.
 
 ## Current Status
 
-`v1.66` is complete.
+`v1.67` is active.
 
 Immediate next repository task:
 
-- select the next bounded milestone from backlog
+- discuss and plan Phase `134`
 - keep `v1.65` and `v1.66` closed unless a fresh install/adoption or packaging
   regression appears
