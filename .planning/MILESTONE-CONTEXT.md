@@ -1,20 +1,17 @@
 # Milestone Context
 
-Current milestone: `v1.65` `Installation And Adoption Readiness`
+No active milestone.
 
 ## Latest Closed Milestone
 
-`v1.64` `L1 Method Specificity Surface`
+`v1.65` `Installation And Adoption Readiness`
 
 ## Why It Was Next
 
-The backlog now explicitly overrides the old ordering for user-facing
-installation and first-use work.
+The backlog override for user-facing installation and first-use work promoted
+the install/adoption cluster ahead of deeper collaborator-core backlog.
 
-Current priority is to improve installation and first-use surfaces before
-promoting deeper collaborator-core backlog.
-
-That means the next bounded milestone should focus on:
+That made the bounded milestone:
 
 - `999.49` installation verification and smoke-test hardening
 - `999.50` 5-minute quickstart and first-run proof
@@ -33,9 +30,10 @@ while leaving `999.48` PyPI publication for a later dedicated milestone.
 
 ## Current Status
 
-`v1.65` is active.
+`v1.65` is closed.
 
 Immediate next repository task:
 
-- discuss and plan Phase `127`
-- do not reopen `v1.64` unless a fresh regression appears
+- select the next bounded milestone from backlog
+- most adjacent deferred candidate remains `999.48` PyPI publication
+- do not reopen `999.49` through `999.51` unless a fresh regression appears

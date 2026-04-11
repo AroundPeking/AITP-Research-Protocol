@@ -41,17 +41,20 @@ Completed milestone chain:
 - `v1.62` implemented
 - `v1.63` implemented
 - `v1.64` implemented
+- `v1.65` implemented
 
 ## Latest Closed Milestone
 
-- `v1.64` `L1 Method Specificity Surface` implemented
+- `v1.65` `Installation And Adoption Readiness` implemented
 
 ## Current Active Milestone
 
-- `v1.65` `Installation And Adoption Readiness`
+- none
 
 ## Current Status
 
-- `v1.36` through `v1.64` closed and archived
-- `v1.65` is now open for the install/adoption cluster
-- next command boundary: discuss and plan Phase `127`
+- `v1.36` through `v1.65` closed and archived
+- install/adoption front-door parity for Codex, Claude Code, and OpenCode is
+  now shipped on `main`
+- next command boundary: review backlog and choose the next milestone; the most
+  adjacent deferred candidate is `999.48` PyPI publication

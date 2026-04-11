@@ -2,32 +2,29 @@
 gsd_state_version: 1.0
 milestone: v1.65
 milestone_name: Installation And Adoption Readiness
-status: milestone_active
-stopped_at: "Phase 127 context gathered; next active step is planning"
-last_updated: "2026-04-11T14:53:27+08:00"
+status: milestone_complete
+stopped_at: "v1.65 closed; next active step is selecting the next milestone"
+last_updated: "2026-04-11T15:24:51+08:00"
 last_activity: 2026-04-11
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.65` active; Phase `127` context gathered
+Status: milestone `v1.65` closed on a verified install/adoption baseline
 
 ## Immediate Next Step
 
-- current milestone: `v1.65` `Installation And Adoption Readiness`
-- next phase boundary: plan Phase `127`
-- active scope is the install/adoption cluster:
-  - `999.49` installation verification and smoke-test hardening
-  - `999.50` 5-minute quickstart and first-run proof
-  - `999.51` Windows path and symlink robustness
-- deferred from this milestone unless scope changes:
-  - `999.48` PyPI-publishable package
-  - broader research-utility backlog `999.43` through `999.47`
+- latest closed milestone: `v1.65` `Installation And Adoption Readiness`
+- no active milestone is open
+- next command boundary: review backlog and open the next bounded milestone
+- most adjacent deferred candidate: `999.48` PyPI-publishable package
+- protected closed scope: keep `999.49` through `999.51` closed unless a fresh
+  regression reopens them

@@ -41,36 +41,38 @@ The previously scoped GSD mainline is implemented through:
 - `v1.62`
 - `v1.63`
 - `v1.64`
+- `v1.65`
 
-That closes the current bounded chain through the L1 method-specificity surface,
-but
+That closes the current bounded chain through the install/adoption readiness
+surface, but
 it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v1.65` `Installation And Adoption Readiness`
-- Latest closed milestone: `v1.64` `L1 Method Specificity Surface`
-- Next boundary: discuss and plan Phase `127`
+- Active milestone: none
+- Latest closed milestone: `v1.65` `Installation And Adoption Readiness`
+- Next boundary: review backlog and open the next milestone; the most adjacent
+  deferred candidate is `999.48` PyPI publication
 
-## Current Milestone: v1.65 Installation And Adoption Readiness
+## Latest Closed Milestone: v1.65 Installation And Adoption Readiness
 
 **Goal:** Make installation verification, first-run quickstart, and
 Windows-native bootstrap behavior converge into one honest adoption surface for
 Codex, Claude Code, and OpenCode.
 
-**Target features:**
+**Closed features:**
 - a machine-readable `aitp doctor` / remediation contract for the three
-  front-door runtimes
+  front-door runtimes plus top-level convergence truth
 - a shared `bootstrap -> loop -> status` quickstart with isolated acceptance
-  coverage
+  coverage on a bounded real topic
 - Windows-native bootstrap paths that do not assume bash or POSIX symlink
-  habits for the default experience
+  habits for the default front-door experience
 
 **Explicitly deferred from this milestone:**
 - `999.48` PyPI publishable package
 - OpenClaw deep parity beyond specialized-lane visibility
 
-## Latest Closed Milestone: v1.64 L1 Method Specificity Surface
+## Previous Closed Milestone: v1.64 L1 Method Specificity Surface
 
 **Goal:** Close the first still-missing production slice of backlog `999.27`
 by giving AITP a real source-backed method-specificity surface inside
@@ -195,29 +197,31 @@ already-shipped surfaces.
 - `.planning/milestones/v1.62-MILESTONE-AUDIT.md`
 - `.planning/milestones/v1.63-MILESTONE-AUDIT.md`
 - `.planning/milestones/v1.64-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.65-MILESTONE-AUDIT.md`
 
 ## Latest Integrated Regression Evidence
 
-- `368 passed, 10 subtests passed` on 2026-04-11
-- method-specificity slice:
-  - `python -m pytest research/knowledge-hub/tests/test_topic_start_regressions.py research/knowledge-hub/tests/test_aitp_service.py research/knowledge-hub/tests/test_runtime_profiles_and_projections.py research/knowledge-hub/tests/test_schema_contracts.py research/knowledge-hub/tests/test_aitp_cli_e2e.py research/knowledge-hub/tests/test_l1_method_specificity_contracts.py -q`
-  - result: `175 passed`
-- method-specificity acceptance:
-  - `python research/knowledge-hub/runtime/scripts/run_l1_method_specificity_acceptance.py --json`
+- `367 tests passed` on 2026-04-11
+- install/adoption regression slice:
+  - `python -m unittest research/knowledge-hub/tests/test_agent_bootstrap_assets.py research/knowledge-hub/tests/test_aitp_service.py research/knowledge-hub/tests/test_quickstart_contracts.py research/knowledge-hub/tests/test_aitp_cli_e2e.py`
+  - result: `159 tests passed`
+- first-run acceptance:
+  - `python research/knowledge-hub/runtime/scripts/run_first_run_topic_acceptance.py --json`
   - result: `success`
-- maintainability-budget gate:
-  - `python -m pytest research/knowledge-hub/tests/test_maintainability_budgets.py -q`
-  - result: `2 passed`
+- Windows-native Claude hook probe:
+  - `python hooks/session-start.py`
+  - result: `JSON SessionStart payload emitted successfully`
 - full knowledge-hub suite:
-  - `python -m pytest research/knowledge-hub/tests -q`
-  - result: `368 passed, 10 subtests passed`
+  - `python -m unittest discover -s research/knowledge-hub/tests -v`
+  - result: `367 tests passed`
 
 ## Immediate Reality Check
 
 This does **not** mean AITP is finished.
 
-It means `v1.65` is now the active install/adoption milestone and the next step
-is discussing and planning Phase `127`.
+It means `v1.65` is archived on a verified install/adoption baseline and the
+next step is choosing the next bounded milestone without reopening `999.49`
+through `999.51`.
 
 ---
-*Last updated: 2026-04-11 after opening v1.65 Installation And Adoption Readiness*
+*Last updated: 2026-04-11 after closing v1.65 Installation And Adoption Readiness*
