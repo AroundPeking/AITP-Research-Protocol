@@ -72,18 +72,23 @@ class AgentBootstrapAssetTests(unittest.TestCase):
         readme = (self.repo_root / "README.md").read_text(encoding="utf-8")
         journey_doc = (self.repo_root / "docs" / "USER_TOPIC_JOURNEY.md").read_text(encoding="utf-8")
         quickstart_doc = (self.repo_root / "docs" / "QUICKSTART.md").read_text(encoding="utf-8")
+        publish_doc = (self.repo_root / "docs" / "PUBLISH_PYPI.md").read_text(encoding="utf-8")
 
         self.assertIn("docs/USER_TOPIC_JOURNEY.md", readme)
         self.assertIn("docs/QUICKSTART.md", readme)
+        self.assertIn("docs/PUBLISH_PYPI.md", readme)
+        self.assertIn("python -m pip install aitp", readme)
         self.assertIn("Lane 1: Formal theory topic", journey_doc)
         self.assertIn("Lane 2: Toy numerics topic", journey_doc)
         self.assertIn("Lane 3: Code-backed method topic", journey_doc)
+        self.assertIn("python -m pip install aitp", quickstart_doc)
         self.assertIn("bootstrap", quickstart_doc)
         self.assertIn("loop", quickstart_doc)
         self.assertIn("status", quickstart_doc)
         self.assertIn("Codex", quickstart_doc)
         self.assertIn("Claude Code", quickstart_doc)
         self.assertIn("OpenCode", quickstart_doc)
+        self.assertIn("python -m build research/knowledge-hub", publish_doc)
 
     def test_readmes_link_to_aitp_gsd_workflow_contract(self) -> None:
         root_readme = (self.repo_root / "README.md").read_text(encoding="utf-8")

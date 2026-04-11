@@ -8,14 +8,16 @@
 
 ## Install the AITP runtime
 
-From the repository root:
+For the public install path:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 ```
 
-On Windows-native, you can also verify the repo-local launcher directly:
+On Windows-native, if you are working from a local checkout, you can also
+verify the repo-local launcher directly:
 
 ```cmd
 scripts\aitp-local.cmd doctor

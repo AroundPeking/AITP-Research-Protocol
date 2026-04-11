@@ -57,4 +57,4 @@ Completed milestone chain:
 - install/adoption front-door parity for Codex, Claude Code, and OpenCode
   remains the closed baseline from `v1.65`
 - `v1.66` is now open for the deferred `999.48` PyPI publication milestone
-- next command boundary: discuss and plan Phase `132`
+- next command boundary: discuss and plan Phase `133`

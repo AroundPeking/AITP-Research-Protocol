@@ -9,10 +9,11 @@ OpenCode should use AITP through a plugin, not through `/aitp` command bundles.
 
 ## Install the AITP runtime
 
-From the repository root:
+For the public install path:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 ```
 
@@ -46,10 +47,10 @@ That is the recommended path because it matches the intended AITP UX:
   escalation trigger fires;
 - AITP state becomes durable before substantive theory work starts.
 
-This is already plugin-first, but still repo-sourced rather than marketplace
-one-click.
+This is the preferred OpenCode path today: public kernel install from PyPI,
+plugin activation through `opencode.json`, no editable install required.
 
-## Compatibility install
+## Workspace-local compatibility install
 
 If you want local copied assets in a workspace or user config root:
 

@@ -4,7 +4,14 @@ Codex already has native skill discovery. AITP uses that directly.
 
 ## Quick install
 
-Tell Codex:
+First install the public runtime:
+
+```bash
+python -m pip install aitp
+aitp install-agent --agent codex --scope user
+```
+
+If you want the repo-backed contributor path instead, tell Codex:
 
 ```text
 Fetch and follow instructions from https://raw.githubusercontent.com/bhjia-phys/AITP-Research-Protocol/main/.codex/INSTALL.md

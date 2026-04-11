@@ -10,6 +10,34 @@ natural-language theory work route through the gatekeeper skill.
 
 ## Installation
 
+1. Install the public runtime:
+
+   ```bash
+   python -m pip install aitp
+   aitp --version
+   ```
+
+2. Install the Codex skills:
+
+   ```bash
+   aitp install-agent --agent codex --scope user
+   ```
+
+   Windows-friendly equivalent:
+
+   ```cmd
+   scripts\aitp-local.cmd install-agent --agent codex --scope user
+   ```
+
+3. Restart Codex.
+
+This is the current plugin-first-equivalent Codex path.
+
+## Repo-backed contributor path
+
+If you want repo-synced skills while changing this repository, use a local
+checkout:
+
 1. Clone the repository:
 
    ```bash
@@ -22,7 +50,7 @@ natural-language theory work route through the gatekeeper skill.
    git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git "$env:USERPROFILE\.codex\aitp"
    ```
 
-2. Install the runtime CLI:
+2. Install the editable runtime CLI:
 
    ```bash
    python -m pip install -e ~/.codex/aitp/research/knowledge-hub
@@ -52,10 +80,6 @@ natural-language theory work route through the gatekeeper skill.
    instead of relying on a junction. Rerun it after updates if you use this path.
 
 4. Restart Codex.
-
-This is the current Codex plugin-first-equivalent install path.
-It is still a local source install rather than a marketplace package, but the
-intended behavior matches Superpowers: install once, then just talk naturally.
 
 Before you trust the install, verify it:
 
@@ -95,6 +119,15 @@ aitp session-start "<task>"
 ```
 
 ## Updating
+
+Public package path:
+
+```bash
+python -m pip install --upgrade aitp
+aitp install-agent --agent codex --scope user
+```
+
+Repo-backed contributor path:
 
 ```bash
 cd ~/.codex/aitp && git pull

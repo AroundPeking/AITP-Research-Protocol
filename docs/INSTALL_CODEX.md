@@ -4,16 +4,17 @@ Codex should use AITP through native skill discovery, not through wrappers.
 
 ## Prerequisites
 
-- Git
 - Codex CLI
 - Python 3.10+
+- Git only if you want the repo-backed contributor path
 
 ## Install the AITP runtime
 
-From the repository root:
+For the public install path:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 ```
 
@@ -27,21 +28,20 @@ first converge the local install:
 
 ## Preferred install
 
-Follow the repository-native instructions in [`.codex/INSTALL.md`](../.codex/INSTALL.md).
+Install the user-scope Codex assets directly:
 
-The public Codex path is:
+```bash
+aitp install-agent --agent codex --scope user
+```
 
-1. clone the repo;
-2. expose `skills/` through `~/.agents/skills/aitp`;
-3. restart Codex.
+Windows-native equivalent:
 
-This is the current plugin-first-equivalent Codex path.
-It is not marketplace one-click yet, but the product goal is the same as
-Superpowers: the user installs once, then speaks naturally and lets the
-gatekeeper skill decide whether AITP should claim the session.
+```cmd
+scripts\aitp-local.cmd install-agent --agent codex --scope user
+```
 
-That gives Codex the same outer shape as Superpowers: skill discovery first,
-then `using-aitp` decides whether the session must enter AITP.
+That keeps the public Codex path clone-free: install the package once, install
+the skills, restart Codex, then let native skill discovery route the session.
 
 What this means in practice:
 
@@ -52,7 +52,12 @@ What this means in practice:
   deeper runtime expansion;
 - `aitp session-start "<task>"` becomes a fallback, not the normal front door.
 
-## Compatibility install
+## Repo-backed contributor path
+
+If you want symlinked skills that track a local checkout while you edit the
+repository itself, follow [`.codex/INSTALL.md`](../.codex/INSTALL.md).
+
+## Workspace-local compatibility install
 
 If you want workspace-local copied skills instead of a symlink:
 

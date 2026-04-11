@@ -10,10 +10,11 @@ Claude Code should use AITP through SessionStart bootstrap, not through
 
 ## Install the AITP runtime
 
-From the repository root:
+For the public install path:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 ```
 
@@ -27,13 +28,17 @@ first converge the local install:
 
 ## Preferred install
 
-Install the AITP Claude plugin from this repository so Claude Code can load:
+Install the user-scope SessionStart assets:
 
-- `.claude-plugin/plugin.json`
-- `hooks/hooks.json`
-- `hooks/session-start`
-- `skills/using-aitp/`
-- `skills/aitp-runtime/`
+```bash
+aitp install-agent --agent claude-code --scope user
+```
+
+Windows-native equivalent:
+
+```cmd
+scripts\aitp-local.cmd install-agent --agent claude-code --scope user
+```
 
 The intended outer behavior matches Superpowers:
 
@@ -47,24 +52,17 @@ This is the preferred path because Claude Code should not need a custom
 `/aitp` command vocabulary for normal AITP use. The session should already be
 inside the right routing discipline before substantial work begins.
 
-This is currently a plugin skeleton plus runtime install, not a marketplace
-one-click package. The product direction is still plugin-first.
 On Windows-native, the generated hook wrapper now prefers a Python
 `session-start.py` sidecar before any bash fallback, so Git Bash is no longer
 the expected default dependency for SessionStart bootstrap.
 
-## Compatibility install
+## Workspace-local compatibility install
 
-If you want local copied assets instead of plugin-managed assets:
+If you want local copied assets inside a project workspace instead of the user
+profile:
 
 ```bash
 aitp install-agent --agent claude-code --scope project --target-root /path/to/theory-workspace
-```
-
-User-scope copied-assets alternative:
-
-```bash
-aitp install-agent --agent claude-code --scope user
 ```
 
 Windows-native example:

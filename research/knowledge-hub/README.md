@@ -18,12 +18,20 @@ code-backed method development.
 
 ## Quick Start
 
-From the repository root:
+For the public package path:
+
+```bash
+python -m pip install aitp
+aitp --version
+aitp doctor
+aitp --help
+```
+
+Contributor / local-dev lane from the repository root:
 
 ```bash
 python -m pip install -e research/knowledge-hub
 aitp doctor
-aitp --help
 ```
 
 For a Windows-native smoke test from a fresh clone, the repo-local launchers do
@@ -33,12 +41,14 @@ not require WSL or a copied global `aitp` shim:
 scripts\aitp-local.cmd doctor
 ```
 
-The public runtime defaults to the repo-local kernel root:
+The public runtime now has two honest defaults:
 
-- `research/knowledge-hub`
+- repo checkout: `research/knowledge-hub`
+- installed package: `~/.aitp/kernel`
 
 So a normal standalone clone does not need the original private integration
-workspace just to run `aitp`.
+workspace just to run `aitp`, and a public `pip install aitp` does not need a
+git checkout to materialize the static kernel bundle.
 On Windows, the local launchers inject `research\knowledge-hub` onto
 `PYTHONPATH`, so the repo can run natively even before you choose a permanent
 Python install layout.
@@ -507,9 +517,9 @@ promotes through a durable request artifact into a bounded `session-start`
 contract instead of silently bootstrapping the full topic loop.
 
 The dependency-contract acceptance script is the bounded `v1.50` packaging
-closure path: it builds the kernel wheel through `pip wheel --no-deps` and
-checks that the generated wheel metadata exposes bounded `Requires-Dist`
-entries for runtime dependencies plus the declared `Requires-Python` floor.
+closure path: it builds the kernel wheel and sdist, then checks that the
+generated distribution metadata exposes bounded `Requires-Dist` entries, the
+declared `Requires-Python` floor, and the packaged runtime bundle roots.
 
 The TFIM code-method acceptance script is the bounded code-backed benchmark
 lane: it runs the public exact-diagonalization helper on the tiny TFIM config,

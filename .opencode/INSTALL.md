@@ -11,7 +11,8 @@ OpenCode should load AITP through a plugin, not through a command bundle.
 Before plugin bootstrap, complete the shared kernel install:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 ```
 
 Add AITP to the `plugin` array in your `opencode.json`:
@@ -67,12 +68,16 @@ command bundles so the plugin-first path is the only default entry.
 
 ## Updating
 
-Restart OpenCode after pulling the repository or after a new plugin install.
+```bash
+python -m pip install --upgrade aitp
+```
+
+Restart OpenCode after a new package or plugin install.
 
 ## Uninstalling
 
 Remove `aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git`
 from the `plugin` array in `opencode.json`, then restart OpenCode.
 
-If you also want to remove compatibility assets or the editable runtime
+If you also want to remove compatibility assets or the runtime package
 install, follow [`../docs/UNINSTALL.md`](../docs/UNINSTALL.md).

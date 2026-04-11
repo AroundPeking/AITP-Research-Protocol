@@ -4,6 +4,12 @@ OpenCode should use AITP through a plugin, not through `/aitp` command bundles.
 
 ## Installation
 
+Install the public runtime first:
+
+```bash
+python -m pip install aitp
+```
+
 Add this to `opencode.json`:
 
 ```json

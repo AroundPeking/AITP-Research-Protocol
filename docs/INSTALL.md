@@ -7,11 +7,13 @@ This is the consolidated install index for AITP.
 All supported runtime surfaces share the same kernel install step:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 ```
 
-If `aitp` is not on `PATH` yet on Windows-native, use the repo-local launcher:
+If `aitp` is not on `PATH` yet on Windows-native and you are working from a
+local checkout, use the repo-local launcher:
 
 ```cmd
 scripts\aitp-local.cmd doctor
@@ -19,12 +21,24 @@ scripts\aitp-local.cmd doctor
 
 Common prerequisites:
 
-- Git
 - Python 3.10+
 - the runtime surface you actually want to use locally
+- Git only if you choose a repo-backed adapter or contributor workflow
 
 The runtime package currently declares `python_requires=">=3.10"` in
 `research/knowledge-hub/setup.py`.
+
+## Contributor / local-dev install
+
+If you are changing this repository itself, keep the editable install lane:
+
+```bash
+python -m pip install -e research/knowledge-hub
+aitp doctor
+```
+
+That path is still the right one for runtime development, local patching, and
+repo-backed adapter workflows.
 
 ## Pick your runtime
 
@@ -37,6 +51,8 @@ The runtime package currently declares `python_requires=">=3.10"` in
 
 - older editable-install migration:
   [`docs/MIGRATE_LOCAL_INSTALL.md`](MIGRATE_LOCAL_INSTALL.md)
+- PyPI build and publish workflow:
+  [`docs/PUBLISH_PYPI.md`](PUBLISH_PYPI.md)
 - adapter/runtime removal:
   [`docs/UNINSTALL.md`](UNINSTALL.md)
 

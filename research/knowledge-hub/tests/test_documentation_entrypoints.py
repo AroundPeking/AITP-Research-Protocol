@@ -21,15 +21,21 @@ class DocumentationEntrypointTests(unittest.TestCase):
 
     def test_install_index_consolidates_runtime_paths_and_python_floor(self) -> None:
         install_doc = (self.repo_root / "docs" / "INSTALL.md").read_text(encoding="utf-8")
+        publish_doc = (self.repo_root / "docs" / "PUBLISH_PYPI.md").read_text(encoding="utf-8")
 
         self.assertIn("Python 3.10+", install_doc)
+        self.assertIn("python -m pip install aitp", install_doc)
+        self.assertIn("Contributor / local-dev install", install_doc)
         self.assertIn("python -m pip install -e research/knowledge-hub", install_doc)
         self.assertIn("docs/INSTALL_CODEX.md", install_doc)
         self.assertIn("docs/INSTALL_OPENCODE.md", install_doc)
         self.assertIn("docs/INSTALL_CLAUDE_CODE.md", install_doc)
         self.assertIn("docs/INSTALL_OPENCLAW.md", install_doc)
         self.assertIn("docs/MIGRATE_LOCAL_INSTALL.md", install_doc)
+        self.assertIn("docs/PUBLISH_PYPI.md", install_doc)
         self.assertIn("docs/UNINSTALL.md", install_doc)
+        self.assertIn("python -m build research/knowledge-hub", publish_doc)
+        self.assertIn("python -m twine upload research/knowledge-hub/dist/*", publish_doc)
 
     def test_public_roadmap_doc_stays_public_facing_and_avoids_planning_noise(self) -> None:
         roadmap_doc = (self.repo_root / "docs" / "roadmap.md").read_text(encoding="utf-8")

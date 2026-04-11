@@ -41,9 +41,8 @@ Everything is durable. You can close your laptop, come back days later, say "con
 ### Quick Start
 
 ```bash
-git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git
-cd AITP-Research-Protocol
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 ```
 
@@ -52,10 +51,7 @@ Then install the platform adapter you use:
 ### Codex (recommended)
 
 ```bash
-mkdir -p ~/.agents/skills
-git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git ~/.codex/aitp
-python -m pip install -e ~/.codex/aitp/research/knowledge-hub
-ln -s ~/.codex/aitp/skills ~/.agents/skills/aitp
+aitp install-agent --agent codex --scope user
 ```
 
 See [`.codex/INSTALL.md`](.codex/INSTALL.md) for details.
@@ -73,7 +69,7 @@ See [`.opencode/INSTALL.md`](.opencode/INSTALL.md) for details.
 ### Claude Code
 
 ```bash
-/plugin install aitp
+aitp install-agent --agent claude-code --scope user
 ```
 
 See [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md) for details.
@@ -86,7 +82,9 @@ aitp install-agent --agent openclaw --scope user
 
 See [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md) for details.
 
-For Windows-specific instructions, migration from older installs, and troubleshooting, see [`docs/INSTALL.md`](docs/INSTALL.md).
+For contributor/local-dev editable installs, Windows-specific instructions,
+migration from older installs, and troubleshooting, see
+[`docs/INSTALL.md`](docs/INSTALL.md).
 
 ## The Basic Workflow
 
@@ -156,6 +154,27 @@ The same protocol kernel drives different categories of theoretical-physics work
 
 Run `aitp doctor --json` to check what is converged on your machine.
 
+Current baseline: Codex.
+Parity target: Claude Code and OpenCode.
+Specialized lane: OpenClaw.
+
+The machine-readable install view exposes:
+
+- `runtime_convergence`
+- `full_convergence_repair`
+- `runtime_support_matrix.runtimes.<runtime>.remediation`
+
+Windows local-checkout note:
+
+- `scripts\aitp-local.cmd doctor`
+- `scripts\aitp-local.cmd bootstrap --topic "<topic>" --statement "<statement>"`
+
+Useful runtime audit entrypoints once a topic exists:
+
+- `aitp capability-audit --topic-slug <topic_slug>`
+- `aitp paired-backend-audit --topic-slug <topic_slug>`
+- `aitp h-plane-audit --topic-slug <topic_slug>`
+
 ## Philosophy
 
 - **Evidence before confidence** — sources stay separate from speculation at every layer
@@ -179,6 +198,9 @@ In progress: expanding multi-runtime smoke testing and shrinking the compatibili
 AITP stabilizes the research protocol, not one frozen implementation. Contributions that preserve the layer model, durable artifacts, evidence boundaries, and governed promotion gates are welcome.
 
 See [`docs/CHARTER.md`](docs/CHARTER.md) for what counts as disciplined AI-assisted theoretical-physics work.
+See [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md)
+for the boundary between research-topic work in AITP and implementation work
+in GSD.
 
 ## License
 
@@ -189,7 +211,12 @@ MIT License — see [`LICENSE`](LICENSE) file for details.
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — detailed walkthrough with a real topic
 - [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md) — what AITP feels like in practice
 - [`docs/INSTALL.md`](docs/INSTALL.md) — all installation details and troubleshooting
+- [`docs/PUBLISH_PYPI.md`](docs/PUBLISH_PYPI.md) — public package build and release workflow
 - [`docs/CHARTER.md`](docs/CHARTER.md) — the full research charter
 - [`docs/architecture.md`](docs/architecture.md) — technical architecture
+- [`docs/MULTI_TOPIC_RUNTIME.md`](docs/MULTI_TOPIC_RUNTIME.md) — multi-topic runtime behavior
+- [`docs/MIGRATE_MULTI_TOPIC.md`](docs/MIGRATE_MULTI_TOPIC.md) — migration notes for multi-topic state
+- [`research/knowledge-hub/L5_PUBLICATION_FACTORY_PROTOCOL.md`](research/knowledge-hub/L5_PUBLICATION_FACTORY_PROTOCOL.md) — publication/output layer contract
+- [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md) — when to use AITP vs GSD
 - [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md) — why the UX converges on Superpowers' install shape
 - [`docs/roadmap.md`](docs/roadmap.md) — development roadmap

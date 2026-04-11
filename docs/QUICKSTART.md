@@ -15,19 +15,30 @@ If you have not installed AITP yet, start with [`docs/INSTALL.md`](INSTALL.md).
 
 ## 1. Verify the install
 
-From the repository root:
+From a clean shell:
 
 ```bash
-python -m pip install -e research/knowledge-hub
+python -m pip install aitp
+aitp --version
 aitp doctor
 aitp doctor --json
 ```
 
-If you are on Windows-native and are still using the repo-local launcher, run:
+If you are on Windows-native and are still using the repo-local launcher from a
+local checkout, run:
 
 ```cmd
 scripts\aitp-local.cmd doctor
 ```
+
+Contributor/local-dev note:
+
+```bash
+python -m pip install -e research/knowledge-hub
+```
+
+That editable install remains the right path when you are changing this
+repository itself.
 
 Your target runtime row should be `ready` in:
 

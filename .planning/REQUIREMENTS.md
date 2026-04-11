@@ -21,10 +21,10 @@ install aitp` path while preserving honest migration and contributor workflows.
 
 - [ ] `REQ-PUB-01`: a clean Python 3.10+ environment on Linux and Windows can
   `pip install aitp` and then run `aitp --version` plus `aitp doctor`.
-- [ ] `REQ-PUB-02`: newcomer-facing docs and READMEs default to the PyPI
+- [x] `REQ-PUB-02`: newcomer-facing docs and READMEs default to the PyPI
   install path, while editable install remains documented as a contributor /
   local-dev lane.
-- [ ] `REQ-PUB-03`: the repository documents a repeatable release workflow for
+- [x] `REQ-PUB-03`: the repository documents a repeatable release workflow for
   building and publishing versioned distributions.
 
 ### Verification
@@ -40,7 +40,7 @@ install aitp` path while preserving honest migration and contributor workflows.
 | REQ-PKG-01 | Phase 131 | Complete |
 | REQ-PKG-02 | Phase 131 | Complete |
 | REQ-PKG-03 | Phase 131 | Complete |
-| REQ-PUB-01 | Phase 132 | Pending |
-| REQ-PUB-02 | Phase 132 | Pending |
-| REQ-PUB-03 | Phase 132 | Pending |
+| REQ-PUB-01 | Phase 133 | Pending |
+| REQ-PUB-02 | Phase 132 | Complete |
+| REQ-PUB-03 | Phase 132 | Complete |
 | REQ-VERIFY-01 | Phase 133 | Pending |
