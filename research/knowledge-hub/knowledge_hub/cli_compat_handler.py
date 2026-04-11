@@ -82,7 +82,8 @@ def _render_doctor_payload(payload: dict[str, Any]) -> list[str]:
     package = payload.get("package") or {}
     package_status = str(package.get("status") or "unknown")
     package_version = str(package.get("version") or "unknown")
-    lines.append(f"Package: {package_status} (aitp-kernel {package_version})")
+    package_name = str(package.get("name") or "aitp")
+    lines.append(f"Package: {package_status} ({package_name} {package_version})")
 
     layer_roots = payload.get("layer_roots") or {}
     missing_roots = [name for name, row in layer_roots.items() if str((row or {}).get("status") or "") != "present"]

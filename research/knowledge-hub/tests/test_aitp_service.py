@@ -4440,6 +4440,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("runtime_support_matrix", payload)
         self.assertIn("runtime_convergence", payload)
         self.assertEqual(payload["package"]["status"], "stale_editable_install")
+        self.assertEqual(payload["package"]["name"], "aitp")
         self.assertEqual(payload["full_convergence_repair"]["status"], "recommended")
 
     def test_migrate_local_install_moves_workspace_legacy_and_records_pip_actions(self) -> None:
@@ -4491,6 +4492,9 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn(("opencode", False), install_calls)
         self.assertIn("runtime_convergence_before", result)
         self.assertIn("runtime_convergence_after", result)
+        uninstall_steps = [row["step"] for row in result["pip_actions"]]
+        self.assertIn("uninstall_aitp", uninstall_steps)
+        self.assertIn("uninstall_aitp_kernel", uninstall_steps)
 
     def test_migrate_local_install_reports_runtime_convergence_before_and_after(self) -> None:
         workspace_root = self.root / "Theoretical-Physics"
@@ -4545,6 +4549,25 @@ class AITPServiceTests(unittest.TestCase):
         )
         self.assertTrue(result["runtime_convergence_after"]["front_door_runtimes_converged"])
         self.assertEqual(result["runtime_convergence_after"]["ready_runtimes"], ["codex", "claude_code", "opencode"])
+
+    def test_doctor_prefers_legacy_distribution_when_primary_package_missing(self) -> None:
+        workspace_root = self.root / "Theoretical-Physics"
+        workspace_root.mkdir(parents=True, exist_ok=True)
+
+        def fake_pip_show(name: str) -> dict[str, str]:
+            if name == "aitp":
+                return {}
+            if name == "aitp-kernel":
+                return {"version": "0.4.0"}
+            return {}
+
+        with patch.object(self.service, "_pip_show_package", side_effect=fake_pip_show):
+            with patch("knowledge_hub.aitp_service.shutil.which", side_effect=lambda name: "C:\\temp\\aitp.exe" if name == "aitp" else ""):
+                payload = self.service.ensure_cli_installed(workspace_root=str(workspace_root))
+
+        self.assertEqual(payload["package"]["name"], "aitp-kernel")
+        self.assertEqual(payload["package"]["status"], "legacy_installed")
+        self.assertIn("legacy_package_install", payload["issues"])
 
     def test_run_topic_loop_writes_loop_state_and_executes_auto_actions(self) -> None:
         service = _LoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)

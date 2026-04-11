@@ -6,7 +6,7 @@
 
 ## Phases
 
-- [ ] **Phase 131: Package Identity And Distribution Asset Contract**
+- [x] **Phase 131: Package Identity And Distribution Asset Contract**
 - [ ] **Phase 132: PyPI Install Surface And Migration**
 - [ ] **Phase 133: Closure And Clean-Install Audit**
 
@@ -21,4 +21,4 @@
 
 ## Next Step
 
-Plan Phase `131`.
+Plan Phase `132`.

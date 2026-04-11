@@ -18,10 +18,14 @@ class DependencyContractTests(unittest.TestCase):
 
     def test_setup_reads_runtime_requirements_file_directly(self) -> None:
         setup_text = (self.kernel_root / "setup.py").read_text(encoding="utf-8")
+        pyproject_text = (self.kernel_root / "pyproject.toml").read_text(encoding="utf-8")
 
         self.assertIn('ROOT / "requirements.txt"', setup_text)
         self.assertIn("install_requires=REQUIREMENTS", setup_text)
         self.assertIn('python_requires=">=3.10"', setup_text)
+        self.assertIn('name=PACKAGE_DISTRIBUTION_NAME', setup_text)
+        self.assertIn('build-backend = "setuptools.build_meta"', pyproject_text)
+        self.assertIn("requires = [\"setuptools>=68\", \"wheel\"]", pyproject_text)
 
     def test_install_docs_reference_bounded_dependency_policy_and_acceptance(self) -> None:
         kernel_readme = (self.kernel_root / "README.md").read_text(encoding="utf-8")
@@ -41,8 +45,12 @@ class DependencyContractTests(unittest.TestCase):
 
         self.assertIn("pip", script)
         self.assertIn("wheel", script)
+        self.assertIn("sdist", script)
+        self.assertIn("Name: aitp", script)
         self.assertIn("Requires-Dist", script)
         self.assertIn("Requires-Python", script)
+        self.assertIn("knowledge_hub/_bundle/LAYER_MAP.md", script)
+
 
 
 if __name__ == "__main__":

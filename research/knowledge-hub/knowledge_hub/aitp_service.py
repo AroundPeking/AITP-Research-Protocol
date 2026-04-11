@@ -184,6 +184,14 @@ from .l2_hygiene import materialize_workspace_hygiene_report
 from .source_catalog import materialize_source_catalog, materialize_source_citation_traversal, materialize_source_family_report
 from .source_bibtex_support import import_bibtex_sources as materialize_bibtex_source_import, materialize_source_bibtex_export
 from .semantic_routing import canonical_validation_mode
+from .bundle_support import (
+    LEGACY_PACKAGE_DISTRIBUTION_NAMES,
+    PACKAGE_DISTRIBUTION_NAME,
+    default_user_kernel_root,
+    ensure_materialized_kernel_root,
+    package_bundle_available,
+    package_distribution_names,
+)
 
 
 def _looks_like_repo_root(path: Path) -> bool:
@@ -252,6 +260,9 @@ def _detect_default_kernel_root() -> Path:
     for candidate in (repo_candidate, DEFAULT_REPO_ROOT, *cwd_candidates):
         if _looks_like_kernel_root(candidate):
             return candidate
+
+    if package_bundle_available():
+        return default_user_kernel_root()
 
     return repo_candidate
 
@@ -345,7 +356,15 @@ class AITPService:
         self.kernel_root = _coerce_path(self.kernel_root)
         self.repo_root = _coerce_path(self.repo_root)
         if not _looks_like_repo_root(self.repo_root):
-            self.repo_root = _detect_repo_root().resolve()
+            detected_repo_root = _detect_repo_root().resolve()
+            if _looks_like_repo_root(detected_repo_root):
+                self.repo_root = detected_repo_root
+        if not _looks_like_kernel_root(self.kernel_root) and package_bundle_available():
+            self.kernel_root = ensure_materialized_kernel_root(self.kernel_root)
+        if not _looks_like_kernel_root(self.kernel_root):
+            repo_candidate = (self.repo_root / "research" / "knowledge-hub").resolve()
+            if _looks_like_kernel_root(repo_candidate):
+                self.kernel_root = repo_candidate
         self._runtime_truth_service = RuntimeTruthService(self)
         self._validation_review_service = ValidationReviewService(
             self,
@@ -435,7 +454,7 @@ class AITPService:
 
     def _workspace_root_from_target_root(self, target_root: str | None) -> Path:
         if not target_root:
-            return self.repo_root
+            return self.repo_root if _looks_like_repo_root(self.repo_root) else Path.cwd().resolve()
 
         target_path = Path(target_root)
         if target_path.name == "aitp-runtime" and target_path.parent.name == "skills":
@@ -553,7 +572,21 @@ class AITPService:
         return self.kernel_root.parent
 
     def _canonical_package_root(self) -> Path:
-        return self.repo_root / "research" / "knowledge-hub"
+        if _looks_like_repo_root(self.repo_root):
+            return self.repo_root / "research" / "knowledge-hub"
+        return Path(__file__).resolve().parents[1]
+
+    def _package_distribution_names(self) -> tuple[str, ...]:
+        return package_distribution_names()
+
+    def _primary_package_distribution_name(self) -> str:
+        return PACKAGE_DISTRIBUTION_NAME
+
+    def _legacy_package_distribution_names(self) -> tuple[str, ...]:
+        return LEGACY_PACKAGE_DISTRIBUTION_NAMES
+
+    def _has_repo_checkout(self) -> bool:
+        return _looks_like_repo_root(self.repo_root)
 
     def _canonical_repo_asset_text(self, relative_path: str, *, fallback_text: str | None = None) -> str:
         candidate = self.repo_root / relative_path

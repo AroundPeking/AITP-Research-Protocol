@@ -6,10 +6,11 @@ import traceback
 from mcp.server.fastmcp import FastMCP
 
 from .aitp_service import AITPService
+from .bundle_support import PACKAGE_DISTRIBUTION_NAME
 
 
 mcp = FastMCP(
-    "aitp-kernel",
+    PACKAGE_DISTRIBUTION_NAME,
     instructions=(
         "AITP kernel tools for orchestrating topic runs, reading runtime state, "
         "scaffolding trust gates, auditing conformance, and installing agent wrappers."

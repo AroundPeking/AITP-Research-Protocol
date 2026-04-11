@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .bundle_support import LEGACY_PACKAGE_DISTRIBUTION_NAMES, PACKAGE_DISTRIBUTION_NAME
 from .runtime_support_matrix import build_runtime_support_matrix
 from .subprocess_error_support import format_subprocess_failure
 
@@ -40,6 +41,19 @@ def pip_show_package(package_name: str) -> dict[str, str]:
         key, value = raw_line.split(":", 1)
         payload[key.strip().lower()] = value.strip()
     return payload
+
+
+def _installed_package_payload(service: Any) -> tuple[str, dict[str, str], bool]:
+    package_names = (
+        tuple(service._package_distribution_names())
+        if hasattr(service, "_package_distribution_names")
+        else (PACKAGE_DISTRIBUTION_NAME, *LEGACY_PACKAGE_DISTRIBUTION_NAMES)
+    )
+    for package_name in package_names:
+        payload = service._pip_show_package(package_name)
+        if payload:
+            return package_name, payload, package_name != PACKAGE_DISTRIBUTION_NAME
+    return PACKAGE_DISTRIBUTION_NAME, {}, False
 
 
 def workspace_legacy_entrypoints(workspace_root: Path) -> list[Path]:
@@ -350,19 +364,28 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
     workspace_path = (
         Path(workspace_root).expanduser().resolve()
         if workspace_root
-        else (service.repo_root.parents[1] / "Theoretical-Physics" if (service.repo_root.parents[1] / "Theoretical-Physics").exists() else Path.cwd().resolve())
+        else service._workspace_root_from_target_root(None)
     )
-    pip_payload = service._pip_show_package("aitp-kernel")
+    package_name, pip_payload, is_legacy_distribution = _installed_package_payload(service)
     editable_location = str(pip_payload.get("editable project location") or "").strip()
     version = str(pip_payload.get("version") or "").strip()
     canonical_package_root = str(service._canonical_package_root().resolve())
+    package_repair_command = (
+        "python -m pip install -e research/knowledge-hub"
+        if service._has_repo_checkout()
+        else "python -m pip install aitp"
+    )
     stale_cli = bool(editable_location) and Path(editable_location).resolve() != service._canonical_package_root().resolve()
     if not version and not editable_location:
         package_status = "not_installed"
     elif stale_cli:
         package_status = "stale_editable_install"
+    elif editable_location and is_legacy_distribution:
+        package_status = "legacy_editable_install"
     elif editable_location:
         package_status = "canonical_editable_install"
+    elif is_legacy_distribution:
+        package_status = "legacy_installed"
     else:
         package_status = "installed"
     codex_skill_status_payload = service._codex_skill_status()
@@ -402,6 +425,10 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
         "l0_source_layer": service.kernel_root / "L0_SOURCE_LAYER.md",
     }
     issues: list[str] = []
+    if package_status == "not_installed":
+        issues.append("package_not_installed")
+    elif package_status in {"legacy_installed", "legacy_editable_install"}:
+        issues.append("legacy_package_install")
     if stale_cli:
         issues.append("stale_cli")
     if legacy_entrypoints:
@@ -449,13 +476,14 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
         "repo_root": str(service.repo_root),
         "workspace_root": str(workspace_path),
         "package": {
-            "name": "aitp-kernel",
+            "name": package_name,
             "version": version,
             "status": package_status,
             "editable_project_location": editable_location,
             "canonical_package_root": canonical_package_root,
-            "matches_canonical": not stale_cli and bool(editable_location),
-            "repair_command": "python -m pip install -e research/knowledge-hub",
+            "matches_canonical": package_name == PACKAGE_DISTRIBUTION_NAME and not stale_cli and bool(editable_location),
+            "legacy_distribution_names": list(LEGACY_PACKAGE_DISTRIBUTION_NAMES),
+            "repair_command": package_repair_command,
         },
         "command_paths": {
             "aitp": command_path or "",
@@ -474,9 +502,13 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
         "runtime_convergence": runtime_convergence,
         "full_convergence_repair": {
             "status": "none_required" if overall_status == "clean" else "recommended",
-            "command": f'aitp migrate-local-install --workspace-root "{workspace_path}" --json',
+            "command": (
+                package_repair_command
+                if package_status == "not_installed"
+                else f'aitp migrate-local-install --workspace-root "{workspace_path}" --json'
+            ),
             "followup_command": "aitp doctor --json",
-            "doc_path": "docs/MIGRATE_LOCAL_INSTALL.md",
+            "doc_path": "docs/INSTALL.md" if package_status == "not_installed" else "docs/MIGRATE_LOCAL_INSTALL.md",
         },
         "layer_roots": layer_status,
         "protocol_contracts": {
@@ -512,22 +544,27 @@ def migrate_local_install(
     for path in service._claude_legacy_command_paths():
         backup_log.append(service._backup_and_move(path, resolved_backup_root, "claude-legacy-commands"))
 
-    pip_before = service._pip_show_package("aitp-kernel")
+    package_name, pip_before, _ = _installed_package_payload(service)
     editable_location = str(pip_before.get("editable project location") or "").strip()
     canonical_package_root = service._canonical_package_root().resolve()
     pip_actions: list[dict[str, Any]] = []
-    if not editable_location or Path(editable_location).resolve() != canonical_package_root:
-        uninstall_cmd = [sys.executable, "-m", "pip", "uninstall", "-y", "aitp-kernel"]
-        uninstall_run = subprocess.run(uninstall_cmd, check=False, capture_output=True, text=True)
-        pip_actions.append(
-            {
-                "step": "uninstall_old_aitp_kernel",
-                "command": uninstall_cmd,
-                "returncode": uninstall_run.returncode,
-                "stdout": uninstall_run.stdout.strip(),
-                "stderr": uninstall_run.stderr.strip(),
-            }
-        )
+    if (
+        package_name != PACKAGE_DISTRIBUTION_NAME
+        or not editable_location
+        or Path(editable_location).resolve() != canonical_package_root
+    ):
+        for uninstall_name in (PACKAGE_DISTRIBUTION_NAME, *LEGACY_PACKAGE_DISTRIBUTION_NAMES):
+            uninstall_cmd = [sys.executable, "-m", "pip", "uninstall", "-y", uninstall_name]
+            uninstall_run = subprocess.run(uninstall_cmd, check=False, capture_output=True, text=True)
+            pip_actions.append(
+                {
+                    "step": f"uninstall_{uninstall_name.replace('-', '_')}",
+                    "command": uninstall_cmd,
+                    "returncode": uninstall_run.returncode,
+                    "stdout": uninstall_run.stdout.strip(),
+                    "stderr": uninstall_run.stderr.strip(),
+                }
+            )
         install_cmd = [sys.executable, "-m", "pip", "install", "-e", str(canonical_package_root)]
         install_run = subprocess.run(install_cmd, check=False, capture_output=True, text=True)
         if install_run.returncode != 0:
@@ -542,7 +579,7 @@ def migrate_local_install(
             )
         pip_actions.append(
             {
-                "step": "install_canonical_aitp_kernel",
+                "step": "install_canonical_aitp",
                 "command": install_cmd,
                 "returncode": install_run.returncode,
                 "stdout": install_run.stdout.strip(),

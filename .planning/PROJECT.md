@@ -51,7 +51,7 @@ it still does **not** mean the broader AITP architecture is finished.
 
 - Active milestone: `v1.66` `PyPI Publishable Package`
 - Latest closed milestone: `v1.65` `Installation And Adoption Readiness`
-- Next boundary: discuss and plan Phase `131`
+- Next boundary: discuss and plan Phase `132`
 
 ## Current Milestone: v1.66 PyPI Publishable Package
 

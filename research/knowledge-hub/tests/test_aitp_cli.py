@@ -1361,10 +1361,20 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(args.command, "install-agent")
         self.assertEqual(args.agent, "claude-code")
 
+    def test_version_flag_reports_package_version(self) -> None:
+        stream = io.StringIO()
+        with patch.object(sys, "argv", ["aitp", "--version"]):
+            with redirect_stdout(stream):
+                with self.assertRaises(SystemExit) as exc_info:
+                    aitp_cli.main()
+
+        self.assertEqual(exc_info.exception.code, 0)
+        self.assertIn("0.4.0", stream.getvalue())
+
     def test_doctor_human_output_summarizes_front_door_runtimes(self) -> None:
         doctor_payload = {
             "overall_status": "mixed_install",
-            "package": {"status": "canonical_editable_install", "version": "0.4.0"},
+            "package": {"name": "aitp", "status": "canonical_editable_install", "version": "0.4.0"},
             "layer_roots": {"L0": {"status": "present"}},
             "protocol_contracts": {"layer_map": {"status": "present"}},
             "runtime_convergence": {
@@ -1448,6 +1458,7 @@ class AITPCLITests(unittest.TestCase):
         output = stream.getvalue()
         self.assertEqual(exit_code, 0)
         self.assertIn("AITP Doctor", output)
+        self.assertIn("Package: canonical_editable_install (aitp 0.4.0)", output)
         self.assertIn("Front-door convergence: no", output)
         self.assertIn("Full repair: aitp migrate-local-install", output)
         self.assertIn("Claude Code: stale", output)

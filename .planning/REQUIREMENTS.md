@@ -9,11 +9,11 @@ install aitp` path while preserving honest migration and contributor workflows.
 
 ### Packaging Contract
 
-- [ ] `REQ-PKG-01`: the public distribution builds as `aitp` wheel and sdist
+- [x] `REQ-PKG-01`: the public distribution builds as `aitp` wheel and sdist
   artifacts rather than a repo-local `aitp-kernel` editable-install contract.
-- [ ] `REQ-PKG-02`: package metadata, `aitp --version`, and install diagnostics
+- [x] `REQ-PKG-02`: package metadata, `aitp --version`, and install diagnostics
   expose one shared semver from a single source of truth.
-- [ ] `REQ-PKG-03`: built distributions include the runtime assets needed for
+- [x] `REQ-PKG-03`: built distributions include the runtime assets needed for
   `aitp doctor`, `bootstrap`, and the shared first-run path outside a git
   checkout.
 
@@ -37,9 +37,9 @@ install aitp` path while preserving honest migration and contributor workflows.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-PKG-01 | Phase 131 | Pending |
-| REQ-PKG-02 | Phase 131 | Pending |
-| REQ-PKG-03 | Phase 131 | Pending |
+| REQ-PKG-01 | Phase 131 | Complete |
+| REQ-PKG-02 | Phase 131 | Complete |
+| REQ-PKG-03 | Phase 131 | Complete |
 | REQ-PUB-01 | Phase 132 | Pending |
 | REQ-PUB-02 | Phase 132 | Pending |
 | REQ-PUB-03 | Phase 132 | Pending |

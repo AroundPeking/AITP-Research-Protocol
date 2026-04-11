@@ -8,11 +8,18 @@ from typing import Any
 
 import jsonschema
 
+from .bundle_support import materialized_default_user_kernel_root
+
 from .decision_point_handler import list_pending_decision_points
 
 
 def _kernel_root(kernel_root: Path | None = None) -> Path:
-    return kernel_root or Path(__file__).resolve().parents[1]
+    if kernel_root is not None:
+        return kernel_root
+    candidate = Path(__file__).resolve().parents[1]
+    if (candidate / "runtime" / "scripts" / "orchestrate_topic.py").exists():
+        return candidate
+    return materialized_default_user_kernel_root()
 
 
 def _runtime_root(kernel_root: Path | None = None) -> Path:

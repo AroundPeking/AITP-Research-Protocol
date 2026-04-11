@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ._version import __version__
 from .aitp_service import AITPService
 from .cli_compat_handler import dispatch_compat_command, emit_payload, register_compat_commands
 from .cli_frontdoor_handler import dispatch_frontdoor_command, register_frontdoor_commands
@@ -97,6 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AITP kernel CLI")
     parser.add_argument("--kernel-root", type=Path)
     parser.add_argument("--repo-root", type=Path)
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
