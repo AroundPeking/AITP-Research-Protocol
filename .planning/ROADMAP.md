@@ -1,27 +1,24 @@
-# Roadmap: v1.65 Installation And Adoption Readiness
+# Roadmap: v1.66 PyPI Publishable Package
 
 ## Result
 
-`v1.65` is complete.
+`v1.66` is active.
 
 ## Phases
 
-- [x] **Phase 127: Doctor And Front-Door Verification Hardening**
-- [x] **Phase 128: Shared Quickstart And First-Run Acceptance**
-- [x] **Phase 129: Windows-Native Bootstrap And Path Robustness**
-- [x] **Phase 130: Closure And Regression Audit**
+- [ ] **Phase 131: Package Identity And Distribution Asset Contract**
+- [ ] **Phase 132: PyPI Install Surface And Migration**
+- [ ] **Phase 133: Closure And Clean-Install Audit**
 
-## Outcome
+## Target Outcome
 
-Production outcome:
-
-- one install-verification surface that gives Codex, Claude Code, and OpenCode
-  the same `doctor` / remediation truth contract
-- one shared first-run path proven through `bootstrap -> loop -> status`
-- one Windows-native adoption surface that no longer assumes bash or POSIX
-  symlink habits for the default front-door experience
+- one public package named `aitp` that installs without repo-local editable
+  paths
+- one distribution contract that ships the runtime assets and surfaces one
+  shared semver through `aitp --version`
+- one migration and verification surface that keeps editable installs available
+  for contributors while making PyPI the default newcomer path
 
 ## Next Step
 
-Select the next milestone from backlog without reopening `999.49` through
-`999.51` as separate work.
+Plan Phase `131`.

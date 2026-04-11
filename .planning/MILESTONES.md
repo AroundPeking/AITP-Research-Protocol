@@ -49,12 +49,12 @@ Completed milestone chain:
 
 ## Current Active Milestone
 
-- none
+- `v1.66` `PyPI Publishable Package`
 
 ## Current Status
 
 - `v1.36` through `v1.65` closed and archived
-- install/adoption front-door parity for Codex, Claude Code, and OpenCode is
-  now shipped on `main`
-- next command boundary: review backlog and choose the next milestone; the most
-  adjacent deferred candidate is `999.48` PyPI publication
+- install/adoption front-door parity for Codex, Claude Code, and OpenCode
+  remains the closed baseline from `v1.65`
+- `v1.66` is now open for the deferred `999.48` PyPI publication milestone
+- next command boundary: discuss and plan Phase `131`

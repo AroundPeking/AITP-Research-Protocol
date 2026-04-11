@@ -1,51 +1,46 @@
-# Requirements: v1.65 Installation And Adoption Readiness
+# Requirements: v1.66 PyPI Publishable Package
 
 ## Milestone Goal
 
-Turn the install/adoption backlog cluster into one coherent first-use surface
-across Codex, Claude Code, and OpenCode by hardening install verification,
-shared quickstart proof, and Windows-native bootstrap behavior.
+Replace repo-clone plus editable-install onboarding with a versioned `pip
+install aitp` path while preserving honest migration and contributor workflows.
 
 ## Active Requirements
 
-### Install Verification
+### Packaging Contract
 
-- [x] `REQ-ADOPT-01`: `aitp doctor` reports front-door readiness for Codex,
-  Claude Code, and OpenCode through one consistent remediation contract.
-- [x] `REQ-ADOPT-02`: `aitp doctor --json` exposes machine-readable convergence
-  and per-runtime repair surfaces that can be used in CI and migration flows.
+- [ ] `REQ-PKG-01`: the public distribution builds as `aitp` wheel and sdist
+  artifacts rather than a repo-local `aitp-kernel` editable-install contract.
+- [ ] `REQ-PKG-02`: package metadata, `aitp --version`, and install diagnostics
+  expose one shared semver from a single source of truth.
+- [ ] `REQ-PKG-03`: built distributions include the runtime assets needed for
+  `aitp doctor`, `bootstrap`, and the shared first-run path outside a git
+  checkout.
 
-### Shared First-Run Path
+### Public Install And Migration
 
-- [x] `REQ-QUICK-01`: one tutorial-grade quickstart takes a new user from
-  install verification to a real `bootstrap -> loop -> status` proof.
-- [x] `REQ-QUICK-02`: the shared quickstart is backed by one isolated
-  acceptance path that runs the real production CLI on a temp kernel root.
-
-### Windows-Native Robustness
-
-- [x] `REQ-WIN-01`: Windows-native Claude Code bootstrap no longer assumes bash
-  as the default SessionStart dependency.
-- [x] `REQ-WIN-02`: Codex, Claude Code, and OpenCode install docs expose
-  Windows-native install, verify, and first-run commands without POSIX-only
-  assumptions.
-- [x] `REQ-WIN-03`: repo-local launchers provide a no-WSL fallback for the
-  shared first-run path on Windows.
+- [ ] `REQ-PUB-01`: a clean Python 3.10+ environment on Linux and Windows can
+  `pip install aitp` and then run `aitp --version` plus `aitp doctor`.
+- [ ] `REQ-PUB-02`: newcomer-facing docs and READMEs default to the PyPI
+  install path, while editable install remains documented as a contributor /
+  local-dev lane.
+- [ ] `REQ-PUB-03`: the repository documents a repeatable release workflow for
+  building and publishing versioned distributions.
 
 ### Verification
 
-- [x] `REQ-VERIFY-01`: the milestone closes with targeted install/adoption
-  regressions, acceptance coverage, and a green full knowledge-hub suite.
+- [ ] `REQ-VERIFY-01`: the milestone closes with distribution build
+  verification, clean-install smoke coverage, and regression coverage for
+  migrated install diagnostics.
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-ADOPT-01 | Phase 127 | Complete |
-| REQ-ADOPT-02 | Phase 127 | Complete |
-| REQ-QUICK-01 | Phase 128 | Complete |
-| REQ-QUICK-02 | Phase 128 | Complete |
-| REQ-WIN-01 | Phase 129 | Complete |
-| REQ-WIN-02 | Phase 129 | Complete |
-| REQ-WIN-03 | Phase 129 | Complete |
-| REQ-VERIFY-01 | Phase 130 | Complete |
+| REQ-PKG-01 | Phase 131 | Pending |
+| REQ-PKG-02 | Phase 131 | Pending |
+| REQ-PKG-03 | Phase 131 | Pending |
+| REQ-PUB-01 | Phase 132 | Pending |
+| REQ-PUB-02 | Phase 132 | Pending |
+| REQ-PUB-03 | Phase 132 | Pending |
+| REQ-VERIFY-01 | Phase 133 | Pending |

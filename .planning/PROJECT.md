@@ -49,10 +49,28 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: none
+- Active milestone: `v1.66` `PyPI Publishable Package`
 - Latest closed milestone: `v1.65` `Installation And Adoption Readiness`
-- Next boundary: review backlog and open the next milestone; the most adjacent
-  deferred candidate is `999.48` PyPI publication
+- Next boundary: discuss and plan Phase `131`
+
+## Current Milestone: v1.66 PyPI Publishable Package
+
+**Goal:** Replace repo-clone plus editable-install onboarding with a versioned
+public `pip install aitp` path without regressing the already-shipped adoption
+surface.
+
+**Target features:**
+- a public distribution contract that publishes as `aitp` instead of a
+  repo-local `aitp-kernel` editable-first surface
+- a single semver and packaged runtime-asset contract that survives outside a
+  git checkout
+- newcomer docs and release workflow that make PyPI the default path while
+  keeping editable install available for contributors
+
+**Explicitly deferred from this milestone:**
+- reopening install/adoption hardening work already closed in `v1.65`
+- OpenClaw parity or broader cross-runtime deep execution parity
+- any repo split that is not directly required for shipping the public package
 
 ## Latest Closed Milestone: v1.65 Installation And Adoption Readiness
 
@@ -219,9 +237,9 @@ already-shipped surfaces.
 
 This does **not** mean AITP is finished.
 
-It means `v1.65` is archived on a verified install/adoption baseline and the
-next step is choosing the next bounded milestone without reopening `999.49`
-through `999.51`.
+It means `v1.66` is now the active PyPI packaging milestone and the next step
+is discussing and planning Phase `131` without reopening `999.49` through
+`999.51`.
 
 ---
-*Last updated: 2026-04-11 after closing v1.65 Installation And Adoption Readiness*
+*Last updated: 2026-04-11 after opening v1.66 PyPI Publishable Package*
