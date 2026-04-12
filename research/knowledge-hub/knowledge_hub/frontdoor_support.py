@@ -279,6 +279,115 @@ def claude_hook_status(*, repo_root: Path) -> dict[str, Any]:
     }
 
 
+def _extract_claude_mcp_servers(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    wrapped = payload.get("mcpServers")
+    if isinstance(wrapped, dict):
+        return {
+            str(name): value
+            for name, value in wrapped.items()
+            if isinstance(value, dict)
+        }
+    return {}
+
+
+def _normalize_claude_mcp_entry(entry: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(entry, dict):
+        return None
+    command = entry.get("command")
+    if isinstance(command, list):
+        command_parts = [str(part) for part in command if str(part)]
+        if not command_parts:
+            return None
+        resolved_command = command_parts[0]
+        resolved_args = command_parts[1:]
+    elif command:
+        resolved_command = str(command)
+        resolved_args = []
+    else:
+        return None
+
+    raw_args = entry.get("args")
+    if isinstance(raw_args, list):
+        resolved_args = [*resolved_args, *[str(part) for part in raw_args]]
+
+    raw_env = entry.get("env")
+    if not isinstance(raw_env, dict):
+        raw_env = entry.get("environment")
+    resolved_env = {
+        str(key): str(value)
+        for key, value in (raw_env.items() if isinstance(raw_env, dict) else [])
+    }
+    return {
+        "command": resolved_command,
+        "args": resolved_args,
+        "env": resolved_env,
+    }
+
+
+def claude_mcp_status(service: Any, *, workspace_root: Path | None = None) -> dict[str, Any]:
+    user_config_path = Path.home() / ".claude.json"
+    workspace_root = workspace_root.resolve() if workspace_root else service.repo_root.resolve()
+    project_config_path = workspace_root / ".mcp.json"
+    expected_entry = _normalize_claude_mcp_entry(service._claude_mcp_entry()) or {}
+
+    user_config_exists = user_config_path.exists()
+    user_config_parse_ok = False
+    user_server_present = False
+    user_server_matches = False
+    if user_config_exists:
+        try:
+            user_payload = json.loads(user_config_path.read_text(encoding="utf-8"))
+            user_config_parse_ok = isinstance(user_payload, dict)
+        except json.JSONDecodeError:
+            user_payload = {}
+        user_entry = _extract_claude_mcp_servers(user_payload if isinstance(user_payload, dict) else {}).get("aitp")
+        user_server_present = isinstance(user_entry, dict)
+        user_server_matches = _normalize_claude_mcp_entry(user_entry) == expected_entry
+
+    project_config_exists = project_config_path.exists()
+    project_config_parse_ok = False
+    project_server_present = False
+    project_server_matches = False
+    if project_config_exists:
+        try:
+            project_payload = json.loads(project_config_path.read_text(encoding="utf-8"))
+            project_config_parse_ok = isinstance(project_payload, dict)
+        except json.JSONDecodeError:
+            project_payload = {}
+        project_entry = _extract_claude_mcp_servers(project_payload if isinstance(project_payload, dict) else {}).get("aitp")
+        project_server_present = isinstance(project_entry, dict)
+        project_server_matches = _normalize_claude_mcp_entry(project_entry) == expected_entry
+
+    effective_scope = ""
+    effective_config_path = ""
+    if user_server_matches:
+        effective_scope = "user"
+        effective_config_path = str(user_config_path)
+    elif project_server_matches:
+        effective_scope = "project"
+        effective_config_path = str(project_config_path)
+
+    return {
+        "user_config_path": str(user_config_path),
+        "project_config_path": str(project_config_path),
+        "user_config_exists": user_config_exists,
+        "user_config_parse_ok": user_config_parse_ok,
+        "user_mcp_server_present": user_server_present,
+        "user_mcp_server_matches_canonical": user_server_matches,
+        "project_config_exists": project_config_exists,
+        "project_config_parse_ok": project_config_parse_ok,
+        "project_mcp_server_present": project_server_present,
+        "project_mcp_server_matches_canonical": project_server_matches,
+        "structured_tool_access_present": user_server_present or project_server_present,
+        "structured_tool_access_matches_canonical": user_server_matches or project_server_matches,
+        "effective_scope": effective_scope,
+        "effective_config_path": effective_config_path,
+        "expected_command": str(expected_entry.get("command") or ""),
+        "expected_args": list(expected_entry.get("args") or []),
+        "expected_env": dict(expected_entry.get("env") or {}),
+    }
+
+
 def codex_skill_status(*, repo_root: Path) -> dict[str, Any]:
     using_path = Path.home() / ".agents" / "skills" / "using-aitp" / "SKILL.md"
     runtime_path = Path.home() / ".agents" / "skills" / "aitp-runtime" / "SKILL.md"
@@ -442,6 +551,7 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
         package_status = "installed"
     codex_skill_status_payload = service._codex_skill_status()
     claude_hook_status_payload = service._claude_hook_status()
+    claude_mcp_status_payload = service._claude_mcp_status(workspace_path)
     opencode_status = service._opencode_plugin_status(workspace_path)
     legacy_entrypoints = service._workspace_legacy_entrypoints(workspace_path)
     legacy_claude_commands = service._claude_legacy_command_paths()
@@ -492,6 +602,7 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
         workspace_root=str(workspace_path),
         codex_skill_status=codex_skill_status_payload,
         claude_hook_status=claude_hook_status_payload,
+        claude_mcp_status=claude_mcp_status_payload,
         legacy_claude_commands=legacy_claude_commands,
         opencode_status=opencode_status,
     )
@@ -503,9 +614,9 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
 
     claude_runtime_status = str(runtime_support_matrix["runtimes"]["claude_code"]["status"])
     if claude_runtime_status in {"missing", "partial"}:
-        issues.append("claude_hook_surface_incomplete")
+        issues.append("claude_frontdoor_surface_incomplete")
     elif claude_runtime_status == "stale":
-        issues.append("claude_hook_surface_stale")
+        issues.append("claude_frontdoor_surface_stale")
 
     opencode_runtime_status = str(runtime_support_matrix["runtimes"]["opencode"]["status"])
     if opencode_runtime_status == "missing":
@@ -546,6 +657,9 @@ def ensure_cli_installed(service: Any, *, workspace_root: str | None = None) -> 
         "claude_hook_surface": {
             **claude_hook_status_payload,
             "legacy_command_paths": [str(path) for path in legacy_claude_commands],
+        },
+        "claude_mcp_surface": {
+            **claude_mcp_status_payload,
         },
         "opencode_plugin_surface": {
             **opencode_status,
@@ -644,12 +758,13 @@ def migrate_local_install(
     refreshed_agents = agents or ["codex", "claude-code", "opencode"]
     installed_assets: list[dict[str, str]] = []
     for agent in refreshed_agents:
+        install_mcp = with_mcp or agent == "claude-code"
         installed_assets.extend(
             service.install_agent(
                 agent=agent,
                 scope="user",
                 force=True,
-                install_mcp=with_mcp,
+                install_mcp=install_mcp,
             )["installed"]
         )
     opencode_plugin_update = service._ensure_opencode_plugin_enabled()

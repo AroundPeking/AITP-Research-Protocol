@@ -124,6 +124,43 @@ def install_opencode_mcp(
     return [{"agent": "opencode", "path": str(config_path), "kind": "mcp-config"}]
 
 
+def install_claude_mcp(
+    service: Any,
+    *,
+    force: bool,
+    scope: str,
+    target_root: str | None,
+) -> list[dict[str, str]]:
+    if target_root:
+        target_path = Path(target_root)
+        fake_home = target_path.parent if target_path.name == ".claude" else target_path
+        if scope == "project":
+            config_path = fake_home / ".mcp.json"
+        else:
+            config_path = fake_home / ".claude.json"
+    elif scope == "project":
+        config_path = service.repo_root / ".mcp.json"
+    else:
+        config_path = Path.home() / ".claude.json"
+
+    if config_path.exists():
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError(f"Expected JSON object in {config_path}")
+    else:
+        payload = {}
+
+    mcp_payload = payload.setdefault("mcpServers", {})
+    if not isinstance(mcp_payload, dict):
+        raise ValueError(f"Expected `mcpServers` object in {config_path}")
+    if "aitp" in mcp_payload and not force:
+        raise FileExistsError(f"Refusing to overwrite existing Claude Code MCP server at {config_path}")
+
+    mcp_payload["aitp"] = service._claude_mcp_entry()
+    service._write_json_file(config_path, payload)
+    return [{"agent": "claude-code", "path": str(config_path), "kind": "mcp-config"}]
+
+
 def opencode_plugin_template() -> str:
     return r"""/**
  * AITP plugin for OpenCode
@@ -667,10 +704,19 @@ def install_one_agent(
             raise FileExistsError(f"Refusing to overwrite {setup_path}")
         _write_text(
             setup_path,
-            "Register an `aitp` MCP server pointing to `aitp-mcp` in your Claude Code config if you want structured tool access.\n",
+            service._claude_mcp_setup_markdown(scope=scope, target_root=target_root),
         )
         installed.append({"agent": agent, "path": str(setup_path), "kind": "mcp-setup"})
         installed.extend(install_claude_session_start_hook(service, scope=scope, target_root=target_root, force=force))
+        if install_mcp:
+            installed.extend(
+                install_claude_mcp(
+                    service,
+                    force=force,
+                    scope=scope,
+                    target_root=target_root,
+                )
+            )
         return installed
 
     raise ValueError(f"Unsupported agent: {agent}")

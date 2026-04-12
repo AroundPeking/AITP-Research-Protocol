@@ -102,6 +102,9 @@ See [`.opencode/INSTALL.md`](.opencode/INSTALL.md) for details.
 aitp install-agent --agent claude-code --scope user
 ```
 
+This path now installs both the SessionStart bootstrap and the native Claude
+Code AITP MCP registration.
+
 See [`docs/INSTALL_CLAUDE_CODE.md`](docs/INSTALL_CLAUDE_CODE.md) for details.
 
 ### OpenClaw

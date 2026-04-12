@@ -19,6 +19,7 @@ from .decision_trace_handler import get_decision_traces
 from .agent_install_support import (
     agent_hidden_root as resolve_agent_hidden_root,
     install_agent as perform_install_agent,
+    install_claude_mcp as perform_claude_mcp_install,
     install_claude_session_start_hook as perform_claude_session_start_hook_install,
     install_codex_mcp as perform_codex_mcp_install,
     install_one_agent as perform_install_one_agent,
@@ -30,6 +31,7 @@ from .agent_install_support import (
 from .frontdoor_support import (
     claude_hook_status as compute_claude_hook_status,
     claude_legacy_command_paths as discover_claude_legacy_command_paths,
+    claude_mcp_status as compute_claude_mcp_status,
     claude_settings_has_expected_session_start_command as check_claude_settings_session_start_command,
     codex_skill_status as compute_codex_skill_status,
     ensure_cli_installed as compute_cli_install_status,
@@ -644,6 +646,9 @@ class AITPService:
 
     def _claude_hook_status(self) -> dict[str, Any]:
         return compute_claude_hook_status(repo_root=self.repo_root)
+
+    def _claude_mcp_status(self, workspace_root: Path | None = None) -> dict[str, Any]:
+        return compute_claude_mcp_status(self, workspace_root=workspace_root)
 
     def _codex_skill_status(self) -> dict[str, Any]:
         return compute_codex_skill_status(repo_root=self.repo_root)
@@ -4479,6 +4484,51 @@ class AITPService:
             ]
         )
 
+    def _claude_mcp_setup_markdown(self, *, scope: str, target_root: str | None) -> str:
+        if target_root:
+            target_path = Path(target_root)
+            fake_home = target_path.parent if target_path.name == ".claude" else target_path
+            config_path = fake_home / (".mcp.json" if scope == "project" else ".claude.json")
+        elif scope == "project":
+            config_path = self.repo_root / ".mcp.json"
+        else:
+            config_path = Path.home() / ".claude.json"
+
+        command = [
+            "claude",
+            "mcp",
+            "add-json",
+            "-s",
+            "project" if scope == "project" else "user",
+            "aitp",
+            json.dumps(self._claude_mcp_entry(), ensure_ascii=True, separators=(",", ":")),
+        ]
+
+        return "\n".join(
+            [
+                "# Claude Code MCP setup",
+                "",
+                "Claude Code should expose an `aitp` MCP server so AITP runtime actions are available as native structured tools.",
+                "",
+                "Expected config path:",
+                "",
+                f"- `{config_path}`",
+                "",
+                "Equivalent Claude CLI command:",
+                "",
+                "```bash",
+                self._format_command(command),
+                "```",
+                "",
+                "Verify with:",
+                "",
+                "```bash",
+                "claude mcp list",
+                "```",
+                "",
+            ]
+        )
+
     def _opencode_mcp_entry(self) -> dict[str, Any]:
         return {
             "type": "local",
@@ -4486,6 +4536,14 @@ class AITPService:
             "enabled": True,
             "timeout": 20000,
             "environment": self._mcp_environment(),
+        }
+
+    def _claude_mcp_entry(self) -> dict[str, Any]:
+        command = self._resolve_aitp_mcp_command()
+        return {
+            "command": command[0],
+            "args": command[1:],
+            "env": self._mcp_environment(),
         }
 
     def _write_json_file(self, path: Path, payload: dict[str, Any]) -> None:
@@ -4543,6 +4601,20 @@ class AITPService:
 
     def _install_openclaw_mcp(self, *, force: bool, scope: str) -> list[dict[str, str]]:
         return perform_openclaw_mcp_install(self, force=force, scope=scope)
+
+    def _install_claude_mcp(
+        self,
+        *,
+        force: bool,
+        scope: str,
+        target_root: str | None,
+    ) -> list[dict[str, str]]:
+        return perform_claude_mcp_install(
+            self,
+            force=force,
+            scope=scope,
+            target_root=target_root,
+        )
 
     def _install_opencode_mcp(
         self,

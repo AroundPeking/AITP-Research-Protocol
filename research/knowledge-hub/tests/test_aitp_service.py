@@ -385,6 +385,29 @@ class AITPServiceTests(unittest.TestCase):
         payload.update(overrides)
         return payload
 
+    def _make_claude_mcp_status(self, **overrides: object) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "user_config_path": "C:/Users/demo/.claude.json",
+            "project_config_path": f"{self.root}/.mcp.json",
+            "user_config_exists": True,
+            "user_config_parse_ok": True,
+            "user_mcp_server_present": True,
+            "user_mcp_server_matches_canonical": True,
+            "project_config_exists": False,
+            "project_config_parse_ok": False,
+            "project_mcp_server_present": False,
+            "project_mcp_server_matches_canonical": False,
+            "structured_tool_access_present": True,
+            "structured_tool_access_matches_canonical": True,
+            "effective_scope": "user",
+            "effective_config_path": "C:/Users/demo/.claude.json",
+            "expected_command": "C:/Users/demo/AppData/Roaming/Python/Python312/Scripts/aitp-mcp.exe",
+            "expected_args": [],
+            "expected_env": {"AITP_KERNEL_ROOT": "C:/kernel"},
+        }
+        payload.update(overrides)
+        return payload
+
     def _write_runtime_state(self, topic_slug: str = "demo-topic", run_id: str = "2026-03-13-demo") -> Path:
         runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
         runtime_root.mkdir(parents=True, exist_ok=True)
@@ -4138,24 +4161,25 @@ class AITPServiceTests(unittest.TestCase):
         ):
             with patch.object(self.service, "_codex_skill_status", return_value=codex_status):
                 with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
-                    with patch.object(
-                        self.service,
-                        "_opencode_plugin_status",
-                        return_value=self._make_opencode_status(),
-                    ):
-                        with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
-                            with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
-                                with patch(
-                                    "knowledge_hub.aitp_service.shutil.which",
-                                    side_effect=lambda name: {
-                                        "aitp": "C:\\temp\\aitp.exe",
-                                        "aitp-mcp": "C:\\temp\\aitp-mcp.exe",
-                                        "codex": "C:\\temp\\codex.exe",
-                                        "openclaw": "C:\\temp\\openclaw.exe",
-                                        "mcporter": "C:\\temp\\mcporter.exe",
-                                    }.get(name, ""),
-                                ):
-                                    payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+                    with patch.object(self.service, "_claude_mcp_status", return_value=self._make_claude_mcp_status()):
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "aitp-mcp": "C:\\temp\\aitp-mcp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                            "openclaw": "C:\\temp\\openclaw.exe",
+                                            "mcporter": "C:\\temp\\mcporter.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
 
         matrix = payload["runtime_support_matrix"]
         self.assertEqual(matrix["baseline_runtime"], "codex")
@@ -4168,6 +4192,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(matrix["runtimes"]["opencode"]["status"], "ready")
         self.assertEqual(matrix["runtimes"]["openclaw"]["maturity_class"], "specialized_lane")
         self.assertTrue(matrix["runtimes"]["claude_code"]["surface_checks"]["settings_has_expected_session_start_command"])
+        self.assertTrue(matrix["runtimes"]["claude_code"]["surface_checks"]["user_mcp_server_matches_canonical"])
         self.assertEqual(matrix["runtimes"]["codex"]["remediation"]["status"], "none_required")
         self.assertEqual(matrix["runtimes"]["claude_code"]["remediation"]["status"], "none_required")
         self.assertEqual(matrix["runtimes"]["opencode"]["remediation"]["status"], "none_required")
@@ -4232,31 +4257,45 @@ class AITPServiceTests(unittest.TestCase):
                 with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
                     with patch.object(
                         self.service,
-                        "_opencode_plugin_status",
-                        return_value=self._make_opencode_status(
-                            config_exists=False,
-                            config_parse_ok=False,
-                            plugin_list_present=False,
-                            plugin_list_valid=False,
-                            plugins=[],
-                            canonical_plugin_entry_present=False,
-                            aitp_plugin_entries=[],
+                        "_claude_mcp_status",
+                        return_value=self._make_claude_mcp_status(
+                            user_config_exists=False,
+                            user_config_parse_ok=False,
+                            user_mcp_server_present=False,
+                            user_mcp_server_matches_canonical=False,
+                            structured_tool_access_present=False,
+                            structured_tool_access_matches_canonical=False,
+                            effective_scope="",
+                            effective_config_path="",
                         ),
                     ):
-                        with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
-                            with patch.object(
-                                self.service,
-                                "_claude_legacy_command_paths",
-                                return_value=[Path("C:/Users/demo/.claude/commands/aitp.md")],
-                            ):
-                                with patch(
-                                    "knowledge_hub.aitp_service.shutil.which",
-                                    side_effect=lambda name: {
-                                        "aitp": "C:\\temp\\aitp.exe",
-                                        "codex": "C:\\temp\\codex.exe",
-                                    }.get(name, ""),
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(
+                                config_exists=False,
+                                config_parse_ok=False,
+                                plugin_list_present=False,
+                                plugin_list_valid=False,
+                                plugins=[],
+                                canonical_plugin_entry_present=False,
+                                aitp_plugin_entries=[],
+                            ),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(
+                                    self.service,
+                                    "_claude_legacy_command_paths",
+                                    return_value=[Path("C:/Users/demo/.claude/commands/aitp.md")],
                                 ):
-                                    payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
 
         matrix = payload["runtime_support_matrix"]["runtimes"]
         self.assertEqual(matrix["codex"]["status"], "ready")
@@ -4274,7 +4313,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("front_door_status:stale", deep_execution["claude_code"]["blockers"])
         self.assertIn("front_door_status:missing", deep_execution["opencode"]["blockers"])
         self.assertEqual(payload["deep_execution_parity"]["blocked_targets"], ["claude_code", "opencode"])
-        self.assertIn("claude_hook_surface_stale", payload["issues"])
+        self.assertIn("claude_frontdoor_surface_stale", payload["issues"])
         self.assertIn("opencode_plugin_surface_missing", payload["issues"])
         self.assertFalse(payload["runtime_convergence"]["front_door_runtimes_converged"])
 
@@ -4320,21 +4359,22 @@ class AITPServiceTests(unittest.TestCase):
         ):
             with patch.object(self.service, "_codex_skill_status", return_value=codex_status):
                 with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
-                    with patch.object(
-                        self.service,
-                        "_opencode_plugin_status",
-                        return_value=self._make_opencode_status(),
-                    ):
-                        with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
-                            with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
-                                with patch(
-                                    "knowledge_hub.aitp_service.shutil.which",
-                                    side_effect=lambda name: {
-                                        "aitp": "C:\\temp\\aitp.exe",
-                                        "codex": "C:\\temp\\codex.exe",
-                                    }.get(name, ""),
-                                ):
-                                    payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+                    with patch.object(self.service, "_claude_mcp_status", return_value=self._make_claude_mcp_status()):
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
 
         claude_row = payload["runtime_support_matrix"]["runtimes"]["claude_code"]
         self.assertEqual(claude_row["status"], "stale")
@@ -4343,7 +4383,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(claude_row["remediation"]["doc_path"], "docs/INSTALL_CLAUDE_CODE.md")
         self.assertEqual(claude_row["remediation"]["status"], "required")
 
-    def test_doctor_runtime_support_matrix_reports_ready_opencode_compatibility_surface(self) -> None:
+    def test_doctor_runtime_support_matrix_reports_missing_claude_mcp(self) -> None:
         codex_status = {
             "using_skill_path": "C:\\Users\\demo\\.agents\\skills\\using-aitp\\SKILL.md",
             "runtime_skill_path": "C:\\Users\\demo\\.agents\\skills\\aitp-runtime\\SKILL.md",
@@ -4387,36 +4427,115 @@ class AITPServiceTests(unittest.TestCase):
                 with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
                     with patch.object(
                         self.service,
-                        "_opencode_plugin_status",
-                        return_value=self._make_opencode_status(
-                            config_exists=False,
-                            config_parse_ok=False,
-                            plugin_list_present=False,
-                            plugin_list_valid=False,
-                            plugins=[],
-                            canonical_plugin_entry_present=False,
-                            aitp_plugin_entries=[],
-                            workspace_plugin_path="D:/theory/.opencode/plugins/aitp.js",
-                            workspace_using_skill_path="D:/theory/.opencode/skills/using-aitp/SKILL.md",
-                            workspace_runtime_skill_path="D:/theory/.opencode/skills/aitp-runtime/SKILL.md",
-                            workspace_plugin_present=True,
-                            workspace_using_skill_present=True,
-                            workspace_runtime_skill_present=True,
-                            workspace_plugin_matches_canonical=True,
-                            workspace_using_skill_matches_canonical=True,
-                            workspace_runtime_skill_matches_canonical=True,
+                        "_claude_mcp_status",
+                        return_value=self._make_claude_mcp_status(
+                            user_config_exists=False,
+                            user_config_parse_ok=False,
+                            user_mcp_server_present=False,
+                            user_mcp_server_matches_canonical=False,
+                            structured_tool_access_present=False,
+                            structured_tool_access_matches_canonical=False,
+                            effective_scope="",
+                            effective_config_path="",
                         ),
                     ):
-                        with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
-                            with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
-                                with patch(
-                                    "knowledge_hub.aitp_service.shutil.which",
-                                    side_effect=lambda name: {
-                                        "aitp": "C:\\temp\\aitp.exe",
-                                        "codex": "C:\\temp\\codex.exe",
-                                    }.get(name, ""),
-                                ):
-                                    payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+
+        claude_row = payload["runtime_support_matrix"]["runtimes"]["claude_code"]
+        self.assertEqual(claude_row["status"], "stale")
+        self.assertIn("mcp_server_missing", claude_row["issues"])
+        self.assertEqual(claude_row["remediation"]["command"], "aitp install-agent --agent claude-code --scope user")
+        self.assertIn("claude_frontdoor_surface_stale", payload["issues"])
+
+    def test_doctor_runtime_support_matrix_reports_ready_opencode_compatibility_surface(self) -> None:
+        codex_status = {
+            "using_skill_path": "C:\\Users\\demo\\.agents\\skills\\using-aitp\\SKILL.md",
+            "runtime_skill_path": "C:\\Users\\demo\\.agents\\skills\\aitp-runtime\\SKILL.md",
+            "using_skill_present": True,
+            "runtime_skill_present": True,
+            "using_skill_matches_canonical": True,
+            "runtime_skill_matches_canonical": True,
+        }
+        claude_status = {
+            "using_skill_path": "C:\\Users\\demo\\.claude\\skills\\using-aitp\\SKILL.md",
+            "runtime_skill_path": "C:\\Users\\demo\\.claude\\skills\\aitp-runtime\\SKILL.md",
+            "session_start_hook_path": "C:\\Users\\demo\\.claude\\hooks\\session-start",
+            "session_start_python_hook_path": "C:\\Users\\demo\\.claude\\hooks\\session-start.py",
+            "hook_wrapper_path": "C:\\Users\\demo\\.claude\\hooks\\run-hook.cmd",
+            "hooks_manifest_path": "C:\\Users\\demo\\.claude\\hooks\\hooks.json",
+            "settings_path": "C:\\Users\\demo\\.claude\\settings.json",
+            "using_skill": True,
+            "runtime_skill": True,
+            "session_start_hook": True,
+            "session_start_python_hook": True,
+            "hook_wrapper": True,
+            "hooks_manifest": True,
+            "settings": True,
+            "using_skill_matches_canonical": True,
+            "runtime_skill_matches_canonical": True,
+            "session_start_hook_matches_canonical": True,
+            "session_start_python_hook_matches_canonical": True,
+            "hook_wrapper_matches_canonical": True,
+            "hooks_manifest_matches_canonical": True,
+            "settings_has_expected_session_start_command": True,
+        }
+        with patch.object(
+            self.service,
+            "_pip_show_package",
+            return_value={
+                "version": "0.4.1",
+                "editable project location": str(self.service._canonical_package_root()),
+            },
+        ):
+            with patch.object(self.service, "_codex_skill_status", return_value=codex_status):
+                with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
+                    with patch.object(self.service, "_claude_mcp_status", return_value=self._make_claude_mcp_status()):
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(
+                                config_exists=False,
+                                config_parse_ok=False,
+                                plugin_list_present=False,
+                                plugin_list_valid=False,
+                                plugins=[],
+                                canonical_plugin_entry_present=False,
+                                aitp_plugin_entries=[],
+                                workspace_plugin_path="D:/theory/.opencode/plugins/aitp.js",
+                                workspace_using_skill_path="D:/theory/.opencode/skills/using-aitp/SKILL.md",
+                                workspace_runtime_skill_path="D:/theory/.opencode/skills/aitp-runtime/SKILL.md",
+                                workspace_plugin_present=True,
+                                workspace_using_skill_present=True,
+                                workspace_runtime_skill_present=True,
+                                workspace_plugin_matches_canonical=True,
+                                workspace_using_skill_matches_canonical=True,
+                                workspace_runtime_skill_matches_canonical=True,
+                            ),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
 
         opencode_row = payload["runtime_support_matrix"]["runtimes"]["opencode"]
         self.assertEqual(opencode_row["status"], "ready")
@@ -4466,38 +4585,39 @@ class AITPServiceTests(unittest.TestCase):
         ):
             with patch.object(self.service, "_codex_skill_status", return_value=codex_status):
                 with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
-                    with patch.object(
-                        self.service,
-                        "_opencode_plugin_status",
-                        return_value=self._make_opencode_status(
-                            config_exists=False,
-                            config_parse_ok=False,
-                            plugin_list_present=False,
-                            plugin_list_valid=False,
-                            plugins=[],
-                            canonical_plugin_entry_present=False,
-                            aitp_plugin_entries=[],
-                            workspace_plugin_path="D:/theory/.opencode/plugins/aitp.js",
-                            workspace_using_skill_path="D:/theory/.opencode/skills/using-aitp/SKILL.md",
-                            workspace_runtime_skill_path="D:/theory/.opencode/skills/aitp-runtime/SKILL.md",
-                            workspace_plugin_present=True,
-                            workspace_using_skill_present=False,
-                            workspace_runtime_skill_present=True,
-                            workspace_plugin_matches_canonical=True,
-                            workspace_using_skill_matches_canonical=False,
-                            workspace_runtime_skill_matches_canonical=True,
-                        ),
-                    ):
-                        with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
-                            with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
-                                with patch(
-                                    "knowledge_hub.aitp_service.shutil.which",
-                                    side_effect=lambda name: {
-                                        "aitp": "C:\\temp\\aitp.exe",
-                                        "codex": "C:\\temp\\codex.exe",
-                                    }.get(name, ""),
-                                ):
-                                    payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+                    with patch.object(self.service, "_claude_mcp_status", return_value=self._make_claude_mcp_status()):
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(
+                                config_exists=False,
+                                config_parse_ok=False,
+                                plugin_list_present=False,
+                                plugin_list_valid=False,
+                                plugins=[],
+                                canonical_plugin_entry_present=False,
+                                aitp_plugin_entries=[],
+                                workspace_plugin_path="D:/theory/.opencode/plugins/aitp.js",
+                                workspace_using_skill_path="D:/theory/.opencode/skills/using-aitp/SKILL.md",
+                                workspace_runtime_skill_path="D:/theory/.opencode/skills/aitp-runtime/SKILL.md",
+                                workspace_plugin_present=True,
+                                workspace_using_skill_present=False,
+                                workspace_runtime_skill_present=True,
+                                workspace_plugin_matches_canonical=True,
+                                workspace_using_skill_matches_canonical=False,
+                                workspace_runtime_skill_matches_canonical=True,
+                            ),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
 
         opencode_row = payload["runtime_support_matrix"]["runtimes"]["opencode"]
         self.assertEqual(opencode_row["status"], "partial")
@@ -4546,26 +4666,27 @@ class AITPServiceTests(unittest.TestCase):
         ):
             with patch.object(self.service, "_codex_skill_status", return_value=codex_status):
                 with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
-                    with patch.object(
-                        self.service,
-                        "_opencode_plugin_status",
-                        return_value=self._make_opencode_status(
-                            plugins=["aitp@git+ssh://old-private-repo"],
-                            canonical_plugin_entry_present=False,
-                            aitp_plugin_entries=["aitp@git+ssh://old-private-repo"],
-                            noncanonical_aitp_plugin_entries=["aitp@git+ssh://old-private-repo"],
-                        ),
-                    ):
-                        with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
-                            with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
-                                with patch(
-                                    "knowledge_hub.aitp_service.shutil.which",
-                                    side_effect=lambda name: {
-                                        "aitp": "C:\\temp\\aitp.exe",
-                                        "codex": "C:\\temp\\codex.exe",
-                                    }.get(name, ""),
-                                ):
-                                    payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+                    with patch.object(self.service, "_claude_mcp_status", return_value=self._make_claude_mcp_status()):
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(
+                                plugins=["aitp@git+ssh://old-private-repo"],
+                                canonical_plugin_entry_present=False,
+                                aitp_plugin_entries=["aitp@git+ssh://old-private-repo"],
+                                noncanonical_aitp_plugin_entries=["aitp@git+ssh://old-private-repo"],
+                            ),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
 
         opencode_row = payload["runtime_support_matrix"]["runtimes"]["opencode"]
         self.assertEqual(opencode_row["status"], "stale")
@@ -4647,12 +4768,11 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue((Path(result["backup_root"]) / "workspace-root-legacy" / "AITP_COMMAND_HARNESS.md").exists())
         self.assertFalse((workspace_root / "AITP_COMMAND_HARNESS.md").exists())
         self.assertIn(("codex", False), install_calls)
-        self.assertIn(("claude-code", False), install_calls)
+        self.assertIn(("claude-code", True), install_calls)
         self.assertIn(("opencode", False), install_calls)
         self.assertIn("runtime_convergence_before", result)
         self.assertIn("runtime_convergence_after", result)
         uninstall_steps = [row["step"] for row in result["pip_actions"]]
-        self.assertIn("uninstall_aitp", uninstall_steps)
         self.assertIn("uninstall_aitp_kernel", uninstall_steps)
 
     def test_migrate_local_install_reports_runtime_convergence_before_and_after(self) -> None:
@@ -8217,30 +8337,39 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("run-hook.cmd", installed_paths)
         self.assertIn("hooks.json", installed_paths)
         self.assertIn("settings.json", installed_paths)
+        self.assertIn(".claude.json", installed_paths)
         claude_using_skill_path = claude_target / ".claude" / "skills" / "using-aitp" / "SKILL.md"
         claude_skill_path = claude_target / ".claude" / "skills" / "aitp-runtime" / "SKILL.md"
+        claude_setup_path = claude_target / ".claude" / "skills" / "aitp-runtime" / "AITP_MCP_SETUP.md"
         claude_hook_path = claude_target / ".claude" / "hooks" / "session-start"
         claude_python_hook_path = claude_target / ".claude" / "hooks" / "session-start.py"
         claude_run_hook_path = claude_target / ".claude" / "hooks" / "run-hook.cmd"
         claude_hooks_json_path = claude_target / ".claude" / "hooks" / "hooks.json"
         claude_settings_path = claude_target / ".claude" / "settings.json"
+        claude_mcp_config_path = claude_target / ".claude.json"
         canonical_claude_hook = (self.package_root.parent.parent / "hooks" / "session-start").read_text(encoding="utf-8")
         canonical_claude_python_hook = (self.package_root.parent.parent / "hooks" / "session-start.py").read_text(encoding="utf-8")
         canonical_claude_run_hook = (self.package_root.parent.parent / "hooks" / "run-hook.cmd").read_text(encoding="utf-8")
         canonical_claude_hooks_json = (self.package_root.parent.parent / "hooks" / "hooks.json").read_text(encoding="utf-8")
         self.assertTrue(claude_using_skill_path.exists())
         self.assertTrue(claude_skill_path.exists())
+        self.assertTrue(claude_setup_path.exists())
         self.assertTrue(claude_hook_path.exists())
         self.assertTrue(claude_python_hook_path.exists())
         self.assertTrue(claude_run_hook_path.exists())
         self.assertTrue(claude_hooks_json_path.exists())
         self.assertTrue(claude_settings_path.exists())
+        self.assertTrue(claude_mcp_config_path.exists())
         self.assertEqual(claude_using_skill_path.read_text(encoding="utf-8"), canonical_using_skill)
         self.assertEqual(claude_skill_path.read_text(encoding="utf-8"), canonical_runtime_skill)
         self.assertEqual(claude_hook_path.read_text(encoding="utf-8"), canonical_claude_hook)
         self.assertEqual(claude_python_hook_path.read_text(encoding="utf-8"), canonical_claude_python_hook)
         self.assertEqual(claude_run_hook_path.read_text(encoding="utf-8"), canonical_claude_run_hook)
         self.assertEqual(claude_hooks_json_path.read_text(encoding="utf-8"), canonical_claude_hooks_json)
+        self.assertIn("claude mcp add-json", claude_setup_path.read_text(encoding="utf-8"))
         settings_payload = json.loads(claude_settings_path.read_text(encoding="utf-8"))
         self.assertIn("SessionStart", settings_payload["hooks"])
+        claude_mcp_payload = json.loads(claude_mcp_config_path.read_text(encoding="utf-8"))
+        self.assertIn("mcpServers", claude_mcp_payload)
+        self.assertIn("aitp", claude_mcp_payload["mcpServers"])
         self.assertFalse((claude_target / ".claude" / "commands").exists())

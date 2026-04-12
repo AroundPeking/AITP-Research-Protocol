@@ -67,6 +67,8 @@ aitp doctor --json
 
 `aitp doctor` now renders a front-door install summary for Codex, Claude Code,
 and OpenCode, while treating OpenClaw as a specialized lane.
+For Claude Code, that readiness now includes both SessionStart assets and the
+native AITP MCP registration.
 That readiness view is about install/bootstrap truth. It is not the same thing
 as deep-execution parity.
 
