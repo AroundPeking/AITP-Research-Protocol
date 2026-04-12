@@ -2,6 +2,10 @@
 
 This folder contains the installable public AITP kernel.
 
+It should be understood as the current **public reference implementation** of
+the AITP research protocol, not as the only possible implementation of that
+protocol.
+
 It is the repo-local source-of-truth behind:
 
 - `aitp`
@@ -15,6 +19,13 @@ The fixed directories are public governance surfaces.
 The scientific content inside them is expected to remain user-extensible so one
 clone can emphasize formal theory while another emphasizes toy-model numerics or
 code-backed method development.
+
+Short form:
+
+- protocol docs and contracts define the durable AITP model
+- this kernel is the current runnable implementation of that model
+- Codex / OpenCode / Claude Code / OpenClaw are front doors over this kernel,
+  not separate research protocols
 
 ## Quick Start
 
@@ -118,6 +129,8 @@ Current extracted boundaries include:
   - candidate promotion preparation, TPKN writeback materialization, consultation logging, and promotion-state finalization
 - `knowledge_hub/lean_bridge_support.py`
   - Lean-bridge packet construction, proof-obligation materialization, and active index synthesis
+- `knowledge_hub/statement_compilation_support.py`
+  - statement-compilation packet construction plus proof-repair-plan and active-index synthesis
 - `knowledge_hub/theory_coverage_audit_support.py`
   - theory-coverage normalization, packet artifact construction, regression-gate assembly, and candidate ledger updates
 - `knowledge_hub/topic_skill_projection_support.py`
@@ -156,10 +169,12 @@ aitp seed-l2-direction --direction tfim-benchmark-first
 aitp consult-l2 --query-text "TFIM exact diagonalization benchmark workflow" --retrieval-profile l3_candidate_formation
 aitp compile-l2-map
 aitp compile-l2-graph-report
+aitp compile-l2-knowledge-report
 aitp audit-l2-hygiene
 aitp compile-source-catalog
 aitp trace-source-citations --canonical-source-id source_identity:doi:10-1000-shared-paper
 aitp compile-source-family --source-type paper
+aitp statement-compilation --topic-slug <topic_slug> --candidate-id <candidate_id>
 aitp export-source-bibtex --canonical-source-id source_identity:doi:10-1000-shared-paper --include-neighbors
 aitp import-bibtex-sources --topic-slug <topic_slug> --bibtex-path <path-to-bib-file>
 aitp topics
@@ -174,6 +189,12 @@ aitp ci-check --topic-slug <topic_slug>
 aitp baseline --topic-slug <topic_slug> --run-id <run_id> --title "<baseline title>" --reference "<source>" --agreement-criterion "<criterion>"
 aitp atomize --topic-slug <topic_slug> --run-id <run_id> --method-title "<method title>"
 aitp operation-init --topic-slug <topic_slug> --run-id <run_id> --title "<operation>" --kind numerical
+
+For one isolated proof of the compiled-knowledge surface itself, run:
+
+```bash
+python runtime/scripts/run_l2_knowledge_report_acceptance.py --json
+```
 aitp operation-update --topic-slug <topic_slug> --run-id <run_id> --operation "<operation>" --baseline-status passed
 aitp trust-audit --topic-slug <topic_slug> --run-id <run_id>
 aitp capability-audit --topic-slug <topic_slug>
@@ -203,6 +224,7 @@ research/knowledge-hub/
   ROUTING_POLICY.md
   COMMUNICATION_CONTRACT.md
   AUTONOMY_AND_OPERATOR_MODEL.md
+  MODE_AND_LAYER_OPERATING_MODEL.md
   L2_CONSULTATION_PROTOCOL.md
   RESEARCH_EXECUTION_GUARDRAILS.md
   PROOF_OBLIGATION_PROTOCOL.md
@@ -432,8 +454,16 @@ python research/knowledge-hub/runtime/scripts/run_jones_chapter4_finite_product_
 python research/knowledge-hub/runtime/scripts/run_scrpa_thesis_topic_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_scrpa_control_plane_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l2_mvp_direction_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_discovery_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_source_catalog_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l1_vault_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_statement_compilation_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l1_method_specificity_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_transition_history_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_human_modification_record_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_competing_hypotheses_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_hypothesis_branch_routing_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_analytical_judgment_surface_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_collaborator_continuity_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_first_run_topic_acceptance.py --json
@@ -484,6 +514,14 @@ compiles the workspace memory map, compiles the human-facing graph report and
 derived navigation pages, audits L2 hygiene, and verifies those artifacts on an
 isolated temp kernel root instead of mutating repo runtime state.
 
+The L0 source-discovery acceptance script is the bounded `v1.69` search ->
+evaluate -> register check for the missing pre-registration entry lane: it
+feeds one isolated search-results fixture into
+`source-layer/scripts/discover_and_register.py`, verifies that the selected
+candidate stays explicit through `candidate_evaluation.json`, and confirms that
+canonical registration still lands in the usual Layer 0 plus Layer 1
+projection surfaces on an isolated temp kernel root.
+
 The source catalog acceptance script is the bounded Layer 0 reuse check for the
 current `v1.46` plus `v1.63` BibTeX surface: it compiles the global source
 catalog, traces one bounded citation neighborhood, compiles one source-family
@@ -491,11 +529,191 @@ reuse report, exports one bounded BibTeX neighborhood, imports one bounded
 BibTeX file back into Layer 0, checks runtime `status --json` source-fidelity
 output, and verifies those artifacts on an isolated temp kernel root.
 
+For bounded pre-registration discovery, the current operator entrypoint is:
+
+```bash
+python research/knowledge-hub/source-layer/scripts/discover_and_register.py \
+  --topic-slug <topic_slug> \
+  --query "<natural-language query>"
+```
+
 The L1 method-specificity acceptance script is the bounded `v1.64` intake
 surface check: it uses production `status --json` on an isolated temp kernel
 root, verifies that `method_specificity_rows` are materialized inside
 `l1_source_intake`, and checks that the same surface is visible in
 `research_question.contract.md` and the runtime protocol note.
+
+The L1 assumption/depth acceptance script is the bounded `v1.70` intake-honesty
+closure path: it uses production `status --json` on an isolated temp kernel
+root, verifies that `assumption_rows`, `reading_depth_rows`, and contradiction
+signals are materialized through the existing `l1_source_intake` path, and
+checks that the same honesty surface stays visible in
+`research_question.contract.md`, `topic_dashboard.md`, the runtime protocol
+note, and the `L1` vault wiki page.
+
+The runtime transition-history acceptance script is the bounded `v1.71`
+runtime-history closure path: it uses production `request-promotion`,
+production `reject-promotion`, then production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that forward
+and backward layer moves become durable `transition_history` artifacts instead
+of remaining implicit in overwritten current-stage state.
+
+The human-modification-record acceptance script is the bounded `v1.72`
+promotion-gate evaluator-divergence closure path: it uses production
+`request-promotion`, then production `approve-promotion --human-modification`
+on an isolated temp kernel root, verifying that `promotion_gate.json|md` keeps
+structured modification records and that `replay-topic --json` surfaces the
+modified approval instead of flattening it into an undifferentiated approval.
+
+The competing-hypotheses acceptance script is the bounded `v1.73`
+research-question closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`research_question.contract.md`, the runtime protocol note, and replay all
+surface explicit `competing_hypotheses` while deferred candidates and follow-up
+subtopics remain visible as separate runtime lanes.
+
+The hypothesis-branch-routing acceptance script is the bounded `v1.74`
+post-`v1.73` routing closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that each
+competing hypothesis now carries explicit branch-routing metadata, that the
+active local branch hypothesis is visible directly, and that deferred parking,
+follow-up subtopics, and steering artifacts still coexist as separate runtime
+surfaces.
+
+The hypothesis-route-activation acceptance script is the bounded `v1.75`
+activation-surface closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_activation` surfaces the active local hypothesis plus its immediate
+bounded action, that deferred and follow-up parked obligations remain explicit,
+and that this slice does not auto-spawn a follow-up topic directory.
+
+The hypothesis-route-reentry acceptance script is the bounded `v1.76`
+re-entry-surface closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_reentry` surfaces deferred reactivation conditions plus follow-up return
+readiness, that one parked route can remain waiting while another becomes
+re-entry-ready, and that this slice does not write a reintegration receipt or
+materialize a reactivated deferred candidate.
+
+The hypothesis-route-handoff acceptance script is the bounded `v1.77`
+handoff-surface closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_handoff` surfaces one bounded parked-route handoff candidate plus
+explicit keep-parked decisions, that one ready parked route can occupy the
+handoff lane while another ready parked route remains parked, and that this
+slice does not write a reintegration receipt or materialize a reactivated
+deferred candidate.
+
+The hypothesis-route-choice acceptance script is the bounded `v1.78`
+choice-surface closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_choice` surfaces one stay-local versus yield-to-handoff summary, that
+the local route can stay active while the handoff candidate remains visible as
+the yield option, and that this slice does not write a reintegration receipt or
+materialize a reactivated deferred candidate.
+
+The hypothesis-route-transition-gate acceptance script is the bounded `v1.79`
+transition-gate closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_gate` now surfaces whether yielding is blocked, available, or
+checkpoint-gated, that the gate points at the durable route-choice or operator
+checkpoint artifact, and that this slice still does not auto-reactivate or
+auto-reintegrate parked routes.
+
+The hypothesis-route-transition-intent acceptance script is the bounded
+`v1.80` transition-intent closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_intent` now surfaces the proposed source route and target
+route after the transition gate, that the intent stays explicit across
+proposed, ready, and checkpoint-held states, and that this slice still does not
+auto-reactivate or auto-reintegrate parked routes.
+
+The hypothesis-route-transition-receipt acceptance script is the bounded
+`v1.81` transition-receipt closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_receipt` now surfaces whether the intended source-to-target
+handoff has been durably recorded, that the receipt points at transition-history
+artifacts, and that this slice still does not widen into fresh runtime
+mutation.
+
+The hypothesis-route-transition-resolution acceptance script is the bounded
+`v1.82` transition-resolution closure path: it uses production `status --json`
+and `replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_resolution` now synthesizes transition intent, transition
+receipt, and current active-route state into one resolved operator outcome, and
+that this slice still does not widen into fresh runtime mutation.
+
+The hypothesis-route-transition-discrepancy acceptance script is the bounded
+`v1.83` transition-discrepancy closure path: it uses production `status --json`
+and `replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_discrepancy` now flags inconsistent transition state when the
+resolved handoff outcome disagrees with upstream route artifacts, and that this
+slice still does not widen into fresh runtime mutation.
+
+The hypothesis-route-transition-repair acceptance script is the bounded
+`v1.84` transition-repair closure path: it uses production `status --json` and
+`replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_repair` now turns transition discrepancy into one bounded
+repair plan for the operator, and that this slice still does not widen into
+fresh runtime mutation.
+
+The hypothesis-route-transition-escalation acceptance script is the bounded
+`v1.85` transition-escalation closure path: it uses production `status --json`
+and `replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_escalation` now makes it explicit when bounded transition
+repair should escalate into a human checkpoint, and that this slice still does
+not widen into fresh runtime mutation.
+
+The hypothesis-route-transition-clearance acceptance script is the bounded
+`v1.86` transition-clearance closure path: it uses production `status --json`
+and `replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_clearance` now makes it explicit whether an escalated
+transition is still checkpoint-blocked, still awaiting a checkpoint, or has
+been released back into bounded follow-through, and that this slice still does
+not widen into fresh runtime mutation.
+
+The hypothesis-route-transition-followthrough acceptance script is the bounded
+`v1.87` transition-followthrough closure path: it uses production
+`status --json` and `replay-topic --json` on an isolated temp kernel root,
+verifying that `route_transition_followthrough` now makes it explicit what
+bounded transition work should resume after clearance, and that this slice
+still does not widen into fresh runtime mutation.
+
+The hypothesis-route-transition-resumption acceptance script is the bounded
+`v1.88` transition-resumption closure path: it uses production
+`status --json` and `replay-topic --json` on an isolated temp kernel root,
+verifying that `route_transition_resumption` now makes it explicit whether
+ready follow-through has actually been resumed on the bounded route, and that
+this slice still does not widen into fresh runtime mutation.
+
+The hypothesis-route-transition-commitment acceptance script is the bounded
+`v1.89` transition-commitment closure path: it uses production `status --json`
+and `replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_commitment` now makes it explicit whether a resumed route has
+become the durable committed bounded lane, and that this slice still does not
+widen into fresh runtime mutation.
+
+The hypothesis-route-transition-authority acceptance script is the bounded
+`v1.90` transition-authority closure path: it uses production `status --json`
+and `replay-topic --json` on an isolated temp kernel root, verifying that
+`route_transition_authority` now makes it explicit whether a committed route
+has become the authoritative bounded truth across current-topic runtime
+surfaces, and that this slice still does not widen into fresh runtime
+mutation.
+
+The L1 vault acceptance script is the bounded `v1.68` intake-compilation check:
+it uses production `status --json` on an isolated temp kernel root, verifies
+that `intake/topics/<topic_slug>/vault/raw|wiki|output` are materialized on the
+topic-shell path, and checks that the wiki flowback ledger plus runtime bridge
+stay visible in both `research_question.contract.md` and the runtime protocol
+note.
+
+The statement-compilation acceptance script is the bounded `v1.68` formalization
+pilot check: it seeds one theorem-facing candidate plus minimal theory-packet
+inputs on an isolated temp kernel root, runs production
+`statement-compilation --json`, then production `lean-bridge --json`, and
+checks that declaration skeletons, proof-repair plans, and downstream
+Lean-bridge refs all stay explicit and auditable.
 
 The analytical-judgment acceptance script is the bounded `v1.47` closure path
 for the new analytical-review plus research-judgment surfaces: it runs

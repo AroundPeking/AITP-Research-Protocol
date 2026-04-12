@@ -1,45 +1,34 @@
-# Requirements: v1.67 Cross-Runtime Deep Execution Parity
+# Requirements: v1.91 Real Topic L0 To L2 End-To-End Validation
 
 ## Milestone Goal
 
-Move Claude Code and OpenCode from install/front-door parity targets to honest
-deep-execution parity probes against the Codex baseline, while keeping
-OpenClaw explicitly deferred as a specialized lane.
+Close the next post-`v1.90` maturity gap so AITP can prove whether the current
+protocol and implementation are genuinely useful on a real topic from an
+initial idea through one honest bounded research outcome.
 
 ## Active Requirements
 
-### Parity Contract
+### Real Topic E2E Surface
 
-- [x] `REQ-PARITY-01`: the repository distinguishes install/front-door
-  readiness from deep-execution readiness through one explicit runtime parity
-  contract instead of treating a green `doctor` row as sufficient proof.
-- [x] `REQ-PARITY-02`: Codex remains the declared baseline runtime with one
-  bounded real-topic execution lane and artifact-quality bar that parity
-  targets must be compared against.
+- [ ] `REQ-E2E-01`: at least one real topic runs through the current public
+  AITP entry surfaces from an initial idea rather than from a synthetic seeded
+  fixture.
+- [ ] `REQ-E2E-02`: the real-topic run leaves one durable postmortem naming
+  the actual route, artifact refs, friction points, and bounded outcome.
 
-### Runtime Probes
+### GSD Linkage Rule
 
-- [ ] `REQ-PARITY-03`: Claude Code has one bounded real-topic deep-execution
-  probe that enters through its supported bootstrap surface, reaches durable
-  AITP artifacts, and records where it matches or falls short of the Codex
-  baseline.
-- [ ] `REQ-PARITY-04`: OpenCode has one bounded real-topic deep-execution
-  probe that enters through its supported bootstrap surface, reaches durable
-  AITP artifacts, and records where it matches or falls short of the Codex
-  baseline.
-
-### Verification And Closure
-
-- [ ] `REQ-VERIFY-01`: the milestone closes with targeted regression coverage,
-  one shared parity audit/report surface, and bounded acceptance evidence for
-  Codex, Claude Code, and OpenCode.
+- [ ] `REQ-E2E-03`: every discovered issue is recorded in one durable issue
+  ledger and is not left only in runtime artifacts or chat memory.
+- [ ] `REQ-E2E-04`: every issue from the ledger is routed into explicit
+  GSD-tracked follow-up work (decimal phase, next milestone candidate, or
+  backlog item) instead of assuming GSD will auto-discover it.
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-PARITY-01 | Phase 134 | Complete |
-| REQ-PARITY-02 | Phase 134 | Complete |
-| REQ-PARITY-03 | Phase 135 | Pending |
-| REQ-PARITY-04 | Phase 136 | Pending |
-| REQ-VERIFY-01 | Phase 137 | Pending |
+| REQ-E2E-01 | Phase 165 | Pending |
+| REQ-E2E-02 | Phase 165 | Pending |
+| REQ-E2E-03 | Phase 165 | Pending |
+| REQ-E2E-04 | Phase 165 | Pending |

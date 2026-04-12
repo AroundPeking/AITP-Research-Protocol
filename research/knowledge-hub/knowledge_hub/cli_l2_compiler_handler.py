@@ -7,6 +7,7 @@ from typing import Any
 L2_COMPILER_COMMANDS = {
     "compile-l2-map",
     "compile-l2-graph-report",
+    "compile-l2-knowledge-report",
     "audit-l2-hygiene",
 }
 
@@ -24,6 +25,12 @@ def register_l2_compiler_commands(subparsers: argparse._SubParsersAction[Any]) -
     )
     compile_l2_graph_report.add_argument("--json", action="store_true")
 
+    compile_l2_knowledge_report = subparsers.add_parser(
+        "compile-l2-knowledge-report",
+        help="Compile a bounded non-authoritative workspace knowledge report over canonical and staging L2 surfaces",
+    )
+    compile_l2_knowledge_report.add_argument("--json", action="store_true")
+
     audit_l2_hygiene = subparsers.add_parser(
         "audit-l2-hygiene",
         help="Audit bounded L2 hygiene findings for the current workspace",
@@ -37,6 +44,9 @@ def dispatch_l2_compiler_command(args: argparse.Namespace, service: Any) -> dict
 
     if args.command == "compile-l2-graph-report":
         return service.compile_l2_graph_report()
+
+    if args.command == "compile-l2-knowledge-report":
+        return service.compile_l2_knowledge_report()
 
     if args.command == "audit-l2-hygiene":
         return service.audit_l2_hygiene()

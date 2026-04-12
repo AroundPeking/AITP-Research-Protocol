@@ -55,6 +55,7 @@ def _deep_execution_row(
     *,
     baseline_runtime: str,
     parity_targets: list[str],
+    implemented_probe_runtimes: list[str],
 ) -> dict[str, Any]:
     remediation = front_door_row.get("remediation") or {}
     display_name = str(front_door_row.get("display_name") or runtime_id)
@@ -77,12 +78,21 @@ def _deep_execution_row(
     elif runtime_id in parity_targets:
         baseline_relationship = "parity_target"
         if front_door_status == "ready":
-            status = "probe_pending"
-            blockers = ["runtime_specific_probe_not_implemented"]
-            notes = [
-                "Front-door install/bootstrap readiness is already green.",
-                "Deep-execution parity is still unmeasured until the dedicated runtime probe lands.",
-            ]
+            if runtime_id in implemented_probe_runtimes:
+                status = "probe_available"
+                blockers = []
+                notes = [
+                    "Front-door install/bootstrap readiness is already green.",
+                    "A dedicated runtime-specific deep-execution probe now exists for this lane.",
+                    "Run the acceptance command to capture the current bounded parity-gap report against Codex.",
+                ]
+            else:
+                status = "probe_pending"
+                blockers = ["runtime_specific_probe_not_implemented"]
+                notes = [
+                    "Front-door install/bootstrap readiness is already green.",
+                    "Deep-execution parity is still unmeasured until the dedicated runtime probe lands.",
+                ]
         else:
             status = "front_door_blocked"
             blockers = [f"front_door_status:{front_door_status}", "runtime_specific_probe_not_implemented"]
@@ -520,6 +530,7 @@ def build_runtime_support_matrix(
     baseline_runtime = "codex"
     parity_targets = ["claude_code", "opencode"]
     specialized_lanes = ["openclaw"]
+    implemented_probe_runtimes = ["claude_code", "opencode"]
     runtimes = {
         "codex": _codex_runtime_row(
             codex_path=str(codex_path or ""),
@@ -552,6 +563,7 @@ def build_runtime_support_matrix(
                 row,
                 baseline_runtime=baseline_runtime,
                 parity_targets=parity_targets,
+                implemented_probe_runtimes=implemented_probe_runtimes,
             )
             for runtime_id, row in runtimes.items()
         },

@@ -14,12 +14,14 @@ Layer 0 is the callable source substrate of AITP:
 - `topics/<topic_slug>/topic.json`
 - `topics/<topic_slug>/source_index.jsonl`
 - `topics/<topic_slug>/sources/<source_slug>/`
+- `topics/<topic_slug>/discoveries/<discovery_id>/`
 - `global_index.jsonl`
 - `compiled/source_catalog.json|md`
 - `compiled/citation_traversals/`
 - `compiled/source_families/`
 - `compiled/bibtex_exports/`
 - `compiled/bibtex_imports/`
+- `scripts/discover_and_register.py`
 - `scripts/register_arxiv_source.py`
 - `scripts/backfill_topic_sources.py`
 
@@ -46,7 +48,27 @@ The split matters because:
 
 ## Current helper workflow
 
-Register a new arXiv-backed source into Layer 0 and create the Layer 1 projection:
+Discover, evaluate, and register a new arXiv-backed source starting from a
+natural-language query:
+
+```bash
+python3 source-layer/scripts/discover_and_register.py \
+  --topic-slug <topic_slug> \
+  --query "<natural-language query>"
+```
+
+For an isolated or operator-controlled fixture lane, feed explicit search
+results instead of calling a live provider:
+
+```bash
+python3 source-layer/scripts/discover_and_register.py \
+  --topic-slug <topic_slug> \
+  --query "<natural-language query>" \
+  --provider search_results_json \
+  --search-results-json <path-to-search-results.json>
+```
+
+Register a new arXiv-backed source directly when the id is already known:
 
 ```bash
 python3 source-layer/scripts/register_arxiv_source.py \
@@ -78,3 +100,11 @@ The current bounded compiled surfaces now make that reuse easier to inspect:
 - `compiled/source_families/`
 - `compiled/bibtex_exports/`
 - `compiled/bibtex_imports/`
+
+The current bounded discovery bridge also makes pre-registration search
+auditable:
+- `topics/<topic_slug>/discoveries/<discovery_id>/query.json`
+- `topics/<topic_slug>/discoveries/<discovery_id>/search_results.json`
+- `topics/<topic_slug>/discoveries/<discovery_id>/candidate_evaluation.json`
+- `topics/<topic_slug>/discoveries/<discovery_id>/registration_receipt.json`
+- `topics/<topic_slug>/discoveries/<discovery_id>/discovery_summary.md`

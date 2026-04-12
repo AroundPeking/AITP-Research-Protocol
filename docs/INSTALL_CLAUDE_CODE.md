@@ -106,6 +106,8 @@ The same JSON report should show:
 - `runtime_support_matrix.runtimes.claude_code.status` as `ready`
 - `runtime_support_matrix.runtimes.claude_code.remediation` when the Claude
   row needs repair
+- `runtime_support_matrix.deep_execution_parity.runtimes.claude_code.status`
+  as `probe_available` once the bounded Claude runtime probe is present
 - `runtime_convergence.front_door_runtimes_converged` when the full front-door
   adoption surface is aligned
 - `control_plane_contracts` and `control_plane_surfaces` so Claude-side
@@ -115,6 +117,16 @@ The same JSON report should show:
 If the Claude row is not `ready`, run the command in
 `runtime_support_matrix.runtimes.claude_code.remediation.command`, then rerun
 `runtime_support_matrix.runtimes.claude_code.remediation.followup_command`.
+
+To run the bounded deep-execution probe explicitly:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime claude_code --json
+```
+
+That report should stay limitation-heavy: it proves the SessionStart bootstrap
+receipt plus bounded AITP runtime artifacts, but it does not yet claim full
+live-Claude parity with the Codex baseline.
 
 Useful follow-up commands once a topic exists:
 

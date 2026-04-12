@@ -4,7 +4,9 @@
   <p><strong>A research protocol that turns your AI coding agent into a disciplined theoretical-physics collaborator — one that keeps evidence separate from conjecture, remembers your topics across sessions, and only promotes results to trusted memory after you approve them.</strong></p>
   <p>
     <a href="#how-it-works">How it works</a> ·
+    <a href="#protocol-and-current-implementation">Protocol & Implementation</a> ·
     <a href="#installation">Installation</a> ·
+    <a href="#current-use-paths">Using AITP</a> ·
     <a href="#the-basic-workflow">Workflow</a> ·
     <a href="#research-model">Research Model</a> ·
     <a href="#whats-inside">What's Inside</a> ·
@@ -36,9 +38,37 @@ When the work reaches a natural checkpoint, AITP presents what it found, what ga
 
 Everything is durable. You can close your laptop, come back days later, say "continue this topic," and the agent picks up exactly where it left off — with full context of what was done, what was decided, and what is still open. For the full experience, see [`docs/USER_TOPIC_JOURNEY.md`](docs/USER_TOPIC_JOURNEY.md).
 
+## Protocol and Current Implementation
+
+This repository contains both:
+
+1. the **AITP research protocol**
+2. the **current public reference implementation** of that protocol
+
+The protocol is the durable contract: layers, trust boundaries, promotion
+rules, runtime artifacts, and the rule that evidence stays separate from
+conjecture.
+
+The implementation is what you actually run today:
+
+- the installable kernel under [`research/knowledge-hub/`](research/knowledge-hub/)
+- the `aitp` and `aitp-mcp` entrypoints
+- the runtime scripts and topic-shell materialization
+- the current Codex / OpenCode / Claude Code / OpenClaw front doors
+
+The important boundary is:
+
+- the protocol is the durable model
+- the current Python kernel and front-door integrations are one implementation
+  of that model
+
+Another implementation would still count as AITP only if it preserves the same
+layer semantics, durable artifact model, evidence boundaries, and governed
+promotion into trusted memory.
+
 ## Installation
 
-### Quick Start
+### Kernel Install
 
 ```bash
 python -m pip install aitp-kernel
@@ -85,6 +115,74 @@ See [`docs/INSTALL_OPENCLAW.md`](docs/INSTALL_OPENCLAW.md) for details.
 For contributor/local-dev editable installs, Windows-specific instructions,
 migration from older installs, and troubleshooting, see
 [`docs/INSTALL.md`](docs/INSTALL.md).
+
+### What `aitp doctor` Means
+
+`aitp doctor` is the current install/bootstrap truth surface.
+
+Use it to confirm:
+
+- the kernel is installed correctly
+- the fixed protocol roots are present
+- your selected front door is wired correctly
+- the current machine has enough structure to run the bounded first-use path
+
+Important boundary:
+
+- `aitp doctor` proves **front-door readiness**
+- it does **not** by itself prove deep-execution parity across every runtime
+
+For machine-readable inspection, run:
+
+```bash
+aitp doctor --json
+```
+
+## Current Use Paths
+
+The current implementation supports three honest entry styles.
+
+### 1. Agent-front-door usage
+
+After installing the adapter for Codex, OpenCode, Claude Code, or OpenClaw,
+you can start from a natural-language request inside that agent surface.
+
+That is the most protocol-native experience:
+
+- describe the idea
+- let AITP route it into a bounded topic
+- continue through the topic shell and runtime protocol artifacts
+
+### 2. Explicit topic bootstrap
+
+If you want the most direct CLI path from idea to topic:
+
+```bash
+aitp bootstrap --topic "<topic>" --statement "<initial idea or question>"
+aitp loop --topic-slug <topic_slug> --human-request "Continue with the next bounded step."
+aitp status --topic-slug <topic_slug>
+```
+
+This is the current verified first-run path for the public kernel.
+
+Useful follow-up reads:
+
+- `aitp replay-topic --topic-slug <topic_slug>`
+- `aitp capability-audit --topic-slug <topic_slug>`
+- `aitp paired-backend-audit --topic-slug <topic_slug>`
+- `aitp h-plane-audit --topic-slug <topic_slug>`
+
+### 3. Lightweight idea-first exploration
+
+If the idea is still too loose for full topic bootstrap:
+
+```bash
+aitp explore "Sketch the idea before opening a full topic loop."
+```
+
+That writes a lightweight exploration carrier instead of the full topic shell.
+When the idea becomes specific enough, promote it into normal topic work with
+`promote-exploration` or start a full topic explicitly.
 
 ## The Basic Workflow
 
@@ -142,6 +240,9 @@ The same protocol kernel drives different categories of theoretical-physics work
 - **Cross-session memory** — Every topic survives session resets. Resume days later with full context.
 - **Lean-ready export** — Bridge validated theory results into Lean 4 declaration packets with proof-obligation sidecars.
 - **Bounded autonomous execution** — Run multi-step research loops with explicit human gates at decision points (OpenClaw).
+- **L1 three-layer vault** — Materialize raw/wiki/output intake vaults with explicit flowback receipts on the existing topic-shell path.
+- **Statement compilation before proof repair** — Compile bounded theory statements into declaration skeletons and explicit proof-repair plans before Lean-facing export.
+- **L2 compiler helpers** — Seed and inspect reusable knowledge views with commands like `aitp seed-l2-direction --direction tfim-benchmark-first`, `aitp consult-l2 --query-text "TFIM exact diagonalization benchmark workflow" --retrieval-profile l3_candidate_formation`, `aitp compile-l2-graph-report`, and `aitp compile-l2-knowledge-report`.
 
 ### Runtime Support
 
@@ -159,6 +260,22 @@ Parity target: Claude Code and OpenCode.
 Specialized lane: OpenClaw.
 `aitp doctor` reports front-door readiness only. Deep-execution parity is a
 separate surface.
+The current bounded parity probes are available for Claude Code and OpenCode
+via `python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime <runtime> --json`.
+The cross-runtime closure report is available via
+`python research/knowledge-hub/runtime/scripts/run_runtime_parity_audit.py --json`.
+The bounded L1 raw/wiki/output vault acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_l1_vault_acceptance.py --json`.
+The bounded L1 assumption/reading-depth acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json`.
+The bounded runtime transition/demotion acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_transition_history_acceptance.py --json`.
+The bounded promotion-gate human-modification acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_human_modification_record_acceptance.py --json`.
+The bounded competing-hypotheses acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_competing_hypotheses_acceptance.py --json`.
+The bounded statement-compilation acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_statement_compilation_acceptance.py --json`.
 
 The machine-readable install view exposes:
 
@@ -189,13 +306,24 @@ Useful runtime audit entrypoints once a topic exists:
 
 ## Current Status
 
-- Ships a standalone installable kernel under `research/knowledge-hub`
-- Supports Codex, OpenCode, Claude Code, and OpenClaw front doors
-- Multi-topic runtime with natural-language switching
-- Explicit human approval gate before L2 promotion
+- Ships one public reference implementation of the AITP protocol under `research/knowledge-hub`
+- Supports Codex, OpenCode, Claude Code, and OpenClaw front doors over the same kernel
+- Has a verified first-run path: `bootstrap -> loop -> status`
+- Has a verified lightweight idea-first path: `explore -> promote-exploration`
+- Has an explicit human approval gate before `L2` promotion
 - Bridges into the [Theoretical-Physics-Knowledge-Network](https://github.com/bhjia-phys/Theoretical-Physics-Knowledge-Network) formal-theory backend
 
-In progress: expanding multi-runtime smoke testing and shrinking the compatibility installer as native platform installs mature.
+What is mostly done:
+
+- protocol surface coverage for the current `L0-L4` kernel
+- install/bootstrap/front-door adoption surface
+- runtime control plane, `H-plane`, layer graph, and route-transition visibility
+
+What is not yet fully proven:
+
+- real-topic end-to-end research utility across `L0 -> L1 -> L3 -> L4 -> L2`
+- deep-execution parity on every non-Codex runtime
+- full maturity of the `L2` knowledge surface and statement-compilation pipeline
 
 ## Contributing
 

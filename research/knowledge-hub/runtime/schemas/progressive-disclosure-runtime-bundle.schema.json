@@ -41,6 +41,7 @@
     "scratchpad",
     "topic_skill_projection",
     "topic_completion",
+    "statement_compilation",
     "lean_bridge",
     "minimal_execution_brief",
     "must_read_now",
@@ -775,7 +776,30 @@
         "validation_mode",
         "target_layers",
         "question",
+        "competing_hypothesis_count",
+        "leading_hypothesis_id",
+        "active_branch_hypothesis_id",
+        "deferred_branch_hypothesis_ids",
+        "followup_branch_hypothesis_ids",
+        "route_activation",
+        "route_reentry",
+        "route_handoff",
+        "route_choice",
+        "route_transition_gate",
+        "route_transition_intent",
+        "route_transition_receipt",
+        "route_transition_resolution",
+        "route_transition_discrepancy",
+        "route_transition_repair",
+        "route_transition_escalation",
+        "route_transition_clearance",
+        "route_transition_followthrough",
+        "route_transition_resumption",
+        "route_transition_commitment",
+        "route_transition_authority",
+        "competing_hypotheses",
         "l1_source_intake",
+        "l1_vault",
         "path",
         "note_path"
       ],
@@ -815,8 +839,89 @@
           "type": "string",
           "minLength": 1
         },
+        "competing_hypothesis_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "leading_hypothesis_id": {
+          "type": "string"
+        },
+        "active_branch_hypothesis_id": {
+          "type": "string"
+        },
+        "deferred_branch_hypothesis_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "followup_branch_hypothesis_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "route_activation": {
+          "$ref": "#/$defs/route_activation"
+        },
+        "route_reentry": {
+          "$ref": "#/$defs/route_reentry"
+        },
+        "route_handoff": {
+          "$ref": "#/$defs/route_handoff"
+        },
+        "route_choice": {
+          "$ref": "#/$defs/route_choice"
+        },
+        "route_transition_gate": {
+          "$ref": "#/$defs/route_transition_gate"
+        },
+        "route_transition_intent": {
+          "$ref": "#/$defs/route_transition_intent"
+        },
+        "route_transition_receipt": {
+          "$ref": "#/$defs/route_transition_receipt"
+        },
+        "route_transition_resolution": {
+          "$ref": "#/$defs/route_transition_resolution"
+        },
+        "route_transition_discrepancy": {
+          "$ref": "#/$defs/route_transition_discrepancy"
+        },
+        "route_transition_repair": {
+          "$ref": "#/$defs/route_transition_repair"
+        },
+        "route_transition_escalation": {
+          "$ref": "#/$defs/route_transition_escalation"
+        },
+        "route_transition_clearance": {
+          "$ref": "#/$defs/route_transition_clearance"
+        },
+        "route_transition_followthrough": {
+          "$ref": "#/$defs/route_transition_followthrough"
+        },
+        "route_transition_resumption": {
+          "$ref": "#/$defs/route_transition_resumption"
+        },
+        "route_transition_commitment": {
+          "$ref": "#/$defs/route_transition_commitment"
+        },
+        "route_transition_authority": {
+          "$ref": "#/$defs/route_transition_authority"
+        },
+        "competing_hypotheses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/competing_hypothesis"
+          }
+        },
         "l1_source_intake": {
           "$ref": "#/$defs/l1_source_intake"
+        },
+        "l1_vault": {
+          "$ref": "#/$defs/l1_vault"
         },
         "path": {
           "type": "string",
@@ -2582,6 +2687,130 @@
         }
       }
     },
+    "statement_compilation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "packet_count",
+        "ready_packet_count",
+        "needs_repair_count",
+        "summary",
+        "path"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compilation_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packet_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ready_packet_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "needs_repair_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "packets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "candidate_id",
+              "candidate_type",
+              "statement_kind",
+              "status",
+              "proof_hole_count",
+              "packet_path",
+              "packet_note_path",
+              "repair_plan_path",
+              "repair_plan_note_path"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "candidate_type": {
+                "type": "string"
+              },
+              "statement_kind": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "minLength": 1
+              },
+              "proof_hole_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "packet_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "packet_note_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "repair_plan_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "repair_plan_note_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement_compilation_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement_compilation_note_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_by": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "lean_bridge": {
       "type": "object",
       "additionalProperties": false,
@@ -3473,6 +3702,1431 @@
           "items": {
             "$ref": "#/$defs/l1_notation_tension_candidate"
           }
+        }
+      }
+    },
+    "l1_vault": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vault_version",
+        "status",
+        "topic_slug",
+        "authority_level",
+        "protocol_path",
+        "root_path",
+        "raw",
+        "wiki",
+        "output",
+        "compatibility_refs"
+      ],
+      "properties": {
+        "vault_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "authority_level": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protocol_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifest_path",
+            "note_path",
+            "source_count"
+          ],
+          "properties": {
+            "manifest_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "note_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "wiki": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_path",
+            "home_page_path",
+            "page_count",
+            "page_paths"
+          ],
+          "properties": {
+            "schema_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "home_page_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "page_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "page_paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "digest_path",
+            "digest_note_path",
+            "flowback_log_path",
+            "flowback_note_path",
+            "flowback_entry_count"
+          ],
+          "properties": {
+            "digest_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest_note_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "flowback_log_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "flowback_note_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "flowback_entry_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "compatibility_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "path",
+              "status"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_by": {
+          "type": "string"
+        }
+      }
+    },
+    "competing_hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hypothesis_id",
+        "label",
+        "status",
+        "summary",
+        "route_kind",
+        "route_target_summary",
+        "route_target_ref",
+        "evidence_refs",
+        "evidence_ref_count",
+        "exclusion_notes"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "leading",
+            "active",
+            "watch",
+            "excluded"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_kind": {
+          "type": "string",
+          "enum": [
+            "current_topic",
+            "deferred_buffer",
+            "followup_subtopic",
+            "excluded"
+          ]
+        },
+        "route_target_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_target_ref": {
+          "type": "string"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_ref_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exclusion_notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "route_activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_local_hypothesis_id",
+        "active_local_action_summary",
+        "active_local_action_ref",
+        "parked_route_count",
+        "deferred_obligations",
+        "followup_obligations"
+      ],
+      "properties": {
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "active_local_action_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_local_action_ref": {
+          "type": "string"
+        },
+        "parked_route_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deferred_obligations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_obligation"
+          }
+        },
+        "followup_obligations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_obligation"
+          }
+        }
+      }
+    },
+    "route_obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hypothesis_id",
+        "label",
+        "status",
+        "route_kind",
+        "obligation_summary",
+        "target_ref"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_kind": {
+          "type": "string",
+          "enum": [
+            "deferred_buffer",
+            "followup_subtopic"
+          ]
+        },
+        "obligation_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "route_reentry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reentry_ready_count",
+        "deferred_routes",
+        "followup_routes"
+      ],
+      "properties": {
+        "reentry_ready_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deferred_routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_reentry_item"
+          }
+        },
+        "followup_routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_reentry_item"
+          }
+        }
+      }
+    },
+    "route_reentry_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hypothesis_id",
+        "label",
+        "status",
+        "route_kind",
+        "reentry_status",
+        "linked_record_id",
+        "reentry_summary",
+        "condition_summary",
+        "target_ref",
+        "support_ref"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_kind": {
+          "type": "string",
+          "enum": [
+            "deferred_buffer",
+            "followup_subtopic"
+          ]
+        },
+        "reentry_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "linked_record_id": {
+          "type": "string"
+        },
+        "reentry_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "condition_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_ref": {
+          "type": "string"
+        },
+        "support_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "route_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_local_hypothesis_id",
+        "active_local_action_summary",
+        "active_local_action_ref",
+        "primary_handoff_candidate_id",
+        "handoff_candidate_count",
+        "handoff_candidates",
+        "keep_parked_routes"
+      ],
+      "properties": {
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "active_local_action_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_local_action_ref": {
+          "type": "string"
+        },
+        "primary_handoff_candidate_id": {
+          "type": "string"
+        },
+        "handoff_candidate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "handoff_candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_handoff_item"
+          }
+        },
+        "keep_parked_routes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/route_handoff_item"
+          }
+        }
+      }
+    },
+    "route_handoff_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hypothesis_id",
+        "label",
+        "status",
+        "route_kind",
+        "reentry_status",
+        "handoff_status",
+        "handoff_summary",
+        "condition_summary",
+        "target_ref",
+        "support_ref"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route_kind": {
+          "type": "string",
+          "enum": [
+            "deferred_buffer",
+            "followup_subtopic"
+          ]
+        },
+        "reentry_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "handoff_status": {
+          "type": "string",
+          "enum": [
+            "handoff_candidate",
+            "keep_parked"
+          ]
+        },
+        "handoff_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "condition_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_ref": {
+          "type": "string"
+        },
+        "support_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "route_choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "choice_status",
+        "choice_summary",
+        "active_local_hypothesis_id",
+        "primary_handoff_candidate_id",
+        "current_route_choice_ref",
+        "stay_local_option",
+        "yield_to_handoff_option"
+      ],
+      "properties": {
+        "choice_status": {
+          "type": "string",
+          "enum": [
+            "stay_local",
+            "yield_to_handoff",
+            "no_choice"
+          ]
+        },
+        "choice_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "primary_handoff_candidate_id": {
+          "type": "string"
+        },
+        "current_route_choice_ref": {
+          "type": "string"
+        },
+        "stay_local_option": {
+          "$ref": "#/$defs/route_choice_option"
+        },
+        "yield_to_handoff_option": {
+          "$ref": "#/$defs/route_choice_option"
+        }
+      }
+    },
+    "route_choice_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hypothesis_id",
+        "option_kind",
+        "option_summary",
+        "target_ref"
+      ],
+      "properties": {
+        "hypothesis_id": {
+          "type": "string"
+        },
+        "option_kind": {
+          "type": "string",
+          "enum": [
+            "stay_local",
+            "yield_to_handoff"
+          ]
+        },
+        "option_summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "route_transition_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transition_status",
+        "choice_status",
+        "checkpoint_status",
+        "active_local_hypothesis_id",
+        "primary_handoff_candidate_id",
+        "gate_kind",
+        "gate_artifact_ref",
+        "transition_target_ref",
+        "transition_summary"
+      ],
+      "properties": {
+        "transition_status": {
+          "type": "string",
+          "enum": [
+            "blocked",
+            "available",
+            "checkpoint_required"
+          ]
+        },
+        "choice_status": {
+          "type": "string",
+          "enum": [
+            "stay_local",
+            "yield_to_handoff",
+            "no_choice"
+          ]
+        },
+        "checkpoint_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "primary_handoff_candidate_id": {
+          "type": "string"
+        },
+        "gate_kind": {
+          "type": "string",
+          "enum": [
+            "operator_checkpoint",
+            "handoff_candidate_ready",
+            "current_route_choice",
+            "no_handoff_candidate"
+          ]
+        },
+        "gate_artifact_ref": {
+          "type": "string"
+        },
+        "transition_target_ref": {
+          "type": "string"
+        },
+        "transition_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_status",
+        "gate_status",
+        "source_hypothesis_id",
+        "target_hypothesis_id",
+        "source_route_ref",
+        "target_route_ref",
+        "gate_artifact_ref",
+        "intent_summary"
+      ],
+      "properties": {
+        "intent_status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "ready",
+            "checkpoint_held",
+            "none"
+          ]
+        },
+        "gate_status": {
+          "type": "string",
+          "enum": [
+            "blocked",
+            "available",
+            "checkpoint_required"
+          ]
+        },
+        "source_hypothesis_id": {
+          "type": "string"
+        },
+        "target_hypothesis_id": {
+          "type": "string"
+        },
+        "source_route_ref": {
+          "type": "string"
+        },
+        "target_route_ref": {
+          "type": "string"
+        },
+        "gate_artifact_ref": {
+          "type": "string"
+        },
+        "intent_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "receipt_status",
+        "intent_status",
+        "source_hypothesis_id",
+        "target_hypothesis_id",
+        "receipt_transition_id",
+        "receipt_artifact_ref",
+        "receipt_recorded_at",
+        "receipt_summary"
+      ],
+      "properties": {
+        "receipt_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "recorded",
+            "none"
+          ]
+        },
+        "intent_status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "ready",
+            "checkpoint_held",
+            "none"
+          ]
+        },
+        "source_hypothesis_id": {
+          "type": "string"
+        },
+        "target_hypothesis_id": {
+          "type": "string"
+        },
+        "receipt_transition_id": {
+          "type": "string"
+        },
+        "receipt_artifact_ref": {
+          "type": "string"
+        },
+        "receipt_recorded_at": {
+          "type": "string"
+        },
+        "receipt_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolution_status",
+        "intent_status",
+        "receipt_status",
+        "active_local_hypothesis_id",
+        "source_hypothesis_id",
+        "target_hypothesis_id",
+        "active_route_alignment",
+        "resolution_artifact_ref",
+        "resolution_summary"
+      ],
+      "properties": {
+        "resolution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "resolved",
+            "none"
+          ]
+        },
+        "intent_status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "ready",
+            "checkpoint_held",
+            "none"
+          ]
+        },
+        "receipt_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "recorded",
+            "none"
+          ]
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "source_hypothesis_id": {
+          "type": "string"
+        },
+        "target_hypothesis_id": {
+          "type": "string"
+        },
+        "active_route_alignment": {
+          "type": "string",
+          "enum": [
+            "source_active",
+            "target_active",
+            "other_active",
+            "no_local_active",
+            "not_applicable"
+          ]
+        },
+        "resolution_artifact_ref": {
+          "type": "string"
+        },
+        "resolution_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_discrepancy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discrepancy_status",
+        "discrepancy_kind",
+        "severity",
+        "resolution_status",
+        "intent_status",
+        "receipt_status",
+        "active_route_alignment",
+        "target_hypothesis_id",
+        "discrepancy_artifact_refs",
+        "discrepancy_summary"
+      ],
+      "properties": {
+        "discrepancy_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "present"
+          ]
+        },
+        "discrepancy_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "resolved_without_target_active",
+            "recorded_receipt_without_target"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "none",
+            "attention"
+          ]
+        },
+        "resolution_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "resolved",
+            "none"
+          ]
+        },
+        "intent_status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "ready",
+            "checkpoint_held",
+            "none"
+          ]
+        },
+        "receipt_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "recorded",
+            "none"
+          ]
+        },
+        "active_route_alignment": {
+          "type": "string",
+          "enum": [
+            "source_active",
+            "target_active",
+            "other_active",
+            "no_local_active",
+            "not_applicable"
+          ]
+        },
+        "target_hypothesis_id": {
+          "type": "string"
+        },
+        "discrepancy_artifact_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "discrepancy_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_repair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repair_status",
+        "discrepancy_status",
+        "discrepancy_kind",
+        "active_local_hypothesis_id",
+        "target_hypothesis_id",
+        "active_route_alignment",
+        "repair_kind",
+        "primary_repair_ref",
+        "repair_artifact_refs",
+        "repair_summary"
+      ],
+      "properties": {
+        "repair_status": {
+          "type": "string",
+          "enum": [
+            "none_required",
+            "recommended"
+          ]
+        },
+        "discrepancy_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "present"
+          ]
+        },
+        "discrepancy_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "resolved_without_target_active",
+            "recorded_receipt_without_target"
+          ]
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "target_hypothesis_id": {
+          "type": "string"
+        },
+        "active_route_alignment": {
+          "type": "string",
+          "enum": [
+            "source_active",
+            "target_active",
+            "other_active",
+            "no_local_active",
+            "not_applicable"
+          ]
+        },
+        "repair_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "confirm_target_activation_or_downgrade_resolution",
+            "redeclare_active_target_or_downgrade_resolution",
+            "review_active_route_alignment",
+            "restore_missing_target_or_cancel_receipt",
+            "review_transition_discrepancy"
+          ]
+        },
+        "primary_repair_ref": {
+          "type": "string"
+        },
+        "repair_artifact_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "repair_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_status",
+        "repair_status",
+        "repair_kind",
+        "primary_repair_ref",
+        "checkpoint_status",
+        "checkpoint_kind",
+        "checkpoint_ref",
+        "escalation_summary"
+      ],
+      "properties": {
+        "escalation_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "checkpoint_recommended",
+            "checkpoint_active"
+          ]
+        },
+        "repair_status": {
+          "type": "string",
+          "enum": [
+            "none_required",
+            "recommended"
+          ]
+        },
+        "repair_kind": {
+          "type": "string"
+        },
+        "primary_repair_ref": {
+          "type": "string"
+        },
+        "checkpoint_status": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "answered",
+            "cancelled",
+            "superseded"
+          ]
+        },
+        "checkpoint_kind": {
+          "type": "string"
+        },
+        "checkpoint_ref": {
+          "type": "string"
+        },
+        "escalation_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_clearance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clearance_status",
+        "clearance_kind",
+        "escalation_status",
+        "repair_status",
+        "checkpoint_status",
+        "checkpoint_kind",
+        "checkpoint_ref",
+        "followthrough_ref",
+        "clearance_summary"
+      ],
+      "properties": {
+        "clearance_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "awaiting_checkpoint",
+            "blocked_on_checkpoint",
+            "cleared"
+          ]
+        },
+        "clearance_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "checkpoint_not_opened",
+            "checkpoint_requested",
+            "checkpoint_answered",
+            "checkpoint_cancelled",
+            "checkpoint_superseded"
+          ]
+        },
+        "escalation_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "checkpoint_recommended",
+            "checkpoint_active"
+          ]
+        },
+        "repair_status": {
+          "type": "string",
+          "enum": [
+            "none_required",
+            "recommended"
+          ]
+        },
+        "checkpoint_status": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "answered",
+            "cancelled",
+            "superseded"
+          ]
+        },
+        "checkpoint_kind": {
+          "type": "string"
+        },
+        "checkpoint_ref": {
+          "type": "string"
+        },
+        "followthrough_ref": {
+          "type": "string"
+        },
+        "clearance_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_followthrough": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "followthrough_status",
+        "followthrough_kind",
+        "clearance_status",
+        "clearance_kind",
+        "escalation_status",
+        "repair_status",
+        "checkpoint_status",
+        "checkpoint_ref",
+        "followthrough_ref",
+        "followthrough_summary"
+      ],
+      "properties": {
+        "followthrough_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "held_by_clearance",
+            "ready",
+            "missing_followthrough_ref"
+          ]
+        },
+        "followthrough_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "awaiting_checkpoint",
+            "blocked_on_checkpoint",
+            "resume_from_followthrough_ref",
+            "clearance_without_ref"
+          ]
+        },
+        "clearance_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "awaiting_checkpoint",
+            "blocked_on_checkpoint",
+            "cleared"
+          ]
+        },
+        "clearance_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "checkpoint_not_opened",
+            "checkpoint_requested",
+            "checkpoint_answered",
+            "checkpoint_cancelled",
+            "checkpoint_superseded"
+          ]
+        },
+        "escalation_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "checkpoint_recommended",
+            "checkpoint_active"
+          ]
+        },
+        "repair_status": {
+          "type": "string",
+          "enum": [
+            "none_required",
+            "recommended"
+          ]
+        },
+        "checkpoint_status": {
+          "type": "string",
+          "enum": [
+            "requested",
+            "answered",
+            "cancelled",
+            "superseded"
+          ]
+        },
+        "checkpoint_ref": {
+          "type": "string"
+        },
+        "followthrough_ref": {
+          "type": "string"
+        },
+        "followthrough_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_resumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resumption_status",
+        "resumption_kind",
+        "followthrough_status",
+        "active_route_alignment",
+        "active_local_hypothesis_id",
+        "target_hypothesis_id",
+        "followthrough_ref",
+        "resumption_ref",
+        "resumption_summary"
+      ],
+      "properties": {
+        "resumption_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "waiting_followthrough",
+            "pending",
+            "resumed"
+          ]
+        },
+        "resumption_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "followthrough_held",
+            "ready_not_resumed",
+            "target_route_active"
+          ]
+        },
+        "followthrough_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "held_by_clearance",
+            "ready",
+            "missing_followthrough_ref"
+          ]
+        },
+        "active_route_alignment": {
+          "type": "string",
+          "enum": [
+            "source_active",
+            "target_active",
+            "other_active",
+            "no_local_active",
+            "not_applicable"
+          ]
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "target_hypothesis_id": {
+          "type": "string"
+        },
+        "followthrough_ref": {
+          "type": "string"
+        },
+        "resumption_ref": {
+          "type": "string"
+        },
+        "resumption_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_commitment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commitment_status",
+        "commitment_kind",
+        "resumption_status",
+        "resumption_kind",
+        "active_local_hypothesis_id",
+        "route_kind",
+        "route_target_ref",
+        "resumption_ref",
+        "commitment_ref",
+        "commitment_summary"
+      ],
+      "properties": {
+        "commitment_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "waiting_resumption",
+            "pending_commitment",
+            "committed"
+          ]
+        },
+        "commitment_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "resumption_not_ready",
+            "active_route_not_yet_committed",
+            "missing_active_route_projection",
+            "current_topic_committed"
+          ]
+        },
+        "resumption_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "waiting_followthrough",
+            "pending",
+            "resumed"
+          ]
+        },
+        "resumption_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "followthrough_held",
+            "ready_not_resumed",
+            "target_route_active"
+          ]
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "route_kind": {
+          "type": "string"
+        },
+        "route_target_ref": {
+          "type": "string"
+        },
+        "resumption_ref": {
+          "type": "string"
+        },
+        "commitment_ref": {
+          "type": "string"
+        },
+        "commitment_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "route_transition_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_status",
+        "authority_kind",
+        "commitment_status",
+        "commitment_kind",
+        "active_local_hypothesis_id",
+        "route_kind",
+        "route_target_ref",
+        "commitment_ref",
+        "authority_ref",
+        "authority_summary"
+      ],
+      "properties": {
+        "authority_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "waiting_commitment",
+            "pending_authority",
+            "authoritative"
+          ]
+        },
+        "authority_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "commitment_not_ready",
+            "missing_authority_projection",
+            "authority_ref_not_current_topic",
+            "route_not_current_topic",
+            "current_topic_authoritative"
+          ]
+        },
+        "commitment_status": {
+          "type": "string",
+          "enum": [
+            "none",
+            "waiting_resumption",
+            "pending_commitment",
+            "committed"
+          ]
+        },
+        "commitment_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "resumption_not_ready",
+            "active_route_not_yet_committed",
+            "missing_active_route_projection",
+            "current_topic_committed"
+          ]
+        },
+        "active_local_hypothesis_id": {
+          "type": "string"
+        },
+        "route_kind": {
+          "type": "string"
+        },
+        "route_target_ref": {
+          "type": "string"
+        },
+        "commitment_ref": {
+          "type": "string"
+        },
+        "authority_ref": {
+          "type": "string"
+        },
+        "authority_summary": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

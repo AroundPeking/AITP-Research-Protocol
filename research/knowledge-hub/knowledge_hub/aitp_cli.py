@@ -52,6 +52,23 @@ def _parse_agent_vote(value: str) -> dict[str, str]:
     return {"role": role, "verdict": verdict, "notes": note}
 
 
+def _parse_human_modification(value: str) -> dict[str, str]:
+    if "=" not in value:
+        raise argparse.ArgumentTypeError(
+            "human modifications must use FIELD=CHANGE:REASON"
+        )
+    field, change_reason = value.split("=", 1)
+    change, sep, reason = change_reason.partition(":")
+    field = field.strip()
+    change = change.strip()
+    reason = reason.strip()
+    if not field or not change or not sep or not reason:
+        raise argparse.ArgumentTypeError(
+            "human modifications must include field, change, and reason"
+        )
+    return {"field": field, "change": change, "reason": reason}
+
+
 def _parse_nearby_variant(value: str) -> dict[str, str]:
     if "=" not in value:
         raise argparse.ArgumentTypeError(
@@ -353,6 +370,16 @@ def build_parser() -> argparse.ArgumentParser:
     lean_bridge.add_argument("--updated-by", default="aitp-cli")
     lean_bridge.add_argument("--json", action="store_true")
 
+    statement_compilation = subparsers.add_parser(
+        "statement-compilation",
+        help="Compile bounded theory statements into declaration skeletons and proof-repair plans",
+    )
+    statement_compilation.add_argument("--topic-slug", required=True)
+    statement_compilation.add_argument("--run-id")
+    statement_compilation.add_argument("--candidate-id")
+    statement_compilation.add_argument("--updated-by", default="aitp-cli")
+    statement_compilation.add_argument("--json", action="store_true")
+
     state = subparsers.add_parser("state", help="Read topic runtime state")
     state.add_argument("--topic-slug", required=True)
     state.add_argument("--json", action="store_true")
@@ -509,6 +536,7 @@ def build_parser() -> argparse.ArgumentParser:
     approve_promotion.add_argument("--run-id")
     approve_promotion.add_argument("--updated-by", default="aitp-cli")
     approve_promotion.add_argument("--notes")
+    approve_promotion.add_argument("--human-modification", action="append", default=[], type=_parse_human_modification)
     approve_promotion.add_argument("--json", action="store_true")
 
     reject_promotion = subparsers.add_parser("reject-promotion", help="Reject a pending Layer 2 promotion request")
@@ -1000,6 +1028,16 @@ def main() -> int:
         _emit(payload, args.json)
         return 0
 
+    if args.command == "statement-compilation":
+        payload = service.prepare_statement_compilation(
+            topic_slug=args.topic_slug,
+            run_id=args.run_id,
+            candidate_id=args.candidate_id,
+            updated_by=args.updated_by,
+        )
+        _emit(payload, args.json)
+        return 0
+
     if args.command == "state":
         payload = {"topic_state": service.get_runtime_state(args.topic_slug)}
         _emit(payload, args.json)
@@ -1139,6 +1177,7 @@ def main() -> int:
             run_id=args.run_id,
             approved_by=args.updated_by,
             notes=args.notes,
+            human_modifications=args.human_modification,
         )
         _emit(payload, args.json)
         return 0

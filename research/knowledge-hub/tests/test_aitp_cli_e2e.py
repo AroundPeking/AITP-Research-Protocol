@@ -815,6 +815,72 @@ class AITPCLIE2ETests(unittest.TestCase):
         self.assertGreaterEqual(report_payload["navigation_page_count"], 9)
         self.assertEqual(report_payload["payload"]["hub_units"][0]["unit_id"], "workflow:tfim-benchmark-workflow")
 
+    def test_compile_l2_knowledge_report_cli_json_path(self) -> None:
+        unique_suffix = self.kernel_root.parent.name
+        provisional_title = f"Phase138 test compiled note {unique_suffix}"
+        contradiction_title = f"Phase138 test contradiction {unique_suffix}"
+        seeded = self._run_cli(
+            "seed-l2-direction",
+            "--direction",
+            "tfim-benchmark-first",
+            "--json",
+        )
+        self.assertEqual(seeded.returncode, 0, msg=seeded.stderr)
+
+        staged = self._run_cli(
+            "stage-l2-provisional",
+            "--topic-slug",
+            "demo-topic",
+            "--entry-kind",
+            "workflow_draft",
+            "--title",
+            provisional_title,
+            "--summary",
+            "A provisional reusable workflow draft for the benchmark-first route.",
+            "--json",
+        )
+        self.assertEqual(staged.returncode, 0, msg=staged.stderr)
+
+        first = self._run_cli(
+            "compile-l2-knowledge-report",
+            "--json",
+        )
+        self.assertEqual(first.returncode, 0, msg=first.stderr)
+        first_payload = json.loads(first.stdout)
+        self.assertTrue(Path(first_payload["json_path"]).exists())
+        self.assertTrue(Path(first_payload["markdown_path"]).exists())
+        self.assertGreaterEqual(first_payload["payload"]["summary"]["canonical_row_count"], 9)
+        self.assertGreaterEqual(first_payload["payload"]["summary"]["staging_row_count"], 1)
+        self.assertIn("added_count", first_payload["payload"]["change_summary"])
+        self.assertIn("previous_report_found", first_payload["payload"]["change_summary"])
+        self.assertEqual(
+            first_payload["payload"]["knowledge_rows"][-1]["authority_level"],
+            "non_authoritative_staging",
+        )
+
+        negative = self._run_cli(
+            "stage-negative-result",
+            "--title",
+            contradiction_title,
+            "--summary",
+            "The provisional benchmark route failed outside the bounded regime.",
+            "--failure-kind",
+            "regime_mismatch",
+            "--json",
+        )
+        self.assertEqual(negative.returncode, 0, msg=negative.stderr)
+
+        second = self._run_cli(
+            "compile-l2-knowledge-report",
+            "--json",
+        )
+        self.assertEqual(second.returncode, 0, msg=second.stderr)
+        second_payload = json.loads(second.stdout)
+        self.assertTrue(second_payload["payload"]["change_summary"]["previous_report_found"])
+        self.assertGreaterEqual(second_payload["payload"]["change_summary"]["added_count"], 1)
+        self.assertGreaterEqual(second_payload["payload"]["summary"]["contradiction_row_count"], 1)
+        self.assertIn("workspace_staging_manifest", second_payload["supporting_artifacts"])
+
     def test_compile_source_catalog_cli_json_path(self) -> None:
         topic_a_root = self.kernel_root / "source-layer" / "topics" / "topic-a"
         topic_b_root = self.kernel_root / "source-layer" / "topics" / "topic-b"

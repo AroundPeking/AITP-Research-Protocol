@@ -131,6 +131,8 @@ class L2BackendContractTests(unittest.TestCase):
         protocol = protocol_path.read_text(encoding="utf-8")
         self.assertIn("L2_COMPILER_PROTOCOL.md", canonical_readme)
         self.assertIn("canonical/compiled/workspace_memory_map.json", protocol)
+        self.assertIn("canonical/compiled/workspace_knowledge_report.json", protocol)
+        self.assertIn("what rows were added, updated, or removed", protocol)
         self.assertIn("canonical/staging/", protocol)
         self.assertIn("Python should stay in the kernel role", protocol)
         self.assertIn("Compiled `L2` helper surfaces", consultation_protocol)
@@ -156,17 +158,24 @@ class L2BackendContractTests(unittest.TestCase):
         self.assertIn("aitp seed-l2-direction --direction tfim-benchmark-first", root_readme)
         self.assertIn("aitp consult-l2 --query-text", root_readme)
         self.assertIn("aitp compile-l2-graph-report", root_readme)
+        self.assertIn("aitp compile-l2-knowledge-report", kernel_readme)
         self.assertIn("aitp seed-l2-direction --direction tfim-benchmark-first", kernel_readme)
         self.assertIn("aitp compile-l2-map", kernel_readme)
         self.assertIn("aitp compile-l2-graph-report", kernel_readme)
+        self.assertIn("workspace_knowledge_report.json|md", runtime_readme)
         self.assertIn("aitp audit-l2-hygiene", kernel_readme)
         self.assertIn("run_l2_mvp_direction_acceptance.py", runtime_readme)
+        self.assertIn("run_l2_knowledge_report_acceptance.py", runtime_readme)
         self.assertIn("workspace_graph_report.json|md", runtime_readme)
         self.assertIn("derived_navigation/index.md", runtime_readme)
         self.assertIn("run_l2_mvp_direction_acceptance.py", runbook)
+        self.assertIn("run_l2_knowledge_report_acceptance.py", runbook)
         self.assertIn("compile-l2-graph-report", runbook)
+        self.assertIn("compile-l2-knowledge-report", runbook)
         self.assertIn("workspace_graph_report.json|md", runbook)
         self.assertIn("derived_navigation/index.md", runbook)
+        self.assertIn("workspace_knowledge_report.json|md", runbook)
+        self.assertIn("contradiction-watch row", runbook)
 
     def test_l2_mvp_acceptance_script_covers_graph_report_outputs(self) -> None:
         script = (
@@ -176,6 +185,16 @@ class L2BackendContractTests(unittest.TestCase):
         self.assertIn("compile-l2-graph-report", script)
         self.assertIn("navigation_index_path", script)
         self.assertIn("workspace_graph_report.json", script)
+
+    def test_l2_knowledge_report_acceptance_script_covers_change_summary_outputs(self) -> None:
+        script = (
+            self.kernel_root / "runtime" / "scripts" / "run_l2_knowledge_report_acceptance.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("compile-l2-knowledge-report", script)
+        self.assertIn("change_summary", script)
+        self.assertIn("contradiction_watch", script)
+        self.assertIn("workspace_knowledge_report.json", script)
 
     def test_l2_staging_protocol_and_public_readme_reference_final_v15_surfaces(self) -> None:
         staging_protocol_path = self.kernel_root / "canonical" / "L2_STAGING_PROTOCOL.md"

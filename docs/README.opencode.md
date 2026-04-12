@@ -37,3 +37,7 @@ For the shared install verification and first-run proof, use:
 
 - [`INSTALL.md`](INSTALL.md)
 - [`QUICKSTART.md`](QUICKSTART.md)
+
+For the bounded OpenCode deep-execution probe, use:
+
+- `python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime opencode --json`

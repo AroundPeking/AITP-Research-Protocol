@@ -166,14 +166,15 @@ When an agent enters a topic, read in this order:
 
 1. `research/knowledge-hub/LAYER_MAP.md`
 2. `research/knowledge-hub/README.md`
-3. `research/knowledge-hub/canonical/CANONICAL_UNIT.md`
-4. `research/knowledge-hub/canonical/PROMOTION_POLICY.md`
-5. `research/knowledge-hub/L2_CONSULTATION_PROTOCOL.md`
-6. `research/knowledge-hub/runtime/README.md`
-7. `research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md`
-8. `research/knowledge-hub/AGENT_CONFORMANCE_PROTOCOL.md`
-9. `research/knowledge-hub/validation/BASELINE_REPRODUCTION_AND_UNDERSTANDING_GATES.md`
-10. the active topic runtime artifacts under `runtime/topics/<topic_slug>/`
+3. `research/knowledge-hub/MODE_AND_LAYER_OPERATING_MODEL.md`
+4. `research/knowledge-hub/canonical/CANONICAL_UNIT.md`
+5. `research/knowledge-hub/canonical/PROMOTION_POLICY.md`
+6. `research/knowledge-hub/L2_CONSULTATION_PROTOCOL.md`
+7. `research/knowledge-hub/runtime/README.md`
+8. `research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md`
+9. `research/knowledge-hub/AGENT_CONFORMANCE_PROTOCOL.md`
+10. `research/knowledge-hub/validation/BASELINE_REPRODUCTION_AND_UNDERSTANDING_GATES.md`
+11. the active topic runtime artifacts under `runtime/topics/<topic_slug>/`
 
 ## 5. Working rule
 

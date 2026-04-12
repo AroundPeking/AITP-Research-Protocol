@@ -14,6 +14,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
 ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
@@ -81,6 +82,68 @@ def fetch_metadata(arxiv_id: str) -> dict:
         "pdf_url": pdf_url or f"https://arxiv.org/pdf/{base_id}.pdf",
         "abs_url": identifier or f"https://arxiv.org/abs/{versioned_id}",
         "source_url": f"https://arxiv.org/e-print/{versioned_id}",
+    }
+
+
+def normalize_authors(values: list[Any] | None) -> list[str]:
+    authors: list[str] = []
+    for value in values or []:
+        if isinstance(value, dict):
+            candidate = str(
+                value.get("name")
+                or value.get("full_name")
+                or value.get("author")
+                or ""
+            ).strip()
+        else:
+            candidate = str(value).strip()
+        if candidate:
+            authors.append(candidate)
+    return authors
+
+
+def build_metadata_override(arxiv_id: str, metadata_override: dict[str, Any]) -> dict[str, Any]:
+    versioned_id = str(
+        metadata_override.get("versioned_id")
+        or metadata_override.get("arxiv_id")
+        or arxiv_id
+    ).strip()
+    if not versioned_id:
+        raise ValueError("Metadata override must include a non-empty arXiv id.")
+    base_id = str(metadata_override.get("base_id") or re.sub(r"v\d+$", "", versioned_id)).strip()
+    identifier = str(
+        metadata_override.get("identifier")
+        or metadata_override.get("abs_url")
+        or f"https://arxiv.org/abs/{versioned_id}"
+    ).strip()
+    title = str(metadata_override.get("title") or "").strip()
+    if not title:
+        raise ValueError("Metadata override must include a non-empty title.")
+    summary = str(metadata_override.get("summary") or "").strip()
+    published = str(metadata_override.get("published") or "").strip()
+    updated = str(metadata_override.get("updated") or published).strip()
+    authors = normalize_authors(metadata_override.get("authors"))
+    pdf_url = str(
+        metadata_override.get("pdf_url")
+        or f"https://arxiv.org/pdf/{base_id}.pdf"
+    ).strip()
+    abs_url = str(metadata_override.get("abs_url") or identifier).strip()
+    source_url = str(
+        metadata_override.get("source_url")
+        or f"https://arxiv.org/e-print/{versioned_id}"
+    ).strip()
+    return {
+        "title": title,
+        "summary": summary,
+        "published": published,
+        "updated": updated,
+        "identifier": identifier,
+        "versioned_id": versioned_id,
+        "base_id": base_id,
+        "authors": authors,
+        "pdf_url": pdf_url,
+        "abs_url": abs_url,
+        "source_url": source_url,
     }
 
 
@@ -274,22 +337,37 @@ def build_layer0_snapshot(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--knowledge-root")
     parser.add_argument("--topic-slug", required=True)
     parser.add_argument("--arxiv-id", required=True)
     parser.add_argument("--registered-by", default="codex")
     parser.add_argument("--download-source", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--skip-intake-projection", action="store_true")
+    parser.add_argument("--metadata-json")
+    parser.add_argument("--json", action="store_true")
     return parser
 
 
-def main() -> int:
-    args = build_parser().parse_args()
-    topic_slug = args.topic_slug
-    metadata = fetch_metadata(args.arxiv_id)
+def register_arxiv_source(
+    *,
+    knowledge_root: Path,
+    topic_slug: str,
+    arxiv_id: str,
+    registered_by: str = "codex",
+    download_source: bool = False,
+    force: bool = False,
+    skip_intake_projection: bool = False,
+    metadata_override: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    del force  # Reserved for future parity with the CLI surface.
+    metadata = (
+        build_metadata_override(arxiv_id, metadata_override)
+        if metadata_override is not None
+        else fetch_metadata(arxiv_id)
+    )
     source_slug = f"paper-{slugify(metadata['title'])}-{metadata['base_id'].replace('.', '-')}"
 
-    knowledge_root = Path(__file__).resolve().parents[2]
     source_layer_topic_root = knowledge_root / "source-layer" / "topics" / topic_slug
     layer0_source_root = source_layer_topic_root / "sources" / source_slug
     layer0_source_root.mkdir(parents=True, exist_ok=True)
@@ -300,7 +378,7 @@ def main() -> int:
     extraction_status = "not_requested"
     download_error = ""
 
-    if args.download_source:
+    if download_source:
         try:
             payload = fetch_url(metadata["source_url"])
             if payload[:2] == b"\x1f\x8b":
@@ -339,7 +417,7 @@ def main() -> int:
         snapshot_rel=layer0_snapshot_rel,
         bundle_rel=bundle_rel,
         extract_rel=extract_rel,
-        registered_by=args.registered_by,
+        registered_by=registered_by,
         acquired_at=acquired_at,
     )
     source_id = source_payload["source_id"]
@@ -382,7 +460,8 @@ def main() -> int:
         ),
     )
 
-    if not args.skip_intake_projection:
+    intake_projection_root: Path | None = None
+    if not skip_intake_projection:
         intake_topic_root = knowledge_root / "intake" / "topics" / topic_slug
         intake_projection_root = intake_topic_root / "sources" / source_slug
         intake_projection_root.mkdir(parents=True, exist_ok=True)
@@ -409,15 +488,81 @@ def main() -> int:
             status_payload["last_updated"] = acquired_at
             write_json(status_json, status_payload)
 
-    print(f"Registered arXiv source {source_id}")
-    print(f"- layer0 source.json: {knowledge_root / layer0_source_json_rel}")
-    print(f"- layer0 snapshot.md: {knowledge_root / layer0_snapshot_rel}")
-    if not args.skip_intake_projection:
-        print(f"- intake projection: {knowledge_root / 'intake' / 'topics' / topic_slug / 'sources' / source_slug}")
-    if bundle_rel:
-        print(f"- bundle: {knowledge_root / bundle_rel}")
-    if extract_rel:
-        print(f"- extracted: {knowledge_root / extract_rel}")
+    return {
+        "status": "registered",
+        "knowledge_root": knowledge_root,
+        "topic_slug": topic_slug,
+        "arxiv_id": metadata["versioned_id"],
+        "source_id": source_id,
+        "source_slug": source_slug,
+        "layer0_source_root": layer0_source_root,
+        "layer0_source_json": layer0_source_root / "source.json",
+        "layer0_snapshot": layer0_source_root / "snapshot.md",
+        "intake_projection_root": intake_projection_root,
+        "bundle_path": bundle_path if bundle_rel else None,
+        "extract_dir": extract_dir if extract_rel else None,
+        "metadata": metadata,
+        "download_status": download_status,
+        "extraction_status": extraction_status,
+        "download_error": download_error,
+    }
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    knowledge_root = (
+        Path(args.knowledge_root).expanduser().resolve()
+        if args.knowledge_root
+        else Path(__file__).resolve().parents[2]
+    )
+    metadata_override = None
+    if args.metadata_json:
+        metadata_path = Path(args.metadata_json).expanduser().resolve()
+        metadata_override = load_json(metadata_path)
+        if metadata_override is None:
+            raise FileNotFoundError(f"Metadata override file does not exist: {metadata_path}")
+
+    result = register_arxiv_source(
+        knowledge_root=knowledge_root,
+        topic_slug=args.topic_slug,
+        arxiv_id=args.arxiv_id,
+        registered_by=args.registered_by,
+        download_source=args.download_source,
+        force=args.force,
+        skip_intake_projection=args.skip_intake_projection,
+        metadata_override=metadata_override,
+    )
+    if args.json:
+        payload = {
+            "status": result["status"],
+            "topic_slug": result["topic_slug"],
+            "arxiv_id": result["arxiv_id"],
+            "source_id": result["source_id"],
+            "layer0_source_json": str(result["layer0_source_json"]),
+            "layer0_snapshot": str(result["layer0_snapshot"]),
+            "intake_projection_root": (
+                str(result["intake_projection_root"])
+                if result["intake_projection_root"] is not None
+                else ""
+            ),
+            "bundle_path": str(result["bundle_path"]) if result["bundle_path"] is not None else "",
+            "extract_dir": str(result["extract_dir"]) if result["extract_dir"] is not None else "",
+            "download_status": result["download_status"],
+            "extraction_status": result["extraction_status"],
+            "download_error": result["download_error"],
+        }
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    print(f"Registered arXiv source {result['source_id']}")
+    print(f"- layer0 source.json: {result['layer0_source_json']}")
+    print(f"- layer0 snapshot.md: {result['layer0_snapshot']}")
+    if result["intake_projection_root"] is not None:
+        print(f"- intake projection: {result['intake_projection_root']}")
+    if result["bundle_path"] is not None:
+        print(f"- bundle: {result['bundle_path']}")
+    if result["extract_dir"] is not None:
+        print(f"- extracted: {result['extract_dir']}")
     return 0
 
 

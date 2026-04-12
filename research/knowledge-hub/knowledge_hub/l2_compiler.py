@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from .l2_staging import load_staging_entries, materialize_workspace_staging_manifest
 
 
 IGNORED_CANONICAL_DIRS = {"backends", "examples", "compiled", "staging", "__pycache__"}
@@ -66,6 +69,14 @@ def _compiled_root(kernel_root: Path) -> Path:
 
 def _derived_navigation_root(kernel_root: Path) -> Path:
     return _compiled_root(kernel_root) / "derived_navigation"
+
+
+def _knowledge_report_path(kernel_root: Path) -> Path:
+    return _compiled_root(kernel_root) / "workspace_knowledge_report.json"
+
+
+def _knowledge_report_markdown_path(kernel_root: Path) -> Path:
+    return _compiled_root(kernel_root) / "workspace_knowledge_report.md"
 
 
 def _allowed_unit_types(canonical_root: Path) -> set[str]:
@@ -223,6 +234,11 @@ def _navigation_page_name(unit_id: str, unit_type: str) -> str:
 def _wiki_link(target: str, label: str) -> str:
     stem = target[:-3] if target.endswith(".md") else target
     return f"[[{stem}|{label}]]"
+
+
+def _fingerprint_payload(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")
+    return hashlib.sha1(raw).hexdigest()
 
 
 def _consultation_profiles_by_type(retrieval_profiles: dict[str, Any]) -> dict[str, list[str]]:
@@ -647,4 +663,267 @@ def materialize_workspace_graph_report(kernel_root: Path) -> dict[str, Any]:
         "navigation_root": str(navigation_root),
         "navigation_index_path": str(navigation_index_path),
         "navigation_page_count": len(payload.get("unit_navigation") or []),
+    }
+
+
+def _canonical_knowledge_row(unit: dict[str, Any]) -> dict[str, Any]:
+    base_payload = {
+        "title": str(unit.get("title") or ""),
+        "summary": str(unit.get("summary") or ""),
+        "unit_type": str(unit.get("unit_type") or ""),
+        "path": str(unit.get("path") or ""),
+        "updated_at": str(unit.get("updated_at") or ""),
+        "promotion_route": str(unit.get("promotion_route") or ""),
+        "tags": [str(item) for item in (unit.get("tags") or []) if str(item).strip()],
+    }
+    return {
+        "knowledge_id": str(unit.get("unit_id") or ""),
+        "title": base_payload["title"],
+        "summary": base_payload["summary"],
+        "source_surface": "canonical_l2",
+        "authority_level": "authoritative_canonical",
+        "knowledge_state": "trusted",
+        "path": base_payload["path"],
+        "updated_at": base_payload["updated_at"],
+        "provenance_refs": [base_payload["path"]],
+        "tags": base_payload["tags"],
+        "change_fingerprint": _fingerprint_payload(base_payload),
+    }
+
+
+def _staging_knowledge_state(entry: dict[str, Any]) -> str:
+    entry_kind = str(entry.get("entry_kind") or "").strip().lower()
+    status = str(entry.get("status") or "").strip().lower()
+    title = str(entry.get("title") or "").strip().lower()
+    summary = str(entry.get("summary") or "").strip().lower()
+    if status == "dismissed":
+        return "dismissed"
+    if entry_kind == "negative_result" or any(keyword in f"{title} {summary}" for keyword in ("contradiction", "conflict", "mismatch", "failed")):
+        return "contradiction_watch"
+    return "provisional"
+
+
+def _staging_knowledge_row(entry: dict[str, Any]) -> dict[str, Any]:
+    state = _staging_knowledge_state(entry)
+    base_payload = {
+        "title": str(entry.get("title") or ""),
+        "summary": str(entry.get("summary") or ""),
+        "entry_kind": str(entry.get("entry_kind") or ""),
+        "status": str(entry.get("status") or ""),
+        "path": str(entry.get("path") or ""),
+        "updated_at": str(entry.get("updated_at") or ""),
+        "topic_slug": str(entry.get("topic_slug") or ""),
+        "source_artifact_paths": [str(item) for item in (entry.get("source_artifact_paths") or []) if str(item).strip()],
+    }
+    return {
+        "knowledge_id": str(entry.get("entry_id") or ""),
+        "title": base_payload["title"],
+        "summary": base_payload["summary"],
+        "source_surface": "staging_l2",
+        "authority_level": "non_authoritative_staging",
+        "knowledge_state": state,
+        "path": base_payload["path"],
+        "updated_at": base_payload["updated_at"],
+        "topic_slug": base_payload["topic_slug"],
+        "provenance_refs": [base_payload["path"], *base_payload["source_artifact_paths"]],
+        "tags": [str(item) for item in (entry.get("tags") or []) if str(item).strip()],
+        "change_fingerprint": _fingerprint_payload(base_payload),
+    }
+
+
+def _previous_knowledge_rows(kernel_root: Path) -> dict[str, dict[str, Any]]:
+    payload = read_json(_knowledge_report_path(kernel_root))
+    if not isinstance(payload, dict):
+        return {}
+    rows = payload.get("knowledge_rows")
+    if not isinstance(rows, list):
+        return {}
+    previous: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        knowledge_id = str(row.get("knowledge_id") or "").strip()
+        if knowledge_id:
+            previous[knowledge_id] = row
+    return previous
+
+
+def build_workspace_knowledge_report(kernel_root: Path) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    canonical_units = load_canonical_units(kernel_root)
+    staging_entries = load_staging_entries(kernel_root)
+    previous_rows = _previous_knowledge_rows(kernel_root)
+
+    knowledge_rows = [
+        _canonical_knowledge_row(unit)
+        for unit in canonical_units
+    ] + [
+        _staging_knowledge_row(entry)
+        for entry in staging_entries
+    ]
+    knowledge_rows = sorted(
+        knowledge_rows,
+        key=lambda row: (
+            str(row.get("authority_level") or ""),
+            str(row.get("knowledge_state") or ""),
+            str(row.get("title") or ""),
+            str(row.get("knowledge_id") or ""),
+        ),
+    )
+
+    added_count = 0
+    updated_count = 0
+    unchanged_count = 0
+    for row in knowledge_rows:
+        knowledge_id = str(row.get("knowledge_id") or "")
+        previous = previous_rows.get(knowledge_id)
+        previous_fingerprint = str((previous or {}).get("change_fingerprint") or "")
+        if not previous:
+            row["change_status"] = "added"
+            added_count += 1
+        elif previous_fingerprint != str(row.get("change_fingerprint") or ""):
+            row["change_status"] = "updated"
+            updated_count += 1
+        else:
+            row["change_status"] = "unchanged"
+            unchanged_count += 1
+
+    removed_rows = [
+        {
+            "knowledge_id": knowledge_id,
+            "title": str(row.get("title") or ""),
+            "authority_level": str(row.get("authority_level") or ""),
+        }
+        for knowledge_id, row in sorted(previous_rows.items())
+        if knowledge_id not in {str(item.get("knowledge_id") or "") for item in knowledge_rows}
+    ]
+
+    contradiction_rows = [
+        {
+            "knowledge_id": str(row.get("knowledge_id") or ""),
+            "title": str(row.get("title") or ""),
+            "summary": str(row.get("summary") or ""),
+            "authority_level": str(row.get("authority_level") or ""),
+            "path": str(row.get("path") or ""),
+        }
+        for row in knowledge_rows
+        if str(row.get("knowledge_state") or "") in {"contradiction_watch", "dismissed"}
+    ]
+    provisional_rows = [
+        {
+            "knowledge_id": str(row.get("knowledge_id") or ""),
+            "title": str(row.get("title") or ""),
+            "summary": str(row.get("summary") or ""),
+            "authority_level": str(row.get("authority_level") or ""),
+            "path": str(row.get("path") or ""),
+        }
+        for row in knowledge_rows
+        if str(row.get("knowledge_state") or "") == "provisional"
+    ]
+
+    return {
+        "kind": "l2_workspace_knowledge_report",
+        "compiler_version": 1,
+        "generated_at": now_iso(),
+        "source_contract_path": "canonical/L2_COMPILER_PROTOCOL.md",
+        "authority_rule": "This report is compiled and non-authoritative. Canonical L2 remains the source of truth; staging content stays explicitly provisional.",
+        "summary": {
+            "total_rows": len(knowledge_rows),
+            "canonical_row_count": sum(1 for row in knowledge_rows if row["authority_level"] == "authoritative_canonical"),
+            "staging_row_count": sum(1 for row in knowledge_rows if row["authority_level"] == "non_authoritative_staging"),
+            "provisional_row_count": len(provisional_rows),
+            "contradiction_row_count": len(contradiction_rows),
+        },
+        "change_summary": {
+            "previous_report_found": bool(previous_rows),
+            "added_count": added_count,
+            "updated_count": updated_count,
+            "unchanged_count": unchanged_count,
+            "removed_count": len(removed_rows),
+            "removed_rows": removed_rows,
+        },
+        "navigation_entrypoints": {
+            "workspace_memory_map": "canonical/compiled/workspace_memory_map.md",
+            "workspace_graph_report": "canonical/compiled/workspace_graph_report.md",
+            "derived_navigation_index": "canonical/compiled/derived_navigation/index.md",
+            "workspace_staging_manifest": "canonical/staging/workspace_staging_manifest.md",
+        },
+        "provisional_rows": provisional_rows,
+        "contradiction_rows": contradiction_rows,
+        "knowledge_rows": knowledge_rows,
+    }
+
+
+def render_workspace_knowledge_report_markdown(payload: dict[str, Any]) -> str:
+    summary = payload.get("summary") or {}
+    change_summary = payload.get("change_summary") or {}
+    lines = [
+        "# Workspace Knowledge Report",
+        "",
+        f"- Generated at: `{payload.get('generated_at') or '(missing)'}`",
+        f"- Source contract: `{payload.get('source_contract_path') or '(missing)'}`",
+        f"- Authority rule: {payload.get('authority_rule') or '(missing)' }",
+        f"- Total rows: `{summary.get('total_rows', 0)}`",
+        f"- Canonical rows: `{summary.get('canonical_row_count', 0)}`",
+        f"- Staging rows: `{summary.get('staging_row_count', 0)}`",
+        f"- Provisional rows: `{summary.get('provisional_row_count', 0)}`",
+        f"- Contradiction rows: `{summary.get('contradiction_row_count', 0)}`",
+        "",
+        "## Change Summary",
+        "",
+        f"- Previous report found: `{change_summary.get('previous_report_found', False)}`",
+        f"- Added: `{change_summary.get('added_count', 0)}`",
+        f"- Updated: `{change_summary.get('updated_count', 0)}`",
+        f"- Unchanged: `{change_summary.get('unchanged_count', 0)}`",
+        f"- Removed: `{change_summary.get('removed_count', 0)}`",
+        "",
+        "## Navigation Entry Points",
+        "",
+    ]
+    for key, value in sorted((payload.get("navigation_entrypoints") or {}).items()):
+        lines.append(f"- `{key}`: `{value}`")
+    lines.extend(["", "## Provisional Knowledge", ""])
+    provisional_rows = payload.get("provisional_rows") or []
+    if not provisional_rows:
+        lines.append("- `(none)`")
+    for row in provisional_rows:
+        lines.append(f"- `{row.get('knowledge_id')}` {row.get('title')} (`{row.get('authority_level')}`)")
+    lines.extend(["", "## Contradiction Watch", ""])
+    contradiction_rows = payload.get("contradiction_rows") or []
+    if not contradiction_rows:
+        lines.append("- `(none)`")
+    for row in contradiction_rows:
+        lines.append(f"- `{row.get('knowledge_id')}` {row.get('title')} (`{row.get('authority_level')}`)")
+    lines.extend(["", "## Knowledge Rows", ""])
+    for row in payload.get("knowledge_rows") or []:
+        lines.append(
+            f"- `{row.get('knowledge_id')}` {row.get('title')} "
+            f"[{row.get('authority_level')}/{row.get('knowledge_state')}/{row.get('change_status')}] "
+            f"`{row.get('path')}`"
+        )
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def materialize_workspace_knowledge_report(kernel_root: Path) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    compiled_root = _compiled_root(kernel_root)
+    memory_map = materialize_workspace_memory_map(kernel_root)
+    graph_report = materialize_workspace_graph_report(kernel_root)
+    staging_manifest = materialize_workspace_staging_manifest(kernel_root)
+    payload = build_workspace_knowledge_report(kernel_root)
+    json_path = _knowledge_report_path(kernel_root)
+    markdown_path = _knowledge_report_markdown_path(kernel_root)
+    write_json(json_path, payload)
+    write_text(markdown_path, render_workspace_knowledge_report_markdown(payload))
+    return {
+        "payload": payload,
+        "json_path": str(json_path),
+        "markdown_path": str(markdown_path),
+        "supporting_artifacts": {
+            "workspace_memory_map": memory_map["markdown_path"],
+            "workspace_graph_report": graph_report["markdown_path"],
+            "derived_navigation_index": graph_report["navigation_index_path"],
+            "workspace_staging_manifest": staging_manifest["markdown_path"],
+        },
     }

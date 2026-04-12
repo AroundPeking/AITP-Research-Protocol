@@ -16,6 +16,8 @@ data/queries/**/*.pdf
 # layer runtime/topic artifacts are local state
 source-layer/topics/*
 !source-layer/topics/.gitkeep
+source-layer/compiled/*
+!source-layer/compiled/.gitkeep
 intake/topics/*
 !intake/topics/.gitkeep
 feedback/topics/*
@@ -24,6 +26,14 @@ consultation/topics/*
 !consultation/topics/.gitkeep
 runtime/topics/*
 !runtime/topics/.gitkeep
+runtime/explorations/*
+!runtime/explorations/.gitkeep
+runtime/active_topics.json
+runtime/active_topics.md
+runtime/topic_family_reuse.json
+runtime/topic_family_reuse.md
+runtime/collaborator_memory.jsonl
+runtime/collaborator_memory.md
 validation/topics/*
 !validation/topics/.gitkeep
 data/topics/*

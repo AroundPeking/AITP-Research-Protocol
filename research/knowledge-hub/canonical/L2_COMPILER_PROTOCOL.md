@@ -134,6 +134,26 @@ such as:
 The first target should not try to compile all runtime state or all raw notes
 into one mega-view.
 
+## 6.5 Second bounded compiler target
+
+After the workspace memory map and graph report, the next bounded compiler
+target may summarize workspace knowledge across canonical and staging surfaces:
+
+- `research/knowledge-hub/canonical/compiled/workspace_knowledge_report.json`
+- `research/knowledge-hub/canonical/compiled/workspace_knowledge_report.md`
+
+This report is still compiled, not authoritative.
+Its job is to say:
+
+- what knowledge is currently canonical,
+- what knowledge is still provisional staging content,
+- what contradictions or negative-result watch items remain visible,
+- and what rows were added, updated, or removed since the previous compiled
+  report.
+
+It must keep provenance and authority level explicit and must not turn staging
+content into canonical memory by compilation alone.
+
 ## 7. Consultation rule
 
 `L2` consultation may reference compiled surfaces as supporting derived reads

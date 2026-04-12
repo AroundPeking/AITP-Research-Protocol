@@ -333,7 +333,7 @@ def deep_execution_parity_summary(doctor_payload: dict[str, Any]) -> dict[str, A
     ready_for_probe_targets = [
         runtime
         for runtime in parity_targets
-        if status_by_runtime.get(runtime) in {"probe_pending", "parity_verified"}
+        if status_by_runtime.get(runtime) in {"probe_pending", "probe_available", "parity_verified"}
     ]
     return {
         "baseline_runtime": baseline_runtime,

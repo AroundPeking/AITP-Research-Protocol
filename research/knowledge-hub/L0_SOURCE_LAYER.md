@@ -39,6 +39,7 @@ The system should at least support:
 Layer 0 now has a dedicated persistent top-level storage surface at:
 - `source-layer/topics/<topic_slug>/source_index.jsonl`
 - `source-layer/topics/<topic_slug>/sources/<source_slug>/`
+- `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/`
 - `source-layer/global_index.jsonl`
 
 Layer 1 intake may still keep topic-local projections under:
@@ -95,6 +96,33 @@ The current helper for this policy lives at:
 - `intake/scripts/register_arxiv_source.py` as a compatibility wrapper
 - `intake/ARXIV_FIRST_SOURCE_INTAKE.md`
 
+## 5b. Discovery before registration
+
+When the operator has a natural-language query rather than a fixed arXiv id,
+the recommended bounded path is:
+
+- `source-layer/scripts/discover_and_register.py`
+
+That bridge is intentionally thin:
+
+- search stays external to `L0`
+- candidate evaluation stays explicit and durable
+- canonical registration still flows through `register_arxiv_source.py`
+
+The current fallback-aware provider chain is:
+
+- `deepxiv_cli` as the primary MCP-backed search provider
+- `arxiv_api` as the bounded fallback provider
+- `search_results_json` as the isolated offline/fixture lane for tests and operator-controlled search receipts
+
+Each discovery run should leave a durable receipt under:
+
+- `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/query.json`
+- `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/search_results.json`
+- `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/candidate_evaluation.json`
+- `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/registration_receipt.json`
+- `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/discovery_summary.md`
+
 ## 6. What Layer 0 should not do
 
 Layer 0 should not:
@@ -109,4 +137,5 @@ Layer 0 should not:
 The next maturity steps for Layer 0 are:
 - add more source-class-specific helpers beyond arXiv papers,
 - add stronger cross-topic deduplication and alias handling,
-- let later-layer callbacks create typed source-query requests rather than only direct registrations.
+- let later-layer callbacks create typed source-query requests rather than only direct registrations,
+- keep broader literature automation outside this thin discovery-to-registration bridge unless a later milestone promotes it deliberately.

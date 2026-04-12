@@ -1,0 +1,68 @@
+# Workspace Knowledge Report
+
+- Generated at: `2026-04-11T19:14:59+08:00`
+- Source contract: `canonical/L2_COMPILER_PROTOCOL.md`
+- Authority rule: This report is compiled and non-authoritative. Canonical L2 remains the source of truth; staging content stays explicitly provisional.
+- Total rows: `22`
+- Canonical rows: `10`
+- Staging rows: `12`
+- Provisional rows: `7`
+- Contradiction rows: `5`
+
+## Change Summary
+
+- Previous report found: `True`
+- Added: `1`
+- Updated: `0`
+- Unchanged: `21`
+- Removed: `0`
+
+## Navigation Entry Points
+
+- `derived_navigation_index`: `canonical/compiled/derived_navigation/index.md`
+- `workspace_graph_report`: `canonical/compiled/workspace_graph_report.md`
+- `workspace_memory_map`: `canonical/compiled/workspace_memory_map.md`
+- `workspace_staging_manifest`: `canonical/staging/workspace_staging_manifest.md`
+
+## Provisional Knowledge
+
+- `staging:demo-topic-workflow-draft-7909d741` Knowledge report provisional note aitp-l2-knowledge-report-acceptance-wmv5fkem (`non_authoritative_staging`)
+- `staging:demo-topic-workflow-draft-314dd989` Knowledge report provisional note knowledge-acceptance (`non_authoritative_staging`)
+- `staging:demo-topic-workflow-draft-58fc2075` Phase138 test compiled note aitp-cli-e2e-beo7dvwo (`non_authoritative_staging`)
+- `staging:demo-topic-workflow-draft-aed07b94` Phase138 test compiled note aitp-cli-e2e-nna0xm3v (`non_authoritative_staging`)
+- `staging:demo-topic-workflow-draft-211bd4f2` Phase138 test compiled note aitp-cli-e2e-yd9ud3qx (`non_authoritative_staging`)
+- `staging:demo-topic-workflow-draft-1b93bab2` Phase138 test compiled note kernel (`non_authoritative_staging`)
+- `staging:weak-coupling-tfim-picture` Weak-coupling TFIM picture (`non_authoritative_staging`)
+
+## Contradiction Watch
+
+- `staging:knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem` Knowledge report contradiction aitp-l2-knowledge-report-acceptance-wmv5fkem (`non_authoritative_staging`)
+- `staging:knowledge-report-contradiction-knowledge-acceptance` Knowledge report contradiction knowledge-acceptance (`non_authoritative_staging`)
+- `staging:phase138-test-contradiction-aitp-cli-e2e-beo7dvwo` Phase138 test contradiction aitp-cli-e2e-beo7dvwo (`non_authoritative_staging`)
+- `staging:phase138-test-contradiction-aitp-cli-e2e-nna0xm3v` Phase138 test contradiction aitp-cli-e2e-nna0xm3v (`non_authoritative_staging`)
+- `staging:phase138-test-contradiction-aitp-cli-e2e-yd9ud3qx` Phase138 test contradiction aitp-cli-e2e-yd9ud3qx (`non_authoritative_staging`)
+
+## Knowledge Rows
+
+- `claim_card:tfim-benchmark-before-portability-claim` Benchmark before portability claim [authoritative_canonical/trusted/unchanged] `canonical/claim-cards/claim_card--tfim-benchmark-before-portability-claim.json`
+- `concept:tfim-benchmark-first-validation` Benchmark-first validation [authoritative_canonical/trusted/unchanged] `canonical/concepts/concept--tfim-benchmark-first-validation.json`
+- `warning_note:tfim-dense-ed-finite-size-limit` Dense exact diagonalization finite-size limit [authoritative_canonical/trusted/unchanged] `canonical/warning-notes/warning_note--tfim-dense-ed-finite-size-limit.json`
+- `concept:tfim-transverse-field-ising-model` TFIM benchmark substrate [authoritative_canonical/trusted/unchanged] `canonical/concepts/concept--tfim-transverse-field-ising-model.json`
+- `workflow:tfim-benchmark-workflow` TFIM benchmark workflow [authoritative_canonical/trusted/unchanged] `canonical/workflows/workflow--tfim-benchmark-workflow.json`
+- `topic_skill_projection:tfim-benchmark-first-route` TFIM benchmark-first route [authoritative_canonical/trusted/unchanged] `canonical/topic-skill-projections/topic_skill_projection--tfim-benchmark-first-route.json`
+- `method:tfim-exact-diagonalization-helper` TFIM exact-diagonalization helper [authoritative_canonical/trusted/unchanged] `canonical/methods/method--tfim-exact-diagonalization-helper.json`
+- `validation_pattern:tfim-small-system-gap-reproduction` TFIM small-system gap reproduction [authoritative_canonical/trusted/unchanged] `canonical/validation-patterns/validation_pattern--tfim-small-system-gap-reproduction.json`
+- `bridge:tfim-toy-model-code-method-bridge` TFIM toy-model to code-method bridge [authoritative_canonical/trusted/unchanged] `canonical/bridges/bridge--tfim-toy-model-code-method-bridge.json`
+- `physical_picture:tfim-weak-coupling-benchmark-intuition` TFIM weak-coupling benchmark intuition [authoritative_canonical/trusted/unchanged] `canonical/physical-pictures/physical_picture--tfim-weak-coupling-benchmark-intuition.json`
+- `staging:knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem` Knowledge report contradiction aitp-l2-knowledge-report-acceptance-wmv5fkem [non_authoritative_staging/contradiction_watch/unchanged] `canonical/staging/entries/staging--knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem.json`
+- `staging:knowledge-report-contradiction-knowledge-acceptance` Knowledge report contradiction knowledge-acceptance [non_authoritative_staging/contradiction_watch/unchanged] `canonical/staging/entries/staging--knowledge-report-contradiction-knowledge-acceptance.json`
+- `staging:phase138-test-contradiction-aitp-cli-e2e-beo7dvwo` Phase138 test contradiction aitp-cli-e2e-beo7dvwo [non_authoritative_staging/contradiction_watch/added] `canonical/staging/entries/staging--phase138-test-contradiction-aitp-cli-e2e-beo7dvwo.json`
+- `staging:phase138-test-contradiction-aitp-cli-e2e-nna0xm3v` Phase138 test contradiction aitp-cli-e2e-nna0xm3v [non_authoritative_staging/contradiction_watch/unchanged] `canonical/staging/entries/staging--phase138-test-contradiction-aitp-cli-e2e-nna0xm3v.json`
+- `staging:phase138-test-contradiction-aitp-cli-e2e-yd9ud3qx` Phase138 test contradiction aitp-cli-e2e-yd9ud3qx [non_authoritative_staging/contradiction_watch/unchanged] `canonical/staging/entries/staging--phase138-test-contradiction-aitp-cli-e2e-yd9ud3qx.json`
+- `staging:demo-topic-workflow-draft-7909d741` Knowledge report provisional note aitp-l2-knowledge-report-acceptance-wmv5fkem [non_authoritative_staging/provisional/unchanged] `canonical/staging/entries/demo-topic-workflow-draft-7909d741.json`
+- `staging:demo-topic-workflow-draft-314dd989` Knowledge report provisional note knowledge-acceptance [non_authoritative_staging/provisional/unchanged] `canonical/staging/entries/demo-topic-workflow-draft-314dd989.json`
+- `staging:demo-topic-workflow-draft-58fc2075` Phase138 test compiled note aitp-cli-e2e-beo7dvwo [non_authoritative_staging/provisional/unchanged] `canonical/staging/entries/demo-topic-workflow-draft-58fc2075.json`
+- `staging:demo-topic-workflow-draft-aed07b94` Phase138 test compiled note aitp-cli-e2e-nna0xm3v [non_authoritative_staging/provisional/unchanged] `canonical/staging/entries/demo-topic-workflow-draft-aed07b94.json`
+- `staging:demo-topic-workflow-draft-211bd4f2` Phase138 test compiled note aitp-cli-e2e-yd9ud3qx [non_authoritative_staging/provisional/unchanged] `canonical/staging/entries/demo-topic-workflow-draft-211bd4f2.json`
+- `staging:demo-topic-workflow-draft-1b93bab2` Phase138 test compiled note kernel [non_authoritative_staging/provisional/unchanged] `canonical/staging/entries/demo-topic-workflow-draft-1b93bab2.json`
+- `staging:weak-coupling-tfim-picture` Weak-coupling TFIM picture [non_authoritative_staging/provisional/unchanged] ``

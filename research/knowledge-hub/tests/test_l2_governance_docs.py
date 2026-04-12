@@ -106,6 +106,29 @@ class L2GovernanceDocsTests(unittest.TestCase):
         self.assertIn("L3-R", layer_map)
         self.assertIn("L3-D", layer_map)
         self.assertIn("L4 outputs must return to `L3-R`", layer_map)
+        self.assertIn("MODE_AND_LAYER_OPERATING_MODEL.md", layer_map)
+
+    def test_mode_and_layer_operating_model_exists_and_names_real_runtime_axes(self) -> None:
+        operating_model = (self.kernel_root / "MODE_AND_LAYER_OPERATING_MODEL.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("task type", operating_model)
+        self.assertIn("runtime mode", operating_model)
+        self.assertIn("transition posture", operating_model)
+        self.assertIn("L3-A", operating_model)
+        self.assertIn("L3-R", operating_model)
+        self.assertIn("L3-D", operating_model)
+        self.assertIn("it is not currently the primary switch that selects `runtime_mode`", operating_model)
+        self.assertIn("`L4 -> L3-R` mandatory return", operating_model)
+        self.assertIn("ROUTING_POLICY.md", operating_model)
+
+    def test_routing_policy_now_treats_l0_as_a_real_formal_root(self) -> None:
+        routing_policy = (self.kernel_root / "ROUTING_POLICY.md").read_text(encoding="utf-8")
+
+        self.assertIn("source-layer/", routing_policy)
+        self.assertIn("conceptually and operationally starting in `L0`", routing_policy)
+        self.assertNotIn("Layer 0 is not yet independently formalized.", routing_policy)
 
 
 if __name__ == "__main__":

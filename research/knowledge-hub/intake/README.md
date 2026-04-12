@@ -21,6 +21,18 @@ Topic roots live under:
 
 `research/knowledge-hub/intake/topics/<topic_slug>/`
 
+Topic-scoped raw/wiki/output three-layer vaults may also materialize under:
+
+- `intake/topics/<topic_slug>/vault/raw/`
+- `intake/topics/<topic_slug>/vault/wiki/`
+- `intake/topics/<topic_slug>/vault/output/`
+
+Use that vault as a compiled browseable surface, not as a second source of
+truth. The raw layer should anchor immutable `source-layer` inputs, the wiki
+layer should stay Obsidian-compatible, and the output layer should record
+explicit flowback receipts when derived output is synced back into wiki pages.
+See `L1_VAULT_PROTOCOL.md`.
+
 For theory-paper intake from arXiv, prefer source-package acquisition before PDF:
 - see `ARXIV_FIRST_SOURCE_INTAKE.md`
 - primary helper: `../source-layer/scripts/register_arxiv_source.py`

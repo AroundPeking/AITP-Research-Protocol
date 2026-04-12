@@ -24,6 +24,8 @@
     "proof_obligation_count",
     "proof_obligations_path",
     "proof_state_path",
+    "statement_compilation_path",
+    "proof_repair_plan_path",
     "theory_packet_refs",
     "lean_skeleton_lines",
     "updated_at",
@@ -135,6 +137,14 @@
       "minLength": 1
     },
     "proof_state_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "statement_compilation_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_repair_plan_path": {
       "type": "string",
       "minLength": 1
     },

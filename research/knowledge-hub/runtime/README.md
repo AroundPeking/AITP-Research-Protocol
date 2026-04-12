@@ -79,6 +79,20 @@ hiding those rules inside handler code.
   - machine-readable reusable execution projection derived from a mature topic when the lane is stable enough
 - `topics/<topic_slug>/topic_skill_projection.active.md`
   - human-readable topic-skill projection with required reads, route rules, and anti-proxy constraints
+- `topics/<topic_slug>/statement_compilation.active.json`
+  - machine-readable statement-compilation index for bounded declaration skeletons before proof repair
+- `topics/<topic_slug>/statement_compilation.active.md`
+  - human-readable statement-compilation summary with proof-hole counts and packet refs
+- `topics/<topic_slug>/transition_history.jsonl`
+  - append-only structured transition log for bounded forward/backward layer moves
+- `topics/<topic_slug>/transition_history.json`
+  - machine-readable transition/demotion summary for the active topic
+- `topics/<topic_slug>/transition_history.md`
+  - human-readable transition/demotion replay note
+- `topics/<topic_slug>/promotion_gate.json`
+  - machine-readable human approval gate including optional `human_modifications`
+- `topics/<topic_slug>/promotion_gate.md`
+  - human-readable approval gate note with modification summaries when approval changed the candidate
 - `topics/<topic_slug>/loop_state.json`
   - latest loop-level execution summary
 - `topics/<topic_slug>/loop_history.jsonl`
@@ -385,9 +399,20 @@ python research/knowledge-hub/runtime/scripts/run_l2_mvp_direction_acceptance.py
 That acceptance script uses a temporary kernel root, seeds the TFIM MVP
 direction through production CLI, retrieves the seeded `physical_picture`,
 compiles `workspace_memory_map.json|md`, compiles
-`workspace_graph_report.json|md` plus `derived_navigation/index.md`, audits
-`workspace_hygiene_report.json|md`, and verifies those artifacts without
-touching repo runtime state.
+`workspace_graph_report.json|md` plus `derived_navigation/index.md`, compiles
+`workspace_knowledge_report.json|md`, audits `workspace_hygiene_report.json|md`,
+and verifies those artifacts without touching repo runtime state.
+
+For an isolated compiled-knowledge acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_l2_knowledge_report_acceptance.py --json
+```
+
+That acceptance script seeds bounded canonical plus staging knowledge, runs the
+new `compile-l2-knowledge-report` surface twice, and verifies that the compiled
+report stays explicitly non-authoritative while still surfacing change summary
+and contradiction-watch rows.
 
 For an isolated bounded Layer 0 source-catalog acceptance pass, run:
 
@@ -402,6 +427,19 @@ imports one bounded BibTeX file back into Layer 0, checks runtime
 source-fidelity status output, and verifies those artifacts without touching
 repo runtime state.
 
+For an isolated bounded Layer 0 discovery -> registration acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_l0_source_discovery_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, feeds one bounded
+`search_results_json` fixture through
+`source-layer/scripts/discover_and_register.py`, verifies that
+`candidate_evaluation.json` keeps the winning source explicit, and confirms
+that the selected paper is still registered through the normal Layer 0
+`source.json` plus Layer 1 projection path.
+
 For an isolated bounded L1 method-specificity acceptance pass, run:
 
 ```bash
@@ -412,6 +450,296 @@ That acceptance script uses a temporary kernel root, runs production
 `status --json`, verifies that `method_specificity_rows` are materialized
 inside `l1_source_intake`, and checks that the same surface is visible in
 `research_question.contract.md` and the runtime protocol note.
+
+For an isolated bounded L1 assumption and reading-depth acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json`, verifies that `assumption_rows`, `reading_depth_rows`, and
+contradiction signals stay visible through the existing `l1_source_intake`
+path, and checks that the same honesty surface is visible in
+`research_question.contract.md`, `topic_dashboard.md`, the runtime protocol
+note, and the `L1` vault wiki source-intake page.
+
+For an isolated bounded runtime transition and demotion-history acceptance
+pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_transition_history_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`request-promotion`, production `reject-promotion`, then production
+`status --json` and `replay-topic --json`, verifying that the topic now keeps
+durable `transition_history.jsonl|json|md` artifacts and that replay surfaces
+the latest demotion reason instead of only the current stage snapshot.
+
+For an isolated bounded human-modification record acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_human_modification_record_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`request-promotion`, then production `approve-promotion --human-modification`,
+verifying that `promotion_gate.json|md` records the structured modification
+rows and that `replay-topic --json` surfaces the modified approval as a
+distinct evaluator-divergence signal.
+
+For an isolated bounded competing-hypotheses acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_competing_hypotheses_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`research_question.contract.md` and the runtime protocol note both surface the
+explicit `competing_hypotheses` rows, and checks that deferred candidates plus
+follow-up subtopics remain visible as separate runtime lanes.
+
+For an isolated bounded hypothesis-branch-routing acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_branch_routing_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that each competing
+hypothesis now carries explicit branch-routing metadata, and checks that one
+hypothesis can stay on the current topic while other routes remain visible
+through deferred parking, follow-up subtopics, and steering artifacts.
+
+For an isolated bounded hypothesis-route-activation acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_activation_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that `route_activation`
+surfaces the active local hypothesis plus its immediate bounded action, checks
+that deferred and follow-up obligations stay explicit, and confirms the bounded
+slice does not auto-spawn a follow-up topic directory.
+
+For an isolated bounded hypothesis-route-reentry acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_reentry_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that `route_reentry`
+surfaces deferred reactivation conditions plus follow-up return readiness,
+checks that one parked route can remain waiting while another becomes
+re-entry-ready, and confirms the bounded slice does not write a reintegration
+receipt or materialize a reactivated deferred candidate.
+
+For an isolated bounded hypothesis-route-handoff acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_handoff_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that `route_handoff`
+surfaces one bounded parked-route handoff candidate plus explicit keep-parked
+decisions, checks that one ready parked route can occupy the handoff lane while
+another ready parked route remains parked, and confirms the bounded slice does
+not write a reintegration receipt or materialize a reactivated deferred
+candidate.
+
+For an isolated bounded hypothesis-route-choice acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_choice_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that `route_choice`
+surfaces one stay-local versus yield-to-handoff summary, checks that the local
+route can stay active while the handoff candidate remains visible as the yield
+option, and confirms the bounded slice does not write a reintegration receipt
+or materialize a reactivated deferred candidate.
+
+For an isolated bounded hypothesis-route-transition-gate acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_gate_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_gate` surfaces blocked, available, and
+checkpoint-required yielding directly, checks that the gate points at the
+durable route-choice or operator-checkpoint artifact, and confirms the bounded
+slice does not auto-reactivate or auto-reintegrate parked routes.
+
+For an isolated bounded hypothesis-route-transition-intent acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_intent_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_intent` surfaces the declarative source route and target
+route after the transition gate, checks that proposed, ready, and
+checkpoint-held intent states remain explicit, and confirms the bounded slice
+does not auto-reactivate or auto-reintegrate parked routes.
+
+For an isolated bounded hypothesis-route-transition-receipt acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_receipt_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_receipt` surfaces whether the intended handoff has been
+durably recorded, checks that pending, recorded, and none states remain
+explicit, and confirms the bounded slice does not widen into fresh runtime
+mutation.
+
+For an isolated bounded hypothesis-route-transition-resolution acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_resolution_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_resolution` synthesizes transition intent, transition
+receipt, and current active-route alignment into one resolved operator outcome,
+checks that pending, resolved, and none states remain explicit, and confirms
+the bounded slice does not widen into fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-discrepancy acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_discrepancy_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_discrepancy` flags inconsistent transition state when the
+resolved outcome disagrees with upstream route artifacts, checks that present
+versus none discrepancy states remain explicit, and confirms the bounded slice
+does not widen into fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-repair acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_repair_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_repair` surfaces a bounded repair plan when discrepancy is
+present, checks that `recommended` versus `none_required` states remain
+explicit, and confirms the bounded slice does not widen into fresh runtime
+mutation.
+
+For an isolated bounded hypothesis-route-transition-escalation acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_escalation_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_escalation` surfaces `none`, `checkpoint_recommended`, and
+`checkpoint_active` states directly, and confirms the bounded slice does not
+widen into fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-clearance acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_clearance_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_clearance` surfaces `none`, `awaiting_checkpoint`,
+`blocked_on_checkpoint`, and `cleared` states directly, and confirms the
+bounded slice does not widen into fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-followthrough acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_followthrough_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_followthrough` surfaces `none`, `held_by_clearance`, and
+`ready` states directly, and confirms the bounded slice does not widen into
+fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-resumption acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_resumption_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_resumption` surfaces `none`, `waiting_followthrough`,
+`pending`, and `resumed` states directly, and confirms the bounded slice does
+not widen into fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-commitment acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_commitment_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_commitment` surfaces `none`, `waiting_resumption`,
+`pending_commitment`, and `committed` states directly, and confirms the bounded
+slice does not widen into fresh runtime mutation.
+
+For an isolated bounded hypothesis-route-transition-authority acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_authority_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json` and `replay-topic --json`, verifies that
+`route_transition_authority` surfaces `none`, `waiting_commitment`,
+`pending_authority`, and `authoritative` states directly, and confirms the
+bounded slice does not widen into fresh runtime mutation.
+
+For an isolated bounded L1 raw/wiki/output vault acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_l1_vault_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json`, verifies that `intake/topics/<topic_slug>/vault/raw|wiki|output`
+is materialized on the topic-shell path, checks that the wiki layer stays
+Obsidian-compatible, and checks that `output/flowback.jsonl` plus the runtime
+bridge are visible through `research_question.contract.md` and the runtime
+protocol note.
+
+For an isolated bounded statement-compilation acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_statement_compilation_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, seeds one theorem-facing
+candidate plus bounded theory-packet inputs, runs production
+`statement-compilation --json`, and then production `lean-bridge --json`.
+The pass condition is that declaration skeletons, proof-repair plans,
+proof-assistant-agnostic downstream targets, and the downstream Lean-bridge
+refs all remain explicit instead of being collapsed into one opaque packet.
 
 For an isolated bounded analytical-review plus research-judgment acceptance
 pass, run:
@@ -468,14 +796,28 @@ For the shared deep-execution parity harness, run:
 
 ```bash
 python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime codex --json
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime claude_code --json
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime opencode --json
 ```
 
 That harness defines the artifact-level bar for `v1.67` runtime parity work.
-At this stage it proves the Codex baseline path and emits the shared report
-shape that later Claude Code and OpenCode runtime probes must satisfy. The
-important boundary is that front-door install readiness and deep-execution
-parity are different surfaces: a green `doctor` row is not, by itself, proof
-that a runtime matches the Codex execution baseline.
+At this stage it proves the Codex baseline path and now includes the bounded
+Claude Code and OpenCode probes. Those reports are intentionally gap-aware:
+they verify the runtime-specific bootstrap receipt plus downstream AITP
+artifacts, but they do not yet overclaim full live-app parity. The important
+boundary is that front-door install readiness and deep-execution parity are
+different surfaces: a green `doctor` row is not, by itself, proof that a
+runtime matches the Codex execution baseline.
+
+For the shared closure audit across all three runtimes, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_audit.py --json
+```
+
+That audit reuses the Codex, Claude Code, and OpenCode bounded probes and emits
+one closure report naming equivalent surfaces, degraded surfaces, and still-open
+gaps.
 
 For an isolated bounded quick-exploration acceptance pass, run:
 

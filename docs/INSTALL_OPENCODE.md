@@ -102,6 +102,8 @@ The same JSON report should show:
 - `runtime_support_matrix.runtimes.opencode.status` as `ready`
 - `runtime_support_matrix.runtimes.opencode.remediation` when the OpenCode row
   needs repair or preferred-plugin convergence is only recommended
+- `runtime_support_matrix.deep_execution_parity.runtimes.opencode.status`
+  as `probe_available` once the bounded OpenCode runtime probe is present
 - `runtime_convergence.front_door_runtimes_converged` when the full front-door
   adoption surface is aligned
 - `control_plane_contracts` and `control_plane_surfaces` so OpenCode-side
@@ -112,6 +114,16 @@ If the OpenCode row is not `ready`, or if its remediation status is
 `recommended`, run the command in
 `runtime_support_matrix.runtimes.opencode.remediation.command`, then rerun
 `runtime_support_matrix.runtimes.opencode.remediation.followup_command`.
+
+To run the bounded deep-execution probe explicitly:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime opencode --json
+```
+
+That report should stay limitation-heavy: it proves the plugin hook receipts
+plus bounded AITP runtime artifacts, but it does not yet claim full live
+OpenCode parity with the Codex baseline.
 
 Useful follow-up commands once a topic exists:
 

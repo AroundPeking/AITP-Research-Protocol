@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .runtime_projection_handler import append_transition_history
+
 
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
@@ -55,6 +57,38 @@ def _as_bool(value: object) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _normalize_human_modifications(
+    rows: list[dict[str, Any]] | None,
+    *,
+    recorded_at: str,
+    recorded_by: str,
+) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        field = str(row.get("field") or "").strip()
+        change = str(row.get("change") or "").strip()
+        reason = str(row.get("reason") or "").strip()
+        if not field or not change or not reason:
+            continue
+        key = (field.lower(), change.lower(), reason.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "field": field,
+                "change": change,
+                "reason": reason,
+                "recorded_at": recorded_at,
+                "recorded_by": recorded_by,
+            }
+        )
+    return normalized
+
+
 def promotion_gate_markdown(payload: dict[str, Any]) -> str:
     lines = [
         "# L2 promotion gate",
@@ -70,6 +104,10 @@ def promotion_gate_markdown(payload: dict[str, Any]) -> str:
         f"- Target backend root: `{payload.get('target_backend_root') or '(missing)'}`",
         f"- Review mode: `{payload.get('review_mode') or 'human'}`",
         f"- Canonical layer: `{payload.get('canonical_layer') or 'L2'}`",
+        f"- Source layer: `{payload.get('source_layer') or 'L4'}`",
+        f"- Requested destination layer: `{payload.get('requested_destination_layer') or payload.get('canonical_layer') or 'L2'}`",
+        f"- Resolved destination layer: `{payload.get('resolved_destination_layer') or '(pending)'}`",
+        f"- Approval change kind: `{payload.get('approval_change_kind') or '(pending)'}`",
         f"- Coverage status: `{payload.get('coverage_status') or 'not_audited'}`",
         f"- Consensus status: `{payload.get('consensus_status') or 'not_requested'}`",
         f"- Regression gate status: `{payload.get('regression_gate_status') or 'not_audited'}`",
@@ -95,6 +133,18 @@ def promotion_gate_markdown(payload: dict[str, Any]) -> str:
     lines.extend(["", "## Promotion blockers", ""])
     for blocker in payload.get("promotion_blockers") or ["(none)"]:
         lines.append(f"- {blocker}")
+    lines.extend(["", "## Human modifications", ""])
+    for row in payload.get("human_modifications") or ["(none)"]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('field') or '(missing)'}` -> {row.get('change') or '(missing)'}"
+            )
+            lines.append(f"  reason: {row.get('reason') or '(missing)'}")
+            lines.append(
+                f"  recorded: `{row.get('recorded_at') or '(missing)'}` by `{row.get('recorded_by') or '(missing)'}`"
+            )
+        else:
+            lines.append(f"- {row}")
     lines.extend(
         [
             "",
@@ -179,6 +229,11 @@ def request_promotion(
         "consensus_status": "not_requested",
         "regression_gate_status": "not_audited",
         "topic_completion_status": str(candidate.get("topic_completion_status") or "not_assessed"),
+        "source_layer": "L4",
+        "requested_destination_layer": "L2",
+        "resolved_destination_layer": None,
+        "approval_change_kind": "pending_review",
+        "human_modifications": [],
         "supporting_regression_question_ids": self._dedupe_strings(
             list(candidate.get("supporting_regression_question_ids") or [])
         ),
@@ -202,6 +257,7 @@ def request_promotion(
         "promoted_units": [],
         "notes": notes or "",
     }
+    gate_payload["requested_destination_layer"] = str(gate_payload.get("canonical_layer") or "L2")
     paths = write_promotion_gate(self, topic_slug, gate_payload)
     log_path = append_promotion_gate_log(
         self,
@@ -233,6 +289,7 @@ def approve_promotion(
     run_id: str | None = None,
     approved_by: str = "aitp-cli",
     notes: str | None = None,
+    human_modifications: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     gate_payload = load_promotion_gate(self, topic_slug)
     if gate_payload is None:
@@ -245,6 +302,16 @@ def approve_promotion(
     gate_payload["status"] = "approved"
     gate_payload["approved_by"] = approved_by
     gate_payload["approved_at"] = _now_iso()
+    gate_payload["resolved_destination_layer"] = str(gate_payload.get("canonical_layer") or "L2")
+    normalized_modifications = _normalize_human_modifications(
+        human_modifications,
+        recorded_at=str(gate_payload["approved_at"]),
+        recorded_by=approved_by,
+    )
+    gate_payload["human_modifications"] = normalized_modifications
+    gate_payload["approval_change_kind"] = (
+        "approved_with_modifications" if normalized_modifications else "approved_as_submitted"
+    )
     if notes is not None:
         gate_payload["notes"] = notes
     paths = write_promotion_gate(self, topic_slug, gate_payload)
@@ -258,6 +325,9 @@ def approve_promotion(
             "status": gate_payload["status"],
             "updated_by": approved_by,
             "updated_at": gate_payload["approved_at"],
+            "approval_change_kind": gate_payload["approval_change_kind"],
+            "human_modification_count": len(gate_payload.get("human_modifications") or []),
+            "human_modifications": gate_payload.get("human_modifications") or [],
             "notes": gate_payload.get("notes") or "",
         },
     )
@@ -288,6 +358,8 @@ def reject_promotion(
     gate_payload["status"] = "rejected"
     gate_payload["rejected_by"] = rejected_by
     gate_payload["rejected_at"] = _now_iso()
+    gate_payload["resolved_destination_layer"] = "L3"
+    gate_payload["approval_change_kind"] = "rejected"
     if notes is not None:
         gate_payload["notes"] = notes
     paths = write_promotion_gate(self, topic_slug, gate_payload)
@@ -303,6 +375,25 @@ def reject_promotion(
             "updated_at": gate_payload["rejected_at"],
             "notes": gate_payload.get("notes") or "",
         },
+    )
+    append_transition_history(
+        topic_slug,
+        {
+            "run_id": resolved_run_id,
+            "event_kind": "promotion_rejected",
+            "from_layer": str(gate_payload.get("source_layer") or "L4"),
+            "to_layer": str(gate_payload.get("resolved_destination_layer") or "L3"),
+            "reason": str(gate_payload.get("notes") or "Promotion was rejected and the topic returned to a lower layer."),
+            "evidence_refs": [
+                self._relativize(self._promotion_gate_paths(topic_slug)["json"]),
+                self._relativize(self._promotion_gate_paths(topic_slug)["note"]),
+                self._relativize(Path(log_path)),
+            ],
+            "candidate_id": candidate_id,
+            "recorded_at": str(gate_payload.get("rejected_at") or _now_iso()),
+            "recorded_by": rejected_by,
+        },
+        kernel_root=self.kernel_root,
     )
     return {
         **gate_payload,

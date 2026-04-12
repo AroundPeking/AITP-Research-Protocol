@@ -350,6 +350,11 @@ class AITPServiceTests(unittest.TestCase):
             runtime_bundle_schema,
             self.kernel_root / "runtime" / "schemas" / runtime_bundle_schema.name,
         )
+        shutil.copytree(
+            self.package_root / "runtime" / "scripts",
+            self.kernel_root / "runtime" / "scripts",
+            dirs_exist_ok=True,
+        )
         self.service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
 
     def tearDown(self) -> None:
@@ -2253,7 +2258,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = self.service.ensure_topic_shell_surfaces(
+        payload = service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2325,7 +2330,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = self.service.ensure_topic_shell_surfaces(
+        payload = service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2374,6 +2379,12 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("scope_ambiguity", dashboard_text)
 
     def test_ensure_topic_shell_surfaces_persists_source_backed_l1_intake(self) -> None:
+        shutil.copytree(
+            self.package_root / "runtime" / "scripts",
+            self.kernel_root / "runtime" / "scripts",
+            dirs_exist_ok=True,
+        )
+        service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
         runtime_root = self._write_runtime_state()
         (runtime_root / "topic_state.json").write_text(
             json.dumps(
@@ -2459,7 +2470,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = self.service.ensure_topic_shell_surfaces(
+        payload = service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2477,6 +2488,133 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("## Source-backed assumptions", research_note)
         self.assertIn("## Reading depth", research_note)
         self.assertIn("## Method specificity", research_note)
+
+    def test_ensure_topic_shell_surfaces_materializes_l1_vault_and_flowback(self) -> None:
+        shutil.copytree(
+            self.package_root / "runtime" / "scripts",
+            self.kernel_root / "runtime" / "scripts",
+            dirs_exist_ok=True,
+        )
+        service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L1",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Compile the bounded source-backed intake into the L1 vault.",
+                    "decision_surface": {
+                        "selected_action_id": "action:demo-topic:vault",
+                        "decision_source": "heuristic",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:vault",
+                    "status": "pending",
+                    "action_type": "inspect_resume_state",
+                    "summary": "Inspect the compiled L1 vault before continuing.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "control_note.md").write_text("# Control note\n", encoding="utf-8")
+        (runtime_root / "operator_console.md").write_text("# Operator console\n", encoding="utf-8")
+
+        source_root = self.kernel_root / "source-layer" / "topics" / "demo-topic"
+        source_root.mkdir(parents=True, exist_ok=True)
+        thesis_path = self.root / "inputs" / "vault-source.tex"
+        thesis_path.parent.mkdir(parents=True, exist_ok=True)
+        thesis_path.write_text(
+            "\\section{Bounded closure}\n"
+            "We assume fractional occupations remain bounded in the weak coupling limit.\n",
+            encoding="utf-8",
+        )
+        source_rows = [
+            {
+                "source_id": "thesis:demo-source",
+                "source_type": "thesis",
+                "title": "Bounded closure thesis",
+                "summary": "We assume fractional occupations remain bounded in the weak coupling limit.",
+                "provenance": {
+                    "absolute_path": str(thesis_path),
+                },
+            },
+            {
+                "source_id": "note:comparison",
+                "source_type": "local_note",
+                "title": "Comparison note",
+                "summary": "Compare the bounded closure route against the benchmark note.",
+                "provenance": {
+                    "abs_url": "https://example.org/comparison",
+                },
+            },
+        ]
+        (source_root / "source_index.jsonl").write_text(
+            "\n".join(json.dumps(row, ensure_ascii=True) for row in source_rows) + "\n",
+            encoding="utf-8",
+        )
+        snapshot_root = source_root / "sources" / "thesis-demo-source"
+        snapshot_root.mkdir(parents=True, exist_ok=True)
+        (snapshot_root / "snapshot.md").write_text(
+            "# Snapshot\n\n"
+            "## Preview\n"
+            "We assume fractional occupations remain bounded in the weak coupling limit.\n",
+            encoding="utf-8",
+        )
+
+        payload = service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        l1_vault = payload["l1_vault"]
+        self.assertEqual(l1_vault["status"], "materialized")
+        self.assertEqual(l1_vault["raw"]["source_count"], 2)
+        self.assertTrue(Path(payload["l1_vault_path"]).exists())
+        self.assertTrue(Path(payload["l1_vault_wiki_home_path"]).exists())
+        self.assertTrue(Path(payload["l1_vault_output_digest_note_path"]).exists())
+        self.assertTrue(Path(payload["l1_vault_flowback_log_path"]).exists())
+        home_text = Path(payload["l1_vault_wiki_home_path"]).read_text(encoding="utf-8")
+        bridge_text = Path(payload["l1_vault_wiki_runtime_bridge_path"]).read_text(encoding="utf-8")
+        flowback_rows = [
+            json.loads(line)
+            for line in Path(payload["l1_vault_flowback_log_path"]).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        research_note = Path(payload["research_question_contract_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("page_type: topic_home", home_text)
+        self.assertIn("[[source-intake|Source Intake]]", home_text)
+        self.assertIn("research_question.contract.md", bridge_text)
+        self.assertIn("control_note.md", bridge_text)
+        self.assertIn("operator_console.md", bridge_text)
+        self.assertGreaterEqual(len(flowback_rows), 4)
+        self.assertTrue(all(row["status"] == "applied" for row in flowback_rows))
+        self.assertIn("## L1 vault", research_note)
 
     def test_ensure_topic_shell_surfaces_persists_l1_conflict_candidates(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -2559,7 +2697,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = self.service.ensure_topic_shell_surfaces(
+        payload = service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -3994,7 +4132,7 @@ class AITPServiceTests(unittest.TestCase):
             self.service,
             "_pip_show_package",
             return_value={
-                "version": "0.4.0",
+                "version": "0.4.1",
                 "editable project location": str(self.service._canonical_package_root()),
             },
         ):
@@ -4039,13 +4177,14 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(deep_execution["deferred_lanes"], ["openclaw"])
         self.assertEqual(deep_execution["runtimes"]["codex"]["status"], "baseline_ready")
         self.assertEqual(deep_execution["runtimes"]["codex"]["baseline_relationship"], "baseline")
-        self.assertEqual(deep_execution["runtimes"]["claude_code"]["status"], "probe_pending")
-        self.assertEqual(deep_execution["runtimes"]["opencode"]["status"], "probe_pending")
+        self.assertEqual(deep_execution["runtimes"]["claude_code"]["status"], "probe_available")
+        self.assertEqual(deep_execution["runtimes"]["opencode"]["status"], "probe_available")
         self.assertEqual(deep_execution["runtimes"]["openclaw"]["status"], "deferred")
         self.assertIn("run_runtime_parity_acceptance.py", deep_execution["runtimes"]["codex"]["acceptance_command"])
         self.assertEqual(payload["deep_execution_parity"]["baseline_status"], "baseline_ready")
         self.assertFalse(payload["deep_execution_parity"]["parity_targets_converged"])
         self.assertEqual(payload["deep_execution_parity"]["pending_targets"], ["claude_code", "opencode"])
+        self.assertEqual(payload["deep_execution_parity"]["ready_for_probe_targets"], ["claude_code", "opencode"])
         self.assertTrue(payload["runtime_convergence"]["front_door_runtimes_converged"])
         self.assertEqual(payload["full_convergence_repair"]["status"], "none_required")
 
@@ -4085,7 +4224,7 @@ class AITPServiceTests(unittest.TestCase):
             self.service,
             "_pip_show_package",
             return_value={
-                "version": "0.4.0",
+                "version": "0.4.1",
                 "editable project location": str(self.service._canonical_package_root()),
             },
         ):
@@ -4175,7 +4314,7 @@ class AITPServiceTests(unittest.TestCase):
             self.service,
             "_pip_show_package",
             return_value={
-                "version": "0.4.0",
+                "version": "0.4.1",
                 "editable project location": str(self.service._canonical_package_root()),
             },
         ):
@@ -4240,7 +4379,7 @@ class AITPServiceTests(unittest.TestCase):
             self.service,
             "_pip_show_package",
             return_value={
-                "version": "0.4.0",
+                "version": "0.4.1",
                 "editable project location": str(self.service._canonical_package_root()),
             },
         ):
@@ -4321,7 +4460,7 @@ class AITPServiceTests(unittest.TestCase):
             self.service,
             "_pip_show_package",
             return_value={
-                "version": "0.4.0",
+                "version": "0.4.1",
                 "editable project location": str(self.service._canonical_package_root()),
             },
         ):
@@ -4401,7 +4540,7 @@ class AITPServiceTests(unittest.TestCase):
             self.service,
             "_pip_show_package",
             return_value={
-                "version": "0.4.0",
+                "version": "0.4.1",
                 "editable project location": str(self.service._canonical_package_root()),
             },
         ):
@@ -4553,7 +4692,7 @@ class AITPServiceTests(unittest.TestCase):
             return {"installed": [{"agent": agent, "path": f"/tmp/{agent}", "kind": "skill"}]}
 
         with patch.object(self.service, "ensure_cli_installed", side_effect=[before, after]):
-            with patch.object(self.service, "_pip_show_package", return_value={"version": "0.4.0", "editable project location": str(self.service._canonical_package_root())}):
+            with patch.object(self.service, "_pip_show_package", return_value={"version": "0.4.1", "editable project location": str(self.service._canonical_package_root())}):
                 with patch.object(self.service, "install_agent", side_effect=fake_install_agent):
                     with patch.object(self.service, "_ensure_opencode_plugin_enabled", return_value={"config_path": "C:\\temp\\opencode.json", "plugin_entry": "aitp@git+https://github.com/bhjia-phys/AITP-Research-Protocol.git"}):
                         result = self.service.migrate_local_install(
@@ -4578,7 +4717,7 @@ class AITPServiceTests(unittest.TestCase):
             if name == "aitp":
                 return {}
             if name == "aitp-kernel":
-                return {"version": "0.4.0"}
+                return {"version": "0.4.1"}
             return {}
 
         with patch.object(self.service, "_pip_show_package", side_effect=fake_pip_show):
@@ -6260,6 +6399,33 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(approved["status"], "approved")
         gate_payload = json.loads(Path(approved["promotion_gate_path"]).read_text(encoding="utf-8"))
         self.assertEqual(gate_payload["approved_by"], "aitp-cli")
+        self.assertEqual(gate_payload["approval_change_kind"], "approved_as_submitted")
+
+    def test_approve_promotion_can_record_human_modifications(self) -> None:
+        self._write_runtime_state()
+        self._write_candidate()
+
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+        )
+        approved = self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            human_modifications=[
+                {
+                    "field": "statement",
+                    "change": "Narrowed the statement to the weak-coupling regime only.",
+                    "reason": "The submitted candidate overstated the valid regime.",
+                }
+            ],
+        )
+
+        gate_payload = json.loads(Path(approved["promotion_gate_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(gate_payload["approval_change_kind"], "approved_with_modifications")
+        self.assertEqual(len(gate_payload["human_modifications"]), 1)
+        self.assertEqual(gate_payload["human_modifications"][0]["field"], "statement")
 
     def test_assess_topic_completion_reports_promoted_when_gate_is_promoted(self) -> None:
         self._write_runtime_state()
@@ -7516,10 +7682,20 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(packet_payload["accepted_return_shape"], "resolved_gap_update")
         self.assertTrue(Path(payload["return_packet_note_path"]).exists())
 
-    def test_assess_topic_completion_and_prepare_lean_bridge_write_durable_artifacts(self) -> None:
+    def test_prepare_statement_compilation_writes_durable_artifacts(self) -> None:
+        shutil.copytree(
+            self.package_root / "runtime" / "scripts",
+            self.kernel_root / "runtime" / "scripts",
+            dirs_exist_ok=True,
+        )
+        service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
         self._write_runtime_state()
-        self._write_candidate()
-        self.service.audit_theory_coverage(
+        self._write_candidate(
+            candidate_type="theorem_card",
+            intended_l2_target="theorem:demo-statement-compilation-pilot",
+            title="Demo theorem packet",
+        )
+        service.audit_theory_coverage(
             topic_slug="demo-topic",
             candidate_id="candidate:demo-candidate",
             source_sections=["sec:intro", "sec:result"],
@@ -7537,7 +7713,92 @@ class AITPServiceTests(unittest.TestCase):
             supporting_regression_run_ids=["regression_run:demo-definition"],
         )
 
-        completion = self.service.assess_topic_completion(topic_slug="demo-topic")
+        compilation = service.prepare_statement_compilation(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+        )
+        self.assertEqual(compilation["status"], "ready")
+        self.assertTrue(Path(compilation["statement_compilation_path"]).exists())
+        active_payload = json.loads(Path(compilation["statement_compilation_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(active_payload["packet_count"], 1)
+        packet_path = (
+            self.kernel_root
+            / "validation"
+            / "topics"
+            / "demo-topic"
+            / "runs"
+            / "2026-03-13-demo"
+            / "statement-compilation"
+            / "candidate-demo-candidate"
+            / "statement_compilation.json"
+        )
+        repair_path = (
+            self.kernel_root
+            / "validation"
+            / "topics"
+            / "demo-topic"
+            / "runs"
+            / "2026-03-13-demo"
+            / "statement-compilation"
+            / "candidate-demo-candidate"
+            / "proof_repair_plan.json"
+        )
+        self.assertTrue(packet_path.exists())
+        self.assertTrue(repair_path.exists())
+        packet_payload = json.loads(packet_path.read_text(encoding="utf-8"))
+        repair_payload = json.loads(repair_path.read_text(encoding="utf-8"))
+        self.assertEqual(packet_payload["status"], "ready")
+        self.assertEqual(packet_payload["primary_statement_kind"], "theorem")
+        self.assertTrue(any(row["assistant"] == "lean4" for row in packet_payload["assistant_targets"]))
+        self.assertTrue(any(row["assistant"] == "symbolic_checker" for row in packet_payload["assistant_targets"]))
+        self.assertEqual(repair_payload["status"], "ready")
+        statement_schema = json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "runtime"
+                / "schemas"
+                / "statement-compilation-packet.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        repair_schema = json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "runtime"
+                / "schemas"
+                / "proof-repair-plan.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        Draft202012Validator(statement_schema).validate(packet_payload)
+        Draft202012Validator(repair_schema).validate(repair_payload)
+
+    def test_assess_topic_completion_and_prepare_lean_bridge_write_durable_artifacts(self) -> None:
+        shutil.copytree(
+            self.package_root / "runtime" / "scripts",
+            self.kernel_root / "runtime" / "scripts",
+            dirs_exist_ok=True,
+        )
+        service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        self._write_runtime_state()
+        self._write_candidate()
+        service.audit_theory_coverage(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            source_sections=["sec:intro", "sec:result"],
+            covered_sections=["sec:intro", "sec:result"],
+            equation_labels=["eq:1"],
+            notation_bindings=[{"symbol": "H", "meaning": "Hamiltonian"}],
+            derivation_nodes=["def:h", "eq:1"],
+            agent_votes=[{"role": "skeptic", "verdict": "no_major_gap", "notes": ""}],
+            consensus_status="unanimous",
+            critical_unit_recall=1.0,
+            missing_anchor_count=0,
+            skeptic_major_gap_count=0,
+            supporting_regression_question_ids=["regression_question:demo-definition"],
+            supporting_oracle_ids=["question_oracle:demo-definition"],
+            supporting_regression_run_ids=["regression_run:demo-definition"],
+        )
+
+        completion = service.assess_topic_completion(topic_slug="demo-topic")
         self.assertEqual(completion["status"], "promotion-ready")
         self.assertTrue(Path(completion["topic_completion_path"]).exists())
         self.assertEqual(completion["regression_manifest"]["status"], "ready")
@@ -7554,7 +7815,7 @@ class AITPServiceTests(unittest.TestCase):
             json.loads(Path(completion["topic_completion_path"]).read_text(encoding="utf-8"))
         )
 
-        lean_bridge = self.service.prepare_lean_bridge(
+        lean_bridge = service.prepare_lean_bridge(
             topic_slug="demo-topic",
             candidate_id="candidate:demo-candidate",
         )
@@ -7579,6 +7840,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(packet_payload["declaration_kind"], "def")
         self.assertEqual(packet_payload["notation_bindings"][0]["symbol"], "H")
         self.assertEqual(packet_payload["proof_obligation_count"], 0)
+        self.assertTrue(packet_payload["statement_compilation_path"].endswith("statement_compilation.json"))
+        self.assertTrue(packet_payload["proof_repair_plan_path"].endswith("proof_repair_plan.json"))
         lean_ready_schema = json.loads(
             (
                 Path(__file__).resolve().parents[1]

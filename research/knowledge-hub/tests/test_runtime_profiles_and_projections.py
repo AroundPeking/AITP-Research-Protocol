@@ -27,7 +27,9 @@ from tests_support import (  # noqa: E402
 from knowledge_hub.aitp_service import AITPService  # noqa: E402
 from knowledge_hub.mode_envelope_support import build_runtime_mode_contract  # noqa: E402
 from knowledge_hub.runtime_projection_handler import (  # noqa: E402
+    append_transition_history,
     build_knowledge_packets_from_candidates,
+    load_transition_history,
     write_promotion_trace,
     write_topic_skill_projection,
     write_topic_synopsis,
@@ -173,6 +175,14 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             json.dumps({"status": "in_progress"}, indent=2) + "\n",
         )
         topic_completion_note = self._write_surface("runtime/topics/demo-topic/topic_completion.md", "# Topic completion\n")
+        statement_compilation_json = self._write_surface(
+            "runtime/topics/demo-topic/statement_compilation.active.json",
+            json.dumps({"status": "idle"}, indent=2) + "\n",
+        )
+        statement_compilation_note = self._write_surface(
+            "runtime/topics/demo-topic/statement_compilation.active.md",
+            "# Statement compilation\n",
+        )
         lean_bridge_json = self._write_surface(
             "runtime/topics/demo-topic/lean_bridge.active.json",
             json.dumps({"status": "idle"}, indent=2) + "\n",
@@ -200,6 +210,8 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             "gap_map_path": gap_note,
             "topic_completion_path": topic_completion_json,
             "topic_completion_note_path": topic_completion_note,
+            "statement_compilation_path": statement_compilation_json,
+            "statement_compilation_note_path": statement_compilation_note,
             "lean_bridge_path": lean_bridge_json,
             "lean_bridge_note_path": lean_bridge_note,
             "followup_reintegration_path": followup_reintegration_jsonl,
@@ -325,6 +337,17 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
                 "summary": "Topic completion is not ready yet.",
                 "promotion_ready_candidate_ids": [],
                 "path": "runtime/topics/demo-topic/topic_completion.md",
+            },
+            "statement_compilation": {
+                "status": "idle",
+                "summary": "No statement-compilation packet is active.",
+                "packet_count": 0,
+                "ready_packet_count": 0,
+                "needs_repair_count": 0,
+                "packets": [],
+                "path": "runtime/topics/demo-topic/statement_compilation.active.md",
+                "updated_at": "2026-03-28T00:00:00+00:00",
+                "updated_by": "test",
             },
             "lean_bridge": {
                 "status": "idle",
@@ -518,6 +541,28 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         )
         self.assertTrue(Path(projection_result["path"]).exists())
 
+        transition_result = append_transition_history(
+            "demo-topic",
+            {
+                "run_id": "run-001",
+                "event_kind": "runtime_resume_state",
+                "from_layer": "L4",
+                "to_layer": "L3",
+                "reason": "Validation returned the topic to L3 after a bounded contradiction.",
+                "evidence_refs": ["runtime/topics/demo-topic/gap_map.md"],
+                "recorded_at": "2026-03-28T00:00:00+00:00",
+                "recorded_by": "test",
+            },
+            kernel_root=self.kernel_root,
+        )
+        self.assertTrue(Path(transition_result["log_path"]).exists())
+        self.assertTrue(Path(transition_result["path"]).exists())
+        self.assertTrue(Path(transition_result["note_path"]).exists())
+        transition_payload = load_transition_history("demo-topic", kernel_root=self.kernel_root)
+        self.assertEqual(transition_payload["transition_count"], 1)
+        self.assertEqual(transition_payload["backtrack_count"], 1)
+        self.assertEqual(transition_payload["latest_demotion"]["to_layer"], "L3")
+
     def test_topic_skill_projection_schema_accepts_formal_theory_payload(self) -> None:
         schema = json.loads(
             (self.kernel_root / "schemas" / "topic-skill-projection.schema.json").read_text(encoding="utf-8")
@@ -661,7 +706,12 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertTrue((self.runtime_root / "pending_decisions.json").exists())
         self.assertTrue((self.runtime_root / "promotion_readiness.json").exists())
         self.assertTrue((self.runtime_root / "promotion_trace.latest.json").exists())
+        self.assertTrue((self.runtime_root / "transition_history.json").exists())
+        self.assertTrue((self.runtime_root / "transition_history.md").exists())
         self.assertTrue((self.runtime_root / "knowledge_packets").exists())
+        note_text = Path(result["runtime_protocol_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Transition history", note_text)
+        self.assertIn("transition_history.json", note_text)
 
         schema = json.loads(
             (self.kernel_root / "runtime" / "schemas" / "progressive-disclosure-runtime-bundle.schema.json").read_text(

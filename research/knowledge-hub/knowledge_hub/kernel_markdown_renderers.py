@@ -2,6 +2,32 @@ from __future__ import annotations
 
 from typing import Any
 
+from .l1_source_intake_support import (
+    l1_assumption_depth_summary_lines,
+    l1_contradiction_summary_lines,
+    l1_notation_tension_lines,
+    l1_reading_depth_limit_lines,
+)
+from .runtime_read_path_support import (
+    append_competing_hypotheses_markdown,
+    append_route_activation_markdown,
+    append_route_choice_markdown,
+    append_route_handoff_markdown,
+    append_route_reentry_markdown,
+    append_route_transition_gate_markdown,
+    append_route_transition_intent_markdown,
+    append_route_transition_receipt_markdown,
+    append_route_transition_resolution_markdown,
+    append_route_transition_discrepancy_markdown,
+    append_route_transition_repair_markdown,
+    append_route_transition_escalation_markdown,
+    append_route_transition_clearance_markdown,
+    append_route_transition_followthrough_markdown,
+    append_route_transition_resumption_markdown,
+    append_route_transition_commitment_markdown,
+    append_route_transition_authority_markdown,
+)
+
 
 def _append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any]) -> None:
     l1_source_intake = payload.get("l1_source_intake") or {}
@@ -11,6 +37,15 @@ def _append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any])
             "## L1 source intake",
             "",
             f"- Source count: `{l1_source_intake.get('source_count') or 0}`",
+            "",
+            "## L1 intake summary",
+            "",
+        ]
+    )
+    for row in l1_assumption_depth_summary_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
+    lines.extend(
+        [
             "",
             "## Source-backed assumptions",
             "",
@@ -57,6 +92,9 @@ def _append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any])
                 lines.append(f"  evidence: {row.get('evidence_excerpt')}")
         else:
             lines.append(f"- {row}")
+    lines.extend(["", "## Reading-depth limits", ""])
+    for row in l1_reading_depth_limit_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
     lines.extend(["", "## Notation rows", ""])
     for row in l1_source_intake.get("notation_rows") or ["(none)"]:
         if isinstance(row, dict):
@@ -67,21 +105,54 @@ def _append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any])
         else:
             lines.append(f"- {row}")
     lines.extend(["", "## Contradiction candidates", ""])
-    for row in l1_source_intake.get("contradiction_candidates") or ["(none)"]:
-        if isinstance(row, dict):
-            lines.append(
-                f"- `{row.get('source_id') or '(missing)'}` vs `{row.get('against_source_id') or '(missing)'}`: "
-                f"{row.get('detail') or '(missing)'}"
-            )
-        else:
-            lines.append(f"- {row}")
+    for row in l1_contradiction_summary_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
     lines.extend(["", "## Notation-alignment tension", ""])
-    for row in l1_source_intake.get("notation_tension_candidates") or ["(none)"]:
+    for row in l1_notation_tension_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
+
+
+def _append_l1_vault_markdown(lines: list[str], payload: dict[str, Any]) -> None:
+    l1_vault = payload.get("l1_vault") or {}
+    raw = l1_vault.get("raw") or {}
+    wiki = l1_vault.get("wiki") or {}
+    output = l1_vault.get("output") or {}
+    lines.extend(
+        [
+            "",
+            "## L1 vault",
+            "",
+            f"- Status: `{l1_vault.get('status') or '(missing)'}`",
+            f"- Root path: `{l1_vault.get('root_path') or '(missing)'}`",
+            f"- Protocol path: `{l1_vault.get('protocol_path') or '(missing)'}`",
+            "",
+            "## L1 vault raw layer",
+            "",
+            f"- Manifest JSON: `{raw.get('manifest_path') or '(missing)'}`",
+            f"- Manifest note: `{raw.get('note_path') or '(missing)'}`",
+            f"- Source count: `{raw.get('source_count') or 0}`",
+            "",
+            "## L1 vault wiki layer",
+            "",
+            f"- Schema page: `{wiki.get('schema_path') or '(missing)'}`",
+            f"- Home page: `{wiki.get('home_page_path') or '(missing)'}`",
+            f"- Page count: `{wiki.get('page_count') or 0}`",
+            "",
+            "## L1 vault output layer",
+            "",
+            f"- Digest JSON: `{output.get('digest_path') or '(missing)'}`",
+            f"- Digest note: `{output.get('digest_note_path') or '(missing)'}`",
+            f"- Flowback log: `{output.get('flowback_log_path') or '(missing)'}`",
+            f"- Flowback entries: `{output.get('flowback_entry_count') or 0}`",
+            "",
+            "## L1 vault compatibility refs",
+            "",
+        ]
+    )
+    for row in l1_vault.get("compatibility_refs") or ["(none)"]:
         if isinstance(row, dict):
             lines.append(
-                f"- `{row.get('source_id') or '(missing)'}` vs `{row.get('against_source_id') or '(missing)'}`: "
-                f"`{row.get('existing_symbol') or '(missing)'}` vs `{row.get('incoming_symbol') or '(missing)'}` "
-                f"for `{row.get('meaning') or '(missing)'}`"
+                f"- `{row.get('kind') or '(missing)'}` status=`{row.get('status') or 'missing'}` path=`{row.get('path') or '(missing)'}`"
             )
         else:
             lines.append(f"- {row}")
@@ -155,6 +226,7 @@ def render_research_question_contract_markdown(payload: dict[str, Any]) -> str:
     for item in payload.get("context_intake") or ["(missing)"]:
         lines.append(f"- {item}")
     _append_l1_source_intake_markdown(lines, payload)
+    _append_l1_vault_markdown(lines, payload)
     lines.extend(["", "## Source basis refs", ""])
     for item in payload.get("source_basis_refs") or ["(missing)"]:
         lines.append(f"- {item}")
@@ -164,6 +236,23 @@ def render_research_question_contract_markdown(payload: dict[str, Any]) -> str:
     lines.extend(["", "## Open ambiguities", ""])
     for item in payload.get("open_ambiguities") or ["(none)"]:
         lines.append(f"- {item}")
+    append_competing_hypotheses_markdown(lines, payload)
+    append_route_activation_markdown(lines, payload)
+    append_route_reentry_markdown(lines, payload)
+    append_route_handoff_markdown(lines, payload)
+    append_route_choice_markdown(lines, payload)
+    append_route_transition_gate_markdown(lines, payload)
+    append_route_transition_intent_markdown(lines, payload)
+    append_route_transition_receipt_markdown(lines, payload)
+    append_route_transition_resolution_markdown(lines, payload)
+    append_route_transition_discrepancy_markdown(lines, payload)
+    append_route_transition_repair_markdown(lines, payload)
+    append_route_transition_escalation_markdown(lines, payload)
+    append_route_transition_clearance_markdown(lines, payload)
+    append_route_transition_followthrough_markdown(lines, payload)
+    append_route_transition_resumption_markdown(lines, payload)
+    append_route_transition_commitment_markdown(lines, payload)
+    append_route_transition_authority_markdown(lines, payload)
     lines.extend(["", "## Formalism and notation", ""])
     for item in payload.get("formalism_and_notation") or ["(missing)"]:
         lines.append(f"- {item}")
@@ -462,6 +551,106 @@ def render_proof_state_markdown(payload: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_statement_compilation_packet_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Statement compilation packet",
+        "",
+        f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+        f"- Run id: `{payload.get('run_id') or '(missing)'}`",
+        f"- Candidate id: `{payload.get('candidate_id') or '(missing)'}`",
+        f"- Candidate type: `{payload.get('candidate_type') or '(missing)'}`",
+        f"- Status: `{payload.get('status') or '(missing)'}`",
+        f"- Primary statement kind: `{payload.get('primary_statement_kind') or '(missing)'}`",
+        f"- Primary identifier: `{payload.get('primary_identifier') or '(missing)'}`",
+        f"- Proof repair plan: `{payload.get('proof_repair_plan_path') or '(missing)'}`",
+        "",
+        "## Assistant targets",
+        "",
+    ]
+    for row in payload.get("assistant_targets") or []:
+        lines.append(
+            f"- `{row.get('assistant') or '(missing)'}` kind=`{row.get('kind') or '(missing)'}` status=`{row.get('status') or '(missing)'}`"
+        )
+        if row.get("reason"):
+            lines.append(f"  reason: {row.get('reason')}")
+    if not payload.get("assistant_targets"):
+        lines.append("- (none)")
+    lines.extend(["", "## Declarations", ""])
+    for row in payload.get("declarations") or []:
+        lines.append(
+            f"- `{row.get('identifier') or '(missing)'}` kind=`{row.get('statement_kind') or '(missing)'}` role=`{row.get('declaration_role') or '(missing)'}`"
+        )
+        lines.append(f"  - signature: `{row.get('signature') or '(missing)'}`")
+        lines.append(f"  - statement: {row.get('natural_language_statement') or '(missing)'}")
+        lines.append(f"  - holes: `{', '.join(row.get('temporary_proof_holes') or []) or '(none)'}`")
+    if not payload.get("declarations"):
+        lines.append("- (none)")
+    lines.extend(["", "## Theory packet refs", ""])
+    for key, value in sorted((payload.get("theory_packet_refs") or {}).items()):
+        lines.append(f"- `{key}`: `{value or '(missing)'}`")
+    return "\n".join(lines) + "\n"
+
+
+def render_proof_repair_plan_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Proof repair plan",
+        "",
+        f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+        f"- Run id: `{payload.get('run_id') or '(missing)'}`",
+        f"- Candidate id: `{payload.get('candidate_id') or '(missing)'}`",
+        f"- Status: `{payload.get('status') or '(missing)'}`",
+        f"- Compilation packet: `{payload.get('compilation_path') or '(missing)'}`",
+        "",
+        "## Repair stages",
+        "",
+    ]
+    for row in payload.get("repair_stages") or []:
+        lines.append(
+            f"- `{row.get('stage_name') or '(missing)'}` status=`{row.get('status') or '(missing)'}`"
+        )
+        lines.append(f"  - {row.get('summary') or '(missing)'}")
+    if not payload.get("repair_stages"):
+        lines.append("- (none)")
+    lines.extend(["", "## Proof holes", ""])
+    for row in payload.get("proof_holes") or []:
+        lines.append(
+            f"- `{row.get('hole_id') or '(missing)'}` category=`{row.get('category') or '(missing)'}` status=`{row.get('status') or '(missing)'}`"
+        )
+        lines.append(f"  - claim: {row.get('claim') or '(missing)'}")
+        lines.append(f"  - verifiers: `{', '.join(row.get('verifier_targets') or []) or '(none)'}`")
+        lines.append(f"  - close condition: {row.get('close_condition') or '(missing)'}")
+    if not payload.get("proof_holes"):
+        lines.append("- (none)")
+    return "\n".join(lines) + "\n"
+
+
+def render_statement_compilation_index_markdown(payload: dict[str, Any]) -> str:
+    lines = [
+        "# Statement compilation",
+        "",
+        f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+        f"- Run id: `{payload.get('run_id') or '(missing)'}`",
+        f"- Status: `{payload.get('status') or '(missing)'}`",
+        f"- Packet count: `{payload.get('packet_count') or 0}`",
+        f"- Ready packet count: `{payload.get('ready_packet_count') or 0}`",
+        f"- Needs repair count: `{payload.get('needs_repair_count') or 0}`",
+        "",
+        "## Summary",
+        "",
+        payload.get("summary") or "(missing)",
+        "",
+        "## Packets",
+        "",
+    ]
+    for row in payload.get("packets") or []:
+        lines.append(
+            f"- `{row.get('candidate_id') or '(missing)'}` kind=`{row.get('statement_kind') or '(missing)'}` status=`{row.get('status') or '(missing)'}` holes=`{row.get('proof_hole_count') or 0}` packet=`{row.get('packet_path') or '(missing)'}`"
+        )
+    if not payload.get("packets"):
+        lines.append("- (none)")
+    return "\n".join(lines) + "\n"
+
+
 def render_lean_bridge_packet_markdown(payload: dict[str, Any]) -> str:
     lines = [
         "# Lean-ready bridge packet",
@@ -499,6 +688,15 @@ def render_lean_bridge_packet_markdown(payload: dict[str, Any]) -> str:
     lines.extend(["", "## Theory packet refs", ""])
     for key, value in sorted((payload.get("theory_packet_refs") or {}).items()):
         lines.append(f"- `{key}`: `{value or '(missing)'}`")
+    lines.extend(
+        [
+            "",
+            "## Upstream statement compilation",
+            "",
+            f"- Statement compilation packet: `{payload.get('statement_compilation_path') or '(missing)'}`",
+            f"- Proof repair plan: `{payload.get('proof_repair_plan_path') or '(missing)'}`",
+        ]
+    )
     lines.extend(["", "## Skeleton", ""])
     lines.append("```lean")
     lines.extend(payload.get("lean_skeleton_lines") or ["-- no skeleton available"])

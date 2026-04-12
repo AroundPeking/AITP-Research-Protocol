@@ -109,10 +109,13 @@ from .kernel_markdown_renderers import (
     render_lean_bridge_index_markdown,
     render_lean_bridge_packet_markdown,
     render_operator_checkpoint_markdown,
+    render_proof_repair_plan_markdown,
     render_proof_obligations_markdown,
     render_proof_state_markdown,
     render_promotion_readiness_markdown,
     render_research_question_contract_markdown,
+    render_statement_compilation_index_markdown,
+    render_statement_compilation_packet_markdown,
     render_topic_family_reuse_note,
     render_topic_skill_projection_markdown,
     render_validation_contract_markdown,
@@ -158,6 +161,7 @@ from .analytical_review_support import audit_analytical_review as perform_analyt
 from .candidate_promotion_support import promote_candidate
 from .formal_theory_audit_support import audit_formal_theory as perform_formal_theory_audit
 from .lean_bridge_support import materialize_lean_bridge
+from .statement_compilation_support import materialize_statement_compilation
 from .h_plane_support import h_plane_audit as perform_h_plane_audit
 from .paired_backend_support import paired_backend_audit as perform_paired_backend_audit
 from .capability_audit_support import capability_audit as perform_capability_audit
@@ -179,7 +183,11 @@ from .promotion_gate_support import (
     write_promotion_gate,
 )
 from .l2_graph import consult_canonical_l2, seed_l2_demo_direction
-from .l2_compiler import materialize_workspace_graph_report, materialize_workspace_memory_map
+from .l2_compiler import (
+    materialize_workspace_graph_report,
+    materialize_workspace_knowledge_report,
+    materialize_workspace_memory_map,
+)
 from .l2_hygiene import materialize_workspace_hygiene_report
 from .source_catalog import materialize_source_catalog, materialize_source_citation_traversal, materialize_source_family_report
 from .source_bibtex_support import import_bibtex_sources as materialize_bibtex_source_import, materialize_source_bibtex_export
@@ -203,7 +211,12 @@ def _looks_like_repo_root(path: Path) -> bool:
 
 
 def _looks_like_kernel_root(path: Path) -> bool:
-    return (path / "runtime" / "scripts" / "orchestrate_topic.py").exists()
+    if (path / "runtime" / "scripts" / "orchestrate_topic.py").exists():
+        return True
+    return (
+        (path / "runtime" / "schemas" / "progressive-disclosure-runtime-bundle.schema.json").exists()
+        and (path / "schemas").exists()
+    )
 
 
 def _git_toplevel_from(path: Path) -> Path | None:
@@ -807,6 +820,23 @@ class AITPService:
         return {
             "json": runtime_root / "lean_bridge.active.json",
             "note": runtime_root / "lean_bridge.active.md",
+        }
+
+    def _statement_compilation_active_paths(self, topic_slug: str) -> dict[str, Path]:
+        runtime_root = self._runtime_root(topic_slug)
+        return {
+            "json": runtime_root / "statement_compilation.active.json",
+            "note": runtime_root / "statement_compilation.active.md",
+        }
+
+    def _statement_compilation_packet_paths(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Path]:
+        root = self._validation_run_root(topic_slug, run_id) / "statement-compilation" / bounded_slugify(candidate_id)
+        return {
+            "root": root,
+            "json": root / "statement_compilation.json",
+            "note": root / "statement_compilation.md",
+            "repair_plan": root / "proof_repair_plan.json",
+            "repair_plan_note": root / "proof_repair_plan.md",
         }
 
     def _lean_bridge_packet_paths(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Path]:
@@ -2497,6 +2527,7 @@ class AITPService:
         promotion_readiness: dict[str, Any],
         open_gap_summary: dict[str, Any],
         strategy_memory: dict[str, Any],
+        statement_compilation: dict[str, Any],
         topic_skill_projection: dict[str, Any],
         topic_completion: dict[str, Any],
         lean_bridge: dict[str, Any],
@@ -2519,6 +2550,7 @@ class AITPService:
             promotion_readiness=promotion_readiness,
             open_gap_summary=open_gap_summary,
             strategy_memory=strategy_memory,
+            statement_compilation=statement_compilation,
             topic_skill_projection=topic_skill_projection,
             topic_completion=topic_completion,
             lean_bridge=lean_bridge,
@@ -2677,6 +2709,15 @@ class AITPService:
     def _render_proof_state_markdown(self, payload: dict[str, Any]) -> str:
         return render_proof_state_markdown(payload)
 
+    def _render_statement_compilation_packet_markdown(self, payload: dict[str, Any]) -> str:
+        return render_statement_compilation_packet_markdown(payload)
+
+    def _render_proof_repair_plan_markdown(self, payload: dict[str, Any]) -> str:
+        return render_proof_repair_plan_markdown(payload)
+
+    def _render_statement_compilation_index_markdown(self, payload: dict[str, Any]) -> str:
+        return render_statement_compilation_index_markdown(payload)
+
     def _lean_declaration_kind(self, candidate_type: str) -> str:
         normalized = str(candidate_type or "").strip()
         mapping = {
@@ -2702,6 +2743,24 @@ class AITPService:
 
     def _render_lean_bridge_index_markdown(self, payload: dict[str, Any]) -> str:
         return render_lean_bridge_index_markdown(payload)
+
+    def _materialize_statement_compilation(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str,
+        candidate_rows: list[dict[str, Any]],
+        updated_by: str,
+        candidate_id: str | None = None,
+    ) -> dict[str, Any]:
+        return materialize_statement_compilation(
+            self,
+            topic_slug=topic_slug,
+            run_id=run_id,
+            candidate_rows=candidate_rows,
+            updated_by=updated_by,
+            candidate_id=candidate_id,
+        )
 
     def _materialize_lean_bridge(
         self,
@@ -5686,6 +5745,7 @@ class AITPService:
             "scratchpad": bundle.get("scratchpad") or {},
             "topic_skill_projection": bundle.get("topic_skill_projection") or {},
             "topic_completion": bundle.get("topic_completion") or {},
+            "statement_compilation": bundle.get("statement_compilation") or {},
             "lean_bridge": bundle.get("lean_bridge") or {},
             "must_read_now": bundle.get("must_read_now") or [],
         }
@@ -5738,6 +5798,7 @@ class AITPService:
             "scratchpad": bundle.get("scratchpad") or {},
             "topic_skill_projection": bundle.get("topic_skill_projection") or {},
             "topic_completion": bundle.get("topic_completion") or {},
+            "statement_compilation": bundle.get("statement_compilation") or {},
             "runtime_protocol_note_path": protocol_paths["runtime_protocol_note_path"],
         }
 
@@ -6003,7 +6064,40 @@ class AITPService:
     ) -> dict[str, Any]:
         resolved_run_id = self._resolve_run_id(topic_slug, run_id)
         candidate_rows = self._candidate_rows_for_run(topic_slug, resolved_run_id)
+        self._materialize_statement_compilation(
+            topic_slug=topic_slug,
+            run_id=resolved_run_id,
+            candidate_rows=candidate_rows,
+            updated_by=updated_by,
+            candidate_id=candidate_id,
+        )
         payload = self._materialize_lean_bridge(
+            topic_slug=topic_slug,
+            run_id=resolved_run_id,
+            candidate_rows=candidate_rows,
+            updated_by=updated_by,
+            candidate_id=candidate_id,
+        )
+        result = dict(payload)
+        if refresh_runtime_bundle:
+            result["runtime_protocol"] = self._materialize_runtime_protocol_bundle(
+                topic_slug=topic_slug,
+                updated_by=updated_by,
+            )
+        return result
+
+    def prepare_statement_compilation(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None = None,
+        candidate_id: str | None = None,
+        updated_by: str = "aitp-cli",
+        refresh_runtime_bundle: bool = True,
+    ) -> dict[str, Any]:
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        candidate_rows = self._candidate_rows_for_run(topic_slug, resolved_run_id)
+        payload = self._materialize_statement_compilation(
             topic_slug=topic_slug,
             run_id=resolved_run_id,
             candidate_rows=candidate_rows,
@@ -6548,6 +6642,7 @@ class AITPService:
         run_id: str | None = None,
         approved_by: str = "aitp-cli",
         notes: str | None = None,
+        human_modifications: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         return approve_promotion(
             self,
@@ -6556,6 +6651,7 @@ class AITPService:
             run_id=run_id,
             approved_by=approved_by,
             notes=notes,
+            human_modifications=human_modifications,
         )
 
     def reject_promotion(
@@ -6826,6 +6922,9 @@ class AITPService:
 
     def compile_l2_graph_report(self) -> dict[str, Any]:
         return materialize_workspace_graph_report(self.kernel_root)
+
+    def compile_l2_knowledge_report(self) -> dict[str, Any]:
+        return materialize_workspace_knowledge_report(self.kernel_root)
 
     def audit_l2_hygiene(self) -> dict[str, Any]:
         return materialize_workspace_hygiene_report(self.kernel_root)

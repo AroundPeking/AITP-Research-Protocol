@@ -3,6 +3,10 @@
 This repository is the public home of the AITP research charter, protocol,
 reference adapters, and the minimal installable runtime.
 
+**Project index**: [`docs/PROJECT_INDEX.md`](docs/PROJECT_INDEX.md) — the
+complete navigation map for every protocol surface, schema, runtime module,
+adapter, and design doc in this repository.
+
 Key paths:
 
 - `docs/` for charter and public design docs

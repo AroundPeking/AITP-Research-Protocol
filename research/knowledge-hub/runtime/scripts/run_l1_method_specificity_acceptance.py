@@ -172,6 +172,7 @@ def main() -> int:
     kernel_root = work_root / "kernel"
     shutil.copytree(package_root / "schemas", kernel_root / "schemas", dirs_exist_ok=True)
     shutil.copytree(package_root / "runtime" / "schemas", kernel_root / "runtime" / "schemas", dirs_exist_ok=True)
+    shutil.copytree(package_root / "runtime" / "scripts", kernel_root / "runtime" / "scripts", dirs_exist_ok=True)
     seed_demo_runtime(kernel_root)
     seed_demo_source_layer(kernel_root)
 

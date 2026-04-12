@@ -1,33 +1,46 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.67
-milestone_name: Cross-Runtime Deep Execution Parity
+milestone: v1.91
+milestone_name: Real Topic L0 To L2 End-To-End Validation
 status: milestone_active
-stopped_at: "Phase 134 complete; next active step is planning Phase 135"
-last_updated: "2026-04-11T17:35:00+08:00"
-last_activity: 2026-04-11
+stopped_at: "Closed v1.90 and opened v1.91; next active step is execute Phase 165"
+last_updated: "2026-04-12T14:05:00+08:00"
+last_activity: 2026-04-12
 progress:
-  total_phases: 4
-  completed_phases: 1
+  total_phases: 1
+  completed_phases: 0
   total_plans: 1
-  completed_plans: 1
-  percent: 25
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.67` active; Phase `134` implemented and verified
+Status: milestone `v1.91` active; Phase `165` is now planned and ready for
+  execution
 
 ## Immediate Next Step
 
-- current milestone: `v1.67` `Cross-Runtime Deep Execution Parity`
-- next phase boundary: plan Phase `135`
-- active scope is the runtime parity cluster:
-  - `999.44` cross-runtime deep execution parity
-  - Codex baseline vs Claude Code and OpenCode parity probes
-  - honest parity-gap reporting and closure evidence
-- protected closed scope:
-  - keep `999.48` through `999.51` closed unless a fresh install/adoption
-    regression reopens them
+- current milestone: `v1.91` `Real Topic L0 To L2 End-To-End Validation`
+- next phase boundary: execute Phase `165`
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- `v1.90` is now archived after shipping explicit hypothesis-aware route
+  transition-authority visibility
+- Phase `165` is promoted into the new active milestone `v1.91`
+- `v1.91` centers the next scope on real-topic utility validation and explicit
+  GSD issue capture instead of inventing more local protocol surface first
+
+### Protected Closed Scope
+
+- keep the shipped route-transition and adoption surfaces closed unless a fresh
+  regression appears
+- use the current public entry surfaces first instead of bypassing them with
+  seeded hidden artifacts
+- do not assume GSD will auto-discover arbitrary issues from runtime artifacts
+  alone; capture them explicitly during the milestone

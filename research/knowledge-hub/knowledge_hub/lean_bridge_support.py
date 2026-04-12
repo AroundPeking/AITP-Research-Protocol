@@ -44,6 +44,38 @@ def _slugify(text: str) -> str:
     return lowered or "aitp-topic"
 
 
+def _lean_kind_from_statement_kind(statement_kind: str) -> str:
+    normalized = str(statement_kind or "").strip().lower()
+    if normalized == "definition":
+        return "def"
+    if normalized == "axiom":
+        return "axiom"
+    if normalized == "lemma":
+        return "lemma"
+    if normalized in {"theorem", "conjecture"}:
+        return "theorem"
+    return "def"
+
+
+def _proof_obligations_from_repair_plan(repair_plan: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for hole in repair_plan.get("proof_holes") or []:
+        rows.append(
+            {
+                "obligation_id": str(hole.get("hole_id") or "(missing)"),
+                "category": str(hole.get("category") or "proof_hole"),
+                "status": "blocked" if str(hole.get("status") or "open") == "open" else str(hole.get("status") or "blocked"),
+                "claim": str(hole.get("claim") or "(missing)"),
+                "prerequisite_ids": [str(item) for item in (hole.get("required_artifacts") or []) if str(item).strip()],
+                "equation_labels": [],
+                "source_anchor_ids": [str(item) for item in (hole.get("source_anchor_ids") or []) if str(item).strip()],
+                "required_logical_move": "Follow the explicit proof-repair plan and close the hole through verifier-guided repair.",
+                "expected_output_statement": str(hole.get("close_condition") or "Close the proof hole with durable verifier-backed evidence."),
+            }
+        )
+    return rows
+
+
 def _build_proof_obligation_rows(
     *,
     row: dict[str, Any],
@@ -189,41 +221,62 @@ def _materialize_candidate_packet(
 ) -> dict[str, Any]:
     current_candidate_id = str(row.get("candidate_id") or "").strip()
     packet_paths = self._lean_bridge_packet_paths(topic_slug, run_id, current_candidate_id)
+    statement_paths = self._statement_compilation_packet_paths(topic_slug, run_id, current_candidate_id)
     theory_packet_paths = self._theory_packet_paths(topic_slug, run_id, current_candidate_id)
     coverage_ledger = _read_json(theory_packet_paths["coverage_ledger"]) or {}
     structure_map = _read_json(theory_packet_paths["structure_map"]) or {}
     notation_table = _read_json(theory_packet_paths["notation_table"]) or {}
     derivation_graph = _read_json(theory_packet_paths["derivation_graph"]) or {}
     regression_gate = _read_json(theory_packet_paths["regression_gate"]) or {}
+    statement_compilation = _read_json(statement_paths["json"]) or {}
+    proof_repair_plan = _read_json(statement_paths["repair_plan"]) or {}
     namespace = f"AITP.{self._slug_to_camel(topic_slug)}"
-    declaration_kind = self._lean_declaration_kind(str(row.get("candidate_type") or ""))
-    declaration_name = _slugify(str(row.get("title") or current_candidate_id)).replace("-", "_")
+    primary_declaration = ((statement_compilation.get("declarations") or [{}])[0]) if statement_compilation else {}
+    compiled_identifier = str(primary_declaration.get("identifier") or "").strip()
+    declaration_kind = (
+        _lean_kind_from_statement_kind(str(primary_declaration.get("statement_kind") or ""))
+        if compiled_identifier
+        else self._lean_declaration_kind(str(row.get("candidate_type") or ""))
+    )
+    declaration_name = compiled_identifier.rsplit(".", 1)[-1] if compiled_identifier else _slugify(str(row.get("title") or current_candidate_id)).replace("-", "_")
     if not re.match(r"^[A-Za-z_]", declaration_name):
         declaration_name = f"decl_{declaration_name}"
     dependency_ids = self._dedupe_strings(
-        [str(node.get("id") or "").strip() for node in derivation_graph.get("nodes") or []]
-        + list(row.get("supporting_regression_question_ids") or [])
-        + list(row.get("supporting_oracle_ids") or [])
-        + list(row.get("supporting_regression_run_ids") or [])
+        list(statement_compilation.get("dependency_ids") or [])
+        or (
+            [str(node.get("id") or "").strip() for node in derivation_graph.get("nodes") or []]
+            + list(row.get("supporting_regression_question_ids") or [])
+            + list(row.get("supporting_oracle_ids") or [])
+            + list(row.get("supporting_regression_run_ids") or [])
+        )
     )
     equation_labels = self._dedupe_strings(list(coverage_ledger.get("equation_labels") or []))
-    proof_obligation_rows = _build_proof_obligation_rows(
-        row=row,
-        structure_map=structure_map,
-        notation_table=notation_table,
-        derivation_graph=derivation_graph,
-        regression_gate=regression_gate,
-        current_candidate_id=current_candidate_id,
-        dependency_ids=dependency_ids,
-        equation_labels=equation_labels,
-    )
+    proof_obligation_rows = _proof_obligations_from_repair_plan(proof_repair_plan)
+    if not proof_obligation_rows:
+        proof_obligation_rows = _build_proof_obligation_rows(
+            row=row,
+            structure_map=structure_map,
+            notation_table=notation_table,
+            derivation_graph=derivation_graph,
+            regression_gate=regression_gate,
+            current_candidate_id=current_candidate_id,
+            dependency_ids=dependency_ids,
+            equation_labels=equation_labels,
+        )
     proof_obligations = self._dedupe_strings([f"{item['status']}: {item['claim']}" for item in proof_obligation_rows])
     status_counts: dict[str, int] = {}
     for proof_row in proof_obligation_rows:
         proof_status = str(proof_row.get("status") or "blocked")
         status_counts[proof_status] = status_counts.get(proof_status, 0) + 1
     status = "ready" if not proof_obligation_rows else "needs_refinement"
-    statement_text = str(row.get("summary") or row.get("question") or row.get("title") or current_candidate_id)
+    statement_text = str(
+        primary_declaration.get("natural_language_statement")
+        or statement_compilation.get("title")
+        or row.get("summary")
+        or row.get("question")
+        or row.get("title")
+        or current_candidate_id
+    )
     lean_skeleton_lines = [
         "import Mathlib",
         "",
@@ -271,11 +324,13 @@ def _materialize_candidate_packet(
         "dependency_ids": dependency_ids,
         "equation_labels": equation_labels,
         "regression_gate_status": str(regression_gate.get("status") or "not_audited"),
-        "notation_bindings": list(notation_table.get("bindings") or []),
+        "notation_bindings": list(statement_compilation.get("notation_bindings") or notation_table.get("bindings") or []),
         "proof_obligations": proof_obligations,
         "proof_obligation_count": len(proof_obligation_rows),
         "proof_obligations_path": self._relativize(packet_paths["proof_obligations"]),
         "proof_state_path": self._relativize(packet_paths["proof_state"]),
+        "statement_compilation_path": self._relativize(statement_paths["json"]),
+        "proof_repair_plan_path": self._relativize(statement_paths["repair_plan"]),
         "theory_packet_refs": {
             "coverage_ledger": self._relativize(theory_packet_paths["coverage_ledger"]),
             "structure_map": self._relativize(theory_packet_paths["structure_map"]),

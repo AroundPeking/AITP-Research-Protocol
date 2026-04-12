@@ -46,6 +46,106 @@ class RuntimeScriptTests(unittest.TestCase):
             "aitp_sync_topic_state_test",
             "runtime/scripts/sync_topic_state.py",
         )
+        self.l2_knowledge_report_acceptance = _load_module(
+            "aitp_l2_knowledge_report_acceptance_test",
+            "runtime/scripts/run_l2_knowledge_report_acceptance.py",
+        )
+        self.l1_vault_acceptance = _load_module(
+            "aitp_l1_vault_acceptance_test",
+            "runtime/scripts/run_l1_vault_acceptance.py",
+        )
+        self.statement_compilation_acceptance = _load_module(
+            "aitp_statement_compilation_acceptance_test",
+            "runtime/scripts/run_statement_compilation_acceptance.py",
+        )
+        self.l0_source_discovery_acceptance = _load_module(
+            "aitp_l0_source_discovery_acceptance_test",
+            "runtime/scripts/run_l0_source_discovery_acceptance.py",
+        )
+        self.l1_assumption_depth_acceptance = _load_module(
+            "aitp_l1_assumption_depth_acceptance_test",
+            "runtime/scripts/run_l1_assumption_depth_acceptance.py",
+        )
+        self.transition_history_acceptance = _load_module(
+            "aitp_transition_history_acceptance_test",
+            "runtime/scripts/run_transition_history_acceptance.py",
+        )
+        self.human_modification_record_acceptance = _load_module(
+            "aitp_human_modification_record_acceptance_test",
+            "runtime/scripts/run_human_modification_record_acceptance.py",
+        )
+        self.competing_hypotheses_acceptance = _load_module(
+            "aitp_competing_hypotheses_acceptance_test",
+            "runtime/scripts/run_competing_hypotheses_acceptance.py",
+        )
+        self.hypothesis_branch_routing_acceptance = _load_module(
+            "aitp_hypothesis_branch_routing_acceptance_test",
+            "runtime/scripts/run_hypothesis_branch_routing_acceptance.py",
+        )
+        self.hypothesis_route_activation_acceptance = _load_module(
+            "aitp_hypothesis_route_activation_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_activation_acceptance.py",
+        )
+        self.hypothesis_route_reentry_acceptance = _load_module(
+            "aitp_hypothesis_route_reentry_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_reentry_acceptance.py",
+        )
+        self.hypothesis_route_handoff_acceptance = _load_module(
+            "aitp_hypothesis_route_handoff_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_handoff_acceptance.py",
+        )
+        self.hypothesis_route_choice_acceptance = _load_module(
+            "aitp_hypothesis_route_choice_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_choice_acceptance.py",
+        )
+        self.hypothesis_route_transition_gate_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_gate_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_gate_acceptance.py",
+        )
+        self.hypothesis_route_transition_intent_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_intent_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_intent_acceptance.py",
+        )
+        self.hypothesis_route_transition_receipt_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_receipt_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_receipt_acceptance.py",
+        )
+        self.hypothesis_route_transition_resolution_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_resolution_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_resolution_acceptance.py",
+        )
+        self.hypothesis_route_transition_discrepancy_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_discrepancy_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_discrepancy_acceptance.py",
+        )
+        self.hypothesis_route_transition_repair_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_repair_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_repair_acceptance.py",
+        )
+        self.hypothesis_route_transition_escalation_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_escalation_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_escalation_acceptance.py",
+        )
+        self.hypothesis_route_transition_clearance_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_clearance_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_clearance_acceptance.py",
+        )
+        self.hypothesis_route_transition_followthrough_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_followthrough_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_followthrough_acceptance.py",
+        )
+        self.hypothesis_route_transition_resumption_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_resumption_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_resumption_acceptance.py",
+        )
+        self.hypothesis_route_transition_commitment_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_commitment_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_commitment_acceptance.py",
+        )
+        self.hypothesis_route_transition_authority_acceptance = _load_module(
+            "aitp_hypothesis_route_transition_authority_acceptance_test",
+            "runtime/scripts/run_hypothesis_route_transition_authority_acceptance.py",
+        )
 
     def tearDown(self) -> None:
         self._tmpdir.cleanup()
@@ -1395,6 +1495,485 @@ class RuntimeScriptTests(unittest.TestCase):
             self.knowledge_root / "runtime" / "topics" / "demo-topic" / "execution_task.md"
         ).read_text(encoding="utf-8")
         self.assertIn("Human confirmation is required before dispatch", task_note)
+
+    def test_l2_knowledge_report_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "knowledge-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l2_knowledge_report_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l2_knowledge_report_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "compiled" / "workspace_knowledge_report.json").exists())
+        self.assertTrue((work_root / "kernel" / "canonical" / "compiled" / "workspace_knowledge_report.md").exists())
+
+    def test_l1_vault_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-vault-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_vault_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_vault_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "vault_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "home.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "output" / "flowback.jsonl").exists())
+
+    def test_statement_compilation_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "statement-compilation-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_statement_compilation_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.statement_compilation_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "statement_compilation.active.json").exists())
+        self.assertTrue((work_root / "kernel" / "validation" / "topics" / "demo-topic" / "runs" / "run-001" / "statement-compilation" / "candidate-demo-candidate" / "statement_compilation.json").exists())
+        self.assertTrue((work_root / "kernel" / "validation" / "topics" / "demo-topic" / "runs" / "run-001" / "statement-compilation" / "candidate-demo-candidate" / "proof_repair_plan.json").exists())
+
+    def test_l0_source_discovery_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l0-source-discovery-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l0_source_discovery_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l0_source_discovery_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "discoveries").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "global_index.jsonl").exists())
+
+    def test_l1_assumption_depth_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-assumption-depth-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_assumption_depth_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_assumption_depth_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_dashboard.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_transition_history_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "transition-history-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_transition_history_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.transition_history_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "transition_history.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "transition_history.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+
+    def test_human_modification_record_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "human-modification-record-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_human_modification_record_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.human_modification_record_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "promotion_gate.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "promotion_gate.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+
+    def test_competing_hypotheses_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "competing-hypotheses-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_competing_hypotheses_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.competing_hypotheses_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+
+    def test_hypothesis_branch_routing_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-branch-routing-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_branch_routing_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_branch_routing_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+
+    def test_hypothesis_route_activation_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-activation-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_activation_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_activation_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "followup_subtopics.jsonl").exists())
+
+    def test_hypothesis_route_reentry_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-reentry-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_reentry_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_reentry_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "followup_subtopics.jsonl").exists())
+
+    def test_hypothesis_route_handoff_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-handoff-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_handoff_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_handoff_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "followup_subtopics.jsonl").exists())
+
+    def test_hypothesis_route_choice_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-choice-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_choice_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_choice_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "followup_subtopics.jsonl").exists())
+
+    def test_hypothesis_route_transition_gate_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-gate-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_gate_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_gate_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-blocked" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-available" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-checkpoint" / "operator_checkpoint.active.md").exists())
+
+    def test_hypothesis_route_transition_intent_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-intent-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_intent_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_intent_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-proposed" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-ready" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-checkpoint-held" / "operator_checkpoint.active.md").exists())
+
+    def test_hypothesis_route_transition_receipt_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-receipt-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_receipt_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_receipt_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-pending-receipt" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-recorded-receipt" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-receipt" / "transition_history.md").exists())
+
+    def test_hypothesis_route_transition_resolution_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-resolution-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_resolution_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_resolution_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-pending-resolution" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-resolved-resolution" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-resolution" / "transition_history.md").exists())
+
+    def test_hypothesis_route_transition_discrepancy_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-discrepancy-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_discrepancy_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_discrepancy_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-discrepancy-pending" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-discrepancy-present" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-discrepancy-none" / "transition_history.md").exists())
+
+    def test_hypothesis_route_transition_repair_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-repair-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_repair_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_repair_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-repair-pending" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-repair-needed" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-repair-none" / "transition_history.md").exists())
+
+    def test_hypothesis_route_transition_escalation_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-escalation-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_escalation_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_escalation_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-escalation" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-escalation-recommended" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-escalation-active" / "operator_checkpoint.active.md").exists())
+
+    def test_hypothesis_route_transition_clearance_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-clearance-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_clearance_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_clearance_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-clearance" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-clearance-awaiting" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-clearance-blocked" / "operator_checkpoint.active.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-clearance-cleared" / "operator_checkpoint.active.md").exists())
+
+    def test_hypothesis_route_transition_followthrough_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-followthrough-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_followthrough_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_followthrough_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-followthrough" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-followthrough-awaiting" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-followthrough-blocked" / "operator_checkpoint.active.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-followthrough-ready" / "operator_checkpoint.active.md").exists())
+
+    def test_hypothesis_route_transition_resumption_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-resumption-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_resumption_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_resumption_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-resumption" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-resumption-waiting" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-resumption-pending" / "operator_checkpoint.active.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-resumption-resumed" / "transition_history.md").exists())
+
+    def test_hypothesis_route_transition_commitment_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-commitment-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_commitment_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_commitment_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-commitment" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-commitment-waiting" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-commitment-pending" / "transition_history.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-commitment-committed" / "transition_history.md").exists())
+
+    def test_hypothesis_route_transition_authority_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "hypothesis-route-transition-authority-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hypothesis_route_transition_authority_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.hypothesis_route_transition_authority_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-no-authority" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-authority-waiting" / "topic_replay_bundle.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-authority-pending" / "transition_history.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic-authority-authoritative" / "transition_history.md").exists())
 
 
 if __name__ == "__main__":

@@ -491,6 +491,16 @@ def source_intelligence_payload(*, kernel_root: Path, topic_slug: str, source_ro
 
 def l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
     lines: list[str] = []
+    if l1_source_intake.get("assumption_rows"):
+        assumptions = _dedupe_strings(
+            [
+                str(row.get("assumption") or "").strip()
+                for row in l1_source_intake.get("assumption_rows") or []
+                if str(row.get("assumption") or "").strip()
+            ]
+        )
+        if assumptions:
+            lines.append(f"Source-backed assumptions: {'; '.join(assumptions[:3])}")
     if l1_source_intake.get("regime_rows"):
         regimes = [str(row.get("regime") or "").strip() for row in l1_source_intake["regime_rows"]]
         regimes = [item for item in regimes if item]
@@ -518,6 +528,71 @@ def l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
     return lines
 
 
+def l1_assumption_depth_summary_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    source_count = int(l1_source_intake.get("source_count") or 0)
+    assumption_count = len(l1_source_intake.get("assumption_rows") or [])
+    regime_count = len(l1_source_intake.get("regime_rows") or [])
+    depth_count = len(l1_source_intake.get("reading_depth_rows") or [])
+    if any((source_count, assumption_count, regime_count, depth_count)):
+        lines.append(
+            f"Sources=`{source_count}` assumptions=`{assumption_count}` regimes=`{regime_count}` reading-depth rows=`{depth_count}`"
+        )
+    contradiction_count = len(l1_source_intake.get("contradiction_candidates") or [])
+    if contradiction_count:
+        lines.append(f"Open contradiction candidates=`{contradiction_count}`")
+    notation_tension_count = len(l1_source_intake.get("notation_tension_candidates") or [])
+    if notation_tension_count:
+        lines.append(f"Open notation-tension candidates=`{notation_tension_count}`")
+    return lines
+
+
+def l1_reading_depth_limit_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    partial_depth_rows = [
+        row
+        for row in l1_source_intake.get("reading_depth_rows") or []
+        if str(row.get("reading_depth") or "").strip() != "full_read"
+    ]
+    for row in partial_depth_rows[:4]:
+        source_id = str(row.get("source_id") or "").strip()
+        reading_depth = str(row.get("reading_depth") or "").strip()
+        basis = str(row.get("basis") or "").strip() or "summary_only"
+        if source_id and reading_depth:
+            lines.append(f"`{source_id}` remains `{reading_depth}` (basis=`{basis}`)")
+    return lines
+
+
+def l1_contradiction_summary_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for row in l1_source_intake.get("contradiction_candidates") or []:
+        detail = str(row.get("detail") or "").strip()
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        reading_depth = str(row.get("reading_depth") or "").strip() or "skim"
+        against_reading_depth = str(row.get("against_reading_depth") or "").strip() or "skim"
+        if detail and source_id and against_source_id:
+            lines.append(
+                f"{detail} (`{source_id}`[{reading_depth}] vs `{against_source_id}`[{against_reading_depth}])"
+            )
+    return lines
+
+
+def l1_notation_tension_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    for row in l1_source_intake.get("notation_tension_candidates") or []:
+        meaning = str(row.get("meaning") or "").strip()
+        existing_symbol = str(row.get("existing_symbol") or "").strip()
+        incoming_symbol = str(row.get("incoming_symbol") or "").strip()
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        if meaning and existing_symbol and incoming_symbol and source_id and against_source_id:
+            lines.append(
+                f"`{existing_symbol}` vs `{incoming_symbol}` for `{meaning}` (`{source_id}` vs `{against_source_id}`)"
+            )
+    return lines
+
+
 def l1_interpretation_focus_lines(l1_source_intake: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     regimes = [str(row.get("regime") or "").strip() for row in l1_source_intake.get("regime_rows") or []]
@@ -531,19 +606,9 @@ def l1_interpretation_focus_lines(l1_source_intake: dict[str, Any]) -> list[str]
 
 def l1_open_ambiguity_lines(l1_source_intake: dict[str, Any]) -> list[str]:
     lines: list[str] = []
-    partial_depth_rows = [
-        row
-        for row in l1_source_intake.get("reading_depth_rows") or []
-        if str(row.get("reading_depth") or "").strip() != "full_read"
-    ]
-    if partial_depth_rows:
-        labels = [
-            f"{row['source_id']}={row['reading_depth']}"
-            for row in partial_depth_rows[:4]
-            if str(row.get("source_id") or "").strip()
-        ]
-        if labels:
-            lines.append(f"Reading-depth limits still apply for: {', '.join(labels)}")
+    reading_depth_limits = l1_reading_depth_limit_lines(l1_source_intake)
+    if reading_depth_limits:
+        lines.append(f"Reading-depth limits still apply for: {', '.join(reading_depth_limits)}")
     low_specificity_rows = [
         row
         for row in l1_source_intake.get("method_specificity_rows") or []
@@ -557,16 +622,10 @@ def l1_open_ambiguity_lines(l1_source_intake: dict[str, Any]) -> list[str]:
         ]
         if labels:
             lines.append(f"Method-specificity limits still apply for: {', '.join(labels)}")
-    for row in l1_source_intake.get("contradiction_candidates") or []:
-        detail = str(row.get("detail") or "").strip()
-        if detail:
-            lines.append(f"Contradiction candidate: {detail}")
-    for row in l1_source_intake.get("notation_tension_candidates") or []:
-        meaning = str(row.get("meaning") or "").strip()
-        existing_symbol = str(row.get("existing_symbol") or "").strip()
-        incoming_symbol = str(row.get("incoming_symbol") or "").strip()
-        if meaning and existing_symbol and incoming_symbol:
-            lines.append(f"Notation tension: `{existing_symbol}` vs `{incoming_symbol}` for `{meaning}`")
+    for item in l1_contradiction_summary_lines(l1_source_intake):
+        lines.append(f"Contradiction candidate: {item}")
+    for item in l1_notation_tension_lines(l1_source_intake):
+        lines.append(f"Notation tension: {item}")
     return lines
 
 

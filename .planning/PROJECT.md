@@ -43,18 +43,313 @@ The previously scoped GSD mainline is implemented through:
 - `v1.64`
 - `v1.65`
 - `v1.66`
+- `v1.67`
+- `v1.68`
+- `v1.69`
+- `v1.70`
+- `v1.71`
+- `v1.72`
+- `v1.73`
+- `v1.74`
+- `v1.75`
+- `v1.76`
+- `v1.77`
+- `v1.78`
+- `v1.79`
+- `v1.80`
+- `v1.81`
+- `v1.82`
+- `v1.83`
+- `v1.84`
+- `v1.85`
+- `v1.86`
+- `v1.87`
+- `v1.88`
+- `v1.89`
+- `v1.90`
 
-That closes the current bounded chain through the install/adoption readiness
-surface, but
+That closes the current bounded chain through the first operator-visible
+hypothesis route-transition-authority surface, but
 it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v1.67` `Cross-Runtime Deep Execution Parity`
-- Latest closed milestone: `v1.66` `PyPI Publishable Package`
-- Next boundary: plan Phase `135`
+- Active milestone: `v1.91` `Real Topic L0 To L2 End-To-End Validation`
+- Latest closed milestone: `v1.90` `Hypothesis Route Transition Authority Surface`
+- Next boundary: execute Phase `165`
 
-## Current Milestone: v1.67 Cross-Runtime Deep Execution Parity
+## Current Milestone: v1.91 Real Topic L0 To L2 End-To-End Validation
+
+**Goal:** Close the next post-`v1.90` maturity gap by proving whether the
+current AITP implementation is genuinely useful on a real topic from an
+initial idea through one honest bounded research outcome.
+
+**Target features:**
+- one real-topic run from an initial idea through the current public AITP
+  entry surfaces
+- one durable postmortem naming the actual route, friction, and bounded outcome
+- one explicit issue ledger that turns discovered problems into GSD-tracked
+  follow-up work
+
+Current phase status inside `v1.91`:
+
+- Phase `165` is now planned and ready for execution
+
+**Explicitly deferred from this milestone:**
+- multi-user feedback collection beyond the first primary operator run
+- broad cross-runtime parity closure beyond the runtime used for the first
+  real-topic run
+- whole-topic statement-compilation or formalization claims before the real
+  run says they are needed
+
+## Latest Closed Milestone: v1.90 Hypothesis Route Transition Authority Surface
+
+**Goal:** Close the next post-`v1.89` research-control gap by turning
+transition commitment into one explicit authority surface instead of leaving
+operators to infer whether a committed route has become the authoritative
+bounded truth across runtime surfaces.
+
+**Target features:**
+- one explicit route transition-authority surface derived from route
+  transition commitment plus current route artifacts
+- one runtime/read path that shows whether a committed route has become the
+  authoritative bounded truth across current-topic surfaces
+- one bounded isolated acceptance lane proving route transition-authority
+  visibility without fresh runtime mutation
+
+Current phase status inside `v1.90`:
+
+- Phase `164` is now implemented, verified, milestone-audited, and archived
+
+**Explicitly deferred from this milestone:**
+- real-topic end-to-end utility validation beyond local protocol closure
+- fresh runtime mutation after authority becomes explicit
+- automatic branch spawning or branch scheduling across many hypotheses
+
+## Previous Closed Milestone: v1.77 Hypothesis Route Handoff Surface
+
+**Goal:** Close the next post-`v1.76` research-control gap by turning ready
+parked-route signals into an operator-visible route handoff surface instead of
+leaving the next concrete route handoff split across activation, re-entry, and
+helper artifacts.
+
+**Target features:**
+- one explicit route handoff surface derived from the current local route plus
+  ready parked-route signals
+- one runtime/read path that shows which ready parked route is the next
+  concrete handoff candidate and which should remain parked
+- one bounded isolated acceptance lane proving route handoff visibility without
+  automatic route mutation
+
+Current phase status inside `v1.77`:
+
+- Phase `151` is now implemented, verified, milestone-audited, and archived
+
+**Explicitly deferred from this milestone:**
+- integrating the primary handoff candidate into one explicit current-route
+  choice summary
+- automatic branch spawning or branch scheduling across many hypotheses
+- automatic candidate reactivation and parent-topic reintegration mutation
+
+## Previous Closed Milestone: v1.76 Hypothesis Route Re-entry Surface
+
+**Goal:** Close the next post-`v1.75` research-control gap by turning parked
+route reactivation conditions and follow-up return contracts into an
+operator-visible route re-entry surface instead of leaving route return
+readiness split across deferred-buffer and child-topic artifacts.
+
+**Target features:**
+- one explicit route re-entry surface derived from deferred reactivation
+  conditions and follow-up return metadata linked to parked hypotheses
+- one runtime/read path that shows which parked routes are waiting,
+  re-entry-ready, or awaiting child-topic return
+- one bounded isolated acceptance lane proving route re-entry visibility
+  without automatic route mutation or parent-topic patching
+
+Current phase status inside `v1.76`:
+
+- Phase `150` is now implemented, verified, milestone-audited, and archived
+
+**Explicitly deferred from this milestone:**
+- automatic candidate reactivation or follow-up reintegration mutation
+- automatic branch spawning or branch scheduling across many hypotheses
+- explicit handoff summaries beyond the bounded re-entry slice
+
+## Previous Closed Milestone: v1.75 Hypothesis Route Activation Surface
+
+**Goal:** Close the next post-`v1.74` research-control gap by turning explicit
+hypothesis route metadata into an operator-visible route-activation surface
+instead of inferring concrete local-route versus parked-route next steps from
+separate runtime artifacts.
+
+**Target features:**
+- one explicit route-activation surface derived from the declared route of each
+  competing hypothesis
+- one runtime/read path that shows the concrete next-step activation of the
+  active local route versus parked routes
+- one bounded isolated acceptance lane proving route activation without
+  automatic branch spawning or scheduling
+
+Current phase status inside `v1.75`:
+
+- Phase `149` is now implemented, verified, milestone-audited, and archived
+
+**Explicitly deferred from this milestone:**
+- automatic branch spawning or branch scheduling across many hypotheses
+- automatic route adjudication heuristics beyond explicit activation summaries
+- explicit parked-route re-entry summaries beyond the bounded activation slice
+
+## Previous Closed Milestone: v1.74 Hypothesis Branch Routing Surface
+
+**Goal:** Close the next post-`v1.73` research-control gap by making branch
+intent explicit per competing hypothesis instead of reconstructing it from
+separate deferred/follow-up runtime artifacts.
+
+**Target features:**
+- one explicit branch-routing surface on each active competing hypothesis
+- one runtime/replay path that shows which hypothesis stays on the current
+  topic, which routes to deferred parking, and which routes to a follow-up
+  branch
+- one bounded isolated acceptance lane proving hypothesis routing without
+  hidden branch-execution heuristics
+
+Current phase status inside `v1.74`:
+
+- Phase `148` is now implemented, verified, and archived
+
+**Explicitly deferred from this milestone:**
+- automatic branch spawning or branch scheduling across many hypotheses
+- hypothesis auto-adjudication heuristics beyond explicit declared routing
+- reopening already-closed `v1.73` visibility work except for regressions
+
+## Previous Closed Milestone: v1.73 Competing Hypotheses First-Class Surface
+
+**Goal:** Close the research-question modeling gap so AITP can keep multiple
+plausible bounded answers visible as first-class hypotheses instead of
+flattening them into one main direction or burying them only in deferred
+execution surfaces.
+
+**Target features:**
+- one explicit `competing_hypotheses` surface on the research-question
+  contract
+- one runtime/read path that keeps multiple live hypotheses visible without
+  forcing them into separate hidden subtopics immediately
+- one bounded isolated acceptance lane proving the multi-hypothesis surface on
+  a temp kernel root
+
+Current phase status inside `v1.73`:
+
+- Phase `147` is now implemented, verified, milestone-audited, and archived
+
+**Explicitly deferred from this milestone:**
+- broader branch-management automation beyond the explicit question-level
+  hypothesis surface
+- hypothesis auto-discovery or adjudication heuristics that are not yet durable
+- reopening already-closed transition-history or approval-record work
+
+## Previous Closed Milestone: v1.72 Promotion Gate Human Modification Record
+
+**Goal:** Close the next promotion-gate honesty gap by recording what the human
+changed when approving an `L2` promotion, instead of only storing who approved
+it.
+
+**Closed features:**
+
+- one explicit `human_modifications` record on approval
+- one promotion-gate / replay surface that distinguishes modified from
+  unchanged approvals
+- one bounded isolated acceptance lane for modified approval
+- one direct evaluator-divergence signal without widening into full evaluator
+  analytics
+
+**Explicitly deferred from this milestone:**
+
+- full competing-hypothesis modeling
+- broader evaluator-divergence analytics beyond the approval-time modification
+  record
+- generalized human rewrite tracking outside the L2 approval gate
+
+## Previous Closed Milestone: v1.71 Runtime Transition And Demotion History
+
+**Goal:** Close the runtime-history gap so AITP can show how a topic moved
+across layers, including bounded backtracks and demotions, instead of only
+showing the latest `resume_stage` plus `last_materialized_stage`.
+
+**Closed features:**
+
+- one structured runtime transition log with reasons and evidence refs
+- one explicit demotion-history surface for backward layer moves
+- one replay/read path that explains what got sent backward and why
+- one bounded isolated acceptance lane for the new history surface
+
+**Explicitly deferred from this milestone:**
+
+- human modification capture inside the L2 approval gate
+- full competing-hypothesis modeling
+- broader evaluator-divergence analytics beyond the transition/demotion record
+
+## Previous Closed Milestone: v1.70 L1 Source Assumptions And Reading Depth Closure
+
+**Goal:** Close the still-open `999.27` intake-honesty remainder so AITP keeps
+source-backed assumptions, reading-depth limits, and shallow/conflicting
+evidence visible on the real `L1` operator path.
+
+**Closed features:**
+
+- one explicit assumption-and-reading-depth surface through the existing
+  `l1_source_intake` path
+- one honest view of skim-only, weak, or conflicting source evidence
+- one bounded acceptance lane for the assumption/depth honesty slice
+- one stronger isolated method-specificity acceptance path
+
+**Explicitly deferred from this milestone:**
+
+- broader contradiction adjudication workflow
+- runtime transition/demotion history
+- larger `L1` redesign beyond the immediate honesty slice
+
+## Previous Closed Milestone: v1.69 L0 Source Discovery Via DeepXiv MCP Integration
+
+**Goal:** Close the pre-registration discovery gap in `L0` so AITP can move
+from idea or topic query to search, evaluate candidates, and then register
+sources through one bounded discovery path.
+
+**Closed features:**
+
+- one search-first discovery surface before `register_arxiv_source.py`
+- one explicit candidate-evaluation receipt before registration
+- one bounded discovery acceptance lane on an isolated temp kernel root
+- one fallback-aware bridge that keeps search external to `L0` core protocol
+
+**Explicitly deferred from this milestone:**
+
+- broader literature triage and larger provider expansion
+- `L1` follow-on work around source-backed assumptions and reading depth
+- embedding search into the `L0` core protocol as if it were no longer an
+  external dependency
+
+## Previous Closed Milestone: v1.68 Persistent Wiki-Style Knowledge Compilation
+
+**Goal:** Move beyond retrieval-only `L2` helper views by compiling repeated
+reading, discussion, and route-comparison outcomes into one durable linked
+research-brain surface, while keeping authoritative `L2` writeback behind
+existing `L4` promotion gates.
+
+**Closed features:**
+
+- one explicit compiled-knowledge contract and production report surface
+- one bounded compiled-knowledge regression / acceptance lane
+- one `L1` raw/wiki/output vault with explicit flowback on the topic-shell path
+- one bounded statement-compilation pilot that separates declaration skeleton
+  generation from proof repair
+
+**Explicitly deferred from this milestone:**
+
+- Layer 0 source discovery before registration
+- broader graph-growth or multi-user validation
+- whole-topic automated formalization claims
+
+## Previous Closed Milestone: v1.67 Cross-Runtime Deep Execution Parity
 
 **Goal:** Move Claude Code and OpenCode from install/front-door parity targets
 to honest deep-execution parity probes against the Codex baseline, while
@@ -70,12 +365,33 @@ keeping OpenClaw deferred as a specialized lane.
 - one honest closure report that says where parity is reached and where a
   runtime still falls short
 
+Current phase status inside `v1.67`:
+- shared parity contract and Codex baseline harness landed in Phase `134`
+- Claude Code bounded parity probe landed in Phase `135`
+- OpenCode bounded parity probe landed in Phase `136`
+- closure and cross-runtime audit landed in Phase `137`
+- `v1.67` is now archived and milestone completion is finished
+
+**Closed outcome:**
+
+- one explicit artifact-level parity contract now distinguishes install
+  readiness from deep-execution readiness
+- one bounded Codex baseline plus bounded Claude/OpenCode probes now exist
+- one shared closure report now names equivalent surfaces, degraded surfaces,
+  and still-open gaps
+
+**Known remaining gaps:**
+
+- live Claude Code first-turn bootstrap consumption is still not directly
+  proven
+- live OpenCode first-turn bootstrap consumption is still not directly proven
+
 **Explicitly deferred from this milestone:**
 - reopening install/adoption work closed in `v1.65` and `v1.66`
 - OpenClaw deep-parity expansion
 - multi-user research-utility validation beyond runtime parity evidence
 
-## Latest Closed Milestone: v1.66 PyPI Publishable Package
+## Previous Closed Milestone: v1.66 PyPI Publishable Package
 
 **Goal:** Replace repo-clone plus editable-install onboarding with a versioned
 public `pip install aitp-kernel` path without regressing the already-shipped adoption
@@ -187,7 +503,9 @@ Dimensions the backlog does **not** cover:
 
 - Real topic end-to-end validation with genuine physics research questions.
 - Cross-runtime deep execution parity (Codex is baseline; OpenCode, Claude
-  Code, OpenClaw are still "parity targets").
+  Code, OpenClaw are still "parity targets" until the active milestone closes).
+  `v1.67` closed the bounded parity-audit milestone, but the live app-turn
+  parity gap remains intentionally visible.
 - Multi-user feedback on whether the bounded-step protocol helps or creates
   friction compared to how physicists actually work.
 - Knowledge-graph content quality beyond a thin seeded baseline.
@@ -248,10 +566,146 @@ already-shipped surfaces.
 - `.planning/milestones/v1.64-MILESTONE-AUDIT.md`
 - `.planning/milestones/v1.65-MILESTONE-AUDIT.md`
 - `.planning/milestones/v1.66-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.67-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.68-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.69-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.70-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.71-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.72-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.73-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.74-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.75-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.76-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.77-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.78-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.79-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.80-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.81-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.82-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.83-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.84-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.85-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.86-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.87-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.88-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.89-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.90-MILESTONE-AUDIT.md`
 
 ## Latest Integrated Regression Evidence
 
 - `367 tests passed` on 2026-04-11
+- `v1.77` route-handoff closure slices on 2026-04-12:
+  - `python -m compileall research/knowledge-hub/knowledge_hub/runtime_read_path_support.py research/knowledge-hub/knowledge_hub/runtime_bundle_support.py research/knowledge-hub/knowledge_hub/topic_replay.py research/knowledge-hub/knowledge_hub/kernel_markdown_renderers.py research/knowledge-hub/runtime/scripts/run_hypothesis_route_handoff_acceptance.py research/knowledge-hub/tests/test_hypothesis_route_handoff_contracts.py research/knowledge-hub/tests/test_runtime_scripts.py research/knowledge-hub/tests/test_topic_replay.py research/knowledge-hub/tests/test_schema_contracts.py`
+  - result: `compiled successfully`
+  - `python research/knowledge-hub/runtime/scripts/run_hypothesis_route_handoff_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "hypothesis_route_handoff_acceptance or hypothesis_route_reentry_acceptance" -q`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_hypothesis_route_handoff_contracts.py research/knowledge-hub/tests/test_hypothesis_route_reentry_contracts.py research/knowledge-hub/tests/test_hypothesis_route_activation_contracts.py research/knowledge-hub/tests/test_hypothesis_branch_routing_contracts.py research/knowledge-hub/tests/test_topic_replay.py research/knowledge-hub/tests/test_schema_contracts.py -q`
+  - result: `17 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py -k "runtime_protocol_bundle_matches_public_schema or topic_status_and_prepare_verification_surface_new_shell_fields" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_profiles_and_projections.py -k "projection_helpers_write_valid_outputs" -q`
+  - result: `1 passed`
+- `v1.76` route-reentry closure slices on 2026-04-12:
+  - `python -m compileall research/knowledge-hub/knowledge_hub/runtime_read_path_support.py research/knowledge-hub/knowledge_hub/runtime_bundle_support.py research/knowledge-hub/knowledge_hub/topic_replay.py research/knowledge-hub/knowledge_hub/kernel_markdown_renderers.py research/knowledge-hub/runtime/scripts/run_hypothesis_route_reentry_acceptance.py research/knowledge-hub/tests/test_hypothesis_route_reentry_contracts.py research/knowledge-hub/tests/test_hypothesis_route_activation_contracts.py research/knowledge-hub/tests/test_hypothesis_branch_routing_contracts.py research/knowledge-hub/tests/test_runtime_scripts.py research/knowledge-hub/tests/test_topic_replay.py research/knowledge-hub/tests/test_schema_contracts.py`
+  - result: `compiled successfully`
+  - `python -m pytest research/knowledge-hub/tests/test_hypothesis_route_reentry_contracts.py research/knowledge-hub/tests/test_hypothesis_route_activation_contracts.py research/knowledge-hub/tests/test_hypothesis_branch_routing_contracts.py research/knowledge-hub/tests/test_topic_replay.py research/knowledge-hub/tests/test_schema_contracts.py -q`
+  - result: `16 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_hypothesis_route_reentry_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "hypothesis_route_reentry_acceptance or hypothesis_route_activation_acceptance" -q`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py -k "runtime_protocol_bundle_matches_public_schema or topic_status_and_prepare_verification_surface_new_shell_fields" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_profiles_and_projections.py -k "projection_helpers_write_valid_outputs" -q`
+  - result: `1 passed`
+- `v1.75` route-activation closure slices on 2026-04-12:
+  - `python -m compileall research/knowledge-hub/knowledge_hub/runtime_read_path_support.py research/knowledge-hub/knowledge_hub/topic_replay.py research/knowledge-hub/runtime/scripts/run_hypothesis_route_activation_acceptance.py research/knowledge-hub/tests/test_runtime_scripts.py research/knowledge-hub/tests/test_topic_replay.py research/knowledge-hub/tests/test_hypothesis_route_activation_contracts.py`
+  - result: `compiled successfully`
+  - `python research/knowledge-hub/runtime/scripts/run_hypothesis_route_activation_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "hypothesis_route_activation_acceptance" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_topic_replay.py research/knowledge-hub/tests/test_hypothesis_route_activation_contracts.py research/knowledge-hub/tests/test_hypothesis_branch_routing_contracts.py research/knowledge-hub/tests/test_schema_contracts.py -q`
+  - result: `15 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py -k "runtime_protocol_bundle_matches_public_schema or topic_status_and_prepare_verification_surface_new_shell_fields" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_profiles_and_projections.py -k "projection_helpers_write_valid_outputs" -q`
+  - result: `1 passed`
+- `v1.74` hypothesis-branch-routing closure slices on 2026-04-12:
+  - `python -m pytest research/knowledge-hub/tests/test_hypothesis_branch_routing_contracts.py -q`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_schema_contracts.py -q`
+  - result: `10 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_topic_replay.py -q`
+  - result: `2 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_hypothesis_branch_routing_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "hypothesis_branch_routing_acceptance" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_competing_hypotheses_contracts.py -q`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py -k "runtime_protocol_bundle_matches_public_schema or topic_status_and_prepare_verification_surface_new_shell_fields" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_profiles_and_projections.py -k "projection_helpers_write_valid_outputs" -q`
+  - result: `1 passed`
+- `v1.73` competing-hypotheses closure slices on 2026-04-12:
+  - `python -m pytest research/knowledge-hub/tests/test_competing_hypotheses_contracts.py -q`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_schema_contracts.py -q`
+  - result: `10 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_topic_replay.py -q`
+  - result: `2 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_competing_hypotheses_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "competing_hypotheses_acceptance" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_profiles_and_projections.py -k "projection_helpers_write_valid_outputs" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py -k "runtime_protocol_bundle_matches_public_schema or topic_status_and_prepare_verification_surface_new_shell_fields" -q`
+  - result: `1 passed`
+- `v1.71` transition-history closure slices on 2026-04-12:
+  - `python -m pytest research/knowledge-hub/tests/test_transition_history_contracts.py -q`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_profiles_and_projections.py -k "projection_helpers_write_valid_outputs" -q`
+  - result: `1 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_topic_replay.py -q`
+  - result: `2 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_transition_history_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "transition_history_acceptance" -q`
+  - result: `1 passed`
+- `v1.70` assumption/depth closure slices on 2026-04-12:
+  - `python -m pytest research/knowledge-hub/tests/test_l1_assumption_depth_contracts.py -q`
+  - result: `2 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "l1_assumption_depth_acceptance" -q`
+  - result: `1 passed, 29 deselected`
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py::AITPServiceTests::test_ensure_topic_shell_surfaces_persists_source_backed_l1_intake -q`
+  - result: `1 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_l1_method_specificity_acceptance.py --json`
+  - result: `success`
+- `v1.69` discovery-bridge closure slices on 2026-04-12:
+  - `python -m pytest research/knowledge-hub/tests/test_source_discovery_contracts.py -q`
+  - result: `3 passed`
+  - `python research/knowledge-hub/runtime/scripts/run_l0_source_discovery_acceptance.py --json`
+  - result: `success`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -k "l0_source_discovery_acceptance" -q`
+  - result: `1 passed, 28 deselected`
+- `v1.68` compiled-knowledge / vault / statement-compilation closure slices on
+  2026-04-12:
+  - `python -m pytest research/knowledge-hub/tests/test_aitp_service.py -q -k "source_backed_l1_intake or l1_vault"`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_runtime_scripts.py -q -k "l1_vault_acceptance or statement_compilation_acceptance"`
+  - result: `2 passed`
+  - `python -m pytest research/knowledge-hub/tests/test_schema_contracts.py research/knowledge-hub/tests/test_l1_vault_contracts.py research/knowledge-hub/tests/test_statement_compilation_contracts.py -q`
+  - result: `13 tests passed`
+  - `python research/knowledge-hub/runtime/scripts/run_l1_vault_acceptance.py --json`
+  - result: `success`
+  - `python research/knowledge-hub/runtime/scripts/run_statement_compilation_acceptance.py --json`
+  - result: `success`
 - public-package closure slice:
   - `python -m unittest discover -s research/knowledge-hub/tests -p "test_agent_bootstrap_assets.py"`
   - `python -m unittest discover -s research/knowledge-hub/tests -p "test_documentation_entrypoints.py"`
@@ -282,8 +736,9 @@ already-shipped surfaces.
 
 This does **not** mean AITP is finished.
 
-It means `v1.67` is now the active runtime-parity milestone and the next step
-is planning Phase `135` without reopening `999.48` through `999.51`.
+It means `v1.91` is now the active real-topic end-to-end validation milestone
+and the next step is Phase `165`, not inventing another local protocol surface
+before the current implementation is tested on a real idea.
 
 ---
-*Last updated: 2026-04-11 after opening v1.67 Cross-Runtime Deep Execution Parity*
+*Last updated: 2026-04-12 after closing v1.90 and opening v1.91*

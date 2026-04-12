@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .runtime_projection_handler import append_transition_history
 from .tpkn_bridge import (
     build_supporting_question_oracle_unit,
     build_supporting_regression_question_unit,
@@ -549,6 +550,26 @@ def _record_promotion_and_finalize(
             "merge_outcome": context["merge_outcome"],
             "notes": gate_payload.get("notes") or "",
         },
+    )
+    append_transition_history(
+        topic_slug,
+        {
+            "run_id": context["resolved_run_id"],
+            "event_kind": "promoted",
+            "from_layer": str(gate_payload.get("source_layer") or "L4"),
+            "to_layer": str(gate_payload.get("canonical_layer") or "L2"),
+            "reason": str(gate_payload.get("notes") or f"Promotion completed into {gate_payload.get('canonical_layer') or 'L2'}."),
+            "evidence_refs": [
+                self._relativize(self._promotion_gate_paths(topic_slug)["json"]),
+                self._relativize(self._promotion_gate_paths(topic_slug)["note"]),
+                self._relativize(decisions_path),
+                self._relativize(context["packet_paths"]["merge_report"]),
+            ],
+            "candidate_id": candidate_id,
+            "recorded_at": promoted_at,
+            "recorded_by": promoted_by,
+        },
+        kernel_root=self.kernel_root,
     )
 
     return {

@@ -299,8 +299,23 @@ Example route:
 
 ## 8. Current limitation
 
-Layer 0 is not yet independently formalized.
+Layer 0 now has an independently named formal root:
+
+- `research/knowledge-hub/source-layer/`
+
+and the public layer map already treats that root as the standalone `L0`
+source substrate.
+
+The remaining limitation is narrower:
+
+- some older routing prose and historical acceptance language still describe
+  `L0` through the earlier intake-first framing,
+- while the real implementation already reads and writes durable `source-layer/`
+  artifacts directly.
 
 So the routing policy should be read as:
-- conceptually starting in `L0`,
-- but operationally registering the durable trace inside intake until the dedicated Layer 0 contract exists.
+
+- conceptually and operationally starting in `L0`,
+- with `L1` still carrying the first durable source-bound understanding layer,
+- and with any remaining intake-first wording treated as historical drift rather
+  than current kernel truth.

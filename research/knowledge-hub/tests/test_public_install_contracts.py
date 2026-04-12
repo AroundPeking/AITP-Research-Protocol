@@ -43,7 +43,7 @@ class PublicInstallContractTests(unittest.TestCase):
 
             class Result:
                 returncode = 0
-                stdout = "Name: aitp-kernel\nVersion: 0.4.0\nLocation: C:\\temp\\venv\\Lib\\site-packages\n"
+                stdout = "Name: aitp-kernel\nVersion: 0.4.1\nLocation: C:\\temp\\venv\\Lib\\site-packages\n"
                 stderr = ""
 
             return Result()
@@ -61,7 +61,7 @@ class PublicInstallContractTests(unittest.TestCase):
             ["C:\\temp\\venv\\Scripts\\python.exe", "-m", "pip", "show"],
         )
         self.assertEqual(payload["name"], "aitp-kernel")
-        self.assertEqual(payload["version"], "0.4.0")
+        self.assertEqual(payload["version"], "0.4.1")
 
 
 if __name__ == "__main__":

@@ -17,8 +17,16 @@ from .mode_learning_support import append_mode_learning_markdown, normalize_mode
 from .research_judgment_runtime_support import append_research_judgment_markdown, decision_surface_snapshot, normalize_research_judgment_for_bundle, research_judgment_must_read_entry
 from .research_taste_support import append_research_taste_markdown, normalize_research_taste_for_bundle, research_taste_must_read_entry
 from .scratchpad_support import append_scratchpad_markdown, normalize_scratchpad_for_bundle, scratchpad_must_read_entry
-from .runtime_read_path_support import append_l1_source_intake_markdown, append_source_intelligence_markdown, build_active_research_contract_payload, empty_l1_source_intake, empty_source_intelligence, normalized_source_intelligence
-from .runtime_projection_handler import build_knowledge_packets_from_candidates, write_pending_decisions_projection, write_promotion_readiness_projection, write_promotion_trace, write_topic_synopsis
+from .runtime_read_path_support import append_competing_hypotheses_markdown, append_l1_source_intake_markdown, append_l1_vault_markdown, append_route_activation_markdown, append_route_choice_markdown, append_route_handoff_markdown, append_route_reentry_markdown, append_route_transition_gate_markdown, append_route_transition_intent_markdown, append_route_transition_receipt_markdown, append_route_transition_resolution_markdown, append_route_transition_discrepancy_markdown, append_route_transition_repair_markdown, append_route_transition_escalation_markdown, append_route_transition_clearance_markdown, append_route_transition_followthrough_markdown, append_route_transition_resumption_markdown, append_route_transition_commitment_markdown, append_route_transition_authority_markdown, append_source_intelligence_markdown, build_active_research_contract_payload, build_route_transition_receipt_payload, build_route_transition_resolution_payload, build_route_transition_discrepancy_payload, build_route_transition_repair_payload, build_route_transition_escalation_payload, build_route_transition_clearance_payload, build_route_transition_followthrough_payload, build_route_transition_resumption_payload, build_route_transition_commitment_payload, build_route_transition_authority_payload, empty_l1_source_intake, empty_source_intelligence, normalized_source_intelligence
+from .runtime_projection_handler import (
+    append_transition_history,
+    build_knowledge_packets_from_candidates,
+    load_transition_history,
+    write_pending_decisions_projection,
+    write_promotion_readiness_projection,
+    write_promotion_trace,
+    write_topic_synopsis,
+)
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -65,6 +73,7 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
     control_plane = payload.get("control_plane") or {}
     topic_skill_projection = payload.get("topic_skill_projection") or {}
     topic_completion = payload.get("topic_completion") or {}
+    statement_compilation = payload.get("statement_compilation") or {}
     lean_bridge = payload.get("lean_bridge") or {}
     must_read_now = payload.get("must_read_now") or []
     active_hard_constraints = payload.get("active_hard_constraints") or []
@@ -126,11 +135,32 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
             f"- Validation mode: `{active_research_contract.get('validation_mode') or '(missing)'}`",
             f"- Contract JSON: `{active_research_contract.get('path') or '(missing)'}`",
             f"- Contract note: `{active_research_contract.get('note_path') or '(missing)'}`",
+            f"- Active branch hypothesis: `{active_research_contract.get('active_branch_hypothesis_id') or '(none recorded)'}`",
+            f"- Deferred branch hypotheses: `{', '.join(active_research_contract.get('deferred_branch_hypothesis_ids') or []) or '(none)'}`",
+            f"- Follow-up branch hypotheses: `{', '.join(active_research_contract.get('followup_branch_hypothesis_ids') or []) or '(none)'}`",
             "",
             f"{active_research_contract.get('question') or '(missing)'}",
         ]
     )
     append_l1_source_intake_markdown(lines, active_research_contract)
+    append_l1_vault_markdown(lines, active_research_contract)
+    append_competing_hypotheses_markdown(lines, active_research_contract)
+    append_route_activation_markdown(lines, active_research_contract)
+    append_route_reentry_markdown(lines, active_research_contract)
+    append_route_handoff_markdown(lines, active_research_contract)
+    append_route_choice_markdown(lines, active_research_contract)
+    append_route_transition_gate_markdown(lines, active_research_contract)
+    append_route_transition_intent_markdown(lines, active_research_contract)
+    append_route_transition_receipt_markdown(lines, active_research_contract)
+    append_route_transition_resolution_markdown(lines, active_research_contract)
+    append_route_transition_discrepancy_markdown(lines, active_research_contract)
+    append_route_transition_repair_markdown(lines, active_research_contract)
+    append_route_transition_escalation_markdown(lines, active_research_contract)
+    append_route_transition_clearance_markdown(lines, active_research_contract)
+    append_route_transition_followthrough_markdown(lines, active_research_contract)
+    append_route_transition_resumption_markdown(lines, active_research_contract)
+    append_route_transition_commitment_markdown(lines, active_research_contract)
+    append_route_transition_authority_markdown(lines, active_research_contract)
     lines.extend(
         [
             "",
@@ -169,6 +199,12 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
             f"- Ready candidates: `{', '.join(promotion_readiness.get('ready_candidate_ids') or []) or '(none)'}`",
             "",
             f"{promotion_readiness.get('summary') or '(missing)'}",
+            "",
+            "## Transition history",
+            "",
+            f"- JSON path: `runtime/topics/{payload['topic_slug']}/transition_history.json`",
+            f"- Note path: `runtime/topics/{payload['topic_slug']}/transition_history.md`",
+            "- Inspect these surfaces when you need the bounded forward/backward layer path instead of only the current stage snapshot.",
             "",
             "## Open gap summary",
             "",
@@ -209,6 +245,14 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
             f"- Promotion-ready candidates: `{', '.join(topic_completion.get('promotion_ready_candidate_ids') or []) or '(none)'}`",
             "",
             f"{topic_completion.get('summary') or '(missing)'}`",
+            "",
+            "## Statement compilation",
+            "",
+            f"- Status: `{statement_compilation.get('status') or '(missing)'}`",
+            f"- Packet count: `{statement_compilation.get('packet_count') or 0}`",
+            f"- Compilation note: `{statement_compilation.get('path') or '(missing)'}`",
+            "",
+            f"{statement_compilation.get('summary') or '(missing)'}`",
             "",
             "## Lean bridge",
             "",
@@ -579,6 +623,8 @@ def materialize_runtime_protocol_bundle(
     )
     topic_completion = dict(shell_surfaces["topic_completion"])
     topic_completion["path"] = self._relativize(Path(shell_surfaces["topic_completion_note_path"]))
+    statement_compilation = dict(shell_surfaces["statement_compilation"])
+    statement_compilation["path"] = self._relativize(Path(shell_surfaces["statement_compilation_note_path"]))
     lean_bridge = dict(shell_surfaces["lean_bridge"])
     lean_bridge["path"] = self._relativize(Path(shell_surfaces["lean_bridge_note_path"]))
     active_research_contract = build_active_research_contract_payload(
@@ -713,6 +759,91 @@ def materialize_runtime_protocol_bundle(
         topic_slug,
         promotion_trace_payload,
         kernel_root=self.kernel_root,
+    )
+    current_from_layer = str(topic_state.get("last_materialized_stage") or topic_state.get("resume_stage") or "").strip()
+    current_to_layer = str(topic_state.get("resume_stage") or current_from_layer).strip()
+    transition_history = load_transition_history(topic_slug, kernel_root=self.kernel_root)
+    if current_from_layer and current_to_layer:
+        transition_history = append_transition_history(
+            topic_slug,
+            {
+                "run_id": str(topic_state.get("latest_run_id") or ""),
+                "event_kind": "runtime_resume_state",
+                "from_layer": current_from_layer,
+                "to_layer": current_to_layer,
+                "reason": str(
+                    topic_state.get("resume_reason")
+                    or runtime_focus.get("why_this_topic_is_here")
+                    or open_gap_summary.get("summary")
+                    or "Runtime state transition recorded."
+                ),
+                "evidence_refs": self._dedupe_strings(
+                    [
+                        self._relativize(Path(shell_surfaces["topic_dashboard_path"])),
+                        self._relativize(Path(shell_surfaces["research_question_contract_note_path"])),
+                        self._relativize(Path(shell_surfaces["gap_map_path"])),
+                        self._relativize(Path(shell_surfaces["validation_review_bundle_note_path"])),
+                        self._relativize(Path(promotion_trace_written["path"])),
+                    ]
+                ),
+                "recorded_at": _now_iso(),
+                "recorded_by": updated_by,
+            },
+            kernel_root=self.kernel_root,
+        )["transition_history"]
+    active_research_contract["route_transition_receipt"] = build_route_transition_receipt_payload(
+        topic_slug=topic_slug,
+        route_transition_intent=active_research_contract.get("route_transition_intent") or {},
+        transition_history=transition_history,
+    )
+    active_research_contract["route_transition_resolution"] = build_route_transition_resolution_payload(
+        topic_slug=topic_slug,
+        route_transition_intent=active_research_contract.get("route_transition_intent") or {},
+        route_transition_receipt=active_research_contract.get("route_transition_receipt") or {},
+        route_activation=active_research_contract.get("route_activation") or {},
+    )
+    active_research_contract["route_transition_discrepancy"] = build_route_transition_discrepancy_payload(
+        topic_slug=topic_slug,
+        route_transition_resolution=active_research_contract.get("route_transition_resolution") or {},
+        route_transition_receipt=active_research_contract.get("route_transition_receipt") or {},
+    )
+    active_research_contract["route_transition_repair"] = build_route_transition_repair_payload(
+        topic_slug=topic_slug,
+        route_transition_discrepancy=active_research_contract.get("route_transition_discrepancy") or {},
+        route_transition_resolution=active_research_contract.get("route_transition_resolution") or {},
+        route_activation=active_research_contract.get("route_activation") or {},
+    )
+    active_research_contract["route_transition_escalation"] = build_route_transition_escalation_payload(
+        topic_slug=topic_slug,
+        route_transition_repair=active_research_contract.get("route_transition_repair") or {},
+        operator_checkpoint=operator_checkpoint,
+    )
+    active_research_contract["route_transition_clearance"] = build_route_transition_clearance_payload(
+        topic_slug=topic_slug,
+        route_transition_escalation=active_research_contract.get("route_transition_escalation") or {},
+        operator_checkpoint=operator_checkpoint,
+    )
+    active_research_contract["route_transition_followthrough"] = build_route_transition_followthrough_payload(
+        topic_slug=topic_slug,
+        route_transition_clearance=active_research_contract.get("route_transition_clearance") or {},
+    )
+    active_research_contract["route_transition_resumption"] = build_route_transition_resumption_payload(
+        topic_slug=topic_slug,
+        route_transition_followthrough=active_research_contract.get("route_transition_followthrough") or {},
+        route_transition_resolution=active_research_contract.get("route_transition_resolution") or {},
+        route_activation=active_research_contract.get("route_activation") or {},
+        transition_history=transition_history,
+    )
+    active_research_contract["route_transition_commitment"] = build_route_transition_commitment_payload(
+        topic_slug=topic_slug,
+        route_transition_resumption=active_research_contract.get("route_transition_resumption") or {},
+        route_activation=active_research_contract.get("route_activation") or {},
+        competing_hypotheses=active_research_contract.get("competing_hypotheses") or [],
+    )
+    active_research_contract["route_transition_authority"] = build_route_transition_authority_payload(
+        topic_slug=topic_slug,
+        route_transition_commitment=active_research_contract.get("route_transition_commitment") or {},
+        route_activation=active_research_contract.get("route_activation") or {},
     )
     runtime_protocol_note = self._relativize(runtime_root / "runtime_protocol.generated.md")
     research_guardrails_note = self._relativize(self.kernel_root / "RESEARCH_EXECUTION_GUARDRAILS.md")
@@ -1481,6 +1612,7 @@ def materialize_runtime_protocol_bundle(
         "scratchpad": scratchpad,
         "topic_skill_projection": topic_skill_projection,
         "topic_completion": topic_completion,
+        "statement_compilation": statement_compilation,
         "lean_bridge": lean_bridge,
         "minimal_execution_brief": {
             "current_stage": runtime_focus.get("resume_stage") or topic_state.get("resume_stage"),

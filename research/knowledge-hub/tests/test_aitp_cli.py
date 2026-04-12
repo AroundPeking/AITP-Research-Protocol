@@ -139,6 +139,12 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(lean_args.command, "lean-bridge")
         self.assertEqual(lean_args.candidate_id, "candidate:demo")
 
+        statement_compilation_args = parser.parse_args(
+            ["statement-compilation", "--topic-slug", "demo-topic", "--candidate-id", "candidate:demo"]
+        )
+        self.assertEqual(statement_compilation_args.command, "statement-compilation")
+        self.assertEqual(statement_compilation_args.candidate_id, "candidate:demo")
+
         topics_args = parser.parse_args(["topics"])
         self.assertEqual(topics_args.command, "topics")
 
@@ -284,6 +290,9 @@ class AITPCLITests(unittest.TestCase):
 
         graph_report_args = parser.parse_args(["compile-l2-graph-report"])
         self.assertEqual(graph_report_args.command, "compile-l2-graph-report")
+
+        knowledge_report_args = parser.parse_args(["compile-l2-knowledge-report"])
+        self.assertEqual(knowledge_report_args.command, "compile-l2-knowledge-report")
 
         source_catalog_args = parser.parse_args(["compile-source-catalog"])
         self.assertEqual(source_catalog_args.command, "compile-source-catalog")
@@ -744,6 +753,17 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_service.compile_l2_graph_report.assert_called_once_with()
 
+    def test_main_dispatches_compile_l2_knowledge_report(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.compile_l2_knowledge_report.return_value = {"json_path": "compiled/knowledge-report.json"}
+            mock_factory.return_value = mock_service
+            with patch.object(sys, "argv", ["aitp", "compile-l2-knowledge-report"]):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.compile_l2_knowledge_report.assert_called_once_with()
+
     def test_main_dispatches_compile_source_catalog(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
@@ -1156,9 +1176,18 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(request_args.route, "L3->L4_auto->L2_auto")
 
         approve_args = parser.parse_args(
-            ["approve-promotion", "--topic-slug", "demo-topic", "--candidate-id", "candidate:demo"]
+            [
+                "approve-promotion",
+                "--topic-slug",
+                "demo-topic",
+                "--candidate-id",
+                "candidate:demo",
+                "--human-modification",
+                "statement=Narrowed to weak coupling only:The original candidate overstated the regime.",
+            ]
         )
         self.assertEqual(approve_args.command, "approve-promotion")
+        self.assertEqual(approve_args.human_modification[0]["field"], "statement")
 
         reject_args = parser.parse_args(
             ["reject-promotion", "--topic-slug", "demo-topic", "--candidate-id", "candidate:demo"]
@@ -1321,6 +1350,28 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_service.audit_formal_theory.assert_called_once()
 
+    def test_main_dispatches_statement_compilation(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.prepare_statement_compilation.return_value = {"status": "needs_repair"}
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "statement-compilation",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--candidate-id",
+                    "candidate:demo",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.prepare_statement_compilation.assert_called_once()
+
     def test_main_dispatches_analytical_review(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
@@ -1355,6 +1406,32 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         mock_service.audit_analytical_review.assert_called_once()
 
+    def test_main_dispatches_approve_promotion_with_human_modification(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.approve_promotion.return_value = {"status": "approved"}
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "approve-promotion",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--candidate-id",
+                    "candidate:demo",
+                    "--human-modification",
+                    "statement=Narrowed to weak coupling only:The original candidate overstated the regime.",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.approve_promotion.assert_called_once()
+        kwargs = mock_service.approve_promotion.call_args.kwargs
+        self.assertEqual(kwargs["human_modifications"][0]["field"], "statement")
+
     def test_install_agent_accepts_claude_code(self) -> None:
         parser = aitp_cli.build_parser()
         args = parser.parse_args(["install-agent", "--agent", "claude-code"])
@@ -1369,12 +1446,12 @@ class AITPCLITests(unittest.TestCase):
                     aitp_cli.main()
 
         self.assertEqual(exc_info.exception.code, 0)
-        self.assertIn("0.4.0", stream.getvalue())
+        self.assertIn("0.4.1", stream.getvalue())
 
     def test_doctor_human_output_summarizes_front_door_runtimes(self) -> None:
         doctor_payload = {
             "overall_status": "mixed_install",
-            "package": {"name": "aitp", "status": "canonical_editable_install", "version": "0.4.0"},
+            "package": {"name": "aitp", "status": "canonical_editable_install", "version": "0.4.1"},
             "layer_roots": {"L0": {"status": "present"}},
             "protocol_contracts": {"layer_map": {"status": "present"}},
             "runtime_convergence": {
@@ -1404,11 +1481,11 @@ class AITPCLITests(unittest.TestCase):
                         },
                         "claude_code": {
                             "display_name": "Claude Code",
-                            "status": "probe_pending",
+                            "status": "probe_available",
                             "maturity_class": "parity_target",
                             "baseline_relationship": "parity_target",
                             "acceptance_command": "python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime claude_code --json",
-                            "blockers": ["runtime_specific_probe_not_implemented"],
+                            "blockers": [],
                         },
                         "opencode": {
                             "display_name": "OpenCode",
@@ -1506,12 +1583,12 @@ class AITPCLITests(unittest.TestCase):
         output = stream.getvalue()
         self.assertEqual(exit_code, 0)
         self.assertIn("AITP Doctor", output)
-        self.assertIn("Package: canonical_editable_install (aitp 0.4.0)", output)
+        self.assertIn("Package: canonical_editable_install (aitp 0.4.1)", output)
         self.assertIn("Front-door convergence: no", output)
         self.assertIn("Deep-execution parity: no", output)
         self.assertIn("Codex: baseline_ready", output)
         self.assertIn("Acceptance: python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime codex --json", output)
-        self.assertIn("Claude Code: probe_pending", output)
+        self.assertIn("Claude Code: probe_available", output)
         self.assertIn("OpenCode: front_door_blocked", output)
         self.assertIn("Full repair: aitp migrate-local-install", output)
         self.assertIn("Claude Code: stale", output)

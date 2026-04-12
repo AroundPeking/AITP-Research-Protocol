@@ -44,6 +44,15 @@ aitp doctor --json
 The OpenCode row should be `ready` in
 `runtime_support_matrix.runtimes.opencode`.
 
+For the bounded deep-execution parity probe, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime opencode --json
+```
+
+That probe validates the plugin hooks plus downstream bounded AITP artifacts.
+It is intentionally not the same thing as full live OpenCode parity closure.
+
 Ask OpenCode for a theory task in natural language, for example:
 
 - `继续这个 topic，方向改成 effective field theory`

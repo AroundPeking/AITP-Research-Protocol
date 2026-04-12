@@ -1,43 +1,50 @@
 # Milestone Context
 
-Current milestone: `v1.67` `Cross-Runtime Deep Execution Parity`
+Current milestone: `v1.91` `Real Topic L0 To L2 End-To-End Validation`
 
 ## Latest Closed Milestone
 
-`v1.66` `PyPI Publishable Package`
+`v1.90` `Hypothesis Route Transition Authority Surface`
 
 ## Why It Was Next
 
-The installation/adoption promotion override is now closed through `v1.65` and
-`v1.66`.
+`v1.90` closed the bounded route transition-authority visibility gap and
+should stay closed.
 
-`v1.65` shipped the doctor, quickstart, and Windows-native first-use surfaces.
-`v1.66` shipped the public-package and clean-install proof.
-The remaining adjacent user-priority gap is that Codex remains the only honest
-deep-execution baseline while Claude Code and OpenCode are still parity
-targets.
+The next clean adjacent gap is no longer a missing local protocol surface.
+It is the missing maturity proof that the current implementation actually helps
+on a real topic from an initial idea.
 
-That means the next bounded milestone should focus on:
+The next bounded milestone therefore needs to answer:
 
-- `999.44` cross-runtime deep execution parity
-- Codex vs Claude Code vs OpenCode bounded execution evidence
-- honest parity gaps and remediation instead of install-only green checks
+- can the current public entry surfaces carry a real idea into a bounded topic
+  honestly?
+- can one real topic make it through the current `L0 -> L1 -> L3 -> L4 -> L2`
+  route without hidden scaffolding?
+- when the run exposes real issues, how are those issues captured and routed
+  back into GSD work?
 
-## What This Closure Protects
+That makes the next bounded milestone:
 
-- Do not reopen `999.48` through `999.51` as substitute work for runtime
-  parity.
-- Keep OpenClaw as a specialized lane rather than expanding this milestone into
-  broader runtime parity.
-- Avoid broad research-utility or multi-user validation scope until the runtime
-  parity baseline itself is honestly measured.
+- execute one real-topic E2E route from an initial idea
+- write one durable postmortem with artifact refs and friction notes
+- keep issue capture explicit instead of assuming GSD will infer problems from
+  runtime artifacts automatically
+
+## What This Scope Protects
+
+- Do not reopen closed route-transition visibility work just because a real run
+  reveals later-stage friction.
+- Do not confuse this milestone with a mock-heavy test-only milestone.
+- Keep the first slice centered on one honest real-topic run plus issue capture.
 
 ## Current Status
 
-`v1.67` is active.
+`v1.91` is active.
 
 Immediate next repository task:
 
-- plan Phase `135`
-- keep `v1.65` and `v1.66` closed unless a fresh install/adoption or packaging
-  regression appears
+- execute Phase `165`
+- use the current public AITP entry surfaces first
+- write findings into a postmortem and issue ledger
+- route discovered issues explicitly into GSD-tracked follow-up work

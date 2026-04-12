@@ -10,14 +10,19 @@ from .l1_source_intake_support import (
     coalesce_l1_source_intake,
     derive_l1_conflict_intake,
     empty_l1_source_intake,
+    l1_assumption_depth_summary_lines,
+    l1_contradiction_summary_lines,
     l1_context_lines,
     l1_interpretation_focus_lines,
+    l1_notation_tension_lines,
     l1_open_ambiguity_lines,
+    l1_reading_depth_limit_lines,
     normalize_l1_source_intake,
     render_source_intelligence_markdown,
     source_intelligence_paths,
     source_intelligence_payload,
 )
+from .l1_vault_support import materialize_l1_vault
 from .collaborator_profile_support import materialize_collaborator_profile_surface
 from .mode_learning_support import materialize_mode_learning_surface
 from .research_taste_support import (
@@ -29,6 +34,7 @@ from .research_trajectory_support import materialize_research_trajectory_surface
 from .research_judgment_runtime_support import (
     dashboard_research_judgment_lines,
 )
+from .runtime_read_path_support import normalize_competing_hypotheses
 from .runtime_projection_handler import write_topic_skill_projection
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
@@ -622,6 +628,7 @@ def render_topic_dashboard_markdown(
     promotion_readiness: dict[str, Any],
     open_gap_summary: dict[str, Any],
     strategy_memory: dict[str, Any],
+    statement_compilation: dict[str, Any],
     topic_skill_projection: dict[str, Any],
     topic_completion: dict[str, Any],
     lean_bridge: dict[str, Any],
@@ -637,6 +644,7 @@ def render_topic_dashboard_markdown(
     research_taste = topic_status_explainability.get("research_taste") or {}
     scratchpad = topic_status_explainability.get("scratchpad") or {}
     blocker_summary = runtime_focus.get("blocker_summary") or topic_status_explainability.get("blocker_summary") or []
+    l1_source_intake = research_contract.get("l1_source_intake") or {}
     lines = [
         "# Topic dashboard",
         "",
@@ -670,6 +678,7 @@ def render_topic_dashboard_markdown(
         f"- Gap status: `{open_gap_summary.get('status') or '(missing)'}`",
         f"- Dependencies: `{runtime_focus.get('dependency_status') or dependency_state.get('status') or '(missing)'}`",
         f"- Topic completion: `{topic_completion.get('status') or '(missing)'}`",
+        f"- Statement compilation: `{statement_compilation.get('status') or '(missing)'}`",
         f"- Lean bridge: `{lean_bridge.get('status') or '(missing)'}`",
         "",
         "## Dependencies",
@@ -738,6 +747,22 @@ def render_topic_dashboard_markdown(
         "",
         source_intelligence.get("summary") or "(missing)",
         "",
+        "## L1 intake honesty",
+        "",
+    ]
+    for item in l1_assumption_depth_summary_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {item}")
+    lines.extend(["", "### Reading-depth limits", ""])
+    for item in l1_reading_depth_limit_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {item}")
+    lines.extend(["", "### Contradiction candidates", ""])
+    for item in l1_contradiction_summary_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {item}")
+    lines.extend(["", "### Notation-alignment tension", ""])
+    for item in l1_notation_tension_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {item}")
+    lines.extend([
+        "",
         "## Validation review bundle",
         "",
         f"- Status: `{validation_review_bundle.get('status') or '(missing)'}`",
@@ -748,7 +773,7 @@ def render_topic_dashboard_markdown(
         "",
         "## Blocker summary",
         "",
-    ]
+    ])
     for item in blocker_summary or ["(none)"]:
         lines.append(f"- {item}")
     lines.extend([
@@ -783,6 +808,10 @@ def render_topic_dashboard_markdown(
         "## Topic completion summary",
         "",
         topic_completion.get("summary") or "(missing)",
+        "",
+        "## Statement compilation summary",
+        "",
+        statement_compilation.get("summary") or "(missing)",
         "",
         "## Lean bridge summary",
         "",
@@ -1030,6 +1059,12 @@ def ensure_topic_shell_surfaces(
         refresh_runtime_bundle=False,
     )
     dependency_state = self._topic_dependency_state(topic_slug)
+    statement_compilation = self.prepare_statement_compilation(
+        topic_slug=topic_slug,
+        run_id=latest_run_id or None,
+        updated_by=updated_by,
+        refresh_runtime_bundle=False,
+    )
     lean_bridge = self.prepare_lean_bridge(
         topic_slug=topic_slug,
         run_id=latest_run_id or None,
@@ -1210,6 +1245,10 @@ def ensure_topic_shell_surfaces(
             )
             + l1_open_ambiguity_lines(l1_source_intake),
         ),
+        "competing_hypotheses": normalize_competing_hypotheses(
+            existing_research.get("competing_hypotheses") or [],
+            topic_slug=topic_slug,
+        ),
         "formalism_and_notation": self._coalesce_list(
             existing_research.get("formalism_and_notation"),
             [
@@ -1243,12 +1282,30 @@ def ensure_topic_shell_surfaces(
             ["L1", "L3", "L4", "L2"],
         ),
     }
+    l1_vault = materialize_l1_vault(
+        kernel_root=self.kernel_root,
+        topic_slug=topic_slug,
+        title=title,
+        research_contract=research_contract,
+        source_rows=source_rows,
+        source_intelligence=source_intelligence_surface,
+        research_contract_json_path=research_paths["json"],
+        research_contract_note_path=research_paths["note"],
+        control_note_path=self._control_note_path(topic_slug),
+        operator_console_path=runtime_root / "operator_console.md",
+        topic_dashboard_path=dashboard_path,
+        updated_by=updated_by,
+        relativize=self._relativize,
+    )
+    research_contract["l1_vault"] = l1_vault["payload"]
 
     artifact_defaults = [
         self._relativize(runtime_root / "runtime_protocol.generated.md"),
         self._relativize(runtime_root / "action_queue.jsonl"),
         self._relativize(research_paths["note"]),
         self._relativize(dashboard_path),
+        self._relativize(Path(l1_vault["path"])),
+        self._relativize(Path(l1_vault["note_path"])),
     ]
     if (runtime_root / "conformance_report.md").exists():
         artifact_defaults.append(self._relativize(runtime_root / "conformance_report.md"))
@@ -1506,6 +1563,7 @@ def ensure_topic_shell_surfaces(
         open_gap_summary=open_gap_summary,
         gap_map_path=gap_map_path,
         strategy_memory=strategy_memory,
+        statement_compilation=statement_compilation,
         topic_skill_projection=topic_skill_projection_surface,
         topic_completion=topic_completion,
         lean_bridge=lean_bridge,
@@ -1514,6 +1572,19 @@ def ensure_topic_shell_surfaces(
     return {
         "research_question_contract_path": str(research_paths["json"]),
         "research_question_contract_note_path": str(research_paths["note"]),
+        "l1_vault_path": str(l1_vault["path"]),
+        "l1_vault_note_path": str(l1_vault["note_path"]),
+        "l1_vault_raw_manifest_path": str(l1_vault["raw_manifest_path"]),
+        "l1_vault_raw_manifest_note_path": str(l1_vault["raw_manifest_note_path"]),
+        "l1_vault_wiki_home_path": str(l1_vault["wiki_home_path"]),
+        "l1_vault_wiki_schema_path": str(l1_vault["wiki_schema_path"]),
+        "l1_vault_wiki_source_intake_path": str(l1_vault["wiki_source_intake_path"]),
+        "l1_vault_wiki_open_questions_path": str(l1_vault["wiki_open_questions_path"]),
+        "l1_vault_wiki_runtime_bridge_path": str(l1_vault["wiki_runtime_bridge_path"]),
+        "l1_vault_output_digest_path": str(l1_vault["output_digest_path"]),
+        "l1_vault_output_digest_note_path": str(l1_vault["output_digest_note_path"]),
+        "l1_vault_flowback_log_path": str(l1_vault["flowback_log_path"]),
+        "l1_vault_flowback_note_path": str(l1_vault["flowback_note_path"]),
         "validation_contract_path": str(validation_paths["json"]),
         "validation_contract_note_path": str(validation_paths["note"]),
         "validation_review_bundle_path": str(validation_review_bundle_paths["json"]),
@@ -1546,6 +1617,8 @@ def ensure_topic_shell_surfaces(
         "gap_map_path": str(gap_map_path),
         "topic_completion_path": topic_completion["topic_completion_path"],
         "topic_completion_note_path": topic_completion["topic_completion_note_path"],
+        "statement_compilation_path": statement_compilation["statement_compilation_path"],
+        "statement_compilation_note_path": statement_compilation["statement_compilation_note_path"],
         "lean_bridge_path": lean_bridge["lean_bridge_path"],
         "lean_bridge_note_path": lean_bridge["lean_bridge_note_path"],
         "followup_reintegration_path": followup_reintegration_paths["followup_reintegration_path"],
@@ -1553,6 +1626,7 @@ def ensure_topic_shell_surfaces(
         "followup_gap_writeback_path": followup_gap_writeback_paths["followup_gap_writeback_path"],
         "followup_gap_writeback_note_path": followup_gap_writeback_paths["followup_gap_writeback_note_path"],
         "research_question_contract": research_contract,
+        "l1_vault": l1_vault["payload"],
         "source_intelligence": source_intelligence_surface,
         "validation_contract": validation_contract,
         "validation_review_bundle": {
@@ -1574,6 +1648,7 @@ def ensure_topic_shell_surfaces(
         "open_gap_summary": open_gap_summary,
         "dependency_state": dependency_state,
         "strategy_memory": strategy_memory,
+        "statement_compilation": statement_compilation,
         "topic_skill_projection": topic_skill_projection_surface,
         "topic_skill_projection_candidate": topic_skill_projection_candidate,
         "topic_completion": topic_completion,

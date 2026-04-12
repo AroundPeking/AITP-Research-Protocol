@@ -161,8 +161,124 @@
         }
       }
     },
+    "l1_vault": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vault_version",
+        "status",
+        "topic_slug",
+        "authority_level",
+        "protocol_path",
+        "root_path",
+        "raw",
+        "wiki",
+        "output",
+        "compatibility_refs"
+      ],
+      "properties": {
+        "vault_version": { "type": "integer", "const": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "topic_slug": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "authority_level": { "type": "string", "minLength": 1 },
+        "protocol_path": { "type": "string", "minLength": 1 },
+        "root_path": { "type": "string", "minLength": 1 },
+        "raw": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["manifest_path", "note_path", "source_count"],
+          "properties": {
+            "manifest_path": { "type": "string", "minLength": 1 },
+            "note_path": { "type": "string", "minLength": 1 },
+            "source_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "wiki": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schema_path", "home_page_path", "page_count", "page_paths"],
+          "properties": {
+            "schema_path": { "type": "string", "minLength": 1 },
+            "home_page_path": { "type": "string", "minLength": 1 },
+            "page_count": { "type": "integer", "minimum": 0 },
+            "page_paths": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["digest_path", "digest_note_path", "flowback_log_path", "flowback_note_path", "flowback_entry_count"],
+          "properties": {
+            "digest_path": { "type": "string", "minLength": 1 },
+            "digest_note_path": { "type": "string", "minLength": 1 },
+            "flowback_log_path": { "type": "string", "minLength": 1 },
+            "flowback_note_path": { "type": "string", "minLength": 1 },
+            "flowback_entry_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "compatibility_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "path", "status"],
+            "properties": {
+              "kind": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "status": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "updated_by": { "type": "string" }
+      }
+    },
     "interpretation_focus": { "type": "array", "items": { "type": "string" } },
     "open_ambiguities": { "type": "array", "items": { "type": "string" } },
+    "competing_hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hypothesis_id",
+          "label",
+          "status",
+          "summary",
+          "route_kind",
+          "route_target_summary",
+          "route_target_ref",
+          "evidence_refs",
+          "evidence_ref_count",
+          "exclusion_notes"
+        ],
+        "properties": {
+          "hypothesis_id": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["leading", "active", "watch", "excluded"]
+          },
+          "summary": { "type": "string", "minLength": 1 },
+          "route_kind": {
+            "type": "string",
+            "enum": ["current_topic", "deferred_buffer", "followup_subtopic", "excluded"]
+          },
+          "route_target_summary": { "type": "string", "minLength": 1 },
+          "route_target_ref": { "type": "string" },
+          "evidence_refs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "evidence_ref_count": { "type": "integer", "minimum": 0 },
+          "exclusion_notes": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
     "formalism_and_notation": { "type": "array", "items": { "type": "string" } },
     "observables": { "type": "array", "items": { "type": "string" } },
     "target_claims": { "type": "array", "items": { "type": "string" } },
