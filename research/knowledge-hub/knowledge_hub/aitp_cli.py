@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 from ._version import __version__
 from .aitp_service import AITPService
-from .cli_compat_handler import dispatch_compat_command, emit_payload, register_compat_commands
+from .cli_compat_handler import (
+    dispatch_compat_command,
+    emit_payload,
+    render_cli_help,
+    register_compat_commands,
+    render_hello_payload,
+    render_topic_next_payload,
+    render_topic_status_payload,
+)
 from .cli_frontdoor_handler import dispatch_frontdoor_command, register_frontdoor_commands
 from .cli_review_handler import dispatch_review_command, register_review_commands
 from .decision_point_handler import (
@@ -19,6 +28,7 @@ from .decision_point_handler import (
 from .decision_trace_handler import record_decision_trace
 from .session_chronicle_handler import finalize_chronicle, get_latest_chronicle, start_chronicle
 from .topic_replay import materialize_topic_replay_bundle
+from .cli_l1_graph_handler import dispatch_l1_graph_command, register_l1_graph_commands
 from .cli_l2_graph_handler import dispatch_l2_graph_command, register_l2_graph_commands
 from .cli_l2_compiler_handler import dispatch_l2_compiler_command, register_l2_compiler_commands
 from .cli_source_catalog_handler import dispatch_source_catalog_command, register_source_catalog_commands
@@ -26,6 +36,22 @@ from .cli_source_catalog_handler import dispatch_source_catalog_command, registe
 
 def _emit(payload: dict[str, Any], as_json: bool) -> None:
     emit_payload(payload, as_json)
+
+
+def _emit_text(text: str) -> None:
+    print(str(text or "").rstrip())
+
+
+def _read_relative_human_surface(service: AITPService, relative_path: str) -> str | None:
+    target = str(relative_path or "").strip()
+    if not target:
+        return None
+    candidate = Path(target)
+    if not candidate.is_absolute():
+        candidate = service.kernel_root / candidate
+    if not candidate.exists():
+        return None
+    return candidate.read_text(encoding="utf-8")
 
 
 def _parse_notation_binding(value: str) -> dict[str, str]:
@@ -144,6 +170,18 @@ def build_parser() -> argparse.ArgumentParser:
     new_topic.add_argument("--skill-query", action="append", default=[])
     new_topic.add_argument("--human-request")
     new_topic.add_argument("--json", action="store_true")
+
+    hello = subparsers.add_parser("hello", help="Run the first AITP onboarding step for one demo topic")
+    hello.add_argument("--topic", default="Demo topic")
+    hello.add_argument("--question", default="What is the first bounded question?")
+    hello.add_argument("--mode", choices=["formal_theory", "toy_numeric", "code_method"], default="formal_theory")
+    hello.add_argument("--updated-by", default="aitp-cli")
+    hello.add_argument("--arxiv-id", action="append", default=[])
+    hello.add_argument("--local-note-path", action="append", default=[])
+    hello.add_argument("--json", action="store_true")
+
+    help_cmd = subparsers.add_parser("help", help="Show the human-oriented AITP command guide")
+    help_cmd.add_argument("--all", action="store_true")
 
     resume = subparsers.add_parser("resume", help="Resume an existing AITP topic")
     resume.add_argument("--topic-slug", required=True)
@@ -271,7 +309,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Persist an innovation-direction update and paired control note before resuming the topic",
     )
     steer_topic.add_argument("--topic-slug", required=True)
-    steer_topic.add_argument("--innovation-direction", required=True)
+    steer_input = steer_topic.add_mutually_exclusive_group(required=True)
+    steer_input.add_argument("--innovation-direction")
+    steer_input.add_argument("--text")
     steer_topic.add_argument("--decision", choices=["continue", "branch", "redirect", "stop"], default="continue")
     steer_topic.add_argument("--run-id")
     steer_topic.add_argument("--updated-by", default="aitp-cli")
@@ -285,6 +325,7 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status", help="Show topic shell status and active research contract")
     status.add_argument("--topic-slug", required=True)
     status.add_argument("--updated-by", default="aitp-cli")
+    status.add_argument("--full", action="store_true")
     status.add_argument("--json", action="store_true")
 
     layer_graph = subparsers.add_parser(
@@ -404,6 +445,7 @@ def build_parser() -> argparse.ArgumentParser:
     replay_topic.add_argument("--json", action="store_true")
 
     register_l2_graph_commands(subparsers)
+    register_l1_graph_commands(subparsers)
     register_source_catalog_commands(subparsers)
 
     focus_topic = subparsers.add_parser("focus-topic", help="Move registry focus to a specific topic")
@@ -596,6 +638,15 @@ def _service_from_args(args: argparse.Namespace) -> AITPService:
     return AITPService(**kwargs)
 
 
+def _emit_cli_error(args: argparse.Namespace, message: str) -> int:
+    cleaned = str(message or "").rstrip()
+    if getattr(args, "json", False):
+        _emit({"status": "error", "error": cleaned}, True)
+    else:
+        print(cleaned, file=sys.stderr)
+    return 1
+
+
 def _run_phase6_command(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int | None:
     kernel_root = args.kernel_root if getattr(args, "kernel_root", None) else None
 
@@ -705,6 +756,16 @@ def _run_phase6_command(args: argparse.Namespace, parser: argparse.ArgumentParse
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    try:
+        return _main_with_args(parser, args)
+    except (RuntimeError, FileNotFoundError, ValueError) as exc:
+        return _emit_cli_error(args, str(exc))
+
+
+def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    if args.command == "help":
+        _emit_text(render_cli_help(parser, show_all=args.all))
+        return 0
     phase6_exit = _run_phase6_command(args, parser)
     if phase6_exit is not None:
         return phase6_exit
@@ -746,6 +807,21 @@ def main() -> int:
             human_request=args.human_request,
         )
         _emit(payload, args.json)
+        return 0
+
+    if args.command == "hello":
+        payload = service.hello_topic(
+            topic=args.topic,
+            question=args.question,
+            mode=args.mode,
+            updated_by=args.updated_by,
+            arxiv_ids=args.arxiv_id,
+            local_note_paths=args.local_note_path,
+        )
+        if args.json:
+            _emit(payload, True)
+        else:
+            _emit_text(render_hello_payload(payload))
         return 0
 
     if args.command == "resume":
@@ -917,18 +993,28 @@ def main() -> int:
         return 0 if exit_state.get("overall_status") == "pass" else 1
 
     if args.command == "steer-topic":
-        payload = service.steer_topic(
-            topic_slug=args.topic_slug,
-            innovation_direction=args.innovation_direction,
-            decision=args.decision,
-            run_id=args.run_id,
-            updated_by=args.updated_by,
-            summary=args.summary,
-            next_question=args.next_question,
-            target_action_id=args.target_action_id,
-            target_action_summary=args.target_action_summary,
-            human_request=args.human_request,
-        )
+        if args.text:
+            payload = service.steer_topic_from_text(
+                topic_slug=args.topic_slug,
+                text=args.text,
+                run_id=args.run_id,
+                updated_by=args.updated_by,
+                topic_state=None,
+                control_note=None,
+            )
+        else:
+            payload = service.steer_topic(
+                topic_slug=args.topic_slug,
+                innovation_direction=args.innovation_direction,
+                decision=args.decision,
+                run_id=args.run_id,
+                updated_by=args.updated_by,
+                summary=args.summary,
+                next_question=args.next_question,
+                target_action_id=args.target_action_id,
+                target_action_summary=args.target_action_summary,
+                human_request=args.human_request,
+            )
         _emit(payload, args.json)
         return 0
 
@@ -937,7 +1023,17 @@ def main() -> int:
             topic_slug=args.topic_slug,
             updated_by=args.updated_by,
         )
-        _emit(payload, args.json)
+        if args.json:
+            _emit(payload, True)
+        elif args.full:
+            dashboard_path = str((((payload.get("primary_runtime_surfaces") or {}).get("primary") or {}).get("runtime_human")) or "").strip()
+            rendered = _read_relative_human_surface(service, dashboard_path)
+            if rendered is None:
+                _emit_text(render_topic_status_payload(payload))
+            else:
+                _emit_text(rendered)
+        else:
+            _emit_text(render_topic_status_payload(payload))
         return 0
 
     if args.command == "layer-graph":
@@ -953,7 +1049,10 @@ def main() -> int:
             topic_slug=args.topic_slug,
             updated_by=args.updated_by,
         )
-        _emit(payload, args.json)
+        if args.json:
+            _emit(payload, True)
+        else:
+            _emit_text(render_topic_next_payload(payload))
         return 0
 
     if args.command == "work":
@@ -1064,6 +1163,11 @@ def main() -> int:
     if args.command == "replay-topic":
         payload = materialize_topic_replay_bundle(service.kernel_root, args.topic_slug)
         _emit(payload, args.json)
+        return 0
+
+    l1_graph_payload = dispatch_l1_graph_command(args, service)
+    if l1_graph_payload is not None:
+        _emit(l1_graph_payload, args.json)
         return 0
 
     l2_graph_payload = dispatch_l2_graph_command(args, service)

@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from .obsidian_graph_export import materialize_obsidian_concept_graph_export
+
 
 def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -130,6 +132,7 @@ def _render_wiki_schema_markdown(
     *,
     topic_slug: str,
     protocol_path: str,
+    concept_graph_index_path: str,
     updated_at: str,
     updated_by: str,
 ) -> str:
@@ -160,11 +163,13 @@ def _render_wiki_schema_markdown(
                 "- `source-intake.md` -> assumptions, regimes, reading depth, and method specificity",
                 "- `open-questions.md` -> ambiguity and uncertainty page",
                 "- `runtime-bridge.md` -> compatibility/runtime bridge page",
+                f"- `{concept_graph_index_path}` -> concept-graph index page plus community folders of node notes",
                 "",
                 "## Link rules",
                 "",
                 f"- Use {_wiki_link('home', 'Home')} as the local root page.",
                 f"- Link sibling wiki pages with wikilinks such as {_wiki_link('source-intake', 'Source Intake')}.",
+                f"- Link concept-graph notes with wikilinks such as {_wiki_link('concept-graph/index', 'Concept Graph')}.",
                 "- Link output and runtime files with explicit relative paths when they live outside `wiki/`.",
                 "",
                 "## Flowback rule",
@@ -185,6 +190,7 @@ def _render_wiki_home_markdown(
     status: str,
     research_mode: str,
     source_count: int,
+    concept_graph_index_path: str,
     output_digest_note_path: str,
     flowback_note_path: str,
     updated_at: str,
@@ -209,6 +215,7 @@ def _render_wiki_home_markdown(
                 f"- {_wiki_link('source-intake', 'Source Intake')}",
                 f"- {_wiki_link('open-questions', 'Open Questions')}",
                 f"- {_wiki_link('runtime-bridge', 'Runtime Bridge')}",
+                f"- Concept Graph: `{concept_graph_index_path}`",
                 f"- Output digest: `{output_digest_note_path}`",
                 f"- Flowback log: `{flowback_note_path}`",
                 "",
@@ -280,6 +287,18 @@ def _render_source_intake_markdown(
             )
         else:
             lines.append(f"- {row}")
+    lines.extend(["", "## Concept graph", ""])
+    concept_graph = l1_source_intake.get("concept_graph") or {}
+    lines.append(
+        f"- nodes=`{len(concept_graph.get('nodes') or [])}` edges=`{len(concept_graph.get('edges') or [])}` "
+        f"hyperedges=`{len(concept_graph.get('hyperedges') or [])}` communities=`{len(concept_graph.get('communities') or [])}` "
+        f"god-nodes=`{len(concept_graph.get('god_nodes') or [])}`"
+    )
+    for row in (concept_graph.get("god_nodes") or [])[:4]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('source_id') or '(missing)'}` foundation: {row.get('label') or row.get('node_id') or '(missing)'}"
+            )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -476,6 +495,15 @@ def materialize_l1_vault(
     flowback_note_path = output_root / "flowback.md"
     manifest_json_path = vault_root / "vault_manifest.json"
     manifest_note_path = vault_root / "vault_manifest.md"
+    concept_graph_export = materialize_obsidian_concept_graph_export(
+        kernel_root=kernel_root,
+        topic_slug=topic_slug,
+        source_rows=source_rows,
+        l1_source_intake=research_contract.get("l1_source_intake") or {},
+        updated_by=updated_by,
+        relativize=relativize,
+    )
+    concept_graph_export_payload = concept_graph_export["payload"]
 
     raw_sources = _build_raw_sources(
         kernel_root=kernel_root,
@@ -601,6 +629,7 @@ def materialize_l1_vault(
         _render_wiki_schema_markdown(
             topic_slug=topic_slug,
             protocol_path=protocol_path,
+            concept_graph_index_path=str(concept_graph_export_payload.get("index_path") or "concept-graph/index.md"),
             updated_at=updated_at,
             updated_by=updated_by,
         ),
@@ -614,6 +643,7 @@ def materialize_l1_vault(
             status=str(research_contract.get("status") or "").strip(),
             research_mode=str(research_contract.get("research_mode") or "").strip(),
             source_count=int(((research_contract.get("l1_source_intake") or {}).get("source_count")) or 0),
+            concept_graph_index_path=str(concept_graph_export_payload.get("index_path") or "concept-graph/index.md"),
             output_digest_note_path="../output/current-query.md",
             flowback_note_path="../output/flowback.md",
             updated_at=updated_at,
@@ -666,13 +696,17 @@ def materialize_l1_vault(
         "wiki": {
             "schema_path": relativize(wiki_schema_path),
             "home_page_path": relativize(wiki_home_path),
-            "page_count": 4,
+            "page_count": 4 + int((concept_graph_export_payload.get("summary") or {}).get("page_count") or 0),
             "page_paths": [
                 relativize(wiki_home_path),
                 relativize(wiki_source_intake_path),
                 relativize(wiki_open_questions_path),
                 relativize(wiki_runtime_bridge_path),
+                str(concept_graph_export_payload.get("index_path") or ""),
+                *list(concept_graph_export_payload.get("community_page_paths") or []),
+                *list(concept_graph_export_payload.get("note_paths") or []),
             ],
+            "concept_graph_export": concept_graph_export_payload,
         },
         "output": {
             "digest_path": relativize(output_digest_path),

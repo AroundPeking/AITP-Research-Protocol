@@ -9,7 +9,8 @@ description: Use after AITP routing has claimed the task; continue theory work t
 
 - Confirm the task already belongs inside AITP.
 - If bootstrap already ran, continue from the generated runtime bundle.
-- If bootstrap did not run, use `aitp session-start "<task>"` to materialize routing and then return here.
+- If bootstrap did not run, use `aitp session-start "<original user request>"` to materialize routing and then return here.
+- Do not replace the original user request with a bare title or a compressed paraphrase when using that fallback.
 
 ## Workflow
 
@@ -36,6 +37,10 @@ description: Use after AITP routing has claimed the task; continue theory work t
 14. Use `aitp request-promotion ...` plus explicit approval for human-reviewed `L2`.
 15. Use `aitp coverage-audit ...` before `aitp auto-promote ...` for theory-formal `L2_auto`.
 16. Close bounded work with `aitp audit --topic-slug <topic_slug> --phase exit`.
+17. report the current human-control posture in plain language before deeper work.
+18. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
+19. If iterative verify is active, keep the L3-L4 loop moving until success, a real blocker, or a real human checkpoint appears.
+20. If bootstrap tooling fails, recover by rerunning the canonical CLI front door; do not hand-edit runtime artifacts or source-layer records just to simulate progress.
 
 ## Conversation style rules
 

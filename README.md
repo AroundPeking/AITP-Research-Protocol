@@ -174,6 +174,11 @@ Useful follow-up reads:
 - `aitp capability-audit --topic-slug <topic_slug>`
 - `aitp paired-backend-audit --topic-slug <topic_slug>`
 - `aitp h-plane-audit --topic-slug <topic_slug>`
+- `aitp compile-source-catalog`
+- `aitp trace-source-citations --canonical-source-id <canonical_source_id>`
+- `aitp compile-source-family --source-type paper`
+- `aitp export-source-bibtex --canonical-source-id <canonical_source_id>`
+- `aitp import-bibtex-sources --topic-slug <topic_slug> --bibtex-path <path-to-bib-file>`
 
 ### 3. Lightweight idea-first exploration
 
@@ -263,6 +268,13 @@ Parity target: Claude Code and OpenCode.
 Specialized lane: OpenClaw.
 `aitp doctor` reports front-door readiness only. Deep-execution parity is a
 separate surface.
+Across Codex, Claude Code, and OpenCode, the front door now publishes the same
+plain-language human-control posture and autonomous-continuation posture in
+`session_start.generated.md` and `runtime_protocol.generated.md`.
+When no real checkpoint is active, AITP should continue bounded work without
+ritual reconfirmation; in `verify + iterative_verify`, the bounded L3-L4 loop
+is allowed to keep cycling until success, a real blocker, or a real human
+checkpoint appears.
 The current bounded parity probes are available for Claude Code and OpenCode
 via `python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py --runtime <runtime> --json`.
 The cross-runtime closure report is available via
@@ -271,6 +283,12 @@ The bounded L1 raw/wiki/output vault acceptance is available via
 `python research/knowledge-hub/runtime/scripts/run_l1_vault_acceptance.py --json`.
 The bounded L1 assumption/reading-depth acceptance is available via
 `python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json`.
+The bounded L1 method-specificity acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_l1_method_specificity_acceptance.py --json`.
+The bounded L1 concept-graph intake acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_l1_concept_graph_acceptance.py --json`.
+The bounded Layer 0 source-catalog acceptance is available via
+`python research/knowledge-hub/runtime/scripts/run_source_catalog_acceptance.py --json`.
 The bounded runtime transition/demotion acceptance is available via
 `python research/knowledge-hub/runtime/scripts/run_transition_history_acceptance.py --json`.
 The bounded promotion-gate human-modification acceptance is available via

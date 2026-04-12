@@ -110,7 +110,14 @@ def load_staging_entries(kernel_root: Path) -> list[dict[str, Any]]:
     for path in sorted(root.glob("*.json")):
         payload = read_json(path)
         if isinstance(payload, dict):
-            rows.append(payload)
+            row = dict(payload)
+            row.setdefault("path", _rel(path, kernel_root))
+            row.setdefault("entry_kind", str(row.get("candidate_unit_type") or "unknown"))
+            row.setdefault(
+                "authoritative",
+                bool(row.get("authoritative")) if "authoritative" in row else str(row.get("trust_surface") or "") != "staging",
+            )
+            rows.append(row)
     return rows
 
 

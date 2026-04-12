@@ -62,9 +62,61 @@ class RuntimeScriptTests(unittest.TestCase):
             "aitp_l0_source_discovery_acceptance_test",
             "runtime/scripts/run_l0_source_discovery_acceptance.py",
         )
+        self.l0_source_enrichment_acceptance = _load_module(
+            "aitp_l0_source_enrichment_acceptance_test",
+            "runtime/scripts/run_l0_source_enrichment_acceptance.py",
+        )
+        self.l0_source_concept_graph_acceptance = _load_module(
+            "aitp_l0_source_concept_graph_acceptance_test",
+            "runtime/scripts/run_l0_source_concept_graph_acceptance.py",
+        )
+        self.l1_concept_graph_acceptance = _load_module(
+            "aitp_l1_concept_graph_acceptance_test",
+            "runtime/scripts/run_l1_concept_graph_acceptance.py",
+        )
         self.l1_assumption_depth_acceptance = _load_module(
             "aitp_l1_assumption_depth_acceptance_test",
             "runtime/scripts/run_l1_assumption_depth_acceptance.py",
+        )
+        self.l1_progressive_reading_acceptance = _load_module(
+            "aitp_l1_progressive_reading_acceptance_test",
+            "runtime/scripts/run_l1_progressive_reading_acceptance.py",
+        )
+        self.l1_graph_analysis_staging_acceptance = _load_module(
+            "aitp_l1_graph_analysis_staging_acceptance_test",
+            "runtime/scripts/run_l1_graph_analysis_staging_acceptance.py",
+        )
+        self.l1_graph_diff_runtime_acceptance = _load_module(
+            "aitp_l1_graph_diff_runtime_acceptance_test",
+            "runtime/scripts/run_l1_graph_diff_runtime_acceptance.py",
+        )
+        self.l1_graph_diff_staging_acceptance = _load_module(
+            "aitp_l1_graph_diff_staging_acceptance_test",
+            "runtime/scripts/run_l1_graph_diff_staging_acceptance.py",
+        )
+        self.l1_graph_community_bridge_acceptance = _load_module(
+            "aitp_l1_graph_community_bridge_acceptance_test",
+            "runtime/scripts/run_l1_graph_community_bridge_acceptance.py",
+        )
+        self.l1_graph_hyperedge_pattern_acceptance = _load_module(
+            "aitp_l1_graph_hyperedge_pattern_acceptance_test",
+            "runtime/scripts/run_l1_graph_hyperedge_pattern_acceptance.py",
+        )
+        self.l1_graph_obsidian_export_acceptance = _load_module(
+            "aitp_l1_graph_obsidian_export_acceptance_test",
+            "runtime/scripts/run_l1_graph_obsidian_export_acceptance.py",
+        )
+        self.l1_graph_obsidian_multicommunity_acceptance = _load_module(
+            "aitp_l1_graph_obsidian_multicommunity_acceptance_test",
+            "runtime/scripts/run_l1_graph_obsidian_multicommunity_acceptance.py",
+        )
+        self.l1_graph_obsidian_brain_bridge_acceptance = _load_module(
+            "aitp_l1_graph_obsidian_brain_bridge_acceptance_test",
+            "runtime/scripts/run_l1_graph_obsidian_brain_bridge_acceptance.py",
+        )
+        self.mode_enforcement_acceptance = _load_module(
+            "aitp_mode_enforcement_acceptance_test",
+            "runtime/scripts/run_mode_enforcement_acceptance.py",
         )
         self.transition_history_acceptance = _load_module(
             "aitp_transition_history_acceptance_test",
@@ -543,6 +595,57 @@ class RuntimeScriptTests(unittest.TestCase):
 
         self.assertEqual(queue[0]["action_type"], "skill_discovery")
 
+    def test_materialize_action_queue_appends_literature_intake_stage_in_literature_submode(self) -> None:
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            {
+                "runtime_mode": "explore",
+                "active_submode": "literature",
+                "transition_posture": {
+                    "transition_kind": "boundary_hold",
+                    "triggered_by": [],
+                },
+                "active_research_contract": {
+                    "l1_source_intake": {
+                        "source_count": 1,
+                        "method_specificity_rows": [
+                            {
+                                "source_id": "paper:weak-coupling",
+                                "source_title": "Weak coupling closure",
+                                "source_type": "paper",
+                                "method_family": "formal_derivation",
+                                "specificity_tier": "high",
+                                "reading_depth": "full_read",
+                                "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                            }
+                        ],
+                        "contradiction_candidates": [],
+                    }
+                },
+            },
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "pending_actions": [
+                    "Continue a bounded manual literature follow-up.",
+                ],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertEqual(queue[0]["action_type"], "literature_intake_stage")
+        self.assertEqual(queue[0]["queue_source"], "runtime_appended")
+        self.assertTrue(queue[0]["auto_runnable"])
+
     def test_materialize_action_queue_prefers_promotion_review_in_promote_mode(self) -> None:
         self._write_json(
             "runtime/topics/demo-topic/runtime_protocol.generated.json",
@@ -995,6 +1098,67 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertEqual(unfinished["queue_head_action_id"], "action:demo:2")
         self.assertEqual(decision["selected_action"]["action_id"], "action:demo:2")
         self.assertEqual(decision["decision_basis"], "runtime_contract_preferred:skill_discovery")
+
+    def test_decide_next_action_prefers_literature_intake_stage_in_literature_submode(self) -> None:
+        topic_runtime_root = self.knowledge_root / "runtime" / "topics" / "demo-topic"
+        topic_runtime_root.mkdir(parents=True, exist_ok=True)
+        (topic_runtime_root / "runtime_protocol.generated.json").write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": "literature",
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        topic_state = {
+            "topic_slug": "demo-topic",
+            "resume_stage": "L1",
+            "latest_run_id": "2026-03-13-demo",
+        }
+        queue_rows = [
+            {
+                "action_id": "action:demo:1",
+                "action_type": "manual_followup",
+                "summary": "Keep a manual follow-up open.",
+                "status": "pending",
+                "auto_runnable": False,
+            },
+            {
+                "action_id": "action:demo:2",
+                "action_type": "literature_intake_stage",
+                "summary": "Stage bounded literature-intake units from the current L1 vault into L2 staging.",
+                "status": "pending",
+                "auto_runnable": True,
+            },
+        ]
+        control_note = {"status": "missing", "directive": None, "allow_override_decision_contract": False}
+        runtime_contract = self.decide_next_action.load_runtime_contract(topic_runtime_root)
+
+        unfinished = self.decide_next_action.build_unfinished_work(
+            topic_state,
+            queue_rows,
+            control_note,
+            runtime_contract,
+        )
+        decision = self.decide_next_action.build_next_action_decision(
+            topic_state,
+            queue_rows,
+            control_note,
+            runtime_contract,
+        )
+
+        self.assertEqual(unfinished["queue_head_action_id"], "action:demo:2")
+        self.assertEqual(decision["selected_action"]["action_id"], "action:demo:2")
+        self.assertEqual(decision["decision_basis"], "runtime_contract_preferred:literature_intake_stage")
 
     def test_decide_next_action_prefers_promotion_review_in_promote_mode(self) -> None:
         topic_runtime_root = self.knowledge_root / "runtime" / "topics" / "demo-topic"
@@ -1570,6 +1734,62 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "discoveries").exists())
         self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
         self.assertTrue((work_root / "kernel" / "source-layer" / "global_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "sources").exists())
+
+    def test_l0_source_enrichment_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l0-source-enrichment-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l0_source_enrichment_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l0_source_enrichment_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "sources").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "sources").exists())
+
+    def test_l0_source_concept_graph_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l0-source-concept-graph-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l0_source_concept_graph_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l0_source_concept_graph_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "sources").exists())
+
+    def test_l1_concept_graph_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-concept-graph-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_concept_graph_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_concept_graph_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
 
     def test_l1_assumption_depth_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "l1-assumption-depth-acceptance"
@@ -1589,6 +1809,195 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
         self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_dashboard.md").exists())
         self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_l1_progressive_reading_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-progressive-reading-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_progressive_reading_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_progressive_reading_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_l1_graph_analysis_staging_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-analysis-staging-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_analysis_staging_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_analysis_staging_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_l1_graph_diff_runtime_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-diff-runtime-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_diff_runtime_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_diff_runtime_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis_history.jsonl").exists())
+
+    def test_l1_graph_diff_staging_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-diff-staging-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_diff_staging_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_diff_staging_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis_history.jsonl").exists())
+
+    def test_l1_graph_community_bridge_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-community-bridge-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_community_bridge_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_community_bridge_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.md").exists())
+
+    def test_l1_graph_hyperedge_pattern_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-hyperedge-pattern-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_hyperedge_pattern_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_hyperedge_pattern_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.md").exists())
+
+    def test_l1_graph_obsidian_export_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-obsidian-export-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_obsidian_export_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_obsidian_export_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "index.md").exists())
+
+    def test_l1_graph_obsidian_multicommunity_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-obsidian-multicommunity-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_obsidian_multicommunity_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_obsidian_multicommunity_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "category-theory-cluster" / "index.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "topological-order-cluster" / "index.md").exists())
+
+    def test_l1_graph_obsidian_brain_bridge_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-obsidian-brain-bridge-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_obsidian_brain_bridge_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_obsidian_brain_bridge_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "brain" / "90 AITP Imports" / "concept-graphs" / "demo-topic" / "index.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "theoretical_physics_brain_sync.receipt.json").exists())
+
+    def test_mode_enforcement_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "mode-enforcement-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_mode_enforcement_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.mode_enforcement_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-discussion" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-explore" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-verify" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-promote" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
 
     def test_transition_history_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "transition-history-acceptance"

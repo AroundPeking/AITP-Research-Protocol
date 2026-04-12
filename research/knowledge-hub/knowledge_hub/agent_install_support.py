@@ -102,9 +102,21 @@ def install_opencode_mcp(
             user_root=Path.home() / ".config" / "opencode",
             project_root=service.repo_root / ".opencode",
         )
-        config_path = base / "AITP_MCP_CONFIG.json"
-        service._write_json_file(config_path, {"mcp": {"aitp": service._opencode_mcp_entry()}})
-        return [{"agent": "opencode", "path": str(config_path), "kind": "mcp-config"}]
+        sidecar_path = base / "AITP_MCP_CONFIG.json"
+        project_config_path = base / "opencode.json"
+        mcp_payload = {"mcp": {"aitp": service._opencode_mcp_entry()}}
+        service._write_json_file(sidecar_path, mcp_payload)
+        if project_config_path.exists():
+            project_payload = json.loads(project_config_path.read_text(encoding="utf-8"))
+        else:
+            project_payload = {"$schema": "https://opencode.ai/config.json"}
+        mcp_config = project_payload.setdefault("mcp", {})
+        mcp_config["aitp"] = service._opencode_mcp_entry()
+        service._write_json_file(project_config_path, project_payload)
+        return [
+            {"agent": "opencode", "path": str(sidecar_path), "kind": "mcp-config"},
+            {"agent": "opencode", "path": str(project_config_path), "kind": "mcp-config"},
+        ]
 
     if scope == "project":
         config_path = service.repo_root / ".opencode" / "opencode.json"

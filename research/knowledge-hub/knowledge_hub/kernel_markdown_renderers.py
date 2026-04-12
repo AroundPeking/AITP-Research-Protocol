@@ -4,6 +4,7 @@ from typing import Any
 
 from .l1_source_intake_support import (
     l1_assumption_depth_summary_lines,
+    l1_concept_graph_summary_lines,
     l1_contradiction_summary_lines,
     l1_notation_tension_lines,
     l1_reading_depth_limit_lines,
@@ -109,6 +110,9 @@ def _append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any])
         lines.append(f"- {row}")
     lines.extend(["", "## Notation-alignment tension", ""])
     for row in l1_notation_tension_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
+    lines.extend(["", "## Concept graph", ""])
+    for row in l1_concept_graph_summary_lines(l1_source_intake) or ["(none)"]:
         lines.append(f"- {row}")
 
 

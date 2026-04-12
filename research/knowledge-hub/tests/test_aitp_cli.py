@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 import sys
@@ -62,6 +62,18 @@ class AITPCLITests(unittest.TestCase):
         h_plane_args = parser.parse_args(["h-plane-audit", "--topic-slug", "demo-topic"])
         self.assertEqual(h_plane_args.command, "h-plane-audit")
 
+        bridge_args = parser.parse_args(
+            [
+                "sync-l1-graph-export-to-theoretical-physics-brain",
+                "--topic-slug",
+                "demo-topic",
+                "--target-root",
+                "D:/brain",
+            ]
+        )
+        self.assertEqual(bridge_args.command, "sync-l1-graph-export-to-theoretical-physics-brain")
+        self.assertEqual(bridge_args.target_root, "D:/brain")
+
     def test_topic_shell_commands_are_registered(self) -> None:
         parser = aitp_cli.build_parser()
 
@@ -79,8 +91,22 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(new_topic_args.command, "new-topic")
         self.assertEqual(new_topic_args.mode, "formal_theory")
 
+        hello_args = parser.parse_args(["hello"])
+        self.assertEqual(hello_args.command, "hello")
+        self.assertEqual(hello_args.topic, "Demo topic")
+
+        help_args = parser.parse_args(["help"])
+        self.assertEqual(help_args.command, "help")
+        self.assertFalse(help_args.all)
+
+        help_all_args = parser.parse_args(["help", "--all"])
+        self.assertEqual(help_all_args.command, "help")
+        self.assertTrue(help_all_args.all)
+
         status_args = parser.parse_args(["status", "--topic-slug", "demo-topic"])
         self.assertEqual(status_args.command, "status")
+        status_full_args = parser.parse_args(["status", "--topic-slug", "demo-topic", "--full"])
+        self.assertTrue(status_full_args.full)
 
         layer_graph_args = parser.parse_args(["layer-graph", "--topic-slug", "demo-topic"])
         self.assertEqual(layer_graph_args.command, "layer-graph")
@@ -101,6 +127,18 @@ class AITPCLITests(unittest.TestCase):
         )
         self.assertEqual(work_args.command, "work")
         self.assertEqual(work_args.max_auto_steps, 0)
+
+        steer_text_args = parser.parse_args(
+            [
+                "steer-topic",
+                "--topic-slug",
+                "demo-topic",
+                "--text",
+                "继续这个 topic，方向改成 modular bootstrap constraints",
+            ]
+        )
+        self.assertEqual(steer_text_args.command, "steer-topic")
+        self.assertEqual(steer_text_args.text, "继续这个 topic，方向改成 modular bootstrap constraints")
 
         verify_args = parser.parse_args(["verify", "--topic-slug", "demo-topic", "--mode", "proof"])
         self.assertEqual(verify_args.command, "verify")
@@ -853,6 +891,34 @@ class AITPCLITests(unittest.TestCase):
             updated_by="aitp-cli",
         )
 
+    def test_main_dispatches_sync_l1_graph_export_to_theoretical_physics_brain(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.sync_l1_graph_export_to_theoretical_physics_brain.return_value = {
+                "target_root": "D:/brain/90 AITP Imports/concept-graphs/demo-topic"
+            }
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "sync-l1-graph-export-to-theoretical-physics-brain",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--target-root",
+                    "D:/brain",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.sync_l1_graph_export_to_theoretical_physics_brain.assert_called_once_with(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+            target_root="D:/brain",
+        )
+
     def test_main_dispatches_audit_l2_hygiene(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
@@ -1012,6 +1078,39 @@ class AITPCLITests(unittest.TestCase):
         mock_service.start_chat_session.assert_called_once()
         self.assertEqual(mock_service.start_chat_session.call_args.kwargs["load_profile"], "light")
 
+    def test_main_dispatches_text_based_steer_topic(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.steer_topic_from_text.return_value = {
+                "detected": True,
+                "decision": "redirect",
+                "direction": "modular bootstrap constraints",
+            }
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "steer-topic",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--text",
+                    "继续这个 topic，方向改成 modular bootstrap constraints",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.steer_topic_from_text.assert_called_once_with(
+            topic_slug="demo-topic",
+            text="继续这个 topic，方向改成 modular bootstrap constraints",
+            run_id=None,
+            updated_by="aitp-cli",
+            topic_state=None,
+            control_note=None,
+        )
+
     def test_main_dispatches_explore(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
@@ -1033,6 +1132,32 @@ class AITPCLITests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         mock_service.promote_exploration.assert_called_once()
+
+    def test_main_renders_human_friendly_runtime_error_without_traceback(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.install_agent.side_effect = RuntimeError(
+                "AITP could not finish install-agent.\n"
+                "Command: python -m pip install aitp-kernel\n"
+                "Exit code: 23\n"
+                "Error: access denied\n"
+                "Try:\n"
+                "- Check that Python and pip can write to the target environment.\n"
+            )
+            mock_factory.return_value = mock_service
+
+            stdout_stream = io.StringIO()
+            stderr_stream = io.StringIO()
+            with patch.object(sys, "argv", ["aitp", "install-agent", "--agent", "codex"]):
+                with redirect_stdout(stdout_stream), redirect_stderr(stderr_stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(stdout_stream.getvalue(), "")
+        stderr_output = stderr_stream.getvalue()
+        self.assertIn("AITP could not finish install-agent.", stderr_output)
+        self.assertIn("Check that Python and pip can write to the target environment.", stderr_output)
+        self.assertNotIn("Traceback", stderr_output)
 
     def test_main_dispatches_resume_with_load_profile(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
@@ -1608,6 +1733,137 @@ class AITPCLITests(unittest.TestCase):
         doctor_args = parser.parse_args(["doctor", "--workspace-root", "D:\\BaiduSyncdisk\\Theoretical-Physics"])
         self.assertEqual(doctor_args.command, "doctor")
         self.assertEqual(doctor_args.workspace_root, "D:\\BaiduSyncdisk\\Theoretical-Physics")
+
+    def test_main_renders_compact_human_status_and_next_and_full_dashboard(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            runtime_root = Path("D:/demo-kernel/runtime/topics/demo-topic")
+            status_payload = {
+                "topic_slug": "demo-topic",
+                "title": "Demo Topic",
+                "current_stage": "L1",
+                "research_mode": "formal_derivation",
+                "selected_action_summary": "Inspect the graph export before continuing.",
+                "runtime_protocol_note_path": str(runtime_root / "runtime_protocol.generated.md"),
+                "must_read_now": [
+                    {"path": "runtime/topics/demo-topic/topic_dashboard.md"},
+                    {"path": "runtime/topics/demo-topic/research_question.contract.md"},
+                ],
+                "open_gap_summary": {"status": "clear"},
+                "primary_runtime_surfaces": {
+                    "primary": {
+                        "runtime_human": "runtime/topics/demo-topic/topic_dashboard.md",
+                    }
+                },
+            }
+            next_payload = {
+                "topic_slug": "demo-topic",
+                "selected_action_summary": "Inspect the graph export before continuing.",
+                "open_next": "runtime/topics/demo-topic/topic_dashboard.md",
+                "must_read_now": [
+                    {"path": "runtime/topics/demo-topic/topic_dashboard.md"},
+                    {"path": "runtime/topics/demo-topic/research_question.contract.md"},
+                ],
+                "open_gap_summary": {"status": "clear"},
+            }
+            mock_service.topic_status.return_value = status_payload
+            mock_service.topic_next.return_value = next_payload
+            mock_service.kernel_root = Path("D:/demo-kernel")
+            mock_factory.return_value = mock_service
+
+            with patch("pathlib.Path.exists", return_value=True), patch(
+                "pathlib.Path.read_text",
+                return_value="# Demo Dashboard\n\nFull dashboard body.\n",
+            ):
+                status_stream = io.StringIO()
+                with patch.object(sys, "argv", ["aitp", "status", "--topic-slug", "demo-topic"]):
+                    with redirect_stdout(status_stream):
+                        status_exit = aitp_cli.main()
+
+                next_stream = io.StringIO()
+                with patch.object(sys, "argv", ["aitp", "next", "--topic-slug", "demo-topic"]):
+                    with redirect_stdout(next_stream):
+                        next_exit = aitp_cli.main()
+
+                full_stream = io.StringIO()
+                with patch.object(sys, "argv", ["aitp", "status", "--topic-slug", "demo-topic", "--full"]):
+                    with redirect_stdout(full_stream):
+                        full_exit = aitp_cli.main()
+
+        self.assertEqual(status_exit, 0)
+        self.assertEqual(next_exit, 0)
+        self.assertEqual(full_exit, 0)
+        status_output = status_stream.getvalue()
+        next_output = next_stream.getvalue()
+        full_output = full_stream.getvalue()
+        self.assertIn("AITP Status", status_output)
+        self.assertIn("Topic: Demo Topic", status_output)
+        self.assertIn("Stage: L1", status_output)
+        self.assertIn("Now: Inspect the graph export before continuing.", status_output)
+        self.assertIn("Blocked: none", status_output)
+        self.assertIn("Machine view: aitp status --topic-slug demo-topic --json", status_output)
+        self.assertIn("AITP Next", next_output)
+        self.assertIn("Do: Inspect the graph export before continuing.", next_output)
+        self.assertIn("Read now: runtime/topics/demo-topic/topic_dashboard.md", next_output)
+        self.assertIn("Machine view: aitp next --topic-slug demo-topic --json", next_output)
+        self.assertIn("# Demo Dashboard", full_output)
+        self.assertIn("Full dashboard body.", full_output)
+
+    def test_main_dispatches_hello(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.hello_topic.return_value = {
+                "topic_slug": "demo-topic",
+                "install": {"overall_status": "pass"},
+                "topic": {"topic_slug": "demo-topic"},
+                "status": {"selected_action_summary": "Read the topic dashboard."},
+            }
+            mock_factory.return_value = mock_service
+            with patch.object(sys, "argv", ["aitp", "hello", "--topic", "Demo topic", "--question", "What is the first bounded question?"]):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.hello_topic.assert_called_once_with(
+            topic="Demo topic",
+            question="What is the first bounded question?",
+            mode="formal_theory",
+            updated_by="aitp-cli",
+            arxiv_ids=[],
+            local_note_paths=[],
+        )
+
+    def test_main_renders_progressive_help_surfaces(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            core_stream = io.StringIO()
+            with patch.object(sys, "argv", ["aitp", "help"]):
+                with redirect_stdout(core_stream):
+                    core_exit = aitp_cli.main()
+
+            all_stream = io.StringIO()
+            with patch.object(sys, "argv", ["aitp", "help", "--all"]):
+                with redirect_stdout(all_stream):
+                    all_exit = aitp_cli.main()
+
+        self.assertEqual(core_exit, 0)
+        self.assertEqual(all_exit, 0)
+        mock_factory.assert_not_called()
+
+        core_output = core_stream.getvalue()
+        all_output = all_stream.getvalue()
+
+        self.assertIn("AITP Help", core_output)
+        self.assertIn("Core commands", core_output)
+        self.assertIn("session-start", core_output)
+        self.assertIn("consult-l2", core_output)
+        self.assertIn("See everything: aitp help --all", core_output)
+        self.assertNotIn("new-topic", core_output)
+
+        self.assertIn("AITP Help", all_output)
+        self.assertIn("All registered commands", all_output)
+        self.assertIn("Core commands", all_output)
+        self.assertIn("Topic lifecycle", all_output)
+        self.assertIn("new-topic", all_output)
+        self.assertIn("doctor", all_output)
 
 
 if __name__ == "__main__":

@@ -10,14 +10,15 @@ from .decision_trace_handler import get_decision_traces
 from .control_plane_support import build_runtime_bundle_control_plane, control_note_override_active, control_plane_markdown_lines
 from .h_plane_support import build_h_plane_payload
 from .kernel_templates import render_session_start_note
-from .mode_envelope_support import decision_override_read, dedupe_surface_entries, light_profile_primary_reads, runtime_mode_markdown_lines, runtime_mode_payload_fragment
+from .l2_staging import materialize_workspace_staging_manifest
+from .mode_envelope_support import decision_override_read, dedupe_surface_entries, filter_escalation_triggers_for_mode, light_profile_primary_reads, refocus_context_for_runtime_mode, runtime_mode_markdown_lines, runtime_mode_payload_fragment
 from .paired_backend_support import build_runtime_backend_bridges
 from .research_trajectory_support import append_research_trajectory_markdown, normalize_research_trajectory_for_bundle, research_trajectory_must_read_entry
 from .mode_learning_support import append_mode_learning_markdown, normalize_mode_learning_for_bundle, mode_learning_must_read_entry
 from .research_judgment_runtime_support import append_research_judgment_markdown, decision_surface_snapshot, normalize_research_judgment_for_bundle, research_judgment_must_read_entry
 from .research_taste_support import append_research_taste_markdown, normalize_research_taste_for_bundle, research_taste_must_read_entry
 from .scratchpad_support import append_scratchpad_markdown, normalize_scratchpad_for_bundle, scratchpad_must_read_entry
-from .runtime_read_path_support import append_competing_hypotheses_markdown, append_l1_source_intake_markdown, append_l1_vault_markdown, append_route_activation_markdown, append_route_choice_markdown, append_route_handoff_markdown, append_route_reentry_markdown, append_route_transition_gate_markdown, append_route_transition_intent_markdown, append_route_transition_receipt_markdown, append_route_transition_resolution_markdown, append_route_transition_discrepancy_markdown, append_route_transition_repair_markdown, append_route_transition_escalation_markdown, append_route_transition_clearance_markdown, append_route_transition_followthrough_markdown, append_route_transition_resumption_markdown, append_route_transition_commitment_markdown, append_route_transition_authority_markdown, append_source_intelligence_markdown, build_active_research_contract_payload, build_route_transition_receipt_payload, build_route_transition_resolution_payload, build_route_transition_discrepancy_payload, build_route_transition_repair_payload, build_route_transition_escalation_payload, build_route_transition_clearance_payload, build_route_transition_followthrough_payload, build_route_transition_resumption_payload, build_route_transition_commitment_payload, build_route_transition_authority_payload, empty_l1_source_intake, empty_source_intelligence, normalized_source_intelligence
+from .runtime_read_path_support import append_competing_hypotheses_markdown, append_graph_analysis_markdown, append_l1_source_intake_markdown, append_l1_vault_markdown, append_route_activation_markdown, append_route_choice_markdown, append_route_handoff_markdown, append_route_reentry_markdown, append_route_transition_gate_markdown, append_route_transition_intent_markdown, append_route_transition_receipt_markdown, append_route_transition_resolution_markdown, append_route_transition_discrepancy_markdown, append_route_transition_repair_markdown, append_route_transition_escalation_markdown, append_route_transition_clearance_markdown, append_route_transition_followthrough_markdown, append_route_transition_resumption_markdown, append_route_transition_commitment_markdown, append_route_transition_authority_markdown, append_source_intelligence_markdown, build_active_research_contract_payload, build_route_transition_receipt_payload, build_route_transition_resolution_payload, build_route_transition_discrepancy_payload, build_route_transition_repair_payload, build_route_transition_escalation_payload, build_route_transition_clearance_payload, build_route_transition_followthrough_payload, build_route_transition_resumption_payload, build_route_transition_commitment_payload, build_route_transition_authority_payload, empty_l1_source_intake, empty_source_intelligence, normalized_graph_analysis, normalized_source_intelligence
 from .runtime_projection_handler import (
     append_transition_history,
     build_knowledge_packets_from_candidates,
@@ -27,6 +28,120 @@ from .runtime_projection_handler import (
     write_promotion_trace,
     write_topic_synopsis,
 )
+
+
+def _human_interaction_posture_from_bundle(runtime_bundle: dict[str, Any]) -> dict[str, Any]:
+    h_plane = runtime_bundle.get("h_plane") or {}
+    steering = h_plane.get("steering") or {}
+    checkpoint = h_plane.get("checkpoint") or {}
+    approval = h_plane.get("approval") or {}
+    idea_packet = runtime_bundle.get("idea_packet") or {}
+
+    checkpoint_status = str(checkpoint.get("status") or "").strip()
+    approval_status = str(approval.get("status") or "").strip()
+    idea_packet_status = str(idea_packet.get("status") or "").strip()
+    steering_status = str(steering.get("status") or "").strip()
+
+    if idea_packet_status == "needs_clarification":
+        summary = "AITP is waiting on clarification before deeper work continues."
+        action = "Answer the idea-packet questions before continuing the bounded loop."
+        requires_human = True
+    elif checkpoint_status == "requested":
+        summary = "AITP is waiting on an active human checkpoint before deeper work continues."
+        action = "Answer the active checkpoint instead of continuing the queue."
+        requires_human = True
+    elif approval_status == "pending_human_approval":
+        summary = (
+            "AITP is waiting on a human decision about whether this is ready to save as reusable knowledge "
+            "before trust can cross into L2."
+        )
+        action = "Review the promotion gate before any L2 writeback continues."
+        requires_human = True
+    elif steering_status and steering_status != "none":
+        summary = "Human steering is already active and has been translated into durable route state."
+        action = "Continue from the redirected chosen approach unless a new checkpoint appears."
+        requires_human = False
+    else:
+        summary = "No active human checkpoint is currently blocking the bounded loop."
+        action = "AITP may continue bounded work autonomously until a real checkpoint or blocker appears."
+        requires_human = False
+
+    return {
+        "overall_status": str(h_plane.get("overall_status") or "steady"),
+        "requires_human_input_now": requires_human,
+        "steering_status": steering_status or "none",
+        "checkpoint_status": checkpoint_status or "missing",
+        "approval_status": approval_status or "not_requested",
+        "summary": summary,
+        "next_action": action,
+    }
+
+
+def _autonomy_posture_from_bundle(
+    runtime_bundle: dict[str, Any],
+    *,
+    requested_max_auto_steps: int | None,
+    applied_max_auto_steps: int | None = None,
+    budget_reason: str | None = None,
+) -> dict[str, Any]:
+    human_posture = _human_interaction_posture_from_bundle(runtime_bundle)
+    runtime_mode = str(runtime_bundle.get("runtime_mode") or "explore")
+    active_submode = str(runtime_bundle.get("active_submode") or "").strip() or None
+
+    if human_posture["requires_human_input_now"]:
+        mode = "await_human_checkpoint"
+        summary = "Pause bounded execution and wait for the human checkpoint or clarification response."
+        stop_conditions = [
+            "the human answers or cancels the active checkpoint",
+            "the clarification gate is resolved",
+        ]
+    elif (
+        (requested_max_auto_steps == 0 and applied_max_auto_steps == 0)
+        or str(budget_reason or "").strip() == "explicit_budget_disabled"
+    ):
+        mode = "continuous_bounded_loop"
+        summary = (
+            "No human checkpoint is active, but this invocation disabled auto-step execution, "
+            "so continue manually from the current chosen approach."
+        )
+        stop_conditions = [
+            "the operator resumes bounded execution explicitly",
+            "a real blocker or backedge is materialized",
+            "a human checkpoint becomes active",
+        ]
+    elif runtime_mode == "verify" and active_submode == "iterative_verify":
+        mode = "continuous_iterative_verify"
+        summary = (
+            "Keep the bounded L3-L4 loop running until validation succeeds, or until a real blocker, contradiction, or "
+            "human checkpoint appears."
+        )
+        stop_conditions = [
+            "validation reaches a stable success state",
+            "a real contradiction or backedge blocker is materialized",
+            "a human checkpoint becomes active",
+        ]
+    else:
+        mode = "continuous_bounded_loop"
+        summary = "Continue the bounded AITP loop without pausing for ritual confirmations when no human checkpoint is active."
+        stop_conditions = [
+            "the current chosen approach completes",
+            "a real blocker or backedge is materialized",
+            "a human checkpoint becomes active",
+        ]
+
+    return {
+        "mode": mode,
+        "runtime_mode": runtime_mode,
+        "active_submode": active_submode,
+        "can_continue_without_human": not human_posture["requires_human_input_now"],
+        "summary": summary,
+        "stop_conditions": stop_conditions,
+        "requested_max_auto_steps": requested_max_auto_steps,
+        "applied_max_auto_steps": applied_max_auto_steps,
+        "budget_reason": str(budget_reason or ""),
+    }
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -70,6 +185,7 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
     collaborator_profile = payload.get("collaborator_profile") or {}; research_trajectory = payload.get("research_trajectory") or {}; mode_learning = payload.get("mode_learning") or {}
     research_judgment = payload.get("research_judgment") or {}; research_taste = payload.get("research_taste") or {}; scratchpad = payload.get("scratchpad") or {}
     source_intelligence = payload.get("source_intelligence") or {}
+    graph_analysis = payload.get("graph_analysis") or {}
     control_plane = payload.get("control_plane") or {}
     topic_skill_projection = payload.get("topic_skill_projection") or {}
     topic_completion = payload.get("topic_completion") or {}
@@ -80,6 +196,12 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
     escalation_triggers = payload.get("escalation_triggers") or []
     may_defer_until_trigger = payload.get("may_defer_until_trigger") or []
     recommended_protocol_slices = payload.get("recommended_protocol_slices") or []
+    human_interaction_posture = payload.get("human_interaction_posture") or _human_interaction_posture_from_bundle(payload)
+    autonomy_posture = payload.get("autonomy_posture") or _autonomy_posture_from_bundle(
+        payload,
+        requested_max_auto_steps=None,
+        applied_max_auto_steps=None,
+    )
     lines = [
         "# AITP runtime protocol bundle",
         "",
@@ -94,6 +216,28 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
         f"- Research mode: `{payload['research_mode'] or '(missing)'}`",
         f"- Load profile: `{load_profile}`",
         "",
+        "## Human interaction posture",
+        "",
+        f"- Overall status: `{human_interaction_posture.get('overall_status') or '(missing)'}`",
+        f"- Requires human input now: `{str(bool(human_interaction_posture.get('requires_human_input_now'))).lower()}`",
+        f"- Steering status: `{human_interaction_posture.get('steering_status') or '(missing)'}`",
+        f"- Checkpoint status: `{human_interaction_posture.get('checkpoint_status') or '(missing)'}`",
+        f"- Approval status: `{human_interaction_posture.get('approval_status') or '(missing)'}`",
+        "",
+        f"{human_interaction_posture.get('summary') or '(missing)'}",
+        "",
+        f"Next action: {human_interaction_posture.get('next_action') or '(missing)'}",
+        "",
+        "## Autonomous continuation",
+        "",
+        f"- Mode: `{autonomy_posture.get('mode') or '(missing)'}`",
+        f"- Can continue without human: `{str(bool(autonomy_posture.get('can_continue_without_human'))).lower()}`",
+        f"- Requested auto-step budget: `{autonomy_posture.get('requested_max_auto_steps') if autonomy_posture.get('requested_max_auto_steps') is not None else '(none)'}`",
+        f"- Applied auto-step budget: `{autonomy_posture.get('applied_max_auto_steps') if autonomy_posture.get('applied_max_auto_steps') is not None else '(none)'}`",
+        f"- Budget reason: `{autonomy_posture.get('budget_reason') or '(none)'}`",
+        "",
+        f"{autonomy_posture.get('summary') or '(missing)'}",
+        "",
         "## Topic synopsis",
         "",
         f"- Synopsis path: `{topic_synopsis.get('path') or '(missing)'}`",
@@ -104,6 +248,7 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
         f"{runtime_focus.get('summary') or topic_synopsis.get('next_action_summary') or '(missing)'}",
     ]
     append_source_intelligence_markdown(lines, source_intelligence)
+    append_graph_analysis_markdown(lines, graph_analysis)
     lines.extend(
         ["", *control_plane_markdown_lines(control_plane), "## Runtime truth model", ""]
         + [
@@ -288,6 +433,10 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
     for item in minimal.get("immediate_blocked_work") or ["Do not treat deferred surfaces as optional once their trigger fires."]:
         lines.append(f"- {item}")
     lines.extend(runtime_mode_markdown_lines(payload))
+    if autonomy_posture.get("stop_conditions"):
+        lines.extend(["", "## Autonomous stop conditions", ""])
+        for item in autonomy_posture.get("stop_conditions") or []:
+            lines.append(f"- {item}")
     if strategy_memory.get("guidance"):
         lines.extend(["", "## Strategy guidance", ""])
         for item in strategy_memory.get("guidance") or []:
@@ -514,6 +663,9 @@ def materialize_runtime_protocol_bundle(
     updated_by: str,
     human_request: str | None = None,
     load_profile: str | None = None,
+    requested_max_auto_steps: int | None = None,
+    applied_max_auto_steps: int | None = None,
+    auto_step_budget_reason: str | None = None,
 ) -> dict[str, str]:
     runtime_root = self._ensure_runtime_root(topic_slug)
     topic_state = _read_json(runtime_root / "topic_state.json") or {}
@@ -530,6 +682,11 @@ def materialize_runtime_protocol_bundle(
     )
     interaction_state = _read_json(runtime_root / "interaction_state.json") or {}
     promotion_gate = self._load_promotion_gate(topic_slug) or {}
+    promotion_gate_note_path = (
+        self._relativize(self._promotion_gate_paths(topic_slug)["note"])
+        if self._promotion_gate_paths(topic_slug)["note"].exists()
+        else str((promotion_gate or {}).get("note_path") or "")
+    )
     queue_rows = _read_jsonl(runtime_root / "action_queue.jsonl")
     queue_surface = interaction_state.get("action_queue_surface") or {}
     decision_surface = interaction_state.get("decision_surface") or {}
@@ -563,6 +720,11 @@ def materialize_runtime_protocol_bundle(
     validation_review_bundle["path"] = self._relativize(Path(shell_surfaces["validation_review_bundle_path"]))
     validation_review_bundle["note_path"] = self._relativize(Path(shell_surfaces["validation_review_bundle_note_path"]))
     source_intelligence = normalized_source_intelligence(
+        topic_slug=topic_slug,
+        shell_surfaces=shell_surfaces,
+        relativize=self._relativize,
+    )
+    graph_analysis = normalized_graph_analysis(
         topic_slug=topic_slug,
         shell_surfaces=shell_surfaces,
         relativize=self._relativize,
@@ -885,6 +1047,13 @@ def materialize_runtime_protocol_bundle(
                     "reason": self._topic_skill_projection_read_reason(topic_skill_projection),
                 }
             )
+        if str(graph_analysis.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(graph_analysis.get("note_path")),
+                    "reason": "Current graph-analysis summary for cross-source bridges, question seeds, and recent graph drift.",
+                }
+            )
         if str(idea_packet.get("status") or "").strip() == "needs_clarification":
             must_read_now.insert(
                 0,
@@ -968,6 +1137,13 @@ def materialize_runtime_protocol_bundle(
                 {
                     "path": str(topic_skill_projection.get("note_path")),
                     "reason": self._topic_skill_projection_read_reason(topic_skill_projection),
+                }
+            )
+        if str(graph_analysis.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(graph_analysis.get("note_path")),
+                    "reason": "Current graph-analysis summary for cross-source bridges, question seeds, and recent graph drift.",
                 }
             )
         must_read_now.append(
@@ -1546,6 +1722,22 @@ def materialize_runtime_protocol_bundle(
         ]
     )
     editable_surfaces = dedupe_surface_entries(editable_surfaces)
+    runtime_mode_preview = runtime_mode_payload_fragment(
+        resume_stage=runtime_focus.get("resume_stage") or topic_state.get("resume_stage"),
+        load_profile=resolved_load_profile,
+        idea_packet_status=str(idea_packet.get("status") or ""),
+        operator_checkpoint_status=str(operator_checkpoint.get("status") or ""),
+        selected_action_type=selected_action_type,
+        selected_action_summary=selected_action_label,
+        must_read_now=must_read_now,
+        may_defer_until_trigger=may_defer_until_trigger,
+        escalation_triggers=escalation_triggers,
+        human_request=human_request,
+    )
+    escalation_triggers = filter_escalation_triggers_for_mode(
+        runtime_mode=str(runtime_mode_preview.get("runtime_mode") or ""),
+        escalation_triggers=escalation_triggers,
+    )
     runtime_mode_payload = runtime_mode_payload_fragment(
         resume_stage=runtime_focus.get("resume_stage") or topic_state.get("resume_stage"),
         load_profile=resolved_load_profile,
@@ -1556,7 +1748,35 @@ def materialize_runtime_protocol_bundle(
         must_read_now=must_read_now,
         may_defer_until_trigger=may_defer_until_trigger,
         escalation_triggers=escalation_triggers,
+        human_request=human_request,
     )
+    staging_manifest = materialize_workspace_staging_manifest(self.kernel_root)
+    refocused_context = refocus_context_for_runtime_mode(
+        runtime_mode_payload=runtime_mode_payload,
+        must_read_now=must_read_now,
+        may_defer_until_trigger=may_defer_until_trigger,
+        topic_dashboard_path=self._relativize(Path(shell_surfaces["topic_dashboard_path"])),
+        research_question_contract_note_path=self._relativize(Path(shell_surfaces["research_question_contract_note_path"])),
+        control_note_path=control_note_path,
+        topic_synopsis_path=topic_synopsis_path,
+        idea_packet_path=str(idea_packet.get("note_path") or ""),
+        operator_checkpoint_path=str(operator_checkpoint.get("note_path") or ""),
+        validation_contract_path=self._relativize(Path(shell_surfaces["validation_contract_note_path"])),
+        validation_review_bundle_path=self._relativize(Path(shell_surfaces["validation_review_bundle_note_path"])),
+        promotion_readiness_path=self._relativize(Path(shell_surfaces["promotion_readiness_path"])),
+        promotion_gate_path=promotion_gate_note_path,
+        topic_completion_path=self._relativize(Path(shell_surfaces["topic_completion_note_path"])),
+        verification_route_paths=verification_route_reads,
+        l1_vault=active_research_contract.get("l1_vault") or {},
+        canonical_index_path=self._relativize(self.kernel_root / "canonical" / "index.jsonl"),
+        workspace_staging_manifest_path=self._relativize(Path(staging_manifest["json_path"])),
+    )
+    runtime_mode_payload = refocused_context["runtime_mode_payload"]
+    must_read_now = refocused_context["must_read_now"]
+    may_defer_until_trigger = refocused_context["may_defer_until_trigger"]
+    read_order = [item["path"] for item in must_read_now]
+    if not read_order:
+        read_order.append(self._relativize(runtime_root / "topic_state.json"))
     control_plane_payload = build_runtime_bundle_control_plane(
         topic_state=topic_state,
         topic_synopsis=topic_synopsis_written["topic_synopsis"],
@@ -1571,6 +1791,19 @@ def materialize_runtime_protocol_bundle(
         operator_checkpoint=operator_checkpoint,
         promotion_gate=promotion_gate,
         updated_by=updated_by,
+    )
+    posture_seed = {
+        "runtime_mode": runtime_mode_payload.get("runtime_mode"),
+        "active_submode": runtime_mode_payload.get("active_submode"),
+        "h_plane": h_plane_payload,
+        "idea_packet": idea_packet,
+    }
+    human_interaction_posture = _human_interaction_posture_from_bundle(posture_seed)
+    autonomy_posture = _autonomy_posture_from_bundle(
+        posture_seed,
+        requested_max_auto_steps=requested_max_auto_steps,
+        applied_max_auto_steps=applied_max_auto_steps,
+        budget_reason=auto_step_budget_reason,
     )
 
     payload = {
@@ -1588,6 +1821,8 @@ def materialize_runtime_protocol_bundle(
         **runtime_mode_payload,
         "control_plane": control_plane_payload,
         "h_plane": h_plane_payload,
+        "human_interaction_posture": human_interaction_posture,
+        "autonomy_posture": autonomy_posture,
         "topic_synopsis": {
             **topic_synopsis_written["topic_synopsis"],
             "path": self._relativize(Path(topic_synopsis_written["path"])),
@@ -1602,6 +1837,7 @@ def materialize_runtime_protocol_bundle(
         "promotion_readiness": promotion_readiness,
         "validation_review_bundle": validation_review_bundle,
         "source_intelligence": source_intelligence,
+        "graph_analysis": graph_analysis,
         "open_gap_summary": open_gap_summary,
         "dependency_state": dependency_state,
         "strategy_memory": strategy_memory,
@@ -1774,6 +2010,27 @@ def materialize_session_start_contract(
         memory_summary = "Resolved from an explicit topic reference in the request or caller flags."
     else:
         memory_summary = "Resolved from the session-start routing layer."
+
+    runtime_autonomy_posture = runtime_bundle.get("autonomy_posture") or {}
+    requested_max_auto_steps = runtime_autonomy_posture.get(
+        "requested_max_auto_steps",
+        loop_state.get("requested_max_auto_steps"),
+    )
+    applied_max_auto_steps = runtime_autonomy_posture.get(
+        "applied_max_auto_steps",
+        loop_state.get("applied_max_auto_steps"),
+    )
+    auto_step_budget_reason = runtime_autonomy_posture.get(
+        "budget_reason",
+        loop_state.get("auto_step_budget_reason"),
+    )
+    human_interaction_posture = runtime_bundle.get("human_interaction_posture") or _human_interaction_posture_from_bundle(runtime_bundle)
+    autonomy_posture = runtime_bundle.get("autonomy_posture") or _autonomy_posture_from_bundle(
+        runtime_bundle,
+        requested_max_auto_steps=requested_max_auto_steps,
+        applied_max_auto_steps=applied_max_auto_steps,
+        budget_reason=auto_step_budget_reason,
+    )
 
     must_read_now: list[dict[str, str]] = []
     seen_paths: set[str] = set()
@@ -1958,6 +2215,8 @@ def materialize_session_start_contract(
         "linear_flow": linear_flow,
         "selected_action": selected_action_payload,
         "hard_stops": hard_stops,
+        "human_interaction_posture": human_interaction_posture,
+        "autonomy_posture": autonomy_posture,
         "loop_state_summary": {
             "entry_conformance": loop_state.get("entry_conformance"),
             "exit_conformance": loop_state.get("exit_conformance"),

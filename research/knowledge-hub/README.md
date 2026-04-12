@@ -455,11 +455,14 @@ python research/knowledge-hub/runtime/scripts/run_scrpa_thesis_topic_acceptance.
 python research/knowledge-hub/runtime/scripts/run_scrpa_control_plane_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l2_mvp_direction_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l0_source_discovery_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_enrichment_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_concept_graph_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_source_catalog_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l1_vault_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_statement_compilation_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l1_method_specificity_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l1_concept_graph_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_transition_history_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_human_modification_record_acceptance.py --json
 python research/knowledge-hub/runtime/scripts/run_competing_hypotheses_acceptance.py --json
@@ -520,7 +523,9 @@ feeds one isolated search-results fixture into
 `source-layer/scripts/discover_and_register.py`, verifies that the selected
 candidate stays explicit through `candidate_evaluation.json`, and confirms that
 canonical registration still lands in the usual Layer 0 plus Layer 1
-projection surfaces on an isolated temp kernel root.
+projection surfaces, now with `deepxiv_enrichment.json`,
+`concept_graph.json`, and `concept_graph_receipt.json`, on an isolated temp
+kernel root.
 
 The source catalog acceptance script is the bounded Layer 0 reuse check for the
 current `v1.46` plus `v1.63` BibTeX surface: it compiles the global source
@@ -550,6 +555,13 @@ signals are materialized through the existing `l1_source_intake` path, and
 checks that the same honesty surface stays visible in
 `research_question.contract.md`, `topic_dashboard.md`, the runtime protocol
 note, and the `L1` vault wiki page.
+
+The L1 concept-graph acceptance script is the bounded `165.5-02` graph-intake
+bridge: it uses production `status --json` on an isolated temp kernel root,
+verifies that `l1_source_intake.concept_graph` is materialized from
+source-local `concept_graph.json`, and checks that the same graph surface stays
+visible in `research_question.contract.md`, the runtime protocol note, and the
+`L1` vault wiki source-intake page.
 
 The runtime transition-history acceptance script is the bounded `v1.71`
 runtime-history closure path: it uses production `request-promotion`,

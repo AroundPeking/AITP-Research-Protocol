@@ -15,6 +15,7 @@ CANONICAL_DIR_BY_TYPE = {
     "concept": "concepts",
     "physical_picture": "physical-pictures",
     "claim_card": "claim-cards",
+    "proof_fragment": "proof-fragments",
     "derivation_object": "derivation-objects",
     "method": "methods",
     "workflow": "workflows",
@@ -436,6 +437,7 @@ def stage_l2_insight(
     scope_note: str | None = None,
     topic_slug: str | None = None,
     notes: str | None = None,
+    provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     timestamp = now_iso()
     slug = re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", title.lower())).strip("-") or "l2-insight"
@@ -458,6 +460,7 @@ def stage_l2_insight(
         "next_implication": next_implication or "",
         "scope_note": scope_note or "",
         "topic_slug": topic_slug or "",
+        "provenance": dict(provenance or {}),
         "created_at": timestamp,
         "updated_at": timestamp,
         "created_by": created_by,
@@ -494,8 +497,11 @@ def stage_l2_insight(
                     failure_kind or "",
                     failed_route or "",
                     next_implication or "",
+                    str((provenance or {}).get("source_slug") or ""),
+                    " ".join(str(item) for item in ((provenance or {}).get("vault_wiki_paths") or [])),
                 ]
             ),
+            "provenance": dict(provenance or {}),
             "created_at": timestamp,
             "updated_at": timestamp,
         }

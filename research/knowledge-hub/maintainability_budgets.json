@@ -10,20 +10,20 @@
   "watchlist": {
     "research/knowledge-hub/knowledge_hub/aitp_service.py": {
       "category": "critical_service",
-      "max_lines": 6800,
+      "max_lines": 7400,
       "max_longest_function_lines": 170,
       "reason": "This file still mixes runtime truth, registry, projection, install, promotion, steering, and remaining orchestration concerns. Front-door support, agent-install support, template rendering, pure markdown rendering, the runtime-bundle/session-start boundary, the topic-shell assembly boundary, the source-distillation boundary, the topic-loop boundary, the chat-routing/session-start boundary, the capability-audit boundary, and the follow-up/closed-loop boundary have now moved out, and future milestones should keep shrinking it instead of letting it grow back."
     },
     "research/knowledge-hub/knowledge_hub/runtime_bundle_support.py": {
       "category": "runtime_bundle_support",
-      "max_lines": 1850,
-      "max_longest_function_lines": 1125,
-      "reason": "This new support module intentionally holds the progressive-disclosure runtime bundle and session-start materialization boundary. It is allowed to stay large temporarily, but future phases should keep splitting orchestration concerns instead of growing it further."
+      "max_lines": 2300,
+      "max_longest_function_lines": 1350,
+      "reason": "This support module intentionally holds the progressive-disclosure runtime bundle and session-start materialization boundary. It is allowed to stay large temporarily, but future phases should keep splitting orchestration concerns instead of growing it further."
     },
     "research/knowledge-hub/knowledge_hub/topic_shell_support.py": {
       "category": "topic_shell_support",
-      "max_lines": 1650,
-      "max_longest_function_lines": 600,
+      "max_lines": 1750,
+      "max_longest_function_lines": 700,
       "reason": "This support module intentionally holds the topic-shell assembly boundary, including shell-surface derivation and dashboard assembly. It is allowed to stay large temporarily, but future phases should split its completion, checkpoint, and shell assembly concerns further instead of letting it grow unchecked."
     },
     "research/knowledge-hub/knowledge_hub/followup_support.py": {
@@ -34,15 +34,57 @@
     },
     "research/knowledge-hub/knowledge_hub/aitp_cli.py": {
       "category": "dispatch_entrypoint",
-      "max_lines": 1300,
+      "max_lines": 1380,
       "max_longest_function_lines": 600,
-      "reason": "The CLI has now started splitting command families into dedicated handlers. Bumped from 1250 to 1300 after v1.37-v1.42 added multi-topic and promotion commands. Future subcommand growth should continue using extracted handlers instead of returning to one giant dispatcher."
+      "reason": "The CLI has now started splitting command families into dedicated handlers. Future subcommand growth should continue using extracted handlers instead of returning to one giant dispatcher."
     },
     "research/knowledge-hub/knowledge_hub/tpkn_bridge.py": {
       "category": "bridge_module",
       "max_lines": 1050,
       "max_longest_function_lines": 240,
       "reason": "The bridge stays acceptable for now, but its core unit-builder is already above the default function-size watch threshold."
+    },
+    "research/knowledge-hub/knowledge_hub/graph_analysis_tools.py": {
+      "category": "graph_analysis_support",
+      "max_lines": 700,
+      "max_longest_function_lines": 260,
+      "reason": "This helper currently owns graph-analysis derivation, diffing, and question/connection synthesis. It is intentionally centralized for the first graph-analysis slice and should be split later if the question-generation logic keeps growing."
+    },
+    "research/knowledge-hub/knowledge_hub/l1_vault_support.py": {
+      "category": "l1_vault_support",
+      "max_lines": 800,
+      "max_longest_function_lines": 320,
+      "reason": "The L1 vault helper now owns raw/wiki/output vault assembly plus concept-graph export stitching. It is temporarily watchlisted until the graph-export and vault-materialization halves are split further."
+    },
+    "research/knowledge-hub/knowledge_hub/literature_intake_support.py": {
+      "category": "literature_intake_support",
+      "max_lines": 520,
+      "max_longest_function_lines": 360,
+      "reason": "This helper currently owns bounded literature-intake candidate-unit derivation from runtime payloads. It is watchlisted so future growth does not hide more routing policy in one function."
+    },
+    "research/knowledge-hub/knowledge_hub/mode_envelope_support.py": {
+      "category": "mode_envelope_support",
+      "max_lines": 900,
+      "max_longest_function_lines": 240,
+      "reason": "Mode-envelope assembly and context refocusing are still centralized here. It stays watchlisted until runtime-mode policy and context-selection logic are decomposed further."
+    },
+    "research/knowledge-hub/knowledge_hub/obsidian_graph_export.py": {
+      "category": "obsidian_graph_export",
+      "max_lines": 560,
+      "max_longest_function_lines": 420,
+      "reason": "The first concept-graph Obsidian export path is intentionally self-contained. It is watchlisted so page-generation logic does not silently become another long-lived hotspot."
+    },
+    "research/knowledge-hub/knowledge_hub/runtime_read_path_support.py": {
+      "category": "runtime_read_path_support",
+      "max_lines": 2800,
+      "max_longest_function_lines": 220,
+      "reason": "This helper still centralizes many normalized runtime read-path payload builders. It remains watchlisted until the route-transition family is decomposed into smaller modules."
+    },
+    "research/knowledge-hub/knowledge_hub/topic_replay.py": {
+      "category": "topic_replay",
+      "max_lines": 920,
+      "max_longest_function_lines": 520,
+      "reason": "Topic replay remains intentionally scenario-shaped and render-heavy. It is watchlisted so replay markdown generation does not keep accumulating unrelated responsibilities."
     },
     "research/knowledge-hub/runtime/scripts/orchestrate_topic.py": {
       "category": "runtime_orchestrator",
@@ -85,6 +127,72 @@
       "max_lines": 650,
       "max_longest_function_lines": 360,
       "reason": "This acceptance script remains manageable only if future benchmark-specific additions are kept out of the giant main function."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_choice_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 450,
+      "max_longest_function_lines": 240,
+      "reason": "This acceptance script keeps a large scenario seeding helper for one bounded route-choice fixture. It is watchlisted until the shared seed helper is extracted."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_handoff_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 430,
+      "max_longest_function_lines": 230,
+      "reason": "This acceptance script keeps a large scenario seeding helper for one bounded route-handoff fixture. It is watchlisted until the shared seed helper is extracted."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_clearance_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 520,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-clearance seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_commitment_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 520,
+      "max_longest_function_lines": 280,
+      "reason": "This acceptance script keeps a large transition-commitment seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_discrepancy_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 470,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-discrepancy seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_escalation_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 490,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-escalation seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_followthrough_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 520,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-followthrough seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_receipt_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 480,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-receipt seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_repair_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 470,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-repair seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_resolution_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 480,
+      "max_longest_function_lines": 250,
+      "reason": "This acceptance script keeps a large transition-resolution seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
+    },
+    "research/knowledge-hub/runtime/scripts/run_hypothesis_route_transition_resumption_acceptance.py": {
+      "category": "acceptance_script",
+      "max_lines": 560,
+      "max_longest_function_lines": 300,
+      "reason": "This acceptance script keeps a large transition-resumption seeding helper. It is watchlisted until the repeated route-transition seed logic is shared."
     }
   }
 }

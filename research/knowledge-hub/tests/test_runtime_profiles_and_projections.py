@@ -25,7 +25,7 @@ from tests_support import (  # noqa: E402
     write_protocol_placeholders,
 )
 from knowledge_hub.aitp_service import AITPService  # noqa: E402
-from knowledge_hub.mode_envelope_support import build_runtime_mode_contract  # noqa: E402
+from knowledge_hub.mode_envelope_support import build_runtime_mode_contract, filter_escalation_triggers_for_mode  # noqa: E402
 from knowledge_hub.runtime_projection_handler import (  # noqa: E402
     append_transition_history,
     build_knowledge_packets_from_candidates,
@@ -362,6 +362,36 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             },
         }
 
+    def _rewrite_action_queue(self, action_type: str, summary: str, *, handler_args: dict[str, object] | None = None) -> None:
+        (self.runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:01",
+                    "action_type": action_type,
+                    "summary": summary,
+                    "status": "pending",
+                    "auto_runnable": True,
+                    "queue_source": "declared_contract",
+                    "handler_args": handler_args or {"run_id": "run-001"},
+                },
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def _rewrite_interaction_state(self, payload: dict[str, object]) -> None:
+        (self.runtime_root / "interaction_state.json").write_text(
+            json.dumps(payload, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    def _must_read_paths(self, bundle: dict[str, object]) -> list[str]:
+        return [str(row["path"]) for row in bundle["must_read_now"]]
+
+    def _deferred_paths(self, bundle: dict[str, object]) -> list[str]:
+        return [str(row["path"]) for row in bundle["may_defer_until_trigger"]]
+
     def test_new_projection_schemas_validate_and_are_mirrored(self) -> None:
         for name in ("topic-synopsis", "knowledge-packet", "promotion-trace", "topic-skill-projection"):
             public_path = self.repo_root / "schemas" / f"{name}.schema.json"
@@ -670,9 +700,10 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(bundle["mode_envelope"]["minimum_mandatory_context"][0]["path"], "runtime/topics/demo-topic/topic_dashboard.md")
         self.assertIn("L3 -> L0", bundle["mode_envelope"]["allowed_backedges"])
         self.assertEqual(bundle["transition_posture"]["transition_kind"], "boundary_hold")
-        self.assertEqual(len(bundle["must_read_now"]), 2)
+        self.assertEqual(len(bundle["must_read_now"]), 3)
         self.assertEqual(bundle["must_read_now"][0]["path"], "runtime/topics/demo-topic/topic_dashboard.md")
         self.assertEqual(bundle["must_read_now"][1]["path"], "runtime/topics/demo-topic/research_question.contract.md")
+        self.assertEqual(bundle["must_read_now"][2]["path"], "runtime/topics/demo-topic/graph_analysis.md")
         self.assertEqual(bundle["minimal_execution_brief"]["open_next"], "runtime/topics/demo-topic/topic_dashboard.md")
         self.assertNotIn("operator_console.md", json.dumps(bundle["must_read_now"]))
         self.assertTrue(
@@ -865,6 +896,73 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertIn("## Source fidelity", note_text)
         self.assertIn("shared_reference", note_text)
 
+    def test_runtime_bundle_projects_graph_analysis_into_read_path(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        shell_surfaces["graph_analysis_path"] = self._write_surface(
+            "runtime/topics/demo-topic/graph_analysis.json",
+            json.dumps({"topic_slug": "demo-topic"}, indent=2) + "\n",
+        )
+        shell_surfaces["graph_analysis_note_path"] = self._write_surface(
+            "runtime/topics/demo-topic/graph_analysis.md",
+            "# Graph analysis\n",
+        )
+        shell_surfaces["graph_analysis_history_path"] = self._write_surface(
+            "runtime/topics/demo-topic/graph_analysis_history.jsonl",
+            "",
+        )
+        shell_surfaces["graph_analysis"] = {
+            "topic_slug": "demo-topic",
+            "summary": {
+                "connection_count": 1,
+                "question_count": 1,
+                "history_length": 2,
+            },
+            "connections": [
+                {
+                    "kind": "shared_foundation_bridge",
+                    "bridge_label": "Anyon condensation",
+                    "source_ids": ["paper:anyon-condensation", "note:operator-algebra"],
+                    "source_titles": ["Anyon condensation paper", "Operator algebra note"],
+                    "community_labels": ["Anyon condensation cluster"],
+                    "detail": "Anyon condensation appears across the two sources.",
+                }
+            ],
+            "questions": [
+                {
+                    "question_id": "graph-question:01",
+                    "question_type": "bridge_question",
+                    "bridge_label": "Anyon condensation",
+                    "question": "How does Anyon condensation connect the two source routes inside the current topic?",
+                }
+            ],
+            "diff": {
+                "added": {"node_count": 1, "node_labels": ["Anyon condensation"], "edge_count": 0, "edge_relations": [], "god_node_count": 1, "god_node_labels": ["Anyon condensation"]},
+                "removed": {"node_count": 1, "node_labels": ["Topological order"], "edge_count": 0, "edge_relations": [], "god_node_count": 1, "god_node_labels": ["Topological order"]},
+            },
+            "path": "runtime/topics/demo-topic/graph_analysis.json",
+            "note_path": "runtime/topics/demo-topic/graph_analysis.md",
+            "history_path": "runtime/topics/demo-topic/graph_analysis_history.jsonl",
+        }
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="continue this topic and inspect graph analysis",
+                    load_profile="light",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(bundle["graph_analysis"]["summary"]["connection_count"], 1)
+        self.assertEqual(bundle["graph_analysis"]["diff"]["added"]["node_labels"][0], "Anyon condensation")
+        self.assertIn(
+            "runtime/topics/demo-topic/graph_analysis.md",
+            json.dumps(bundle["must_read_now"]),
+        )
+        note_text = Path(result["runtime_protocol_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Graph analysis", note_text)
+        self.assertIn("Anyon condensation", note_text)
+
     def test_runtime_bundle_auto_escalates_to_full_for_mismatch_requests(self) -> None:
         shell_surfaces = self._shell_surfaces()
         with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
@@ -880,9 +978,184 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(bundle["load_profile"], "full")
         self.assertGreater(len(bundle["must_read_now"]), 4)
         self.assertIn("topic_dashboard.md", json.dumps(bundle["must_read_now"]))
-        self.assertIn("validation_review_bundle.active.md", json.dumps(bundle["must_read_now"]))
+        self.assertNotIn("validation_review_bundle.active.md", json.dumps(bundle["must_read_now"]))
+        self.assertIn("validation_review_bundle.active.md", json.dumps(bundle["may_defer_until_trigger"]))
         self.assertNotIn("operator_console.md", json.dumps(bundle["must_read_now"]))
         self.assertNotIn("agent_brief.md", json.dumps(bundle["must_read_now"]))
+
+    def test_full_discussion_mode_defers_validation_and_promotion_context(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        shell_surfaces["idea_packet"]["status"] = "needs_clarification"
+        shell_surfaces["idea_packet"]["status_reason"] = "The novelty target is still underspecified."
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="clarify the research direction before deeper work",
+                    load_profile="full",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        must_read_paths = self._must_read_paths(bundle)
+        deferred_paths = self._deferred_paths(bundle)
+
+        self.assertEqual(bundle["runtime_mode"], "discussion")
+        self.assertIn("runtime/topics/demo-topic/idea_packet.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/topic_dashboard.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/research_question.contract.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/validation_review_bundle.active.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/validation_contract.active.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/promotion_readiness.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/validation_review_bundle.active.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/validation_contract.active.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/promotion_readiness.md", deferred_paths)
+
+    def test_full_explore_mode_keeps_candidate_context_and_defers_validation_and_promotion(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="keep exploring the next bounded candidate route",
+                    load_profile="full",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        must_read_paths = self._must_read_paths(bundle)
+        deferred_paths = self._deferred_paths(bundle)
+
+        self.assertEqual(bundle["runtime_mode"], "explore")
+        self.assertIn("runtime/topics/demo-topic/topic_dashboard.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/research_question.contract.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/control_note.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/topic_synopsis.json", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/validation_review_bundle.active.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/validation_contract.active.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/promotion_readiness.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/topic_completion.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/validation_review_bundle.active.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/validation_contract.active.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/promotion_readiness.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/topic_completion.md", deferred_paths)
+
+    def test_full_verify_mode_foregrounds_validation_route_and_defers_promotion(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        (self.runtime_root / "selected_validation_route.md").write_text("# Selected validation route\n", encoding="utf-8")
+        (self.runtime_root / "execution_task.md").write_text("# Execution task\n", encoding="utf-8")
+        self._rewrite_action_queue(
+            "dispatch_execution_task",
+            "Dispatch the selected execution task.",
+            handler_args={"run_id": "run-001", "candidate_id": "candidate:demo-benchmark"},
+        )
+        self._rewrite_interaction_state(
+            {
+                "human_request": "continue the validation route",
+                "action_queue_surface": {},
+                "decision_surface": {},
+                "human_edit_surfaces": [],
+                "closed_loop": {
+                    "selected_route_path": "runtime/topics/demo-topic/selected_validation_route.md",
+                    "execution_task_path": "runtime/topics/demo-topic/execution_task.md",
+                },
+            }
+        )
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="continue the current verification lane",
+                    load_profile="full",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        must_read_paths = self._must_read_paths(bundle)
+        deferred_paths = self._deferred_paths(bundle)
+
+        self.assertEqual(bundle["runtime_mode"], "verify")
+        self.assertIn("runtime/topics/demo-topic/validation_review_bundle.active.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/validation_contract.active.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/selected_validation_route.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/execution_task.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/promotion_readiness.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/control_note.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/promotion_readiness.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/control_note.md", deferred_paths)
+        active_triggers = {
+            row["trigger"]
+            for row in bundle["escalation_triggers"]
+            if row.get("active")
+        }
+        self.assertIn("verification_route_selection", active_triggers)
+        self.assertNotIn("promotion_intent", active_triggers)
+
+    def test_full_promote_mode_foregrounds_gate_surfaces_and_defers_history(self) -> None:
+        shell_surfaces = self._shell_surfaces()
+        (self.runtime_root / "promotion_gate.json").write_text(
+            json.dumps(
+                {
+                    "status": "requested",
+                    "candidate_id": "candidate:demo-benchmark",
+                    "candidate_type": "method",
+                    "backend_id": "backend:demo",
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (self.runtime_root / "promotion_gate.md").write_text("# Promotion gate\n", encoding="utf-8")
+        self._rewrite_action_queue(
+            "promote_candidate",
+            "Promote the current candidate into Layer 2 after selected route review.",
+            handler_args={"run_id": "run-001", "candidate_id": "candidate:demo-benchmark"},
+        )
+        self._rewrite_interaction_state(
+            {
+                "human_request": "review promotion and writeback readiness",
+                "action_queue_surface": {},
+                "decision_surface": {},
+                "human_edit_surfaces": [],
+                "closed_loop": {
+                    "selected_route_path": "runtime/topics/demo-topic/selected_validation_route.md",
+                },
+            }
+        )
+        (self.runtime_root / "selected_validation_route.md").write_text("# Selected validation route\n", encoding="utf-8")
+
+        with patch.object(self.service, "ensure_topic_shell_surfaces", return_value=shell_surfaces):
+            with patch.object(self.service, "_candidate_rows_for_run", return_value=[]):
+                result = self.service._materialize_runtime_protocol_bundle(
+                    topic_slug="demo-topic",
+                    updated_by="test",
+                    human_request="review promotion and writeback readiness",
+                    load_profile="full",
+                )
+
+        bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        must_read_paths = self._must_read_paths(bundle)
+        deferred_paths = self._deferred_paths(bundle)
+
+        self.assertEqual(bundle["runtime_mode"], "promote")
+        self.assertIn("runtime/topics/demo-topic/promotion_readiness.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/promotion_gate.md", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/topic_completion.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/control_note.md", must_read_paths)
+        self.assertNotIn("runtime/topics/demo-topic/topic_synopsis.json", must_read_paths)
+        self.assertIn("runtime/topics/demo-topic/control_note.md", deferred_paths)
+        self.assertIn("runtime/topics/demo-topic/topic_synopsis.json", deferred_paths)
+        active_triggers = {
+            row["trigger"]
+            for row in bundle["escalation_triggers"]
+            if row.get("active")
+        }
+        self.assertIn("promotion_intent", active_triggers)
+        self.assertNotIn("verification_route_selection", active_triggers)
 
     def test_runtime_bundle_enriches_paired_backend_bridge_entries(self) -> None:
         shell_surfaces = self._shell_surfaces()
@@ -1086,6 +1359,28 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertEqual(promote_contract["runtime_mode"], "promote")
         self.assertIsNone(promote_contract["active_submode"])
         self.assertEqual(promote_contract["transition_posture"]["transition_kind"], "forward_transition")
+
+    def test_filter_escalation_triggers_for_mode_suppresses_out_of_mode_active_triggers(self) -> None:
+        rows = [
+            {
+                "trigger": "verification_route_selection",
+                "active": True,
+                "condition": "verification path is active",
+                "required_reads": ["runtime/topics/demo-topic/selected_validation_route.md"],
+            },
+            {
+                "trigger": "promotion_intent",
+                "active": True,
+                "condition": "promotion path is active",
+                "required_reads": ["runtime/topics/demo-topic/promotion_gate.md"],
+            },
+        ]
+
+        filtered = filter_escalation_triggers_for_mode(runtime_mode="promote", escalation_triggers=rows)
+        filtered_by_name = {row["trigger"]: row for row in filtered}
+
+        self.assertTrue(filtered_by_name["promotion_intent"]["active"])
+        self.assertFalse(filtered_by_name["verification_route_selection"]["active"])
 
     def test_topic_status_exposes_primary_runtime_surface_roles(self) -> None:
         shell_surfaces = self._shell_surfaces()

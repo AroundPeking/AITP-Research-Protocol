@@ -209,6 +209,8 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("active_submode", payload["properties"])
         self.assertIn("mode_envelope", payload["properties"])
         self.assertIn("transition_posture", payload["properties"])
+        self.assertIn("human_interaction_posture", payload["properties"])
+        self.assertIn("autonomy_posture", payload["properties"])
         self.assertIn("active_research_contract", payload["properties"])
         self.assertIn("promotion_readiness", payload["properties"])
         self.assertIn("validation_review_bundle", payload["properties"])
@@ -253,6 +255,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("notation_rows", topic_intake)
         self.assertIn("contradiction_candidates", topic_intake)
         self.assertIn("notation_tension_candidates", topic_intake)
+        self.assertIn("concept_graph", topic_intake)
         competing_hypothesis = payload["$defs"]["competing_hypothesis"]["properties"]
         self.assertIn("route_kind", competing_hypothesis)
         self.assertIn("route_target_summary", competing_hypothesis)
@@ -410,6 +413,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("notation_rows", intake)
         self.assertIn("contradiction_candidates", intake)
         self.assertIn("notation_tension_candidates", intake)
+        self.assertIn("concept_graph", intake)
         retrieval_profiles = self._read_json("canonical/retrieval_profiles.json")
         l3_types = set(retrieval_profiles["profiles"]["l3_candidate_formation"]["preferred_unit_types"])
         l4_types = set(retrieval_profiles["profiles"]["l4_adjudication"]["preferred_unit_types"])
@@ -427,6 +431,33 @@ class SchemaContractTests(unittest.TestCase):
         self.assertTrue((policy_payload.get("lean_bridge_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("candidate_split_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("deferred_buffer_policy") or {}).get("auto_reactivate"))
+
+    def test_runtime_live_first_turn_evidence_schema_requires_posture_checks(self) -> None:
+        payload = self._read_json("runtime/schemas/runtime-live-first-turn-evidence.schema.json")
+        self.assertEqual(payload["properties"]["report_kind"]["const"], "runtime_live_first_turn_evidence")
+        self.assertEqual(payload["properties"]["contract_version"]["const"], 1)
+        self.assertIn("runtime", payload["required"])
+        self.assertIn("status", payload["required"])
+        self.assertIn("checks", payload["required"])
+        self.assertIn("artifacts", payload["required"])
+        runtimes = set(payload["properties"]["runtime"]["enum"])
+        self.assertIn("claude_code", runtimes)
+        self.assertIn("opencode", runtimes)
+        statuses = set(payload["properties"]["status"]["enum"])
+        self.assertIn("verified", statuses)
+        self.assertIn("failed", statuses)
+        checks = payload["properties"]["checks"]["properties"]
+        self.assertIn("bootstrap_consumed_before_first_substantive_action", checks)
+        self.assertIn("human_interaction_posture_visible", checks)
+        self.assertIn("autonomy_posture_visible", checks)
+        self.assertIn("wait_state_matches_contract", checks)
+        self.assertIn("continue_state_matches_contract", checks)
+        artifacts = payload["properties"]["artifacts"]["properties"]
+        self.assertIn("transcript_path", artifacts)
+        self.assertIn("session_start_path", artifacts)
+        self.assertIn("runtime_protocol_path", artifacts)
+        self.assertIn("status_payload_path", artifacts)
+        self.assertIn("evidence_refs", artifacts)
 
 
 if __name__ == "__main__":

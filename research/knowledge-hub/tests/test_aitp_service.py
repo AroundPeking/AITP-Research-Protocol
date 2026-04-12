@@ -177,6 +177,107 @@ class _TailSyncLoopStubService(_LoopStubService):
         }
 
 
+class _IterativeVerifyLoopStubService(_LoopStubService):
+    def __init__(self, *args, **kwargs):  # noqa: ANN002, ANN003
+        super().__init__(*args, **kwargs)
+        self.auto_action_calls = 0
+
+    def _materialize_runtime_protocol_bundle(  # noqa: ANN003
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str,
+        human_request: str | None = None,
+        load_profile: str | None = None,
+        requested_max_auto_steps: int | None = None,
+        applied_max_auto_steps: int | None = None,
+        auto_step_budget_reason: str | None = None,
+    ) -> dict[str, str]:
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        protocol_paths = self._runtime_protocol_paths(topic_slug)
+        payload = {
+            "$schema": "https://aitp.local/schemas/progressive-disclosure-runtime-bundle.schema.json",
+            "bundle_kind": "progressive_disclosure_runtime_bundle",
+            "protocol_version": 1,
+            "topic_slug": topic_slug,
+            "updated_at": "2026-04-12T12:00:00+08:00",
+            "updated_by": updated_by,
+            "human_request": human_request or "",
+            "resume_stage": "L4",
+            "last_materialized_stage": "L4",
+            "research_mode": "formal_theory",
+            "load_profile": load_profile or "light",
+            "runtime_mode": "verify",
+            "active_submode": "iterative_verify",
+            "h_plane": {
+                "overall_status": "steady",
+                "steering": {"status": "none"},
+                "checkpoint": {"status": "missing"},
+                "approval": {"status": "not_requested"},
+            },
+            "idea_packet": {"status": "ready"},
+            "operator_checkpoint": {"status": "missing"},
+            "human_interaction_posture": {
+                "overall_status": "steady",
+                "requires_human_input_now": False,
+                "steering_status": "none",
+                "checkpoint_status": "missing",
+                "approval_status": "not_requested",
+                "summary": "No active human checkpoint is currently blocking the bounded loop.",
+                "next_action": "AITP may continue bounded work autonomously until a real checkpoint or blocker appears.",
+            },
+            "autonomy_posture": {
+                "mode": "continuous_iterative_verify",
+                "runtime_mode": "verify",
+                "active_submode": "iterative_verify",
+                "can_continue_without_human": True,
+                "summary": "Keep the bounded L3-L4 loop running until validation succeeds, or until a real blocker, contradiction, or human checkpoint appears.",
+                "stop_conditions": [
+                    "validation reaches a stable success state",
+                    "a real contradiction or backedge blocker is materialized",
+                    "a human checkpoint becomes active",
+                ],
+                "requested_max_auto_steps": requested_max_auto_steps,
+                "applied_max_auto_steps": applied_max_auto_steps,
+                "budget_reason": auto_step_budget_reason or "",
+            },
+        }
+        Path(protocol_paths["json"]).write_text(
+            json.dumps(payload, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        Path(protocol_paths["note"]).write_text("# Runtime protocol\n", encoding="utf-8")
+        return {
+            "runtime_protocol_path": str(protocol_paths["json"]),
+            "runtime_protocol_note_path": str(protocol_paths["note"]),
+        }
+
+    def _execute_auto_actions(self, *, topic_slug: str, updated_by: str, max_auto_steps: int = 1, default_skill_queries=None):  # noqa: ANN003
+        self.auto_action_calls += 1
+        queue_path = self.kernel_root / "runtime" / "topics" / topic_slug / "action_queue.jsonl"
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+        queue_path.write_text("", encoding="utf-8")
+        if self.auto_action_calls > 6:
+            return {
+                "queue_path": str(queue_path),
+                "remaining_pending": 0,
+                "executed": [],
+                "checkpoint_blocking": False,
+            }
+        return {
+            "queue_path": str(queue_path),
+            "remaining_pending": 1,
+            "executed": [
+                {
+                    "action_id": f"action:{topic_slug}:{self.auto_action_calls:02d}",
+                    "status": "completed",
+                }
+            ],
+            "checkpoint_blocking": False,
+        }
+
+
 class _SteeringLoopStubService(AITPService):
     def __init__(self, *args, **kwargs):  # noqa: ANN002, ANN003
         super().__init__(*args, **kwargs)
@@ -593,6 +694,96 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
         return ledger_path
+
+    def _write_conformance_shell_artifacts(
+        self,
+        *,
+        topic_slug: str = "demo-topic",
+        run_id: str = "2026-03-13-demo",
+        queue_rows: list[dict[str, object]] | None = None,
+    ) -> Path:
+        runtime_root = self.kernel_root / "runtime" / "topics" / topic_slug
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        if queue_rows is None:
+            queue_rows = [
+                {
+                    "action_id": f"action:{topic_slug}:inspect",
+                    "status": "pending",
+                    "action_type": "inspect_runtime",
+                    "summary": "Inspect the runtime state before the next bounded step.",
+                    "auto_runnable": False,
+                }
+            ]
+        selected_action_id = str(queue_rows[0]["action_id"])
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": topic_slug,
+                    "latest_run_id": run_id,
+                    "resume_stage": "L3",
+                    "research_mode": "formal_theory",
+                    "active_executor_kind": "codex",
+                    "pointers": {
+                        "research_question_contract_path": f"runtime/topics/{topic_slug}/research_question.contract.json",
+                        "validation_contract_path": f"runtime/topics/{topic_slug}/validation_contract.active.json",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "resume.md").write_text("# Resume\n", encoding="utf-8")
+        (runtime_root / "agent_brief.md").write_text("# Agent brief\n", encoding="utf-8")
+        (runtime_root / "operator_console.md").write_text("# Operator console\n", encoding="utf-8")
+        (runtime_root / "unfinished_work.json").write_text(
+            json.dumps({"status": "active", "items": []}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "unfinished_work.md").write_text("# Unfinished work\n", encoding="utf-8")
+        (runtime_root / "next_action_decision.json").write_text(
+            json.dumps(
+                {
+                    "policy": {"default_mode": "continue_unfinished"},
+                    "decision_mode": "continue_unfinished",
+                    "selected_action": {"action_id": selected_action_id},
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "next_action_decision.md").write_text("# Next action\n", encoding="utf-8")
+        (runtime_root / "action_queue_contract.generated.json").write_text(
+            json.dumps({"actions": queue_rows}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue_contract.generated.md").write_text("# Action queue contract\n", encoding="utf-8")
+        (runtime_root / "action_queue.jsonl").write_text(
+            "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in queue_rows),
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Continue the active topic carefully.",
+                    "human_edit_surfaces": ["runtime/topics/demo-topic/operator_console.md"],
+                    "delivery_contract": {"rule": "return_updated_runtime_state"},
+                    "capability_adaptation": {"protocol_path": "runtime/topics/demo-topic/capability_protocol.md"},
+                    "decision_surface": {"next_action_decision_path": f"runtime/topics/{topic_slug}/next_action_decision.json"},
+                    "action_queue_surface": {
+                        "generated_contract_path": f"runtime/topics/{topic_slug}/action_queue_contract.generated.json"
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return runtime_root
 
     def _write_tpkn_backend_card(self, *, allows_auto: bool = True) -> Path:
         backends_root = self.kernel_root / "canonical" / "backends"
@@ -1149,9 +1340,10 @@ class AITPServiceTests(unittest.TestCase):
         )
         self.assertEqual(payload["minimal_execution_brief"]["queue_source"], "heuristic")
         self.assertEqual(payload["load_profile"], "light")
-        self.assertEqual(len(payload["must_read_now"]), 2)
+        self.assertEqual(len(payload["must_read_now"]), 3)
         self.assertEqual(payload["must_read_now"][0]["path"], "runtime/topics/demo-topic/topic_dashboard.md")
         self.assertEqual(payload["must_read_now"][1]["path"], "runtime/topics/demo-topic/research_question.contract.md")
+        self.assertEqual(payload["must_read_now"][2]["path"], "runtime/topics/demo-topic/graph_analysis.md")
         self.assertEqual(payload["minimal_execution_brief"]["open_next"], "runtime/topics/demo-topic/topic_dashboard.md")
         self.assertFalse(any(row["path"].endswith("operator_console.md") for row in payload["must_read_now"]))
         self.assertFalse(any(row["path"] == "RESEARCH_EXECUTION_GUARDRAILS.md" for row in payload["must_read_now"]))
@@ -1210,7 +1402,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("## Idea packet", note_text)
         self.assertIn("## Operator checkpoint", note_text)
         self.assertIn("## Escalate only when triggered", note_text)
-        self.assertIn("`promotion_intent` status=`active`", note_text)
+        self.assertIn("`promotion_intent` status=`inactive`", note_text)
         self.assertIn("Prefer durable `next_actions.contract.json`", note_text)
         self.assertNotIn("RESEARCH_EXECUTION_GUARDRAILS.md", note_text)
         self.assertIn("backend:formal-theory-note-library", note_text)
@@ -2281,7 +2473,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = service.ensure_topic_shell_surfaces(
+        payload = self.service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2353,7 +2545,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = service.ensure_topic_shell_surfaces(
+        payload = self.service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2493,7 +2685,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = service.ensure_topic_shell_surfaces(
+        payload = self.service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2639,6 +2831,202 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(all(row["status"] == "applied" for row in flowback_rows))
         self.assertIn("## L1 vault", research_note)
 
+    def test_ensure_topic_shell_surfaces_projects_l1_concept_graph_into_contract_and_notes(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L1",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Inspect the source concept graph before continuing.",
+                    "decision_surface": {
+                        "selected_action_id": "action:demo-topic:graph",
+                        "decision_source": "heuristic",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:graph",
+                    "status": "pending",
+                    "action_type": "inspect_resume_state",
+                    "summary": "Inspect the source concept graph before continuing.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        source_root = self.kernel_root / "source-layer" / "topics" / "demo-topic"
+        source_root.mkdir(parents=True, exist_ok=True)
+        source_slug = "paper-topological-order-and-anyon-condensation-2401-00001"
+        source_dir = source_root / "sources" / source_slug
+        source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "concept_graph.json").write_text(
+            json.dumps(
+                {
+                    "kind": "source_concept_graph",
+                    "graph_version": 1,
+                    "topic_slug": "demo-topic",
+                    "source_id": "paper:topological-order-and-anyon-condensation-2401-00001",
+                    "source_json_path": f"source-layer/topics/demo-topic/sources/{source_slug}/source.json",
+                    "generated_at": "2026-04-13T00:00:00+08:00",
+                    "generated_by": "test",
+                    "provider": "override_json",
+                    "nodes": [
+                        {
+                            "node_id": "concept:topological-order",
+                            "label": "Topological order",
+                            "node_type": "concept",
+                            "confidence_tier": "EXTRACTED",
+                            "confidence_score": 0.95,
+                            "evidence_refs": [f"source-layer/topics/demo-topic/sources/{source_slug}/source.json"],
+                            "notes": "",
+                        }
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [
+                        {
+                            "community_id": "community-topological-order",
+                            "label": "Topological order cluster",
+                            "node_ids": ["concept:topological-order"],
+                        }
+                    ],
+                    "god_nodes": ["concept:topological-order"],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (source_root / "source_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:topological-order-and-anyon-condensation-2401-00001",
+                    "source_type": "paper",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "Topological order supports the bounded condensation route.",
+                    "locator": {
+                        "local_path": f"source-layer/topics/demo-topic/sources/{source_slug}/source.json",
+                        "concept_graph_path": f"source-layer/topics/demo-topic/sources/{source_slug}/concept_graph.json",
+                    },
+                    "provenance": {
+                        "abs_url": "https://example.org/topological-order",
+                    },
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+        status_payload = self.service.topic_status(topic_slug="demo-topic")
+
+        concept_graph = payload["research_question_contract"]["l1_source_intake"]["concept_graph"]
+        self.assertEqual(concept_graph["nodes"][0]["node_id"], "concept:topological-order")
+        self.assertEqual(concept_graph["god_nodes"][0]["label"], "Topological order")
+        research_note = Path(payload["research_question_contract_note_path"]).read_text(encoding="utf-8")
+        runtime_note = Path(status_payload["runtime_protocol_note_path"]).read_text(encoding="utf-8")
+        wiki_note = Path(payload["l1_vault_wiki_source_intake_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Concept graph", research_note)
+        self.assertIn("## Concept graph", runtime_note)
+        self.assertIn("## Concept graph", wiki_note)
+
+    def test_ensure_topic_shell_surfaces_uses_runtime_mode_for_deepxiv_progressive_reading(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "runtime_protocol.generated.json").write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "verify",
+                    "active_submode": "literature",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "runtime_protocol.generated.md").write_text("# Runtime protocol\n", encoding="utf-8")
+
+        source_root = self.kernel_root / "source-layer" / "topics" / "demo-topic"
+        source_root.mkdir(parents=True, exist_ok=True)
+        (source_root / "source_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "source_id": "paper:bounded-closure-2401-00003",
+                    "source_type": "paper",
+                    "title": "Bounded Closure Route",
+                    "summary": "Summary fallback should stay deferred because it only mentions strong coupling.",
+                    "provenance": {
+                        "abs_url": "https://example.org/bounded-closure-progressive",
+                        "deepxiv_tldr": "This paper studies the bounded closure route.",
+                        "deepxiv_sections": [
+                            {
+                                "name": "Introduction",
+                                "idx": 0,
+                                "tldr": "The introduction frames the theorem-facing route.",
+                                "token_count": 120,
+                            },
+                            {
+                                "name": "Setup",
+                                "idx": 1,
+                                "tldr": "We assume the closure remains valid in the weak coupling limit.",
+                                "token_count": 160,
+                            },
+                            {
+                                "name": "Results",
+                                "idx": 4,
+                                "tldr": "At zero temperature, the proof closes the first bounded theorem route.",
+                                "token_count": 180,
+                            },
+                        ],
+                    },
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(
+            topic_slug="demo-topic",
+            updated_by="aitp-cli",
+        )
+
+        l1_source_intake = payload["research_question_contract"]["l1_source_intake"]
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["basis"], "deepxiv_sections")
+        self.assertIn("weak coupling", json.dumps(l1_source_intake["regime_rows"]))
+        self.assertIn("zero temperature", json.dumps(l1_source_intake["regime_rows"]))
+        self.assertNotIn("strong coupling", json.dumps(l1_source_intake["regime_rows"]))
+
     def test_ensure_topic_shell_surfaces_persists_l1_conflict_candidates(self) -> None:
         runtime_root = self._write_runtime_state()
         (runtime_root / "topic_state.json").write_text(
@@ -2720,7 +3108,7 @@ class AITPServiceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
-        payload = service.ensure_topic_shell_surfaces(
+        payload = self.service.ensure_topic_shell_surfaces(
             topic_slug="demo-topic",
             updated_by="aitp-cli",
         )
@@ -2871,6 +3259,249 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("peer_reviewed", protocol_text)
         self.assertIn("## Method specificity", protocol_text)
 
+    def test_topic_status_surfaces_graph_analysis_and_cross_iteration_diff(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L1",
+                    "research_mode": "formal_derivation",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Inspect the graph-analysis runtime surface.",
+                    "decision_surface": {
+                        "selected_action_id": "action:demo-topic:graph-analysis",
+                        "decision_source": "heuristic",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:graph-analysis",
+                    "status": "pending",
+                    "action_type": "inspect_resume_state",
+                    "summary": "Inspect the graph-analysis summary before proceeding.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        source_root = self.kernel_root / "source-layer" / "topics" / "demo-topic"
+        source_root.mkdir(parents=True, exist_ok=True)
+        source_slug = "paper-anyon-condensation-2401-00005"
+        source_dir = source_root / "sources" / source_slug
+        source_dir.mkdir(parents=True, exist_ok=True)
+        note_source_slug = "note-operator-algebra"
+        note_source_dir = source_root / "sources" / note_source_slug
+        note_source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "concept_graph.json").write_text(
+            json.dumps(
+                {
+                    "kind": "source_concept_graph",
+                    "graph_version": 1,
+                    "topic_slug": "demo-topic",
+                    "source_id": "paper:anyon-condensation-2401-00005",
+                    "source_json_path": f"source-layer/topics/demo-topic/sources/{source_slug}/source.json",
+                    "generated_at": "2026-04-13T00:00:00+08:00",
+                    "generated_by": "test",
+                    "provider": "override_json",
+                    "nodes": [
+                        {
+                            "node_id": "concept:topological-order",
+                            "label": "Topological order",
+                            "node_type": "concept",
+                            "confidence_tier": "EXTRACTED",
+                            "confidence_score": 0.95,
+                            "evidence_refs": [],
+                            "notes": "",
+                        }
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [],
+                    "god_nodes": ["concept:topological-order"],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (source_root / "source_index.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "source_id": "paper:anyon-condensation-2401-00005",
+                            "source_type": "paper",
+                            "title": "Anyon condensation paper",
+                            "summary": "Topological order summary.",
+                            "locator": {
+                                "concept_graph_path": f"source-layer/topics/demo-topic/sources/{source_slug}/concept_graph.json",
+                            },
+                            "provenance": {
+                                "abs_url": "https://example.org/anyon-condensation",
+                            },
+                        },
+                        ensure_ascii=True,
+                    ),
+                    json.dumps(
+                        {
+                            "source_id": "note:operator-algebra",
+                            "source_type": "local_note",
+                            "title": "Operator algebra note",
+                            "summary": "Topological order operator note.",
+                            "locator": {},
+                            "provenance": {
+                                "deepxiv_tldr": "Topological order appears in the operator-algebra route.",
+                            },
+                        },
+                        ensure_ascii=True,
+                    ),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        first_status = self.service.topic_status(topic_slug="demo-topic")
+        self.assertIn("graph_analysis", first_status)
+        self.assertEqual(first_status["graph_analysis"]["summary"]["connection_count"], 0)
+
+        (note_source_dir / "concept_graph.json").write_text(
+            json.dumps(
+                {
+                    "kind": "source_concept_graph",
+                    "graph_version": 1,
+                    "topic_slug": "demo-topic",
+                    "source_id": "note:operator-algebra",
+                    "source_json_path": f"source-layer/topics/demo-topic/sources/{note_source_slug}/source.json",
+                    "generated_at": "2026-04-14T00:00:00+08:00",
+                    "generated_by": "test",
+                    "provider": "override_json",
+                    "nodes": [
+                        {
+                            "node_id": "concept:anyon-condensation-operator",
+                            "label": "Anyon condensation",
+                            "node_type": "concept",
+                            "confidence_tier": "EXTRACTED",
+                            "confidence_score": 0.93,
+                            "evidence_refs": [],
+                            "notes": "",
+                        }
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [],
+                    "god_nodes": ["concept:anyon-condensation-operator"],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        (source_dir / "concept_graph.json").write_text(
+            json.dumps(
+                {
+                    "kind": "source_concept_graph",
+                    "graph_version": 1,
+                    "topic_slug": "demo-topic",
+                    "source_id": "paper:anyon-condensation-2401-00005",
+                    "source_json_path": f"source-layer/topics/demo-topic/sources/{source_slug}/source.json",
+                    "generated_at": "2026-04-14T00:00:00+08:00",
+                    "generated_by": "test",
+                    "provider": "override_json",
+                    "nodes": [
+                        {
+                            "node_id": "concept:anyon-condensation",
+                            "label": "Anyon condensation",
+                            "node_type": "concept",
+                            "confidence_tier": "EXTRACTED",
+                            "confidence_score": 0.95,
+                            "evidence_refs": [],
+                            "notes": "",
+                        }
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [],
+                    "god_nodes": ["concept:anyon-condensation"],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        updated_rows = [
+            json.dumps(
+                {
+                    "source_id": "paper:anyon-condensation-2401-00005",
+                    "source_type": "paper",
+                    "title": "Anyon condensation paper",
+                    "summary": "Anyon condensation summary.",
+                    "locator": {
+                        "concept_graph_path": f"source-layer/topics/demo-topic/sources/{source_slug}/concept_graph.json",
+                    },
+                    "provenance": {
+                        "abs_url": "https://example.org/anyon-condensation",
+                    },
+                },
+                ensure_ascii=True,
+            ),
+            json.dumps(
+                {
+                    "source_id": "note:operator-algebra",
+                    "source_type": "local_note",
+                    "title": "Operator algebra note",
+                    "summary": "Anyon condensation operator note.",
+                    "locator": {
+                        "concept_graph_path": f"source-layer/topics/demo-topic/sources/{note_source_slug}/concept_graph.json",
+                    },
+                    "provenance": {
+                        "deepxiv_tldr": "Anyon condensation appears in the operator-algebra route.",
+                    },
+                },
+                ensure_ascii=True,
+            ),
+        ]
+        (source_root / "source_index.jsonl").write_text("\n".join(updated_rows) + "\n", encoding="utf-8")
+
+        second_status = self.service.topic_status(topic_slug="demo-topic")
+
+        self.assertEqual(second_status["graph_analysis"]["summary"]["connection_count"], 1)
+        self.assertEqual(second_status["graph_analysis"]["summary"]["history_length"], 2)
+        self.assertEqual(second_status["graph_analysis"]["diff"]["added"]["node_count"], 2)
+        self.assertEqual(second_status["graph_analysis"]["diff"]["removed"]["node_count"], 1)
+        dashboard_text = (self.kernel_root / "runtime" / "topics" / "demo-topic" / "topic_dashboard.md").read_text(encoding="utf-8")
+        self.assertIn("## Graph analysis", dashboard_text)
+        protocol_text = Path(second_status["runtime_protocol_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Graph analysis", protocol_text)
+        self.assertIn("Anyon condensation", protocol_text)
+
     def test_topic_status_and_prepare_verification_surface_new_shell_fields(self) -> None:
         runtime_root = self._write_runtime_state()
         (runtime_root / "interaction_state.json").write_text(
@@ -2912,6 +3543,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("active_research_contract", status_payload)
         self.assertIn("idea_packet", status_payload)
         self.assertIn("operator_checkpoint", status_payload)
+        self.assertIn("human_interaction_posture", status_payload)
+        self.assertIn("autonomy_posture", status_payload)
         self.assertIn("topic_completion", status_payload)
         self.assertIn("lean_bridge", status_payload)
         self.assertTrue(
@@ -2962,10 +3595,15 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIsNone(bundle["active_submode"])
         self.assertEqual(bundle["mode_envelope"]["mode"], "discussion")
         self.assertTrue(bundle["transition_posture"]["requires_human_checkpoint"])
+        self.assertTrue(bundle["human_interaction_posture"]["requires_human_input_now"])
+        self.assertEqual(bundle["autonomy_posture"]["mode"], "await_human_checkpoint")
         self.assertTrue(any(row["path"].endswith("idea_packet.md") for row in bundle["must_read_now"]))
         self.assertTrue(any(row["path"].endswith("operator_checkpoint.active.md") for row in bundle["must_read_now"]))
         self.assertTrue(any("idea_packet.md" in row for row in bundle["active_hard_constraints"]))
         self.assertTrue(any("operator_checkpoint.active.md" in row for row in bundle["active_hard_constraints"]))
+        runtime_note = Path(protocol_paths["runtime_protocol_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Human interaction posture", runtime_note)
+        self.assertIn("## Autonomous continuation", runtime_note)
 
         session_payload = self.service._materialize_session_start_contract(
             task="Topological phases from modular data",
@@ -2990,10 +3628,16 @@ class AITPServiceTests(unittest.TestCase):
             },
             updated_by="aitp-session-start",
         )
+        self.assertTrue(session_payload["human_interaction_posture"]["requires_human_input_now"])
+        self.assertEqual(session_payload["autonomy_posture"]["mode"], "await_human_checkpoint")
         self.assertTrue(any(row["path"].endswith("idea_packet.md") for row in session_payload["must_read_now"]))
         self.assertTrue(any(row["path"].endswith("operator_checkpoint.active.md") for row in session_payload["must_read_now"]))
         self.assertTrue(any("idea_packet.md" in row for row in session_payload["hard_stops"]))
         self.assertTrue(any("operator_checkpoint.active.md" in row for row in session_payload["hard_stops"]))
+        session_note = Path(session_payload["session_start_note_path"]).read_text(encoding="utf-8")
+        self.assertIn("## Human interaction posture", session_note)
+        self.assertIn("waiting on clarification", session_note)
+        self.assertIn("## Autonomous continuation", session_note)
 
     def test_answer_operator_checkpoint_updates_ledger_and_operator_console(self) -> None:
         runtime_root = self.kernel_root / "runtime" / "topics" / "demo-topic"
@@ -3194,6 +3838,8 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
         self.assertEqual(payload["operator_checkpoint"]["checkpoint_kind"], "execution_lane_confirmation")
         self.assertIn("confirm the execution lane", payload["operator_checkpoint"]["question"].lower())
+        self.assertIn("chosen approach", payload["operator_checkpoint"]["required_response"].lower())
+        self.assertNotIn("bounded route", payload["operator_checkpoint"]["required_response"].lower())
 
     def test_execute_auto_actions_stops_when_operator_checkpoint_is_requested(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -3327,9 +3973,58 @@ class AITPServiceTests(unittest.TestCase):
 
         self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
         self.assertEqual(payload["operator_checkpoint"]["checkpoint_kind"], "promotion_approval")
+        self.assertIn(
+            "ready to save as reusable knowledge",
+            payload["operator_checkpoint"]["question"].lower(),
+        )
+        self.assertNotIn("approve promotion", payload["operator_checkpoint"]["question"].lower())
         checkpoint_note = Path(payload["operator_checkpoint_note_path"]).read_text(encoding="utf-8")
         self.assertIn("candidate:demo-candidate", checkpoint_note)
         self.assertIn("backend:theoretical-physics-knowledge-network", checkpoint_note)
+
+    def test_contradiction_checkpoint_uses_plain_language(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Resolve the contradiction before continuing.",
+                    "decision_surface": {
+                        "decision_mode": "continue_unfinished",
+                        "decision_source": "heuristic",
+                        "selected_action_id": "action:demo-topic:contradiction",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:contradiction",
+                    "status": "pending",
+                    "action_type": "review_contradiction",
+                    "summary": "Resolve the contradiction between the claimed scaling law and the cited benchmark.",
+                    "auto_runnable": False,
+                    "queue_source": "runtime_appended",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(topic_slug="demo-topic", updated_by="test")
+
+        self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
+        self.assertEqual(payload["operator_checkpoint"]["checkpoint_kind"], "contradiction_adjudication")
+        self.assertIn("how to judge this", payload["operator_checkpoint"]["question"].lower())
+        self.assertIn("restart from source intake", payload["operator_checkpoint"]["required_response"].lower())
+        self.assertNotIn("adjudication route", payload["operator_checkpoint"]["question"].lower())
+        self.assertNotIn("return to l0", payload["operator_checkpoint"]["required_response"].lower())
 
     def test_operation_trust_registry_blocks_until_gate_is_satisfied(self) -> None:
         self._write_runtime_state()
@@ -3363,6 +4058,79 @@ class AITPServiceTests(unittest.TestCase):
         )
         self.assertEqual(passed["overall_status"], "pass")
         self.assertEqual(passed["operations"][0]["trust_ready"], True)
+
+    def test_audit_reports_mechanical_completion_preflight_pass(self) -> None:
+        self._write_conformance_shell_artifacts()
+        self.service.scaffold_operation(
+            topic_slug="demo-topic",
+            run_id="2026-03-13-demo",
+            title="Small-system validation backend",
+            kind="numerical",
+        )
+        self.service.update_operation(
+            topic_slug="demo-topic",
+            run_id="2026-03-13-demo",
+            operation="Small-system validation backend",
+            baseline_status="passed",
+        )
+
+        payload = self.service.audit(topic_slug="demo-topic", phase="exit")
+
+        preflight = (payload.get("conformance_state") or {}).get("mechanical_completion_preflight") or {}
+        self.assertEqual((payload.get("conformance_state") or {}).get("overall_status"), "pass")
+        self.assertEqual(preflight.get("status"), "pass")
+        self.assertTrue(preflight.get("llm_audit_eligible"))
+        self.assertTrue(
+            any(
+                check.get("code") == "operations_baseline_confirmed" and check.get("status") == "pass"
+                for check in preflight.get("checks") or []
+            )
+        )
+        report_text = Path(payload["conformance_report_path"]).read_text(encoding="utf-8")
+        self.assertIn("Mechanical completion preflight", report_text)
+
+    def test_audit_blocks_on_mechanical_completion_preflight_failures(self) -> None:
+        self._write_conformance_shell_artifacts(
+            queue_rows=[
+                {
+                    "action_id": "action:demo-topic:manual-followup",
+                    "status": "pending",
+                    "action_type": "manual_followup",
+                    "summary": "Wait for bounded manual follow-up before closing the topic.",
+                    "auto_runnable": False,
+                }
+            ]
+        )
+        self.service.scaffold_operation(
+            topic_slug="demo-topic",
+            run_id="2026-03-13-demo",
+            title="Large-system validation backend",
+            kind="numerical",
+        )
+        ledger_path = self._write_candidate()
+        candidate_row = json.loads(ledger_path.read_text(encoding="utf-8").splitlines()[0])
+        candidate_row["followup_gap_ids"] = ["open_gap:demo"]
+        ledger_path.write_text(json.dumps(candidate_row, ensure_ascii=True) + "\n", encoding="utf-8")
+
+        payload = self.service.audit(topic_slug="demo-topic", phase="exit")
+
+        state = payload.get("conformance_state") or {}
+        preflight = state.get("mechanical_completion_preflight") or {}
+        self.assertEqual(state.get("overall_status"), "fail")
+        self.assertEqual(preflight.get("status"), "blocked")
+        self.assertFalse(preflight.get("llm_audit_eligible"))
+        failed_codes = {
+            check.get("code")
+            for check in preflight.get("checks") or []
+            if check.get("status") == "fail"
+        }
+        self.assertIn("operations_baseline_confirmed", failed_codes)
+        self.assertIn("unresolved_gaps_clear", failed_codes)
+        self.assertIn("pending_followups_clear", failed_codes)
+        blocking_text = "\n".join(preflight.get("blocking_reasons") or [])
+        self.assertIn("Large-system validation backend", blocking_text)
+        self.assertIn("open_gap:demo", blocking_text)
+        self.assertIn("manual follow-up", blocking_text)
 
     def test_capability_audit_writes_registry(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -4119,6 +4887,52 @@ class AITPServiceTests(unittest.TestCase):
             "aitp h-plane-audit --topic-slug <topic_slug>",
         )
 
+    def test_sync_l1_graph_export_to_theoretical_physics_brain_mirrors_local_export(self) -> None:
+        export_root = self.kernel_root / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph"
+        export_root.mkdir(parents=True, exist_ok=True)
+        (export_root / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "kind": "obsidian_concept_graph_export",
+                    "topic_slug": "demo-topic",
+                    "root_path": "intake/topics/demo-topic/vault/wiki/concept-graph",
+                    "index_path": "intake/topics/demo-topic/vault/wiki/concept-graph/index.md",
+                    "summary": {
+                        "node_note_count": 1,
+                        "community_folder_count": 1,
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (export_root / "index.md").write_text("# Concept Graph\n", encoding="utf-8")
+        note_dir = export_root / "topological-order-cluster"
+        note_dir.mkdir(parents=True, exist_ok=True)
+        (note_dir / "index.md").write_text("# Cluster\n", encoding="utf-8")
+        (note_dir / "topological-order.md").write_text("# Topological order\n", encoding="utf-8")
+
+        brain_root = self.root / "obsidian-markdown" / "01 Theoretical Physics"
+        self._write_theoretical_physics_brain_backend_card()
+        brain_card = self.kernel_root / "canonical" / "backends" / "theoretical-physics-brain.json"
+        brain_payload = json.loads(brain_card.read_text(encoding="utf-8"))
+        brain_payload["root_paths"] = [str(brain_root)]
+        brain_card.write_text(json.dumps(brain_payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+        payload = self.service.sync_l1_graph_export_to_theoretical_physics_brain(
+            topic_slug="demo-topic",
+            updated_by="test-suite",
+        )
+
+        target_root = brain_root / "90 AITP Imports" / "concept-graphs" / "demo-topic"
+        self.assertEqual(payload["target_root"], str(target_root))
+        self.assertTrue((target_root / "index.md").exists())
+        self.assertTrue((target_root / "topological-order-cluster" / "topological-order.md").exists())
+        self.assertTrue(Path(payload["receipt_path"]).exists())
+        self.assertEqual(payload["summary"]["mirrored_file_count"], 4)
+
     def test_doctor_reports_runtime_support_matrix_for_ready_baseline_and_targets(self) -> None:
         codex_status = {
             "using_skill_path": "C:\\Users\\demo\\.agents\\skills\\using-aitp\\SKILL.md",
@@ -4720,7 +5534,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("runtime_support_matrix", payload)
         self.assertIn("runtime_convergence", payload)
         self.assertEqual(payload["package"]["status"], "stale_editable_install")
-        self.assertEqual(payload["package"]["name"], "aitp")
+        self.assertEqual(payload["package"]["name"], "aitp-kernel")
         self.assertEqual(payload["full_convergence_repair"]["status"], "recommended")
 
     def test_migrate_local_install_moves_workspace_legacy_and_records_pip_actions(self) -> None:
@@ -4829,15 +5643,11 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(result["runtime_convergence_after"]["front_door_runtimes_converged"])
         self.assertEqual(result["runtime_convergence_after"]["ready_runtimes"], ["codex", "claude_code", "opencode"])
 
-    def test_doctor_prefers_legacy_distribution_when_primary_package_missing(self) -> None:
+    def test_doctor_reports_not_installed_when_primary_distribution_missing(self) -> None:
         workspace_root = self.root / "Theoretical-Physics"
         workspace_root.mkdir(parents=True, exist_ok=True)
 
         def fake_pip_show(name: str) -> dict[str, str]:
-            if name == "aitp":
-                return {}
-            if name == "aitp-kernel":
-                return {"version": "0.4.1"}
             return {}
 
         with patch.object(self.service, "_pip_show_package", side_effect=fake_pip_show):
@@ -4845,8 +5655,8 @@ class AITPServiceTests(unittest.TestCase):
                 payload = self.service.ensure_cli_installed(workspace_root=str(workspace_root))
 
         self.assertEqual(payload["package"]["name"], "aitp-kernel")
-        self.assertEqual(payload["package"]["status"], "legacy_installed")
-        self.assertIn("legacy_package_install", payload["issues"])
+        self.assertEqual(payload["package"]["status"], "not_installed")
+        self.assertIn("package_not_installed", payload["issues"])
 
     def test_run_topic_loop_writes_loop_state_and_executes_auto_actions(self) -> None:
         service = _LoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
@@ -6111,6 +6921,15 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(routing["topic"], "Topological phases from modular data")
         self.assertIsNone(routing["topic_slug"])
 
+    def test_route_codex_chat_request_detects_brand_new_research_topic_named_in_english(self) -> None:
+        routing = self.service.route_codex_chat_request(
+            task='Start a brand-new research topic named "Jones von Neumann algebras". Before any deeper work, answer plainly.',
+        )
+
+        self.assertEqual(routing["route"], "request_new_topic")
+        self.assertEqual(routing["topic"], "Jones von Neumann algebras")
+        self.assertIsNone(routing["topic_slug"])
+
     def test_route_codex_chat_request_prefers_current_topic_reference(self) -> None:
         runtime_root = self.kernel_root / "runtime"
         runtime_root.mkdir(parents=True, exist_ok=True)
@@ -6331,6 +7150,28 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("mode_learning_note_path", session_contract["artifacts"])
         self.assertIn("runtime_protocol.generated.md", Path(payload["session_start_note_path"]).read_text(encoding="utf-8"))
 
+    def test_start_chat_session_allocates_fresh_slug_for_explicit_new_topic_collision(self) -> None:
+        existing_slug = "jones-von-neumann-algebras"
+        existing_runtime_root = self.kernel_root / "runtime" / "topics" / existing_slug
+        existing_runtime_root.mkdir(parents=True, exist_ok=True)
+        (existing_runtime_root / "topic_state.json").write_text(
+            json.dumps({"topic_slug": existing_slug}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        payload = service.start_chat_session(
+            task='Start a brand-new research topic named "Jones von Neumann algebras". Before any deeper work, answer plainly.',
+        )
+
+        self.assertEqual(payload["routing"]["route"], "request_new_topic")
+        self.assertEqual(payload["routing"]["topic"], "Jones von Neumann algebras")
+        self.assertEqual(payload["routing"]["topic_slug"], "jones-von-neumann-algebras-2")
+        self.assertTrue(payload["routing"]["new_topic_allocation"]["collision"])
+        self.assertEqual(payload["topic_slug"], "jones-von-neumann-algebras-2")
+        self.assertEqual(service.orchestrate_calls[0]["topic_slug"], "jones-von-neumann-algebras-2")
+        self.assertEqual(service.orchestrate_calls[0]["topic"], "Jones von Neumann algebras")
+
     def test_run_topic_loop_tail_syncs_after_budget_exhaustion(self) -> None:
         service = _TailSyncLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
         payload = service.run_topic_loop(
@@ -6343,6 +7184,24 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["auto_actions"]["remaining_pending"], 1)
         bundle = json.loads(Path(payload["runtime_protocol"]["runtime_protocol_path"]).read_text(encoding="utf-8"))
         self.assertEqual(bundle["minimal_execution_brief"]["selected_action_id"], "action:demo-topic:02")
+
+    def test_run_topic_loop_extends_budget_for_iterative_verify_without_human_checkpoint(self) -> None:
+        service = _IterativeVerifyLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+
+        payload = service.run_topic_loop(
+            topic_slug="demo-topic",
+            human_request="keep iterating on the failing proof obligations until the verify loop stabilizes",
+            max_auto_steps=1,
+        )
+
+        self.assertEqual(payload["loop_state"]["requested_max_auto_steps"], 1)
+        self.assertEqual(payload["loop_state"]["applied_max_auto_steps"], 16)
+        self.assertEqual(payload["loop_state"]["auto_step_budget_reason"], "iterative_verify_auto_extension")
+        self.assertEqual(len(payload["auto_actions"]["executed"]), 6)
+        bundle = json.loads(Path(payload["runtime_protocol"]["runtime_protocol_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(bundle["autonomy_posture"]["mode"], "continuous_iterative_verify")
+        self.assertEqual(bundle["autonomy_posture"]["applied_max_auto_steps"], 16)
+        self.assertEqual(bundle["autonomy_posture"]["budget_reason"], "iterative_verify_auto_extension")
 
     def test_run_topic_loop_materializes_steering_artifacts_from_human_request(self) -> None:
         service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
@@ -6422,6 +7281,26 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("Keep the modular tensor category framing explicit.", updated_text)
         self.assertIn("Auto-filled from the latest steering request", updated_text)
         self.assertIn("modular bootstrap constraints", updated_text)
+
+    def test_steer_topic_from_text_materializes_parsed_steering(self) -> None:
+        self._write_runtime_state()
+
+        payload = self.service.steer_topic_from_text(
+            topic_slug="demo-topic",
+            text="继续这个 topic，方向改成 modular bootstrap constraints",
+            updated_by="aitp-cli",
+        )
+
+        self.assertTrue(payload["detected"])
+        self.assertTrue(payload["materialized"])
+        self.assertEqual(payload["decision"], "redirect")
+        self.assertEqual(payload["direction"], "modular bootstrap constraints")
+        innovation_direction_path = self.kernel_root / str(payload["innovation_direction_path"])
+        self.assertTrue(innovation_direction_path.exists())
+        self.assertIn(
+            "modular bootstrap constraints",
+            innovation_direction_path.read_text(encoding="utf-8"),
+        )
 
     def test_build_codex_prompt_includes_innovation_surfaces(self) -> None:
         payload = {
@@ -8250,6 +9129,452 @@ class AITPServiceTests(unittest.TestCase):
         queue_row = json.loads(queue_path.read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual(queue_row["status"], "completed")
 
+    def test_execute_auto_actions_appends_and_runs_literature_intake_stage(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug)
+        queue_path = runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:manual:01",
+                    "status": "pending",
+                    "auto_runnable": False,
+                    "action_type": "manual_followup",
+                    "summary": "Wait for bounded manual follow-up after staging.",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_json = runtime_root / "runtime_protocol.generated.json"
+        runtime_protocol_note = runtime_root / "runtime_protocol.generated.md"
+        runtime_protocol_json.write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": "literature",
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                    "active_research_contract": {
+                        "l1_source_intake": {
+                            "source_count": 1,
+                            "assumption_rows": [],
+                            "regime_rows": [],
+                            "reading_depth_rows": [],
+                            "method_specificity_rows": [
+                                {
+                                    "source_id": "paper:weak-coupling",
+                                    "source_title": "Weak coupling closure",
+                                    "source_type": "paper",
+                                    "method_family": "formal_derivation",
+                                    "specificity_tier": "high",
+                                    "reading_depth": "full_read",
+                                    "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                                }
+                            ],
+                            "notation_rows": [],
+                            "contradiction_candidates": [
+                                {
+                                    "kind": "regime_mismatch",
+                                    "source_id": "paper:weak-coupling",
+                                    "source_title": "Weak coupling closure",
+                                    "source_type": "paper",
+                                    "reading_depth": "full_read",
+                                    "against_source_id": "paper:strong-coupling",
+                                    "against_source_title": "Strong coupling closure",
+                                    "against_source_type": "paper",
+                                    "against_reading_depth": "full_read",
+                                    "detail": "strong coupling vs weak coupling",
+                                }
+                            ],
+                            "notation_tension_candidates": [],
+                        },
+                        "l1_vault": {
+                            "topic_slug": topic_slug,
+                            "wiki": {
+                                "page_paths": [
+                                    "intake/topics/demo-topic/vault/wiki/home.md",
+                                    "intake/topics/demo-topic/vault/wiki/source-intake.md",
+                                ]
+                            },
+                        },
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_note.write_text("# Runtime protocol\n", encoding="utf-8")
+
+        with patch.object(
+            self.service,
+            "_materialize_runtime_protocol_bundle",
+            return_value={
+                "runtime_protocol_path": str(runtime_protocol_json),
+                "runtime_protocol_note_path": str(runtime_protocol_note),
+            },
+        ):
+            payload = self.service._execute_auto_actions(
+                topic_slug=topic_slug,
+                updated_by="aitp-cli",
+                max_auto_steps=1,
+                default_skill_queries=None,
+            )
+
+        self.assertEqual(len(payload["executed"]), 1)
+        self.assertEqual(payload["executed"][0]["action_type"], "literature_intake_stage")
+        self.assertEqual(payload["executed"][0]["status"], "completed")
+        self.assertEqual(payload["executed"][0]["result"]["staging"]["entry_count"], 2)
+        manifest_path = Path(payload["executed"][0]["result"]["staging"]["manifest_json_path"])
+        self.assertTrue(manifest_path.exists())
+        queue_rows = [json.loads(line) for line in queue_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        literature_rows = [row for row in queue_rows if row["action_type"] == "literature_intake_stage"]
+        self.assertEqual(len(literature_rows), 1)
+        self.assertEqual(literature_rows[0]["status"], "completed")
+        self.assertTrue(any(row["action_type"] == "manual_followup" and row["status"] == "pending" for row in queue_rows))
+
+    def test_execute_auto_actions_skips_literature_intake_stage_outside_literature_submode(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug)
+        queue_path = runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:manual:01",
+                    "status": "pending",
+                    "auto_runnable": False,
+                    "action_type": "manual_followup",
+                    "summary": "Wait for bounded manual follow-up after staging.",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_json = runtime_root / "runtime_protocol.generated.json"
+        runtime_protocol_note = runtime_root / "runtime_protocol.generated.md"
+        runtime_protocol_json.write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": None,
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                    "active_research_contract": {
+                        "l1_source_intake": {
+                            "source_count": 0,
+                            "assumption_rows": [],
+                            "regime_rows": [],
+                            "reading_depth_rows": [],
+                            "method_specificity_rows": [],
+                            "notation_rows": [],
+                            "contradiction_candidates": [],
+                            "notation_tension_candidates": [],
+                        },
+                        "l1_vault": {
+                            "topic_slug": topic_slug,
+                            "wiki": {"page_paths": []},
+                        },
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_note.write_text("# Runtime protocol\n", encoding="utf-8")
+
+        with patch.object(
+            self.service,
+            "_materialize_runtime_protocol_bundle",
+            return_value={
+                "runtime_protocol_path": str(runtime_protocol_json),
+                "runtime_protocol_note_path": str(runtime_protocol_note),
+            },
+        ):
+            payload = self.service._execute_auto_actions(
+                topic_slug=topic_slug,
+                updated_by="aitp-cli",
+                max_auto_steps=1,
+                default_skill_queries=None,
+            )
+
+        self.assertEqual(payload["executed"], [])
+        queue_rows = [json.loads(line) for line in queue_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertFalse(any(row["action_type"] == "literature_intake_stage" for row in queue_rows))
+
+    def test_execute_auto_actions_runs_literature_intake_stage_from_concept_graph_analysis(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug)
+        queue_path = runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:manual:01",
+                    "status": "pending",
+                    "auto_runnable": False,
+                    "action_type": "manual_followup",
+                    "summary": "Wait for bounded manual follow-up after graph staging.",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_json = runtime_root / "runtime_protocol.generated.json"
+        runtime_protocol_note = runtime_root / "runtime_protocol.generated.md"
+        runtime_protocol_json.write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": "literature",
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                    "active_research_contract": {
+                        "l1_source_intake": {
+                            "source_count": 2,
+                            "assumption_rows": [],
+                            "regime_rows": [],
+                            "reading_depth_rows": [],
+                            "method_specificity_rows": [],
+                            "notation_rows": [],
+                            "contradiction_candidates": [],
+                            "notation_tension_candidates": [],
+                            "concept_graph": {
+                                "nodes": [
+                                    {
+                                        "source_id": "paper:anyon-condensation",
+                                        "source_title": "Anyon condensation paper",
+                                        "source_type": "paper",
+                                        "node_id": "concept:topological-order",
+                                        "label": "Topological order",
+                                        "node_type": "concept",
+                                        "confidence_tier": "EXTRACTED",
+                                        "confidence_score": 0.95,
+                                    },
+                                    {
+                                        "source_id": "note:operator-algebra",
+                                        "source_title": "Operator algebra note",
+                                        "source_type": "local_note",
+                                        "node_id": "concept:topological-order-operator",
+                                        "label": "Topological order",
+                                        "node_type": "concept",
+                                        "confidence_tier": "EXTRACTED",
+                                        "confidence_score": 0.91,
+                                    },
+                                ],
+                                "edges": [],
+                                "hyperedges": [],
+                                "communities": [
+                                    {
+                                        "source_id": "paper:anyon-condensation",
+                                        "community_id": "community-topological-order",
+                                        "label": "Topological order cluster",
+                                        "node_ids": ["concept:topological-order"],
+                                    },
+                                    {
+                                        "source_id": "note:operator-algebra",
+                                        "community_id": "community-topological-order-operator",
+                                        "label": "Topological order cluster",
+                                        "node_ids": ["concept:topological-order-operator"],
+                                    },
+                                ],
+                                "god_nodes": [
+                                    {
+                                        "source_id": "paper:anyon-condensation",
+                                        "node_id": "concept:topological-order",
+                                        "label": "Topological order",
+                                    },
+                                    {
+                                        "source_id": "note:operator-algebra",
+                                        "node_id": "concept:topological-order-operator",
+                                        "label": "Topological order",
+                                    },
+                                ],
+                            },
+                        },
+                        "l1_vault": {
+                            "topic_slug": topic_slug,
+                            "wiki": {
+                                "page_paths": [
+                                    "intake/topics/demo-topic/vault/wiki/home.md",
+                                    "intake/topics/demo-topic/vault/wiki/source-intake.md",
+                                ]
+                            },
+                        },
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_note.write_text("# Runtime protocol\n", encoding="utf-8")
+
+        with patch.object(
+            self.service,
+            "_materialize_runtime_protocol_bundle",
+            return_value={
+                "runtime_protocol_path": str(runtime_protocol_json),
+                "runtime_protocol_note_path": str(runtime_protocol_note),
+            },
+        ):
+            payload = self.service._execute_auto_actions(
+                topic_slug=topic_slug,
+                updated_by="aitp-cli",
+                max_auto_steps=1,
+                default_skill_queries=None,
+            )
+
+        self.assertEqual(len(payload["executed"]), 1)
+        self.assertEqual(payload["executed"][0]["action_type"], "literature_intake_stage")
+        self.assertEqual(payload["executed"][0]["status"], "completed")
+        staging_entries = payload["executed"][0]["result"]["staging"]["entries"]
+        self.assertEqual(len(staging_entries), 2)
+        self.assertEqual(
+            {row["candidate_unit_type"] for row in staging_entries},
+            {"physical_picture", "workflow"},
+        )
+        self.assertTrue(all(row["provenance"]["literature_intake_fast_path"] for row in staging_entries))
+        self.assertTrue(all(row["provenance"].get("graph_analysis_kind") for row in staging_entries))
+
+    def test_execute_auto_actions_runs_literature_intake_stage_from_graph_diff_units(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug)
+        queue_path = runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:manual:01",
+                    "status": "pending",
+                    "auto_runnable": False,
+                    "action_type": "manual_followup",
+                    "summary": "Wait for bounded manual follow-up after graph diff staging.",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_json = runtime_root / "runtime_protocol.generated.json"
+        runtime_protocol_note = runtime_root / "runtime_protocol.generated.md"
+        runtime_protocol_json.write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": "literature",
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                    "graph_analysis": {
+                        "summary": {
+                            "connection_count": 1,
+                            "question_count": 1,
+                            "history_length": 2,
+                        },
+                        "connections": [],
+                        "questions": [],
+                        "diff": {
+                            "added": {
+                                "node_count": 2,
+                                "node_labels": ["Anyon condensation", "Operator algebra sector"],
+                                "edge_count": 0,
+                                "edge_relations": [],
+                                "god_node_count": 1,
+                                "god_node_labels": ["Anyon condensation"],
+                            },
+                            "removed": {
+                                "node_count": 1,
+                                "node_labels": ["Topological order"],
+                                "edge_count": 0,
+                                "edge_relations": [],
+                                "god_node_count": 1,
+                                "god_node_labels": ["Topological order"],
+                            },
+                        },
+                    },
+                    "active_research_contract": {
+                        "l1_source_intake": {
+                            "source_count": 0,
+                            "assumption_rows": [],
+                            "regime_rows": [],
+                            "reading_depth_rows": [],
+                            "method_specificity_rows": [],
+                            "notation_rows": [],
+                            "contradiction_candidates": [],
+                            "notation_tension_candidates": [],
+                            "concept_graph": {
+                                "nodes": [],
+                                "edges": [],
+                                "hyperedges": [],
+                                "communities": [],
+                                "god_nodes": [],
+                            },
+                        },
+                        "l1_vault": {
+                            "topic_slug": topic_slug,
+                            "wiki": {
+                                "page_paths": [
+                                    "intake/topics/demo-topic/vault/wiki/home.md",
+                                    "intake/topics/demo-topic/vault/wiki/source-intake.md",
+                                ]
+                            },
+                        },
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_note.write_text("# Runtime protocol\n", encoding="utf-8")
+
+        with patch.object(
+            self.service,
+            "_materialize_runtime_protocol_bundle",
+            return_value={
+                "runtime_protocol_path": str(runtime_protocol_json),
+                "runtime_protocol_note_path": str(runtime_protocol_note),
+            },
+        ):
+            payload = self.service._execute_auto_actions(
+                topic_slug=topic_slug,
+                updated_by="aitp-cli",
+                max_auto_steps=1,
+                default_skill_queries=None,
+            )
+
+        self.assertEqual(len(payload["executed"]), 1)
+        self.assertEqual(payload["executed"][0]["action_type"], "literature_intake_stage")
+        self.assertEqual(payload["executed"][0]["status"], "completed")
+        staging_entries = payload["executed"][0]["result"]["staging"]["entries"]
+        self.assertEqual(len(staging_entries), 2)
+        self.assertEqual(
+            {row["candidate_unit_type"] for row in staging_entries},
+            {"claim_card", "warning_note"},
+        )
+        self.assertEqual(
+            {row["provenance"].get("graph_analysis_kind") for row in staging_entries},
+            {"graph_diff_added", "graph_diff_removed"},
+        )
+
     def test_install_agent_writes_bootstrap_assets(self) -> None:
         codex_target = self.root / "codex-skill"
         result = self.service.install_agent(
@@ -8309,18 +9634,25 @@ class AITPServiceTests(unittest.TestCase):
         opencode_skill_path = opencode_target / ".opencode" / "skills" / "aitp-runtime" / "SKILL.md"
         opencode_setup_path = opencode_target / ".opencode" / "skills" / "aitp-runtime" / "AITP_MCP_SETUP.md"
         opencode_plugin_path = opencode_target / ".opencode" / "plugins" / "aitp.js"
+        opencode_config_path = opencode_target / ".opencode" / "opencode.json"
         canonical_using_skill = (self.package_root.parent.parent / "skills" / "using-aitp" / "SKILL.md").read_text(encoding="utf-8")
         canonical_runtime_skill = (self.package_root.parent.parent / "skills" / "aitp-runtime" / "SKILL.md").read_text(encoding="utf-8")
         canonical_opencode_plugin = (self.package_root.parent.parent / ".opencode" / "plugins" / "aitp.js").read_text(encoding="utf-8")
         self.assertIn("aitp.js", installed_paths)
         self.assertIn("AITP_MCP_CONFIG.json", installed_paths)
+        self.assertIn("opencode.json", installed_paths)
         self.assertTrue(opencode_using_skill_path.exists())
         self.assertTrue(opencode_skill_path.exists())
         self.assertTrue(opencode_setup_path.exists())
         self.assertTrue(opencode_plugin_path.exists())
+        self.assertTrue(opencode_config_path.exists())
+        opencode_config_payload = json.loads(opencode_config_path.read_text(encoding="utf-8"))
+        sidecar_payload = json.loads((opencode_target / ".opencode" / "AITP_MCP_CONFIG.json").read_text(encoding="utf-8"))
         self.assertEqual(opencode_using_skill_path.read_text(encoding="utf-8"), canonical_using_skill)
         self.assertEqual(opencode_skill_path.read_text(encoding="utf-8"), canonical_runtime_skill)
         self.assertEqual(opencode_plugin_path.read_text(encoding="utf-8"), canonical_opencode_plugin)
+        self.assertEqual(opencode_config_payload["mcp"]["aitp"]["timeout"], 120000)
+        self.assertEqual(sidecar_payload["mcp"]["aitp"]["timeout"], 120000)
         self.assertFalse((opencode_target / ".opencode" / "commands").exists())
 
         claude_target = self.root / "claude-workspace"

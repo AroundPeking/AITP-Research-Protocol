@@ -93,6 +93,8 @@ The reason is architectural, not cosmetic:
 
 The current helper for this policy lives at:
 - `source-layer/scripts/register_arxiv_source.py`
+- `source-layer/scripts/enrich_with_deepxiv.py`
+- `source-layer/scripts/build_concept_graph.py`
 - `intake/scripts/register_arxiv_source.py` as a compatibility wrapper
 - `intake/ARXIV_FIRST_SOURCE_INTAKE.md`
 
@@ -122,6 +124,11 @@ Each discovery run should leave a durable receipt under:
 - `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/candidate_evaluation.json`
 - `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/registration_receipt.json`
 - `source-layer/topics/<topic_slug>/discoveries/<discovery_id>/discovery_summary.md`
+
+Registered arXiv-backed sources may also materialize:
+- `source-layer/topics/<topic_slug>/sources/<source_slug>/deepxiv_enrichment.json`
+- `source-layer/topics/<topic_slug>/sources/<source_slug>/concept_graph.json`
+- `source-layer/topics/<topic_slug>/sources/<source_slug>/concept_graph_receipt.json`
 
 ## 6. What Layer 0 should not do
 

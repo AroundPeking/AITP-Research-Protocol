@@ -11,6 +11,8 @@ def render_session_start_note(payload: dict[str, Any]) -> str:
     must_read_now = payload.get("must_read_now") or []
     linear_flow = payload.get("linear_flow") or []
     hard_stops = payload.get("hard_stops") or []
+    human_interaction_posture = payload.get("human_interaction_posture") or {}
+    autonomy_posture = payload.get("autonomy_posture") or {}
 
     memory_summary = str(memory_resolution.get("summary") or "(missing)")
     lines = [
@@ -27,6 +29,19 @@ def render_session_start_note(payload: dict[str, Any]) -> str:
         f"- Routing reason: {routing.get('reason') or '(missing)'}`"[:-1],  # keep string shape stable
         f"- Memory resolution: {memory_summary}",
         f"- Canonical entry: `{payload.get('canonical_entry') or '(missing)'}`",
+        "",
+        "## Human interaction posture",
+        "",
+        f"- Requires human input now: `{str(bool(human_interaction_posture.get('requires_human_input_now'))).lower()}`",
+        f"- Summary: {human_interaction_posture.get('summary') or '(missing)'}",
+        f"- Next action: {human_interaction_posture.get('next_action') or '(missing)'}",
+        "",
+        "## Autonomous continuation",
+        "",
+        f"- Mode: `{autonomy_posture.get('mode') or '(missing)'}`",
+        f"- Summary: {autonomy_posture.get('summary') or '(missing)'}",
+        f"- Requested auto-step budget: `{autonomy_posture.get('requested_max_auto_steps') if autonomy_posture.get('requested_max_auto_steps') is not None else '(none)'}`",
+        f"- Applied auto-step budget: `{autonomy_posture.get('applied_max_auto_steps') if autonomy_posture.get('applied_max_auto_steps') is not None else '(none)'}`",
         "",
         "## Read Next",
         "",
@@ -109,7 +124,10 @@ description: Route Codex research work through the AITP kernel. Use when the req
 8. Register reusable operations with `aitp operation-init ...`.
 9. For human-reviewed `L2`, use `aitp request-promotion ...` and wait for `aitp approve-promotion ...`.
 10. For theory-formal `L2_auto`, materialize coverage/consensus artifacts with `aitp coverage-audit ...` and then use `aitp auto-promote ...`.
-11. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
+11. report the current human-control posture and autonomous-continuation posture in plain language after reading `session_start.generated.md` and `runtime_protocol.generated.md`.
+12. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
+13. If iterative verify is active, keep the L3-L4 loop moving until success, a real blocker, or a real human checkpoint appears.
+14. End with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
@@ -214,7 +232,9 @@ If the task is bucket `1`, you MUST:
 5. read `runtime_protocol.generated.md`
 6. read the files named under `Must read now`
 7. treat `session_start.generated.md` as a backend routing artifact when it exists, not as a user-facing entry ritual
-8. only then continue with the task
+8. report the current human-control posture in plain language before deeper work
+9. if no active checkpoint is present, continue bounded execution instead of asking ritual permission again
+10. only then continue with the task
 
 If conformance fails, the work does not count as AITP work.
 
@@ -298,7 +318,10 @@ description: Route Claude Code through the AITP runtime so natural-language rese
 6. Ordinary topic work should stay in the light runtime profile unless a benchmark mismatch, scope change, promotion step, or explicit deep check forces the full profile.
 7. Expand deferred surfaces only when the named trigger fires.
 8. Treat missing conformance as a hard failure for AITP work.
-9. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
+9. report the current human-control posture in plain language before deeper work.
+10. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
+11. If iterative verify is active, keep the bounded verify loop running until success, a real blocker, or a real human checkpoint appears.
+12. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 
@@ -336,7 +359,10 @@ description: Route OpenCode through the AITP runtime so natural-language researc
 6. Ordinary topic work should stay in the light runtime profile unless a benchmark mismatch, scope change, promotion step, or explicit deep check forces the full profile.
 7. Expand deferred surfaces only when the named trigger fires.
 8. Treat missing conformance as a hard failure for AITP work.
-9. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
+9. report the current human-control posture in plain language before deeper work.
+10. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
+11. If iterative verify is active, keep the bounded verify loop running until success, a real blocker, or a real human checkpoint appears.
+12. Close with `aitp audit --topic-slug <topic_slug> --phase exit`.
 
 ## Hard rules
 

@@ -26,6 +26,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
     if not runtime_contract:
         return []
     runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    active_submode = str(runtime_contract.get("active_submode") or "").strip()
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
     triggered_by = {
@@ -53,6 +54,8 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
             "await_execution_result",
             "ingest_execution_result",
         ]
+    if runtime_mode == "explore" and active_submode == "literature":
+        return ["literature_intake_stage"]
     return []
 
 
@@ -217,6 +220,53 @@ def maybe_append_skill_discovery_action(
                 "declared_contract_path": queue_meta.get("declared_contract_path"),
             }
         )
+
+
+def maybe_append_literature_intake_stage_action(
+    queue: list[dict[str, Any]],
+    *,
+    topic_state: dict[str, Any],
+    runtime_contract: dict | None,
+    queue_meta: dict[str, Any],
+    queue_shaping_policy: dict[str, bool],
+) -> None:
+    if not runtime_contract or not queue_shaping_policy["allow_runtime_append"]:
+        return
+    if str(runtime_contract.get("runtime_mode") or "").strip() != "explore":
+        return
+    if str(runtime_contract.get("active_submode") or "").strip() != "literature":
+        return
+    if any(str(row.get("action_type") or "").strip() == "literature_intake_stage" for row in queue):
+        return
+    active_research_contract = runtime_contract.get("active_research_contract") or {}
+    l1_source_intake = active_research_contract.get("l1_source_intake") or {}
+    concept_graph = l1_source_intake.get("concept_graph") or {}
+    has_graph_signal = any(
+        len(concept_graph.get(key) or [])
+        for key in ("nodes", "edges", "communities", "god_nodes")
+    )
+    if not (
+        l1_source_intake.get("method_specificity_rows")
+        or l1_source_intake.get("contradiction_candidates")
+        or has_graph_signal
+    ):
+        return
+    queue.insert(
+        0,
+        {
+            "action_id": f"action:{topic_state['topic_slug']}:literature-intake-stage:01",
+            "topic_slug": topic_state["topic_slug"],
+            "resume_stage": topic_state["resume_stage"],
+            "status": "pending",
+            "action_type": "literature_intake_stage",
+            "summary": "Stage bounded literature-intake units from the current L1 vault into L2 staging.",
+            "auto_runnable": True,
+            "handler": None,
+            "handler_args": {},
+            "queue_source": "runtime_appended",
+            "declared_contract_path": queue_meta.get("declared_contract_path"),
+        }
+    )
 
 
 def append_closed_loop_actions(

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import traceback
+from pathlib import Path
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
@@ -36,6 +38,93 @@ def _err(message: str) -> str:
     )
 
 
+def _compact_topic_state(topic_state: dict[str, Any] | None) -> dict[str, Any]:
+    payload = topic_state or {}
+    explainability = payload.get("status_explainability") or {}
+    return {
+        "resume_stage": payload.get("resume_stage"),
+        "last_materialized_stage": payload.get("last_materialized_stage"),
+        "research_mode": payload.get("research_mode"),
+        "load_profile": payload.get("load_profile"),
+        "summary": payload.get("summary") or explainability.get("current_status_summary"),
+    }
+
+
+def _compact_current_topic_memory(current_topic_memory: dict[str, Any] | None) -> dict[str, Any]:
+    payload = current_topic_memory or {}
+    return {
+        "topic_slug": payload.get("topic_slug"),
+        "summary": payload.get("summary"),
+        "current_topic_path": payload.get("current_topic_path") or payload.get("current_topic_memory_path"),
+        "current_topic_note_path": payload.get("current_topic_note_path"),
+    }
+
+
+def _runtime_protocol_postures(runtime_protocol: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    runtime_protocol_payload = runtime_protocol or {}
+    protocol_path = runtime_protocol_payload.get("runtime_protocol_path")
+    if not isinstance(protocol_path, str) or not protocol_path:
+        return {}, {}
+    try:
+        payload = json.loads(Path(protocol_path).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}, {}
+    return (
+        payload.get("human_interaction_posture") or {},
+        payload.get("autonomy_posture") or {},
+    )
+
+
+def _compact_bootstrap_result(result: dict[str, Any]) -> dict[str, Any]:
+    conformance_state = result.get("conformance_state") or {}
+    return {
+        "topic_slug": result.get("topic_slug"),
+        "runtime_root": result.get("runtime_root"),
+        "command": result.get("command"),
+        "conformance": {
+            "overall_status": conformance_state.get("overall_status"),
+        },
+        "files": result.get("files") or {},
+        "topic_state_summary": _compact_topic_state(result.get("topic_state")),
+    }
+
+
+def _compact_loop_result(result: dict[str, Any]) -> dict[str, Any]:
+    loop_state = result.get("loop_state") or {}
+    bootstrap = result.get("bootstrap") or {}
+    bootstrap_topic_state = bootstrap.get("topic_state") or {}
+    explainability = bootstrap_topic_state.get("status_explainability") or {}
+    entry_audit = result.get("entry_audit") or {}
+    exit_audit = result.get("exit_audit") or {}
+    capability_audit = result.get("capability_audit") or {}
+    trust_audit = result.get("trust_audit") or {}
+    runtime_protocol = result.get("runtime_protocol") or {}
+    human_interaction_posture, autonomy_posture = _runtime_protocol_postures(runtime_protocol)
+    return {
+        "topic_slug": result.get("topic_slug"),
+        "run_id": result.get("run_id"),
+        "load_profile": result.get("load_profile"),
+        "loop_state_path": result.get("loop_state_path"),
+        "loop_history_path": result.get("loop_history_path"),
+        "runtime_protocol": runtime_protocol,
+        "current_topic_memory": _compact_current_topic_memory(result.get("current_topic_memory")),
+        "selected_action": explainability.get("next_bounded_action") or {},
+        "human_interaction_posture": human_interaction_posture,
+        "autonomy_posture": autonomy_posture,
+        "audits": {
+            "entry_conformance": (entry_audit.get("conformance_state") or {}).get("overall_status"),
+            "exit_conformance": (exit_audit.get("conformance_state") or {}).get("overall_status"),
+            "capability_status": capability_audit.get("overall_status") or loop_state.get("capability_status"),
+            "capability_report_path": capability_audit.get("capability_report_path"),
+            "trust_status": trust_audit.get("overall_status") or loop_state.get("trust_status"),
+            "trust_audit_path": trust_audit.get("trust_audit_path"),
+            "trust_report_path": trust_audit.get("trust_report_path"),
+        },
+        "auto_actions_executed": loop_state.get("auto_actions_executed"),
+        "steering_artifacts": result.get("steering_artifacts") or {},
+    }
+
+
 @mcp.tool()
 def aitp_bootstrap_topic(
     topic: str | None = None,
@@ -63,7 +152,7 @@ def aitp_bootstrap_topic(
             skill_queries=skill_queries or [],
             human_request=human_request,
         )
-        return _ok(**result)
+        return _ok(**_compact_bootstrap_result(result))
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
 
@@ -650,7 +739,7 @@ def aitp_run_topic_loop(
             skill_queries=skill_queries or [],
             max_auto_steps=max_auto_steps,
         )
-        return _ok(**result)
+        return _ok(**_compact_loop_result(result))
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
 

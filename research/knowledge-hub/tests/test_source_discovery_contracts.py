@@ -26,6 +26,18 @@ class SourceDiscoveryContractTests(unittest.TestCase):
             "discover_and_register_module",
             "source-layer/scripts/discover_and_register.py",
         )
+        self.register_module = _load_module(
+            "register_arxiv_source_module",
+            "source-layer/scripts/register_arxiv_source.py",
+        )
+        self.enrich_module = _load_module(
+            "enrich_with_deepxiv_module",
+            "source-layer/scripts/enrich_with_deepxiv.py",
+        )
+        self.graph_module = _load_module(
+            "build_concept_graph_module",
+            "source-layer/scripts/build_concept_graph.py",
+        )
 
     def test_discovery_bridge_selects_and_registers_offline_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -106,15 +118,28 @@ class SourceDiscoveryContractTests(unittest.TestCase):
         runbook = (self.kernel_root / "runtime" / "AITP_TEST_RUNBOOK.md").read_text(encoding="utf-8")
         l0_doc = (self.kernel_root / "L0_SOURCE_LAYER.md").read_text(encoding="utf-8")
         source_layer_readme = (self.kernel_root / "source-layer" / "README.md").read_text(encoding="utf-8")
+        notice = (self.repo_root / "NOTICE").read_text(encoding="utf-8")
 
         self.assertIn("discover_and_register.py", kernel_readme)
         self.assertIn("run_l0_source_discovery_acceptance.py", kernel_readme)
+        self.assertIn("run_l0_source_enrichment_acceptance.py", kernel_readme)
+        self.assertIn("run_l0_source_concept_graph_acceptance.py", kernel_readme)
         self.assertIn("run_l0_source_discovery_acceptance.py", runtime_readme)
+        self.assertIn("run_l0_source_enrichment_acceptance.py", runtime_readme)
+        self.assertIn("run_l0_source_concept_graph_acceptance.py", runtime_readme)
         self.assertIn("run_l0_source_discovery_acceptance.py", runbook)
+        self.assertIn("run_l0_source_enrichment_acceptance.py", runbook)
+        self.assertIn("run_l0_source_concept_graph_acceptance.py", runbook)
         self.assertIn("discoveries/", l0_doc)
         self.assertIn("discover_and_register.py", l0_doc)
+        self.assertIn("enrich_with_deepxiv.py", l0_doc)
+        self.assertIn("build_concept_graph.py", l0_doc)
         self.assertIn("discover_and_register.py", source_layer_readme)
+        self.assertIn("enrich_with_deepxiv.py", source_layer_readme)
+        self.assertIn("build_concept_graph.py", source_layer_readme)
         self.assertIn("search_results_json", source_layer_readme)
+        self.assertIn("DeepXiv SDK", notice)
+        self.assertIn("Graphify", notice)
 
     def test_acceptance_script_mentions_discovery_evaluation_and_registration(self) -> None:
         script = (
@@ -125,6 +150,363 @@ class SourceDiscoveryContractTests(unittest.TestCase):
         self.assertIn("candidate_evaluation_path", script)
         self.assertIn("layer0_source_json", script)
         self.assertIn("search_results_json", script)
+        self.assertIn("enrichment_receipt", script)
+        self.assertIn("concept_graph", script)
+
+    def test_enrich_with_deepxiv_updates_registered_source_and_intake_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            knowledge_root = Path(tmpdir) / "kernel"
+            metadata_override = {
+                "arxiv_id": "2401.00001v2",
+                "title": "Topological Order and Anyon Condensation",
+                "summary": "A direct match for topological order and anyon condensation discovery.",
+                "published": "2024-01-03T00:00:00Z",
+                "updated": "2024-01-05T00:00:00Z",
+                "authors": ["Primary Author", "Secondary Author"],
+                "identifier": "https://arxiv.org/abs/2401.00001v2",
+                "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                "source_url": "https://arxiv.org/e-print/2401.00001v2",
+            }
+            registration = self.register_module.register_arxiv_source(
+                knowledge_root=knowledge_root,
+                topic_slug="demo-topic",
+                arxiv_id="2401.00001v2",
+                registered_by="unit-test",
+                metadata_override=metadata_override,
+            )
+
+            enrichment = self.enrich_module.enrich_registered_source(
+                knowledge_root=knowledge_root,
+                topic_slug="demo-topic",
+                source_id=registration["source_id"],
+                enriched_by="unit-test",
+                enrichment_override={
+                    "paper": {
+                        "tldr": "A bounded TLDR for topological order and anyon condensation.",
+                        "keywords": ["topological order", "anyon condensation", "operator algebra"],
+                        "github_url": "https://github.com/example/topological-order",
+                        "sections": [
+                            {
+                                "name": "Introduction",
+                                "idx": 0,
+                                "tldr": "Introduces the topological order route.",
+                                "token_count": 180,
+                            },
+                            {
+                                "name": "Condensation mechanism",
+                                "idx": 1,
+                                "tldr": "Defines the anyon condensation mechanism.",
+                                "token_count": 320,
+                            },
+                        ],
+                    }
+                },
+            )
+
+            source_payload = json.loads(registration["layer0_source_json"].read_text(encoding="utf-8"))
+            intake_payload = json.loads((registration["intake_projection_root"] / "source.json").read_text(encoding="utf-8"))
+
+            self.assertEqual(enrichment["status"], "enriched")
+            self.assertEqual(
+                source_payload["provenance"]["deepxiv_tldr"],
+                "A bounded TLDR for topological order and anyon condensation.",
+            )
+            self.assertEqual(
+                intake_payload["provenance"]["deepxiv_keywords"],
+                ["topological order", "anyon condensation", "operator algebra"],
+            )
+            self.assertEqual(source_payload["provenance"]["deepxiv_sections"][0]["name"], "Introduction")
+            self.assertEqual(source_payload["provenance"]["deepxiv_sections"][1]["token_count"], 320)
+            self.assertEqual(
+                source_payload["provenance"]["deepxiv_github_url"],
+                "https://github.com/example/topological-order",
+            )
+            self.assertTrue(Path(enrichment["receipt_path"]).exists())
+            self.assertEqual(Path(enrichment["source_json_path"]), registration["layer0_source_json"])
+
+    def test_build_concept_graph_writes_graph_and_updates_registered_source_locator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            knowledge_root = Path(tmpdir) / "kernel"
+            metadata_override = {
+                "arxiv_id": "2401.00001v2",
+                "title": "Topological Order and Anyon Condensation",
+                "summary": "A direct match for topological order and anyon condensation discovery.",
+                "published": "2024-01-03T00:00:00Z",
+                "updated": "2024-01-05T00:00:00Z",
+                "authors": ["Primary Author", "Secondary Author"],
+                "identifier": "https://arxiv.org/abs/2401.00001v2",
+                "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                "source_url": "https://arxiv.org/e-print/2401.00001v2",
+            }
+            registration = self.register_module.register_arxiv_source(
+                knowledge_root=knowledge_root,
+                topic_slug="demo-topic",
+                arxiv_id="2401.00001v2",
+                registered_by="unit-test",
+                metadata_override=metadata_override,
+                enrichment_override={
+                    "paper": {
+                        "tldr": "A bounded TLDR for topological order and anyon condensation.",
+                        "keywords": ["topological order", "anyon condensation", "operator algebra"],
+                        "sections": [
+                            {"name": "Introduction", "idx": 0, "tldr": "Intro", "token_count": 180},
+                            {"name": "Condensation mechanism", "idx": 1, "tldr": "Mechanism", "token_count": 320},
+                        ],
+                    }
+                },
+                skip_graph_build=True,
+            )
+
+            graph = self.graph_module.build_concept_graph_for_registered_source(
+                knowledge_root=knowledge_root,
+                topic_slug="demo-topic",
+                source_id=registration["source_id"],
+                built_by="unit-test",
+                graph_override={
+                    "nodes": [
+                        {"node_id": "concept:topological-order", "label": "Topological order", "node_type": "concept", "confidence_tier": "EXTRACTED", "confidence_score": 0.95},
+                        {"node_id": "concept:anyon-condensation", "label": "Anyon condensation", "node_type": "concept", "confidence_tier": "EXTRACTED", "confidence_score": 0.93},
+                    ],
+                    "edges": [
+                        {"edge_id": "edge-topological-order-special-case-anyon-condensation", "from_id": "concept:anyon-condensation", "relation": "special_case_of", "to_id": "concept:topological-order", "evidence_refs": ["source-layer/topics/demo-topic/sources/paper-topological-order-and-anyon-condensation-2401-00001/source.json"], "notes": "offline fixture"}
+                    ],
+                    "hyperedges": [
+                        {"hyperedge_id": "hyperedge-condensation-route", "relation": "supports", "node_ids": ["concept:topological-order", "concept:anyon-condensation"], "evidence_refs": ["source-layer/topics/demo-topic/sources/paper-topological-order-and-anyon-condensation-2401-00001/source.json"], "notes": "offline fixture"}
+                    ],
+                    "communities": [
+                        {"community_id": "community-topological-order", "label": "Topological order cluster", "node_ids": ["concept:topological-order", "concept:anyon-condensation"]}
+                    ],
+                    "god_nodes": ["concept:topological-order"],
+                },
+            )
+
+            source_payload = json.loads(registration["layer0_source_json"].read_text(encoding="utf-8"))
+            intake_payload = json.loads((registration["intake_projection_root"] / "source.json").read_text(encoding="utf-8"))
+            graph_payload = json.loads(Path(graph["concept_graph_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(graph["status"], "built")
+            self.assertTrue(Path(graph["concept_graph_path"]).exists())
+            self.assertTrue(Path(graph["receipt_path"]).exists())
+            self.assertEqual(graph_payload["god_nodes"], ["concept:topological-order"])
+            self.assertEqual(graph_payload["nodes"][0]["node_type"], "concept")
+            self.assertEqual(graph_payload["edges"][0]["relation"], "special_case_of")
+            self.assertEqual(source_payload["locator"]["concept_graph_path"], graph["concept_graph_relative_path"])
+            self.assertEqual(intake_payload["locator"]["concept_graph_path"], graph["concept_graph_relative_path"])
+
+    def test_register_arxiv_source_can_run_integrated_enrichment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            knowledge_root = Path(tmpdir) / "kernel"
+            metadata_override = {
+                "arxiv_id": "2401.00001v2",
+                "title": "Topological Order and Anyon Condensation",
+                "summary": "A direct match for topological order and anyon condensation discovery.",
+                "published": "2024-01-03T00:00:00Z",
+                "updated": "2024-01-05T00:00:00Z",
+                "authors": ["Primary Author", "Secondary Author"],
+                "identifier": "https://arxiv.org/abs/2401.00001v2",
+                "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                "source_url": "https://arxiv.org/e-print/2401.00001v2",
+            }
+
+            registration = self.register_module.register_arxiv_source(
+                knowledge_root=knowledge_root,
+                topic_slug="demo-topic",
+                arxiv_id="2401.00001v2",
+                registered_by="unit-test",
+                metadata_override=metadata_override,
+                enrichment_override={
+                    "paper": {
+                        "tldr": "Integrated enrichment summary.",
+                        "keywords": ["topological order", "anyon condensation"],
+                        "sections": [
+                            {"name": "Introduction", "idx": 0, "tldr": "Intro", "token_count": 120}
+                        ],
+                    }
+                },
+            )
+
+            source_payload = json.loads(registration["layer0_source_json"].read_text(encoding="utf-8"))
+            self.assertEqual(registration["enrichment_status"], "enriched")
+            self.assertTrue(Path(registration["enrichment_receipt_path"]).exists())
+            self.assertEqual(source_payload["provenance"]["deepxiv_tldr"], "Integrated enrichment summary.")
+
+    def test_register_arxiv_source_can_run_integrated_concept_graph_build(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            knowledge_root = Path(tmpdir) / "kernel"
+            metadata_override = {
+                "arxiv_id": "2401.00001v2",
+                "title": "Topological Order and Anyon Condensation",
+                "summary": "A direct match for topological order and anyon condensation discovery.",
+                "published": "2024-01-03T00:00:00Z",
+                "updated": "2024-01-05T00:00:00Z",
+                "authors": ["Primary Author", "Secondary Author"],
+                "identifier": "https://arxiv.org/abs/2401.00001v2",
+                "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                "source_url": "https://arxiv.org/e-print/2401.00001v2",
+            }
+
+            registration = self.register_module.register_arxiv_source(
+                knowledge_root=knowledge_root,
+                topic_slug="demo-topic",
+                arxiv_id="2401.00001v2",
+                registered_by="unit-test",
+                metadata_override=metadata_override,
+                enrichment_override={
+                    "paper": {
+                        "tldr": "Integrated enrichment summary.",
+                        "keywords": ["topological order", "anyon condensation"],
+                        "sections": [{"name": "Introduction", "idx": 0, "tldr": "Intro", "token_count": 120}],
+                    }
+                },
+                graph_override={
+                    "nodes": [
+                        {"node_id": "concept:topological-order", "label": "Topological order", "node_type": "concept", "confidence_tier": "EXTRACTED", "confidence_score": 0.95}
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [{"community_id": "community-topological-order", "label": "Topological order cluster", "node_ids": ["concept:topological-order"]}],
+                    "god_nodes": ["concept:topological-order"],
+                },
+            )
+
+            source_payload = json.loads(registration["layer0_source_json"].read_text(encoding="utf-8"))
+            self.assertEqual(registration["graph_build_status"], "built")
+            self.assertTrue(Path(registration["concept_graph_path"]).exists())
+            self.assertTrue(Path(registration["graph_receipt_path"]).exists())
+            self.assertIn("concept_graph_path", source_payload["locator"])
+
+    def test_discovery_bridge_can_run_integrated_graph_build(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            work_root = Path(tmpdir)
+            kernel_root = work_root / "kernel"
+            search_results_path = work_root / "search-results.json"
+            search_results_path.write_text(
+                json.dumps(
+                    {
+                        "results": [
+                            {
+                                "arxiv_id": "2401.00001v2",
+                                "title": "Topological Order and Anyon Condensation",
+                                "summary": "A direct match for topological order and anyon condensation discovery.",
+                                "published": "2024-01-03T00:00:00Z",
+                                "updated": "2024-01-04T00:00:00Z",
+                                "authors": ["Primary Author", "Secondary Author"],
+                                "identifier": "https://arxiv.org/abs/2401.00001v2",
+                                "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                                "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                                "source_url": "https://arxiv.org/e-print/2401.00001v2",
+                                "score": 0.91,
+                            },
+                        ]
+                    },
+                    ensure_ascii=True,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            payload = self.module.discover_and_register(
+                knowledge_root=kernel_root,
+                topic_slug="demo-topic",
+                query="topological order anyon condensation",
+                provider_chain=["search_results_json"],
+                search_results_json=search_results_path,
+                max_results=5,
+                deepxiv_bin="deepxiv",
+                preferred_arxiv_id="",
+                select_index=0,
+                registered_by="unit-test",
+                download_source=False,
+                force=False,
+                skip_intake_projection=False,
+                enrichment_override={
+                    "paper": {
+                        "tldr": "Discovery-path enrichment summary.",
+                        "keywords": ["topological order", "anyon condensation"],
+                        "sections": [{"name": "Introduction", "idx": 0, "tldr": "Intro", "token_count": 120}],
+                    }
+                },
+                graph_override={
+                    "nodes": [
+                        {"node_id": "concept:topological-order", "label": "Topological order", "node_type": "concept", "confidence_tier": "EXTRACTED", "confidence_score": 0.95}
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [{"community_id": "community-topological-order", "label": "Topological order cluster", "node_ids": ["concept:topological-order"]}],
+                    "god_nodes": ["concept:topological-order"],
+                },
+            )
+
+            layer0_payload = json.loads(payload["layer0_source_json"].read_text(encoding="utf-8"))
+            self.assertEqual(payload["graph_build_status"], "built")
+            self.assertTrue(payload["graph_receipt_path"].exists())
+            self.assertEqual(layer0_payload["locator"]["concept_graph_path"], payload["concept_graph_relative_path"])
+
+    def test_discovery_bridge_can_run_integrated_post_registration_enrichment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            work_root = Path(tmpdir)
+            kernel_root = work_root / "kernel"
+            search_results_path = work_root / "search-results.json"
+            search_results_path.write_text(
+                json.dumps(
+                    {
+                        "results": [
+                            {
+                                "arxiv_id": "2401.00001v2",
+                                "title": "Topological Order and Anyon Condensation",
+                                "summary": "A direct match for topological order and anyon condensation discovery.",
+                                "published": "2024-01-03T00:00:00Z",
+                                "updated": "2024-01-04T00:00:00Z",
+                                "authors": ["Primary Author", "Secondary Author"],
+                                "identifier": "https://arxiv.org/abs/2401.00001v2",
+                                "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                                "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                                "source_url": "https://arxiv.org/e-print/2401.00001v2",
+                                "score": 0.91,
+                            },
+                        ]
+                    },
+                    ensure_ascii=True,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            payload = self.module.discover_and_register(
+                knowledge_root=kernel_root,
+                topic_slug="demo-topic",
+                query="topological order anyon condensation",
+                provider_chain=["search_results_json"],
+                search_results_json=search_results_path,
+                max_results=5,
+                deepxiv_bin="deepxiv",
+                preferred_arxiv_id="",
+                select_index=0,
+                registered_by="unit-test",
+                download_source=False,
+                force=False,
+                skip_intake_projection=False,
+                enrichment_override={
+                    "paper": {
+                        "tldr": "Discovery-path enrichment summary.",
+                        "keywords": ["topological order", "anyon condensation"],
+                        "sections": [
+                            {"name": "Introduction", "idx": 0, "tldr": "Intro", "token_count": 120}
+                        ],
+                    }
+                },
+            )
+
+            layer0_payload = json.loads(payload["layer0_source_json"].read_text(encoding="utf-8"))
+            self.assertEqual(payload["enrichment_status"], "enriched")
+            self.assertTrue(payload["enrichment_receipt_path"].exists())
+            self.assertEqual(layer0_payload["provenance"]["deepxiv_tldr"], "Discovery-path enrichment summary.")
 
 
 if __name__ == "__main__":

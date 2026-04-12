@@ -27,6 +27,7 @@ from orchestrator_contract_support import (
     enrich_queue_meta,
     load_operator_checkpoint,
     load_runtime_contract,
+    maybe_append_literature_intake_stage_action,
     maybe_append_skill_discovery_action,
     queue_rows_from_pending_actions,
     queue_shaping_policy_from_contract_artifacts,
@@ -127,9 +128,9 @@ def relative_path(path: Path | None, root: Path) -> str | None:
         return str(path)
 
 
-def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | None) -> None:
+def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | None, topic_title: str | None = None) -> None:
     created_at = now_iso()
-    title = topic_slug.replace("-", " ").title()
+    title = str(topic_title or "").strip() or topic_slug.replace("-", " ").title()
 
     layer0_topic = knowledge_root / "source-layer" / "topics" / topic_slug / "topic.json"
     if not layer0_topic.exists():
@@ -975,6 +976,13 @@ def materialize_action_queue(
         queue_meta=queue_meta,
         queue_shaping_policy=queue_shaping_policy,
     )
+    maybe_append_literature_intake_stage_action(
+        queue,
+        topic_state=topic_state,
+        runtime_contract=runtime_contract,
+        queue_meta=queue_meta,
+        queue_shaping_policy=queue_shaping_policy,
+    )
 
     closed_loop = compute_closed_loop_status(
         knowledge_root,
@@ -1112,7 +1120,7 @@ def main() -> int:
 
     knowledge_root = Path(__file__).resolve().parents[2]
     research_root = knowledge_root.parent
-    ensure_topic_shell(knowledge_root, topic_slug, args.statement)
+    ensure_topic_shell(knowledge_root, topic_slug, args.statement, args.topic)
 
     register_arxiv = knowledge_root / "source-layer" / "scripts" / "register_arxiv_source.py"
     register_local = knowledge_root / "source-layer" / "scripts" / "register_local_note_source.py"

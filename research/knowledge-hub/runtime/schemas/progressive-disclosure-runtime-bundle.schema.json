@@ -22,8 +22,11 @@
     "transition_posture",
     "control_plane",
     "h_plane",
+    "human_interaction_posture",
+    "autonomy_posture",
     "topic_synopsis",
     "source_intelligence",
+    "graph_analysis",
     "pending_decisions",
     "active_research_contract",
     "idea_packet",
@@ -123,6 +126,7 @@
         "null"
       ],
       "enum": [
+        "literature",
         "iterative_verify",
         null
       ]
@@ -161,6 +165,7 @@
             "null"
           ],
           "enum": [
+            "literature",
             "iterative_verify",
             null
           ]
@@ -461,6 +466,122 @@
         }
       }
     },
+    "human_interaction_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall_status",
+        "requires_human_input_now",
+        "steering_status",
+        "checkpoint_status",
+        "approval_status",
+        "summary",
+        "next_action"
+      ],
+      "properties": {
+        "overall_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires_human_input_now": {
+          "type": "boolean"
+        },
+        "steering_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checkpoint_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approval_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next_action": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "autonomy_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "runtime_mode",
+        "active_submode",
+        "can_continue_without_human",
+        "summary",
+        "stop_conditions",
+        "requested_max_auto_steps",
+        "applied_max_auto_steps",
+        "budget_reason"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "await_human_checkpoint",
+            "continuous_bounded_loop",
+            "continuous_iterative_verify"
+          ]
+        },
+        "runtime_mode": {
+          "type": "string",
+          "enum": [
+            "discussion",
+            "explore",
+            "verify",
+            "promote"
+          ]
+        },
+        "active_submode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "literature",
+            "iterative_verify",
+            null
+          ]
+        },
+        "can_continue_without_human": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stop_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "requested_max_auto_steps": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "applied_max_auto_steps": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "budget_reason": {
+          "type": "string"
+        }
+      }
+    },
     "topic_synopsis": {
       "type": "object",
       "additionalProperties": false,
@@ -709,6 +830,9 @@
     },
     "source_intelligence": {
       "$ref": "#/$defs/source_intelligence"
+    },
+    "graph_analysis": {
+      "$ref": "#/$defs/graph_analysis"
     },
     "pending_decisions": {
       "type": "object",
@@ -3497,6 +3621,268 @@
         }
       }
     },
+    "graph_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic_slug",
+        "summary",
+        "connections",
+        "questions",
+        "diff",
+        "path",
+        "note_path",
+        "history_path"
+      ],
+      "properties": {
+        "topic_slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "$ref": "#/$defs/graph_analysis_summary"
+        },
+        "connections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/graph_analysis_connection"
+          }
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/graph_analysis_question"
+          }
+        },
+        "diff": {
+          "$ref": "#/$defs/graph_analysis_diff"
+        },
+        "graph_snapshot": {
+          "$ref": "#/$defs/l1_concept_graph"
+        },
+        "updated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "updated_by": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "note_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "history_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "graph_analysis_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connection_count",
+        "question_count",
+        "history_length"
+      ],
+      "properties": {
+        "connection_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "question_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "history_length": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "graph_analysis_connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "bridge_label",
+        "source_ids",
+        "source_titles",
+        "source_types",
+        "community_labels",
+        "foundation_source_ids",
+        "detail"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bridge_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source_titles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "community_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "foundation_source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "graph_analysis_question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "question_type",
+        "bridge_label",
+        "source_ids",
+        "source_titles",
+        "community_labels",
+        "graph_analysis_kind",
+        "question"
+      ],
+      "properties": {
+        "question_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "question_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bridge_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source_titles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "community_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "graph_analysis_kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "graph_analysis_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "added",
+        "removed"
+      ],
+      "properties": {
+        "added": {
+          "$ref": "#/$defs/graph_analysis_diff_side"
+        },
+        "removed": {
+          "$ref": "#/$defs/graph_analysis_diff_side"
+        }
+      }
+    },
+    "graph_analysis_diff_side": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_count",
+        "node_labels",
+        "edge_count",
+        "edge_relations",
+        "god_node_count",
+        "god_node_labels"
+      ],
+      "properties": {
+        "node_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "node_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "edge_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "edge_relations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "god_node_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "god_node_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "source_fidelity_row": {
       "type": "object",
       "additionalProperties": false,
@@ -3646,6 +4032,106 @@
         "null"
       ]
     },
+    "l1_concept_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "edges",
+        "hyperedges",
+        "communities",
+        "god_nodes"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_id",
+              "node_id",
+              "label",
+              "node_type",
+              "confidence_tier",
+              "confidence_score"
+            ],
+            "properties": {
+              "source_id": { "type": "string", "minLength": 1 },
+              "source_title": { "type": "string" },
+              "source_type": { "type": "string" },
+              "node_id": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "node_type": { "type": "string", "minLength": 1 },
+              "confidence_tier": { "type": "string", "minLength": 1 },
+              "confidence_score": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "edge_id", "from_id", "relation", "to_id"],
+            "properties": {
+              "source_id": { "type": "string", "minLength": 1 },
+              "edge_id": { "type": "string", "minLength": 1 },
+              "from_id": { "type": "string", "minLength": 1 },
+              "relation": { "type": "string", "minLength": 1 },
+              "to_id": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "hyperedges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "hyperedge_id", "relation", "node_ids"],
+            "properties": {
+              "source_id": { "type": "string", "minLength": 1 },
+              "hyperedge_id": { "type": "string", "minLength": 1 },
+              "relation": { "type": "string", "minLength": 1 },
+              "node_ids": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "communities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "community_id", "label", "node_ids"],
+            "properties": {
+              "source_id": { "type": "string", "minLength": 1 },
+              "community_id": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "node_ids": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "god_nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_id", "node_id", "label"],
+            "properties": {
+              "source_id": { "type": "string", "minLength": 1 },
+              "node_id": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
     "l1_source_intake": {
       "type": "object",
       "additionalProperties": false,
@@ -3702,6 +4188,9 @@
           "items": {
             "$ref": "#/$defs/l1_notation_tension_candidate"
           }
+        },
+        "concept_graph": {
+          "$ref": "#/$defs/l1_concept_graph"
         }
       }
     },
@@ -3798,6 +4287,95 @@
               "items": {
                 "type": "string",
                 "minLength": 1
+              }
+            },
+            "concept_graph_export": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "export_version",
+                "topic_slug",
+                "status",
+                "root_path",
+                "index_path",
+                "summary",
+                "communities",
+                "note_paths",
+                "community_page_paths",
+                "updated_at",
+                "updated_by"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "obsidian_concept_graph_export"
+                },
+                "export_version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "topic_slug": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "status": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "root_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "index_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "summary": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "page_count",
+                    "node_note_count",
+                    "community_folder_count",
+                    "community_page_count",
+                    "edge_link_count",
+                    "hyperedge_context_count"
+                  ],
+                  "properties": {
+                    "page_count": { "type": "integer", "minimum": 0 },
+                    "node_note_count": { "type": "integer", "minimum": 0 },
+                    "community_folder_count": { "type": "integer", "minimum": 0 },
+                    "community_page_count": { "type": "integer", "minimum": 0 },
+                    "edge_link_count": { "type": "integer", "minimum": 0 },
+                    "hyperedge_context_count": { "type": "integer", "minimum": 0 }
+                  }
+                },
+                "communities": {
+                  "type": "array",
+                  "items": { "type": "object" }
+                },
+                "note_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "community_page_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_by": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }

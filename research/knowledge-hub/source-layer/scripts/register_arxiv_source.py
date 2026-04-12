@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import tarfile
@@ -176,6 +177,24 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
     )
 
 
+def load_enrich_module(script_path: Path):
+    spec = importlib.util.spec_from_file_location("enrich_with_deepxiv_module", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load enrichment module from {script_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_graph_module(script_path: Path):
+    spec = importlib.util.spec_from_file_location("build_concept_graph_module", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load concept-graph module from {script_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def ensure_topic_manifest(topic_root: Path, topic_slug: str, created_at: str) -> None:
     topic_json = topic_root / "topic.json"
     if not topic_json.exists():
@@ -344,7 +363,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--download-source", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--skip-intake-projection", action="store_true")
+    parser.add_argument("--skip-enrichment", action="store_true")
+    parser.add_argument("--skip-graph-build", action="store_true")
     parser.add_argument("--metadata-json")
+    parser.add_argument("--enrichment-json")
+    parser.add_argument("--graph-json")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -359,6 +382,10 @@ def register_arxiv_source(
     force: bool = False,
     skip_intake_projection: bool = False,
     metadata_override: dict[str, Any] | None = None,
+    skip_enrichment: bool = False,
+    enrichment_override: dict[str, Any] | None = None,
+    skip_graph_build: bool = False,
+    graph_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     del force  # Reserved for future parity with the CLI surface.
     metadata = (
@@ -488,6 +515,56 @@ def register_arxiv_source(
             status_payload["last_updated"] = acquired_at
             write_json(status_json, status_payload)
 
+    enrichment_status = "skipped" if skip_enrichment else "pending"
+    enrichment_receipt_path: Path | None = None
+    enrichment_error = ""
+    if not skip_enrichment:
+        try:
+            enrich_script = Path(__file__).resolve().parent / "enrich_with_deepxiv.py"
+            enrich_module = load_enrich_module(enrich_script)
+            enrichment_result = enrich_module.enrich_registered_source(
+                knowledge_root=knowledge_root,
+                topic_slug=topic_slug,
+                source_id=source_id,
+                enriched_by=registered_by,
+                enrichment_override=enrichment_override,
+            )
+            enrichment_status = str(enrichment_result.get("status") or "enriched")
+            receipt_text = str(enrichment_result.get("receipt_path") or "").strip()
+            if receipt_text:
+                enrichment_receipt_path = Path(receipt_text)
+        except Exception as exc:  # noqa: BLE001
+            enrichment_status = "failed"
+            enrichment_error = str(exc)
+
+    graph_build_status = "skipped" if skip_graph_build else "pending"
+    concept_graph_path: Path | None = None
+    concept_graph_relative_path = ""
+    graph_receipt_path: Path | None = None
+    graph_error = ""
+    if not skip_graph_build:
+        try:
+            graph_script = Path(__file__).resolve().parent / "build_concept_graph.py"
+            graph_module = load_graph_module(graph_script)
+            graph_result = graph_module.build_concept_graph_for_registered_source(
+                knowledge_root=knowledge_root,
+                topic_slug=topic_slug,
+                source_id=source_id,
+                built_by=registered_by,
+                graph_override=graph_override,
+            )
+            graph_build_status = str(graph_result.get("status") or "built")
+            graph_path_text = str(graph_result.get("concept_graph_path") or "").strip()
+            if graph_path_text:
+                concept_graph_path = Path(graph_path_text)
+            concept_graph_relative_path = str(graph_result.get("concept_graph_relative_path") or "").strip()
+            receipt_text = str(graph_result.get("receipt_path") or "").strip()
+            if receipt_text:
+                graph_receipt_path = Path(receipt_text)
+        except Exception as exc:  # noqa: BLE001
+            graph_build_status = "failed"
+            graph_error = str(exc)
+
     return {
         "status": "registered",
         "knowledge_root": knowledge_root,
@@ -505,6 +582,14 @@ def register_arxiv_source(
         "download_status": download_status,
         "extraction_status": extraction_status,
         "download_error": download_error,
+        "enrichment_status": enrichment_status,
+        "enrichment_receipt_path": enrichment_receipt_path,
+        "enrichment_error": enrichment_error,
+        "graph_build_status": graph_build_status,
+        "concept_graph_path": concept_graph_path,
+        "concept_graph_relative_path": concept_graph_relative_path,
+        "graph_receipt_path": graph_receipt_path,
+        "graph_error": graph_error,
     }
 
 
@@ -521,6 +606,18 @@ def main() -> int:
         metadata_override = load_json(metadata_path)
         if metadata_override is None:
             raise FileNotFoundError(f"Metadata override file does not exist: {metadata_path}")
+    enrichment_override = None
+    if args.enrichment_json:
+        enrichment_path = Path(args.enrichment_json).expanduser().resolve()
+        enrichment_override = load_json(enrichment_path)
+        if enrichment_override is None:
+            raise FileNotFoundError(f"Enrichment JSON file does not exist: {enrichment_path}")
+    graph_override = None
+    if args.graph_json:
+        graph_path = Path(args.graph_json).expanduser().resolve()
+        graph_override = load_json(graph_path)
+        if graph_override is None:
+            raise FileNotFoundError(f"Graph JSON file does not exist: {graph_path}")
 
     result = register_arxiv_source(
         knowledge_root=knowledge_root,
@@ -531,6 +628,10 @@ def main() -> int:
         force=args.force,
         skip_intake_projection=args.skip_intake_projection,
         metadata_override=metadata_override,
+        skip_enrichment=args.skip_enrichment,
+        enrichment_override=enrichment_override,
+        skip_graph_build=args.skip_graph_build,
+        graph_override=graph_override,
     )
     if args.json:
         payload = {
@@ -550,6 +651,16 @@ def main() -> int:
             "download_status": result["download_status"],
             "extraction_status": result["extraction_status"],
             "download_error": result["download_error"],
+            "enrichment_status": result["enrichment_status"],
+            "enrichment_receipt_path": (
+                str(result["enrichment_receipt_path"]) if result["enrichment_receipt_path"] is not None else ""
+            ),
+            "enrichment_error": result["enrichment_error"],
+            "graph_build_status": result["graph_build_status"],
+            "concept_graph_path": str(result["concept_graph_path"]) if result["concept_graph_path"] is not None else "",
+            "concept_graph_relative_path": result["concept_graph_relative_path"],
+            "graph_receipt_path": str(result["graph_receipt_path"]) if result["graph_receipt_path"] is not None else "",
+            "graph_error": result["graph_error"],
         }
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
@@ -559,6 +670,10 @@ def main() -> int:
     print(f"- layer0 snapshot.md: {result['layer0_snapshot']}")
     if result["intake_projection_root"] is not None:
         print(f"- intake projection: {result['intake_projection_root']}")
+    if result["enrichment_receipt_path"] is not None:
+        print(f"- enrichment receipt: {result['enrichment_receipt_path']}")
+    if result["concept_graph_path"] is not None:
+        print(f"- concept graph: {result['concept_graph_path']}")
     if result["bundle_path"] is not None:
         print(f"- bundle: {result['bundle_path']}")
     if result["extract_dir"] is not None:

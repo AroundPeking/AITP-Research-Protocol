@@ -28,6 +28,11 @@ class RuntimeCompatSurfaceCleanupTests(unittest.TestCase):
         self._tmpdir = tempfile.TemporaryDirectory()
         self.kernel_root = Path(self._tmpdir.name) / "kernel"
         self.kernel_root.mkdir(parents=True, exist_ok=True)
+        (self.kernel_root / "runtime" / "scripts").mkdir(parents=True, exist_ok=True)
+        (self.kernel_root / "runtime" / "scripts" / "orchestrate_topic.py").write_text(
+            "# compat fixture\n",
+            encoding="utf-8",
+        )
         self.service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
 
     def tearDown(self) -> None:

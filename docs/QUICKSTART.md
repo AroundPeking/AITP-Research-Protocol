@@ -126,6 +126,13 @@ aitp next --topic-slug jones-chapter-4-finite-dimensional-backbone
   now prefers a Python hook sidecar instead of assuming bash.
 - OpenCode: the preferred UX is plugin bootstrap. The CLI quickstart above is
   still the shared first-run proof.
+- All three front doors should expose the same plain-language human-control
+  posture and autonomous-continuation posture through
+  `session_start.generated.md` and `runtime_protocol.generated.md`.
+- If no real checkpoint is active, continue bounded work without ritual
+  reconfirmation. In `verify + iterative_verify`, let the bounded L3-L4 loop
+  keep cycling until success, a real blocker, or a real human checkpoint
+  appears.
 
 Windows note:
 

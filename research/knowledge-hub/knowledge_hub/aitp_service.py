@@ -185,6 +185,10 @@ from .promotion_gate_support import (
     write_promotion_gate,
 )
 from .l2_graph import consult_canonical_l2, seed_l2_demo_direction
+from .literature_intake_support import (
+    derive_literature_stage_payload_from_runtime_payload,
+    stage_literature_units,
+)
 from .l2_compiler import (
     materialize_workspace_graph_report,
     materialize_workspace_knowledge_report,
@@ -193,6 +197,7 @@ from .l2_compiler import (
 from .l2_hygiene import materialize_workspace_hygiene_report
 from .source_catalog import materialize_source_catalog, materialize_source_citation_traversal, materialize_source_family_report
 from .source_bibtex_support import import_bibtex_sources as materialize_bibtex_source_import, materialize_source_bibtex_export
+from .obsidian_graph_bridge_support import sync_concept_graph_export_to_theoretical_physics_brain
 from .semantic_routing import canonical_validation_mode
 from .bundle_support import (
     LEGACY_PACKAGE_DISTRIBUTION_NAMES,
@@ -1625,11 +1630,17 @@ class AITPService:
         self,
         source_rows: list[dict[str, Any]],
         topic_slug: str,
+        runtime_mode: str | None = None,
     ) -> dict[str, Any]:
+        resolved_runtime_mode = str(runtime_mode or "").strip().lower()
+        if not resolved_runtime_mode:
+            protocol_payload = read_json(self._runtime_protocol_paths(topic_slug)["json"]) or {}
+            resolved_runtime_mode = str(protocol_payload.get("runtime_mode") or "").strip().lower()
         return distill_from_sources(
             kernel_root=self.kernel_root,
             source_rows=source_rows,
             topic_slug=topic_slug,
+            runtime_mode=resolved_runtime_mode or None,
         )
 
     def _coalesce_string(self, existing: Any, *defaults: str) -> str:
@@ -2520,6 +2531,7 @@ class AITPService:
         topic_slug: str,
         topic_state: dict[str, Any],
         source_intelligence: dict[str, Any],
+        graph_analysis: dict[str, Any],
         runtime_focus: dict[str, Any],
         selected_pending_action: dict[str, Any] | None,
         pending_actions: list[dict[str, Any]],
@@ -2543,6 +2555,7 @@ class AITPService:
             topic_slug=topic_slug,
             topic_state=topic_state,
             source_intelligence=source_intelligence,
+            graph_analysis=graph_analysis,
             runtime_focus=runtime_focus,
             selected_pending_action=selected_pending_action,
             pending_actions=pending_actions,
@@ -2925,7 +2938,15 @@ class AITPService:
         return cleaned.strip(" \t\r\n.,;:!?\"'`，。；：！？“”‘’")
 
     def _trim_topic_title_fragment(self, value: str) -> str:
-        cleaned = str(value or "").strip()
+        raw_value = str(value or "").strip()
+        quote_pairs = {'"': '"', "'": "'", "“": "”", "‘": "’", "`": "`"}
+        if raw_value[:1] in quote_pairs:
+            closing_quote = quote_pairs[raw_value[0]]
+            closing_index = raw_value.find(closing_quote, 1)
+            if closing_index > 0:
+                return raw_value[1:closing_index].strip(" \t\r\n.,;:!?\"'`，。；：！？“”‘’")
+
+        cleaned = raw_value
         cleaned = re.sub(r"^[\s\"'“”‘’`]+", "", cleaned)
         cleaned = re.split(
             r"(?:\n|[，,;；]\s*(?:先做|先从|先|然后|并且|并|first|then|and)\s*)",
@@ -2961,6 +2982,7 @@ class AITPService:
         patterns = (
             r"(?:帮我|请)?(?:开|建|创建|新建|开始|启动)(?:一个)?(?:新的?)?\s*(?:topic|课题|主题)\s*[:：]?\s*(?P<title>.+)",
             r"(?:new topic|start a new topic|open a new topic|create a new topic)\s*[:：]?\s*(?P<title>.+)",
+            r"(?:start|open|create|begin|launch)\s+(?:a\s+)?(?:brand[-\s]+new|new)\s+(?:research\s+)?topic(?:\s+named)?\s*[:：]?\s*(?P<title>.+)",
         )
         for pattern in patterns:
             match = re.search(pattern, raw_request, flags=re.IGNORECASE)
@@ -2970,6 +2992,74 @@ class AITPService:
             if title:
                 return title
         return None
+
+    def _topic_slug_exists(self, topic_slug: str) -> bool:
+        resolved_slug = str(topic_slug or "").strip()
+        if not resolved_slug:
+            return False
+        if (self._runtime_root(resolved_slug) / "topic_state.json").exists():
+            return True
+        if (self.kernel_root / "source-layer" / "topics" / resolved_slug / "topic.json").exists():
+            return True
+        if (self.kernel_root / "intake" / "topics" / resolved_slug / "topic.json").exists():
+            return True
+        return any(
+            str(row.get("topic_slug") or "").strip() == resolved_slug
+            for row in self.recent_topics(limit=500)
+        )
+
+    def _allocate_new_topic_slug(self, topic_title: str) -> str:
+        base_slug = slugify(topic_title)
+        if not self._topic_slug_exists(base_slug):
+            return base_slug
+        for index in range(2, 1000):
+            candidate_slug = f"{base_slug}-{index}"
+            if not self._topic_slug_exists(candidate_slug):
+                return candidate_slug
+        raise RuntimeError(f"Unable to allocate a fresh topic slug for {topic_title!r}")
+
+    def _resolve_new_topic_routing(self, routing: dict[str, Any]) -> dict[str, Any]:
+        if str(routing.get("route") or "").strip() != "request_new_topic":
+            return routing
+
+        topic_title = str(routing.get("topic") or "").strip()
+        if not topic_title:
+            return routing
+
+        requested_slug = slugify(topic_title)
+        allocated_slug = self._allocate_new_topic_slug(topic_title)
+        payload = dict(routing)
+        payload["topic_slug"] = allocated_slug
+        payload["new_topic_allocation"] = {
+            "requested_title": topic_title,
+            "requested_slug": requested_slug,
+            "allocated_topic_slug": allocated_slug,
+            "collision": allocated_slug != requested_slug,
+        }
+        if allocated_slug != requested_slug:
+            payload["reason"] = (
+                f"{str(routing.get('reason') or '').strip()} "
+                f"Existing topic slug `{requested_slug}` already exists, so AITP allocated fresh slug "
+                f"`{allocated_slug}` to honor the explicit new-topic request."
+            ).strip()
+        return payload
+
+    def _resolve_requested_topic_slug(
+        self,
+        *,
+        topic_slug: str | None,
+        topic: str | None,
+        human_request: str | None,
+    ) -> str:
+        explicit_topic_slug = str(topic_slug or "").strip()
+        if explicit_topic_slug:
+            return explicit_topic_slug
+        resolved_topic = str(topic or "").strip()
+        if not resolved_topic:
+            raise ValueError("Provide topic_slug or topic.")
+        if self._extract_new_topic_title(human_request):
+            return self._allocate_new_topic_slug(resolved_topic)
+        return slugify(resolved_topic)
 
     def _find_known_topic_slug_in_request(self, human_request: str | None) -> str | None:
         raw_request = str(human_request or "").strip().lower()
@@ -3717,6 +3807,34 @@ class AITPService:
             control_note=control_note,
         )
 
+    def steer_topic_from_text(
+        self,
+        *,
+        topic_slug: str,
+        text: str,
+        run_id: str | None = None,
+        updated_by: str = "aitp-cli",
+        topic_state: dict[str, Any] | None = None,
+        control_note: str | None = None,
+    ) -> dict[str, Any]:
+        raw_text = str(text or "").strip()
+        if not raw_text:
+            raise ValueError("text must not be empty")
+
+        steering = self._parse_human_steering_request(raw_text)
+        if not steering.get("detected"):
+            raise ValueError("text did not contain a recognizable steering directive")
+
+        return self._materialize_steering_payload(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            steering=steering,
+            raw_request=raw_text,
+            updated_by=updated_by,
+            topic_state=topic_state,
+            control_note=control_note,
+        )
+
     def steer_topic(
         self,
         *,
@@ -4078,6 +4196,9 @@ class AITPService:
         updated_by: str,
         human_request: str | None = None,
         load_profile: str | None = None,
+        requested_max_auto_steps: int | None = None,
+        applied_max_auto_steps: int | None = None,
+        auto_step_budget_reason: str | None = None,
     ) -> dict[str, str]:
         return materialize_runtime_protocol_bundle(
             self,
@@ -4085,6 +4206,9 @@ class AITPService:
             updated_by=updated_by,
             human_request=human_request,
             load_profile=load_profile,
+            requested_max_auto_steps=requested_max_auto_steps,
+            applied_max_auto_steps=applied_max_auto_steps,
+            auto_step_budget_reason=auto_step_budget_reason,
         )
 
     def _discover_skills(
@@ -4202,6 +4326,84 @@ class AITPService:
         if completed.stderr.strip():
             result["warning"] = completed.stderr.strip()
         return result
+
+    def _maybe_append_literature_intake_stage_action(
+        self,
+        *,
+        topic_slug: str,
+        queue_rows: list[dict[str, Any]],
+        runtime_payload: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        if str(runtime_payload.get("runtime_mode") or "").strip() != "explore":
+            return queue_rows
+        if str(runtime_payload.get("active_submode") or "").strip() != "literature":
+            return queue_rows
+        if any(str(row.get("action_type") or "").strip() == "literature_intake_stage" for row in queue_rows):
+            return queue_rows
+
+        stage_payload = derive_literature_stage_payload_from_runtime_payload(
+            topic_slug=topic_slug,
+            runtime_payload=runtime_payload,
+        )
+        candidate_units = list(stage_payload.get("candidate_units") or [])
+        if not candidate_units:
+            return queue_rows
+
+        queue_rows.insert(
+            0,
+            {
+                "action_id": f"action:{topic_slug}:literature-intake-stage:01",
+                "topic_slug": topic_slug,
+                "resume_stage": "L1",
+                "status": "pending",
+                "action_type": "literature_intake_stage",
+                "summary": "Stage bounded literature-intake units from the current L1 vault into L2 staging.",
+                "auto_runnable": True,
+                "handler_args": {
+                    "source_slug": stage_payload.get("source_slug") or topic_slug,
+                    "candidate_units": candidate_units,
+                },
+                "queue_source": "runtime_appended",
+                "declared_contract_path": None,
+            },
+        )
+        return queue_rows
+
+    def _run_literature_intake_stage(
+        self,
+        *,
+        topic_slug: str,
+        row: dict[str, Any],
+        updated_by: str,
+    ) -> dict[str, Any]:
+        handler_args = row.get("handler_args") or {}
+        source_slug = str(handler_args.get("source_slug") or "").strip()
+        candidate_units = handler_args.get("candidate_units") or []
+        if not isinstance(candidate_units, list):
+            candidate_units = []
+        if not candidate_units:
+            protocol_payload = read_json(self._runtime_protocol_paths(topic_slug)["json"]) or {}
+            derived_stage_payload = derive_literature_stage_payload_from_runtime_payload(
+                topic_slug=topic_slug,
+                runtime_payload=protocol_payload,
+            )
+            source_slug = source_slug or str(derived_stage_payload.get("source_slug") or "").strip()
+            candidate_units = list(derived_stage_payload.get("candidate_units") or [])
+        if not candidate_units:
+            raise RuntimeError("No candidate_units provided or derivable for literature_intake_stage.")
+        source_slug = source_slug or topic_slug
+
+        staging = stage_literature_units(
+            self.kernel_root,
+            topic_slug=topic_slug,
+            source_slug=source_slug,
+            candidate_units=[dict(item) for item in candidate_units if isinstance(item, dict)],
+            created_by=updated_by,
+        )
+        return {
+            "source_slug": source_slug,
+            "staging": staging,
+        }
 
     def _run_generic_auto_handler(
         self,
@@ -4534,7 +4736,7 @@ class AITPService:
             "type": "local",
             "command": self._resolve_aitp_mcp_command(),
             "enabled": True,
-            "timeout": 20000,
+            "timeout": 120000,
             "environment": self._mcp_environment(),
         }
 
@@ -5726,6 +5928,39 @@ class AITPService:
         )
         return payload
 
+    def hello_topic(
+        self,
+        *,
+        topic: str = "Demo topic",
+        question: str = "What is the first bounded question?",
+        mode: str = "formal_theory",
+        updated_by: str = "aitp-cli",
+        arxiv_ids: list[str] | None = None,
+        local_note_paths: list[str] | None = None,
+    ) -> dict[str, Any]:
+        install_payload = self.ensure_cli_installed()
+        topic_payload = self.new_topic(
+            topic=topic,
+            question=question,
+            mode=mode,
+            updated_by=updated_by,
+            arxiv_ids=arxiv_ids,
+            local_note_paths=local_note_paths,
+            human_request=question,
+        )
+        status_payload = self.topic_status(
+            topic_slug=topic_payload["topic_slug"],
+            updated_by=updated_by,
+        )
+        return {
+            "topic_slug": topic_payload["topic_slug"],
+            "requested_topic": topic,
+            "requested_question": question,
+            "install": install_payload,
+            "topic": topic_payload,
+            "status": status_payload,
+        }
+
     def refresh_runtime_context(
         self,
         *,
@@ -5753,8 +5988,11 @@ class AITPService:
             "layer_graph": layer_graph,
             "control_plane": bundle.get("control_plane") or {},
             "h_plane": bundle.get("h_plane") or {},
+            "human_interaction_posture": bundle.get("human_interaction_posture") or {},
+            "autonomy_posture": bundle.get("autonomy_posture") or {},
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "source_intelligence": bundle.get("source_intelligence") or {},
+            "graph_analysis": bundle.get("graph_analysis") or {},
             "pending_decisions": bundle.get("pending_decisions") or {},
             "promotion_readiness": bundle.get("promotion_readiness") or {},
             "collaborator_profile": bundle.get("collaborator_profile") or {},
@@ -5798,9 +6036,12 @@ class AITPService:
             "layer_graph": layer_graph,
             "control_plane": bundle.get("control_plane") or {},
             "h_plane": bundle.get("h_plane") or {},
+            "human_interaction_posture": bundle.get("human_interaction_posture") or {},
+            "autonomy_posture": bundle.get("autonomy_posture") or {},
             "dependency_state": bundle.get("dependency_state") or self._topic_dependency_state(topic_slug),
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "source_intelligence": bundle.get("source_intelligence") or {},
+            "graph_analysis": bundle.get("graph_analysis") or {},
             "pending_decisions": bundle.get("pending_decisions") or {},
             "active_research_contract": bundle.get("active_research_contract") or {},
             "idea_packet": bundle.get("idea_packet") or {},
@@ -5858,6 +6099,7 @@ class AITPService:
             "primary_runtime_surfaces": runtime_surface_roles(self, topic_slug),
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "source_intelligence": bundle.get("source_intelligence") or {},
+            "graph_analysis": bundle.get("graph_analysis") or {},
             "validation_review_bundle": bundle.get("validation_review_bundle") or {},
             "pending_decisions": bundle.get("pending_decisions") or {},
             "open_gap_summary": bundle.get("open_gap_summary") or {},
@@ -6202,15 +6444,18 @@ class AITPService:
         if not topic_slug and not topic:
             raise ValueError("Provide topic_slug or topic.")
 
-        resolved_topic_slug = topic_slug or slugify(topic or "")
+        resolved_topic_slug = self._resolve_requested_topic_slug(
+            topic_slug=topic_slug,
+            topic=topic,
+            human_request=human_request,
+        )
         command = [
             *self._resolve_runtime_python_command(),
             str(self._kernel_script("runtime/scripts/orchestrate_topic.py")),
             "--updated-by",
             updated_by,
         ]
-        if topic_slug:
-            command.extend(["--topic-slug", topic_slug])
+        command.extend(["--topic-slug", resolved_topic_slug])
         if topic:
             command.extend(["--topic", topic])
         if statement:
@@ -6991,6 +7236,14 @@ class AITPService:
     def compile_source_family(self, *, source_type: str) -> dict[str, Any]: return materialize_source_family_report(self.kernel_root, source_type=source_type)
     def export_source_bibtex(self, *, canonical_source_id: str, include_neighbors: bool = False) -> dict[str, Any]: return materialize_source_bibtex_export(self.kernel_root, canonical_source_id=canonical_source_id, include_neighbors=include_neighbors)
     def import_bibtex_sources(self, *, topic_slug: str, bibtex_path: str, updated_by: str) -> dict[str, Any]: return materialize_bibtex_source_import(self.kernel_root, topic_slug=topic_slug, bibtex_path=bibtex_path, updated_by=updated_by)
+    def sync_l1_graph_export_to_theoretical_physics_brain(self, *, topic_slug: str, updated_by: str = "aitp-cli", target_root: str | None = None) -> dict[str, Any]:
+        return sync_concept_graph_export_to_theoretical_physics_brain(
+            kernel_root=self.kernel_root,
+            repo_root=self.repo_root,
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+            target_root=target_root,
+        )
 
     def compile_l2_graph_report(self) -> dict[str, Any]:
         return materialize_workspace_graph_report(self.kernel_root)

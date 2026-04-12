@@ -9,7 +9,8 @@ description: Use when a request might be theoretical-physics research, topic con
 
 - Confirm the task is happening in an AITP-enabled workspace, repo clone, or installed agent runtime.
 - If the workspace has native bootstrap support, treat this skill as already active at session start.
-- If native bootstrap is unavailable, fall back to `aitp session-start "<task>"`.
+- If native bootstrap is unavailable, fall back to `aitp session-start "<original user request>"`.
+- Do not shorten that fallback into a bare topic title or a paraphrased summary when routing matters.
 
 ## When to use
 
@@ -52,13 +53,17 @@ description: Use when a request might be theoretical-physics research, topic con
 2. Interpret `继续这个 topic`, `continue this topic`, `this topic`, and `current topic` as current-topic references before asking for a slug.
 3. Fall back to the latest topic only when current-topic memory is missing.
 4. If the user opens a new topic in natural language, extract the title and let AITP materialize the topic shell.
-5. If the user changes direction, scope, or control intent in natural language, translate that into `innovation_direction.md` and `control_note.md` updates before execution continues.
-6. Preserve the lightweight runtime minimum even in small sessions:
+5. If native bootstrap times out while opening a new topic, retry through `aitp session-start "<original user request>"` or `aitp session-start --topic "<extracted title>" "<original user request>"`.
+6. Do not replace a failed front-door bootstrap by manually editing runtime files, source-layer files, or topic artifacts unless the user explicitly asked for repository maintenance rather than topic execution.
+7. If the user changes direction, scope, or control intent in natural language, translate that into `innovation_direction.md` and `control_note.md` updates before execution continues.
+8. Preserve the lightweight runtime minimum even in small sessions:
    - `topic_state.json`
    - `operator_console.md`
    - `research_question.contract.json`
    - `control_note.md`
-7. After AITP routing is materialized, load `aitp-runtime` and follow `runtime_protocol.generated.md`.
+9. After AITP routing is materialized, load `aitp-runtime` and follow `runtime_protocol.generated.md`.
+10. report the current human-control posture in plain language before deeper work.
+11. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
 
 ## Allowed exception
 

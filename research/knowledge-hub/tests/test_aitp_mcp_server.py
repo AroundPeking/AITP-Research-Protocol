@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -316,3 +317,124 @@ class AITPMCPServerTests(unittest.TestCase):
             self.assertEqual(result["status"], "error")
             self.assertIn("boom", result["error"])
             self.assertIn("Traceback", result["traceback"])
+
+    def test_bootstrap_and_loop_tools_return_compact_operator_facing_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime_protocol_path = Path(tmp) / "runtime_protocol.generated.json"
+            runtime_protocol_path.write_text(
+                json.dumps(
+                    {
+                        "human_interaction_posture": {
+                            "requires_human_input_now": False,
+                            "summary": "No active human checkpoint is blocking work.",
+                        },
+                        "autonomy_posture": {
+                            "mode": "continuous_bounded_loop",
+                            "can_continue_without_human": True,
+                            "summary": "Continue bounded work.",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            class _CompactStub:
+                def orchestrate(self, **kwargs):  # noqa: ANN003
+                    return {
+                        "topic_slug": kwargs.get("topic_slug") or "demo-topic",
+                        "runtime_root": "/tmp/runtime/demo-topic",
+                        "command": ["python", "orchestrate"],
+                        "conformance_state": {"overall_status": "pass"},
+                        "files": {
+                            "topic_state": "/tmp/runtime/demo-topic/topic_state.json",
+                            "runtime_protocol": "/tmp/runtime/demo-topic/runtime_protocol.generated.json",
+                        },
+                        "topic_state": {
+                            "resume_stage": "L3",
+                            "last_materialized_stage": "L3",
+                            "research_mode": "exploratory_general",
+                            "load_profile": "light",
+                            "summary": "Resume at L3.",
+                            "status_explainability": {
+                                "current_status_summary": "Resume at L3.",
+                            },
+                        },
+                        "stdout": "very large bootstrap payload omitted",
+                    }
+
+                def run_topic_loop(self, **kwargs):  # noqa: ANN003
+                    return {
+                        "topic_slug": kwargs.get("topic_slug") or "demo-topic",
+                        "run_id": "2026-04-13-demo",
+                        "load_profile": "light",
+                        "loop_state_path": "/tmp/runtime/demo-topic/loop_state.json",
+                        "loop_history_path": "/tmp/runtime/demo-topic/loop_history.jsonl",
+                        "loop_state": {
+                            "entry_conformance": "pass",
+                            "exit_conformance": "pass",
+                            "capability_status": "missing_trust",
+                            "trust_status": "missing",
+                            "auto_actions_executed": 0,
+                        },
+                        "runtime_protocol": {
+                            "runtime_protocol_path": str(runtime_protocol_path),
+                            "runtime_protocol_note_path": "/tmp/runtime/demo-topic/runtime_protocol.generated.md",
+                        },
+                        "current_topic_memory": {
+                            "topic_slug": "demo-topic",
+                            "summary": "Stage L3; next source expansion.",
+                            "current_topic_path": "/tmp/runtime/current_topic.json",
+                        },
+                        "bootstrap": {
+                            "topic_state": {
+                                "status_explainability": {
+                                    "next_bounded_action": {
+                                        "action_id": "action:demo-topic:01",
+                                        "action_type": "l0_source_expansion",
+                                        "summary": "Convert the topic statement into explicit source and candidate artifacts.",
+                                        "auto_runnable": False,
+                                    }
+                                }
+                            }
+                        },
+                        "entry_audit": {
+                            "conformance_state": {"overall_status": "pass"},
+                            "conformance_report_path": "/tmp/runtime/demo-topic/entry.md",
+                        },
+                        "exit_audit": {
+                            "conformance_state": {"overall_status": "pass"},
+                            "conformance_report_path": "/tmp/runtime/demo-topic/exit.md",
+                        },
+                        "capability_audit": {
+                            "overall_status": "missing_trust",
+                            "capability_report_path": "/tmp/runtime/demo-topic/capability.md",
+                        },
+                        "trust_audit": {
+                            "overall_status": "missing",
+                            "trust_audit_path": "/tmp/runtime/demo-topic/trust.json",
+                            "trust_report_path": "/tmp/runtime/demo-topic/trust.md",
+                        },
+                        "steering_artifacts": {},
+                        "auto_actions": [],
+                    }
+
+            with patch.object(aitp_mcp_server, "service", _CompactStub()):
+                bootstrap = _parse(aitp_mcp_server.aitp_bootstrap_topic(topic_slug="demo-topic"))
+                loop = _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic"))
+
+        self.assertEqual(bootstrap["status"], "success")
+        self.assertIn("topic_state_summary", bootstrap)
+        self.assertNotIn("topic_state", bootstrap)
+        self.assertEqual(bootstrap["topic_state_summary"]["resume_stage"], "L3")
+        self.assertEqual(bootstrap["conformance"]["overall_status"], "pass")
+
+        self.assertEqual(loop["status"], "success")
+        self.assertIn("selected_action", loop)
+        self.assertEqual(loop["selected_action"]["action_type"], "l0_source_expansion")
+        self.assertIn("human_interaction_posture", loop)
+        self.assertIn("autonomy_posture", loop)
+        self.assertEqual(loop["autonomy_posture"]["mode"], "continuous_bounded_loop")
+        self.assertIn("audits", loop)
+        self.assertNotIn("bootstrap", loop)
+        self.assertNotIn("entry_audit", loop)
+        self.assertNotIn("exit_audit", loop)

@@ -62,6 +62,11 @@ def execute_auto_actions(
     allowed_backedge_auto_actions: set[str] = set()
     if "capability_gap_blocker" in transition_triggers:
         allowed_backedge_auto_actions.add("skill_discovery")
+    queue_rows = self._maybe_append_literature_intake_stage_action(
+        topic_slug=topic_slug,
+        queue_rows=queue_rows,
+        runtime_payload=runtime_payload,
+    )
 
     executed: list[dict[str, Any]] = []
     steps_used = 0
@@ -93,6 +98,12 @@ def execute_auto_actions(
                 result = self.audit(topic_slug=topic_slug, phase="entry", updated_by=updated_by)
             elif action_type == "literature_followup_search":
                 result = self._run_literature_followup(
+                    topic_slug=topic_slug,
+                    row=row,
+                    updated_by=updated_by,
+                )
+            elif action_type == "literature_intake_stage":
+                result = self._run_literature_intake_stage(
                     topic_slug=topic_slug,
                     row=row,
                     updated_by=updated_by,

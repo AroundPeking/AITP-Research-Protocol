@@ -129,6 +129,8 @@ def build_codex_prompt(payload: dict[str, Any]) -> str:
     innovation_decisions_path = pointers.get("innovation_decisions_path") or "(missing)"
     session_start_note_path = session_start.get("session_start_note_path") or "(missing)"
     session_start_contract_path = session_start.get("session_start_contract_path") or "(missing)"
+    human_interaction_posture = session_start.get("human_interaction_posture") or {}
+    autonomy_posture = session_start.get("autonomy_posture") or {}
     runtime_protocol_note_path = (
         ((session_start.get("artifacts") or {}).get("runtime_protocol_note_path"))
         or (payload.get("runtime_protocol") or {}).get("runtime_protocol_note_path")
@@ -160,6 +162,16 @@ def build_codex_prompt(payload: dict[str, Any]) -> str:
         f"- conformance: `{loop_state['exit_conformance']}`",
         f"- capability: `{loop_state['capability_status']}`",
         f"- trust: `{loop_state['trust_status']}`",
+        "",
+        "Human interaction posture:",
+        f"- requires human input now: `{str(bool(human_interaction_posture.get('requires_human_input_now'))).lower()}`",
+        f"- summary: {human_interaction_posture.get('summary') or '(missing)'}",
+        f"- next action: {human_interaction_posture.get('next_action') or '(missing)'}",
+        "",
+        "Autonomous continuation:",
+        f"- mode: `{autonomy_posture.get('mode') or '(missing)'}`",
+        f"- summary: {autonomy_posture.get('summary') or '(missing)'}",
+        f"- applied auto-step budget: `{autonomy_posture.get('applied_max_auto_steps') if autonomy_posture.get('applied_max_auto_steps') is not None else '(none)'}`",
         "",
         "Session-start rule:",
         "- do not skip the durable session-start contract; it is the authoritative translation of the user's chat request into routing, current-topic resolution, and immediate startup order",

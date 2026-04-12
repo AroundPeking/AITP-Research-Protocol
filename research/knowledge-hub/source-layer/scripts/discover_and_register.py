@@ -450,6 +450,8 @@ def build_summary_markdown(
     )
     if registration.get("intake_projection_root"):
         lines.append(f"- intake projection: `{registration['intake_projection_root']}`")
+    if registration.get("enrichment_receipt_path"):
+        lines.append(f"- enrichment receipt: `{registration['enrichment_receipt_path']}`")
     lines.extend(
         [
             "",
@@ -475,6 +477,10 @@ def discover_and_register(
     download_source: bool,
     force: bool,
     skip_intake_projection: bool,
+    skip_enrichment: bool = False,
+    enrichment_override: dict[str, Any] | None = None,
+    skip_graph_build: bool = False,
+    graph_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     discovery_root = (
         knowledge_root
@@ -585,6 +591,10 @@ def discover_and_register(
         force=force,
         skip_intake_projection=skip_intake_projection,
         metadata_override=build_registration_metadata(selected["candidate"]),
+        skip_enrichment=skip_enrichment,
+        enrichment_override=enrichment_override,
+        skip_graph_build=skip_graph_build,
+        graph_override=graph_override,
     )
     registration_payload = {
         "status": "registered",
@@ -605,6 +615,26 @@ def discover_and_register(
         "download_status": registration["download_status"],
         "extraction_status": registration["extraction_status"],
         "download_error": registration["download_error"],
+        "enrichment_status": registration["enrichment_status"],
+        "enrichment_receipt_path": (
+            str(registration["enrichment_receipt_path"])
+            if registration["enrichment_receipt_path"] is not None
+            else ""
+        ),
+        "enrichment_error": registration["enrichment_error"],
+        "graph_build_status": registration["graph_build_status"],
+        "concept_graph_path": (
+            str(registration["concept_graph_path"])
+            if registration["concept_graph_path"] is not None
+            else ""
+        ),
+        "concept_graph_relative_path": registration["concept_graph_relative_path"],
+        "graph_receipt_path": (
+            str(registration["graph_receipt_path"])
+            if registration["graph_receipt_path"] is not None
+            else ""
+        ),
+        "graph_error": registration["graph_error"],
     }
     write_json(registration_path, registration_payload)
     summary_path.write_text(
@@ -646,6 +676,12 @@ def discover_and_register(
         "layer0_source_json": registration["layer0_source_json"],
         "layer0_snapshot": registration["layer0_snapshot"],
         "intake_projection_root": registration["intake_projection_root"],
+        "enrichment_status": registration["enrichment_status"],
+        "enrichment_receipt_path": registration["enrichment_receipt_path"],
+        "graph_build_status": registration["graph_build_status"],
+        "concept_graph_path": registration["concept_graph_path"],
+        "concept_graph_relative_path": registration["concept_graph_relative_path"],
+        "graph_receipt_path": registration["graph_receipt_path"],
     }
 
 
@@ -670,6 +706,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--download-source", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--skip-intake-projection", action="store_true")
+    parser.add_argument("--skip-enrichment", action="store_true")
+    parser.add_argument("--skip-graph-build", action="store_true")
+    parser.add_argument("--enrichment-json")
+    parser.add_argument("--graph-json")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -686,6 +726,18 @@ def main() -> int:
         if args.search_results_json
         else None
     )
+    enrichment_override = None
+    if args.enrichment_json:
+        enrichment_path = Path(args.enrichment_json).expanduser().resolve()
+        enrichment_override = load_json(enrichment_path)
+        if enrichment_override is None:
+            raise FileNotFoundError(f"Enrichment JSON file does not exist: {enrichment_path}")
+    graph_override = None
+    if args.graph_json:
+        graph_path = Path(args.graph_json).expanduser().resolve()
+        graph_override = load_json(graph_path)
+        if graph_override is None:
+            raise FileNotFoundError(f"Graph JSON file does not exist: {graph_path}")
     payload = discover_and_register(
         knowledge_root=knowledge_root,
         topic_slug=args.topic_slug,
@@ -700,6 +752,10 @@ def main() -> int:
         download_source=args.download_source,
         force=args.force,
         skip_intake_projection=args.skip_intake_projection,
+        skip_enrichment=args.skip_enrichment,
+        enrichment_override=enrichment_override,
+        skip_graph_build=args.skip_graph_build,
+        graph_override=graph_override,
     )
     if args.json:
         print(
@@ -725,6 +781,24 @@ def main() -> int:
                         if payload["intake_projection_root"] is not None
                         else ""
                     ),
+                    "enrichment_status": payload["enrichment_status"],
+                    "enrichment_receipt_path": (
+                        str(payload["enrichment_receipt_path"])
+                        if payload["enrichment_receipt_path"] is not None
+                        else ""
+                    ),
+                    "graph_build_status": payload["graph_build_status"],
+                    "concept_graph_path": (
+                        str(payload["concept_graph_path"])
+                        if payload["concept_graph_path"] is not None
+                        else ""
+                    ),
+                    "concept_graph_relative_path": payload["concept_graph_relative_path"],
+                    "graph_receipt_path": (
+                        str(payload["graph_receipt_path"])
+                        if payload["graph_receipt_path"] is not None
+                        else ""
+                    ),
                 },
                 ensure_ascii=True,
                 indent=2,
@@ -737,6 +811,10 @@ def main() -> int:
     print(f"- layer0 source.json: {payload['layer0_source_json']}")
     if payload["intake_projection_root"] is not None:
         print(f"- intake projection: {payload['intake_projection_root']}")
+    if payload["enrichment_receipt_path"] is not None:
+        print(f"- enrichment receipt: {payload['enrichment_receipt_path']}")
+    if payload["concept_graph_path"] is not None:
+        print(f"- concept graph: {payload['concept_graph_path']}")
     return 0
 
 

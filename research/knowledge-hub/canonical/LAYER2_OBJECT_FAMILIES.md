@@ -176,13 +176,16 @@ Use for:
 
 `payload` should usually include:
 - `goal`
-- `inputs`
-- `argument`
-- `gap_markers`
+- `construction_steps`
+- `common_pitfalls`
+- `reuse_conditions`
+- `do_not_apply_when`
+- optional `supporting_lemmas`
 
 Do not use for:
 - whole theorem statements,
-- complete derivations that are better represented as `derivation_object`.
+- complete derivations that are better represented as `derivation_object`,
+- run-local debugging residue that has not yet been distilled into a reusable recipe.
 
 ### 11. `derivation_step`
 

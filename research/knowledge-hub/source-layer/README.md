@@ -23,6 +23,8 @@ Layer 0 is the callable source substrate of AITP:
 - `compiled/bibtex_imports/`
 - `scripts/discover_and_register.py`
 - `scripts/register_arxiv_source.py`
+- `scripts/enrich_with_deepxiv.py`
+- `scripts/build_concept_graph.py`
 - `scripts/backfill_topic_sources.py`
 
 ## Source-of-truth rule
@@ -77,6 +79,22 @@ python3 source-layer/scripts/register_arxiv_source.py \
   --download-source
 ```
 
+Add one bounded post-registration enrichment pass:
+
+```bash
+python3 source-layer/scripts/enrich_with_deepxiv.py \
+  --topic-slug <topic_slug> \
+  --source-id <source_id>
+```
+
+Add one bounded concept-graph build pass:
+
+```bash
+python3 source-layer/scripts/build_concept_graph.py \
+  --topic-slug <topic_slug> \
+  --source-id <source_id>
+```
+
 Backfill an existing topic that still stores sources only inside intake:
 
 ```bash
@@ -104,6 +122,9 @@ The current bounded compiled surfaces now make that reuse easier to inspect:
 The current bounded discovery bridge also makes pre-registration search
 auditable:
 - `topics/<topic_slug>/discoveries/<discovery_id>/query.json`
+- `topics/<topic_slug>/sources/<source_slug>/deepxiv_enrichment.json`
+- `topics/<topic_slug>/sources/<source_slug>/concept_graph.json`
+- `topics/<topic_slug>/sources/<source_slug>/concept_graph_receipt.json`
 - `topics/<topic_slug>/discoveries/<discovery_id>/search_results.json`
 - `topics/<topic_slug>/discoveries/<discovery_id>/candidate_evaluation.json`
 - `topics/<topic_slug>/discoveries/<discovery_id>/registration_receipt.json`
