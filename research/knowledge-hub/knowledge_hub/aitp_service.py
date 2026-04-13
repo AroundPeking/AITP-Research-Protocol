@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from .decision_point_handler import get_all_decision_points, list_pending_decision_points
+from .decision_point_handler import (
+    get_all_decision_points,
+    list_pending_decision_points,
+)
 from .decision_trace_handler import get_decision_traces
 from .aitp_mcp_profiles import normalize_mcp_profile, server_name_for_mcp_profile
 from .agent_install_support import (
@@ -58,7 +61,13 @@ from .runtime_bundle_support import (
     runtime_protocol_markdown,
 )
 from .collaborator_profile_support import load_collaborator_profile
-from .exploration_session_support import build_exploration_promotion_request, build_exploration_session_payload, load_exploration_session, materialize_exploration_promotion_request, materialize_exploration_session
+from .exploration_session_support import (
+    build_exploration_promotion_request,
+    build_exploration_session_payload,
+    load_exploration_session,
+    materialize_exploration_promotion_request,
+    materialize_exploration_session,
+)
 from .mode_learning_support import load_mode_learning
 from .research_trajectory_support import load_research_trajectory
 from .research_taste_support import (
@@ -70,7 +79,17 @@ from .scratchpad_support import (
     record_scratch_note_payload,
     topic_scratchpad_payload,
 )
-from .l2_consultation_support import build_l2_consultation_record, consultation_projection_path
+from .l2_consultation_support import (
+    build_l2_consultation_record,
+    consultation_projection_path,
+)
+from .promotion_gate_support import (
+    request_promotion,
+    approve_promotion,
+    reject_promotion,
+)
+from .candidate_promotion_support import promote_candidate
+from .auto_promotion_support import auto_promote_candidate
 from .topic_shell_support import (
     compute_topic_completion_payload,
     derive_idea_packet,
@@ -131,7 +150,9 @@ from .runtime_projection_handler import (
     write_topic_skill_projection,
     write_topic_synopsis,
 )
-from .compat_surface_cleanup_support import prune_compat_surfaces as perform_prune_compat_surfaces
+from .compat_surface_cleanup_support import (
+    prune_compat_surfaces as perform_prune_compat_surfaces,
+)
 from .runtime_path_support import resolve_runtime_reference_path
 from .subprocess_error_support import format_subprocess_failure
 from .topic_runtime_surface_support import (
@@ -160,9 +181,13 @@ from .runtime_support_matrix import build_runtime_support_matrix
 from .validation_review_service import ValidationReviewService
 from .auto_action_support import execute_auto_actions
 from .auto_promotion_support import auto_promote_candidate
-from .analytical_review_support import audit_analytical_review as perform_analytical_review_audit
+from .analytical_review_support import (
+    audit_analytical_review as perform_analytical_review_audit,
+)
 from .candidate_promotion_support import promote_candidate
-from .formal_theory_audit_support import audit_formal_theory as perform_formal_theory_audit
+from .formal_theory_audit_support import (
+    audit_formal_theory as perform_formal_theory_audit,
+)
 from .lean_bridge_support import materialize_lean_bridge
 from .statement_compilation_support import materialize_statement_compilation
 from .h_plane_support import h_plane_audit as perform_h_plane_audit
@@ -185,7 +210,9 @@ from .theory_metrics import (
     record_topic_completion_metric,
 )
 from .source_distillation_support import distill_from_sources
-from .theory_coverage_audit_support import audit_theory_coverage as perform_theory_coverage_audit
+from .theory_coverage_audit_support import (
+    audit_theory_coverage as perform_theory_coverage_audit,
+)
 from .topic_loop_support import run_topic_loop as execute_topic_loop
 from .topic_skill_projection_support import derive_topic_skill_projection
 from .promotion_gate_support import (
@@ -208,9 +235,18 @@ from .l2_compiler import (
     materialize_workspace_memory_map,
 )
 from .l2_hygiene import materialize_workspace_hygiene_report
-from .source_catalog import materialize_source_catalog, materialize_source_citation_traversal, materialize_source_family_report
-from .source_bibtex_support import import_bibtex_sources as materialize_bibtex_source_import, materialize_source_bibtex_export
-from .obsidian_graph_bridge_support import sync_concept_graph_export_to_theoretical_physics_brain
+from .source_catalog import (
+    materialize_source_catalog,
+    materialize_source_citation_traversal,
+    materialize_source_family_report,
+)
+from .source_bibtex_support import (
+    import_bibtex_sources as materialize_bibtex_source_import,
+    materialize_source_bibtex_export,
+)
+from .obsidian_graph_bridge_support import (
+    sync_concept_graph_export_to_theoretical_physics_brain,
+)
 from .semantic_routing import canonical_validation_mode
 from .bundle_support import (
     LEGACY_PACKAGE_DISTRIBUTION_NAMES,
@@ -234,9 +270,11 @@ def _looks_like_kernel_root(path: Path) -> bool:
     if (path / "runtime" / "scripts" / "orchestrate_topic.py").exists():
         return True
     return (
-        (path / "runtime" / "schemas" / "progressive-disclosure-runtime-bundle.schema.json").exists()
-        and (path / "schemas").exists()
-    )
+        path
+        / "runtime"
+        / "schemas"
+        / "progressive-disclosure-runtime-bundle.schema.json"
+    ).exists() and (path / "schemas").exists()
 
 
 def _git_toplevel_from(path: Path) -> Path | None:
@@ -289,7 +327,10 @@ def _detect_default_kernel_root() -> Path:
         return Path(env_override).expanduser()
 
     repo_candidate = DEFAULT_REPO_ROOT / "research" / "knowledge-hub"
-    cwd_candidates = [Path.cwd().resolve() / "research" / "knowledge-hub", Path.cwd().resolve()]
+    cwd_candidates = [
+        Path.cwd().resolve() / "research" / "knowledge-hub",
+        Path.cwd().resolve(),
+    ]
     for candidate in (repo_candidate, DEFAULT_REPO_ROOT, *cwd_candidates):
         if _looks_like_kernel_root(candidate):
             return candidate
@@ -352,13 +393,18 @@ def as_bool(value: Any) -> bool:
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows),
+        "".join(
+            json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n"
+            for row in rows
+        ),
         encoding="utf-8",
     )
 
@@ -465,15 +511,32 @@ class AITPService:
             return [installed]
 
         repo_venv_candidates = [
-            self.repo_root / "research" / "knowledge-hub" / ".venv" / "bin" / "aitp-mcp",
-            self.repo_root / "research" / "knowledge-hub" / ".venv" / "Scripts" / "aitp-mcp.exe",
-            self.repo_root / "research" / "knowledge-hub" / ".venv" / "Scripts" / "aitp-mcp.cmd",
+            self.repo_root
+            / "research"
+            / "knowledge-hub"
+            / ".venv"
+            / "bin"
+            / "aitp-mcp",
+            self.repo_root
+            / "research"
+            / "knowledge-hub"
+            / ".venv"
+            / "Scripts"
+            / "aitp-mcp.exe",
+            self.repo_root
+            / "research"
+            / "knowledge-hub"
+            / ".venv"
+            / "Scripts"
+            / "aitp-mcp.cmd",
         ]
         for candidate in repo_venv_candidates:
             if candidate.exists():
                 return [str(candidate)]
 
-        fallback_python = shutil.which("python") or shutil.which("python3") or sys.executable
+        fallback_python = (
+            shutil.which("python") or shutil.which("python3") or sys.executable
+        )
         return [fallback_python, "-m", "knowledge_hub.aitp_mcp_server"]
 
         raise FileNotFoundError("Unable to resolve the aitp-mcp server command.")
@@ -494,7 +557,11 @@ class AITPService:
 
     def _workspace_root_from_target_root(self, target_root: str | None) -> Path:
         if not target_root:
-            return self.repo_root if _looks_like_repo_root(self.repo_root) else Path.cwd().resolve()
+            return (
+                self.repo_root
+                if _looks_like_repo_root(self.repo_root)
+                else Path.cwd().resolve()
+            )
 
         target_path = Path(target_root)
         if target_path.name == "aitp-runtime" and target_path.parent.name == "skills":
@@ -570,7 +637,9 @@ class AITPService:
         }
 
     def _promotion_gate_log_path(self, topic_slug: str, run_id: str) -> Path:
-        return self._validation_run_root(topic_slug, run_id) / "promotion_gate_log.jsonl"
+        return (
+            self._validation_run_root(topic_slug, run_id) / "promotion_gate_log.jsonl"
+        )
 
     def _consultation_root(self, topic_slug: str) -> Path:
         return self.kernel_root / "consultation" / "topics" / topic_slug
@@ -628,7 +697,9 @@ class AITPService:
     def _has_repo_checkout(self) -> bool:
         return _looks_like_repo_root(self.repo_root)
 
-    def _canonical_repo_asset_text(self, relative_path: str, *, fallback_text: str | None = None) -> str:
+    def _canonical_repo_asset_text(
+        self, relative_path: str, *, fallback_text: str | None = None
+    ) -> str:
         candidate = self.repo_root / relative_path
         if candidate.exists():
             return candidate.read_text(encoding="utf-8")
@@ -636,7 +707,9 @@ class AITPService:
             return fallback_text
         raise FileNotFoundError(f"Canonical repo asset missing: {candidate}")
 
-    def _canonical_skill_text(self, skill_name: str, *, fallback_text: str | None = None) -> str:
+    def _canonical_skill_text(
+        self, skill_name: str, *, fallback_text: str | None = None
+    ) -> str:
         return self._canonical_repo_asset_text(
             f"skills/{skill_name}/SKILL.md",
             fallback_text=fallback_text,
@@ -649,7 +722,9 @@ class AITPService:
         canonical_path = self.repo_root / canonical_relative_path
         if not path.exists() or not canonical_path.exists():
             return False
-        return path.read_text(encoding="utf-8") == canonical_path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8") == canonical_path.read_text(
+            encoding="utf-8"
+        )
 
     def _workspace_legacy_entrypoints(self, workspace_root: Path) -> list[Path]:
         return discover_workspace_legacy_entrypoints(workspace_root)
@@ -663,10 +738,16 @@ class AITPService:
     def _opencode_plugin_enabled(self) -> tuple[bool, Path, list[str]]:
         return detect_opencode_plugin_enabled()
 
-    def _opencode_plugin_status(self, workspace_root: Path | None = None) -> dict[str, Any]:
-        return compute_opencode_plugin_status(repo_root=self.repo_root, workspace_root=workspace_root)
+    def _opencode_plugin_status(
+        self, workspace_root: Path | None = None
+    ) -> dict[str, Any]:
+        return compute_opencode_plugin_status(
+            repo_root=self.repo_root, workspace_root=workspace_root
+        )
 
-    def _claude_settings_has_expected_session_start_command(self, settings_path: Path, run_hook_path: Path) -> bool:
+    def _claude_settings_has_expected_session_start_command(
+        self, settings_path: Path, run_hook_path: Path
+    ) -> bool:
         return check_claude_settings_session_start_command(settings_path, run_hook_path)
 
     def _claude_hook_status(self) -> dict[str, Any]:
@@ -678,13 +759,17 @@ class AITPService:
     def _codex_skill_status(self) -> dict[str, Any]:
         return compute_codex_skill_status(repo_root=self.repo_root)
 
-    def _backup_and_move(self, path: Path, backup_root: Path, backup_subdir: str) -> dict[str, str]:
+    def _backup_and_move(
+        self, path: Path, backup_root: Path, backup_subdir: str
+    ) -> dict[str, str]:
         destination = backup_root / backup_subdir / path.name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(path), str(destination))
         return {"original_path": str(path), "backup_path": str(destination)}
 
-    def _runtime_convergence_summary(self, doctor_payload: dict[str, Any]) -> dict[str, Any]:
+    def _runtime_convergence_summary(
+        self, doctor_payload: dict[str, Any]
+    ) -> dict[str, Any]:
         return compute_runtime_convergence_summary(doctor_payload)
 
     def _operation_id(self, value: str) -> str:
@@ -696,10 +781,19 @@ class AITPService:
         return bounded_slugify(operation_id.split(":", 1)[-1])
 
     def _operation_root(self, topic_slug: str, run_id: str, operation_id: str) -> Path:
-        return self._validation_run_root(topic_slug, run_id) / "operations" / self._operation_slug(operation_id)
+        return (
+            self._validation_run_root(topic_slug, run_id)
+            / "operations"
+            / self._operation_slug(operation_id)
+        )
 
-    def _operation_manifest_path(self, topic_slug: str, run_id: str, operation_id: str) -> Path:
-        return self._operation_root(topic_slug, run_id, operation_id) / "operation_manifest.json"
+    def _operation_manifest_path(
+        self, topic_slug: str, run_id: str, operation_id: str
+    ) -> Path:
+        return (
+            self._operation_root(topic_slug, run_id, operation_id)
+            / "operation_manifest.json"
+        )
 
     def _trust_audit_path(self, topic_slug: str, run_id: str) -> Path:
         return self._validation_run_root(topic_slug, run_id) / "trust_audit.json"
@@ -723,10 +817,16 @@ class AITPService:
         return self.kernel_root / "runtime" / "closed_loop_policies.json"
 
     def _candidate_split_contract_path(self, topic_slug: str, run_id: str) -> Path:
-        return self._feedback_run_root(topic_slug, run_id) / "candidate_split.contract.json"
+        return (
+            self._feedback_run_root(topic_slug, run_id)
+            / "candidate_split.contract.json"
+        )
 
     def _candidate_split_receipts_path(self, topic_slug: str, run_id: str) -> Path:
-        return self._feedback_run_root(topic_slug, run_id) / "candidate_split_receipts.jsonl"
+        return (
+            self._feedback_run_root(topic_slug, run_id)
+            / "candidate_split_receipts.jsonl"
+        )
 
     def _deferred_buffer_paths(self, topic_slug: str) -> dict[str, Path]:
         runtime_root = self._runtime_root(topic_slug)
@@ -744,7 +844,9 @@ class AITPService:
 
     def _followup_return_packet_path(self, topic_slug: str) -> Path:
         policy = self._load_runtime_policy().get("followup_subtopic_policy") or {}
-        filename = str(policy.get("return_packet_filename") or "followup_return_packet.json").strip()
+        filename = str(
+            policy.get("return_packet_filename") or "followup_return_packet.json"
+        ).strip()
         return self._runtime_root(topic_slug) / filename
 
     def _followup_return_packet_note_path(self, topic_slug: str) -> Path:
@@ -859,8 +961,14 @@ class AITPService:
             "note": runtime_root / "statement_compilation.active.md",
         }
 
-    def _statement_compilation_packet_paths(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Path]:
-        root = self._validation_run_root(topic_slug, run_id) / "statement-compilation" / bounded_slugify(candidate_id)
+    def _statement_compilation_packet_paths(
+        self, topic_slug: str, run_id: str, candidate_id: str
+    ) -> dict[str, Path]:
+        root = (
+            self._validation_run_root(topic_slug, run_id)
+            / "statement-compilation"
+            / bounded_slugify(candidate_id)
+        )
         return {
             "root": root,
             "json": root / "statement_compilation.json",
@@ -869,8 +977,14 @@ class AITPService:
             "repair_plan_note": root / "proof_repair_plan.md",
         }
 
-    def _lean_bridge_packet_paths(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Path]:
-        root = self._validation_run_root(topic_slug, run_id) / "lean-bridge" / bounded_slugify(candidate_id)
+    def _lean_bridge_packet_paths(
+        self, topic_slug: str, run_id: str, candidate_id: str
+    ) -> dict[str, Path]:
+        root = (
+            self._validation_run_root(topic_slug, run_id)
+            / "lean-bridge"
+            / bounded_slugify(candidate_id)
+        )
         return {
             "root": root,
             "json": root / "lean_ready_packet.json",
@@ -976,15 +1090,33 @@ class AITPService:
 
     def _validation_mode_for_template(self, template_mode: str | None) -> str:
         normalized = str(template_mode or "").strip().lower()
-        return "formal" if normalized == "formal_theory" else "numerical" if normalized == "toy_numeric" else "hybrid"
-    def _validation_mode_for_modes(self, *, template_mode: str | None, research_mode: str | None) -> str: return canonical_validation_mode(template_mode, research_mode)
+        return (
+            "formal"
+            if normalized == "formal_theory"
+            else "numerical"
+            if normalized == "toy_numeric"
+            else "hybrid"
+        )
 
-    def _lane_for_modes(self, *, template_mode: str | None, research_mode: str | None) -> str:
+    def _validation_mode_for_modes(
+        self, *, template_mode: str | None, research_mode: str | None
+    ) -> str:
+        return canonical_validation_mode(template_mode, research_mode)
+
+    def _lane_for_modes(
+        self, *, template_mode: str | None, research_mode: str | None
+    ) -> str:
         normalized_template = str(template_mode or "").strip().lower()
         normalized_research = str(research_mode or "").strip().lower()
-        if normalized_template == "formal_theory" or normalized_research == "formal_derivation":
+        if (
+            normalized_template == "formal_theory"
+            or normalized_research == "formal_derivation"
+        ):
             return "formal_theory"
-        if normalized_template == "toy_numeric" or normalized_research in {"toy_model", "first_principles"}:
+        if normalized_template == "toy_numeric" or normalized_research in {
+            "toy_model",
+            "first_principles",
+        }:
             return "toy_numeric"
         return "code_method"
 
@@ -1017,7 +1149,9 @@ class AITPService:
                     [str(item) for item in (row.get("do_not_apply_when") or [])]
                 )
                 input_context = row.get("input_context")
-                row["input_context"] = input_context if isinstance(input_context, dict) else {}
+                row["input_context"] = (
+                    input_context if isinstance(input_context, dict) else {}
+                )
                 row["evidence_refs"] = self._dedupe_strings(
                     [str(item) for item in (row.get("evidence_refs") or [])]
                 )
@@ -1052,7 +1186,11 @@ class AITPService:
             *[str(item) for item in (row.get("do_not_apply_when") or [])],
             *[
                 str(value)
-                for value in ((row.get("input_context") or {}) if isinstance(row.get("input_context"), dict) else {}).values()
+                for value in (
+                    (row.get("input_context") or {})
+                    if isinstance(row.get("input_context"), dict)
+                    else {}
+                ).values()
             ],
         ]
         current_tokens = set(re.findall(r"[a-z0-9_]+", current_context_text.lower()))
@@ -1123,8 +1261,12 @@ class AITPService:
             else:
                 prefix = "Review"
             guidance.append(f"{prefix}: {row.get('summary') or '(missing)'}")
-        helpful_count = sum(1 for row in rows if str(row.get("outcome") or "").strip() == "helpful")
-        harmful_count = sum(1 for row in rows if str(row.get("outcome") or "").strip() == "harmful")
+        helpful_count = sum(
+            1 for row in rows if str(row.get("outcome") or "").strip() == "helpful"
+        )
+        harmful_count = sum(
+            1 for row in rows if str(row.get("outcome") or "").strip() == "harmful"
+        )
         latest_path = str(rows[0].get("path") or "") or None
         summary = (
             f"{len(rows)} strategy-memory row(s) recorded for lane `{lane}`; "
@@ -1143,7 +1285,11 @@ class AITPService:
             "harmful_count": harmful_count,
             "latest_path": latest_path,
             "relevant_paths": self._dedupe_strings(
-                [str(row.get("path") or "") for row in relevant_rows if str(row.get("path") or "").strip()]
+                [
+                    str(row.get("path") or "")
+                    for row in relevant_rows
+                    if str(row.get("path") or "").strip()
+                ]
             ),
             "guidance": guidance,
             "summary": summary,
@@ -1178,7 +1324,9 @@ class AITPService:
         normalized_strategy_type = str(strategy_type or "").strip()
         normalized_outcome = str(outcome or "").strip()
         if normalized_strategy_type not in valid_strategy_types:
-            raise ValueError(f"strategy_type must be one of {sorted(valid_strategy_types)}")
+            raise ValueError(
+                f"strategy_type must be one of {sorted(valid_strategy_types)}"
+            )
         if normalized_outcome not in valid_outcomes:
             raise ValueError(f"outcome must be one of {sorted(valid_outcomes)}")
         normalized_summary = str(summary or "").strip()
@@ -1188,11 +1336,16 @@ class AITPService:
         if not 0.0 <= normalized_confidence <= 1.0:
             raise ValueError("confidence must be within [0, 1]")
 
-        topic_state = read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
-        research_contract = read_json(self._research_question_contract_paths(topic_slug)["json"]) or {}
+        topic_state = (
+            read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
+        )
+        research_contract = (
+            read_json(self._research_question_contract_paths(topic_slug)["json"]) or {}
+        )
         resolved_lane = str(lane or "").strip() or self._lane_for_modes(
             template_mode=research_contract.get("template_mode"),
-            research_mode=research_contract.get("research_mode") or topic_state.get("research_mode"),
+            research_mode=research_contract.get("research_mode")
+            or topic_state.get("research_mode"),
         )
         timestamp = now_iso()
         resolved_strategy_id = str(strategy_id or "").strip() or (
@@ -1209,9 +1362,15 @@ class AITPService:
             "input_context": input_context if isinstance(input_context, dict) else {},
             "outcome": normalized_outcome,
             "confidence": normalized_confidence,
-            "evidence_refs": self._dedupe_strings([str(item) for item in (evidence_refs or [])]),
-            "reuse_conditions": self._dedupe_strings([str(item) for item in (reuse_conditions or [])]),
-            "do_not_apply_when": self._dedupe_strings([str(item) for item in (do_not_apply_when or [])]),
+            "evidence_refs": self._dedupe_strings(
+                [str(item) for item in (evidence_refs or [])]
+            ),
+            "reuse_conditions": self._dedupe_strings(
+                [str(item) for item in (reuse_conditions or [])]
+            ),
+            "do_not_apply_when": self._dedupe_strings(
+                [str(item) for item in (do_not_apply_when or [])]
+            ),
             "human_note": str(human_note or "").strip(),
             "updated_by": updated_by,
         }
@@ -1240,7 +1399,9 @@ class AITPService:
             row["details"] = str(row.get("details") or "")
             row["topic_slug"] = str(row.get("topic_slug") or "")
             row["run_id"] = str(row.get("run_id") or "")
-            row["tags"] = self._dedupe_strings([str(item) for item in (row.get("tags") or [])])
+            row["tags"] = self._dedupe_strings(
+                [str(item) for item in (row.get("tags") or [])]
+            )
             row["related_topic_slugs"] = self._dedupe_strings(
                 [str(item) for item in (row.get("related_topic_slugs") or [])]
             )
@@ -1258,7 +1419,9 @@ class AITPService:
         )
         return rows
 
-    def _collaborator_memory_matches_topic(self, row: dict[str, Any], topic_slug: str | None) -> bool:
+    def _collaborator_memory_matches_topic(
+        self, row: dict[str, Any], topic_slug: str | None
+    ) -> bool:
         normalized = str(topic_slug or "").strip()
         if not normalized:
             return True
@@ -1325,7 +1488,9 @@ class AITPService:
         normalized_topic_slug = str(topic_slug or "").strip() or None
         status = "available" if rows else "absent"
         if not rows:
-            summary = "No collaborator memory is currently recorded in the runtime ledger."
+            summary = (
+                "No collaborator memory is currently recorded in the runtime ledger."
+            )
         elif normalized_topic_slug:
             summary = (
                 f"{len(matching_rows)} collaborator-memory row(s) match topic `{normalized_topic_slug}` "
@@ -1360,7 +1525,9 @@ class AITPService:
         topic_slug: str | None = None,
         limit: int = 10,
     ) -> dict[str, Any]:
-        return self._build_collaborator_memory_payload(topic_slug=topic_slug, limit=limit)
+        return self._build_collaborator_memory_payload(
+            topic_slug=topic_slug, limit=limit
+        )
 
     def record_collaborator_memory(
         self,
@@ -1425,25 +1592,44 @@ class AITPService:
             "storage_layer": "runtime",
             "canonical_status": "separate_from_scientific_memory",
             "collaborator_memory_path": str(path),
-            "collaborator_memory_note_path": str(self._collaborator_memory_paths()["note"]),
+            "collaborator_memory_note_path": str(
+                self._collaborator_memory_paths()["note"]
+            ),
             "collaborator_memory_entry": row,
         }
 
-    def record_research_taste(self, **kwargs: Any) -> dict[str, Any]: return record_research_taste_payload(self, **kwargs)
+    def record_research_taste(self, **kwargs: Any) -> dict[str, Any]:
+        return record_research_taste_payload(self, **kwargs)
 
-    def topic_research_taste(self, *, topic_slug: str, updated_by: str = "aitp-cli") -> dict[str, Any]: return topic_research_taste_payload(self, topic_slug=topic_slug, updated_by=updated_by)
+    def topic_research_taste(
+        self, *, topic_slug: str, updated_by: str = "aitp-cli"
+    ) -> dict[str, Any]:
+        return topic_research_taste_payload(
+            self, topic_slug=topic_slug, updated_by=updated_by
+        )
 
-    def record_scratch_note(self, **kwargs: Any) -> dict[str, Any]: return record_scratch_note_payload(self, **kwargs)
+    def record_scratch_note(self, **kwargs: Any) -> dict[str, Any]:
+        return record_scratch_note_payload(self, **kwargs)
 
-    def record_negative_result(self, **kwargs: Any) -> dict[str, Any]: return record_negative_result_payload(self, **kwargs)
+    def record_negative_result(self, **kwargs: Any) -> dict[str, Any]:
+        return record_negative_result_payload(self, **kwargs)
 
-    def topic_scratchpad(self, *, topic_slug: str, updated_by: str = "aitp-cli") -> dict[str, Any]: return topic_scratchpad_payload(self, topic_slug=topic_slug, updated_by=updated_by)
+    def topic_scratchpad(
+        self, *, topic_slug: str, updated_by: str = "aitp-cli"
+    ) -> dict[str, Any]:
+        return topic_scratchpad_payload(
+            self, topic_slug=topic_slug, updated_by=updated_by
+        )
 
-    def _load_operation_manifests(self, topic_slug: str, run_id: str | None) -> list[dict[str, Any]]:
+    def _load_operation_manifests(
+        self, topic_slug: str, run_id: str | None
+    ) -> list[dict[str, Any]]:
         resolved_run_id = str(run_id or "").strip()
         if not resolved_run_id:
             return []
-        operations_root = self._validation_run_root(topic_slug, resolved_run_id) / "operations"
+        operations_root = (
+            self._validation_run_root(topic_slug, resolved_run_id) / "operations"
+        )
         if not operations_root.exists():
             return []
         rows: list[dict[str, Any]] = []
@@ -1453,7 +1639,9 @@ class AITPService:
                 continue
             row = dict(manifest)
             row["path"] = self._relativize(manifest_path)
-            row["summary_path"] = self._relativize(manifest_path.parent / "operation_summary.md")
+            row["summary_path"] = self._relativize(
+                manifest_path.parent / "operation_summary.md"
+            )
             rows.append(row)
         return rows
 
@@ -1495,7 +1683,8 @@ class AITPService:
     ) -> dict[str, Any] | None:
         resolved_run_id = str(run_id or "").strip()
         candidate_id = str(
-            projection.get("candidate_id") or f"candidate:topic-skill-projection-{slugify(topic_slug)}"
+            projection.get("candidate_id")
+            or f"candidate:topic-skill-projection-{slugify(topic_slug)}"
         ).strip()
         if resolved_run_id and str(projection.get("status") or "") != "available":
             self._remove_candidate_row(topic_slug, resolved_run_id, candidate_id)
@@ -1536,7 +1725,17 @@ class AITPService:
                     "id": f"strategy_memory:{resolved_run_id}",
                     "layer": "L3",
                     "object_type": "strategy_memory",
-                    "path": str(next((item for item in projection.get("derived_from_artifacts") or [] if str(item).endswith("strategy_memory.jsonl")), "")),
+                    "path": str(
+                        next(
+                            (
+                                item
+                                for item in projection.get("derived_from_artifacts")
+                                or []
+                                if str(item).endswith("strategy_memory.jsonl")
+                            ),
+                            "",
+                        )
+                    ),
                     "title": "Strategy memory",
                     "summary": "Run-local route memory contributing to the projection.",
                 },
@@ -1566,13 +1765,13 @@ class AITPService:
                 },
             ],
             "question": (
-                (
-                    f"How should the topic `{topic_slug}` be entered and advanced as a reusable theorem-facing formal-theory route?"
-                    if lane == "formal_theory"
-                    else f"How should the topic `{topic_slug}` be entered and advanced as a reusable benchmark-first code-method route?"
-                )
+                f"How should the topic `{topic_slug}` be entered and advanced as a reusable theorem-facing formal-theory route?"
+                if lane == "formal_theory"
+                else f"How should the topic `{topic_slug}` be entered and advanced as a reusable benchmark-first code-method route?"
             ),
-            "assumptions": self._dedupe_strings(list(projection.get("benchmark_first_rules") or [])),
+            "assumptions": self._dedupe_strings(
+                list(projection.get("benchmark_first_rules") or [])
+            ),
             "proposed_validation_route": (
                 "human-reviewed formal-theory topic-skill projection promotion"
                 if lane == "formal_theory"
@@ -1581,9 +1780,13 @@ class AITPService:
             "intended_l2_targets": [str(projection.get("intended_l2_target") or "")],
             "status": "ready_for_validation",
             "promotion_mode": "human",
-            "topic_completion_status": "promotion-ready" if lane == "formal_theory" else "regression-stable",
+            "topic_completion_status": "promotion-ready"
+            if lane == "formal_theory"
+            else "regression-stable",
         }
-        self._replace_candidate_row(topic_slug, resolved_run_id, candidate_id, candidate_row)
+        self._replace_candidate_row(
+            topic_slug, resolved_run_id, candidate_id, candidate_row
+        )
         return candidate_row
 
     def _resolve_load_profile(
@@ -1666,8 +1869,12 @@ class AITPService:
     ) -> dict[str, Any]:
         resolved_runtime_mode = str(runtime_mode or "").strip().lower()
         if not resolved_runtime_mode:
-            protocol_payload = read_json(self._runtime_protocol_paths(topic_slug)["json"]) or {}
-            resolved_runtime_mode = str(protocol_payload.get("runtime_mode") or "").strip().lower()
+            protocol_payload = (
+                read_json(self._runtime_protocol_paths(topic_slug)["json"]) or {}
+            )
+            resolved_runtime_mode = (
+                str(protocol_payload.get("runtime_mode") or "").strip().lower()
+            )
         return distill_from_sources(
             kernel_root=self.kernel_root,
             source_rows=source_rows,
@@ -1707,9 +1914,13 @@ class AITPService:
         decision_surface: dict[str, Any] | None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         pending_actions = [
-            row for row in queue_rows if str(row.get("status") or "pending") == "pending"
+            row
+            for row in queue_rows
+            if str(row.get("status") or "pending") == "pending"
         ]
-        selected_action_id = str((decision_surface or {}).get("selected_action_id") or "").strip()
+        selected_action_id = str(
+            (decision_surface or {}).get("selected_action_id") or ""
+        ).strip()
         selected_pending_action: dict[str, Any] | None = None
         if selected_action_id:
             selected_pending_action = next(
@@ -1725,7 +1936,9 @@ class AITPService:
         return pending_actions, selected_pending_action
 
     def _fingerprint_payload(self, payload: dict[str, Any]) -> str:
-        serialized = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        serialized = json.dumps(
+            payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+        )
         return hashlib.sha1(serialized.encode("utf-8")).hexdigest()
 
     def _derive_topic_completion_status(
@@ -1760,7 +1973,11 @@ class AITPService:
             and supporting_regression_run_ids
         ):
             return "promotion-ready"
-        if supporting_regression_question_ids or supporting_oracle_ids or supporting_regression_run_ids:
+        if (
+            supporting_regression_question_ids
+            or supporting_oracle_ids
+            or supporting_regression_run_ids
+        ):
             return "regression-stable"
         if coverage_status == "pass":
             return "regression-seeded"
@@ -1822,7 +2039,8 @@ class AITPService:
             "supporting_oracle_ids": supporting_oracle_ids,
             "supporting_regression_run_ids": supporting_regression_run_ids,
             "promotion_blockers": promotion_blockers,
-            "promotion_blockers_cleared": not promotion_blockers and not cited_recovery_required,
+            "promotion_blockers_cleared": not promotion_blockers
+            and not cited_recovery_required,
             "split_required": split_required,
             "split_clearance_status": "blocked" if split_required else "clear",
             "cited_recovery_required": cited_recovery_required,
@@ -1833,7 +2051,9 @@ class AITPService:
             "notes": notes,
         }
 
-    def _candidate_rows_for_run(self, topic_slug: str, run_id: str | None) -> list[dict[str, Any]]:
+    def _candidate_rows_for_run(
+        self, topic_slug: str, run_id: str | None
+    ) -> list[dict[str, Any]]:
         if not run_id:
             return []
         ledger_path = self._candidate_ledger_path(topic_slug, run_id)
@@ -1852,7 +2072,10 @@ class AITPService:
         for row in candidate_rows:
             candidate_id = str(row.get("candidate_id") or "").strip()
             candidate_type = str(row.get("candidate_type") or "").strip()
-            if not candidate_id or candidate_type not in self._theory_formal_candidate_types():
+            if (
+                not candidate_id
+                or candidate_type not in self._theory_formal_candidate_types()
+            ):
                 continue
             packet_paths = self._theory_packet_paths(topic_slug, run_id, candidate_id)
             review_path = packet_paths["formal_theory_review"]
@@ -1862,7 +2085,9 @@ class AITPService:
                 or row.get("formal_theory_review_overall_status")
                 or "missing"
             ).strip()
-            completion_status = str(row.get("topic_completion_status") or "not_assessed").strip()
+            completion_status = str(
+                row.get("topic_completion_status") or "not_assessed"
+            ).strip()
             context = {
                 "candidate_row": row,
                 "candidate_id": candidate_id,
@@ -1874,7 +2099,11 @@ class AITPService:
             }
             if fallback is None:
                 fallback = context
-            if review_path.exists() and review_status == "ready" and completion_status in {"promotion-ready", "promoted"}:
+            if (
+                review_path.exists()
+                and review_status == "ready"
+                and completion_status in {"promotion-ready", "promoted"}
+            ):
                 return context
         return fallback
 
@@ -1890,10 +2119,16 @@ class AITPService:
         blockers: list[str] = []
         for row in candidate_rows:
             candidate_id = str(row.get("candidate_id") or "").strip()
-            completion_status = str(row.get("topic_completion_status") or "not_assessed")
-            row_blockers = self._dedupe_strings(list(row.get("promotion_blockers") or []))
+            completion_status = str(
+                row.get("topic_completion_status") or "not_assessed"
+            )
+            row_blockers = self._dedupe_strings(
+                list(row.get("promotion_blockers") or [])
+            )
             if as_bool(row.get("split_required")):
-                row_blockers.append(f"{candidate_id or 'candidate'} requires a split contract before promotion.")
+                row_blockers.append(
+                    f"{candidate_id or 'candidate'} requires a split contract before promotion."
+                )
             if as_bool(row.get("cited_recovery_required")):
                 row_blockers.append(
                     f"{candidate_id or 'candidate'} must return to L0 for cited-source or prior-work recovery."
@@ -2095,11 +2330,13 @@ class AITPService:
         paths = self._operator_checkpoint_paths(topic_slug)
         ledger_rows = read_jsonl(paths["ledger"])
         if superseded_payload is not None:
-            if not ledger_rows or self._operator_checkpoint_signature(ledger_rows[-1]) != self._operator_checkpoint_signature(
-                superseded_payload
-            ):
+            if not ledger_rows or self._operator_checkpoint_signature(
+                ledger_rows[-1]
+            ) != self._operator_checkpoint_signature(superseded_payload):
                 ledger_rows.append(superseded_payload)
-        if not ledger_rows or self._operator_checkpoint_signature(ledger_rows[-1]) != self._operator_checkpoint_signature(payload):
+        if not ledger_rows or self._operator_checkpoint_signature(
+            ledger_rows[-1]
+        ) != self._operator_checkpoint_signature(payload):
             ledger_rows.append(payload)
         write_json(paths["json"], payload)
         write_text(paths["note"], self._render_operator_checkpoint_markdown(payload))
@@ -2127,8 +2364,12 @@ class AITPService:
             text = text.split(marker, 1)[0].rstrip() + "\n"
         lines = [text.rstrip(), "", "## Active operator checkpoint", ""]
         lines.append(f"- Status: `{operator_checkpoint.get('status') or '(missing)'}`")
-        lines.append(f"- Kind: `{operator_checkpoint.get('checkpoint_kind') or '(none)'}`")
-        lines.append(f"- Question: {operator_checkpoint.get('question') or '(missing)'}")
+        lines.append(
+            f"- Kind: `{operator_checkpoint.get('checkpoint_kind') or '(none)'}`"
+        )
+        lines.append(
+            f"- Question: {operator_checkpoint.get('question') or '(missing)'}"
+        )
         lines.append(
             f"- Open next: `{self._relativize(self._operator_checkpoint_paths(topic_slug)['note'])}`"
         )
@@ -2167,9 +2408,13 @@ class AITPService:
         paths = self._operator_checkpoint_paths(topic_slug)
         payload = read_json(paths["json"])
         if payload is None:
-            raise FileNotFoundError(f"No active operator checkpoint surface exists for topic {topic_slug}.")
+            raise FileNotFoundError(
+                f"No active operator checkpoint surface exists for topic {topic_slug}."
+            )
         if str(payload.get("status") or "").strip() != "requested":
-            raise ValueError("Operator checkpoint is not currently in requested status.")
+            raise ValueError(
+                "Operator checkpoint is not currently in requested status."
+            )
         answer_text = str(answer or "").strip()
         if not answer_text:
             raise ValueError("answer must not be empty")
@@ -2187,26 +2432,57 @@ class AITPService:
         interaction_state = read_json(runtime_root / "interaction_state.json") or {}
         queue_rows = read_jsonl(runtime_root / "action_queue.jsonl")
         decision_surface = interaction_state.get("decision_surface") or {}
-        _, selected_pending_action = self._pending_action_context(queue_rows, decision_surface)
-        validation_contract = read_json(self._validation_contract_paths(topic_slug)["json"]) or {}
+        _, selected_pending_action = self._pending_action_context(
+            queue_rows, decision_surface
+        )
+        validation_contract = (
+            read_json(self._validation_contract_paths(topic_slug)["json"]) or {}
+        )
         topic_status_explainability = {
             "topic_slug": topic_slug,
             "current_status_summary": "The latest operator checkpoint was answered and now awaits the next bounded runtime step.",
             "why_this_topic_is_here": "The latest operator checkpoint was answered and recorded. AITP should sync the answer into the next bounded step instead of silently reopening the checkpoint.",
             "current_route_choice": {
                 "resume_stage": str(topic_state.get("resume_stage") or ""),
-                "decision_source": str((interaction_state.get("decision_surface") or {}).get("decision_source") or ""),
-                "queue_source": str((interaction_state.get("action_queue_surface") or {}).get("queue_source") or ""),
-                "selected_action_id": str((selected_pending_action or {}).get("action_id") or "") or None,
-                "selected_action_type": str((selected_pending_action or {}).get("action_type") or "") or None,
-                "selected_action_summary": str((selected_pending_action or {}).get("summary") or "") or None,
-                "selected_action_auto_runnable": bool((selected_pending_action or {}).get("auto_runnable")),
+                "decision_source": str(
+                    (interaction_state.get("decision_surface") or {}).get(
+                        "decision_source"
+                    )
+                    or ""
+                ),
+                "queue_source": str(
+                    (interaction_state.get("action_queue_surface") or {}).get(
+                        "queue_source"
+                    )
+                    or ""
+                ),
+                "selected_action_id": str(
+                    (selected_pending_action or {}).get("action_id") or ""
+                )
+                or None,
+                "selected_action_type": str(
+                    (selected_pending_action or {}).get("action_type") or ""
+                )
+                or None,
+                "selected_action_summary": str(
+                    (selected_pending_action or {}).get("summary") or ""
+                )
+                or None,
+                "selected_action_auto_runnable": bool(
+                    (selected_pending_action or {}).get("auto_runnable")
+                ),
                 "selected_validation_route_path": self._normalize_artifact_path(
-                    (topic_state.get("pointers") or {}).get("selected_validation_route_path")
+                    (topic_state.get("pointers") or {}).get(
+                        "selected_validation_route_path"
+                    )
                 ),
                 "next_action_decision_note_path": self._normalize_artifact_path(
-                    (topic_state.get("pointers") or {}).get("next_action_decision_note_path")
-                    or (interaction_state.get("decision_surface") or {}).get("next_action_decision_note_path")
+                    (topic_state.get("pointers") or {}).get(
+                        "next_action_decision_note_path"
+                    )
+                    or (interaction_state.get("decision_surface") or {}).get(
+                        "next_action_decision_note_path"
+                    )
                 ),
             },
             "last_evidence_return": self._derive_last_evidence_return(
@@ -2222,10 +2498,17 @@ class AITPService:
             "blocker_summary": [],
             "next_bounded_action": {
                 "status": "selected" if selected_pending_action else "missing",
-                "action_id": str((selected_pending_action or {}).get("action_id") or "") or None,
-                "action_type": str((selected_pending_action or {}).get("action_type") or "") or None,
-                "summary": str((selected_pending_action or {}).get("summary") or "") or "No bounded action is currently selected.",
-                "auto_runnable": bool((selected_pending_action or {}).get("auto_runnable")),
+                "action_id": str((selected_pending_action or {}).get("action_id") or "")
+                or None,
+                "action_type": str(
+                    (selected_pending_action or {}).get("action_type") or ""
+                )
+                or None,
+                "summary": str((selected_pending_action or {}).get("summary") or "")
+                or "No bounded action is currently selected.",
+                "auto_runnable": bool(
+                    (selected_pending_action or {}).get("auto_runnable")
+                ),
             },
             "updated_at": answered_at,
         }
@@ -2250,7 +2533,10 @@ class AITPService:
         }:
             steering_artifacts = self.materialize_steering_from_human_request(
                 topic_slug=topic_slug,
-                run_id=str(topic_state.get("latest_run_id") or payload.get("run_id") or "").strip() or None,
+                run_id=str(
+                    topic_state.get("latest_run_id") or payload.get("run_id") or ""
+                ).strip()
+                or None,
                 human_request=answer_text,
                 updated_by=updated_by,
                 topic_state=topic_state,
@@ -2258,8 +2544,14 @@ class AITPService:
             if steering_artifacts.get("requires_reorchestrate"):
                 self.orchestrate(
                     topic_slug=topic_slug,
-                    run_id=str(topic_state.get("latest_run_id") or payload.get("run_id") or "").strip() or None,
-                    control_note=str(steering_artifacts.get("control_note_path") or "").strip() or None,
+                    run_id=str(
+                        topic_state.get("latest_run_id") or payload.get("run_id") or ""
+                    ).strip()
+                    or None,
+                    control_note=str(
+                        steering_artifacts.get("control_note_path") or ""
+                    ).strip()
+                    or None,
                     updated_by=updated_by,
                     human_request=answer_text,
                 )
@@ -2270,8 +2562,12 @@ class AITPService:
                 )
                 return {
                     **result,
-                    "operator_checkpoint": refreshed.get("operator_checkpoint") or payload,
-                    "topic_state_explainability": refreshed.get("topic_state_explainability") or topic_status_explainability,
+                    "operator_checkpoint": refreshed.get("operator_checkpoint")
+                    or payload,
+                    "topic_state_explainability": refreshed.get(
+                        "topic_state_explainability"
+                    )
+                    or topic_status_explainability,
                     "steering_artifacts": steering_artifacts,
                 }
         return {
@@ -2288,7 +2584,9 @@ class AITPService:
         validation_contract: dict[str, Any],
     ) -> dict[str, Any]:
         pointers = topic_state.get("pointers") or {}
-        returned_result_path = self._artifact_path_on_disk(pointers.get("returned_execution_result_path"))
+        returned_result_path = self._artifact_path_on_disk(
+            pointers.get("returned_execution_result_path")
+        )
         if returned_result_path and returned_result_path.exists():
             returned_result = read_json(returned_result_path) or {}
             recorded_at = str(
@@ -2312,7 +2610,9 @@ class AITPService:
                 "summary": summary,
             }
 
-        feedback_status_path = self._artifact_path_on_disk(pointers.get("feedback_status_path"))
+        feedback_status_path = self._artifact_path_on_disk(
+            pointers.get("feedback_status_path")
+        )
         if feedback_status_path and feedback_status_path.exists():
             feedback_status = read_json(feedback_status_path) or {}
             return {
@@ -2320,9 +2620,13 @@ class AITPService:
                 "kind": "feedback_status",
                 "path": self._relativize(feedback_status_path),
                 "record_id": str(
-                    feedback_status.get("last_result_id") or feedback_status.get("last_closed_loop_decision_id") or ""
+                    feedback_status.get("last_result_id")
+                    or feedback_status.get("last_closed_loop_decision_id")
+                    or ""
                 ),
-                "recorded_at": self._coalesce_string(feedback_status.get("last_updated"), ""),
+                "recorded_at": self._coalesce_string(
+                    feedback_status.get("last_updated"), ""
+                ),
                 "summary": str(feedback_status.get("summary") or "").strip()
                 or (
                     f"Feedback stage `{feedback_status.get('stage') or '(missing)'}` "
@@ -2330,7 +2634,9 @@ class AITPService:
                 ),
             }
 
-        executed_evidence = self._dedupe_strings(list(validation_contract.get("executed_evidence") or []))
+        executed_evidence = self._dedupe_strings(
+            list(validation_contract.get("executed_evidence") or [])
+        )
         if executed_evidence:
             return {
                 "status": "present",
@@ -2384,17 +2690,14 @@ class AITPService:
         pointers = topic_state.get("pointers") or {}
         decision_surface = interaction_state.get("decision_surface") or {}
         queue_surface = interaction_state.get("action_queue_surface") or {}
-        return (
-            self._normalize_artifact_path(
-                pointers.get("next_action_decision_path")
-                or pointers.get("next_action_decision_note_path")
-                or decision_surface.get("next_action_decision_path")
-                or decision_surface.get("next_action_decision_note_path")
-                or queue_surface.get("generated_contract_path")
-                or queue_surface.get("declared_contract_path")
-            )
-            or self._relativize(self._runtime_root(topic_slug) / "action_queue.jsonl")
-        )
+        return self._normalize_artifact_path(
+            pointers.get("next_action_decision_path")
+            or pointers.get("next_action_decision_note_path")
+            or decision_surface.get("next_action_decision_path")
+            or decision_surface.get("next_action_decision_note_path")
+            or queue_surface.get("generated_contract_path")
+            or queue_surface.get("declared_contract_path")
+        ) or self._relativize(self._runtime_root(topic_slug) / "action_queue.jsonl")
 
     def _human_need_truth_surface_path(
         self,
@@ -2407,7 +2710,9 @@ class AITPService:
                 operator_checkpoint.get("path") or operator_checkpoint.get("note_path")
             )
         if str(idea_packet.get("status") or "").strip() == "needs_clarification":
-            return self._normalize_artifact_path(idea_packet.get("path") or idea_packet.get("note_path"))
+            return self._normalize_artifact_path(
+                idea_packet.get("path") or idea_packet.get("note_path")
+            )
         return None
 
     def _topic_synopsis_runtime_focus(
@@ -2455,13 +2760,21 @@ class AITPService:
         source_rows: list[dict[str, Any]],
     ) -> list[str]:
         refs: list[str] = []
-        source_index_path = self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl"
+        source_index_path = (
+            self.kernel_root
+            / "source-layer"
+            / "topics"
+            / topic_slug
+            / "source_index.jsonl"
+        )
         refs.append(self._relativize(source_index_path))
         for row in source_rows[:5]:
             source_id = str(row.get("source_id") or "").strip()
             title = str(row.get("title") or "").strip()
             if source_id or title:
-                refs.append(f"{source_id or '(missing)'} :: {title or '(untitled source)'}")
+                refs.append(
+                    f"{source_id or '(missing)'} :: {title or '(untitled source)'}"
+                )
         return self._dedupe_strings(refs)
 
     def _research_interpretation_focus_defaults(
@@ -2478,9 +2791,13 @@ class AITPService:
             f"Research mode `{research_mode}` sets the default interpretation granularity for this topic.",
         ]
         if first_validation_route:
-            defaults.append(f"Use `{first_validation_route}` as the first validation lens for interpreting the source set.")
+            defaults.append(
+                f"Use `{first_validation_route}` as the first validation lens for interpreting the source set."
+            )
         if selected_action_summary:
-            defaults.append(f"Keep the current interpretation aligned with the bounded next action: {selected_action_summary}")
+            defaults.append(
+                f"Keep the current interpretation aligned with the bounded next action: {selected_action_summary}"
+            )
         return self._dedupe_strings(defaults)
 
     def _research_open_ambiguities_defaults(
@@ -2489,20 +2806,35 @@ class AITPService:
         existing_idea_packet: dict[str, Any],
         open_gap_summary: dict[str, Any],
     ) -> list[str]:
-        if str(existing_idea_packet.get("status") or "").strip() == "needs_clarification":
-            missing_fields = self._dedupe_strings(list(existing_idea_packet.get("missing_fields") or []))
-            questions = self._dedupe_strings(list(existing_idea_packet.get("clarification_questions") or []))
+        if (
+            str(existing_idea_packet.get("status") or "").strip()
+            == "needs_clarification"
+        ):
+            missing_fields = self._dedupe_strings(
+                list(existing_idea_packet.get("missing_fields") or [])
+            )
+            questions = self._dedupe_strings(
+                list(existing_idea_packet.get("clarification_questions") or [])
+            )
             if questions:
                 return questions
             if missing_fields:
-                return [f"Clarify missing idea-packet fields: {', '.join(missing_fields)}"]
+                return [
+                    f"Clarify missing idea-packet fields: {', '.join(missing_fields)}"
+                ]
         blockers = self._dedupe_strings(list(open_gap_summary.get("blockers") or []))
         if blockers:
             return blockers
-        return ["No active intake ambiguity is currently recorded; follow explicit L0/L4 gap signals if that changes."]
+        return [
+            "No active intake ambiguity is currently recorded; follow explicit L0/L4 gap signals if that changes."
+        ]
 
-    def _review_artifact_status(self, artifact_kind: str, payload: dict[str, Any]) -> str:
-        return self._validation_review_service.review_artifact_status(artifact_kind, payload)
+    def _review_artifact_status(
+        self, artifact_kind: str, payload: dict[str, Any]
+    ) -> str:
+        return self._validation_review_service.review_artifact_status(
+            artifact_kind, payload
+        )
 
     def _collect_validation_review_artifacts(
         self,
@@ -2542,14 +2874,18 @@ class AITPService:
             promotion_gate=promotion_gate,
         )
 
-    def _render_research_question_contract_markdown(self, payload: dict[str, Any]) -> str:
+    def _render_research_question_contract_markdown(
+        self, payload: dict[str, Any]
+    ) -> str:
         return render_research_question_contract_markdown(payload)
 
     def _render_validation_contract_markdown(self, payload: dict[str, Any]) -> str:
         return render_validation_contract_markdown(payload)
 
     def _render_validation_review_bundle_markdown(self, payload: dict[str, Any]) -> str:
-        return self._validation_review_service.render_validation_review_bundle_markdown(payload)
+        return self._validation_review_service.render_validation_review_bundle_markdown(
+            payload
+        )
 
     def _render_idea_packet_markdown(self, payload: dict[str, Any]) -> str:
         return render_idea_packet_markdown(payload)
@@ -2727,9 +3063,15 @@ class AITPService:
         for item in payload.get("blocked_candidate_ids") or ["(none)"]:
             lines.append(f"- `{item}`")
         lines.extend(["", "## Regression surface", ""])
-        lines.append(f"- Questions: `{', '.join(payload.get('regression_question_ids') or []) or '(none)'}`")
-        lines.append(f"- Oracles: `{', '.join(payload.get('oracle_ids') or []) or '(none)'}`")
-        lines.append(f"- Runs: `{', '.join(payload.get('regression_run_ids') or []) or '(none)'}`")
+        lines.append(
+            f"- Questions: `{', '.join(payload.get('regression_question_ids') or []) or '(none)'}`"
+        )
+        lines.append(
+            f"- Oracles: `{', '.join(payload.get('oracle_ids') or []) or '(none)'}`"
+        )
+        lines.append(
+            f"- Runs: `{', '.join(payload.get('regression_run_ids') or []) or '(none)'}`"
+        )
         manifest = payload.get("regression_manifest") or {}
         lines.extend(["", "## Regression manifest", ""])
         lines.append(f"- Status: `{manifest.get('status') or 'empty'}`")
@@ -2739,7 +3081,9 @@ class AITPService:
         lines.append(f"- Run count: `{manifest.get('run_count') or 0}`")
         lines.extend(["", "## Completion gate checks", ""])
         for row in payload.get("completion_gate_checks") or []:
-            lines.append(f"- `{row.get('check') or '(missing)'}` => `{row.get('status') or '(missing)'}`: {row.get('summary') or '(missing)'}")
+            lines.append(
+                f"- `{row.get('check') or '(missing)'}` => `{row.get('status') or '(missing)'}`: {row.get('summary') or '(missing)'}"
+            )
         lines.extend(["", "## Follow-up return debt", ""])
         for item in payload.get("unresolved_followup_child_topics") or ["(none)"]:
             lines.append(f"- unresolved: `{item}`")
@@ -2759,13 +3103,17 @@ class AITPService:
     def _render_proof_state_markdown(self, payload: dict[str, Any]) -> str:
         return render_proof_state_markdown(payload)
 
-    def _render_statement_compilation_packet_markdown(self, payload: dict[str, Any]) -> str:
+    def _render_statement_compilation_packet_markdown(
+        self, payload: dict[str, Any]
+    ) -> str:
         return render_statement_compilation_packet_markdown(payload)
 
     def _render_proof_repair_plan_markdown(self, payload: dict[str, Any]) -> str:
         return render_proof_repair_plan_markdown(payload)
 
-    def _render_statement_compilation_index_markdown(self, payload: dict[str, Any]) -> str:
+    def _render_statement_compilation_index_markdown(
+        self, payload: dict[str, Any]
+    ) -> str:
         return render_statement_compilation_index_markdown(payload)
 
     def _lean_declaration_kind(self, candidate_type: str) -> str:
@@ -2867,28 +3215,42 @@ class AITPService:
     def _load_deferred_buffer(self, topic_slug: str) -> dict[str, Any]:
         return load_deferred_buffer(self, topic_slug)
 
-    def _write_deferred_buffer(self, topic_slug: str, payload: dict[str, Any]) -> dict[str, str]:
+    def _write_deferred_buffer(
+        self, topic_slug: str, payload: dict[str, Any]
+    ) -> dict[str, str]:
         return write_deferred_buffer(self, topic_slug, payload)
 
     def _load_followup_subtopic_rows(self, topic_slug: str) -> list[dict[str, Any]]:
         return load_followup_subtopic_rows(self, topic_slug)
 
-    def _write_followup_subtopic_rows(self, topic_slug: str, rows: list[dict[str, Any]]) -> dict[str, str]:
+    def _write_followup_subtopic_rows(
+        self, topic_slug: str, rows: list[dict[str, Any]]
+    ) -> dict[str, str]:
         return write_followup_subtopic_rows(self, topic_slug, rows)
 
-    def _write_followup_return_packet(self, topic_slug: str, payload: dict[str, Any]) -> str:
+    def _write_followup_return_packet(
+        self, topic_slug: str, payload: dict[str, Any]
+    ) -> str:
         return write_followup_return_packet(self, topic_slug, payload)
 
-    def _load_followup_reintegration_rows(self, topic_slug: str) -> list[dict[str, Any]]:
+    def _load_followup_reintegration_rows(
+        self, topic_slug: str
+    ) -> list[dict[str, Any]]:
         return load_followup_reintegration_rows(self, topic_slug)
 
-    def _write_followup_reintegration_rows(self, topic_slug: str, rows: list[dict[str, Any]]) -> dict[str, str]:
+    def _write_followup_reintegration_rows(
+        self, topic_slug: str, rows: list[dict[str, Any]]
+    ) -> dict[str, str]:
         return write_followup_reintegration_rows(self, topic_slug, rows)
 
-    def _load_followup_gap_writeback_rows(self, topic_slug: str) -> list[dict[str, Any]]:
+    def _load_followup_gap_writeback_rows(
+        self, topic_slug: str
+    ) -> list[dict[str, Any]]:
         return load_followup_gap_writeback_rows(self, topic_slug)
 
-    def _write_followup_gap_writeback_rows(self, topic_slug: str, rows: list[dict[str, Any]]) -> dict[str, str]:
+    def _write_followup_gap_writeback_rows(
+        self, topic_slug: str, rows: list[dict[str, Any]]
+    ) -> dict[str, str]:
         return write_followup_gap_writeback_rows(self, topic_slug, rows)
 
     def _reactivation_context(self, topic_slug: str) -> tuple[set[str], str, set[str]]:
@@ -2929,10 +3291,17 @@ class AITPService:
         }
         return baseline_required, atomic_required
 
-    def _operation_summary_path(self, topic_slug: str, run_id: str, operation_id: str) -> Path:
-        return self._operation_root(topic_slug, run_id, operation_id) / "operation_summary.md"
+    def _operation_summary_path(
+        self, topic_slug: str, run_id: str, operation_id: str
+    ) -> Path:
+        return (
+            self._operation_root(topic_slug, run_id, operation_id)
+            / "operation_summary.md"
+        )
 
-    def _read_operation_manifest(self, topic_slug: str, run_id: str, operation_id: str) -> dict[str, Any]:
+    def _read_operation_manifest(
+        self, topic_slug: str, run_id: str, operation_id: str
+    ) -> dict[str, Any]:
         manifest_path = self._operation_manifest_path(topic_slug, run_id, operation_id)
         manifest = read_json(manifest_path)
         if manifest is None:
@@ -2940,7 +3309,14 @@ class AITPService:
         return manifest
 
     def _baseline_status_ready(self, status: str) -> bool:
-        return status.strip().lower() in {"not_required", "pass", "passed", "satisfied", "complete", "completed"}
+        return status.strip().lower() in {
+            "not_required",
+            "pass",
+            "passed",
+            "satisfied",
+            "complete",
+            "completed",
+        }
 
     def _atomic_status_ready(self, status: str) -> bool:
         return status.strip().lower() in {
@@ -2976,7 +3352,9 @@ class AITPService:
             closing_quote = quote_pairs[raw_value[0]]
             closing_index = raw_value.find(closing_quote, 1)
             if closing_index > 0:
-                return raw_value[1:closing_index].strip(" \t\r\n.,;:!?\"'`，。；：！？“”‘’")
+                return raw_value[1:closing_index].strip(
+                    " \t\r\n.,;:!?\"'`，。；：！？“”‘’"
+                )
 
         cleaned = raw_value
         cleaned = re.sub(r"^[\s\"'“”‘’`]+", "", cleaned)
@@ -3031,9 +3409,13 @@ class AITPService:
             return False
         if (self._runtime_root(resolved_slug) / "topic_state.json").exists():
             return True
-        if (self.kernel_root / "source-layer" / "topics" / resolved_slug / "topic.json").exists():
+        if (
+            self.kernel_root / "source-layer" / "topics" / resolved_slug / "topic.json"
+        ).exists():
             return True
-        if (self.kernel_root / "intake" / "topics" / resolved_slug / "topic.json").exists():
+        if (
+            self.kernel_root / "intake" / "topics" / resolved_slug / "topic.json"
+        ).exists():
             return True
         return any(
             str(row.get("topic_slug") or "").strip() == resolved_slug
@@ -3093,7 +3475,9 @@ class AITPService:
             return self._allocate_new_topic_slug(resolved_topic)
         return slugify(resolved_topic)
 
-    def _find_known_topic_slug_in_request(self, human_request: str | None) -> str | None:
+    def _find_known_topic_slug_in_request(
+        self, human_request: str | None
+    ) -> str | None:
         raw_request = str(human_request or "").strip().lower()
         if not raw_request:
             return None
@@ -3114,7 +3498,11 @@ class AITPService:
         named = self._find_known_topic_slug_in_request(task)
         if named:
             return named
-        if re.search(r"(?:这个\s*topic|当前\s*topic|这个\s*课题|当前\s*课题|this topic|current topic|active topic)", task, flags=re.IGNORECASE):
+        if re.search(
+            r"(?:这个\s*topic|当前\s*topic|这个\s*课题|当前\s*课题|this topic|current topic|active topic)",
+            task,
+            flags=re.IGNORECASE,
+        ):
             try:
                 return self.current_topic_slug(fallback_to_latest=True)
             except FileNotFoundError:
@@ -3124,7 +3512,9 @@ class AITPService:
     def _projection_routing_tokens(self, text: str) -> set[str]:
         return {
             token
-            for token in re.findall(r"[\u4e00-\u9fff]+|[a-z0-9_]+", str(text or "").lower())
+            for token in re.findall(
+                r"[\u4e00-\u9fff]+|[a-z0-9_]+", str(text or "").lower()
+            )
             if len(token) > 1
         }
 
@@ -3145,7 +3535,10 @@ class AITPService:
                 str(row.get("summary") or ""),
                 str(projection.get("lane") or row.get("lane") or ""),
                 *[str(item) for item in (projection.get("entry_signals") or [])],
-                *[str(item) for item in (projection.get("required_first_routes") or [])],
+                *[
+                    str(item)
+                    for item in (projection.get("required_first_routes") or [])
+                ],
             ]
         )
         projection_tokens = self._projection_routing_tokens(projection_text)
@@ -3197,7 +3590,11 @@ class AITPService:
                 continue
             projection_note_path = str(
                 row.get("projection_note_path")
-                or (self._relativize(projection_paths["note"]) if projection_paths["note"].exists() else "")
+                or (
+                    self._relativize(projection_paths["note"])
+                    if projection_paths["note"].exists()
+                    else ""
+                )
             ).strip()
             if not projection_note_path:
                 continue
@@ -3216,7 +3613,9 @@ class AITPService:
                 "lane": str(projection.get("lane") or row.get("lane") or "").strip(),
                 "projection_status": str(projection.get("status") or "missing").strip(),
                 "projection_note_path": projection_note_path,
-                "projection_summary": str(projection.get("summary") or row.get("summary") or "").strip(),
+                "projection_summary": str(
+                    projection.get("summary") or row.get("summary") or ""
+                ).strip(),
                 "focus_state": str(row.get("focus_state") or "background"),
             }
             if best_match is None or (
@@ -3286,11 +3685,17 @@ class AITPService:
     def _exploration_current_topic_context(self) -> dict[str, str] | None:
         payload = read_json(self._current_topic_memory_paths()["json"]) or {}
         topic_slug = str(payload.get("topic_slug") or "").strip()
-        if not topic_slug or not (self._runtime_root(topic_slug) / "topic_state.json").exists():
+        if (
+            not topic_slug
+            or not (self._runtime_root(topic_slug) / "topic_state.json").exists()
+        ):
             return None
         return {
             "topic_slug": topic_slug,
-            "note_path": str(payload.get("current_topic_note_path") or self._relativize(self._current_topic_memory_paths()["note"])),
+            "note_path": str(
+                payload.get("current_topic_note_path")
+                or self._relativize(self._current_topic_memory_paths()["note"])
+            ),
             "summary": str(payload.get("summary") or "").strip(),
         }
 
@@ -3304,20 +3709,65 @@ class AITPService:
             task=normalized_task,
             updated_at=now_iso(),
             updated_by=updated_by,
-            current_topic_slug=str(current_topic.get("topic_slug") or "").strip() or None,
-            current_topic_note_path=str(current_topic.get("note_path") or "").strip() or None,
-            current_topic_summary=str(current_topic.get("summary") or "").strip() or None,
+            current_topic_slug=str(current_topic.get("topic_slug") or "").strip()
+            or None,
+            current_topic_note_path=str(current_topic.get("note_path") or "").strip()
+            or None,
+            current_topic_summary=str(current_topic.get("summary") or "").strip()
+            or None,
         )
-        return materialize_exploration_session(kernel_root=self.kernel_root, payload=payload)
+        return materialize_exploration_session(
+            kernel_root=self.kernel_root, payload=payload
+        )
 
-    def promote_exploration(self, *, exploration_id: str, explicit_current_topic: bool = False, explicit_topic_slug: str | None = None, explicit_topic: str | None = None, updated_by: str = "aitp-explore") -> dict[str, Any]:
-        exploration = load_exploration_session(kernel_root=self.kernel_root, exploration_id=exploration_id)
-        target_mode = "current_topic" if explicit_current_topic or (not explicit_topic_slug and not explicit_topic and exploration.get("current_topic_slug")) else ("topic_slug" if explicit_topic_slug else ("topic" if explicit_topic else "new_topic"))
-        promoted_session = self.start_chat_session(task=str(exploration.get("task") or ""), explicit_topic_slug=explicit_topic_slug, explicit_topic=explicit_topic, explicit_current_topic=target_mode == "current_topic", updated_by=updated_by, max_auto_steps=0)
-        payload = build_exploration_promotion_request(exploration_payload=exploration, updated_at=now_iso(), updated_by=updated_by, target_mode=target_mode, promoted_session=promoted_session)
-        return materialize_exploration_promotion_request(kernel_root=self.kernel_root, exploration_id=exploration_id, payload=payload)
+    def promote_exploration(
+        self,
+        *,
+        exploration_id: str,
+        explicit_current_topic: bool = False,
+        explicit_topic_slug: str | None = None,
+        explicit_topic: str | None = None,
+        updated_by: str = "aitp-explore",
+    ) -> dict[str, Any]:
+        exploration = load_exploration_session(
+            kernel_root=self.kernel_root, exploration_id=exploration_id
+        )
+        target_mode = (
+            "current_topic"
+            if explicit_current_topic
+            or (
+                not explicit_topic_slug
+                and not explicit_topic
+                and exploration.get("current_topic_slug")
+            )
+            else (
+                "topic_slug"
+                if explicit_topic_slug
+                else ("topic" if explicit_topic else "new_topic")
+            )
+        )
+        promoted_session = self.start_chat_session(
+            task=str(exploration.get("task") or ""),
+            explicit_topic_slug=explicit_topic_slug,
+            explicit_topic=explicit_topic,
+            explicit_current_topic=target_mode == "current_topic",
+            updated_by=updated_by,
+            max_auto_steps=0,
+        )
+        payload = build_exploration_promotion_request(
+            exploration_payload=exploration,
+            updated_at=now_iso(),
+            updated_by=updated_by,
+            target_mode=target_mode,
+            promoted_session=promoted_session,
+        )
+        return materialize_exploration_promotion_request(
+            kernel_root=self.kernel_root, exploration_id=exploration_id, payload=payload
+        )
 
-    def _parse_human_steering_request(self, human_request: str | None) -> dict[str, Any]:
+    def _parse_human_steering_request(
+        self, human_request: str | None
+    ) -> dict[str, Any]:
         raw_request = str(human_request or "").strip()
         if not raw_request:
             return {
@@ -3330,15 +3780,25 @@ class AITPService:
 
         direction = self._extract_direction_from_request(raw_request)
         decision: str | None = None
-        if re.search(r"(?:停止|先停|停下|stop\b|halt\b)", raw_request, flags=re.IGNORECASE):
+        if re.search(
+            r"(?:停止|先停|停下|stop\b|halt\b)", raw_request, flags=re.IGNORECASE
+        ):
             decision = "stop"
         elif re.search(r"(?:暂停|pause\b)", raw_request, flags=re.IGNORECASE):
             decision = "pause"
         elif re.search(r"(?:分支|分叉|branch\b)", raw_request, flags=re.IGNORECASE):
             decision = "branch"
-        elif direction or re.search(r"(?:转向|redirect\b|focus on|shift to|move to)", raw_request, flags=re.IGNORECASE):
+        elif direction or re.search(
+            r"(?:转向|redirect\b|focus on|shift to|move to)",
+            raw_request,
+            flags=re.IGNORECASE,
+        ):
             decision = "redirect"
-        elif re.search(r"(?:继续这个\s*topic|继续这个\s*课题|继续这个\s*主题|继续\b|接着做|continue\b|resume\b)", raw_request, flags=re.IGNORECASE):
+        elif re.search(
+            r"(?:继续这个\s*topic|继续这个\s*课题|继续这个\s*主题|继续\b|接着做|continue\b|resume\b)",
+            raw_request,
+            flags=re.IGNORECASE,
+        ):
             decision = "continue"
 
         if decision is None:
@@ -3401,7 +3861,12 @@ class AITPService:
 
         base = existing_text.rstrip()
         if before_marker and before_marker in base:
-            return base.replace(before_marker, replacement_block + "\n\n" + before_marker, 1) + "\n"
+            return (
+                base.replace(
+                    before_marker, replacement_block + "\n\n" + before_marker, 1
+                )
+                + "\n"
+            )
         if base:
             return base + "\n\n" + replacement_block + "\n"
         return replacement_block + "\n"
@@ -3417,9 +3882,17 @@ class AITPService:
         decision = str(steering.get("decision") or "continue").strip() or "continue"
         direction = str(steering.get("direction") or "").strip()
         topic_title = self._topic_display_title(topic_slug)
-        resume_stage = str(topic_state.get("resume_stage") or topic_state.get("last_materialized_stage") or "L1")
-        research_contract_rel = self._relativize(self._research_question_contract_paths(topic_slug)["note"])
-        validation_contract_rel = self._relativize(self._validation_contract_paths(topic_slug)["note"])
+        resume_stage = str(
+            topic_state.get("resume_stage")
+            or topic_state.get("last_materialized_stage")
+            or "L1"
+        )
+        research_contract_rel = self._relativize(
+            self._research_question_contract_paths(topic_slug)["note"]
+        )
+        validation_contract_rel = self._relativize(
+            self._validation_contract_paths(topic_slug)["note"]
+        )
 
         if decision == "branch":
             idea_statement = (
@@ -3454,12 +3927,8 @@ class AITPService:
                 "that differs from the previous topic framing in more than wording."
             )
         else:
-            novelty_reason = (
-                "The latest steering changes operator intent, but the novelty lane is not specific enough yet to count as a new result."
-            )
-            meaningful_novelty = (
-                "A meaningful result must tighten the active question, deliverables, and validation route beyond the prior generic topic shell."
-            )
+            novelty_reason = "The latest steering changes operator intent, but the novelty lane is not specific enough yet to count as a new result."
+            meaningful_novelty = "A meaningful result must tighten the active question, deliverables, and validation route beyond the prior generic topic shell."
         not_new_enough = "Renaming the direction while reusing the old question, deliverables, and checks unchanged."
 
         supporting_artifacts = (
@@ -3481,13 +3950,13 @@ class AITPService:
             next_question = f"What exact bounded question should the next AITP step answer for `{topic_title}`?"
 
         if decision in {"redirect", "branch"}:
-            stop_condition = (
-                f"Stop once `{research_contract_rel}` and `{validation_contract_rel}` explicitly reflect `{direction or 'the updated steering'}`."
-            )
+            stop_condition = f"Stop once `{research_contract_rel}` and `{validation_contract_rel}` explicitly reflect `{direction or 'the updated steering'}`."
         elif decision == "pause":
             stop_condition = "Stay paused until a new continue, branch, or redirect decision is written."
         elif decision == "stop":
-            stop_condition = "Stay stopped until the operator explicitly reopens the topic."
+            stop_condition = (
+                "Stay stopped until the operator explicitly reopens the topic."
+            )
         else:
             stop_condition = "Stop this loop step once the current contracts and next bounded action are synchronized."
 
@@ -3577,7 +4046,9 @@ class AITPService:
         steering: dict[str, Any],
         updated_by: str,
     ) -> dict[str, Any]:
-        next_actions_rel = str(((topic_state.get("pointers") or {}).get("next_actions_path") or "")).strip()
+        next_actions_rel = str(
+            ((topic_state.get("pointers") or {}).get("next_actions_path") or "")
+        ).strip()
         if not next_actions_rel:
             return {
                 "path": None,
@@ -3682,7 +4153,9 @@ class AITPService:
         control_note: str | None = None,
     ) -> dict[str, Any]:
         runtime_root = self._ensure_runtime_root(topic_slug)
-        resolved_topic_state = dict(topic_state or read_json(runtime_root / "topic_state.json") or {})
+        resolved_topic_state = dict(
+            topic_state or read_json(runtime_root / "topic_state.json") or {}
+        )
         innovation_direction_path = self._innovation_direction_path(topic_slug)
         innovation_decisions_path = self._innovation_decisions_path(topic_slug)
         innovation_direction_rel = self._relativize(innovation_direction_path)
@@ -3760,7 +4233,9 @@ class AITPService:
                 updated_by=updated_by,
             )
 
-        control_note_rel = str(control_note or "").strip() or self._relativize(self._control_note_path(topic_slug))
+        control_note_rel = str(control_note or "").strip() or self._relativize(
+            self._control_note_path(topic_slug)
+        )
         if not control_note:
             control_note_path = self._control_note_path(topic_slug)
             control_note_text = self._render_control_note_markdown(
@@ -3899,7 +4374,9 @@ class AITPService:
         elif normalized_decision == "branch":
             resolved_summary = f"Open a bounded branch toward `{resolved_direction}` while keeping the current topic auditable."
         elif normalized_decision == "redirect":
-            resolved_summary = f"Redirect the active topic toward `{resolved_direction}`."
+            resolved_summary = (
+                f"Redirect the active topic toward `{resolved_direction}`."
+            )
         elif normalized_decision == "pause":
             resolved_summary = "Pause automatic continuation until the updated operator steering is cleared."
         elif normalized_decision == "stop":
@@ -3938,12 +4415,16 @@ class AITPService:
             "note": runtime_root / "runtime_protocol.generated.md",
         }
 
-    def _load_candidate(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Any]:
+    def _load_candidate(
+        self, topic_slug: str, run_id: str, candidate_id: str
+    ) -> dict[str, Any]:
         rows = read_jsonl(self._candidate_ledger_path(topic_slug, run_id))
         for row in rows:
             if str(row.get("candidate_id") or "").strip() == candidate_id:
                 return row
-        raise FileNotFoundError(f"Candidate {candidate_id} not found for topic {topic_slug} run {run_id}")
+        raise FileNotFoundError(
+            f"Candidate {candidate_id} not found for topic {topic_slug} run {run_id}"
+        )
 
     def _replace_candidate_row(
         self,
@@ -3992,12 +4473,18 @@ class AITPService:
         )
         for candidate in candidates:
             resolved = candidate.expanduser().resolve()
-            if (resolved / "scripts" / "kb.py").exists() and (resolved / "units").exists():
+            if (resolved / "scripts" / "kb.py").exists() and (
+                resolved / "units"
+            ).exists():
                 return resolved
         return None
 
-    def _load_backend_card(self, backend_id: str) -> tuple[Path | None, dict[str, Any] | None]:
-        registry_rows = read_jsonl(self.kernel_root / "canonical" / "backends" / "backend_index.jsonl")
+    def _load_backend_card(
+        self, backend_id: str
+    ) -> tuple[Path | None, dict[str, Any] | None]:
+        registry_rows = read_jsonl(
+            self.kernel_root / "canonical" / "backends" / "backend_index.jsonl"
+        )
         for row in registry_rows:
             if str(row.get("backend_id") or "").strip() != backend_id:
                 continue
@@ -4010,7 +4497,9 @@ class AITPService:
                 if payload is not None:
                     return candidate.resolve(), payload
 
-        for card_path in sorted((self.kernel_root / "canonical" / "backends").rglob("*.json")):
+        for card_path in sorted(
+            (self.kernel_root / "canonical" / "backends").rglob("*.json")
+        ):
             payload = read_json(card_path)
             if payload is None:
                 continue
@@ -4027,7 +4516,9 @@ class AITPService:
         if target_backend_root:
             resolved = Path(target_backend_root).expanduser().resolve()
             if not (resolved / "scripts" / "kb.py").exists():
-                raise FileNotFoundError(f"TPKN backend root missing scripts/kb.py: {resolved}")
+                raise FileNotFoundError(
+                    f"TPKN backend root missing scripts/kb.py: {resolved}"
+                )
             return resolved, None, None
 
         if backend_id:
@@ -4047,34 +4538,56 @@ class AITPService:
         detected = self._detect_tpkn_root()
         if detected is not None:
             return detected, None, None
-        raise FileNotFoundError("Unable to resolve a TPKN backend root. Pass --target-backend-root or set AITP_TPKN_ROOT.")
+        raise FileNotFoundError(
+            "Unable to resolve a TPKN backend root. Pass --target-backend-root or set AITP_TPKN_ROOT."
+        )
 
-    def _backend_supports_candidate_type(self, backend_payload: dict[str, Any] | None, candidate_type: str) -> bool:
+    def _backend_supports_candidate_type(
+        self, backend_payload: dict[str, Any] | None, candidate_type: str
+    ) -> bool:
         if not backend_payload:
             return True
-        targets = {str(value).strip() for value in backend_payload.get("canonical_targets") or [] if str(value).strip()}
+        targets = {
+            str(value).strip()
+            for value in backend_payload.get("canonical_targets") or []
+            if str(value).strip()
+        }
         return not targets or candidate_type in targets
 
-    def _backend_allows_auto_promotion(self, backend_payload: dict[str, Any] | None) -> bool:
+    def _backend_allows_auto_promotion(
+        self, backend_payload: dict[str, Any] | None
+    ) -> bool:
         source_policy = (backend_payload or {}).get("source_policy") or {}
         return bool(source_policy.get("allows_auto_canonical_promotion"))
 
     def _promotion_gate_markdown(self, payload: dict[str, Any]) -> str:
         return promotion_gate_markdown(payload)
 
-    def _write_promotion_gate(self, topic_slug: str, payload: dict[str, Any]) -> dict[str, str]:
+    def _write_promotion_gate(
+        self, topic_slug: str, payload: dict[str, Any]
+    ) -> dict[str, str]:
         return write_promotion_gate(self, topic_slug, payload)
 
     def _load_promotion_gate(self, topic_slug: str) -> dict[str, Any] | None:
         return load_promotion_gate(self, topic_slug)
 
-    def _append_promotion_gate_log(self, topic_slug: str, run_id: str, row: dict[str, Any]) -> str:
+    def _append_promotion_gate_log(
+        self, topic_slug: str, run_id: str, row: dict[str, Any]
+    ) -> str:
         return append_promotion_gate_log(self, topic_slug, run_id, row)
 
-    def _theory_packet_root(self, topic_slug: str, run_id: str, candidate_id: str) -> Path:
-        return self._validation_run_root(topic_slug, run_id) / "theory-packets" / bounded_slugify(candidate_id)
+    def _theory_packet_root(
+        self, topic_slug: str, run_id: str, candidate_id: str
+    ) -> Path:
+        return (
+            self._validation_run_root(topic_slug, run_id)
+            / "theory-packets"
+            / bounded_slugify(candidate_id)
+        )
 
-    def _theory_packet_paths(self, topic_slug: str, run_id: str, candidate_id: str) -> dict[str, Path]:
+    def _theory_packet_paths(
+        self, topic_slug: str, run_id: str, candidate_id: str
+    ) -> dict[str, Path]:
         packet_root = self._theory_packet_root(topic_slug, run_id, candidate_id)
         return {
             "root": packet_root,
@@ -4087,15 +4600,22 @@ class AITPService:
             "faithfulness_review": packet_root / "faithfulness_review.json",
             "comparator_audit_record": packet_root / "comparator_audit_record.json",
             "provenance_review": packet_root / "provenance_review.json",
-            "prerequisite_closure_review": packet_root / "prerequisite_closure_review.json",
+            "prerequisite_closure_review": packet_root
+            / "prerequisite_closure_review.json",
             "formal_theory_review": packet_root / "formal_theory_review.json",
             "analytical_review": packet_root / "analytical_review.json",
             "merge_report": packet_root / "merge_report.json",
             "auto_promotion_report": packet_root / "auto_promotion_report.json",
         }
 
-    def _consultation_paths(self, topic_slug: str, consultation_slug: str) -> dict[str, Path]:
-        call_root = self._consultation_root(topic_slug) / "calls" / f"consult-{consultation_slug}"
+    def _consultation_paths(
+        self, topic_slug: str, consultation_slug: str
+    ) -> dict[str, Path]:
+        call_root = (
+            self._consultation_root(topic_slug)
+            / "calls"
+            / f"consult-{consultation_slug}"
+        )
         return {
             "request": call_root / "request.json",
             "result": call_root / "result.json",
@@ -4187,7 +4707,11 @@ class AITPService:
         write_json(paths["request"], request_payload)
         write_json(paths["result"], result_payload)
         write_json(paths["application"], application_payload)
-        index_rows = [row for row in read_jsonl(paths["index"]) if row.get("consultation_id") != consultation_id]
+        index_rows = [
+            row
+            for row in read_jsonl(paths["index"])
+            if row.get("consultation_id") != consultation_id
+        ]
         index_rows.append(index_entry)
         write_jsonl(paths["index"], index_rows)
 
@@ -4251,7 +4775,13 @@ class AITPService:
         updated_by: str,
         agent_target: str = "openclaw",
     ) -> dict[str, Any]:
-        script_path = self._research_root() / "adapters" / "openclaw" / "scripts" / "discover_external_skills.py"
+        script_path = (
+            self._research_root()
+            / "adapters"
+            / "openclaw"
+            / "scripts"
+            / "discover_external_skills.py"
+        )
         if not script_path.exists():
             raise FileNotFoundError(f"Skill discovery script missing: {script_path}")
         output_dir = self._runtime_root(topic_slug)
@@ -4277,7 +4807,9 @@ class AITPService:
             "skill_recommendations_path": str(output_dir / "skill_recommendations.md"),
         }
 
-    def _resolve_runtime_handler_path(self, handler: str | None, default_relative_path: str) -> Path:
+    def _resolve_runtime_handler_path(
+        self, handler: str | None, default_relative_path: str
+    ) -> Path:
         if handler and str(handler).strip():
             candidate = Path(str(handler).strip()).expanduser()
             if not candidate.is_absolute():
@@ -4307,7 +4839,9 @@ class AITPService:
         updated_by: str,
     ) -> dict[str, Any]:
         handler_args = row.get("handler_args") or {}
-        resolved_run_id = str(handler_args.get("run_id") or self._resolve_run_id(topic_slug, None) or "").strip()
+        resolved_run_id = str(
+            handler_args.get("run_id") or self._resolve_run_id(topic_slug, None) or ""
+        ).strip()
         if not resolved_run_id:
             raise RuntimeError("No run_id provided for literature_followup_search.")
 
@@ -4351,7 +4885,8 @@ class AITPService:
             "command": command,
             "stdout": completed.stdout.strip(),
             "receipts_path": str(
-                self._validation_run_root(topic_slug, resolved_run_id) / "literature_followup_receipts.jsonl"
+                self._validation_run_root(topic_slug, resolved_run_id)
+                / "literature_followup_receipts.jsonl"
             ),
             "receipt": payload,
         }
@@ -4370,7 +4905,10 @@ class AITPService:
             return queue_rows
         if str(runtime_payload.get("active_submode") or "").strip() != "literature":
             return queue_rows
-        if any(str(row.get("action_type") or "").strip() == "literature_intake_stage" for row in queue_rows):
+        if any(
+            str(row.get("action_type") or "").strip() == "literature_intake_stage"
+            for row in queue_rows
+        ):
             return queue_rows
 
         stage_payload = derive_literature_stage_payload_from_runtime_payload(
@@ -4414,22 +4952,33 @@ class AITPService:
         if not isinstance(candidate_units, list):
             candidate_units = []
         if not candidate_units:
-            protocol_payload = read_json(self._runtime_protocol_paths(topic_slug)["json"]) or {}
-            derived_stage_payload = derive_literature_stage_payload_from_runtime_payload(
-                topic_slug=topic_slug,
-                runtime_payload=protocol_payload,
+            protocol_payload = (
+                read_json(self._runtime_protocol_paths(topic_slug)["json"]) or {}
             )
-            source_slug = source_slug or str(derived_stage_payload.get("source_slug") or "").strip()
+            derived_stage_payload = (
+                derive_literature_stage_payload_from_runtime_payload(
+                    topic_slug=topic_slug,
+                    runtime_payload=protocol_payload,
+                )
+            )
+            source_slug = (
+                source_slug
+                or str(derived_stage_payload.get("source_slug") or "").strip()
+            )
             candidate_units = list(derived_stage_payload.get("candidate_units") or [])
         if not candidate_units:
-            raise RuntimeError("No candidate_units provided or derivable for literature_intake_stage.")
+            raise RuntimeError(
+                "No candidate_units provided or derivable for literature_intake_stage."
+            )
         source_slug = source_slug or topic_slug
 
         staging = stage_literature_units(
             self.kernel_root,
             topic_slug=topic_slug,
             source_slug=source_slug,
-            candidate_units=[dict(item) for item in candidate_units if isinstance(item, dict)],
+            candidate_units=[
+                dict(item) for item in candidate_units if isinstance(item, dict)
+            ],
             created_by=updated_by,
         )
         return {
@@ -4446,7 +4995,9 @@ class AITPService:
     ) -> dict[str, Any]:
         raw_handler = str(row.get("handler") or "").strip()
         if not raw_handler:
-            raise RuntimeError(f"No handler is configured for auto action {row.get('action_id')}.")
+            raise RuntimeError(
+                f"No handler is configured for auto action {row.get('action_id')}."
+            )
         handler_path = Path(raw_handler).expanduser()
         if not handler_path.is_absolute():
             handler_path = self.kernel_root / handler_path
@@ -4471,7 +5022,9 @@ class AITPService:
                     command.extend([flag, str(item)])
                 continue
             if isinstance(value, dict):
-                command.extend([flag, json.dumps(value, ensure_ascii=True, sort_keys=True)])
+                command.extend(
+                    [flag, json.dumps(value, ensure_ascii=True, sort_keys=True)]
+                )
                 continue
             command.extend([flag, str(value)])
 
@@ -4663,7 +5216,9 @@ class AITPService:
             ]
         )
 
-    def _openclaw_mcp_setup_markdown(self, *, scope: str, mcp_profile: str = "full") -> str:
+    def _openclaw_mcp_setup_markdown(
+        self, *, scope: str, mcp_profile: str = "full"
+    ) -> str:
         server_name = self._mcp_server_name(mcp_profile)
         command = ["mcporter", "config", "add", server_name]
         command.extend(["--command", self._resolve_aitp_mcp_command()[0]])
@@ -4700,13 +5255,16 @@ class AITPService:
     ) -> str:
         server_name = self._mcp_server_name(mcp_profile)
         if target_root:
-            config_path = resolve_agent_hidden_root(
-                target_root=target_root,
-                scope=scope,
-                hidden_dir=".opencode",
-                user_root=Path.home() / ".config" / "opencode",
-                project_root=self.repo_root / ".opencode",
-            ) / "AITP_MCP_CONFIG.json"
+            config_path = (
+                resolve_agent_hidden_root(
+                    target_root=target_root,
+                    scope=scope,
+                    hidden_dir=".opencode",
+                    user_root=Path.home() / ".config" / "opencode",
+                    project_root=self.repo_root / ".opencode",
+                )
+                / "AITP_MCP_CONFIG.json"
+            )
         elif scope == "project":
             config_path = self.repo_root / ".opencode" / "opencode.json"
         else:
@@ -4737,8 +5295,12 @@ class AITPService:
         server_name = self._mcp_server_name(mcp_profile)
         if target_root:
             target_path = Path(target_root)
-            fake_home = target_path.parent if target_path.name == ".claude" else target_path
-            config_path = fake_home / (".mcp.json" if scope == "project" else ".claude.json")
+            fake_home = (
+                target_path.parent if target_path.name == ".claude" else target_path
+            )
+            config_path = fake_home / (
+                ".mcp.json" if scope == "project" else ".claude.json"
+            )
         elif scope == "project":
             config_path = self.repo_root / ".mcp.json"
         else:
@@ -4751,7 +5313,11 @@ class AITPService:
             "-s",
             "project" if scope == "project" else "user",
             server_name,
-            json.dumps(self._claude_mcp_entry(mcp_profile=mcp_profile), ensure_ascii=True, separators=(",", ":")),
+            json.dumps(
+                self._claude_mcp_entry(mcp_profile=mcp_profile),
+                ensure_ascii=True,
+                separators=(",", ":"),
+            ),
         ]
 
         return "\n".join(
@@ -4798,12 +5364,19 @@ class AITPService:
 
     def _write_json_file(self, path: Path, payload: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
 
-    def _codex_skill_targets(self, *, scope: str, target_root: str | None) -> list[Path]:
+    def _codex_skill_targets(
+        self, *, scope: str, target_root: str | None
+    ) -> list[Path]:
         if target_root:
             target_path = Path(target_root)
-            if target_path.name == "aitp-runtime" or target_path.parent.name == "skills":
+            if (
+                target_path.name == "aitp-runtime"
+                or target_path.parent.name == "skills"
+            ):
                 return [target_path]
             return [target_path / ".agents" / "skills" / "aitp-runtime"]
         if scope == "project":
@@ -4952,7 +5525,9 @@ class AITPService:
         if topic_state is None:
             return None
         previous = previous or {}
-        synopsis = read_json(self._runtime_root(topic_slug) / "topic_synopsis.json") or {}
+        synopsis = (
+            read_json(self._runtime_root(topic_slug) / "topic_synopsis.json") or {}
+        )
         runtime_focus = synopsis.get("runtime_focus") or {}
         projection_paths = self._topic_skill_projection_paths(topic_slug)
         projection = read_json(projection_paths["json"]) or {}
@@ -4964,13 +5539,31 @@ class AITPService:
         )
         status = (
             str(synopsis.get("status") or "").strip()
-            or str((((topic_state.get("layer_status") or {}).get(str(topic_state.get("resume_stage") or "")) or {}).get("status")) or "").strip()
+            or str(
+                (
+                    (
+                        (topic_state.get("layer_status") or {}).get(
+                            str(topic_state.get("resume_stage") or "")
+                        )
+                        or {}
+                    ).get("status")
+                )
+                or ""
+            ).strip()
             or str(topic_state.get("resume_stage") or "").strip()
             or "unknown"
         )
-        projection_note_path = self._relativize(projection_paths["note"]) if projection_paths["note"].exists() else None
-        details = self._normalize_blocked_by_details(previous.get("blocked_by_details") or [])
-        blocked_by = self._blocked_by_slugs_from_details(details) or [item for item in (previous.get("blocked_by") or []) if str(item).strip()]
+        projection_note_path = (
+            self._relativize(projection_paths["note"])
+            if projection_paths["note"].exists()
+            else None
+        )
+        details = self._normalize_blocked_by_details(
+            previous.get("blocked_by_details") or []
+        )
+        blocked_by = self._blocked_by_slugs_from_details(details) or [
+            item for item in (previous.get("blocked_by") or []) if str(item).strip()
+        ]
         return {
             "topic_slug": topic_slug,
             "status": status,
@@ -4978,7 +5571,9 @@ class AITPService:
             "priority": self._coerce_priority(previous.get("priority")),
             "last_activity": updated_at,
             "runtime_root": self._relativize(self._runtime_root(topic_slug)),
-            "lane": str(synopsis.get("lane") or topic_state.get("research_mode") or "").strip(),
+            "lane": str(
+                synopsis.get("lane") or topic_state.get("research_mode") or ""
+            ).strip(),
             "resume_stage": str(topic_state.get("resume_stage") or "").strip(),
             "run_id": str(topic_state.get("latest_run_id") or "").strip(),
             "projection_status": str(projection.get("status") or "missing").strip(),
@@ -4993,7 +5588,9 @@ class AITPService:
                 or topic_state.get("summary")
                 or ""
             ).strip(),
-            "human_request": str(human_request or previous.get("human_request") or "").strip(),
+            "human_request": str(
+                human_request or previous.get("human_request") or ""
+            ).strip(),
         }
 
     def _render_active_topics_registry_note(self, payload: dict[str, Any]) -> str:
@@ -5024,7 +5621,9 @@ class AITPService:
                     f"  - Runtime root: `{row.get('runtime_root') or '(missing)'}`",
                 ]
             )
-            blocked_by = [item for item in (row.get("blocked_by") or []) if str(item).strip()]
+            blocked_by = [
+                item for item in (row.get("blocked_by") or []) if str(item).strip()
+            ]
             if blocked_by:
                 lines.append(f"  - Blocked by: `{', '.join(blocked_by)}`")
             if str(row.get("summary") or "").strip():
@@ -5044,7 +5643,9 @@ class AITPService:
     def _topic_family_id(self, lane: str) -> str:
         return f"topic_family:{slugify(lane or 'generic')}"
 
-    def _build_topic_family_reuse_surface(self, registry: dict[str, Any]) -> dict[str, Any]:
+    def _build_topic_family_reuse_surface(
+        self, registry: dict[str, Any]
+    ) -> dict[str, Any]:
         families_by_id: dict[str, dict[str, Any]] = {}
         for row in registry.get("topics") or []:
             if not isinstance(row, dict):
@@ -5060,7 +5661,10 @@ class AITPService:
             if str(projection.get("status") or "").strip() != "available":
                 continue
 
-            lane = str(projection.get("lane") or row.get("lane") or "generic").strip() or "generic"
+            lane = (
+                str(projection.get("lane") or row.get("lane") or "generic").strip()
+                or "generic"
+            )
             family_id = self._topic_family_id(lane)
             family = families_by_id.setdefault(
                 family_id,
@@ -5080,21 +5684,37 @@ class AITPService:
             capsule = {
                 "topic_slug": topic_slug,
                 "projection_id": str(projection.get("id") or "").strip() or None,
-                "candidate_id": str(projection.get("candidate_id") or "").strip() or None,
-                "summary": str(projection.get("summary") or row.get("summary") or "").strip(),
+                "candidate_id": str(projection.get("candidate_id") or "").strip()
+                or None,
+                "summary": str(
+                    projection.get("summary") or row.get("summary") or ""
+                ).strip(),
                 "note_path": str(
                     row.get("projection_note_path")
-                    or (self._relativize(projection_paths["note"]) if projection_paths["note"].exists() else "")
+                    or (
+                        self._relativize(projection_paths["note"])
+                        if projection_paths["note"].exists()
+                        else ""
+                    )
                 ).strip()
                 or None,
                 "required_first_routes": self._dedupe_strings(
-                    [str(item) for item in (projection.get("required_first_routes") or [])]
+                    [
+                        str(item)
+                        for item in (projection.get("required_first_routes") or [])
+                    ]
                 ),
                 "operator_checkpoint_rules": self._dedupe_strings(
-                    [str(item) for item in (projection.get("operator_checkpoint_rules") or [])]
+                    [
+                        str(item)
+                        for item in (projection.get("operator_checkpoint_rules") or [])
+                    ]
                 ),
                 "benchmark_first_rules": self._dedupe_strings(
-                    [str(item) for item in (projection.get("benchmark_first_rules") or [])]
+                    [
+                        str(item)
+                        for item in (projection.get("benchmark_first_rules") or [])
+                    ]
                 ),
                 "status_reason": str(projection.get("status_reason") or "").strip(),
             }
@@ -5113,10 +5733,15 @@ class AITPService:
 
         families: list[dict[str, Any]] = []
         for family in families_by_id.values():
-            family["topic_slugs"] = self._dedupe_strings(list(family.get("topic_slugs") or []))
+            family["topic_slugs"] = self._dedupe_strings(
+                list(family.get("topic_slugs") or [])
+            )
             family["capsules"] = sorted(
                 list(family.get("capsules") or []),
-                key=lambda item: (str(item.get("topic_slug") or ""), str(item.get("projection_id") or "")),
+                key=lambda item: (
+                    str(item.get("topic_slug") or ""),
+                    str(item.get("projection_id") or ""),
+                ),
             )
             family["topic_count"] = len(family["topic_slugs"])
             family["summary"] = (
@@ -5124,7 +5749,12 @@ class AITPService:
             )
             families.append(family)
 
-        families.sort(key=lambda item: (str(item.get("lane") or ""), str(item.get("family_id") or "")))
+        families.sort(
+            key=lambda item: (
+                str(item.get("lane") or ""),
+                str(item.get("family_id") or ""),
+            )
+        )
         return {
             "surface_kind": "topic_family_reuse",
             "protocol_version": 1,
@@ -5137,7 +5767,9 @@ class AITPService:
     def _render_topic_family_reuse_note(self, payload: dict[str, Any]) -> str:
         return render_topic_family_reuse_note(payload)
 
-    def _write_topic_family_reuse_surface(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def _write_topic_family_reuse_surface(
+        self, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         paths = self._topic_family_reuse_paths()
         write_json(paths["json"], payload)
         write_text(paths["note"], self._render_topic_family_reuse_note(payload))
@@ -5179,17 +5811,25 @@ class AITPService:
         for topic_slug in known_slugs:
             row = self._build_active_topic_record(
                 topic_slug=topic_slug,
-                human_request=human_request if topic_slug == focused_topic_slug else None,
+                human_request=human_request
+                if topic_slug == focused_topic_slug
+                else None,
             )
             if row is not None:
                 rows.append(row)
         if not focused_topic_slug:
             focused_topic_slug = current_topic_slug
         if not focused_topic_slug and rows:
-            rows_sorted = sorted(rows, key=lambda row: str(row.get("last_activity") or ""), reverse=True)
+            rows_sorted = sorted(
+                rows, key=lambda row: str(row.get("last_activity") or ""), reverse=True
+            )
             focused_topic_slug = str(rows_sorted[0].get("topic_slug") or "").strip()
         for row in rows:
-            row["focus_state"] = "focused" if str(row.get("topic_slug") or "") == focused_topic_slug else "background"
+            row["focus_state"] = (
+                "focused"
+                if str(row.get("topic_slug") or "") == focused_topic_slug
+                else "background"
+            )
         rows = self._sort_registry_rows(rows, focused_topic_slug)
         return {
             "registry_version": 1,
@@ -5215,10 +5855,24 @@ class AITPService:
                 {
                     **row,
                     "topic_slug": topic_slug,
-                    "runtime_root": self._relativize(resolved_runtime_root) if (resolved_runtime_root := resolve_runtime_reference_path(row.get("runtime_root"), kernel_root=self.kernel_root, repo_root=self.repo_root)) else "",
+                    "runtime_root": self._relativize(resolved_runtime_root)
+                    if (
+                        resolved_runtime_root := resolve_runtime_reference_path(
+                            row.get("runtime_root"),
+                            kernel_root=self.kernel_root,
+                            repo_root=self.repo_root,
+                        )
+                    )
+                    else "",
                     "priority": self._coerce_priority(row.get("priority")),
-                    "blocked_by": [item for item in (row.get("blocked_by") or []) if str(item).strip()],
-                    "blocked_by_details": self._normalize_blocked_by_details(row.get("blocked_by_details") or []),
+                    "blocked_by": [
+                        item
+                        for item in (row.get("blocked_by") or [])
+                        if str(item).strip()
+                    ],
+                    "blocked_by_details": self._normalize_blocked_by_details(
+                        row.get("blocked_by_details") or []
+                    ),
                 }
             )
         return {
@@ -5266,7 +5920,11 @@ class AITPService:
             focused_topic_slug = topic_slug
         registry_rows = list(rows_by_slug.values())
         for item in registry_rows:
-            item["focus_state"] = "focused" if str(item.get("topic_slug") or "") == focused_topic_slug else "background"
+            item["focus_state"] = (
+                "focused"
+                if str(item.get("topic_slug") or "") == focused_topic_slug
+                else "background"
+            )
         registry["focused_topic_slug"] = focused_topic_slug
         registry["updated_at"] = now_iso()
         registry["updated_by"] = updated_by
@@ -5296,15 +5954,23 @@ class AITPService:
             "status": "absent",
             "summary": "No collaborator profile is currently recorded for this topic.",
             "path": self._relativize(runtime_root / "collaborator_profile.active.json"),
-            "note_path": self._relativize(runtime_root / "collaborator_profile.active.md"),
+            "note_path": self._relativize(
+                runtime_root / "collaborator_profile.active.md"
+            ),
         }
-        research_trajectory = load_research_trajectory(runtime_root, topic_slug=topic_slug, updated_by=updated_by) or {
+        research_trajectory = load_research_trajectory(
+            runtime_root, topic_slug=topic_slug, updated_by=updated_by
+        ) or {
             "status": "absent",
             "summary": "No research trajectory is currently recorded for this topic.",
             "path": self._relativize(runtime_root / "research_trajectory.active.json"),
-            "note_path": self._relativize(runtime_root / "research_trajectory.active.md"),
+            "note_path": self._relativize(
+                runtime_root / "research_trajectory.active.md"
+            ),
         }
-        mode_learning = load_mode_learning(runtime_root, topic_slug=topic_slug, updated_by=updated_by) or {
+        mode_learning = load_mode_learning(
+            runtime_root, topic_slug=topic_slug, updated_by=updated_by
+        ) or {
             "status": "absent",
             "summary": "No mode learning is currently recorded for this topic.",
             "path": self._relativize(runtime_root / "mode_learning.active.json"),
@@ -5322,13 +5988,21 @@ class AITPService:
             "summary": str(
                 summary_override
                 or runtime_focus.get("summary")
-                or ((topic_state.get("status_explainability") or {}).get("current_status_summary"))
+                or (
+                    (topic_state.get("status_explainability") or {}).get(
+                        "current_status_summary"
+                    )
+                )
                 or topic_state.get("summary")
                 or topic_state.get("resume_reason")
                 or ""
             ),
-            "collaborator_profile_status": str(collaborator_profile.get("status") or "absent"),
-            "collaborator_profile_summary": str(collaborator_profile.get("summary") or ""),
+            "collaborator_profile_status": str(
+                collaborator_profile.get("status") or "absent"
+            ),
+            "collaborator_profile_summary": str(
+                collaborator_profile.get("summary") or ""
+            ),
             "collaborator_profile_path": str(
                 collaborator_profile.get("path")
                 or self._relativize(runtime_root / "collaborator_profile.active.json")
@@ -5337,14 +6011,30 @@ class AITPService:
                 collaborator_profile.get("note_path")
                 or self._relativize(runtime_root / "collaborator_profile.active.md")
             ),
-            "research_trajectory_status": str(research_trajectory.get("status") or "absent"),
-            "research_trajectory_summary": str(research_trajectory.get("summary") or ""),
-            "research_trajectory_path": str(research_trajectory.get("path") or self._relativize(runtime_root / "research_trajectory.active.json")),
-            "research_trajectory_note_path": str(research_trajectory.get("note_path") or self._relativize(runtime_root / "research_trajectory.active.md")),
+            "research_trajectory_status": str(
+                research_trajectory.get("status") or "absent"
+            ),
+            "research_trajectory_summary": str(
+                research_trajectory.get("summary") or ""
+            ),
+            "research_trajectory_path": str(
+                research_trajectory.get("path")
+                or self._relativize(runtime_root / "research_trajectory.active.json")
+            ),
+            "research_trajectory_note_path": str(
+                research_trajectory.get("note_path")
+                or self._relativize(runtime_root / "research_trajectory.active.md")
+            ),
             "mode_learning_status": str(mode_learning.get("status") or "absent"),
             "mode_learning_summary": str(mode_learning.get("summary") or ""),
-            "mode_learning_path": str(mode_learning.get("path") or self._relativize(runtime_root / "mode_learning.active.json")),
-            "mode_learning_note_path": str(mode_learning.get("note_path") or self._relativize(runtime_root / "mode_learning.active.md")),
+            "mode_learning_path": str(
+                mode_learning.get("path")
+                or self._relativize(runtime_root / "mode_learning.active.json")
+            ),
+            "mode_learning_note_path": str(
+                mode_learning.get("note_path")
+                or self._relativize(runtime_root / "mode_learning.active.md")
+            ),
         }
 
     def _write_current_topic_memory(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -5357,7 +6047,9 @@ class AITPService:
             "current_topic_note_path": str(paths["note"]),
         }
 
-    def _project_current_topic_from_registry(self, registry: dict[str, Any]) -> dict[str, Any] | None:
+    def _project_current_topic_from_registry(
+        self, registry: dict[str, Any]
+    ) -> dict[str, Any] | None:
         payload = self._derive_current_topic_memory_from_registry(registry)
         if payload is None:
             return None
@@ -5379,7 +6071,9 @@ class AITPService:
                 {
                     **row,
                     "effective_status": self._effective_topic_status(row),
-                    "dependency_state": self._topic_dependency_state(str(row.get("topic_slug") or "")),
+                    "dependency_state": self._topic_dependency_state(
+                        str(row.get("topic_slug") or "")
+                    ),
                 }
             )
         return {
@@ -5389,10 +6083,14 @@ class AITPService:
             "topic_count": len(topics),
             "topics": topics,
             "active_topics_path": str(self._active_topics_registry_paths()["json"]),
-            "active_topics_note_path": str(self._active_topics_registry_paths()["note"]),
+            "active_topics_note_path": str(
+                self._active_topics_registry_paths()["note"]
+            ),
             "topic_family_reuse": registry.get("topic_family_reuse") or {},
             "topic_family_reuse_path": str(self._topic_family_reuse_paths()["json"]),
-            "topic_family_reuse_note_path": str(self._topic_family_reuse_paths()["note"]),
+            "topic_family_reuse_note_path": str(
+                self._topic_family_reuse_paths()["note"]
+            ),
         }
 
     def focus_topic(
@@ -5446,7 +6144,9 @@ class AITPService:
             human_request=human_request,
         )
         if row is None:
-            raise FileNotFoundError(f"Active topic {topic_slug} is missing a runtime state.")
+            raise FileNotFoundError(
+                f"Active topic {topic_slug} is missing a runtime state."
+            )
         row["operator_status"] = operator_status
         rows_by_slug[topic_slug] = row
         focused_topic_slug = str(registry.get("focused_topic_slug") or "").strip()
@@ -5454,7 +6154,9 @@ class AITPService:
             focused_topic_slug = topic_slug
         if operator_status == "paused" and focused_topic_slug == topic_slug:
             alternative = None
-            for candidate in self._sort_registry_rows(list(rows_by_slug.values()), focused_topic_slug):
+            for candidate in self._sort_registry_rows(
+                list(rows_by_slug.values()), focused_topic_slug
+            ):
                 candidate_slug = str(candidate.get("topic_slug") or "").strip()
                 if candidate_slug == topic_slug:
                     continue
@@ -5467,7 +6169,11 @@ class AITPService:
             focused_topic_slug = topic_slug
         rows = list(rows_by_slug.values())
         for item in rows:
-            item["focus_state"] = "focused" if str(item.get("topic_slug") or "").strip() == focused_topic_slug else "background"
+            item["focus_state"] = (
+                "focused"
+                if str(item.get("topic_slug") or "").strip() == focused_topic_slug
+                else "background"
+            )
         registry["focused_topic_slug"] = focused_topic_slug
         registry["updated_at"] = now_iso()
         registry["updated_by"] = updated_by
@@ -5549,17 +6255,29 @@ class AITPService:
             human_request=human_request,
         )
         if row is None:
-            raise FileNotFoundError(f"Active topic {topic_slug} is missing a runtime state.")
-        details = self._normalize_blocked_by_details(row.get("blocked_by_details") or [])
-        details = [item for item in details if item["topic_slug"] != blocked_by_topic_slug]
-        details.append({"topic_slug": blocked_by_topic_slug, "reason": str(reason or "").strip()})
+            raise FileNotFoundError(
+                f"Active topic {topic_slug} is missing a runtime state."
+            )
+        details = self._normalize_blocked_by_details(
+            row.get("blocked_by_details") or []
+        )
+        details = [
+            item for item in details if item["topic_slug"] != blocked_by_topic_slug
+        ]
+        details.append(
+            {"topic_slug": blocked_by_topic_slug, "reason": str(reason or "").strip()}
+        )
         row["blocked_by_details"] = details
         row["blocked_by"] = self._blocked_by_slugs_from_details(details)
         rows_by_slug[topic_slug] = row
-        focused_topic_slug = str(registry.get("focused_topic_slug") or "").strip() or topic_slug
+        focused_topic_slug = (
+            str(registry.get("focused_topic_slug") or "").strip() or topic_slug
+        )
         if focused_topic_slug == topic_slug:
             alternative = None
-            for candidate in self._sort_registry_rows(list(rows_by_slug.values()), focused_topic_slug):
+            for candidate in self._sort_registry_rows(
+                list(rows_by_slug.values()), focused_topic_slug
+            ):
                 candidate_slug = str(candidate.get("topic_slug") or "").strip()
                 if candidate_slug == topic_slug:
                     continue
@@ -5570,7 +6288,11 @@ class AITPService:
                 focused_topic_slug = alternative
         rows = list(rows_by_slug.values())
         for item in rows:
-            item["focus_state"] = "focused" if str(item.get("topic_slug") or "").strip() == focused_topic_slug else "background"
+            item["focus_state"] = (
+                "focused"
+                if str(item.get("topic_slug") or "").strip() == focused_topic_slug
+                else "background"
+            )
         registry["focused_topic_slug"] = focused_topic_slug
         registry["updated_at"] = now_iso()
         registry["updated_by"] = updated_by
@@ -5588,10 +6310,19 @@ class AITPService:
             "current_topic_memory": current_projection,
         }
 
-    def clear_topic_dependency(self, *, topic_slug: str, blocked_by_topic_slug: str, updated_by: str = "aitp-cli", human_request: str | None = None) -> dict[str, Any]:
+    def clear_topic_dependency(
+        self,
+        *,
+        topic_slug: str,
+        blocked_by_topic_slug: str,
+        updated_by: str = "aitp-cli",
+        human_request: str | None = None,
+    ) -> dict[str, Any]:
         registry = self._load_active_topics_registry()
         if registry is None:
-            raise FileNotFoundError("Active topics registry has not been materialized yet.")
+            raise FileNotFoundError(
+                "Active topics registry has not been materialized yet."
+            )
         rows_by_slug = {
             str(row.get("topic_slug") or "").strip(): row
             for row in (registry.get("topics") or [])
@@ -5599,15 +6330,29 @@ class AITPService:
         }
         row = rows_by_slug.get(topic_slug)
         if row is None:
-            raise FileNotFoundError(f"Active topic {topic_slug} is missing from the registry.")
-        details = [item for item in self._normalize_blocked_by_details(row.get("blocked_by_details") or []) if item["topic_slug"] != blocked_by_topic_slug]
+            raise FileNotFoundError(
+                f"Active topic {topic_slug} is missing from the registry."
+            )
+        details = [
+            item
+            for item in self._normalize_blocked_by_details(
+                row.get("blocked_by_details") or []
+            )
+            if item["topic_slug"] != blocked_by_topic_slug
+        ]
         row["blocked_by_details"] = details
         row["blocked_by"] = self._blocked_by_slugs_from_details(details)
         rows_by_slug[topic_slug] = row
-        focused_topic_slug = str(registry.get("focused_topic_slug") or "").strip() or topic_slug
+        focused_topic_slug = (
+            str(registry.get("focused_topic_slug") or "").strip() or topic_slug
+        )
         rows = list(rows_by_slug.values())
         for item in rows:
-            item["focus_state"] = "focused" if str(item.get("topic_slug") or "").strip() == focused_topic_slug else "background"
+            item["focus_state"] = (
+                "focused"
+                if str(item.get("topic_slug") or "").strip() == focused_topic_slug
+                else "background"
+            )
         registry["focused_topic_slug"] = focused_topic_slug
         registry["updated_at"] = now_iso()
         registry["updated_by"] = updated_by
@@ -5625,10 +6370,18 @@ class AITPService:
             "current_topic_memory": current_projection,
         }
 
-    def clear_all_topic_dependencies(self, *, topic_slug: str, updated_by: str = "aitp-cli", human_request: str | None = None) -> dict[str, Any]:
+    def clear_all_topic_dependencies(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str = "aitp-cli",
+        human_request: str | None = None,
+    ) -> dict[str, Any]:
         registry = self._load_active_topics_registry()
         if registry is None:
-            raise FileNotFoundError("Active topics registry has not been materialized yet.")
+            raise FileNotFoundError(
+                "Active topics registry has not been materialized yet."
+            )
         rows_by_slug = {
             str(row.get("topic_slug") or "").strip(): row
             for row in (registry.get("topics") or [])
@@ -5636,14 +6389,22 @@ class AITPService:
         }
         row = rows_by_slug.get(topic_slug)
         if row is None:
-            raise FileNotFoundError(f"Active topic {topic_slug} is missing from the registry.")
+            raise FileNotFoundError(
+                f"Active topic {topic_slug} is missing from the registry."
+            )
         row["blocked_by_details"] = []
         row["blocked_by"] = []
         rows_by_slug[topic_slug] = row
-        focused_topic_slug = str(registry.get("focused_topic_slug") or "").strip() or topic_slug
+        focused_topic_slug = (
+            str(registry.get("focused_topic_slug") or "").strip() or topic_slug
+        )
         rows = list(rows_by_slug.values())
         for item in rows:
-            item["focus_state"] = "focused" if str(item.get("topic_slug") or "").strip() == focused_topic_slug else "background"
+            item["focus_state"] = (
+                "focused"
+                if str(item.get("topic_slug") or "").strip() == focused_topic_slug
+                else "background"
+            )
         registry["focused_topic_slug"] = focused_topic_slug
         registry["updated_at"] = now_iso()
         registry["updated_by"] = updated_by
@@ -5661,15 +6422,25 @@ class AITPService:
             "current_topic_memory": current_projection,
         }
 
-    def prune_compat_surfaces(self, *, topic_slug: str, updated_by: str = "aitp-cli") -> dict[str, Any]:
-        return perform_prune_compat_surfaces(self, topic_slug=topic_slug, updated_by=updated_by)
+    def prune_compat_surfaces(
+        self, *, topic_slug: str, updated_by: str = "aitp-cli"
+    ) -> dict[str, Any]:
+        return perform_prune_compat_surfaces(
+            self, topic_slug=topic_slug, updated_by=updated_by
+        )
 
-    def _derive_current_topic_memory_from_registry(self, registry: dict[str, Any]) -> dict[str, Any] | None:
+    def _derive_current_topic_memory_from_registry(
+        self, registry: dict[str, Any]
+    ) -> dict[str, Any] | None:
         focused_topic_slug = str(registry.get("focused_topic_slug") or "").strip()
         if not focused_topic_slug:
             return None
         focused_row = next(
-            (row for row in (registry.get("topics") or []) if str(row.get("topic_slug") or "").strip() == focused_topic_slug),
+            (
+                row
+                for row in (registry.get("topics") or [])
+                if str(row.get("topic_slug") or "").strip() == focused_topic_slug
+            ),
             None,
         )
         if focused_row is None:
@@ -5680,7 +6451,11 @@ class AITPService:
                 updated_by=str(registry.get("updated_by") or "active-topics-registry"),
                 source="active-topics-registry",
                 human_request=str(focused_row.get("human_request") or ""),
-                updated_at=str(registry.get("updated_at") or focused_row.get("last_activity") or now_iso()),
+                updated_at=str(
+                    registry.get("updated_at")
+                    or focused_row.get("last_activity")
+                    or now_iso()
+                ),
                 summary_override=str(focused_row.get("summary") or "").strip() or None,
             )
         except FileNotFoundError:
@@ -5695,9 +6470,14 @@ class AITPService:
                 return payload
         payload = read_json(self._current_topic_memory_paths()["json"])
         if payload is None:
-            raise FileNotFoundError("Current topic memory has not been materialized yet.")
+            raise FileNotFoundError(
+                "Current topic memory has not been materialized yet."
+            )
         topic_slug = str(payload.get("topic_slug") or "").strip()
-        if topic_slug and (self._runtime_root(topic_slug) / "topic_state.json").exists():
+        if (
+            topic_slug
+            and (self._runtime_root(topic_slug) / "topic_state.json").exists()
+        ):
             self._sync_active_topics_registry(
                 topic_slug=topic_slug,
                 updated_by=str(payload.get("updated_by") or "aitp-service"),
@@ -5764,10 +6544,13 @@ class AITPService:
         return ordered[: max(1, limit)]
 
     def _scheduler_skip_reason(self, row: dict[str, Any]) -> str | None:
-        blocked_by = (
-            self._blocked_by_slugs_from_details(self._normalize_blocked_by_details(row.get("blocked_by_details") or []))
-            or [str(item).strip() for item in (row.get("blocked_by") or []) if str(item).strip()]
-        )
+        blocked_by = self._blocked_by_slugs_from_details(
+            self._normalize_blocked_by_details(row.get("blocked_by_details") or [])
+        ) or [
+            str(item).strip()
+            for item in (row.get("blocked_by") or [])
+            if str(item).strip()
+        ]
         if blocked_by:
             return "dependency_blocked"
         status = self._effective_topic_status(row).lower()
@@ -5801,12 +6584,20 @@ class AITPService:
         )
 
     def _effective_topic_status(self, row: dict[str, Any]) -> str:
-        return str(row.get("operator_status") or row.get("status") or "unknown").strip() or "unknown"
+        return (
+            str(row.get("operator_status") or row.get("status") or "unknown").strip()
+            or "unknown"
+        )
 
-    def _sort_registry_rows(self, rows: list[dict[str, Any]], focused_topic_slug: str) -> list[dict[str, Any]]:
+    def _sort_registry_rows(
+        self, rows: list[dict[str, Any]], focused_topic_slug: str
+    ) -> list[dict[str, Any]]:
         return sorted(
             rows,
-            key=lambda row: (str(row.get("topic_slug") or "") != focused_topic_slug, str(row.get("last_activity") or "")),
+            key=lambda row: (
+                str(row.get("topic_slug") or "") != focused_topic_slug,
+                str(row.get("last_activity") or ""),
+            ),
             reverse=False,
         )
 
@@ -5816,7 +6607,9 @@ class AITPService:
         if isinstance(value, list):
             for row in value:
                 if isinstance(row, dict):
-                    topic_slug = str(row.get("topic_slug") or row.get("blocked_by") or "").strip()
+                    topic_slug = str(
+                        row.get("topic_slug") or row.get("blocked_by") or ""
+                    ).strip()
                     reason = str(row.get("reason") or "").strip()
                 else:
                     topic_slug = str(row).strip()
@@ -5827,24 +6620,50 @@ class AITPService:
                 details.append({"topic_slug": topic_slug, "reason": reason})
         return details
 
-    def _blocked_by_slugs_from_details(self, details: list[dict[str, str]]) -> list[str]:
-        return [str(row.get("topic_slug") or "").strip() for row in details if str(row.get("topic_slug") or "").strip()]
+    def _blocked_by_slugs_from_details(
+        self, details: list[dict[str, str]]
+    ) -> list[str]:
+        return [
+            str(row.get("topic_slug") or "").strip()
+            for row in details
+            if str(row.get("topic_slug") or "").strip()
+        ]
 
     def _topic_dependency_state(self, topic_slug: str) -> dict[str, Any]:
         registry = self._load_active_topics_registry()
         if registry is None:
-            return {"status": "none", "blocked_by": [], "blocked_by_details": [], "summary": "No dependency state recorded."}
+            return {
+                "status": "none",
+                "blocked_by": [],
+                "blocked_by_details": [],
+                "summary": "No dependency state recorded.",
+            }
         row = next(
-            (item for item in (registry.get("topics") or []) if str(item.get("topic_slug") or "").strip() == topic_slug),
+            (
+                item
+                for item in (registry.get("topics") or [])
+                if str(item.get("topic_slug") or "").strip() == topic_slug
+            ),
             None,
         )
         if row is None:
-            return {"status": "none", "blocked_by": [], "blocked_by_details": [], "summary": "No dependency state recorded."}
-        details = self._normalize_blocked_by_details(row.get("blocked_by_details") or [])
-        blocked_by = self._blocked_by_slugs_from_details(details) or [item for item in (row.get("blocked_by") or []) if str(item).strip()]
+            return {
+                "status": "none",
+                "blocked_by": [],
+                "blocked_by_details": [],
+                "summary": "No dependency state recorded.",
+            }
+        details = self._normalize_blocked_by_details(
+            row.get("blocked_by_details") or []
+        )
+        blocked_by = self._blocked_by_slugs_from_details(details) or [
+            item for item in (row.get("blocked_by") or []) if str(item).strip()
+        ]
         if blocked_by:
             summary = "; ".join(
-                f"{item['topic_slug']}: {item['reason']}" if str(item.get("reason") or "").strip() else item["topic_slug"]
+                f"{item['topic_slug']}: {item['reason']}"
+                if str(item.get("reason") or "").strip()
+                else item["topic_slug"]
                 for item in details
             ) or ", ".join(blocked_by)
             return {
@@ -5853,7 +6672,12 @@ class AITPService:
                 "blocked_by_details": details,
                 "summary": summary,
             }
-        return {"status": "clear", "blocked_by": [], "blocked_by_details": [], "summary": "No active topic dependencies."}
+        return {
+            "status": "clear",
+            "blocked_by": [],
+            "blocked_by_details": [],
+            "summary": "No active topic dependencies.",
+        }
 
     def select_next_topic(self, *, updated_by: str = "aitp-cli") -> dict[str, Any]:
         registry = self._load_active_topics_registry()
@@ -5865,7 +6689,9 @@ class AITPService:
             self._write_active_topics_registry(registry)
         rows = list(registry.get("topics") or [])
         if not rows:
-            raise FileNotFoundError("No active topics are available for scheduler selection.")
+            raise FileNotFoundError(
+                "No active topics are available for scheduler selection."
+            )
 
         eligible: list[dict[str, Any]] = []
         skipped: list[dict[str, Any]] = []
@@ -5883,17 +6709,23 @@ class AITPService:
             eligible.append(row)
 
         if not eligible:
-            raise FileNotFoundError("No scheduler-eligible topics are available in the active-topics registry.")
+            raise FileNotFoundError(
+                "No scheduler-eligible topics are available in the active-topics registry."
+            )
 
         ordered = sorted(eligible, key=self._scheduler_sort_key, reverse=True)
         selected = ordered[0]
         focused_topic_slug = str(registry.get("focused_topic_slug") or "").strip()
         selection_reasons: list[str] = []
         if self._coerce_priority(selected.get("priority")) > 0:
-            selection_reasons.append(f"highest_priority={self._coerce_priority(selected.get('priority'))}")
+            selection_reasons.append(
+                f"highest_priority={self._coerce_priority(selected.get('priority'))}"
+            )
         if str(selected.get("topic_slug") or "") == focused_topic_slug:
             selection_reasons.append("focused_topic_bonus")
-        selection_reasons.append(f"last_activity={selected.get('last_activity') or '(missing)'}")
+        selection_reasons.append(
+            f"last_activity={selected.get('last_activity') or '(missing)'}"
+        )
         return {
             "selected_topic_slug": str(selected.get("topic_slug") or "").strip(),
             "selection_reason": ", ".join(selection_reasons),
@@ -5919,7 +6751,9 @@ class AITPService:
             raise FileNotFoundError("No runtime topics have been materialized yet.")
         topic_slug = str(rows[0].get("topic_slug") or "").strip()
         if not topic_slug:
-            raise FileNotFoundError("Runtime topic index is present but missing a valid topic slug.")
+            raise FileNotFoundError(
+                "Runtime topic index is present but missing a valid topic slug."
+            )
         return topic_slug
 
     def current_topic_slug(self, *, fallback_to_latest: bool = True) -> str:
@@ -5936,7 +6770,9 @@ class AITPService:
 
         if fallback_to_latest:
             return self.latest_topic_slug()
-        raise FileNotFoundError("Current topic memory is missing or stale, and latest-topic fallback is disabled.")
+        raise FileNotFoundError(
+            "Current topic memory is missing or stale, and latest-topic fallback is disabled."
+        )
 
     def new_topic(
         self,
@@ -5972,7 +6808,11 @@ class AITPService:
             human_request=human_request or question,
         )
         payload["template_mode"] = mode or self._research_mode_to_template_mode(
-            str((payload.get("topic_state") or {}).get("research_mode") or research_mode or "")
+            str(
+                (payload.get("topic_state") or {}).get("research_mode")
+                or research_mode
+                or ""
+            )
         )
         return payload
 
@@ -6031,11 +6871,21 @@ class AITPService:
             load_profile=load_profile,
         )
         bundle = read_json(Path(protocol_paths["runtime_protocol_path"])) or {}
-        topic_state = read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
-        layer_graph = materialize_layer_graph_artifact(self, topic_slug=topic_slug, topic_state=topic_state, bundle=bundle, updated_by=updated_by)
+        topic_state = (
+            read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
+        )
+        layer_graph = materialize_layer_graph_artifact(
+            self,
+            topic_slug=topic_slug,
+            topic_state=topic_state,
+            bundle=bundle,
+            updated_by=updated_by,
+        )
         return {
             "topic_slug": topic_slug,
-            "load_profile": str(bundle.get("load_profile") or topic_state.get("load_profile") or "light"),
+            "load_profile": str(
+                bundle.get("load_profile") or topic_state.get("load_profile") or "light"
+            ),
             "runtime_protocol_path": protocol_paths["runtime_protocol_path"],
             "runtime_protocol_note_path": protocol_paths["runtime_protocol_note_path"],
             "primary_runtime_surfaces": runtime_surface_roles(self, topic_slug),
@@ -6072,15 +6922,29 @@ class AITPService:
             load_profile=None,
         )
         bundle = read_json(Path(protocol_paths["runtime_protocol_path"])) or {}
-        topic_state = read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
-        layer_graph = materialize_layer_graph_artifact(self, topic_slug=topic_slug, topic_state=topic_state, bundle=bundle, updated_by=updated_by)
+        topic_state = (
+            read_json(self._runtime_root(topic_slug) / "topic_state.json") or {}
+        )
+        layer_graph = materialize_layer_graph_artifact(
+            self,
+            topic_slug=topic_slug,
+            topic_state=topic_state,
+            bundle=bundle,
+            updated_by=updated_by,
+        )
         minimal = bundle.get("minimal_execution_brief") or {}
         return {
             "topic_slug": topic_slug,
-            "title": str(((bundle.get("active_research_contract") or {}).get("title") or self._topic_display_title(topic_slug))),
+            "title": str(
+                (
+                    (bundle.get("active_research_contract") or {}).get("title")
+                    or self._topic_display_title(topic_slug)
+                )
+            ),
             "current_stage": bundle.get("resume_stage"),
             "research_mode": bundle.get("research_mode"),
-            "load_profile": bundle.get("load_profile") or topic_state.get("load_profile"),
+            "load_profile": bundle.get("load_profile")
+            or topic_state.get("load_profile"),
             "selected_action_id": minimal.get("selected_action_id"),
             "selected_action_type": minimal.get("selected_action_type"),
             "selected_action_summary": minimal.get("selected_action_summary"),
@@ -6089,13 +6953,16 @@ class AITPService:
             "runtime_protocol_note_path": protocol_paths["runtime_protocol_note_path"],
             "primary_runtime_surfaces": runtime_surface_roles(self, topic_slug),
             "topic_state": topic_state,
-            "topic_state_explainability": (topic_state.get("status_explainability") or {}),
+            "topic_state_explainability": (
+                topic_state.get("status_explainability") or {}
+            ),
             "layer_graph": layer_graph,
             "control_plane": bundle.get("control_plane") or {},
             "h_plane": bundle.get("h_plane") or {},
             "human_interaction_posture": bundle.get("human_interaction_posture") or {},
             "autonomy_posture": bundle.get("autonomy_posture") or {},
-            "dependency_state": bundle.get("dependency_state") or self._topic_dependency_state(topic_slug),
+            "dependency_state": bundle.get("dependency_state")
+            or self._topic_dependency_state(topic_slug),
             "topic_synopsis": bundle.get("topic_synopsis") or {},
             "source_intelligence": bundle.get("source_intelligence") or {},
             "graph_analysis": bundle.get("graph_analysis") or {},
@@ -6127,7 +6994,9 @@ class AITPService:
         topic_slug: str,
         updated_by: str = "aitp-cli",
     ) -> dict[str, Any]:
-        return topic_layer_graph_payload(self, topic_slug=topic_slug, updated_by=updated_by)
+        return topic_layer_graph_payload(
+            self, topic_slug=topic_slug, updated_by=updated_by
+        )
 
     def topic_next(
         self,
@@ -6190,10 +7059,17 @@ class AITPService:
         )
         result = {
             "topic_slug": topic_slug,
-            "topic_skill_projection": shell_surfaces.get("topic_skill_projection") or {},
-            "topic_skill_projection_candidate": shell_surfaces.get("topic_skill_projection_candidate"),
-            "topic_skill_projection_path": shell_surfaces.get("topic_skill_projection_path"),
-            "topic_skill_projection_note_path": shell_surfaces.get("topic_skill_projection_note_path"),
+            "topic_skill_projection": shell_surfaces.get("topic_skill_projection")
+            or {},
+            "topic_skill_projection_candidate": shell_surfaces.get(
+                "topic_skill_projection_candidate"
+            ),
+            "topic_skill_projection_path": shell_surfaces.get(
+                "topic_skill_projection_path"
+            ),
+            "topic_skill_projection_note_path": shell_surfaces.get(
+                "topic_skill_projection_note_path"
+            ),
         }
         if refresh_runtime_bundle:
             result["runtime_protocol"] = self._materialize_runtime_protocol_bundle(
@@ -6296,7 +7172,11 @@ class AITPService:
             "analytical": {
                 "validation_mode": "analytical",
                 "verification_focus": "Validate the active topic against analytical checks such as limiting cases, dimensional consistency, symmetry, source-backed self-consistency, and source-cross-reference agreement.",
-                "required_checks": ["Record at least one explicit limiting-case, dimensional, symmetry, self-consistency, or source-cross-reference check as a durable artifact.", "Tie each analytical check to a source-backed assumption, regime, or prior result instead of free-floating prose.", "Reject analytical claims that do not leave a durable artifact naming the exact check and outcome."],
+                "required_checks": [
+                    "Record at least one explicit limiting-case, dimensional, symmetry, self-consistency, or source-cross-reference check as a durable artifact.",
+                    "Tie each analytical check to a source-backed assumption, regime, or prior result instead of free-floating prose.",
+                    "Reject analytical claims that do not leave a durable artifact naming the exact check and outcome.",
+                ],
             },
             "topic-completion": {
                 "validation_mode": "hybrid",
@@ -6318,7 +7198,9 @@ class AITPService:
         )
         validation_paths = self._validation_contract_paths(topic_slug)
         validation_contract = dict(shell_surfaces["validation_contract"])
-        latest_run_id = str((self.get_runtime_state(topic_slug)).get("latest_run_id") or "").strip()
+        latest_run_id = str(
+            (self.get_runtime_state(topic_slug)).get("latest_run_id") or ""
+        ).strip()
         candidate_rows = self._candidate_rows_for_run(topic_slug, latest_run_id)
         defaults = mode_defaults[mode]
         validation_contract["status"] = "planned"
@@ -6333,7 +7215,11 @@ class AITPService:
         )
         if mode == "topic-completion":
             validation_contract["target_claim_ids"] = self._dedupe_strings(
-                [str(row.get("candidate_id") or "").strip() for row in candidate_rows if str(row.get("candidate_id") or "").strip()]
+                [
+                    str(row.get("candidate_id") or "").strip()
+                    for row in candidate_rows
+                    if str(row.get("candidate_id") or "").strip()
+                ]
             )
         write_json(validation_paths["json"], validation_contract)
         write_text(
@@ -6573,20 +7459,44 @@ class AITPService:
                 "conformance_report": str(runtime_root / "conformance_report.md"),
                 "runtime_protocol": protocol_paths["runtime_protocol_path"],
                 "runtime_protocol_note": protocol_paths["runtime_protocol_note_path"],
-                "research_question_contract": str(self._research_question_contract_paths(resolved_topic_slug)["json"]),
-                "research_question_contract_note": str(self._research_question_contract_paths(resolved_topic_slug)["note"]),
-                "validation_contract": str(self._validation_contract_paths(resolved_topic_slug)["json"]),
-                "validation_contract_note": str(self._validation_contract_paths(resolved_topic_slug)["note"]),
-                "idea_packet": str(self._idea_packet_paths(resolved_topic_slug)["json"]),
-                "idea_packet_note": str(self._idea_packet_paths(resolved_topic_slug)["note"]),
-                "operator_checkpoint": str(self._operator_checkpoint_paths(resolved_topic_slug)["json"]),
-                "operator_checkpoint_note": str(self._operator_checkpoint_paths(resolved_topic_slug)["note"]),
-                "operator_checkpoint_ledger": str(self._operator_checkpoint_paths(resolved_topic_slug)["ledger"]),
+                "research_question_contract": str(
+                    self._research_question_contract_paths(resolved_topic_slug)["json"]
+                ),
+                "research_question_contract_note": str(
+                    self._research_question_contract_paths(resolved_topic_slug)["note"]
+                ),
+                "validation_contract": str(
+                    self._validation_contract_paths(resolved_topic_slug)["json"]
+                ),
+                "validation_contract_note": str(
+                    self._validation_contract_paths(resolved_topic_slug)["note"]
+                ),
+                "idea_packet": str(
+                    self._idea_packet_paths(resolved_topic_slug)["json"]
+                ),
+                "idea_packet_note": str(
+                    self._idea_packet_paths(resolved_topic_slug)["note"]
+                ),
+                "operator_checkpoint": str(
+                    self._operator_checkpoint_paths(resolved_topic_slug)["json"]
+                ),
+                "operator_checkpoint_note": str(
+                    self._operator_checkpoint_paths(resolved_topic_slug)["note"]
+                ),
+                "operator_checkpoint_ledger": str(
+                    self._operator_checkpoint_paths(resolved_topic_slug)["ledger"]
+                ),
                 "topic_synopsis": str(self._topic_synopsis_path(resolved_topic_slug)),
                 "topic_dashboard": str(self._topic_dashboard_path(resolved_topic_slug)),
-                "validation_review_bundle": str(self._validation_review_bundle_paths(resolved_topic_slug)["json"]),
-                "validation_review_bundle_note": str(self._validation_review_bundle_paths(resolved_topic_slug)["note"]),
-                "promotion_readiness": str(self._promotion_readiness_path(resolved_topic_slug)),
+                "validation_review_bundle": str(
+                    self._validation_review_bundle_paths(resolved_topic_slug)["json"]
+                ),
+                "validation_review_bundle_note": str(
+                    self._validation_review_bundle_paths(resolved_topic_slug)["note"]
+                ),
+                "promotion_readiness": str(
+                    self._promotion_readiness_path(resolved_topic_slug)
+                ),
                 "gap_map": str(self._gap_map_path(resolved_topic_slug)),
             },
             "topic_state": topic_state,
@@ -6594,7 +7504,9 @@ class AITPService:
             "conformance_state": read_json(runtime_root / "conformance_state.json"),
         }
 
-    def audit(self, *, topic_slug: str, phase: str = "entry", updated_by: str = "aitp-cli") -> dict[str, Any]:
+    def audit(
+        self, *, topic_slug: str, phase: str = "entry", updated_by: str = "aitp-cli"
+    ) -> dict[str, Any]:
         command = [
             *self._resolve_runtime_python_command(),
             str(self._kernel_script("runtime/scripts/audit_topic_conformance.py")),
@@ -6686,7 +7598,9 @@ class AITPService:
             "notes": notes or "",
         }
         existing_rows = read_jsonl(results_path)
-        existing_rows = [row for row in existing_rows if row.get("baseline_id") != baseline_id]
+        existing_rows = [
+            row for row in existing_rows if row.get("baseline_id") != baseline_id
+        ]
         existing_rows.append(result_row)
         write_jsonl(results_path, existing_rows)
 
@@ -6864,7 +7778,11 @@ class AITPService:
     def audit_analytical_review(self, **kwargs: Any) -> dict[str, Any]:
         result = perform_analytical_review_audit(self, **kwargs)
         topic_slug = str(kwargs.get("topic_slug") or "").strip()
-        resolved_run_id = self._resolve_run_id(topic_slug, kwargs.get("run_id")) if topic_slug else None
+        resolved_run_id = (
+            self._resolve_run_id(topic_slug, kwargs.get("run_id"))
+            if topic_slug
+            else None
+        )
         if topic_slug:
             record_analytical_review_metric(
                 self,
@@ -6893,12 +7811,22 @@ class AITPService:
     ) -> dict[str, Any]:
         resolved_run_id = self._resolve_run_id(topic_slug, run_id)
         if not resolved_run_id:
-            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+            raise FileNotFoundError(
+                f"Unable to resolve a validation run for topic {topic_slug}"
+            )
         operation_id = self._operation_id(title)
-        inferred_baseline_required, inferred_atomic_required = self._operation_requirement_defaults(kind)
-        baseline_required = inferred_baseline_required if baseline_required is None else baseline_required
+        inferred_baseline_required, inferred_atomic_required = (
+            self._operation_requirement_defaults(kind)
+        )
+        baseline_required = (
+            inferred_baseline_required
+            if baseline_required is None
+            else baseline_required
+        )
         atomic_understanding_required = (
-            inferred_atomic_required if atomic_understanding_required is None else atomic_understanding_required
+            inferred_atomic_required
+            if atomic_understanding_required is None
+            else atomic_understanding_required
         )
 
         manifest = {
@@ -6912,7 +7840,9 @@ class AITPService:
             "baseline_required": baseline_required,
             "baseline_status": "planned" if baseline_required else "not_required",
             "atomic_understanding_required": atomic_understanding_required,
-            "atomic_understanding_status": "planned" if atomic_understanding_required else "not_required",
+            "atomic_understanding_status": "planned"
+            if atomic_understanding_required
+            else "not_required",
             "references": self._dedupe_strings(references),
             "source_paths": self._dedupe_strings(source_paths),
             "artifact_paths": [],
@@ -6920,8 +7850,12 @@ class AITPService:
             "updated_at": now_iso(),
             "updated_by": updated_by,
         }
-        manifest_path = self._operation_manifest_path(topic_slug, resolved_run_id, operation_id)
-        summary_path = self._operation_summary_path(topic_slug, resolved_run_id, operation_id)
+        manifest_path = self._operation_manifest_path(
+            topic_slug, resolved_run_id, operation_id
+        )
+        summary_path = self._operation_summary_path(
+            topic_slug, resolved_run_id, operation_id
+        )
         write_json(manifest_path, manifest)
         write_text(summary_path, self._operation_summary_markdown(manifest))
         return {
@@ -6949,9 +7883,13 @@ class AITPService:
     ) -> dict[str, Any]:
         resolved_run_id = self._resolve_run_id(topic_slug, run_id)
         if not resolved_run_id:
-            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+            raise FileNotFoundError(
+                f"Unable to resolve a validation run for topic {topic_slug}"
+            )
         operation_id = self._operation_id(operation)
-        manifest = self._read_operation_manifest(topic_slug, resolved_run_id, operation_id)
+        manifest = self._read_operation_manifest(
+            topic_slug, resolved_run_id, operation_id
+        )
 
         if summary is not None:
             manifest["summary"] = summary
@@ -6974,8 +7912,12 @@ class AITPService:
         manifest["updated_at"] = now_iso()
         manifest["updated_by"] = updated_by
 
-        manifest_path = self._operation_manifest_path(topic_slug, resolved_run_id, operation_id)
-        summary_path = self._operation_summary_path(topic_slug, resolved_run_id, operation_id)
+        manifest_path = self._operation_manifest_path(
+            topic_slug, resolved_run_id, operation_id
+        )
+        summary_path = self._operation_summary_path(
+            topic_slug, resolved_run_id, operation_id
+        )
         write_json(manifest_path, manifest)
         write_text(summary_path, self._operation_summary_markdown(manifest))
         return {
@@ -6995,17 +7937,25 @@ class AITPService:
     ) -> dict[str, Any]:
         resolved_run_id = self._resolve_run_id(topic_slug, run_id)
         if not resolved_run_id:
-            raise FileNotFoundError(f"Unable to resolve a validation run for topic {topic_slug}")
+            raise FileNotFoundError(
+                f"Unable to resolve a validation run for topic {topic_slug}"
+            )
 
-        operations_root = self._validation_run_root(topic_slug, resolved_run_id) / "operations"
+        operations_root = (
+            self._validation_run_root(topic_slug, resolved_run_id) / "operations"
+        )
         operations: list[dict[str, Any]] = []
         recommendations: list[str] = []
         for manifest_path in sorted(operations_root.glob("*/operation_manifest.json")):
             manifest = read_json(manifest_path)
             if manifest is None:
                 continue
-            baseline_ready = self._baseline_status_ready(str(manifest.get("baseline_status", "")))
-            atomic_ready = self._atomic_status_ready(str(manifest.get("atomic_understanding_status", "")))
+            baseline_ready = self._baseline_status_ready(
+                str(manifest.get("baseline_status", ""))
+            )
+            atomic_ready = self._atomic_status_ready(
+                str(manifest.get("atomic_understanding_status", ""))
+            )
             trust_ready = baseline_ready and atomic_ready
             operation_payload = {
                 "operation_id": manifest["operation_id"],
@@ -7029,7 +7979,9 @@ class AITPService:
 
         if not operations:
             overall_status = "missing"
-            recommendations.append("No operation manifests were found for this validation run.")
+            recommendations.append(
+                "No operation manifests were found for this validation run."
+            )
         elif all(operation["trust_ready"] for operation in operations):
             overall_status = "pass"
         else:
@@ -7118,7 +8070,10 @@ class AITPService:
         record_promotion_gate_metric(
             self,
             topic_slug=topic_slug,
-            run_id=str(result.get("run_id") or self._resolve_run_id(topic_slug, run_id) or "").strip() or None,
+            run_id=str(
+                result.get("run_id") or self._resolve_run_id(topic_slug, run_id) or ""
+            ).strip()
+            or None,
             candidate_id=candidate_id,
             candidate_type=str(result.get("candidate_type") or "").strip() or None,
             updated_by=requested_by,
@@ -7151,7 +8106,10 @@ class AITPService:
         record_promotion_gate_metric(
             self,
             topic_slug=topic_slug,
-            run_id=str(result.get("run_id") or self._resolve_run_id(topic_slug, run_id) or "").strip() or None,
+            run_id=str(
+                result.get("run_id") or self._resolve_run_id(topic_slug, run_id) or ""
+            ).strip()
+            or None,
             candidate_id=candidate_id,
             candidate_type=str(result.get("candidate_type") or "").strip() or None,
             updated_by=approved_by,
@@ -7182,7 +8140,10 @@ class AITPService:
         record_promotion_gate_metric(
             self,
             topic_slug=topic_slug,
-            run_id=str(result.get("run_id") or self._resolve_run_id(topic_slug, run_id) or "").strip() or None,
+            run_id=str(
+                result.get("run_id") or self._resolve_run_id(topic_slug, run_id) or ""
+            ).strip()
+            or None,
             candidate_id=candidate_id,
             candidate_type=str(result.get("candidate_type") or "").strip() or None,
             updated_by=rejected_by,
@@ -7428,7 +8389,9 @@ class AITPService:
             mcp_profile=mcp_profile,
         )
 
-    def ensure_cli_installed(self, *, workspace_root: str | None = None) -> dict[str, Any]:
+    def ensure_cli_installed(
+        self, *, workspace_root: str | None = None
+    ) -> dict[str, Any]:
         return compute_cli_install_status(self, workspace_root=workspace_root)
 
     def migrate_local_install(
@@ -7459,9 +8422,30 @@ class AITPService:
             updated_by=updated_by,
         )
 
-    def consult_l2(self, *, query_text: str, retrieval_profile: str, max_primary_hits: int | None = None, include_staging: bool = False, topic_slug: str | None = None, stage: str = "L3", run_id: str | None = None, updated_by: str = "aitp-cli", record_consultation: bool = False) -> dict[str, Any]:
-        resolved_max_primary_hits = 1 if record_consultation and max_primary_hits is None else max_primary_hits
-        payload = consult_canonical_l2(self.kernel_root, query_text=query_text, retrieval_profile=retrieval_profile, max_primary_hits=resolved_max_primary_hits, include_staging=include_staging)
+    def consult_l2(
+        self,
+        *,
+        query_text: str,
+        retrieval_profile: str,
+        max_primary_hits: int | None = None,
+        include_staging: bool = False,
+        topic_slug: str | None = None,
+        stage: str = "L3",
+        run_id: str | None = None,
+        updated_by: str = "aitp-cli",
+        record_consultation: bool = False,
+    ) -> dict[str, Any]:
+        resolved_max_primary_hits = (
+            1 if record_consultation and max_primary_hits is None else max_primary_hits
+        )
+        payload = consult_canonical_l2(
+            self.kernel_root,
+            query_text=query_text,
+            retrieval_profile=retrieval_profile,
+            max_primary_hits=resolved_max_primary_hits,
+            include_staging=include_staging,
+            topic_slug=topic_slug,
+        )
         if not record_consultation:
             return payload
 
@@ -7470,10 +8454,19 @@ class AITPService:
             raise ValueError("topic_slug is required when record_consultation=True")
         if stage not in {"L1", "L3", "L4"}:
             raise ValueError(f"Unsupported consultation stage: {stage}")
-        resolved_run_id = self._resolve_run_id(resolved_topic_slug, run_id) if stage in {"L3", "L4"} else run_id
+        resolved_run_id = (
+            self._resolve_run_id(resolved_topic_slug, run_id)
+            if stage in {"L3", "L4"}
+            else run_id
+        )
         if stage in {"L3", "L4"} and not resolved_run_id:
-            raise ValueError(f"run_id is required to record {stage} consultations for {resolved_topic_slug}")
-        consultation_slug = bounded_slugify(f"l2-{resolved_topic_slug}-{stage}-{resolved_run_id or 'standalone'}-{query_text}-{now_iso()}", max_length=48)
+            raise ValueError(
+                f"run_id is required to record {stage} consultations for {resolved_topic_slug}"
+            )
+        consultation_slug = bounded_slugify(
+            f"l2-{resolved_topic_slug}-{stage}-{resolved_run_id or 'standalone'}-{query_text}-{now_iso()}",
+            max_length=48,
+        )
         record_payload = build_l2_consultation_record(
             kernel_root=self.kernel_root,
             topic_slug=resolved_topic_slug,
@@ -7500,19 +8493,56 @@ class AITPService:
             **record_payload["record_args"],
         )
         result_path = Path(consultation_paths["consultation_result_path"])
-        result_payload = {**(read_json(result_path) or {}), "traversal_paths": record_payload["traversal_paths"], "retrieval_summary": record_payload["retrieval_summary"]}
+        result_payload = {
+            **(read_json(result_path) or {}),
+            "traversal_paths": record_payload["traversal_paths"],
+            "retrieval_summary": record_payload["retrieval_summary"],
+        }
         write_json(result_path, result_payload)
         return {**payload, "consultation": consultation_paths}
 
     def compile_l2_workspace_map(self) -> dict[str, Any]:
         return materialize_workspace_memory_map(self.kernel_root)
 
-    def compile_source_catalog(self) -> dict[str, Any]: return materialize_source_catalog(self.kernel_root)
-    def trace_source_citations(self, *, canonical_source_id: str) -> dict[str, Any]: return materialize_source_citation_traversal(self.kernel_root, canonical_source_id=canonical_source_id)
-    def compile_source_family(self, *, source_type: str) -> dict[str, Any]: return materialize_source_family_report(self.kernel_root, source_type=source_type)
-    def export_source_bibtex(self, *, canonical_source_id: str, include_neighbors: bool = False) -> dict[str, Any]: return materialize_source_bibtex_export(self.kernel_root, canonical_source_id=canonical_source_id, include_neighbors=include_neighbors)
-    def import_bibtex_sources(self, *, topic_slug: str, bibtex_path: str, updated_by: str) -> dict[str, Any]: return materialize_bibtex_source_import(self.kernel_root, topic_slug=topic_slug, bibtex_path=bibtex_path, updated_by=updated_by)
-    def sync_l1_graph_export_to_theoretical_physics_brain(self, *, topic_slug: str, updated_by: str = "aitp-cli", target_root: str | None = None) -> dict[str, Any]:
+    def compile_source_catalog(self) -> dict[str, Any]:
+        return materialize_source_catalog(self.kernel_root)
+
+    def trace_source_citations(self, *, canonical_source_id: str) -> dict[str, Any]:
+        return materialize_source_citation_traversal(
+            self.kernel_root, canonical_source_id=canonical_source_id
+        )
+
+    def compile_source_family(self, *, source_type: str) -> dict[str, Any]:
+        return materialize_source_family_report(
+            self.kernel_root, source_type=source_type
+        )
+
+    def export_source_bibtex(
+        self, *, canonical_source_id: str, include_neighbors: bool = False
+    ) -> dict[str, Any]:
+        return materialize_source_bibtex_export(
+            self.kernel_root,
+            canonical_source_id=canonical_source_id,
+            include_neighbors=include_neighbors,
+        )
+
+    def import_bibtex_sources(
+        self, *, topic_slug: str, bibtex_path: str, updated_by: str
+    ) -> dict[str, Any]:
+        return materialize_bibtex_source_import(
+            self.kernel_root,
+            topic_slug=topic_slug,
+            bibtex_path=bibtex_path,
+            updated_by=updated_by,
+        )
+
+    def sync_l1_graph_export_to_theoretical_physics_brain(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str = "aitp-cli",
+        target_root: str | None = None,
+    ) -> dict[str, Any]:
         return sync_concept_graph_export_to_theoretical_physics_brain(
             kernel_root=self.kernel_root,
             repo_root=self.repo_root,

@@ -142,6 +142,87 @@ class L2GraphActivationTests(unittest.TestCase):
         self.assertEqual(stage_payload["contradicts_unit_ids"], ["claim_card:tfim-benchmark-before-portability-claim"])
         self.assertIn("weak-coupling route intuition", stage_payload["integration_summary"])
 
+    def test_topic_local_staged_hit_can_win_primary_surface_when_staging_is_included(self) -> None:
+        unrelated_unit_path = self.kernel_root / "canonical" / "concepts" / "concept--observer-algebra-carryover.json"
+        unrelated_unit_path.parent.mkdir(parents=True, exist_ok=True)
+        unrelated_unit_path.write_text(
+            """
+{
+  "id": "concept:observer-algebra-carryover",
+  "unit_type": "concept",
+  "title": "Observer algebra carryover concept",
+  "summary": "Older canonical material about observer algebra bridge structure from an unrelated topic.",
+  "maturity": "human_promoted",
+  "created_at": "2026-04-14T00:00:00+00:00",
+  "updated_at": "2026-04-14T00:00:00+00:00",
+  "topic_completion_status": "regression-stable",
+  "tags": ["observer-algebra", "bridge", "carryover"],
+  "assumptions": [],
+  "regime": {
+    "domain": "unrelated canonical topic",
+    "approximations": [],
+    "scale": "bounded",
+    "boundary_conditions": [],
+    "exclusions": []
+  },
+  "scope": {
+    "applies_to": ["unrelated canonical carryover"],
+    "out_of_scope": ["fresh local topic routing"]
+  },
+  "provenance": {
+    "source_ids": ["source:older-topic"],
+    "l1_artifacts": [],
+    "l3_runs": [],
+    "l4_checks": [],
+    "citations": []
+  },
+  "promotion": {
+    "route": "L3->L4->L2",
+    "review_mode": "human",
+    "canonical_layer": "L2",
+    "promoted_by": "test-suite",
+    "promoted_at": "2026-04-14T00:00:00+00:00",
+    "review_status": "accepted",
+    "rationale": "Seed unrelated canonical carryover."
+  },
+  "dependencies": [],
+  "related_units": [],
+  "payload": {}
+}
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        materialize_canonical_index(self.kernel_root)
+        stage_payload = stage_l2_insight(
+            self.kernel_root,
+            title="Measurement-induced observer algebra bridge note",
+            summary="Fresh local staged note connecting measurement-induced transitions and observer algebras.",
+            candidate_unit_type="concept",
+            tags=["measurement-induced", "observer-algebra", "bridge"],
+            source_refs=["source:measurement-induced-bridge-paper"],
+            created_by="test-suite",
+            topic_slug="measurement-induced-observer-algebras",
+            provenance={
+                "source_id": "source:measurement-induced-bridge-paper",
+                "source_slug": "measurement-induced-bridge-paper",
+                "source_title": "Measurement-induced observer algebra bridge paper",
+            },
+        )
+
+        payload = consult_canonical_l2(
+            self.kernel_root,
+            query_text="measurement induced observer algebra bridge",
+            retrieval_profile="l1_provisional_understanding",
+            include_staging=True,
+            topic_slug="measurement-induced-observer-algebras",
+            max_primary_hits=1,
+        )
+
+        self.assertEqual(payload["primary_hits"][0]["id"], stage_payload["entry_id"])
+        self.assertEqual(payload["primary_hits"][0]["trust_surface"], "staging")
+        self.assertEqual(payload["primary_hits"][0]["topic_slug"], "measurement-induced-observer-algebras")
+
     def test_negative_result_staging_is_recorded_with_failure_metadata(self) -> None:
         stage_payload = stage_l2_insight(
             self.kernel_root,

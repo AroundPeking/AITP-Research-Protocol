@@ -7,7 +7,7 @@ Milestone in progress.
 ## Phases
 
 - [x] **Phase 175: Staging Provenance And Noise Suppression** *(Axis 1 + Axis 3)*
-- [ ] **Phase 175.1: Topic-Local Consultation Relevance Ordering** *(Axis 1 + Axis 2)*
+- [x] **Phase 175.1: Topic-Local Consultation Relevance Ordering** *(Axis 1 + Axis 2)*
 - [ ] **Phase 175.2: Multi-Paper Real-Topic L2 Relevance Proof** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
@@ -24,7 +24,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 175.1.
+Start Phase 175.2.
 
 ### Phase 175: Staging Provenance And Noise Suppression
 
@@ -63,7 +63,7 @@ other topics.
 
 Plans:
 
-- [ ] `175.1-01` Raise topic-local staged relevance above unrelated canonical carryover
+- [x] `175.1-01` Raise topic-local staged relevance above unrelated canonical carryover
 
 ### Phase 175.2: Multi-Paper Real-Topic L2 Relevance Proof
 

@@ -20,7 +20,7 @@ provenance instead of noisy staged rows or irrelevant primary hits.
 
 ### Retrieval Relevance
 
-- [ ] `L2H-03`: `consult-l2` can rank topic-local relevant staged or canonical
+- [x] `L2H-03`: `consult-l2` can rank topic-local relevant staged or canonical
   entries above unrelated canonical material when the query clearly targets a
   fresh local topic.
 
@@ -49,7 +49,7 @@ provenance instead of noisy staged rows or irrelevant primary hits.
 |-------------|-------|--------|
 | L2H-01 | Phase 175 | Done |
 | L2H-02 | Phase 175 | Done |
-| L2H-03 | Phase 175.1 | Pending |
+| L2H-03 | Phase 175.1 | Done |
 | L2H-04 | Phase 175.2 | Pending |
 | L2H-05 | Phase 175.2 | Pending |
 

@@ -19,6 +19,8 @@
 
 - Phase `175` now suppresses obvious staging noise and preserves true per-entry
   source provenance on the literature fast path
+- Phase `175.1` now lets explicit topic-local staged rows compete on the
+  primary consultation surface instead of hiding only in secondary staged hits
 
 ---
 

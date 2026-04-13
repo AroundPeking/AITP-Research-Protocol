@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: L2 Real-Topic Relevance Hardening
 status: milestone_active
-stopped_at: "Phase 175 complete; Phase 175.1 next"
-last_updated: "2026-04-14T04:47:00+08:00"
+stopped_at: "Phase 175.1 complete; Phase 175.2 next"
+last_updated: "2026-04-14T04:58:00+08:00"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -41,10 +41,12 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
   toy-model, and first-principles lanes
 - Phase `175` hardened literature-intake staging by suppressing obvious noise
   rows and preserving per-entry source provenance
-- `v2.1` now narrows to the next remaining bottleneck: topic-local
-  consultation relevance ordering in `L2`
-- immediate next step: start Phase `175.1` and raise topic-local relevance
-  above unrelated canonical carryover
+- Phase `175.1` raised topic-local staged relevance so explicit fresh-topic
+  consultation can surface the local staged row on the primary surface
+- `v2.1` now narrows to the final proof slice: one multi-paper real-topic
+  acceptance lane for provenance and relevance ordering
+- immediate next step: start Phase `175.2` and replay the bounded multi-paper
+  real-topic proof package
 
 ## Accumulated Context
 
