@@ -8,7 +8,7 @@ Milestone in progress.
 
 - [x] **Phase 169: L2 Canonical Schema Extension** *(Axis 3 + Axis 2)*
 - [x] **Phase 169.1: L2 Promotion Bridge Code** *(Axis 2 + Axis 3)*
-- [ ] **Phase 169.2: HCI Foundation** *(Axis 4)*
+- [x] **Phase 169.2: HCI Foundation** *(Axis 4)*
 
 ## Target Outcome
 
@@ -24,7 +24,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 169.2.
+Start milestone completion.
 
 ### Phase 169: L2 Canonical Schema Extension
 
@@ -122,5 +122,5 @@ introductory command, and post-bootstrap action guidance.
 
 Plans:
 
-- [ ] `169.2-01` Add structured status output, hello command, and post-bootstrap
+- [x] `169.2-01` Add structured status output, hello command, and post-bootstrap
   action guidance

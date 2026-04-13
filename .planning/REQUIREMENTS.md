@@ -45,11 +45,11 @@ incomplete — not the science.
 
 ### HCI Foundation
 
-- [ ] `REQ-HCI-01`: `aitp status` output is structured into at most 3 tiers
+- [x] `REQ-HCI-01`: `aitp status` output is structured into at most 3 tiers
   (summary → key sections → full detail) instead of a flat 40+ section dump.
   The operator can scan the summary tier in under 5 seconds.
 
-- [ ] `REQ-HCI-02`: an `aitp hello` (or equivalent zero-config introductory
+- [x] `REQ-HCI-02`: an `aitp hello` (or equivalent zero-config introductory
   command) exists and prints: current topic status, suggested next action, and
   a one-line pointer to documentation. After bootstrap, the runtime state
   includes a `next_action_hint` field pointing to the most likely next step.
@@ -90,8 +90,8 @@ incomplete — not the science.
 | REQ-PROMO-04 | Phase 169.1 | Complete |
 | REQ-PROMO-05 | Phase 169.1 | Complete |
 | REQ-PROMO-06 | Phase 169.1 | Complete |
-| REQ-HCI-01 | Phase 169.2 | Pending |
-| REQ-HCI-02 | Phase 169.2 | Pending |
+| REQ-HCI-01 | Phase 169.2 | Complete |
+| REQ-HCI-02 | Phase 169.2 | Complete |
 
 **Coverage:**
 - v1 requirements: 8 total

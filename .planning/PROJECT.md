@@ -78,8 +78,8 @@ it still does **not** mean the broader AITP architecture is finished.
 
 - Active milestone: `v1.95` `L2 Promotion Pipeline Closure`
 - Latest closed milestone: `v1.94` `L4 Analytical Cross-Check Surface`
-- Next boundary: start Phase `169.2` `HCI Foundation` now that the canonical
-  schema and promotion-bridge layers are in place
+- Next boundary: complete and archive milestone `v1.95` now that Phases
+  `169`, `169.1`, and `169.2` are all implemented
 
 ## Current Milestone: v1.95 L2 Promotion Pipeline Closure
 

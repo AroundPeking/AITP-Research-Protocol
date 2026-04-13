@@ -2,7 +2,7 @@
 
 ## v1.95 L2 Promotion Pipeline Closure (Active)
 
-**Phases completed:** 2 / 3 phases, 2 / 3 plans
+**Phases completed:** 3 / 3 phases, 3 / 3 plans
 
 **Milestone goal:**
 
@@ -20,6 +20,8 @@
 - Layer 2 canonical index materialization now recognizes negative-result units
 - promotion gates and auto-promotion now expose and validate runtime proof
   packet schema context through a dedicated bridge module
+- the human front door now has tiered `status`, a zero-config `hello`, and a
+  durable post-bootstrap next-action hint
 
 ---
 
@@ -440,10 +442,10 @@ Completed milestone chain:
 
 ## Current Active Milestone
 
-- `v1.95` `L2 Promotion Pipeline Closure` — 3 phases, 2 completed
+- `v1.95` `L2 Promotion Pipeline Closure` — 3 phases, 3 completed
 
 ## Current Status
 
 - `v1.36` through `v1.94` are closed and archived or ready for archive lookup
 - `v1.95` is active with 3 phases (169, 169.1, 169.2)
-- next command boundary: `$gsd-execute-phase 169.2`
+- next command boundary: `$gsd-complete-milestone`
