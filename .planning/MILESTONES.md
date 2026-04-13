@@ -1,8 +1,8 @@
 # Milestones
 
-## v1.96 Real Topic Promotion E2E Proof (Active)
+## v1.96 Real Topic Promotion E2E Proof (Shipped: 2026-04-14)
 
-**Phases completed:** 0 / 3 phases, 0 / 3 plans
+**Phases completed:** 3 / 3 phases, 3 / 3 plans
 
 **Milestone goal:**
 
@@ -13,7 +13,14 @@
 
 **Key accomplishments:**
 
-- (milestone in progress)
+- three fresh public-front-door topics now have durable bootstrap receipts
+  across `formal_derivation`, `toy_model`, and `first_principles`
+- the HS-model OTOC failure now lands durably as `negative_result` staging and
+  compiles as `contradiction_watch`
+- all four proof lanes now have receipts, runbooks, and a cross-lane
+  postmortem
+- the milestone closed honestly without pretending any positive lane had yet
+  reached authoritative canonical `L2`
 
 ---
 

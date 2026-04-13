@@ -72,6 +72,7 @@ The previously scoped GSD mainline is implemented through:
 - `v1.93`
 - `v1.94`
 - `v1.95`
+- `v1.96`
 
 That closes the current bounded chain through the first operator-visible
 hypothesis route-transition-authority surface, but
@@ -79,35 +80,32 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v1.96` `Real Topic Promotion E2E Proof`
-- Latest closed milestone: `v1.95` `L2 Promotion Pipeline Closure`
-- Next boundary: start Phase `170` `Positive Promotion Proof Lane` and prove
-  the repaired promotion pipeline on one real bounded topic before broadening
-  to farther benchmark-alignment work
+- Active milestone: none
+- Latest closed milestone: `v1.96` `Real Topic Promotion E2E Proof`
+- Next boundary: start `v1.97` and land one authoritative positive unit in
+  canonical `L2`, then harden L2 compiler and consultation surfaces around
+  real positive/negative coexistence
 
-## Current Milestone: v1.96 Real Topic Promotion E2E Proof
+## Latest Closed Milestone: v1.96 Real Topic Promotion E2E Proof
 
-**Goal:** Prove that a fresh real-topic route can travel from the public AITP
-front door through bounded validation and land in canonical `L2`, and that one
-honest failed route can also land as canonical `negative_result`.
+**Goal:** prove the public front door and repaired promotion route on real
+topics, including one honest negative-result lane.
 
-**Target features:**
-- one fresh public-front-door topic run promotes a validated bounded result
-  into canonical `L2` with durable backend receipt
-- one bounded failed route promotes into canonical `negative_result` instead of
-  stopping at runtime or chat-only residue
-- both proof lanes leave durable acceptance and postmortem evidence so future
-  regressions are mechanical instead of anecdotal
+**Delivered features:**
+- three fresh public-front-door topics now have durable bootstrap receipts
+  across `formal_derivation`, `toy_model`, and `first_principles`
+- one HS-model failure now lands durably as `negative_result` staging and
+  compiles as `contradiction_watch`
+- all four proof lanes now have receipts, runbooks, and a cross-lane
+  postmortem
 
-**Key context:**
-- `v1.95` closed the promotion-pipeline engineering gaps but intentionally left
-  the full real-topic proof as deferred work
-- the next milestone must convert the repaired path into evidence, not just
-  keep adding latent capability surfaces
-- benchmark-alignment and broader extraction upgrades stay valuable, but they
-  should follow after the repaired end-to-end route is actually proven
+**Explicitly deferred from this milestone:**
+- one full positive `L0 -> L2` promotion proof
+- positive promotion receipt parity across runtime/read-path surfaces
+- `first_principles -> code_method` mapping on a real codebase-backed lane
+- toy-model convergence or benchmark acceptance beyond bootstrap
 
-## Latest Closed Milestone: v1.95 L2 Promotion Pipeline Closure
+## Previous Closed Milestone: v1.95 L2 Promotion Pipeline Closure
 
 **Goal:** Close the L4→L2 promotion pipeline gap so E2E research runs that
 already validate at `L4` can actually land their results in canonical `L2`

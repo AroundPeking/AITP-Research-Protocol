@@ -1,10 +1,10 @@
 # Workspace Graph Report
 
-- Generated at: `2026-04-11T19:14:59+08:00`
-- Total canonical units: `10`
+- Generated at: `2026-04-13T23:13:17+08:00`
+- Total canonical units: `11`
 - Edge count: `15`
 - Connected units: `10`
-- Isolated units: `0`
+- Isolated units: `1`
 - Navigation index: `canonical/compiled/derived_navigation/index.md`
 
 ## Graph Hubs
@@ -59,23 +59,23 @@
 - `workflow:tfim-benchmark-workflow` TFIM benchmark workflow [[derived_navigation/workflow--tfim-benchmark-workflow|TFIM benchmark workflow]]
 
 ### `l3_candidate_formation`
-- Available count: `6`
+- Available count: `7`
 - `bridge:tfim-toy-model-code-method-bridge` TFIM toy-model to code-method bridge [[derived_navigation/bridge--tfim-toy-model-code-method-bridge|TFIM toy-model to code-method bridge]]
 - `method:tfim-exact-diagonalization-helper` TFIM exact-diagonalization helper [[derived_navigation/method--tfim-exact-diagonalization-helper|TFIM exact-diagonalization helper]]
 - `physical_picture:tfim-weak-coupling-benchmark-intuition` TFIM weak-coupling benchmark intuition [[derived_navigation/physical_picture--tfim-weak-coupling-benchmark-intuition|TFIM weak-coupling benchmark intuition]]
+- `proof_fragment:jones-codrestrict-comp-subtype-construction-recipe` Jones codRestrict + subtype composition construction recipe [[derived_navigation/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe|Jones codRestrict + subtype composition construction recipe]]
 - `topic_skill_projection:tfim-benchmark-first-route` TFIM benchmark-first route [[derived_navigation/topic_skill_projection--tfim-benchmark-first-route|TFIM benchmark-first route]]
 - `warning_note:tfim-dense-ed-finite-size-limit` Dense exact diagonalization finite-size limit [[derived_navigation/warning_note--tfim-dense-ed-finite-size-limit|Dense exact diagonalization finite-size limit]]
-- `workflow:tfim-benchmark-workflow` TFIM benchmark workflow [[derived_navigation/workflow--tfim-benchmark-workflow|TFIM benchmark workflow]]
 
 ### `l4_adjudication`
-- Available count: `7`
+- Available count: `8`
 - `claim_card:tfim-benchmark-before-portability-claim` Benchmark before portability claim [[derived_navigation/claim_card--tfim-benchmark-before-portability-claim|Benchmark before portability claim]]
 - `concept:tfim-benchmark-first-validation` Benchmark-first validation [[derived_navigation/concept--tfim-benchmark-first-validation|Benchmark-first validation]]
 - `concept:tfim-transverse-field-ising-model` TFIM benchmark substrate [[derived_navigation/concept--tfim-transverse-field-ising-model|TFIM benchmark substrate]]
 - `physical_picture:tfim-weak-coupling-benchmark-intuition` TFIM weak-coupling benchmark intuition [[derived_navigation/physical_picture--tfim-weak-coupling-benchmark-intuition|TFIM weak-coupling benchmark intuition]]
+- `proof_fragment:jones-codrestrict-comp-subtype-construction-recipe` Jones codRestrict + subtype composition construction recipe [[derived_navigation/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe|Jones codRestrict + subtype composition construction recipe]]
 - `topic_skill_projection:tfim-benchmark-first-route` TFIM benchmark-first route [[derived_navigation/topic_skill_projection--tfim-benchmark-first-route|TFIM benchmark-first route]]
-- `validation_pattern:tfim-small-system-gap-reproduction` TFIM small-system gap reproduction [[derived_navigation/validation_pattern--tfim-small-system-gap-reproduction|TFIM small-system gap reproduction]]
 
 ## Isolated Units
 
-- Units: `(none)`
+- `proof_fragment:jones-codrestrict-comp-subtype-construction-recipe` Jones codRestrict + subtype composition construction recipe [[derived_navigation/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe|Jones codRestrict + subtype composition construction recipe]]

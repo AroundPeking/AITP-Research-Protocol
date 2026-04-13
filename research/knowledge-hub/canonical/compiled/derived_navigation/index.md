@@ -1,6 +1,6 @@
 # L2 Graph Navigation Index
 
-- Generated at: `2026-04-11T19:14:59+08:00`
+- Generated at: `2026-04-13T23:13:17+08:00`
 - Source report: `canonical/compiled/workspace_graph_report.md`
 
 ## Top Hubs
@@ -33,6 +33,9 @@
 
 ### `physical_picture`
 - [[physical_picture--tfim-weak-coupling-benchmark-intuition|TFIM weak-coupling benchmark intuition]] - Weak-coupling physical picture for why the TFIM exact diagonalization benchmark workflow is a useful first bounded route. (degree=`3`)
+
+### `proof_fragment`
+- [[proof_fragment--jones-codrestrict-comp-subtype-construction-recipe|Jones codRestrict + subtype composition construction recipe]] - Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map. (degree=`0`)
 
 ### `topic_skill_projection`
 - [[topic_skill_projection--tfim-benchmark-first-route|TFIM benchmark-first route]] - Reusable route capsule for the bounded TFIM exact benchmark workflow and its limitation note. (degree=`4`)

@@ -1,19 +1,19 @@
 # Workspace Staging Manifest
 
-- Generated at: `2026-04-13T12:09:27+08:00`
+- Generated at: `2026-04-13T23:13:17+08:00`
 - Source contract: `canonical/L2_STAGING_PROTOCOL.md`
-- Total entries: `12`
+- Total entries: `13`
 
 ## Counts By Status
 
 - `dismissed`: `0`
 - `reviewed`: `0`
-- `staged`: `12`
+- `staged`: `13`
 
 ## Counts By Kind
 
 - `concept`: `1`
-- `negative_result`: `5`
+- `negative_result`: `6`
 - `workflow_draft`: `6`
 
 ## Entries
@@ -24,6 +24,7 @@
 - `staging:demo-topic-workflow-draft-58fc2075` topic=`demo-topic` kind=`workflow_draft` status=`staged` path=`canonical/staging/entries/demo-topic-workflow-draft-58fc2075.json`
 - `staging:demo-topic-workflow-draft-7909d741` topic=`demo-topic` kind=`workflow_draft` status=`staged` path=`canonical/staging/entries/demo-topic-workflow-draft-7909d741.json`
 - `staging:demo-topic-workflow-draft-aed07b94` topic=`demo-topic` kind=`workflow_draft` status=`staged` path=`canonical/staging/entries/demo-topic-workflow-draft-aed07b94.json`
+- `staging:hs-model-otoc-lyapunov-exponent-regime-mismatch` topic=`global` kind=`negative_result` status=`staged` path=`canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json`
 - `staging:knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem` topic=`global` kind=`negative_result` status=`staged` path=`canonical/staging/entries/staging--knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem.json`
 - `staging:knowledge-report-contradiction-knowledge-acceptance` topic=`global` kind=`negative_result` status=`staged` path=`canonical/staging/entries/staging--knowledge-report-contradiction-knowledge-acceptance.json`
 - `staging:phase138-test-contradiction-aitp-cli-e2e-beo7dvwo` topic=`global` kind=`negative_result` status=`staged` path=`canonical/staging/entries/staging--phase138-test-contradiction-aitp-cli-e2e-beo7dvwo.json`

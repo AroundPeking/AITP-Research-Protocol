@@ -2,38 +2,45 @@
 gsd_state_version: 1.0
 milestone: v1.96
 milestone_name: Real Topic Promotion E2E Proof
-status: milestone_active
-stopped_at: "Milestone v1.96 started; Phase 170 not started"
-last_updated: "2026-04-14T13:10:00+08:00"
+status: milestone_archived
+stopped_at: "Milestone v1.96 archived; waiting for next milestone start"
+last_updated: "2026-04-14T22:35:00+08:00"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.96` `Real Topic Promotion E2E Proof` is active. No
-phases started yet.
+Status: milestone `v1.96` `Real Topic Promotion E2E Proof` is archived.
 
-**Why this milestone exists:**
+**Completed phases:**
 
-`v1.95` repaired the engineering gaps that previously blocked promotion into
-canonical `L2`, but it did not itself prove one full real-topic positive route
-or one honest `negative_result` route all the way into `L2`.
+- **Phase 170:** Three research-mode positive promotion proof — Lane A
+  (formal_derivation / von Neumann algebras), Lane B (toy_model / HS model),
+  Lane C (first_principles / LibRPA QSGW). All three topics bootstrapped
+  through public front door with 27/27 conformance.
 
-The science/pipeline boundary now shifts from "repair the pipe" to "prove the
-pipe carries real topic work honestly."
+- **Phase 170.1:** Negative-result promotion proof — HS model OTOC Lyapunov
+  exponent failure. Topic bootstrapped through public front door, negative
+  result recorded via scratchpad, staged into L2, compiled as
+  `contradiction_watch`. All 8 acceptance criteria met. Evidence, RUNBOOK-D,
+  and SUMMARY written.
+
+- **Phase 170.2:** E2E Evidence and Regression Closure — durable receipts for
+  all four lanes, master regression runbook (RUNBOOK-E), cross-lane postmortem
+  with honest scope assessment. All 8 acceptance criteria met.
 
 ## Immediate Next Step
 
-- active milestone: `v1.96` `Real Topic Promotion E2E Proof`
-- start with Phase `170` `Positive Promotion Proof Lane`
+- start the next bounded milestone around one full positive `L0 -> L2`
+  promotion and L2 surface hardening
 
 ## Accumulated Context
 

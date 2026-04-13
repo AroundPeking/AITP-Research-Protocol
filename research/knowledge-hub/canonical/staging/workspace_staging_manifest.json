@@ -1,23 +1,23 @@
 {
   "kind": "l2_workspace_staging_manifest",
   "manifest_version": 1,
-  "generated_at": "2026-04-13T12:09:27+08:00",
+  "generated_at": "2026-04-13T23:13:17+08:00",
   "source_contract_path": "canonical/L2_STAGING_PROTOCOL.md",
   "summary": {
-    "total_entries": 12,
+    "total_entries": 13,
     "counts_by_status": {
       "dismissed": 0,
       "reviewed": 0,
-      "staged": 12
+      "staged": 13
     },
     "counts_by_kind": {
       "concept": 1,
-      "negative_result": 5,
+      "negative_result": 6,
       "workflow_draft": 6
     },
     "counts_by_topic": {
       "demo-topic": 6,
-      "global": 5,
+      "global": 6,
       "unknown": 1
     }
   },
@@ -74,6 +74,15 @@
       "status": "staged",
       "title": "Phase138 test compiled note aitp-cli-e2e-nna0xm3v",
       "path": "canonical/staging/entries/demo-topic-workflow-draft-aed07b94.json",
+      "authoritative": false
+    },
+    {
+      "entry_id": "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+      "topic_slug": "global",
+      "entry_kind": "negative_result",
+      "status": "staged",
+      "title": "HS model OTOC Lyapunov exponent: regime mismatch",
+      "path": "canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json",
       "authoritative": false
     },
     {

@@ -1,7 +1,7 @@
 {
   "kind": "l2_workspace_memory_map",
   "compiler_version": 1,
-  "generated_at": "2026-04-11T19:14:59+08:00",
+  "generated_at": "2026-04-13T23:13:17+08:00",
   "source_contract_path": "canonical/L2_COMPILER_PROTOCOL.md",
   "inputs": {
     "index_path": "canonical/index.jsonl",
@@ -10,13 +10,14 @@
     "scan_mode": "filesystem_fallback_plus_declared_canonical_inputs"
   },
   "summary": {
-    "total_units": 10,
+    "total_units": 11,
     "unit_types_present": [
       "bridge",
       "claim_card",
       "concept",
       "method",
       "physical_picture",
+      "proof_fragment",
       "topic_skill_projection",
       "validation_pattern",
       "warning_note",
@@ -189,6 +190,33 @@
             "physical-picture",
             "weak-coupling",
             "benchmark-first"
+          ],
+          "promotion_route": "L3->L4->L2"
+        }
+      ]
+    },
+    {
+      "unit_type": "proof_fragment",
+      "count": 1,
+      "units": [
+        {
+          "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+          "unit_type": "proof_fragment",
+          "title": "Jones codRestrict + subtype composition construction recipe",
+          "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+          "path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+          "updated_at": "2026-04-12T19:22:16+00:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [],
+          "tags": [
+            "lean",
+            "proof-engineering",
+            "jones2015",
+            "codrestrict",
+            "submodule",
+            "support-projection"
           ],
           "promotion_route": "L3->L4->L2"
         }
@@ -487,7 +515,7 @@
         "equivalence_map",
         "warning_note"
       ],
-      "available_count": 6,
+      "available_count": 7,
       "units": [
         {
           "unit_id": "bridge:tfim-toy-model-code-method-bridge",
@@ -559,6 +587,27 @@
             "physical-picture",
             "weak-coupling",
             "benchmark-first"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+          "unit_type": "proof_fragment",
+          "title": "Jones codRestrict + subtype composition construction recipe",
+          "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+          "path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+          "updated_at": "2026-04-12T19:22:16+00:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [],
+          "tags": [
+            "lean",
+            "proof-engineering",
+            "jones2015",
+            "codrestrict",
+            "submodule",
+            "support-projection"
           ],
           "promotion_route": "L3->L4->L2"
         },
@@ -653,7 +702,7 @@
         "concept",
         "derivation_object"
       ],
-      "available_count": 7,
+      "available_count": 8,
       "units": [
         {
           "unit_id": "claim_card:tfim-benchmark-before-portability-claim",
@@ -743,6 +792,27 @@
             "physical-picture",
             "weak-coupling",
             "benchmark-first"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+          "unit_type": "proof_fragment",
+          "title": "Jones codRestrict + subtype composition construction recipe",
+          "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+          "path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+          "updated_at": "2026-04-12T19:22:16+00:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [],
+          "tags": [
+            "lean",
+            "proof-engineering",
+            "jones2015",
+            "codrestrict",
+            "submodule",
+            "support-projection"
           ],
           "promotion_route": "L3->L4->L2"
         },
@@ -1011,6 +1081,6 @@
     },
     "units_with_dependencies": 8,
     "units_with_related_links": 10,
-    "units_without_links": 0
+    "units_without_links": 1
   }
 }

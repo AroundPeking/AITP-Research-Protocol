@@ -1,20 +1,20 @@
 {
   "kind": "l2_workspace_knowledge_report",
   "compiler_version": 1,
-  "generated_at": "2026-04-11T19:14:59+08:00",
+  "generated_at": "2026-04-13T23:13:17+08:00",
   "source_contract_path": "canonical/L2_COMPILER_PROTOCOL.md",
   "authority_rule": "This report is compiled and non-authoritative. Canonical L2 remains the source of truth; staging content stays explicitly provisional.",
   "summary": {
-    "total_rows": 22,
-    "canonical_row_count": 10,
-    "staging_row_count": 12,
+    "total_rows": 24,
+    "canonical_row_count": 11,
+    "staging_row_count": 13,
     "provisional_row_count": 7,
-    "contradiction_row_count": 5
+    "contradiction_row_count": 6
   },
   "change_summary": {
     "previous_report_found": true,
-    "added_count": 1,
-    "updated_count": 0,
+    "added_count": 2,
+    "updated_count": 1,
     "unchanged_count": 21,
     "removed_count": 0,
     "removed_rows": []
@@ -73,10 +73,17 @@
       "title": "Weak-coupling TFIM picture",
       "summary": "Use the bounded TFIM benchmark as weak-coupling route intuition only, not as a final theory claim.",
       "authority_level": "non_authoritative_staging",
-      "path": ""
+      "path": "canonical/staging/entries/staging--weak-coupling-tfim-picture.json"
     }
   ],
   "contradiction_rows": [
+    {
+      "knowledge_id": "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+      "title": "HS model OTOC Lyapunov exponent: regime mismatch",
+      "summary": "The Haldane-Shastry model does NOT exhibit a well-defined OTOC-based quantum Lyapunov exponent at finite N. The HS model is integrable, OTOC growth is power-law not exponential, and the MSS chaos bound does not apply.",
+      "authority_level": "non_authoritative_staging",
+      "path": "canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json"
+    },
     {
       "knowledge_id": "staging:knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem",
       "title": "Knowledge report contradiction aitp-l2-knowledge-report-acceptance-wmv5fkem",
@@ -173,6 +180,29 @@
       ],
       "change_fingerprint": "20d1624e7fc89337aee487fe0d808fef5f9e5f7b",
       "change_status": "unchanged"
+    },
+    {
+      "knowledge_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+      "title": "Jones codRestrict + subtype composition construction recipe",
+      "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+      "source_surface": "canonical_l2",
+      "authority_level": "authoritative_canonical",
+      "knowledge_state": "trusted",
+      "path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+      "updated_at": "2026-04-12T19:22:16+00:00",
+      "provenance_refs": [
+        "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json"
+      ],
+      "tags": [
+        "lean",
+        "proof-engineering",
+        "jones2015",
+        "codrestrict",
+        "submodule",
+        "support-projection"
+      ],
+      "change_fingerprint": "18ab2b310d5fe3f7162b3f15a2fba1ee8328f068",
+      "change_status": "added"
     },
     {
       "knowledge_id": "concept:tfim-transverse-field-ising-model",
@@ -317,6 +347,23 @@
       "change_status": "unchanged"
     },
     {
+      "knowledge_id": "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+      "title": "HS model OTOC Lyapunov exponent: regime mismatch",
+      "summary": "The Haldane-Shastry model does NOT exhibit a well-defined OTOC-based quantum Lyapunov exponent at finite N. The HS model is integrable, OTOC growth is power-law not exponential, and the MSS chaos bound does not apply.",
+      "source_surface": "staging_l2",
+      "authority_level": "non_authoritative_staging",
+      "knowledge_state": "contradiction_watch",
+      "path": "canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json",
+      "updated_at": "2026-04-13T23:12:38+08:00",
+      "topic_slug": "global",
+      "provenance_refs": [
+        "canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json"
+      ],
+      "tags": [],
+      "change_fingerprint": "7fc74298047bb39ed5efcc5677c5629b3fd9e424",
+      "change_status": "added"
+    },
+    {
       "knowledge_id": "staging:knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem",
       "title": "Knowledge report contradiction aitp-l2-knowledge-report-acceptance-wmv5fkem",
       "summary": "The provisional benchmark route failed outside the bounded regime.",
@@ -365,7 +412,7 @@
       ],
       "tags": [],
       "change_fingerprint": "aebee93db77237f2704d7492b098b2f32795fd8e",
-      "change_status": "added"
+      "change_status": "unchanged"
     },
     {
       "knowledge_id": "staging:phase138-test-contradiction-aitp-cli-e2e-nna0xm3v",
@@ -510,19 +557,19 @@
       "source_surface": "staging_l2",
       "authority_level": "non_authoritative_staging",
       "knowledge_state": "provisional",
-      "path": "",
+      "path": "canonical/staging/entries/staging--weak-coupling-tfim-picture.json",
       "updated_at": "2026-04-08T06:57:25+00:00",
       "topic_slug": "",
       "provenance_refs": [
-        ""
+        "canonical/staging/entries/staging--weak-coupling-tfim-picture.json"
       ],
       "tags": [
         "tfim",
         "physical-picture",
         "weak-coupling"
       ],
-      "change_fingerprint": "c43bfdb4b28a21ebc2bd7fe9a376ffcd7567f8e4",
-      "change_status": "unchanged"
+      "change_fingerprint": "d2e9d6c3af5da0b75618a9bf5e204be114b1c36b",
+      "change_status": "updated"
     }
   ]
 }
