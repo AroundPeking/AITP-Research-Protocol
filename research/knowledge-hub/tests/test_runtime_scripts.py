@@ -2034,6 +2034,34 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue((work_root / "knowledge-hub" / "canonical" / "claim-cards" / "claim_card--hs-like-chaos-window-finite-size-core.json").exists())
         self.assertTrue((work_root / "knowledge-hub" / "canonical" / "staging" / "entries" / "staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json").exists())
 
+    def test_librpa_qsgw_target_contract_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_librpa_qsgw_target_contract_acceptance_test",
+            "runtime/scripts/run_librpa_qsgw_target_contract_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "lqtc"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_librpa_qsgw_target_contract_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        runtime_topics_root = work_root / "knowledge-hub" / "runtime" / "topics"
+        source_topics_root = work_root / "knowledge-hub" / "source-layer" / "topics"
+        feedback_root = work_root / "knowledge-hub" / "feedback" / "topics"
+        self.assertTrue(runtime_topics_root.exists())
+        self.assertTrue(source_topics_root.exists())
+        self.assertTrue(any(runtime_topics_root.glob("*/librpa_qsgw_target_contract.json")))
+        self.assertTrue(any(source_topics_root.glob("*/source_index.jsonl")))
+        self.assertTrue(any(feedback_root.glob("*/runs/*/candidate_ledger.jsonl")))
+
     def test_l1_progressive_reading_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "l1-progressive-reading-acceptance"
         with patch.object(

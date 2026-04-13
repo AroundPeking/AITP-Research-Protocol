@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.99
 milestone_name: LibRPA QSGW Positive L0 To L2 Closure
 status: milestone_active
-stopped_at: "Milestone v1.99 started; Phase 173 next"
-last_updated: "2026-04-14T03:30:00+08:00"
+stopped_at: "Phase 173 complete; Phase 173.1 next"
+last_updated: "2026-04-14T03:45:00+08:00"
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State
@@ -36,10 +36,13 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 - active milestone: `v1.99` `LibRPA QSGW Positive L0 To L2 Closure`
 - latest closed milestone: `v1.98` `Toy Model Positive L0 To L2 Closure`
 - previous closed milestone: `v1.97` `First Positive L0 To L2 Closure`
-- the remaining unclosed user-requested lane is the `LibRPA QSGW`
-  first-principles / code-method route
-- immediate next step: start Phase `173` by choosing one bounded QSGW target
-  and its benchmark / convergence / trust contract
+- Phase `173` chose one bounded positive `LibRPA QSGW` target:
+  the deterministic-reduction thread-consistency core on the
+  `H2O/really_tight iter=10` reference workflow
+- the target is explicitly backed by code roots, validator surfaces, and the
+  existing OMP consistency engineering evidence
+- immediate next step: start Phase `173.1` and promote that bounded target
+  into authoritative canonical `L2`
 
 ## Accumulated Context
 

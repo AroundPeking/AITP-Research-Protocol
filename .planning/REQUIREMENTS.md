@@ -12,11 +12,11 @@ natural-language testing.
 
 ### Bounded QSGW Positive Closure
 
-- [ ] `REQ-QSGW-01`: one fresh `first_principles` topic enters through the
+- [x] `REQ-QSGW-01`: one fresh `first_principles` topic enters through the
   public front door and is narrowed to one bounded positive `LibRPA QSGW`
   target with explicit codebase, workflow, and provenance anchors.
 
-- [ ] `REQ-QSGW-02`: one explicit benchmark, convergence, or code-method trust
+- [x] `REQ-QSGW-02`: one explicit benchmark, convergence, or code-method trust
   contract proves the chosen `LibRPA QSGW` target is honest enough for
   promotion instead of being inferred from prose or hidden operator memory.
 
@@ -51,8 +51,8 @@ natural-language testing.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-QSGW-01 | Phase 173 | Pending |
-| REQ-QSGW-02 | Phase 173 | Pending |
+| REQ-QSGW-01 | Phase 173 | Done |
+| REQ-QSGW-02 | Phase 173 | Done |
 | REQ-QSGW-03 | Phase 173.1 | Pending |
 | REQ-QSGW-04 | Phase 173.1 / 173.2 | Pending |
 | REQ-QSGW-05 | Phase 173.2 | Pending |

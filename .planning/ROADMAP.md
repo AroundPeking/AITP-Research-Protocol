@@ -6,7 +6,7 @@ Milestone in progress.
 
 ## Phases
 
-- [ ] **Phase 173: LibRPA QSGW Bounded Target And Trust Contract** *(Axis 1 + Axis 2)*
+- [x] **Phase 173: LibRPA QSGW Bounded Target And Trust Contract** *(Axis 1 + Axis 2)*
 - [ ] **Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
 - [ ] **Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure** *(Axis 4 + Axis 5)*
 
@@ -23,7 +23,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 173.
+Start Phase 173.1.
 
 ### Phase 173: LibRPA QSGW Bounded Target And Trust Contract
 
@@ -51,7 +51,7 @@ claim.
 
 Plans:
 
-- [ ] `173-01` Choose one bounded `LibRPA QSGW` positive target and close its
+- [x] `173-01` Choose one bounded `LibRPA QSGW` positive target and close its
   codebase/workflow trust contract
 
 ### Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2
