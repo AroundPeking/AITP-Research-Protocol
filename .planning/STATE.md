@@ -1,25 +1,25 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.97
-milestone_name: First Positive L0 To L2 Closure
-status: between_milestones
-stopped_at: "Milestone v1.97 archived; waiting for next milestone definition"
-last_updated: "2026-04-14T02:20:00+08:00"
+milestone: v1.98
+milestone_name: Toy Model Positive L0 To L2 Closure
+status: milestone_active
+stopped_at: "Milestone v1.98 started; Phase 172 not started"
+last_updated: "2026-04-14T02:24:00+08:00"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 0
   total_plans: 3
-  completed_plans: 3
-  percent: 100
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.97` `First Positive L0 To L2 Closure` is archived. The
-repository is between milestones and waiting for the next milestone definition.
+Status: milestone `v1.98` `Toy Model Positive L0 To L2 Closure` is active.
+No phases have started yet.
 
 **Why this milestone exists:**
 
@@ -34,10 +34,10 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 
 ## Immediate Next Step
 
+- active milestone: `v1.98` `Toy Model Positive L0 To L2 Closure`
 - latest closed milestone: `v1.97` `First Positive L0 To L2 Closure`
-- archived audit: `.planning/v1.97-MILESTONE-AUDIT.md`
-- next milestone should widen from the closed formal-theory L2 baseline toward
-  the deferred `HS model` and `LibRPA QSGW` lanes
+- immediate next step: start Phase `172` and choose one bounded positive
+  `HS model` target plus its benchmark or convergence contract
 
 ## Accumulated Context
 

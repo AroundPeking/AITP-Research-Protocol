@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.98 Toy Model Positive L0 To L2 Closure (Active)
+
+**Phases completed:** 0 / 3 phases, 0 / 3 plans
+
+**Milestone goal:**
+
+- land one bounded positive `HS model` unit in canonical `L2`
+- close the positive toy-model lane with an explicit benchmark or convergence
+  contract before promotion
+- prove honest coexistence between the new positive `HS model` route and the
+  existing HS negative-result route
+- keep the deferred `LibRPA QSGW` first-principles lane explicit but out of
+  scope for this bounded step
+
+**Key accomplishments:**
+
+- (milestone in progress)
+
+---
+
 ## v1.97 First Positive L0 To L2 Closure (Shipped: 2026-04-14)
 
 **Phases completed:** 3 / 3 phases, 3 / 3 plans

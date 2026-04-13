@@ -81,11 +81,34 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: none
+- Active milestone: `v1.98` `Toy Model Positive L0 To L2 Closure`
 - Latest closed milestone: `v1.97` `First Positive L0 To L2 Closure`
-- Next boundary: define the next widening milestone around the deferred
-  `HS model` toy-model lane and `LibRPA QSGW` first-principles / code-method
-  lane on top of the stronger L2 baseline
+- Next boundary: close one bounded positive `HS model` toy-model lane into
+  authoritative canonical `L2` before widening to the deferred `LibRPA QSGW`
+  first-principles / code-method lane
+
+## Current Milestone: v1.98 Toy Model Positive L0 To L2 Closure
+
+**Goal:** carry one bounded positive `HS model` toy-model result from the
+public AITP front door into authoritative canonical `L2`, then prove it can
+coexist honestly with the already-shipped HS negative-result route.
+
+**Target features:**
+- one bounded positive `HS model` target is chosen honestly and kept distinct
+  from the already-proven negative OTOC mismatch route
+- one convergence / benchmark contract proves that target is numerically or
+  theoretically trustworthy enough for promotion
+- one authoritative positive toy-model unit lands in canonical `L2`
+- compiled L2 and `consult-l2` expose that positive unit while keeping the
+  existing HS negative-result route explicit
+
+**Key context:**
+- `v1.97` closed the first trustworthy formal-theory positive-L2 baseline
+- the next bounded widening step should stay within the user-requested
+  `HS model` toy-model lane instead of opening both deferred lanes at once
+- the existing HS negative-result route gives this milestone a real built-in
+  coexistence and honesty check
+
 ## Latest Closed Milestone: v1.97 First Positive L0 To L2 Closure
 
 **Goal:** land one fresh positive authoritative unit in canonical `L2` through
@@ -897,4 +920,4 @@ QSGW` lanes instead of re-litigating whether AITP already has a trustworthy
 positive canonical-L2 path.
 
 ---
-*Last updated: 2026-04-14 after completing milestone v1.97*
+*Last updated: 2026-04-14 after starting milestone v1.98*
