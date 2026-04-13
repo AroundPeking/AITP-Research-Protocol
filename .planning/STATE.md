@@ -1,23 +1,24 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.99
-milestone_name: LibRPA QSGW Positive L0 To L2 Closure
-status: milestone_complete
-last_updated: "2026-04-14T04:20:00+08:00"
+milestone: v2.0
+milestone_name: Three-Lane Real-Topic Natural-Language E2E
+status: milestone_active
+stopped_at: "Milestone v2.0 started; Phase 174 next"
+last_updated: "2026-04-14T04:30:00+08:00"
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 0
   total_plans: 3
-  completed_plans: 3
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.99` `LibRPA QSGW Positive L0 To L2 Closure` is complete
-and archived. The next step is opening the broad three-lane real-topic testing
-milestone.
+Status: milestone `v2.0` `Three-Lane Real-Topic Natural-Language E2E` is
+active. The next step is proving the three closed baselines through real
+natural-language dialogue.
 
 **Why this milestone exists:**
 
@@ -32,21 +33,13 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 
 ## Immediate Next Step
 
+- active milestone: `v2.0` `Three-Lane Real-Topic Natural-Language E2E`
 - latest closed milestone: `v1.99` `LibRPA QSGW Positive L0 To L2 Closure`
 - previous closed milestone: `v1.98` `Toy Model Positive L0 To L2 Closure`
 - older closed milestone: `v1.97` `First Positive L0 To L2 Closure`
-- Phase `173` chose one bounded positive `LibRPA QSGW` target:
-  the deterministic-reduction thread-consistency core on the
-  `H2O/really_tight iter=10` reference workflow
-
-- Phase `173.1` promoted that bounded target into authoritative canonical `L2`
-  as `claim:librpa-qsgw-deterministic-reduction-consistency-core`
-
-- Phase `173.2` replayed the positive `LibRPA QSGW` proof and made the
-  three-lane convergence baseline explicit
-
-- immediate next step: start the three-lane real-topic natural-language
-  dialogue milestone
+- the three bounded positive baselines are now closed
+- immediate next step: start Phase `174` and run the formal-theory real-topic
+  natural-language dialogue proof
 
 ## Accumulated Context
 

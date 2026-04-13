@@ -1,61 +1,56 @@
-# Requirements: v1.99 LibRPA QSGW Positive L0 To L2 Closure
+# Requirements: v2.0 Three-Lane Real-Topic Natural-Language E2E
 
 ## Milestone Goal
 
-Prove that one bounded positive `LibRPA QSGW` first-principles / code-method
-lane can travel from the public AITP front door through explicit codebase and
-benchmark trust gating into one authoritative unit in canonical `L2`, while
-making the three requested research directions ready for broader real-topic
-natural-language testing.
+Prove that the public AITP front door can steer all three closed research
+directions through real natural-language dialogue honestly, without hidden
+seed state, while leaving a cross-lane comparative report of what is truly
+ready and what still blocks broader deployment.
 
 ## Active Requirements
 
-### Bounded QSGW Positive Closure
+### Lane-Specific Dialogue Proofs
 
-- [x] `REQ-QSGW-01`: one fresh `first_principles` topic enters through the
-  public front door and is narrowed to one bounded positive `LibRPA QSGW`
-  target with explicit codebase, workflow, and provenance anchors.
+- [ ] `REQ-E2E-01`: one real natural-language dialogue run proves the
+  formal-theory baseline can be entered through the public front door and stay
+  aligned with its bounded positive authoritative-L2 route.
 
-- [x] `REQ-QSGW-02`: one explicit benchmark, convergence, or code-method trust
-  contract proves the chosen `LibRPA QSGW` target is honest enough for
-  promotion instead of being inferred from prose or hidden operator memory.
+- [ ] `REQ-E2E-02`: one real natural-language dialogue run proves the
+  toy-model baseline can be entered through the public front door and stay
+  aligned with its bounded positive authoritative-L2 route.
 
-- [x] `REQ-QSGW-03`: the bounded positive `LibRPA QSGW` target promotes one
-  authoritative unit into canonical `L2` with durable backend and repo-local
-  receipts.
+- [ ] `REQ-E2E-03`: one real natural-language dialogue run proves the
+  first-principles / code-method baseline can be entered through the public
+  front door and stay aligned with its bounded positive authoritative-L2 route.
 
-### Replay And Three-Lane Convergence
+### Cross-Lane Comparison
 
-- [x] `REQ-QSGW-04`: compiled `L2` and `consult-l2` expose the promoted QSGW
-  unit with codebase/workflow provenance intact and without flattening it into
-  generic toy-model or formal-theory memory.
+- [ ] `REQ-E2E-04`: the milestone closes with a comparative report showing
+  where the three dialogue runs succeed honestly, where they still require
+  bounded operator intervention, and where hidden-seed assumptions were
+  removed or still remain.
 
-- [x] `REQ-QSGW-05`: the milestone closes with one replayable acceptance lane
-  for the positive `LibRPA QSGW` route plus explicit convergence notes for the
-  formal-theory, toy-model, and first-principles baselines.
-
-## Future Requirements
-
-- `REQ-REALTEST-01`: run broad real-topic natural-language dialogue tests
-  across all three closed baselines after the bounded `LibRPA QSGW` lane lands.
+- [ ] `REQ-E2E-05`: the milestone leaves explicit next routing for any
+  remaining blockers discovered during the three dialogue runs, rather than
+  leaving them in chat memory.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Closing every `LibRPA` workflow in one milestone | `v1.99` stays bounded to one honest QSGW positive route first |
-| Reopening the already-closed formal or bounded HS toy-model baselines | those lanes now serve as baselines, not active closure targets |
-| Broad multi-topic first-principles benchmarking | keep the milestone tied to one bounded `LibRPA QSGW` target |
+| Reopening bounded positive-L2 closure for any of the three lanes | `v2.0` assumes the baseline closures from `v1.97`–`v1.99` remain the current truth |
+| Broad multi-topic benchmark expansion during dialogue testing | keep the milestone tied to one real dialogue proof per lane |
+| Production deployment claims | this milestone measures honest E2E readiness, not product launch readiness |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-QSGW-01 | Phase 173 | Done |
-| REQ-QSGW-02 | Phase 173 | Done |
-| REQ-QSGW-03 | Phase 173.1 | Done |
-| REQ-QSGW-04 | Phase 173.1 / 173.2 | Done |
-| REQ-QSGW-05 | Phase 173.2 | Done |
+| REQ-E2E-01 | Phase 174 | Pending |
+| REQ-E2E-02 | Phase 174.1 | Pending |
+| REQ-E2E-03 | Phase 174.2 | Pending |
+| REQ-E2E-04 | Phase 174.2 | Pending |
+| REQ-E2E-05 | Phase 174.2 | Pending |
 
 **Coverage:**
 - v1 requirements: 5 total

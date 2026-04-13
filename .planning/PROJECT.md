@@ -81,9 +81,32 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
+- Active milestone: `v2.0` `Three-Lane Real-Topic Natural-Language E2E`
 - Latest closed milestone: `v1.99` `LibRPA QSGW Positive L0 To L2 Closure`
 - Next boundary: run broad real-topic natural-language dialogue tests across
   the three closed baselines
+
+## Current Milestone: v2.0 Three-Lane Real-Topic Natural-Language E2E
+
+**Goal:** prove that the public AITP front door can steer all three closed
+research directions through real natural-language dialogue without hidden seed
+artifacts or authority drift.
+
+**Target features:**
+- one real natural-language dialogue proof for the formal-theory baseline
+- one real natural-language dialogue proof for the toy-model baseline
+- one real natural-language dialogue proof for the first-principles /
+  code-method baseline
+- one cross-lane comparative report of where the front door is truly ready and
+  where bounded blockers remain
+
+**Key context:**
+- `v1.97` closed the first trustworthy formal-theory positive-L2 baseline
+- `v1.98` closed the bounded HS toy-model positive-L2 baseline
+- `v1.99` closed the bounded `LibRPA QSGW` first-principles / code-method
+  positive-L2 baseline
+- the next frontier is not another bounded lane closure; it is cross-lane
+  real-topic natural-language testing
 
 ## Latest Closed Milestone: v1.99 LibRPA QSGW Positive L0 To L2 Closure
 

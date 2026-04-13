@@ -1,5 +1,24 @@
 # Milestones
 
+## v2.0 Three-Lane Real-Topic Natural-Language E2E (Active)
+
+**Phases completed:** 0 / 3 phases, 0 / 3 plans
+
+**Milestone goal:**
+
+- run real natural-language dialogue tests against the closed formal-theory,
+  toy-model, and first-principles baselines
+- prove the public AITP front door can steer each lane honestly without hidden
+  seed state
+- close with a cross-lane comparative report of success boundaries, remaining
+  blockers, and next widening decisions
+
+**Key accomplishments:**
+
+- (milestone in progress)
+
+---
+
 ## v1.99 LibRPA QSGW Positive L0 To L2 Closure (Shipped: 2026-04-14)
 
 **Phases completed:** 3 / 3 phases, 3 / 3 plans

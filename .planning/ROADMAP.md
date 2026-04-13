@@ -1,4 +1,4 @@
-# Roadmap: v1.99 LibRPA QSGW Positive L0 To L2 Closure
+# Roadmap: v2.0 Three-Lane Real-Topic Natural-Language E2E
 
 ## Result
 
@@ -6,106 +6,76 @@ Milestone in progress.
 
 ## Phases
 
-- [x] **Phase 173: LibRPA QSGW Bounded Target And Trust Contract** *(Axis 1 + Axis 2)*
-- [x] **Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
-- [x] **Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure** *(Axis 4 + Axis 5)*
+- [ ] **Phase 174: Formal-Theory Real-Topic Natural-Language Dialogue Proof** *(Axis 2 + Axis 5)*
+- [ ] **Phase 174.1: Toy-Model Real-Topic Natural-Language Dialogue Proof** *(Axis 2 + Axis 5)*
+- [ ] **Phase 174.2: First-Principles Real-Topic Natural-Language Dialogue Proof And Cross-Lane Report** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
-- one fresh public-front-door `first_principles` topic lands one bounded
-  positive `LibRPA QSGW` unit in canonical `L2`
-- one explicit codebase, workflow, and benchmark/convergence contract proves
-  that bounded target is honest enough for promotion
-- compiled `L2` and `consult-l2` expose the positive `LibRPA QSGW` landing
-  with provenance intact
-- the milestone closes with replay receipts and explicit convergence notes for
-  the formal-theory, toy-model, and first-principles baselines
+- one real natural-language dialogue proof closes the formal-theory baseline
+- one real natural-language dialogue proof closes the toy-model baseline
+- one real natural-language dialogue proof closes the first-principles /
+  code-method baseline
+- the milestone ends with one cross-lane comparative report of readiness,
+  bounded blockers, and next widening decisions
 
 ## Next Step
 
-Run milestone lifecycle: audit, complete, and archive `v1.99`.
+Start Phase 174.
 
-### Phase 173: LibRPA QSGW Bounded Target And Trust Contract
+### Phase 174: Formal-Theory Real-Topic Natural-Language Dialogue Proof
 
-**Axis:** Axis 1 (layer capability) + Axis 2 (inter-layer connection)
+**Axis:** Axis 2 (inter-layer connection) + Axis 5 (agent-facing steering)
 
-**Goal:** choose one bounded positive `LibRPA QSGW` target and prove it has an
-honest codebase/workflow trust contract before any authoritative-L2 promotion
-claim.
-
-**Motivation:**
-
-- the formal and toy-model baselines are now closed, so the remaining
-  user-requested lane is the first-principles / large-codebase route
-- `LibRPA QSGW` is the most concrete bounded target already named by the user
-- the next step must pin one positive route instead of vaguely ingesting a
-  whole codebase without a promotion target
+**Goal:** prove the public AITP front door can steer the closed formal-theory
+baseline through a real natural-language dialogue without hidden seed state.
 
 **Requirements:**
 
-- `REQ-QSGW-01`
-- `REQ-QSGW-02`
+- `REQ-E2E-01`
 
-**Depends on:** `v1.98`
+**Depends on:** `v1.99`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `173-01` Choose one bounded `LibRPA QSGW` positive target and close its
-  codebase/workflow trust contract
+- [ ] `174-01` Run one real natural-language dialogue proof for the formal-theory baseline
 
-### Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2
+### Phase 174.1: Toy-Model Real-Topic Natural-Language Dialogue Proof
 
-**Axis:** Axis 2 (inter-layer connection) + Axis 4 (human evidence)
+**Axis:** Axis 2 (inter-layer connection) + Axis 5 (agent-facing steering)
 
-**Goal:** carry the trust-gated positive `LibRPA QSGW` target from the public
-front door to one authoritative canonical `L2` unit.
-
-**Motivation:**
-
-- bounded codebase trust without promotion still leaves the third user
-  research direction short of an authoritative-L2 closure
-- the formal and toy-model lanes now prove the architecture can do this in
-  other scientific regimes; the first-principles lane must now prove it on
-  real code/workflow material
+**Goal:** prove the public AITP front door can steer the closed toy-model
+baseline through a real natural-language dialogue without hidden seed state.
 
 **Requirements:**
 
-- `REQ-QSGW-03`
-- `REQ-QSGW-04`
+- `REQ-E2E-02`
 
-**Depends on:** Phase `173`
+**Depends on:** Phase `174`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `173.1-01` Promote one bounded positive `LibRPA QSGW` unit into
-  authoritative canonical `L2` and prove compiled/read-path parity
+- [ ] `174.1-01` Run one real natural-language dialogue proof for the toy-model baseline
 
-### Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure
+### Phase 174.2: First-Principles Real-Topic Natural-Language Dialogue Proof And Cross-Lane Report
 
 **Axis:** Axis 4 (human evidence) + Axis 5 (agent-facing roadmap clarity)
 
-**Goal:** close the positive `LibRPA QSGW` proof with replay receipts and make
-the three requested research directions explicit as a new convergence baseline
-for later real-topic natural-language testing.
-
-**Motivation:**
-
-- the third lane should close more strongly than bootstrap-only or chat-only
-  claims
-- once the QSGW lane is closed, AITP has bounded positive baselines in all
-  three user-requested research directions
+**Goal:** prove the public AITP front door can steer the closed
+first-principles baseline through a real natural-language dialogue, then write
+the cross-lane comparative report.
 
 **Requirements:**
 
-- `REQ-QSGW-04`
-- `REQ-QSGW-05`
+- `REQ-E2E-03`
+- `REQ-E2E-04`
+- `REQ-E2E-05`
 
-**Depends on:** Phase `173.1`
+**Depends on:** Phase `174.1`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `173.2-01` Replay the positive `LibRPA QSGW` proof and write the
-  three-lane convergence closure
+- [ ] `174.2-01` Run the first-principles dialogue proof and write the cross-lane comparative report
