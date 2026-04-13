@@ -1917,6 +1917,33 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "validation_review_bundle.active.md").exists())
         self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
 
+    def test_formal_positive_l2_acceptance_parser_supports_fresh_topic_inputs(self) -> None:
+        module = _load_module(
+            "aitp_formal_positive_l2_acceptance_test",
+            "runtime/scripts/run_formal_positive_l2_acceptance.py",
+        )
+
+        parser = module.build_parser()
+        args = parser.parse_args(
+            [
+                "--topic",
+                "Fresh Jones finite-dimensional factor closure",
+                "--question",
+                "Promote one bounded Jones finite-dimensional factor result into authoritative L2.",
+                "--reference-topic-slug",
+                "jones-von-neumann-algebras",
+                "--json",
+            ]
+        )
+
+        self.assertEqual(args.topic, "Fresh Jones finite-dimensional factor closure")
+        self.assertEqual(
+            args.question,
+            "Promote one bounded Jones finite-dimensional factor result into authoritative L2.",
+        )
+        self.assertEqual(args.reference_topic_slug, "jones-von-neumann-algebras")
+        self.assertTrue(args.json)
+
     def test_l1_progressive_reading_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "l1-progressive-reading-acceptance"
         with patch.object(

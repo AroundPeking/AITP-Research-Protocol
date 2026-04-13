@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import datetime, timedelta
@@ -35,6 +36,16 @@ def _slugify(text: str) -> str:
     lowered = re.sub(r"[^a-z0-9]+", "-", lowered)
     lowered = re.sub(r"-+", "-", lowered).strip("-")
     return lowered or "aitp-topic"
+
+
+def _fragment_file_stem(fragment_id: str, *, max_length: int = 72) -> str:
+    slug = _slugify(fragment_id)
+    if len(slug) <= max_length:
+        return slug
+    digest = hashlib.sha1(fragment_id.encode("utf-8")).hexdigest()[:12]
+    prefix_length = max_length - len(digest) - 1
+    prefix = slug[:prefix_length].rstrip("-")
+    return f"{prefix}-{digest}" if prefix else digest
 
 
 def _parse_datetime(value: Any) -> datetime | None:
@@ -168,8 +179,9 @@ def _build_notation_fragment(
     binding_preview = "; ".join(f"{row['symbol']} = {row['meaning']}" for row in bindings[:4])
     fragment_id = f"theory-context:notation:{_slugify(topic_slug)}:{_slugify(candidate_id)}"
     fragment_root = service._runtime_root(topic_slug) / "context_fragments"
-    note_path = fragment_root / f"{_slugify(fragment_id)}.md"
-    json_path = fragment_root / f"{_slugify(fragment_id)}.json"
+    fragment_stem = _fragment_file_stem(fragment_id)
+    note_path = fragment_root / f"{fragment_stem}.md"
+    json_path = fragment_root / f"{fragment_stem}.json"
     source_paths = [_relativize(service, notation_table_path)]
     payload = {
         "fragment_id": fragment_id,
@@ -233,8 +245,9 @@ def _build_prerequisite_fragment(
 
     fragment_id = f"theory-context:prerequisite:{_slugify(topic_slug)}:{_slugify(candidate_id)}"
     fragment_root = service._runtime_root(topic_slug) / "context_fragments"
-    note_path = fragment_root / f"{_slugify(fragment_id)}.md"
-    json_path = fragment_root / f"{_slugify(fragment_id)}.json"
+    fragment_stem = _fragment_file_stem(fragment_id)
+    note_path = fragment_root / f"{fragment_stem}.md"
+    json_path = fragment_root / f"{fragment_stem}.json"
     source_paths = _dedupe_strings(
         [
             _relativize(service, formal_theory_review_path) if formal_theory_review_path.exists() else "",
@@ -305,8 +318,9 @@ def _build_l2_fragment(
 
     fragment_id = f"theory-context:l2:{_slugify(topic_slug)}"
     fragment_root = service._runtime_root(topic_slug) / "context_fragments"
-    note_path = fragment_root / f"{_slugify(fragment_id)}.md"
-    json_path = fragment_root / f"{_slugify(fragment_id)}.json"
+    fragment_stem = _fragment_file_stem(fragment_id)
+    note_path = fragment_root / f"{fragment_stem}.md"
+    json_path = fragment_root / f"{fragment_stem}.json"
     source_paths = _dedupe_strings([projection_json_path, projection_note_path])
     required_first_routes = _dedupe_strings(list(topic_skill_projection.get("required_first_routes") or []))
     summary = (
