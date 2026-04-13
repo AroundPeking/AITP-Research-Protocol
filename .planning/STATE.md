@@ -1,22 +1,24 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.98
-milestone_name: Toy Model Positive L0 To L2 Closure
-status: milestone_complete
-last_updated: "2026-04-14T03:20:00+08:00"
+milestone: v1.99
+milestone_name: LibRPA QSGW Positive L0 To L2 Closure
+status: milestone_active
+stopped_at: "Milestone v1.99 started; Phase 173 next"
+last_updated: "2026-04-14T03:30:00+08:00"
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 0
   total_plans: 3
-  completed_plans: 3
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.98` `Toy Model Positive L0 To L2 Closure` is complete and
-archived. The next step is opening the next milestone.
+Status: milestone `v1.99` `LibRPA QSGW Positive L0 To L2 Closure` is active.
+Requirements and roadmap are being reset around the remaining
+first-principles / code-method lane.
 
 **Why this milestone exists:**
 
@@ -31,20 +33,13 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 
 ## Immediate Next Step
 
+- active milestone: `v1.99` `LibRPA QSGW Positive L0 To L2 Closure`
 - latest closed milestone: `v1.98` `Toy Model Positive L0 To L2 Closure`
 - previous closed milestone: `v1.97` `First Positive L0 To L2 Closure`
-- Phase `172` chose the benchmark-backed bounded positive target
-  `candidate:hs-chaos-window-finite-size-core` on a fresh `toy_model` topic
-  shell and kept exact HS `alpha = 2` as the explicit negative comparator
-
-- Phase `172.1` promoted that bounded target into authoritative canonical `L2`
-  as `claim:hs-like-chaos-window-finite-size-core`
-
-- Phase `172.2` replayed positive/negative coexistence and wrote explicit
-  carry-over notes for the deferred `LibRPA QSGW` lane
-
-- immediate next step: start the `LibRPA QSGW` first-principles /
-  code-method milestone
+- the remaining unclosed user-requested lane is the `LibRPA QSGW`
+  first-principles / code-method route
+- immediate next step: start Phase `173` by choosing one bounded QSGW target
+  and its benchmark / convergence / trust contract
 
 ## Accumulated Context
 

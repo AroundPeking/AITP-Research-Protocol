@@ -1,111 +1,111 @@
-# Roadmap: v1.98 Toy Model Positive L0 To L2 Closure
+# Roadmap: v1.99 LibRPA QSGW Positive L0 To L2 Closure
 
 ## Result
 
-All milestone phases are complete. Milestone lifecycle is next.
+Milestone in progress.
 
 ## Phases
 
-- [x] **Phase 172: HS Model Positive Target And Benchmark Contract** *(Axis 1 + Axis 2)*
-- [x] **Phase 172.1: HS Model Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
-- [x] **Phase 172.2: HS Positive Replay And HS Negative Coexistence Closure** *(Axis 4 + Axis 5)*
+- [ ] **Phase 173: LibRPA QSGW Bounded Target And Trust Contract** *(Axis 1 + Axis 2)*
+- [ ] **Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
+- [ ] **Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
-- one fresh public-front-door `toy_model` topic lands one bounded positive
-  `HS model` unit in canonical `L2`
-- one explicit benchmark or convergence contract proves the positive target is
-  honest enough for promotion
-- compiled L2 and `consult-l2` expose both the positive `HS model` landing and
-  the existing HS negative-result route without authority drift
-- the milestone closes with replay receipts and explicit carry-over routing for
-  the deferred `LibRPA QSGW` lane
+- one fresh public-front-door `first_principles` topic lands one bounded
+  positive `LibRPA QSGW` unit in canonical `L2`
+- one explicit codebase, workflow, and benchmark/convergence contract proves
+  that bounded target is honest enough for promotion
+- compiled `L2` and `consult-l2` expose the positive `LibRPA QSGW` landing
+  with provenance intact
+- the milestone closes with replay receipts and explicit convergence notes for
+  the formal-theory, toy-model, and first-principles baselines
 
 ## Next Step
 
-Run milestone lifecycle: audit, complete, and archive `v1.98`.
+Start Phase 173.
 
-### Phase 172: HS Model Positive Target And Benchmark Contract
+### Phase 173: LibRPA QSGW Bounded Target And Trust Contract
 
 **Axis:** Axis 1 (layer capability) + Axis 2 (inter-layer connection)
 
-**Goal:** choose one bounded positive `HS model` target and prove it has an
-honest benchmark, convergence, or analytic-trust contract before any L2
-promotion claim.
+**Goal:** choose one bounded positive `LibRPA QSGW` target and prove it has an
+honest codebase/workflow trust contract before any authoritative-L2 promotion
+claim.
 
 **Motivation:**
 
-- the existing HS route in `v1.96` is negative and physically honest, but not
-  a positive authoritative-L2 closure
-- `v1.97` now provides the stronger L2 baseline needed to widen into the
-  next mode
-- the next bounded step must distinguish a real positive `HS model` target
-  from the already-proven OTOC mismatch failure route
+- the formal and toy-model baselines are now closed, so the remaining
+  user-requested lane is the first-principles / large-codebase route
+- `LibRPA QSGW` is the most concrete bounded target already named by the user
+- the next step must pin one positive route instead of vaguely ingesting a
+  whole codebase without a promotion target
 
 **Requirements:**
 
-- `REQ-HS-01`
-- `REQ-HS-02`
+- `REQ-QSGW-01`
+- `REQ-QSGW-02`
 
-**Depends on:** `v1.97`
+**Depends on:** `v1.98`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `172-01` Choose one bounded positive HS-model target and close its
-  benchmark or convergence contract
+- [ ] `173-01` Choose one bounded `LibRPA QSGW` positive target and close its
+  codebase/workflow trust contract
 
-### Phase 172.1: HS Model Positive Promotion To Authoritative L2
+### Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2
 
 **Axis:** Axis 2 (inter-layer connection) + Axis 4 (human evidence)
 
-**Goal:** carry the benchmark-gated positive `HS model` target from the public
+**Goal:** carry the trust-gated positive `LibRPA QSGW` target from the public
 front door to one authoritative canonical `L2` unit.
 
 **Motivation:**
 
-- benchmark honesty without promotion still leaves the toy-model lane short of
-  the user-requested authoritative-L2 closure
-- the formal lane now proves the architecture can do this; the toy-model lane
-  must now prove it in its own scientific regime
+- bounded codebase trust without promotion still leaves the third user
+  research direction short of an authoritative-L2 closure
+- the formal and toy-model lanes now prove the architecture can do this in
+  other scientific regimes; the first-principles lane must now prove it on
+  real code/workflow material
 
 **Requirements:**
 
-- `REQ-HS-03`
-- `REQ-HS-04`
+- `REQ-QSGW-03`
+- `REQ-QSGW-04`
 
-**Depends on:** Phase `172`
+**Depends on:** Phase `173`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `172.1-01` Promote one bounded positive HS-model unit into authoritative
-  canonical `L2` and prove compiled/read-path parity
+- [ ] `173.1-01` Promote one bounded positive `LibRPA QSGW` unit into
+  authoritative canonical `L2` and prove compiled/read-path parity
 
-### Phase 172.2: HS Positive Replay And HS Negative Coexistence Closure
+### Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure
 
 **Axis:** Axis 4 (human evidence) + Axis 5 (agent-facing roadmap clarity)
 
-**Goal:** close the positive `HS model` proof with replay receipts and explicit
-coexistence against the already-shipped HS negative-result route, while
-routing the deferred `LibRPA QSGW` lane explicitly forward.
+**Goal:** close the positive `LibRPA QSGW` proof with replay receipts and make
+the three requested research directions explicit as a new convergence baseline
+for later real-topic natural-language testing.
 
 **Motivation:**
 
-- the toy-model lane should close more strongly than bootstrap-only or
-  chat-only claims
-- the existing HS negative-result route is the natural honesty check for the
-  positive widening work
+- the third lane should close more strongly than bootstrap-only or chat-only
+  claims
+- once the QSGW lane is closed, AITP has bounded positive baselines in all
+  three user-requested research directions
 
 **Requirements:**
 
-- `REQ-HS-04`
-- `REQ-HS-05`
+- `REQ-QSGW-04`
+- `REQ-QSGW-05`
 
-**Depends on:** Phase `172.1`
+**Depends on:** Phase `173.1`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `172.2-01` Replay the positive HS-model proof, prove coexistence with the
-  HS negative route, and route the deferred QSGW lane
+- [ ] `173.2-01` Replay the positive `LibRPA QSGW` proof and write the
+  three-lane convergence closure

@@ -1,60 +1,61 @@
-# Requirements: v1.98 Toy Model Positive L0 To L2 Closure
+# Requirements: v1.99 LibRPA QSGW Positive L0 To L2 Closure
 
 ## Milestone Goal
 
-Prove that one bounded positive `HS model` toy-model lane can travel from the
-public AITP front door through honest benchmark or convergence gating and land
-one authoritative unit in canonical `L2`, while remaining clearly separated
-from the already-shipped HS negative-result route.
+Prove that one bounded positive `LibRPA QSGW` first-principles / code-method
+lane can travel from the public AITP front door through explicit codebase and
+benchmark trust gating into one authoritative unit in canonical `L2`, while
+making the three requested research directions ready for broader real-topic
+natural-language testing.
 
 ## Active Requirements
 
-### Positive HS-Lane Closure
+### Bounded QSGW Positive Closure
 
-- [x] `REQ-HS-01`: one fresh `toy_model` topic enters through the public front
-  door and is narrowed to one bounded positive `HS model` target that is
-  distinct from the already-proven OTOC mismatch failure route.
+- [ ] `REQ-QSGW-01`: one fresh `first_principles` topic enters through the
+  public front door and is narrowed to one bounded positive `LibRPA QSGW`
+  target with explicit codebase, workflow, and provenance anchors.
 
-- [x] `REQ-HS-02`: one explicit convergence, benchmark, or analytic-trust
-  contract proves the chosen positive `HS model` target is honest enough for
-  promotion instead of being inferred from bootstrap or prose alone.
+- [ ] `REQ-QSGW-02`: one explicit benchmark, convergence, or code-method trust
+  contract proves the chosen `LibRPA QSGW` target is honest enough for
+  promotion instead of being inferred from prose or hidden operator memory.
 
-- [x] `REQ-HS-03`: the bounded positive `HS model` target promotes one
+- [ ] `REQ-QSGW-03`: the bounded positive `LibRPA QSGW` target promotes one
   authoritative unit into canonical `L2` with durable backend and repo-local
   receipts.
 
-### Coexistence And Replay
+### Replay And Three-Lane Convergence
 
-- [x] `REQ-HS-04`: compiled L2 and `consult-l2` preserve honest coexistence
-  between the new positive `HS model` unit and the existing HS negative-result
-  route without flattening authority or provenance.
+- [ ] `REQ-QSGW-04`: compiled `L2` and `consult-l2` expose the promoted QSGW
+  unit with codebase/workflow provenance intact and without flattening it into
+  generic toy-model or formal-theory memory.
 
-- [x] `REQ-HS-05`: the milestone closes with one replayable acceptance lane
-  for the positive `HS model` route plus explicit carry-over notes for the
-  deferred `LibRPA QSGW` first-principles / code-method lane.
+- [ ] `REQ-QSGW-05`: the milestone closes with one replayable acceptance lane
+  for the positive `LibRPA QSGW` route plus explicit convergence notes for the
+  formal-theory, toy-model, and first-principles baselines.
 
-## v2 Requirements
+## Future Requirements
 
-- `REQ-QSGW-01`: ingest the `LibRPA QSGW` codebase and route one bounded
-  first-principles / code-method positive lane into authoritative `L2`.
+- `REQ-REALTEST-01`: run broad real-topic natural-language dialogue tests
+  across all three closed baselines after the bounded `LibRPA QSGW` lane lands.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Closing `toy_model` and `first_principles` in the same milestone | `v1.98` stays bounded to one honest `HS model` positive route first |
-| Reopening the formal-theory Jones lane | `v1.97` already closed the formal positive baseline |
-| Broad multi-topic toy-model benchmarking | keep the milestone tied to one bounded `HS model` positive target |
+| Closing every `LibRPA` workflow in one milestone | `v1.99` stays bounded to one honest QSGW positive route first |
+| Reopening the already-closed formal or bounded HS toy-model baselines | those lanes now serve as baselines, not active closure targets |
+| Broad multi-topic first-principles benchmarking | keep the milestone tied to one bounded `LibRPA QSGW` target |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-HS-01 | Phase 172 | Done |
-| REQ-HS-02 | Phase 172 | Done |
-| REQ-HS-03 | Phase 172.1 | Done |
-| REQ-HS-04 | Phase 172.1 / 172.2 | Done |
-| REQ-HS-05 | Phase 172.2 | Done |
+| REQ-QSGW-01 | Phase 173 | Pending |
+| REQ-QSGW-02 | Phase 173 | Pending |
+| REQ-QSGW-03 | Phase 173.1 | Pending |
+| REQ-QSGW-04 | Phase 173.1 / 173.2 | Pending |
+| REQ-QSGW-05 | Phase 173.2 | Pending |
 
 **Coverage:**
 - v1 requirements: 5 total
