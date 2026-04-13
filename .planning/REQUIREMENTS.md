@@ -1,56 +1,54 @@
-# Requirements: v2.2 Fresh-Topic First-Use Reliability
+# Requirements: v2.3 Post-Registration Route Coherence
 
 ## Milestone Goal
 
-Make fresh-topic public entry reliable enough that a real new topic can be
-opened from natural language, register its first source on Windows without
-path failure, and surface honest `L0` status immediately after first-use
-actions.
+Make post-registration first-use routing coherent enough that, once the first
+source has landed, runtime state and next-action surfaces stop advertising the
+old L0 handoff and move onto the next bounded research step honestly.
 
 ## Active Requirements
 
-### Front Door Routing
+### Runtime State Coherence
 
-- [x] `FTF-01`: `aitp session-start "<natural-language request>"` recognizes
-  explicit new-topic intent and allocates a fresh topic instead of reopening
-  current-topic memory.
+- [ ] `PRC-01`: after first-source registration, runtime `topic_state`
+  counters and `layer_status.L0` reflect source presence instead of stale zero
+  or missing values.
 
-- [x] `FTF-02`: the new-topic route leaves durable routing evidence showing
-  why fresh-topic intent beat current-topic continuation fallback.
+- [ ] `PRC-02`: active-topic and current-topic projections stay aligned with
+  the refreshed post-registration runtime state.
 
-### Source Registration Reliability
+### Next-Action Reselection
 
-- [x] `FTF-03`: first-source registration survives long Windows topic slug +
-  paper-title combinations without requiring a manual `\\?\` path workaround.
+- [ ] `PRC-03`: once at least one source is present and no explicit L0 blocker
+  remains, `status`, `next`, runtime protocol, and dashboard surfaces no longer
+  point back to raw source-registration handoff text.
 
-- [x] `FTF-04`: after successful source registration, status-facing `L0`
-  counters and source presence are immediately coherent, or one explicit sync
-  step is enforced and reflected honestly.
+- [ ] `PRC-04`: the post-registration route change is driven by durable state
+  and bounded planner rules, not a hidden manual workaround.
 
-### Replayable First-Use Proof
+### Replayable Proof
 
-- [x] `FTF-05`: one replayable fresh real-topic acceptance lane proves
-  new-topic routing, first-source registration, and honest status coherence
-  from the public front door.
+- [ ] `PRC-05`: one replayable fresh first-use lane proves post-registration
+  runtime-state coherence and next-action reselection with durable receipts.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Reopening the bounded `L2` hardening slice from `v2.1` | treat `v2.1` as the current truth unless a fresh regression appears |
-| Broad benchmark-alignment schema overhaul (`999.87`–`999.92`) | still too wide for the immediate first-use reliability slice |
-| New authoritative scientific claims in formal, toy-model, or first-principles lanes | `v2.2` is about honest first-use routing and source-state coherence |
-| General retrieval redesign beyond first-use status and routing | keep the milestone bounded to fresh-topic entry reliability |
+| Reopening fresh-topic routing or Windows path overflow from `v2.2` | treat `v2.2` as the current baseline unless a fresh regression appears |
+| New scientific closure claims across formal, toy-model, or first-principles lanes | `v2.3` is still infrastructure-facing route coherence work |
+| Broad planner redesign beyond the first post-registration step | keep the milestone tied to the immediate first-use route transition |
+| Benchmark-alignment schema overhaul (`999.87`–`999.92`) | still too wide for this bounded repair |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FTF-01 | Phase 176 | Done |
-| FTF-02 | Phase 176 | Done |
-| FTF-03 | Phase 176.1 | Done |
-| FTF-04 | Phase 176.1 | Done |
-| FTF-05 | Phase 176.2 | Done |
+| PRC-01 | Phase 177 | Pending |
+| PRC-02 | Phase 177 | Pending |
+| PRC-03 | Phase 177.1 | Pending |
+| PRC-04 | Phase 177.1 | Pending |
+| PRC-05 | Phase 177.2 | Pending |
 
 **Coverage:**
 - v1 requirements: 5 total

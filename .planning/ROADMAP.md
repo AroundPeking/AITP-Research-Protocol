@@ -1,84 +1,81 @@
-# Roadmap: v2.2 Fresh-Topic First-Use Reliability
+# Roadmap: v2.3 Post-Registration Route Coherence
 
 ## Result
 
-Milestone phase work complete. Lifecycle closure is next.
+Milestone in progress.
 
 ## Phases
 
-- [x] **Phase 176: New-Topic Session-Start Routing Hardening** *(Axis 4 + Axis 5)*
-- [x] **Phase 176.1: Windows Source Registration Path And Status Coherence** *(Axis 1 + Axis 4)*
-- [x] **Phase 176.2: Fresh Real-Topic First-Use Replay Proof** *(Axis 4 + Axis 5)*
+- [ ] **Phase 177: Post-Registration Runtime State Coherence** *(Axis 1 + Axis 3)*
+- [ ] **Phase 177.1: Post-Registration Next-Action Reselection** *(Axis 2 + Axis 4)*
+- [ ] **Phase 177.2: Fresh First-Use Post-Registration Replay Proof** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
-- explicit natural-language "start a new topic" requests allocate fresh topics
-  instead of silently reopening stale current-topic memory
-- first-source registration on Windows survives long real-topic slugs and long
-  paper titles without non-credible operator workarounds
-- `aitp status` and related topic-state surfaces become coherent immediately
-  after first-source registration
-- the milestone ends with one replayable fresh real-topic first-use proof
-  package and explicit non-claims
+- runtime state and layer-status counters reflect first-source presence
+  immediately after registration
+- post-registration `status`, `next`, runtime protocol, and dashboard surfaces
+  move off the stale L0 source-handoff wording once a source already exists
+- the milestone ends with one replayable fresh first-use proof of the
+  post-registration route transition
 
 ## Next Step
 
-Run milestone audit / archive for `v2.2`.
+Start Phase 177.
 
-### Phase 176: New-Topic Session-Start Routing Hardening
+### Phase 177: Post-Registration Runtime State Coherence
 
-**Axis:** Axis 4 (human experience) + Axis 5 (agent-facing steering)
+**Axis:** Axis 1 (layer-internal optimization) + Axis 3 (data recording)
 
-**Goal:** make fresh natural-language topic-start requests reliably outrank
-stale current-topic continuation when the operator explicitly asks to begin a
-new research topic.
+**Goal:** make post-registration runtime state record first-source presence
+honestly so later route selection no longer reads stale zero-source or
+missing-L0 fields.
 
 **Requirements:**
 
-- `FTF-01`
-- `FTF-02`
+- `PRC-01`
+- `PRC-02`
 
-**Depends on:** `v2.1`
+**Depends on:** `v2.2`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `176-01` Fix fresh-topic intent routing so explicit new-topic requests do not reopen current topics
+- [ ] `177-01` Refresh runtime state and topic projections after first-source registration
 
-### Phase 176.1: Windows Source Registration Path And Status Coherence
+### Phase 177.1: Post-Registration Next-Action Reselection
 
-**Axis:** Axis 1 (layer-internal optimization) + Axis 4 (human experience)
+**Axis:** Axis 2 (inter-layer connection) + Axis 4 (human experience)
 
-**Goal:** make first-source registration survive long Windows paths and keep
-status-facing `L0` state coherent immediately after successful registration.
+**Goal:** make post-registration route selection move from the initial L0
+handoff into the next bounded research step once the first source has landed.
 
 **Requirements:**
 
-- `FTF-03`
-- `FTF-04`
+- `PRC-03`
+- `PRC-04`
 
-**Depends on:** Phase `176`
+**Depends on:** Phase `177`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `176.1-01` Shorten Windows source paths and synchronize status after registration
+- [ ] `177.1-01` Reselect bounded next actions after first-source registration
 
-### Phase 176.2: Fresh Real-Topic First-Use Replay Proof
+### Phase 177.2: Fresh First-Use Post-Registration Replay Proof
 
 **Axis:** Axis 4 (human evidence) + Axis 5 (agent-facing steering)
 
-**Goal:** replay one fresh real-topic first-use lane from natural-language
-topic start through first-source registration and honest status readback, then
-close with durable receipts and explicit non-claims.
+**Goal:** replay one fresh first-use lane and prove that registration now
+transitions into a non-stale post-registration route with durable receipts.
 
 **Requirements:**
 
-- `FTF-05`
+- `PRC-05`
 
-**Depends on:** Phase `176.1`
+**Depends on:** Phase `177.1`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `176.2-01` Replay a fresh real-topic first-use proof from session-start through first source registration
+- [ ] `177.2-01` Replay a fresh first-use lane through post-registration route transition

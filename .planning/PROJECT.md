@@ -78,45 +78,65 @@ The previously scoped GSD mainline is implemented through:
 - `v1.99`
 - `v2.0`
 - `v2.1`
+- `v2.2`
 
 That closes the current bounded chain through the first three-lane real-topic
 natural-language dialogue proof across formal, toy-model, and
-first-principles routes plus one fresh-topic `L2` hardening pass, but it still
-does **not** mean the broader AITP architecture is finished.
+first-principles routes plus fresh-topic `L2` hardening and first-use
+reliability passes, but it still does **not** mean the broader AITP
+architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v2.2` `Fresh-Topic First-Use Reliability`
-- Latest closed milestone: `v2.1` `L2 Real-Topic Relevance Hardening`
-- Next boundary: restore honest fresh-topic public-entry behavior from
-  `session-start` through first-source registration before wider real-topic
-  replay resumes
+- Active milestone: `v2.3` `Post-Registration Route Coherence`
+- Latest closed milestone: `v2.2` `Fresh-Topic First-Use Reliability`
+- Next boundary: make post-registration first-use route selection honest before
+  wider real-topic replay resumes
 
-## Current Milestone: v2.2 Fresh-Topic First-Use Reliability
+## Current Milestone: v2.3 Post-Registration Route Coherence
 
-**Goal:** make fresh-topic first use trustworthy enough that a new research
-request from natural language allocates the right topic, survives first-source
-registration on Windows, and surfaces honest `L0` status immediately.
+**Goal:** make the first post-registration transition trustworthy enough that,
+once a first source lands, runtime state and next-action surfaces move onto the
+right bounded follow-up step instead of repeating the old L0 source handoff.
 
 **Target features:**
-- make explicit "start a new topic / from scratch" requests outrank stale
-  current-topic continuation fallback
-- harden Windows source registration so long topic slugs and long paper titles
-  do not require manual path-prefix workarounds
-- make successful source registration update `aitp status` / topic-state `L0`
-  surfaces coherently
-- close with one replayable fresh real-topic first-use proof from session-start
-  through first-source registration
+- refresh runtime `topic_state` / `layer_status` source fields after
+  registration so they stop carrying stale zero-source state
+- reselect bounded next actions after first-source registration so `status`,
+  `next`, runtime protocol, and dashboard surfaces stop advertising raw
+  source-registration handoff text
+- close with one replayable first-use proof of the post-registration route
+  transition
 
 **Key context:**
-- `v2.1` closed the fresh-topic `L2` staging and consultation hardening slice
-- the same measurement-induced / observer-algebra run still exposed two
-  first-use blockers before broader real-topic replay can be trusted:
-  `session-start` misrouting and Windows source-registration friction
-- the next bottleneck is therefore fresh-topic first-use reliability, not
-  another immediate widening of scientific claims
+- `v2.2` closed fresh-topic entry and first-source registration reliability
+- the remaining bounded first-use gap is not source entry itself but route
+  coherence immediately after registration
+- the next bottleneck is therefore post-registration planner coherence, not a
+  broader scientific-widening claim
 
-## Latest Closed Milestone: v2.1 L2 Real-Topic Relevance Hardening
+## Latest Closed Milestone: v2.2 Fresh-Topic First-Use Reliability
+
+**Goal:** make fresh-topic public entry reliable enough that a real new topic
+can be opened from natural language, register its first source on Windows
+without path failure, and surface honest `L0` status immediately after
+first-use actions.
+
+**Delivered features:**
+- explicit fresh-topic natural-language requests now allocate new topics
+  instead of reopening stale current-topic memory
+- first-source registration now uses Windows-safe short source-directory slugs
+- runtime/status surfaces now refresh immediately after first-source
+  registration
+- one replayable first-use proof package now shows the route mechanically
+
+**Key context:**
+- `v2.1` had already closed the bounded fresh-topic `L2` hardening slice
+- `v2.2` closed the remaining entry and registration reliability blockers
+  without pretending that post-registration route selection or broader
+  scientific widening were already solved
+
+## Previous Closed Milestone: v2.1 L2 Real-Topic Relevance Hardening
 
 **Goal:** make fresh real-topic `L2` staging and consultation trustworthy
 enough that new literature-intake topics surface the right local knowledge

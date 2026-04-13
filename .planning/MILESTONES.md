@@ -1,6 +1,28 @@
 # Milestones
 
-## v2.2 Fresh-Topic First-Use Reliability (Active)
+## v2.3 Post-Registration Route Coherence (Active)
+
+**Phases completed:** 0 / 3 phases, 0 / 3 plans
+
+**Milestone goal:**
+
+- make post-registration runtime state and layer-status fields reflect the
+  presence of the first source honestly
+
+- make `status`, `next`, runtime protocol, and dashboard surfaces stop pointing
+  back to stale L0 source-handoff text once a first source already exists
+
+- close with a replayable first-use proof of the post-registration route
+  transition
+
+**Key accomplishments:**
+
+- milestone scoped from the remaining accepted open gap in `v2.2`: stale
+  post-registration next-action wording after the first source already landed
+
+---
+
+## v2.2 Fresh-Topic First-Use Reliability (Shipped: 2026-04-14)
 
 **Phases completed:** 3 / 3 phases, 3 / 3 plans
 
