@@ -2,13 +2,13 @@
 
 ## Result
 
-Milestone in progress.
+All milestone phases are complete; lifecycle handling is next.
 
 ## Phases
 
 - [x] **Phase 174: Formal-Theory Real-Topic Natural-Language Dialogue Proof** *(Axis 2 + Axis 5)*
 - [x] **Phase 174.1: Toy-Model Real-Topic Natural-Language Dialogue Proof** *(Axis 2 + Axis 5)*
-- [ ] **Phase 174.2: First-Principles Real-Topic Natural-Language Dialogue Proof And Cross-Lane Report** *(Axis 4 + Axis 5)*
+- [x] **Phase 174.2: First-Principles Real-Topic Natural-Language Dialogue Proof And Cross-Lane Report** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
@@ -21,7 +21,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 174.2.
+Run milestone lifecycle: audit -> complete -> cleanup.
 
 ### Phase 174: Formal-Theory Real-Topic Natural-Language Dialogue Proof
 
@@ -78,4 +78,4 @@ the cross-lane comparative report.
 
 Plans:
 
-- [ ] `174.2-01` Run the first-principles dialogue proof and write the cross-lane comparative report
+- [x] `174.2-01` Run the first-principles dialogue proof and write the cross-lane comparative report

@@ -45,6 +45,17 @@ TARGET_SUMMARY = (
     "trajectory for OMP_NUM_THREADS=1 and OMP_NUM_THREADS=32. This is a bounded "
     "positive code-method consistency result, not a full QSGW convergence claim."
 )
+DEFAULT_HUMAN_REQUEST = (
+    "Open a fresh first-principles topic around the bounded LibRPA QSGW "
+    "deterministic-reduction consistency core. Keep the route tied to the "
+    "real codebase, the H2O/really_tight iter=10 reference workflow, and the "
+    "validator-backed OMP=1/32 consistency evidence."
+)
+DEFAULT_WORK_HUMAN_REQUEST = (
+    "Treat the deterministic-reduction consistency result as the first bounded "
+    "positive code-method gate for the LibRPA QSGW lane, and preserve the "
+    "known non-claims about broader convergence."
+)
 
 
 def now_stamp() -> str:
@@ -267,6 +278,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--validator-path", default=str(DEFAULT_VALIDATOR_PATH))
     parser.add_argument("--engineering-report-path", default=str(DEFAULT_ENGINEERING_REPORT_PATH))
     parser.add_argument("--consistency-report-path", default=str(DEFAULT_CONSISTENCY_REPORT_PATH))
+    parser.add_argument("--human-request", default=DEFAULT_HUMAN_REQUEST)
+    parser.add_argument("--work-human-request", default=DEFAULT_WORK_HUMAN_REQUEST)
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -372,11 +385,7 @@ def main() -> int:
             str(engineering_report_path),
             str(consistency_report_path),
         ],
-        human_request=(
-            "Open a fresh first-principles topic around the bounded LibRPA QSGW deterministic-reduction "
-            "consistency core. Keep the route tied to the real codebase, the H2O/really_tight iter=10 "
-            "reference workflow, and the validator-backed OMP=1/32 consistency evidence."
-        ),
+        human_request=args.human_request,
     )
     topic_slug = str(bootstrap_payload.get("topic_slug") or "").strip()
     check(bool(topic_slug), "Expected new_topic to return a topic slug.")
@@ -391,10 +400,7 @@ def main() -> int:
         mode="first_principles",
         run_id=args.run_id,
         updated_by=args.updated_by,
-        human_request=(
-            "Treat the deterministic-reduction consistency result as the first bounded positive code-method gate "
-            "for the LibRPA QSGW lane, and preserve the known non-claims about broader convergence."
-        ),
+        human_request=args.work_human_request,
         max_auto_steps=0,
         load_profile="light",
     )

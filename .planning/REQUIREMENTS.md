@@ -19,18 +19,18 @@ ready and what still blocks broader deployment.
   toy-model baseline can be entered through the public front door and stay
   aligned with its bounded positive authoritative-L2 route.
 
-- [ ] `REQ-E2E-03`: one real natural-language dialogue run proves the
+- [x] `REQ-E2E-03`: one real natural-language dialogue run proves the
   first-principles / code-method baseline can be entered through the public
   front door and stay aligned with its bounded positive authoritative-L2 route.
 
 ### Cross-Lane Comparison
 
-- [ ] `REQ-E2E-04`: the milestone closes with a comparative report showing
+- [x] `REQ-E2E-04`: the milestone closes with a comparative report showing
   where the three dialogue runs succeed honestly, where they still require
   bounded operator intervention, and where hidden-seed assumptions were
   removed or still remain.
 
-- [ ] `REQ-E2E-05`: the milestone leaves explicit next routing for any
+- [x] `REQ-E2E-05`: the milestone leaves explicit next routing for any
   remaining blockers discovered during the three dialogue runs, rather than
   leaving them in chat memory.
 
@@ -48,9 +48,9 @@ ready and what still blocks broader deployment.
 |-------------|-------|--------|
 | REQ-E2E-01 | Phase 174 | Done |
 | REQ-E2E-02 | Phase 174.1 | Done |
-| REQ-E2E-03 | Phase 174.2 | Pending |
-| REQ-E2E-04 | Phase 174.2 | Pending |
-| REQ-E2E-05 | Phase 174.2 | Pending |
+| REQ-E2E-03 | Phase 174.2 | Done |
+| REQ-E2E-04 | Phase 174.2 | Done |
+| REQ-E2E-05 | Phase 174.2 | Done |
 
 **Coverage:**
 - v1 requirements: 5 total

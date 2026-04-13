@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Three-Lane Real-Topic Natural-Language E2E
 status: milestone_active
-stopped_at: "Phase 174.1 complete; Phase 174.2 next"
-last_updated: "2026-04-14T04:18:00+08:00"
+stopped_at: "Phase 174.2 complete; milestone lifecycle next"
+last_updated: "2026-04-14T04:24:00+08:00"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -42,8 +42,11 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 - Phase `174.1` proved the toy-model baseline can be entered through a real
   natural-language front-door request while staying tied to the bounded
   HS-like finite-size positive core
-- immediate next step: start Phase `174.2` and run the first-principles
-  real-topic natural-language dialogue proof plus the cross-lane report
+- Phase `174.2` proved the first-principles baseline can be entered through a
+  real natural-language front-door request while staying tied to the bounded
+  LibRPA QSGW deterministic-reduction consistency core
+- immediate next step: run the milestone lifecycle: audit, complete, and
+  cleanup
 
 ## Accumulated Context
 

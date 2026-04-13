@@ -2100,6 +2100,45 @@ class RuntimeScriptTests(unittest.TestCase):
             ).exists()
         )
 
+    def test_first_principles_real_topic_dialogue_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_first_principles_real_topic_dialogue_acceptance_test",
+            "runtime/scripts/run_first_principles_real_topic_dialogue_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "fprtd"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_first_principles_real_topic_dialogue_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "claim-cards"
+                / "claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json"
+            ).exists()
+        )
+        self.assertTrue(
+            any(
+                (
+                    work_root
+                    / "knowledge-hub"
+                    / "runtime"
+                    / "topics"
+                ).glob("*/interaction_state.json")
+            )
+        )
+
     def test_formal_real_topic_dialogue_acceptance_script_runs_on_isolated_work_root(self) -> None:
         module = _load_module(
             "aitp_formal_real_topic_dialogue_acceptance_test",
