@@ -17,7 +17,9 @@ def _bootstrap_path() -> None:
 _bootstrap_path()
 
 from knowledge_hub.aitp_service import read_jsonl
+from knowledge_hub.l2_compiler import materialize_workspace_knowledge_report
 from knowledge_hub.l2_graph import consult_canonical_l2, materialize_canonical_index, seed_l2_demo_direction, stage_l2_insight
+from knowledge_hub.l2_staging import stage_negative_result_entry
 
 
 class L2GraphActivationTests(unittest.TestCase):
@@ -301,6 +303,111 @@ class L2GraphActivationTests(unittest.TestCase):
         self.assertIn("theorem_card", {row["unit_type"] for row in index_rows})
         self.assertIn("theorem:jones-ch4-finite-product", {row["id"] for row in index_rows})
         self.assertIn("theorem:jones-ch4-finite-product", ids)
+
+    def test_positive_authoritative_rows_and_negative_contradiction_rows_coexist_on_l2_surfaces(self) -> None:
+        shutil.rmtree(self.kernel_root / "canonical" / "staging" / "entries", ignore_errors=True)
+        (self.kernel_root / "canonical" / "staging" / "entries").mkdir(parents=True, exist_ok=True)
+
+        unit_path = self.kernel_root / "canonical" / "theorem-cards" / "theorem_card--jones-ch4-finite-product.json"
+        unit_path.parent.mkdir(parents=True, exist_ok=True)
+        unit_path.write_text(
+            """
+{
+  "id": "theorem:jones-ch4-finite-product",
+  "unit_type": "theorem_card",
+  "title": "Jones Chapter 4 finite-product theorem packet",
+  "summary": "Bounded theorem packet for the finite-dimensional block-centralizer finite-product result.",
+  "maturity": "auto_validated",
+  "created_at": "2026-04-14T00:00:00+00:00",
+  "updated_at": "2026-04-14T00:00:00+00:00",
+  "topic_completion_status": "promotion-ready",
+  "tags": ["jones", "theorem", "operator-algebra"],
+  "assumptions": ["Finite-dimensional only."],
+  "regime": {
+    "domain": "finite-dimensional von Neumann algebras",
+    "approximations": ["bounded theorem packet"],
+    "scale": "bounded formal lane",
+    "boundary_conditions": ["fresh public front door"],
+    "exclusions": ["whole-book closure"]
+  },
+  "scope": {
+    "applies_to": ["bounded Chapter 4 theorem packet"],
+    "out_of_scope": ["full type-I classification"]
+  },
+  "provenance": {
+    "source_ids": ["local_note:jones-von-neumann-algebras-definition-packet"],
+    "backend_refs": ["backend:theoretical-physics-knowledge-network"],
+    "l1_artifacts": ["source-layer/topics/fresh-jones/source_index.jsonl"],
+    "l3_runs": ["feedback/topics/fresh-jones/runs/run-001/candidate_ledger.jsonl"],
+    "l4_checks": ["validation/topics/fresh-jones/runs/run-001/theory-packets/candidate-demo/formal_theory_review.json"],
+    "citations": ["chapter-4/multiplicity-and-finite-dimensional-von-neumann-algebras"]
+  },
+  "promotion": {
+    "route": "L3->L4_auto->L2_auto",
+    "review_mode": "ai_auto",
+    "canonical_layer": "L2_auto",
+    "promoted_by": "test-suite",
+    "promoted_at": "2026-04-14T00:00:00+00:00",
+    "review_status": "accepted",
+    "rationale": "Fresh formal theorem packet mirrored into repo-local canonical L2."
+  },
+  "dependencies": [],
+  "related_units": [],
+  "payload": {
+    "backend_unit_type": "theorem",
+    "backend_unit_path": "external/theorems/jones-ch4-finite-product.json"
+  }
+}
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+        negative_payload = stage_negative_result_entry(
+            self.kernel_root,
+            title="Jones finite product theorem classification failure",
+            summary="The Jones finite product theorem packet does not justify a full type-I classification claim.",
+            failure_kind="scope_overreach",
+            staged_by="test-suite",
+        )
+
+        materialize_canonical_index(self.kernel_root)
+        report_payload = materialize_workspace_knowledge_report(self.kernel_root)
+        knowledge_rows = {
+            row["knowledge_id"]: row for row in report_payload["payload"]["knowledge_rows"]
+        }
+        theorem_row = knowledge_rows["theorem:jones-ch4-finite-product"]
+        negative_row = knowledge_rows[negative_payload["entry"]["entry_id"]]
+
+        self.assertEqual(theorem_row["authority_level"], "authoritative_canonical")
+        self.assertEqual(theorem_row["knowledge_state"], "trusted")
+        self.assertIn(
+            "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+            theorem_row["provenance_refs"],
+        )
+        self.assertEqual(negative_row["authority_level"], "non_authoritative_staging")
+        self.assertEqual(negative_row["knowledge_state"], "contradiction_watch")
+        self.assertTrue(
+            any("canonical/staging/entries/" in ref for ref in negative_row["provenance_refs"])
+        )
+        self.assertGreaterEqual(
+            report_payload["payload"]["summary"]["contradiction_row_count"],
+            1,
+        )
+
+        consult_payload = consult_canonical_l2(
+            self.kernel_root,
+            query_text="Jones finite product theorem classification failure",
+            retrieval_profile="l4_adjudication",
+            include_staging=True,
+            max_primary_hits=8,
+        )
+        canonical_ids = {row["id"] for row in consult_payload["primary_hits"]} | {
+            row["id"] for row in consult_payload["expanded_hits"]
+        }
+        staged_ids = {row["entry_id"] for row in consult_payload["staged_hits"]}
+        self.assertIn("theorem:jones-ch4-finite-product", canonical_ids)
+        self.assertIn(negative_payload["entry"]["entry_id"], staged_ids)
 
 
 if __name__ == "__main__":

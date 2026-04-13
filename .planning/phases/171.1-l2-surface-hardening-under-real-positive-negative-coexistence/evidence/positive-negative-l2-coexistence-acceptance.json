@@ -1,0 +1,81 @@
+{
+  "status": "success",
+  "work_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_",
+  "kernel_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub",
+  "positive_acceptance": {
+    "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+    "bootstrap_run_id": "2026-04-14-020754-bootstrap",
+    "closure_run_id": "2026-04-14-020754-jones-close",
+    "theorem_id": "theorem:jones-ch4-finite-product",
+    "projection_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+    "workspace_knowledge_report": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json"
+  },
+  "negative_result": {
+    "entry_id": "staging:jones-finite-product-theorem-classification-failure",
+    "title": "Jones finite product theorem classification failure",
+    "summary": "The Jones finite product theorem packet does not justify a full type-I classification claim.",
+    "entry_json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub\\canonical\\staging\\entries\\staging--jones-finite-product-theorem-classification-failure.json",
+    "entry_markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub\\canonical\\staging\\entries\\staging--jones-finite-product-theorem-classification-failure.md",
+    "staging_manifest_json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub\\canonical\\staging\\workspace_staging_manifest.json"
+  },
+  "knowledge_report": {
+    "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json",
+    "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\pnco-hi6cmbw_\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.md",
+    "theorem_row": {
+      "knowledge_id": "theorem:jones-ch4-finite-product",
+      "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+      "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+      "source_surface": "canonical_l2",
+      "authority_level": "authoritative_canonical",
+      "knowledge_state": "trusted",
+      "path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+      "updated_at": "2026-04-14T02:07:57+08:00",
+      "provenance_refs": [
+        "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json"
+      ],
+      "tags": [
+        "theorem_card",
+        "fresh-jones-finite-dimensional-factor-closure",
+        "backend:theoretical-physics-knowledge-network"
+      ],
+      "change_fingerprint": "fc7d62b94acced24f5d57e751f254d972f89a386",
+      "change_status": "unchanged"
+    },
+    "negative_row": {
+      "knowledge_id": "staging:jones-finite-product-theorem-classification-failure",
+      "title": "Jones finite product theorem classification failure",
+      "summary": "The Jones finite product theorem packet does not justify a full type-I classification claim.",
+      "source_surface": "staging_l2",
+      "authority_level": "non_authoritative_staging",
+      "knowledge_state": "contradiction_watch",
+      "path": "canonical/staging/entries/staging--jones-finite-product-theorem-classification-failure.json",
+      "updated_at": "2026-04-14T02:07:58+08:00",
+      "topic_slug": "global",
+      "provenance_refs": [
+        "canonical/staging/entries/staging--jones-finite-product-theorem-classification-failure.json"
+      ],
+      "tags": [],
+      "change_fingerprint": "73c905f9fe802bf049374def89d9a98e2c41830e",
+      "change_status": "added"
+    }
+  },
+  "consultation": {
+    "query_text": "Jones finite product theorem classification failure",
+    "retrieval_profile": "l4_adjudication",
+    "canonical_ids": [
+      "claim_card:tfim-benchmark-before-portability-claim",
+      "concept:tfim-transverse-field-ising-model",
+      "physical_picture:tfim-weak-coupling-benchmark-intuition",
+      "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+      "theorem:jones-ch4-finite-product",
+      "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+      "topic_skill_projection:tfim-benchmark-first-route",
+      "validation_pattern:tfim-small-system-gap-reproduction",
+      "warning_note:tfim-dense-ed-finite-size-limit",
+      "workflow:tfim-benchmark-workflow"
+    ],
+    "staged_ids": [
+      "staging:jones-finite-product-theorem-classification-failure"
+    ]
+  }
+}

@@ -1944,6 +1944,29 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertEqual(args.reference_topic_slug, "jones-von-neumann-algebras")
         self.assertTrue(args.json)
 
+    def test_positive_negative_l2_coexistence_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_positive_negative_l2_coexistence_acceptance_test",
+            "runtime/scripts/run_positive_negative_l2_coexistence_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "pnco"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_positive_negative_l2_coexistence_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "compiled" / "workspace_knowledge_report.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "theorem-cards" / "theorem_card--jones-ch4-finite-product.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "staging" / "entries").exists())
+
     def test_l1_progressive_reading_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "l1-progressive-reading-acceptance"
         with patch.object(

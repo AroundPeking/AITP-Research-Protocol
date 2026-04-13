@@ -3,23 +3,24 @@ gsd_state_version: 1.0
 milestone: v1.97
 milestone_name: First Positive L0 To L2 Closure
 status: milestone_active
-stopped_at: "Phase 171 complete; Phase 171.1 next"
-last_updated: "2026-04-14T01:51:39+08:00"
+stopped_at: "All v1.97 phases complete; milestone audit next"
+last_updated: "2026-04-14T02:10:54+08:00"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.97` `First Positive L0 To L2 Closure` is active. Phase
-`171` is complete and Phase `171.1` is next.
+Status: milestone `v1.97` `First Positive L0 To L2 Closure` is active at the
+milestone level, and all three roadmap phases are complete. The next lifecycle
+step is milestone audit and completion.
 
 **Why this milestone exists:**
 
@@ -37,8 +38,11 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 - active milestone: `v1.97` `First Positive L0 To L2 Closure`
 - Phase `171` closed one fresh formal positive route into authoritative
   repo-local canonical `L2`
-- continue with Phase `171.1` `L2 Surface Hardening Under Real
-  Positive/Negative Coexistence`
+- Phase `171.1` proved authoritative positive and contradiction-watch staging
+  rows can coexist on compiled and consultation surfaces
+- Phase `171.2` closed replay receipts and wrote the deferred lane routing for
+  `HS model` toy-model and `LibRPA QSGW` first-principles work
+- next lifecycle action: audit and complete milestone `v1.97`
 
 ## Accumulated Context
 
@@ -87,6 +91,9 @@ cross-cutting).
 - Phase `171` now proves one fresh formal-theory theorem can land in
   authoritative canonical `L2` with repo-local compile and `consult-l2`
   parity; the next gap is coexistence with the negative-result route
+- Phase `171.1` now proves the positive theorem row and a staged
+  `negative_result -> contradiction_watch` row coexist honestly on the same
+  compiled and consultation surfaces
 - Comprehensive HCI gap analysis (2026-04-13) identified 30 issues across 6
   tiers; all captured as 999.60–999.70 in BACKLOG.md
 - wow-harness comparison (2026-04-13) identified 6 borrowable patterns; all

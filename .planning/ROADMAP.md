@@ -7,8 +7,8 @@ Milestone in progress.
 ## Phases
 
 - [x] **Phase 171: Formal Positive Lane To Authoritative L2** *(Axis 2 + Axis 4)*
-- [ ] **Phase 171.1: L2 Surface Hardening Under Real Positive/Negative Coexistence** *(Axis 1 + Axis 3)*
-- [ ] **Phase 171.2: Positive Replay And Deferred Mode Routing** *(Axis 4 + Axis 5)*
+- [x] **Phase 171.1: L2 Surface Hardening Under Real Positive/Negative Coexistence** *(Axis 1 + Axis 3)*
+- [x] **Phase 171.2: Positive Replay And Deferred Mode Routing** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
@@ -22,7 +22,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 171.1.
+All phases complete. Milestone `v1.97` is ready for audit and completion.
 
 ### Phase 171: Formal Positive Lane To Authoritative L2
 
@@ -80,7 +80,7 @@ one real authoritative positive unit and the existing negative-result
 
 Plans:
 
-- [ ] `171.1-01` Patch and verify L2 compiler and read-path parity under real
+- [x] `171.1-01` Patch and verify L2 compiler and read-path parity under real
   positive/negative coexistence
 
 ### Phase 171.2: Positive Replay And Deferred Mode Routing
@@ -107,5 +107,5 @@ into explicit next actions.
 
 Plans:
 
-- [ ] `171.2-01` Close the positive-L2 proof with replay evidence and explicit
+- [x] `171.2-01` Close the positive-L2 proof with replay evidence and explicit
   deferred-mode routing

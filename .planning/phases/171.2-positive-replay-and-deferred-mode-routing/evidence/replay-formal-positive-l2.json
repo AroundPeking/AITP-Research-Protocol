@@ -1,0 +1,1219 @@
+{
+  "status": "success",
+  "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+  "bootstrap_run_id": "2026-04-14-021049-bootstrap",
+  "closure_run_id": "2026-04-14-021049-jones-close",
+  "bootstrap": {
+    "topic": "Fresh Jones finite-dimensional factor closure",
+    "question": "Promote one bounded Jones finite-dimensional factor result into authoritative L2.",
+    "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+    "research_mode": "formal_derivation",
+    "runtime_protocol": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json"
+  },
+  "entry_audit": {
+    "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+    "phase": "entry",
+    "command": [
+      "C:\\Program Files\\Python312\\python.exe",
+      "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\scripts\\audit_topic_conformance.py",
+      "--topic-slug",
+      "fresh-jones-finite-dimensional-factor-closure",
+      "--phase",
+      "entry",
+      "--updated-by",
+      "formal-positive-l2-acceptance"
+    ],
+    "stdout": "Conformance audit pass for fresh-jones-finite-dimensional-factor-closure",
+    "conformance_state": {
+      "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+      "phase": "entry",
+      "updated_at": "2026-04-14T02:10:50+08:00",
+      "updated_by": "formal-positive-l2-acceptance",
+      "overall_status": "pass",
+      "checks": [
+        {
+          "code": "topic_state_present",
+          "description": "topic_state.json exists and is readable.",
+          "status": "pass"
+        },
+        {
+          "code": "resume_present",
+          "description": "resume.md exists.",
+          "status": "pass"
+        },
+        {
+          "code": "action_queue_present",
+          "description": "action_queue.jsonl exists and is non-empty.",
+          "status": "pass"
+        },
+        {
+          "code": "agent_brief_present",
+          "description": "agent_brief.md exists.",
+          "status": "pass"
+        },
+        {
+          "code": "interaction_state_present",
+          "description": "interaction_state.json exists and is readable.",
+          "status": "pass"
+        },
+        {
+          "code": "operator_console_present",
+          "description": "operator_console.md exists.",
+          "status": "pass"
+        },
+        {
+          "code": "unfinished_work_present",
+          "description": "unfinished_work.json exists and is readable.",
+          "status": "pass"
+        },
+        {
+          "code": "unfinished_work_note_present",
+          "description": "unfinished_work.md exists.",
+          "status": "pass"
+        },
+        {
+          "code": "next_action_decision_present",
+          "description": "next_action_decision.json exists and is readable.",
+          "status": "pass"
+        },
+        {
+          "code": "next_action_decision_note_present",
+          "description": "next_action_decision.md exists.",
+          "status": "pass"
+        },
+        {
+          "code": "action_queue_contract_generated_present",
+          "description": "action_queue_contract.generated.json exists and is readable.",
+          "status": "pass"
+        },
+        {
+          "code": "action_queue_contract_generated_note_present",
+          "description": "action_queue_contract.generated.md exists.",
+          "status": "pass"
+        },
+        {
+          "code": "resume_stage_declared",
+          "description": "topic_state.json declares a resume stage.",
+          "status": "pass"
+        },
+        {
+          "code": "layer_pointers_present",
+          "description": "topic_state.json exposes layer pointers.",
+          "status": "pass"
+        },
+        {
+          "code": "research_mode_declared",
+          "description": "topic_state.json declares the active research mode.",
+          "status": "pass"
+        },
+        {
+          "code": "executor_kind_declared",
+          "description": "topic_state.json declares the active executor kind.",
+          "status": "pass"
+        },
+        {
+          "code": "trajectory_log_declared",
+          "description": "A result-manifested closed-loop run declares a trajectory log pointer.",
+          "status": "pass"
+        },
+        {
+          "code": "failure_classification_declared",
+          "description": "A result-manifested closed-loop run declares a failure-classification pointer.",
+          "status": "pass"
+        },
+        {
+          "code": "human_request_declared",
+          "description": "interaction_state.json records the human-facing request.",
+          "status": "pass"
+        },
+        {
+          "code": "human_edit_surfaces_present",
+          "description": "interaction_state.json exposes editable surfaces by layer.",
+          "status": "pass"
+        },
+        {
+          "code": "delivery_contract_present",
+          "description": "interaction_state.json declares the delivery contract.",
+          "status": "pass"
+        },
+        {
+          "code": "capability_protocol_declared",
+          "description": "interaction_state.json points to the skill-adaptation protocol.",
+          "status": "pass"
+        },
+        {
+          "code": "decision_surface_declared",
+          "description": "interaction_state.json declares the decision-surface artifacts.",
+          "status": "pass"
+        },
+        {
+          "code": "action_queue_surface_declared",
+          "description": "interaction_state.json declares the generated action-queue contract snapshot.",
+          "status": "pass"
+        },
+        {
+          "code": "decision_policy_declared",
+          "description": "next_action_decision.json declares the decision policy.",
+          "status": "pass"
+        },
+        {
+          "code": "decision_mode_declared",
+          "description": "next_action_decision.json declares the active decision mode.",
+          "status": "pass"
+        },
+        {
+          "code": "decision_action_resolves",
+          "description": "Selected decision action resolves to an action_queue entry when present.",
+          "status": "pass"
+        }
+      ],
+      "mechanical_completion_preflight": {
+        "status": "pass",
+        "llm_audit_eligible": true,
+        "run_id": "2026-04-14-021049-bootstrap",
+        "operation_count": 0,
+        "unresolved_gap_count": 0,
+        "pending_followup_count": 0,
+        "checks": [
+          {
+            "code": "operations_baseline_confirmed",
+            "status": "pass",
+            "summary": "All discovered operation manifests have a mechanically accepted baseline status."
+          },
+          {
+            "code": "unresolved_gaps_clear",
+            "status": "pass",
+            "summary": "No unresolved candidate or follow-up gap debt is currently recorded."
+          },
+          {
+            "code": "pending_followups_clear",
+            "status": "pass",
+            "summary": "No pending manual or child follow-up work remains."
+          }
+        ],
+        "blocking_reasons": [],
+        "operations": []
+      }
+    },
+    "conformance_report_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\conformance_report.md"
+  },
+  "source_seed": {
+    "reference_topic_slug": "jones-von-neumann-algebras",
+    "target_topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+    "target_root": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\source-layer\\topics\\fresh-jones-finite-dimensional-factor-closure",
+    "source_count": 4
+  },
+  "closure": {
+    "status": "success",
+    "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+    "run_id": "2026-04-14-021049-jones-close",
+    "work_root": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure",
+    "tpkn_template_root": "(generated-minimal)",
+    "tpkn_work_root": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network",
+    "coverage_status": "pass",
+    "formal_theory_review_status": "ready",
+    "topic_completion_status": "promoted",
+    "lean_bridge_status": "ready",
+    "auto_promotion_status": "promoted",
+    "topic_skill_projection_status": "available",
+    "artifacts": {
+      "topic_state": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_state.json",
+      "runtime_protocol": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+      "candidate_ledger": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\feedback\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\candidate_ledger.jsonl",
+      "validation_contract": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\validation_contract.active.json",
+      "topic_completion": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_completion.json",
+      "lean_bridge": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\lean_bridge.active.json",
+      "topic_skill_projection": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_skill_projection.active.json",
+      "topic_skill_projection_note": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_skill_projection.active.md",
+      "strategy_memory": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\feedback\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\strategy_memory.jsonl",
+      "lean_ready_packet": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\lean-bridge\\candidate-jones-ch4-fin-50e7c38d\\lean_ready_packet.json",
+      "proof_obligations": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\lean-bridge\\candidate-jones-ch4-fin-50e7c38d\\proof_obligations.json",
+      "proof_state": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\lean-bridge\\candidate-jones-ch4-fin-50e7c38d\\proof_state.json",
+      "coverage_ledger": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\coverage_ledger.json",
+      "formal_theory_review": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\formal_theory_review.json",
+      "auto_promotion_report": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\auto_promotion_report.json",
+      "promotion_gate": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.json",
+      "promoted_theorem_unit": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\units\\theorems\\jones-ch4-finite-product.json",
+      "promoted_projection_unit": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\units\\topic-skill-projections\\fresh-jones-finite-dimensional-factor-closure.json",
+      "source_manifest": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\sources\\jones-von-neumann-algebras-definition-packet\\manifest.json",
+      "conformance_report": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\conformance_report.md"
+    },
+    "dispatch_payloads": {
+      "topic_completion_before_promotion": {
+        "$schema": "https://aitp.local/schemas/topic-completion.schema.json",
+        "completion_version": 1,
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "status": "promoted",
+        "candidate_count": 2,
+        "followup_subtopic_count": 0,
+        "reintegrated_followup_count": 0,
+        "unresolved_followup_child_topics": [],
+        "returned_with_gap_child_topics": [],
+        "regression_manifest": {
+          "status": "ready",
+          "candidate_ids": [
+            "candidate:jones-ch4-finite-product",
+            "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810"
+          ],
+          "regression_question_ids": [
+            "regression_question:state-jones-chapter-4-finite-dimensional-backbone",
+            "regression_question:state-jones-whole-book-formalization-surface",
+            "regression_question:state-jones-section-formalization-surface"
+          ],
+          "oracle_ids": [
+            "question_oracle:state-jones-chapter-4-finite-dimensional-backbone",
+            "question_oracle:state-jones-whole-book-formalization-surface",
+            "question_oracle:state-jones-section-formalization-surface"
+          ],
+          "regression_run_ids": [
+            "regression_run:jones-section-formalization-2026-03-24"
+          ],
+          "candidate_count": 2,
+          "question_count": 3,
+          "oracle_count": 3,
+          "run_count": 1
+        },
+        "completion_gate_checks": [
+          {
+            "check": "regression_questions_present",
+            "status": "pass",
+            "summary": "Stable regression questions exist."
+          },
+          {
+            "check": "question_oracles_present",
+            "status": "pass",
+            "summary": "Stable question oracles exist."
+          },
+          {
+            "check": "regression_runs_present",
+            "status": "pass",
+            "summary": "Recent regression runs exist."
+          },
+          {
+            "check": "promotion_ready_candidate_present",
+            "status": "pass",
+            "summary": "At least one candidate is marked promotion-ready."
+          },
+          {
+            "check": "candidate_blockers_clear",
+            "status": "pass",
+            "summary": "No candidate-level completion blockers remain."
+          },
+          {
+            "check": "followup_return_debt_clear",
+            "status": "pass",
+            "summary": "No unreintegrated child follow-up return debt remains."
+          }
+        ],
+        "promotion_ready_candidate_ids": [
+          "candidate:jones-ch4-finite-product",
+          "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810"
+        ],
+        "blocked_candidate_ids": [],
+        "regression_question_ids": [
+          "regression_question:state-jones-chapter-4-finite-dimensional-backbone",
+          "regression_question:state-jones-whole-book-formalization-surface",
+          "regression_question:state-jones-section-formalization-surface"
+        ],
+        "oracle_ids": [
+          "question_oracle:state-jones-chapter-4-finite-dimensional-backbone",
+          "question_oracle:state-jones-whole-book-formalization-surface",
+          "question_oracle:state-jones-section-formalization-surface"
+        ],
+        "regression_run_ids": [
+          "regression_run:jones-section-formalization-2026-03-24"
+        ],
+        "open_gap_ids": [],
+        "blockers": [],
+        "summary": "At least one regression-backed candidate has already been promoted through the active gate.",
+        "updated_at": "2026-04-14T02:10:51+08:00",
+        "updated_by": "formal-positive-l2-acceptance",
+        "topic_completion_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_completion.json",
+        "topic_completion_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_completion.md",
+        "runtime_protocol": {
+          "runtime_protocol_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+          "runtime_protocol_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.md"
+        }
+      },
+      "lean_bridge": {
+        "$schema": "https://aitp.local/schemas/lean-bridge-active.schema.json",
+        "bridge_version": 1,
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "status": "ready",
+        "packet_count": 1,
+        "ready_packet_count": 1,
+        "needs_refinement_count": 0,
+        "packets": [
+          {
+            "candidate_id": "candidate:jones-ch4-finite-product",
+            "candidate_type": "theorem_card",
+            "declaration_kind": "theorem",
+            "status": "ready",
+            "proof_obligation_count": 0,
+            "packet_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/lean-bridge/candidate-jones-ch4-fin-50e7c38d/lean_ready_packet.json",
+            "packet_note_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/lean-bridge/candidate-jones-ch4-fin-50e7c38d/lean_ready_packet.md",
+            "proof_obligations_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/lean-bridge/candidate-jones-ch4-fin-50e7c38d/proof_obligations.json",
+            "proof_state_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/lean-bridge/candidate-jones-ch4-fin-50e7c38d/proof_state.json"
+          }
+        ],
+        "summary": "All selected packets are Lean-ready at the current shell level.",
+        "updated_at": "2026-04-14T02:10:52+08:00",
+        "updated_by": "formal-positive-l2-acceptance",
+        "lean_bridge_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\lean_bridge.active.json",
+        "lean_bridge_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\lean_bridge.active.md",
+        "runtime_protocol": {
+          "runtime_protocol_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+          "runtime_protocol_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.md"
+        }
+      },
+      "auto_promotion": {
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "candidate_id": "candidate:jones-ch4-finite-product",
+        "backend_id": "backend:theoretical-physics-knowledge-network",
+        "backend_card_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\backends\\theoretical-physics-knowledge-network.json",
+        "target_backend_root": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network",
+        "target_unit_id": "theorem:jones-ch4-finite-product",
+        "target_unit_path": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\units\\theorems\\jones-ch4-finite-product.json",
+        "source_manifest_path": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\sources\\jones-von-neumann-algebras-definition-packet\\manifest.json",
+        "source_manifest_created": true,
+        "promotion_decision_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_decisions.jsonl",
+        "promotion_gate_log_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_gate_log.jsonl",
+        "merge_report_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\merge_report.json",
+        "merge_outcome": "created_new",
+        "canonical_mirror_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\theorem-cards\\theorem_card--jones-ch4-finite-product.json",
+        "canonical_mirror_unit_id": "theorem:jones-ch4-finite-product",
+        "canonical_mirror_unit_type": "theorem_card",
+        "tpkn_check": {
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "scripts/kb.py",
+            "check"
+          ],
+          "stdout": "",
+          "stderr": "",
+          "scoped_paths": [
+            "units\\theorems\\jones-ch4-finite-product.json",
+            "sources\\jones-von-neumann-algebras-definition-packet\\manifest.json",
+            "units\\regression-questions\\state-jones-chapter-4-finite-dimensional-backbone.json",
+            "units\\regression-questions\\state-jones-whole-book-formalization-surface.json",
+            "units\\regression-questions\\state-jones-section-formalization-surface.json",
+            "units\\question-oracles\\state-jones-chapter-4-finite-dimensional-backbone.json",
+            "units\\question-oracles\\state-jones-whole-book-formalization-surface.json",
+            "units\\question-oracles\\state-jones-section-formalization-surface.json"
+          ]
+        },
+        "tpkn_build": {
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "scripts/kb.py",
+            "build"
+          ],
+          "stdout": "",
+          "stderr": "",
+          "scoped_paths": [
+            "units\\theorems\\jones-ch4-finite-product.json",
+            "sources\\jones-von-neumann-algebras-definition-packet\\manifest.json",
+            "units\\regression-questions\\state-jones-chapter-4-finite-dimensional-backbone.json",
+            "units\\regression-questions\\state-jones-whole-book-formalization-surface.json",
+            "units\\regression-questions\\state-jones-section-formalization-surface.json",
+            "units\\question-oracles\\state-jones-chapter-4-finite-dimensional-backbone.json",
+            "units\\question-oracles\\state-jones-whole-book-formalization-surface.json",
+            "units\\question-oracles\\state-jones-section-formalization-surface.json"
+          ]
+        },
+        "consultation": {
+          "consultation_request_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\calls\\consult-tpkn-promotion-candidate-jones-ch4-fini-fde0117f\\request.json",
+          "consultation_result_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\calls\\consult-tpkn-promotion-candidate-jones-ch4-fini-fde0117f\\result.json",
+          "consultation_application_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\calls\\consult-tpkn-promotion-candidate-jones-ch4-fini-fde0117f\\application.json",
+          "consultation_index_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\consultation_index.jsonl"
+        },
+        "promotion_gate_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.json",
+        "promotion_gate_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.md",
+        "auto_promotion_report_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\auto_promotion_report.json",
+        "auto_promotion_report": {
+          "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "run_id": "2026-04-14-021049-jones-close",
+          "candidate_id": "candidate:jones-ch4-finite-product",
+          "candidate_type": "theorem_card",
+          "review_mode": "ai_auto",
+          "canonical_layer": "L2_auto",
+          "backend_id": "backend:theoretical-physics-knowledge-network",
+          "backend_card_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\backends\\theoretical-physics-knowledge-network.json",
+          "coverage_status": "pass",
+          "consensus_status": "ready",
+          "regression_gate_status": "pass",
+          "formal_theory_review_status": "ready",
+          "topic_completion_status": "promotion-ready",
+          "supporting_regression_question_ids": [
+            "regression_question:state-jones-chapter-4-finite-dimensional-backbone",
+            "regression_question:state-jones-whole-book-formalization-surface",
+            "regression_question:state-jones-section-formalization-surface"
+          ],
+          "supporting_oracle_ids": [
+            "question_oracle:state-jones-chapter-4-finite-dimensional-backbone",
+            "question_oracle:state-jones-whole-book-formalization-surface",
+            "question_oracle:state-jones-section-formalization-surface"
+          ],
+          "supporting_regression_run_ids": [
+            "regression_run:jones-section-formalization-2026-03-24"
+          ],
+          "promotion_blockers": [],
+          "structure_section_count": 3,
+          "notation_binding_count": 3,
+          "derivation_node_count": 7,
+          "derivation_edge_count": 4,
+          "merge_outcome": "created_new",
+          "target_unit_id": "theorem:jones-ch4-finite-product",
+          "target_unit_path": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\units\\theorems\\jones-ch4-finite-product.json",
+          "updated_at": "2026-04-14T02:10:53+08:00",
+          "updated_by": "formal-positive-l2-acceptance",
+          "notes": "Bounded Jones Chapter 4 formal-closure acceptance for the finite-dimensional finite-product block-centralizer theorem packet."
+        },
+        "auto_promotion_gate_log_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_gate_log.jsonl"
+      },
+      "topic_completion_after_promotion": {
+        "$schema": "https://aitp.local/schemas/topic-completion.schema.json",
+        "completion_version": 1,
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "status": "promoted",
+        "candidate_count": 2,
+        "followup_subtopic_count": 0,
+        "reintegrated_followup_count": 0,
+        "unresolved_followup_child_topics": [],
+        "returned_with_gap_child_topics": [],
+        "regression_manifest": {
+          "status": "ready",
+          "candidate_ids": [
+            "candidate:jones-ch4-finite-product",
+            "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810"
+          ],
+          "regression_question_ids": [
+            "regression_question:state-jones-chapter-4-finite-dimensional-backbone",
+            "regression_question:state-jones-whole-book-formalization-surface",
+            "regression_question:state-jones-section-formalization-surface"
+          ],
+          "oracle_ids": [
+            "question_oracle:state-jones-chapter-4-finite-dimensional-backbone",
+            "question_oracle:state-jones-whole-book-formalization-surface",
+            "question_oracle:state-jones-section-formalization-surface"
+          ],
+          "regression_run_ids": [
+            "regression_run:jones-section-formalization-2026-03-24"
+          ],
+          "candidate_count": 2,
+          "question_count": 3,
+          "oracle_count": 3,
+          "run_count": 1
+        },
+        "completion_gate_checks": [
+          {
+            "check": "regression_questions_present",
+            "status": "pass",
+            "summary": "Stable regression questions exist."
+          },
+          {
+            "check": "question_oracles_present",
+            "status": "pass",
+            "summary": "Stable question oracles exist."
+          },
+          {
+            "check": "regression_runs_present",
+            "status": "pass",
+            "summary": "Recent regression runs exist."
+          },
+          {
+            "check": "promotion_ready_candidate_present",
+            "status": "pass",
+            "summary": "At least one candidate is marked promotion-ready."
+          },
+          {
+            "check": "candidate_blockers_clear",
+            "status": "pass",
+            "summary": "No candidate-level completion blockers remain."
+          },
+          {
+            "check": "followup_return_debt_clear",
+            "status": "pass",
+            "summary": "No unreintegrated child follow-up return debt remains."
+          }
+        ],
+        "promotion_ready_candidate_ids": [
+          "candidate:jones-ch4-finite-product",
+          "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810"
+        ],
+        "blocked_candidate_ids": [],
+        "regression_question_ids": [
+          "regression_question:state-jones-chapter-4-finite-dimensional-backbone",
+          "regression_question:state-jones-whole-book-formalization-surface",
+          "regression_question:state-jones-section-formalization-surface"
+        ],
+        "oracle_ids": [
+          "question_oracle:state-jones-chapter-4-finite-dimensional-backbone",
+          "question_oracle:state-jones-whole-book-formalization-surface",
+          "question_oracle:state-jones-section-formalization-surface"
+        ],
+        "regression_run_ids": [
+          "regression_run:jones-section-formalization-2026-03-24"
+        ],
+        "open_gap_ids": [],
+        "blockers": [],
+        "summary": "At least one regression-backed candidate has already been promoted through the active gate.",
+        "updated_at": "2026-04-14T02:10:53+08:00",
+        "updated_by": "formal-positive-l2-acceptance",
+        "topic_completion_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_completion.json",
+        "topic_completion_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_completion.md",
+        "runtime_protocol": {
+          "runtime_protocol_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+          "runtime_protocol_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.md"
+        }
+      }
+    },
+    "projection_payload": {
+      "strategy_memory": {
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "strategy_memory_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\feedback\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\strategy_memory.jsonl",
+        "strategy_memory_entry": {
+          "timestamp": "2026-04-14T02:10:51+08:00",
+          "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "run_id": "2026-04-14-021049-jones-close",
+          "lane": "formal_theory",
+          "strategy_id": "strat-verification_guardrail-2026-04-14t02-10-51-08-00",
+          "strategy_type": "verification_guardrail",
+          "summary": "Read the ready formal-theory review packet before reusing the bounded Jones Chapter 4 theorem-facing route.",
+          "input_context": {},
+          "outcome": "helpful",
+          "confidence": 0.84,
+          "evidence_refs": [
+            "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\formal_theory_review.json",
+            "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-jones-ch4-fin-50e7c38d\\coverage_ledger.json"
+          ],
+          "reuse_conditions": [
+            "bounded Jones Chapter 4 finite-dimensional theorem packet",
+            "formal_theory review overall_status=ready",
+            "topic completion promotion-ready or promoted"
+          ],
+          "do_not_apply_when": [
+            "the route still lacks a ready formal_theory_review.json",
+            "the task is claiming the stronger algebra-level product theorem rather than the bounded theorem packet"
+          ],
+          "human_note": "Use the projection only as theorem-facing execution memory, not as theorem certification.",
+          "updated_by": "formal-positive-l2-acceptance"
+        }
+      },
+      "project_topic_skill": {
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "topic_skill_projection": {
+          "id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "source_topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "run_id": "2026-04-14-021049-jones-close",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "lane": "formal_theory",
+          "status": "available",
+          "status_reason": "Projection is available because the topic is formal_theory, the active theorem-facing review is ready, topic completion is promotion-ready, and route-level strategy memory exists.",
+          "candidate_id": "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+          "intended_l2_target": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "entry_signals": [
+            "lane=formal_theory",
+            "selected_action=Stage bounded literature-intake units from the current L1 vault into L2 staging.",
+            "strategy_memory_status=available",
+            "theorem_candidate=candidate:jones-ch4-finite-product",
+            "formal_theory_review=ready",
+            "topic_completion=promotion-ready"
+          ],
+          "required_first_reads": [
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.md",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_contract.active.md",
+            "feedback/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/strategy_memory.jsonl",
+            "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/theory-packets/candidate-jones-ch4-fin-50e7c38d/formal_theory_review.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_completion.md"
+          ],
+          "required_first_routes": [
+            "Read `formal_theory_review.json` for `candidate:jones-ch4-finite-product` before reusing the theorem-facing route.",
+            "Check that `topic_completion.json` still reports `promotion-ready` or `promoted` before treating the route as reusable."
+          ],
+          "benchmark_first_rules": [
+            "`candidate:jones-ch4-finite-product` requires `formal_theory_review.json` overall_status `ready` and topic completion `promotion-ready` or `promoted` before route reuse is trusted."
+          ],
+          "operator_checkpoint_rules": [
+            "Raise an operator checkpoint when benchmark mismatch or validation-route ambiguity changes the bounded route.",
+            "Require explicit human approval before any L2 promotion of a topic-skill projection.",
+            "Translate continue/branch/redirect answers into durable steering artifacts before deeper execution continues."
+          ],
+          "operation_trust_requirements": [
+            "`candidate:jones-ch4-finite-product`: formal_theory_review_status=ready, topic_completion_status=promotion-ready, strategy_memory_rows=15."
+          ],
+          "strategy_guidance": [
+            "Reuse: Read the ready formal-theory review packet before reusing the bounded Jones Chapter 4 theorem-facing route."
+          ],
+          "forbidden_proxies": [
+            "Do not treat polished prose, hidden assumptions, or memory-only agreement as proof.",
+            "Do not silently widen scope without updating this contract.",
+            "Do not skip a restart from source intake when the blocker is really a missing source, citation chain, or prior-work comparison.",
+            "Do not treat raw code changes, unreviewed configs, or prose-only workflow descriptions as a reusable topic-skill projection.",
+            "Do not treat the projection itself as a theorem certificate, proof closure, or completed formal result."
+          ],
+          "derived_from_artifacts": [
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_contract.active.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_state.json",
+            "feedback/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/strategy_memory.jsonl",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_completion.json",
+            "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/theory-packets/candidate-jones-ch4-fin-50e7c38d/formal_theory_review.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/gap_map.md"
+          ],
+          "updated_at": "2026-04-14T02:10:52+08:00",
+          "updated_by": "formal-positive-l2-acceptance",
+          "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_skill_projection.active.json",
+          "note_path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_skill_projection.active.md"
+        },
+        "topic_skill_projection_candidate": {
+          "candidate_id": "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+          "candidate_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "run_id": "2026-04-14-021049-jones-close",
+          "origin_refs": [
+            {
+              "id": "strategy_memory:2026-04-14-021049-jones-close",
+              "layer": "L3",
+              "object_type": "strategy_memory",
+              "path": "feedback/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/strategy_memory.jsonl",
+              "title": "Strategy memory",
+              "summary": "Run-local route memory contributing to the projection."
+            },
+            {
+              "id": "formal_theory_review:2026-04-14-021049-jones-close",
+              "layer": "L4",
+              "object_type": "formal_theory_review",
+              "path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/theory-packets/candidate-jones-ch4-fin-50e7c38d/formal_theory_review.json",
+              "title": "Formal theory review",
+              "summary": "Ready theorem-facing review evidence used to validate the formal-theory projection."
+            }
+          ],
+          "question": "How should the topic `fresh-jones-finite-dimensional-factor-closure` be entered and advanced as a reusable theorem-facing formal-theory route?",
+          "assumptions": [
+            "`candidate:jones-ch4-finite-product` requires `formal_theory_review.json` overall_status `ready` and topic completion `promotion-ready` or `promoted` before route reuse is trusted."
+          ],
+          "proposed_validation_route": "human-reviewed formal-theory topic-skill projection promotion",
+          "intended_l2_targets": [
+            "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure"
+          ],
+          "status": "ready_for_validation",
+          "promotion_mode": "human",
+          "topic_completion_status": "promotion-ready"
+        },
+        "topic_skill_projection_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_skill_projection.active.json",
+        "topic_skill_projection_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_skill_projection.active.md",
+        "runtime_protocol": {
+          "runtime_protocol_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+          "runtime_protocol_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.md"
+        }
+      },
+      "request_promotion": {
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "candidate_id": "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+        "candidate_type": "topic_skill_projection",
+        "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+        "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+        "route": "L3->L4->L2",
+        "status": "pending_human_approval",
+        "intended_l2_targets": [
+          "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure"
+        ],
+        "backend_id": "backend:theoretical-physics-knowledge-network",
+        "target_backend_root": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network",
+        "review_mode": "human",
+        "canonical_layer": "L2",
+        "coverage_status": "not_audited",
+        "consensus_status": "not_requested",
+        "regression_gate_status": "not_audited",
+        "topic_completion_status": "promotion-ready",
+        "source_layer": "L4",
+        "requested_destination_layer": "L2",
+        "resolved_destination_layer": null,
+        "approval_change_kind": "pending_review",
+        "human_modifications": [],
+        "supporting_regression_question_ids": [],
+        "supporting_oracle_ids": [],
+        "supporting_regression_run_ids": [],
+        "runtime_schema_types": [
+          "statement-compilation-packet",
+          "proof-repair-plan"
+        ],
+        "runtime_schema_paths": {
+          "statement-compilation-packet": "schemas/statement-compilation-packet.schema.json",
+          "proof-repair-plan": "schemas/proof-repair-plan.schema.json"
+        },
+        "runtime_artifact_paths": {
+          "statement-compilation-packet": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json",
+          "proof-repair-plan": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/proof_repair_plan.json"
+        },
+        "runtime_schema_context": {
+          "all_valid": true,
+          "artifact_types": [
+            "statement-compilation-packet",
+            "proof-repair-plan"
+          ],
+          "schema_paths": {
+            "statement-compilation-packet": "schemas/statement-compilation-packet.schema.json",
+            "proof-repair-plan": "schemas/proof-repair-plan.schema.json"
+          },
+          "artifact_paths": {
+            "statement-compilation-packet": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json",
+            "proof-repair-plan": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/proof_repair_plan.json"
+          },
+          "artifacts": [
+            {
+              "artifact_type": "statement-compilation-packet",
+              "artifact_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json",
+              "schema_path": "schemas/statement-compilation-packet.schema.json",
+              "is_valid": true,
+              "validation_error": "",
+              "translated_unit": {
+                "unit_type": "definition_card",
+                "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+                "summary": "Bounded definition compilation packet with 1 declaration(s) and 2 proof hole(s).",
+                "payload": {
+                  "primary_statement_kind": "definition",
+                  "primary_identifier": "AITP.FreshJonesFiniteDimensionalFactorClosure.fresh_jones_finite_dimensional_factor_closure_topic_skill_projection",
+                  "declaration_count": 1,
+                  "proof_hole_count": 2
+                }
+              }
+            },
+            {
+              "artifact_type": "proof-repair-plan",
+              "artifact_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/proof_repair_plan.json",
+              "schema_path": "schemas/proof-repair-plan.schema.json",
+              "is_valid": true,
+              "validation_error": "",
+              "translated_unit": {
+                "unit_type": "negative_result",
+                "title": "Proof repair debt: candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+                "summary": "2 bounded proof hole(s) remain before proof-grade promotion can continue.",
+                "payload": {
+                  "status": "needs_repair",
+                  "proof_hole_count": 2,
+                  "compilation_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json"
+                }
+              }
+            }
+          ]
+        },
+        "promotion_blockers": [],
+        "split_required": false,
+        "cited_recovery_required": false,
+        "followup_gap_ids": [],
+        "merge_outcome": "pending",
+        "requested_by": "formal-positive-l2-acceptance",
+        "requested_at": "2026-04-14T02:10:52+08:00",
+        "approved_by": null,
+        "approved_at": null,
+        "rejected_by": null,
+        "rejected_at": null,
+        "promoted_by": null,
+        "promoted_at": null,
+        "promoted_units": [],
+        "notes": "",
+        "promotion_gate_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.json",
+        "promotion_gate_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.md",
+        "promotion_gate_log_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_gate_log.jsonl"
+      },
+      "approve_promotion": {
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "candidate_id": "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+        "candidate_type": "topic_skill_projection",
+        "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+        "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+        "route": "L3->L4->L2",
+        "status": "approved",
+        "intended_l2_targets": [
+          "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure"
+        ],
+        "backend_id": "backend:theoretical-physics-knowledge-network",
+        "target_backend_root": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network",
+        "review_mode": "human",
+        "canonical_layer": "L2",
+        "coverage_status": "not_audited",
+        "consensus_status": "not_requested",
+        "regression_gate_status": "not_audited",
+        "topic_completion_status": "promotion-ready",
+        "source_layer": "L4",
+        "requested_destination_layer": "L2",
+        "resolved_destination_layer": "L2",
+        "approval_change_kind": "approved_as_submitted",
+        "human_modifications": [],
+        "supporting_regression_question_ids": [],
+        "supporting_oracle_ids": [],
+        "supporting_regression_run_ids": [],
+        "runtime_schema_types": [
+          "statement-compilation-packet",
+          "proof-repair-plan"
+        ],
+        "runtime_schema_paths": {
+          "statement-compilation-packet": "schemas/statement-compilation-packet.schema.json",
+          "proof-repair-plan": "schemas/proof-repair-plan.schema.json"
+        },
+        "runtime_artifact_paths": {
+          "statement-compilation-packet": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json",
+          "proof-repair-plan": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/proof_repair_plan.json"
+        },
+        "runtime_schema_context": {
+          "all_valid": true,
+          "artifact_types": [
+            "statement-compilation-packet",
+            "proof-repair-plan"
+          ],
+          "schema_paths": {
+            "statement-compilation-packet": "schemas/statement-compilation-packet.schema.json",
+            "proof-repair-plan": "schemas/proof-repair-plan.schema.json"
+          },
+          "artifact_paths": {
+            "statement-compilation-packet": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json",
+            "proof-repair-plan": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/proof_repair_plan.json"
+          },
+          "artifacts": [
+            {
+              "artifact_type": "statement-compilation-packet",
+              "artifact_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json",
+              "schema_path": "schemas/statement-compilation-packet.schema.json",
+              "is_valid": true,
+              "validation_error": "",
+              "translated_unit": {
+                "unit_type": "definition_card",
+                "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+                "summary": "Bounded definition compilation packet with 1 declaration(s) and 2 proof hole(s).",
+                "payload": {
+                  "primary_statement_kind": "definition",
+                  "primary_identifier": "AITP.FreshJonesFiniteDimensionalFactorClosure.fresh_jones_finite_dimensional_factor_closure_topic_skill_projection",
+                  "declaration_count": 1,
+                  "proof_hole_count": 2
+                }
+              }
+            },
+            {
+              "artifact_type": "proof-repair-plan",
+              "artifact_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/proof_repair_plan.json",
+              "schema_path": "schemas/proof-repair-plan.schema.json",
+              "is_valid": true,
+              "validation_error": "",
+              "translated_unit": {
+                "unit_type": "negative_result",
+                "title": "Proof repair debt: candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+                "summary": "2 bounded proof hole(s) remain before proof-grade promotion can continue.",
+                "payload": {
+                  "status": "needs_repair",
+                  "proof_hole_count": 2,
+                  "compilation_path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/statement-compilation/candidate-topic-skill-p-d329e22a/statement_compilation.json"
+                }
+              }
+            }
+          ]
+        },
+        "promotion_blockers": [],
+        "split_required": false,
+        "cited_recovery_required": false,
+        "followup_gap_ids": [],
+        "merge_outcome": "pending",
+        "requested_by": "formal-positive-l2-acceptance",
+        "requested_at": "2026-04-14T02:10:52+08:00",
+        "approved_by": "formal-positive-l2-acceptance",
+        "approved_at": "2026-04-14T02:10:52+08:00",
+        "rejected_by": null,
+        "rejected_at": null,
+        "promoted_by": null,
+        "promoted_at": null,
+        "promoted_units": [],
+        "notes": "",
+        "promotion_gate_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.json",
+        "promotion_gate_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.md",
+        "promotion_gate_log_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_gate_log.jsonl"
+      },
+      "promote": {
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "run_id": "2026-04-14-021049-jones-close",
+        "candidate_id": "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+        "backend_id": "backend:theoretical-physics-knowledge-network",
+        "backend_card_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\backends\\theoretical-physics-knowledge-network.json",
+        "target_backend_root": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network",
+        "target_unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+        "target_unit_path": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\units\\topic-skill-projections\\fresh-jones-finite-dimensional-factor-closure.json",
+        "source_manifest_path": "D:\\BaiduSyncdisk\\repos\\_formal_positive_l2\\0cc01b2f\\jones-closure\\theoretical-physics-knowledge-network\\sources\\2026-03-24-aitp-jones-definition-first-lean-bootstrap\\manifest.json",
+        "source_manifest_created": true,
+        "promotion_decision_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_decisions.jsonl",
+        "promotion_gate_log_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\promotion_gate_log.jsonl",
+        "merge_report_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\validation\\topics\\fresh-jones-finite-dimensional-factor-closure\\runs\\2026-04-14-021049-jones-close\\theory-packets\\candidate-topic-skill-p-d329e22a\\merge_report.json",
+        "merge_outcome": "created_new",
+        "canonical_mirror_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\topic-skill-projections\\topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+        "canonical_mirror_unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+        "canonical_mirror_unit_type": "topic_skill_projection",
+        "tpkn_check": {
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "scripts/kb.py",
+            "check"
+          ],
+          "stdout": "",
+          "stderr": "",
+          "scoped_paths": [
+            "units\\topic-skill-projections\\fresh-jones-finite-dimensional-factor-closure.json",
+            "sources\\2026-03-24-aitp-jones-definition-first-lean-bootstrap\\manifest.json"
+          ]
+        },
+        "tpkn_build": {
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "scripts/kb.py",
+            "build"
+          ],
+          "stdout": "",
+          "stderr": "",
+          "scoped_paths": [
+            "units\\topic-skill-projections\\fresh-jones-finite-dimensional-factor-closure.json",
+            "sources\\2026-03-24-aitp-jones-definition-first-lean-bootstrap\\manifest.json"
+          ]
+        },
+        "consultation": {
+          "consultation_request_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\calls\\consult-tpkn-promotion-candidate-topic-skill-pr-47cf1e8b\\request.json",
+          "consultation_result_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\calls\\consult-tpkn-promotion-candidate-topic-skill-pr-47cf1e8b\\result.json",
+          "consultation_application_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\calls\\consult-tpkn-promotion-candidate-topic-skill-pr-47cf1e8b\\application.json",
+          "consultation_index_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\consultation\\topics\\fresh-jones-finite-dimensional-factor-closure\\consultation_index.jsonl"
+        },
+        "promotion_gate_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.json",
+        "promotion_gate_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\promotion_gate.md"
+      },
+      "topic_status": {
+        "topic_skill_projection": {
+          "id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "source_topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+          "run_id": "2026-04-14-021049-jones-close",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "lane": "formal_theory",
+          "status": "available",
+          "status_reason": "Projection is available because the topic is formal_theory, the active theorem-facing review is ready, topic completion is promotion-ready, and route-level strategy memory exists.",
+          "candidate_id": "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810",
+          "intended_l2_target": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "entry_signals": [
+            "lane=formal_theory",
+            "selected_action=Stage bounded literature-intake units from the current L1 vault into L2 staging.",
+            "strategy_memory_status=available",
+            "theorem_candidate=candidate:jones-ch4-finite-product",
+            "formal_theory_review=ready",
+            "topic_completion=promotion-ready"
+          ],
+          "required_first_reads": [
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.md",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_contract.active.md",
+            "feedback/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/strategy_memory.jsonl",
+            "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/theory-packets/candidate-jones-ch4-fin-50e7c38d/formal_theory_review.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_completion.md"
+          ],
+          "required_first_routes": [
+            "Read `formal_theory_review.json` for `candidate:jones-ch4-finite-product` before reusing the theorem-facing route.",
+            "Check that `topic_completion.json` still reports `promotion-ready` or `promoted` before treating the route as reusable."
+          ],
+          "benchmark_first_rules": [
+            "`candidate:jones-ch4-finite-product` requires `formal_theory_review.json` overall_status `ready` and topic completion `promotion-ready` or `promoted` before route reuse is trusted."
+          ],
+          "operator_checkpoint_rules": [
+            "Raise an operator checkpoint when benchmark mismatch or validation-route ambiguity changes the bounded route.",
+            "Require explicit human approval before any L2 promotion of a topic-skill projection.",
+            "Translate continue/branch/redirect answers into durable steering artifacts before deeper execution continues."
+          ],
+          "operation_trust_requirements": [
+            "`candidate:jones-ch4-finite-product`: formal_theory_review_status=ready, topic_completion_status=promotion-ready, strategy_memory_rows=15."
+          ],
+          "strategy_guidance": [
+            "Reuse: Read the ready formal-theory review packet before reusing the bounded Jones Chapter 4 theorem-facing route."
+          ],
+          "forbidden_proxies": [
+            "Do not treat polished prose, hidden assumptions, or memory-only agreement as proof.",
+            "Do not silently widen scope without updating this contract.",
+            "Do not skip a restart from source intake when the blocker is really a missing source, citation chain, or prior-work comparison.",
+            "Do not treat raw code changes, unreviewed configs, or prose-only workflow descriptions as a reusable topic-skill projection.",
+            "Do not treat the projection itself as a theorem certificate, proof closure, or completed formal result."
+          ],
+          "derived_from_artifacts": [
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_contract.active.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_state.json",
+            "feedback/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/strategy_memory.jsonl",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_completion.json",
+            "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/theory-packets/candidate-jones-ch4-fin-50e7c38d/formal_theory_review.json",
+            "runtime/topics/fresh-jones-finite-dimensional-factor-closure/gap_map.md"
+          ],
+          "updated_at": "2026-04-14T02:10:54+08:00",
+          "updated_by": "formal-positive-l2-acceptance",
+          "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_skill_projection.active.json",
+          "note_path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_skill_projection.active.md"
+        },
+        "must_read_now": [
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_dashboard.md",
+            "reason": "Primary human runtime surface for the current topic. Read this first for the bounded status, next action, and blockers."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.md",
+            "reason": "Active research question, scope, and deliverables for ordinary topic work."
+          },
+          {
+            "path": "feedback/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/strategy_memory.jsonl",
+            "reason": "Recent strategy memory overlaps with the current route. Consult it before trusting heuristic route selection."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_skill_projection.active.md",
+            "reason": "Validated topic-skill projection for this formal-theory lane. Read it before reusing the theorem-facing route."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/graph_analysis.md",
+            "reason": "Current graph-analysis summary for cross-source bridges, question seeds, and recent graph drift."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/mode_learning.active.md",
+            "reason": "Learned route guidance is available for this topic. Read it before repeating a previously harmful lane choice."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_judgment.active.md",
+            "reason": "Active research-judgment signals are recorded for this topic. Read them before trusting the bounded route at face value."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_review_bundle.active.md",
+            "reason": "Primary L4 review surface for the active verification lane."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_contract.active.md",
+            "reason": "Current validation route, required checks, and failure modes for this topic."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/selected_validation_route.json",
+            "reason": "Closed-loop route and execution details only become mandatory when validation-route selection or execution routing is the current concern."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/execution_task.json",
+            "reason": "Closed-loop route and execution details only become mandatory when validation-route selection or execution routing is the current concern."
+          },
+          {
+            "path": "validation/topics/fresh-jones-finite-dimensional-factor-closure/runs/2026-04-14-021049-jones-close/returned_execution_result.json",
+            "reason": "Closed-loop route and execution details only become mandatory when validation-route selection or execution routing is the current concern."
+          },
+          {
+            "path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_completion.md",
+            "reason": "Topic-completion support surface for remaining blockers and regression debt."
+          }
+        ]
+      }
+    },
+    "verification_payload": {
+      "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+      "verification_mode": "topic-completion",
+      "validation_contract_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\validation_contract.active.json",
+      "validation_contract_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\validation_contract.active.md",
+      "validation_contract": {
+        "contract_version": 1,
+        "validation_id": "validation:fresh-jones-finite-dimensional-factor-closure:active",
+        "topic_slug": "fresh-jones-finite-dimensional-factor-closure",
+        "status": "planned",
+        "template_mode": "formal_theory",
+        "verification_focus": "Judge whether the whole topic is ready for bounded completion or promotion routing.",
+        "validation_mode": "hybrid",
+        "target_claim_ids": [
+          "candidate:jones-ch4-finite-product",
+          "candidate:topic-skill-proj-fresh-jones-finite-dimen-f1233810"
+        ],
+        "acceptance_rule": "Accept only when the requested verification mode is satisfied by durable artifacts and no active L0-recovery blocker is being hidden.",
+        "rejection_rule": "Reject when proof, comparison, or execution claims outrun the currently persisted artifacts.",
+        "required_checks": [
+          "Check promotion blockers, split requirements, cited-recovery flags, and regression support together.",
+          "Ensure the research and validation contracts still match the topic shell surfaces.",
+          "Return to L0 for any unresolved source or prior-work blocker before marking topic completion."
+        ],
+        "oracle_artifacts": [
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_review_bundle.active.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/runtime_protocol.generated.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/action_queue.jsonl",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_dashboard.md",
+          "intake/topics/fresh-jones-finite-dimensional-factor-closure/vault/vault_manifest.json",
+          "intake/topics/fresh-jones-finite-dimensional-factor-closure/vault/vault_manifest.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/conformance_report.md"
+        ],
+        "executed_evidence": [],
+        "confidence_cap": "medium",
+        "gap_followups": [],
+        "failure_modes": [
+          "Proof steps remain implicit or depend on unstated notation.",
+          "Executed validation is claimed but no durable evidence path exists.",
+          "A cited derivation or prior-work dependency was glossed over instead of recovered through L0."
+        ],
+        "artifacts": [
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_review_bundle.active.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/runtime_protocol.generated.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/action_queue.jsonl",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/research_question.contract.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/topic_dashboard.md",
+          "intake/topics/fresh-jones-finite-dimensional-factor-closure/vault/vault_manifest.json",
+          "intake/topics/fresh-jones-finite-dimensional-factor-closure/vault/vault_manifest.md",
+          "runtime/topics/fresh-jones-finite-dimensional-factor-closure/conformance_report.md"
+        ],
+        "primary_review_bundle_path": "runtime/topics/fresh-jones-finite-dimensional-factor-closure/validation_review_bundle.active.json",
+        "review_focus": "Primary L4 review surface for topic `fresh-jones-finite-dimensional-factor-closure` using `validation_contract` as the current review entry point. No specialist review artifacts are materialized for the active run yet.",
+        "open_review_questions": []
+      },
+      "runtime_protocol": {
+        "runtime_protocol_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+        "runtime_protocol_note_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.md"
+      }
+    }
+  },
+  "repo_local_l2": {
+    "workspace_memory_map": {
+      "json_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.json",
+      "markdown_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.md"
+    },
+    "workspace_graph_report": {
+      "json_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.json",
+      "markdown_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.md"
+    },
+    "workspace_knowledge_report": {
+      "json_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json",
+      "markdown_path": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.md"
+    },
+    "consultation": {
+      "query_text": "Jones finite product theorem packet",
+      "retrieval_profile": "l3_candidate_formation",
+      "ids": [
+        "claim_card:tfim-benchmark-before-portability-claim",
+        "concept:tfim-benchmark-first-validation",
+        "concept:tfim-transverse-field-ising-model",
+        "method:tfim-exact-diagonalization-helper",
+        "physical_picture:tfim-weak-coupling-benchmark-intuition",
+        "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+        "theorem:jones-ch4-finite-product",
+        "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+        "topic_skill_projection:tfim-benchmark-first-route",
+        "warning_note:tfim-dense-ed-finite-size-limit",
+        "workflow:tfim-benchmark-workflow"
+      ]
+    }
+  },
+  "artifacts": {
+    "bootstrap_topic_state": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\topic_state.json",
+    "bootstrap_runtime_protocol": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\runtime\\topics\\fresh-jones-finite-dimensional-factor-closure\\runtime_protocol.generated.json",
+    "source_index": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\source-layer\\topics\\fresh-jones-finite-dimensional-factor-closure\\source_index.jsonl",
+    "workspace_memory_map": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.json",
+    "workspace_graph_report": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.json",
+    "workspace_knowledge_report": "D:\\BaiduSyncdisk\\repos\\AITP-Research-Protocol\\research\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json"
+  }
+}

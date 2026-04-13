@@ -25,6 +25,14 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 
 
+def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -121,6 +129,50 @@ def load_staging_entries(kernel_root: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _staging_index_rows(kernel_root: Path, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        title = str(entry.get("title") or "").strip()
+        summary = str(entry.get("summary") or "").strip()
+        entry_kind = str(entry.get("entry_kind") or "unknown").strip()
+        topic_slug = str(entry.get("topic_slug") or "").strip()
+        failure_kind = str(entry.get("failure_kind") or "").strip()
+        source_artifact_paths = [
+            str(item).strip()
+            for item in (entry.get("source_artifact_paths") or [])
+            if str(item).strip()
+        ]
+        rows.append(
+            {
+                "entry_id": str(entry.get("entry_id") or ""),
+                "topic_slug": topic_slug,
+                "entry_kind": entry_kind,
+                "title": title,
+                "summary": summary,
+                "status": str(entry.get("status") or ""),
+                "authoritative": bool(entry.get("authoritative")),
+                "path": str(entry.get("path") or ""),
+                "note_path": str(entry.get("note_path") or ""),
+                "failure_kind": failure_kind,
+                "source_artifact_paths": source_artifact_paths,
+                "search_terms": " ".join(
+                    [
+                        title,
+                        summary,
+                        entry_kind,
+                        failure_kind,
+                        str(entry.get("notes") or "").strip(),
+                        " ".join(source_artifact_paths),
+                    ]
+                ),
+                "created_at": str(entry.get("created_at") or ""),
+                "updated_at": str(entry.get("updated_at") or ""),
+            }
+        )
+    rows.sort(key=lambda row: str(row.get("entry_id") or ""))
+    return rows
+
+
 def build_workspace_staging_manifest(kernel_root: Path) -> dict[str, Any]:
     kernel_root = kernel_root.resolve()
     entries = load_staging_entries(kernel_root)
@@ -208,15 +260,19 @@ def render_workspace_staging_manifest_markdown(payload: dict[str, Any]) -> str:
 def materialize_workspace_staging_manifest(kernel_root: Path) -> dict[str, Any]:
     kernel_root = kernel_root.resolve()
     staging_root = _staging_root(kernel_root)
+    entries = load_staging_entries(kernel_root)
     payload = build_workspace_staging_manifest(kernel_root)
     json_path = staging_root / "workspace_staging_manifest.json"
     md_path = staging_root / "workspace_staging_manifest.md"
+    index_path = staging_root / "staging_index.jsonl"
     write_json(json_path, payload)
     write_text(md_path, render_workspace_staging_manifest_markdown(payload))
+    write_jsonl(index_path, _staging_index_rows(kernel_root, entries))
     return {
         "payload": payload,
         "json_path": str(json_path),
         "markdown_path": str(md_path),
+        "index_path": str(index_path),
     }
 
 

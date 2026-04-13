@@ -2,7 +2,7 @@
 
 ## v1.97 First Positive L0 To L2 Closure (Active)
 
-**Phases completed:** 0 / 3 phases, 0 / 3 plans
+**Phases completed:** 3 / 3 phases, 3 / 3 plans
 
 **Milestone goal:**
 
@@ -15,7 +15,15 @@
 
 **Key accomplishments:**
 
-- (milestone in progress)
+- one fresh formal-theory topic now lands a bounded theorem in authoritative
+  canonical `L2`
+- repo-local compiled reports and `consult-l2` now agree on that positive
+  authoritative landing
+- authoritative positive rows and staged `contradiction_watch` rows now
+  coexist on the same compiled and consultation surfaces without authority
+  drift
+- replay receipts and deferred lane routing now exist for the user-requested
+  `HS model` and `LibRPA QSGW` widening work
 
 ---
 

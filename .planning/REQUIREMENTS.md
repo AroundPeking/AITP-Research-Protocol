@@ -22,17 +22,17 @@ trustworthy enough to serve as the next multi-mode baseline.
 
 ### L2 Surface Hardening
 
-- [ ] `REQ-L2POS-03`: L2 compiler and read surfaces preserve honest
+- [x] `REQ-L2POS-03`: L2 compiler and read surfaces preserve honest
   coexistence between the new authoritative positive unit and the existing
   `negative_result -> contradiction_watch` row without losing provenance,
   authority labels, or retrieval visibility.
 
-- [ ] `REQ-L2POS-04`: one replayable acceptance lane proves the full positive
+- [x] `REQ-L2POS-04`: one replayable acceptance lane proves the full positive
   route mechanically from public bootstrap through authoritative L2 writeback.
 
 ### Carry-Over Routing
 
-- [ ] `REQ-L2POS-05`: the milestone closes with explicit deferred blockers and
+- [x] `REQ-L2POS-05`: the milestone closes with explicit deferred blockers and
   next actions for `toy_model` and `first_principles` positive-L2 closure, so
   widening back to multiple paradigms happens on a firmer L2 baseline.
 
@@ -58,10 +58,10 @@ trustworthy enough to serve as the next multi-mode baseline.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REQ-L2POS-01 | Phase 171 | Done |
-| REQ-L2POS-02 | Phase 171 / 171.1 | Phase 171 baseline done; Phase 171.1 guards coexistence |
-| REQ-L2POS-03 | Phase 171.1 | Pending |
-| REQ-L2POS-04 | Phase 171.2 | Pending |
-| REQ-L2POS-05 | Phase 171.2 | Pending |
+| REQ-L2POS-02 | Phase 171 / 171.1 | Done |
+| REQ-L2POS-03 | Phase 171.1 | Done |
+| REQ-L2POS-04 | Phase 171.2 | Done |
+| REQ-L2POS-05 | Phase 171.2 | Done |
 
 **Coverage:**
 - v1 requirements: 5 total
