@@ -1,6 +1,6 @@
 # Milestones
 
-## v1.95 L2 Promotion Pipeline Closure (Active)
+## v1.95 L2 Promotion Pipeline Closure (Shipped: 2026-04-14)
 
 **Phases completed:** 3 / 3 phases, 3 / 3 plans
 
@@ -442,10 +442,10 @@ Completed milestone chain:
 
 ## Current Active Milestone
 
-- `v1.95` `L2 Promotion Pipeline Closure` — 3 phases, 3 completed
+- none — start the next milestone with `$gsd-new-milestone`
 
 ## Current Status
 
 - `v1.36` through `v1.94` are closed and archived or ready for archive lookup
-- `v1.95` is active with 3 phases (169, 169.1, 169.2)
-- next command boundary: `$gsd-complete-milestone`
+- `v1.95` is now closed on a green bounded baseline
+- next command boundary: `$gsd-new-milestone`

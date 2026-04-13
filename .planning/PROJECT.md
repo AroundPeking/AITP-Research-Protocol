@@ -69,6 +69,9 @@ The previously scoped GSD mainline is implemented through:
 - `v1.90`
 - `v1.91`
 - `v1.92`
+- `v1.93`
+- `v1.94`
+- `v1.95`
 
 That closes the current bounded chain through the first operator-visible
 hypothesis route-transition-authority surface, but
@@ -76,12 +79,12 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v1.95` `L2 Promotion Pipeline Closure`
-- Latest closed milestone: `v1.94` `L4 Analytical Cross-Check Surface`
-- Next boundary: complete and archive milestone `v1.95` now that Phases
-  `169`, `169.1`, and `169.2` are all implemented
+- Active milestone: none
+- Latest closed milestone: `v1.95` `L2 Promotion Pipeline Closure`
+- Next boundary: define the next bounded milestone rather than reopening the
+  now closed promotion-pipeline slice casually
 
-## Current Milestone: v1.95 L2 Promotion Pipeline Closure
+## Latest Closed Milestone: v1.95 L2 Promotion Pipeline Closure
 
 **Goal:** Close the L4→L2 promotion pipeline gap so E2E research runs that
 already validate at `L4` can actually land their results in canonical `L2`
@@ -103,7 +106,7 @@ knowledge.
 - keep this milestone bounded to pipeline closure and minimal operator
   ergonomics rather than reopening already-shipped analytical surfaces
 
-## Latest Closed Milestone: v1.94 L4 Analytical Cross-Check Surface
+## Previous Closed Milestone: v1.94 L4 Analytical Cross-Check Surface
 
 **Goal:** Close the broader post-`v1.47` analytical-validation remainder by
 making bounded analytical checks explicit, durable, and visible on the runtime
@@ -843,9 +846,9 @@ This document evolves at phase transitions and milestone boundaries.
 
 This does **not** mean AITP is finished.
 
-It means `v1.94` is archived on a green baseline and `v1.95` is now the active
-bounded closure target, starting with Phase `169` instead of reopening the
-already-shipped analytical surface casually.
+It means `v1.95` is archived on a green baseline and the next step is choosing
+the next bounded milestone rather than reopening its already-shipped closure
+chain casually.
 
 ---
-*Last updated: 2026-04-14 after starting milestone v1.95*
+*Last updated: 2026-04-14 after closing milestone v1.95*

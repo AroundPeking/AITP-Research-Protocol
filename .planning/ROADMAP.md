@@ -2,7 +2,7 @@
 
 ## Result
 
-Milestone in progress.
+`v1.95` closed successfully.
 
 ## Phases
 
@@ -24,7 +24,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start milestone completion.
+Start the next milestone with `$gsd-new-milestone`.
 
 ### Phase 169: L2 Canonical Schema Extension
 

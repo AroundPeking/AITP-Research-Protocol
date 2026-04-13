@@ -8,7 +8,7 @@ discovered during two Jones E2E runs: both reached L4 (Lean compilation
 succeeded) but could not promote to L2 because the pipeline's engineering is
 incomplete — not the science.
 
-## Active Requirements
+## Archived Requirements
 
 ### Canonical Schema Extension
 
@@ -84,14 +84,14 @@ incomplete — not the science.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-PROMO-01 | Phase 169 | Complete |
-| REQ-PROMO-02 | Phase 169 | Complete |
-| REQ-PROMO-03 | Phase 169.1 | Complete |
-| REQ-PROMO-04 | Phase 169.1 | Complete |
-| REQ-PROMO-05 | Phase 169.1 | Complete |
-| REQ-PROMO-06 | Phase 169.1 | Complete |
-| REQ-HCI-01 | Phase 169.2 | Complete |
-| REQ-HCI-02 | Phase 169.2 | Complete |
+| REQ-PROMO-01 | Phase 169 | Satisfied |
+| REQ-PROMO-02 | Phase 169 | Satisfied |
+| REQ-PROMO-03 | Phase 169.1 | Satisfied |
+| REQ-PROMO-04 | Phase 169.1 | Satisfied |
+| REQ-PROMO-05 | Phase 169.1 | Satisfied |
+| REQ-PROMO-06 | Phase 169.1 | Satisfied |
+| REQ-HCI-01 | Phase 169.2 | Satisfied |
+| REQ-HCI-02 | Phase 169.2 | Satisfied |
 
 **Coverage:**
 - v1 requirements: 8 total
@@ -100,4 +100,4 @@ incomplete — not the science.
 
 ---
 *Requirements defined: 2026-04-14*
-*Root cause: Jones E2E run gap diagnosis (2026-04-14)*
+*Archived after milestone closure on 2026-04-14.*
