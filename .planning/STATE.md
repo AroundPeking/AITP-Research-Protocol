@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.99
 milestone_name: LibRPA QSGW Positive L0 To L2 Closure
 status: milestone_active
-stopped_at: "Phase 173 complete; Phase 173.1 next"
-last_updated: "2026-04-14T03:45:00+08:00"
+stopped_at: "All v1.99 phases complete; milestone lifecycle next"
+last_updated: "2026-04-14T04:05:00+08:00"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 3
 ---
 
 # Project State
@@ -39,10 +39,11 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 - Phase `173` chose one bounded positive `LibRPA QSGW` target:
   the deterministic-reduction thread-consistency core on the
   `H2O/really_tight iter=10` reference workflow
-- the target is explicitly backed by code roots, validator surfaces, and the
-  existing OMP consistency engineering evidence
-- immediate next step: start Phase `173.1` and promote that bounded target
-  into authoritative canonical `L2`
+- Phase `173.1` promoted that bounded target into authoritative canonical `L2`
+  as `claim:librpa-qsgw-deterministic-reduction-consistency-core`
+- Phase `173.2` replayed the positive `LibRPA QSGW` proof and made the
+  three-lane convergence baseline explicit
+- immediate next step: run milestone `v1.99` lifecycle handling
 
 ## Accumulated Context
 

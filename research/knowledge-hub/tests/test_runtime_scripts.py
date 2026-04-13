@@ -2062,6 +2062,44 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue(any(source_topics_root.glob("*/source_index.jsonl")))
         self.assertTrue(any(feedback_root.glob("*/runs/*/candidate_ledger.jsonl")))
 
+    def test_librpa_qsgw_positive_l2_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_librpa_qsgw_positive_l2_acceptance_test",
+            "runtime/scripts/run_librpa_qsgw_positive_l2_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "lqpl2"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_librpa_qsgw_positive_l2_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "claim-cards"
+                / "claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json"
+            ).exists()
+        )
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "compiled"
+                / "workspace_knowledge_report.json"
+            ).exists()
+        )
+
     def test_l1_progressive_reading_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "l1-progressive-reading-acceptance"
         with patch.object(

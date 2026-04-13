@@ -7,8 +7,8 @@ Milestone in progress.
 ## Phases
 
 - [x] **Phase 173: LibRPA QSGW Bounded Target And Trust Contract** *(Axis 1 + Axis 2)*
-- [ ] **Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
-- [ ] **Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure** *(Axis 4 + Axis 5)*
+- [x] **Phase 173.1: LibRPA QSGW Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
+- [x] **Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
@@ -23,7 +23,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 173.1.
+Run milestone lifecycle: audit, complete, and archive `v1.99`.
 
 ### Phase 173: LibRPA QSGW Bounded Target And Trust Contract
 
@@ -79,7 +79,7 @@ front door to one authoritative canonical `L2` unit.
 
 Plans:
 
-- [ ] `173.1-01` Promote one bounded positive `LibRPA QSGW` unit into
+- [x] `173.1-01` Promote one bounded positive `LibRPA QSGW` unit into
   authoritative canonical `L2` and prove compiled/read-path parity
 
 ### Phase 173.2: LibRPA QSGW Replay And Three-Lane Convergence Closure
@@ -107,5 +107,5 @@ for later real-topic natural-language testing.
 
 Plans:
 
-- [ ] `173.2-01` Replay the positive `LibRPA QSGW` proof and write the
+- [x] `173.2-01` Replay the positive `LibRPA QSGW` proof and write the
   three-lane convergence closure

@@ -20,17 +20,17 @@ natural-language testing.
   contract proves the chosen `LibRPA QSGW` target is honest enough for
   promotion instead of being inferred from prose or hidden operator memory.
 
-- [ ] `REQ-QSGW-03`: the bounded positive `LibRPA QSGW` target promotes one
+- [x] `REQ-QSGW-03`: the bounded positive `LibRPA QSGW` target promotes one
   authoritative unit into canonical `L2` with durable backend and repo-local
   receipts.
 
 ### Replay And Three-Lane Convergence
 
-- [ ] `REQ-QSGW-04`: compiled `L2` and `consult-l2` expose the promoted QSGW
+- [x] `REQ-QSGW-04`: compiled `L2` and `consult-l2` expose the promoted QSGW
   unit with codebase/workflow provenance intact and without flattening it into
   generic toy-model or formal-theory memory.
 
-- [ ] `REQ-QSGW-05`: the milestone closes with one replayable acceptance lane
+- [x] `REQ-QSGW-05`: the milestone closes with one replayable acceptance lane
   for the positive `LibRPA QSGW` route plus explicit convergence notes for the
   formal-theory, toy-model, and first-principles baselines.
 
@@ -53,9 +53,9 @@ natural-language testing.
 |-------------|-------|--------|
 | REQ-QSGW-01 | Phase 173 | Done |
 | REQ-QSGW-02 | Phase 173 | Done |
-| REQ-QSGW-03 | Phase 173.1 | Pending |
-| REQ-QSGW-04 | Phase 173.1 / 173.2 | Pending |
-| REQ-QSGW-05 | Phase 173.2 | Pending |
+| REQ-QSGW-03 | Phase 173.1 | Done |
+| REQ-QSGW-04 | Phase 173.1 / 173.2 | Done |
+| REQ-QSGW-05 | Phase 173.2 | Done |
 
 **Coverage:**
 - v1 requirements: 5 total
