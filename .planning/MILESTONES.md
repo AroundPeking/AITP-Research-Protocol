@@ -1,6 +1,6 @@
 # Milestones
 
-## v1.97 First Positive L0 To L2 Closure (Active)
+## v1.97 First Positive L0 To L2 Closure (Shipped: 2026-04-14)
 
 **Phases completed:** 3 / 3 phases, 3 / 3 plans
 
@@ -489,15 +489,14 @@ Completed milestone chain:
 
 ## Latest Closed Milestone
 
-- `v1.95` `L2 Promotion Pipeline Closure` implemented
+- `v1.97` `First Positive L0 To L2 Closure` shipped
 
 ## Current Active Milestone
 
-- `v1.96` `Real Topic Promotion E2E Proof` — 3 phases, 0 completed
+- none
 
 ## Current Status
 
-- `v1.36` through `v1.94` are closed and archived or ready for archive lookup
-- `v1.95` is now closed on a green bounded baseline
-- `v1.96` is active with 3 phases (170, 170.1, 170.2)
-- next command boundary: `$gsd-plan-phase 170`
+- `v1.36` through `v1.97` are closed and archived or ready for archive lookup
+- the repository is between milestones after archiving `v1.97`
+- next command boundary: `$gsd-new-milestone`

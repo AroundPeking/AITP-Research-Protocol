@@ -73,6 +73,7 @@ The previously scoped GSD mainline is implemented through:
 - `v1.94`
 - `v1.95`
 - `v1.96`
+- `v1.97`
 
 That closes the current bounded chain through the first operator-visible
 hypothesis route-transition-authority surface, but
@@ -80,36 +81,36 @@ it still does **not** mean the broader AITP architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v1.97` `First Positive L0 To L2 Closure`
-- Latest closed milestone: `v1.96` `Real Topic Promotion E2E Proof`
-- Next boundary: start Phase `171` and land one authoritative positive unit in
-  canonical `L2`, then harden the L2 compiler and consultation surfaces around
-  real positive/negative coexistence
-
-## Current Milestone: v1.97 First Positive L0 To L2 Closure
+- Active milestone: none
+- Latest closed milestone: `v1.97` `First Positive L0 To L2 Closure`
+- Next boundary: define the next widening milestone around the deferred
+  `HS model` toy-model lane and `LibRPA QSGW` first-principles / code-method
+  lane on top of the stronger L2 baseline
+## Latest Closed Milestone: v1.97 First Positive L0 To L2 Closure
 
 **Goal:** land one fresh positive authoritative unit in canonical `L2` through
 the public AITP route, then make the surrounding L2 surfaces trustworthy enough
 to serve as the baseline for later multi-mode closure.
 
-**Target features:**
-- one fresh `formal_derivation` topic reaches authoritative canonical `L2`
+**Delivered features:**
+- one fresh `formal_derivation` topic now reaches authoritative canonical `L2`
   instead of stopping at `L3`
 - compiled L2 and consultation surfaces expose the same promoted unit and
   authority state
-- one replayable acceptance lane proves the full positive route mechanically
-- explicit carry-over blockers are written for `toy_model` and
+- one replayable acceptance lane now proves the full positive route
+  mechanically
+- explicit carry-over blockers are now written for `toy_model` and
   `first_principles`
 
-**Key context:**
-- `v1.96` proved the public front door and the negative-result route honestly,
-  but not positive authoritative L2 landing
-- the most mature positive lane is still the formal von-Neumann / Jones family,
-  so it should close first
-- after one trustworthy positive L2 landing exists, widening back to more modes
-  and topic paradigms becomes much less speculative
+**Explicitly deferred from this milestone:**
+- one positive `HS model` toy-model lane still needs a bounded positive target
+  and convergence/benchmark contract before authoritative `L2` promotion
+- one positive `LibRPA QSGW` first-principles lane still needs a durable
+  `first_principles -> code_method` mapping and bounded positive target
+- the next widening milestone should start from the now-closed formal-theory L2
+  baseline instead of reopening the Jones lane
 
-## Latest Closed Milestone: v1.96 Real Topic Promotion E2E Proof
+## Previous Closed Milestone: v1.96 Real Topic Promotion E2E Proof
 
 **Goal:** prove the public front door and repaired promotion route on real
 topics, including one honest negative-result lane.
@@ -890,9 +891,10 @@ This document evolves at phase transitions and milestone boundaries.
 
 This does **not** mean AITP is finished.
 
-It means `v1.95` is archived on a green baseline and `v1.96` is now the active
-bounded closure target, starting with a real promotion proof rather than
-reopening the already-shipped pipeline-repair slice casually.
+It means `v1.97` is archived on a stronger positive-L2 baseline and the next
+bounded milestone can widen honestly to the deferred `HS model` and `LibRPA
+QSGW` lanes instead of re-litigating whether AITP already has a trustworthy
+positive canonical-L2 path.
 
 ---
-*Last updated: 2026-04-14 after starting milestone v1.96*
+*Last updated: 2026-04-14 after completing milestone v1.97*

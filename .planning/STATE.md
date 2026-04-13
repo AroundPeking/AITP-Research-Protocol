@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.97
 milestone_name: First Positive L0 To L2 Closure
-status: milestone_active
-stopped_at: "All v1.97 phases complete; milestone audit next"
-last_updated: "2026-04-14T02:10:54+08:00"
+status: between_milestones
+stopped_at: "Milestone v1.97 archived; waiting for next milestone definition"
+last_updated: "2026-04-14T02:20:00+08:00"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
@@ -18,9 +18,8 @@ progress:
 
 ## Current Position
 
-Status: milestone `v1.97` `First Positive L0 To L2 Closure` is active at the
-milestone level, and all three roadmap phases are complete. The next lifecycle
-step is milestone audit and completion.
+Status: milestone `v1.97` `First Positive L0 To L2 Closure` is archived. The
+repository is between milestones and waiting for the next milestone definition.
 
 **Why this milestone exists:**
 
@@ -35,16 +34,19 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 
 ## Immediate Next Step
 
-- active milestone: `v1.97` `First Positive L0 To L2 Closure`
-- Phase `171` closed one fresh formal positive route into authoritative
-  repo-local canonical `L2`
-- Phase `171.1` proved authoritative positive and contradiction-watch staging
-  rows can coexist on compiled and consultation surfaces
-- Phase `171.2` closed replay receipts and wrote the deferred lane routing for
-  `HS model` toy-model and `LibRPA QSGW` first-principles work
-- next lifecycle action: audit and complete milestone `v1.97`
+- latest closed milestone: `v1.97` `First Positive L0 To L2 Closure`
+- archived audit: `.planning/v1.97-MILESTONE-AUDIT.md`
+- next milestone should widen from the closed formal-theory L2 baseline toward
+  the deferred `HS model` and `LibRPA QSGW` lanes
 
 ## Accumulated Context
+
+### Pending Todos
+
+- 3 pending todos captured on 2026-04-13:
+  `fix-new-topic-session-start-misrouting`,
+  `shorten-windows-source-layer-paths-and-sync-status`,
+  `harden-l2-staging-provenance-and-retrieval-relevance`
 
 ### 5-Axis Advancement Framework (2026-04-13)
 
