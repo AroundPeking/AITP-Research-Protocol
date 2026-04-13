@@ -9776,6 +9776,29 @@ class AITPServiceTests(unittest.TestCase):
         )
         runtime_protocol_json = runtime_root / "runtime_protocol.generated.json"
         runtime_protocol_note = runtime_root / "runtime_protocol.generated.md"
+        consultation_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / "2026-03-13-demo" / "consultations"
+        consultation_root.mkdir(parents=True, exist_ok=True)
+        consultation_index_path = consultation_root / "consultation_index.jsonl"
+        consultation_result_path = consultation_root / "consultation_result.json"
+        consultation_index_path.write_text("", encoding="utf-8")
+        consultation_result_path.write_text("{}", encoding="utf-8")
+        staged_payload = {
+            "primary_hits": [],
+            "expanded_hits": [],
+            "staged_hits": [
+                {
+                    "entry_id": "staging:demo-topic-local",
+                    "title": "Demo topic local staged bridge note",
+                    "topic_slug": topic_slug,
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/staging--demo-topic-local.json",
+                }
+            ],
+            "consultation": {
+                "consultation_index_path": str(consultation_index_path),
+                "consultation_result_path": str(consultation_result_path),
+            },
+        }
         runtime_protocol_json.write_text(
             json.dumps(
                 {
@@ -9814,16 +9837,59 @@ class AITPServiceTests(unittest.TestCase):
                 "runtime_protocol_note_path": str(runtime_protocol_note),
             },
         ):
-            payload = self.service._execute_auto_actions(
-                topic_slug=topic_slug,
-                updated_by="aitp-cli",
-                max_auto_steps=1,
-                default_skill_queries=None,
-            )
+            with patch.object(self.service, "consult_l2", return_value=staged_payload):
+                payload = self.service._execute_auto_actions(
+                    topic_slug=topic_slug,
+                    updated_by="aitp-cli",
+                    max_auto_steps=1,
+                    default_skill_queries=None,
+                )
 
         self.assertEqual(len(payload["executed"]), 1)
         self.assertEqual(payload["executed"][0]["action_type"], "consultation_followup")
         self.assertEqual(payload["executed"][0]["status"], "completed")
+        self.assertTrue((runtime_root / "consultation_followup_selection.active.json").exists())
+
+    def test_run_consultation_followup_records_consultation_receipt_and_selection(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug, run_id="run-001")
+        consultation_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / "run-001" / "consultations"
+        consultation_root.mkdir(parents=True, exist_ok=True)
+        consultation_index_path = consultation_root / "consultation_index.jsonl"
+        consultation_result_path = consultation_root / "consultation_result.json"
+        consultation_index_path.write_text("", encoding="utf-8")
+        consultation_result_path.write_text("{}", encoding="utf-8")
+        staged_payload = {
+            "primary_hits": [],
+            "expanded_hits": [],
+            "staged_hits": [
+                {
+                    "entry_id": "staging:demo-topic-local",
+                    "title": "Demo topic local staged bridge note",
+                    "topic_slug": topic_slug,
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/staging--demo-topic-local.json",
+                }
+            ],
+            "consultation": {
+                "consultation_index_path": str(consultation_index_path),
+                "consultation_result_path": str(consultation_result_path),
+            },
+        }
+
+        with patch.object(self.service, "consult_l2", return_value=staged_payload):
+            payload = self.service._run_consultation_followup(
+                topic_slug=topic_slug,
+                row={
+                    "handler_args": {"run_id": "run-001"},
+                    "action_type": "consultation_followup",
+                },
+                updated_by="aitp-cli",
+            )
+
+        self.assertIn("consultation", payload)
+        self.assertIn("selection", payload)
+        self.assertEqual(payload["selection"]["status"], "selected")
         self.assertTrue((runtime_root / "consultation_followup_selection.active.json").exists())
 
     def test_execute_auto_actions_appends_and_runs_literature_intake_stage(self) -> None:

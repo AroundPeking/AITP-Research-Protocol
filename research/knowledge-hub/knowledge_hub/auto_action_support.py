@@ -102,6 +102,12 @@ def execute_auto_actions(
                     row=row,
                     updated_by=updated_by,
                 )
+            elif action_type == "consultation_followup":
+                result = self._run_consultation_followup(
+                    topic_slug=topic_slug,
+                    row=row,
+                    updated_by=updated_by,
+                )
             elif action_type == "literature_intake_stage":
                 result = self._run_literature_intake_stage(
                     topic_slug=topic_slug,

@@ -83,6 +83,14 @@ from .l2_consultation_support import (
     build_l2_consultation_record,
     consultation_projection_path,
 )
+from .consultation_followup_support import (
+    DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
+    build_consultation_followup_selection_payload,
+    consultation_followup_selection_paths,
+    derive_consultation_followup_query,
+    render_consultation_followup_selection_markdown,
+    select_bounded_consultation_candidate,
+)
 from .promotion_gate_support import (
     request_promotion,
     approve_promotion,
@@ -4954,6 +4962,66 @@ class AITPService:
         if completed.stderr.strip():
             result["warning"] = completed.stderr.strip()
         return result
+
+    def _run_consultation_followup(
+        self,
+        *,
+        topic_slug: str,
+        row: dict[str, Any],
+        updated_by: str,
+    ) -> dict[str, Any]:
+        handler_args = row.get("handler_args") or {}
+        run_id = str(
+            handler_args.get("run_id") or self._resolve_run_id(topic_slug, None) or ""
+        ).strip() or None
+        topic_state = self.get_runtime_state(topic_slug)
+        research_question_contract = read_json(
+            self._runtime_root(topic_slug) / "research_question.contract.json"
+        )
+        query_text = derive_consultation_followup_query(
+            topic_slug=topic_slug,
+            topic_state=topic_state,
+            research_question_contract=research_question_contract,
+        )
+        consult_payload = self.consult_l2(
+            query_text=query_text,
+            retrieval_profile=DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
+            include_staging=True,
+            topic_slug=topic_slug,
+            stage="L3",
+            run_id=run_id,
+            updated_by=updated_by,
+            record_consultation=True,
+        )
+        consultation_paths = dict(consult_payload.get("consultation") or {})
+        selected = select_bounded_consultation_candidate(
+            topic_slug=topic_slug,
+            consult_payload=consult_payload,
+        )
+        selection_payload = build_consultation_followup_selection_payload(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            query_text=query_text,
+            retrieval_profile=DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
+            consultation_paths=consultation_paths,
+            consult_payload=consult_payload,
+            selected=selected,
+            updated_by=updated_by,
+        )
+        selection_paths = consultation_followup_selection_paths(
+            self._runtime_root(topic_slug)
+        )
+        write_json(selection_paths["json"], selection_payload)
+        write_text(
+            selection_paths["note"],
+            render_consultation_followup_selection_markdown(selection_payload),
+        )
+        return {
+            "consultation": consultation_paths,
+            "selection": selection_payload,
+            "selection_json_path": str(selection_paths["json"]),
+            "selection_note_path": str(selection_paths["note"]),
+        }
 
     def _maybe_append_literature_intake_stage_action(
         self,
