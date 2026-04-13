@@ -6,7 +6,7 @@ Milestone in progress.
 
 ## Phases
 
-- [ ] **Phase 171: Formal Positive Lane To Authoritative L2** *(Axis 2 + Axis 4)*
+- [x] **Phase 171: Formal Positive Lane To Authoritative L2** *(Axis 2 + Axis 4)*
 - [ ] **Phase 171.1: L2 Surface Hardening Under Real Positive/Negative Coexistence** *(Axis 1 + Axis 3)*
 - [ ] **Phase 171.2: Positive Replay And Deferred Mode Routing** *(Axis 4 + Axis 5)*
 
@@ -22,7 +22,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 171.
+Start Phase 171.1.
 
 ### Phase 171: Formal Positive Lane To Authoritative L2
 
@@ -52,7 +52,7 @@ unit all the way from public bootstrap to authoritative canonical `L2`.
 
 Plans:
 
-- [ ] `171-01` Run one fresh formal positive lane from public bootstrap to
+- [x] `171-01` Run one fresh formal positive lane from public bootstrap to
   authoritative canonical `L2`
 
 ### Phase 171.1: L2 Surface Hardening Under Real Positive/Negative Coexistence

@@ -1,7 +1,7 @@
 {
   "kind": "l2_workspace_memory_map",
   "compiler_version": 1,
-  "generated_at": "2026-04-13T23:13:17+08:00",
+  "generated_at": "2026-04-14T01:51:05+08:00",
   "source_contract_path": "canonical/L2_COMPILER_PROTOCOL.md",
   "inputs": {
     "index_path": "canonical/index.jsonl",
@@ -10,7 +10,7 @@
     "scan_mode": "filesystem_fallback_plus_declared_canonical_inputs"
   },
   "summary": {
-    "total_units": 11,
+    "total_units": 13,
     "unit_types_present": [
       "bridge",
       "claim_card",
@@ -18,6 +18,7 @@
       "method",
       "physical_picture",
       "proof_fragment",
+      "theorem_card",
       "topic_skill_projection",
       "validation_pattern",
       "warning_note",
@@ -223,9 +224,60 @@
       ]
     },
     {
-      "unit_type": "topic_skill_projection",
+      "unit_type": "theorem_card",
       "count": 1,
       "units": [
+        {
+          "unit_id": "theorem:jones-ch4-finite-product",
+          "unit_type": "theorem_card",
+          "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+          "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+          "path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "auto_validated",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [
+            "theorem:finite-dimensional-block-centralizer-is-linear-product-of-block-fiber-type-i-factors"
+          ],
+          "related_units": [
+            "local_note:jones-von-neumann-algebras-definition-packet",
+            "local_note:theorem-level-package-roadmap",
+            "local_note:readme"
+          ],
+          "tags": [
+            "theorem_card",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4_auto->L2_auto"
+        }
+      ]
+    },
+    {
+      "unit_type": "topic_skill_projection",
+      "count": 2,
+      "units": [
+        {
+          "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "unit_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [
+            "strategy_memory:2026-04-14-015101-jones-close",
+            "formal_theory_review:2026-04-14-015101-jones-close"
+          ],
+          "tags": [
+            "topic_skill_projection",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
         {
           "unit_id": "topic_skill_projection:tfim-benchmark-first-route",
           "unit_type": "topic_skill_projection",
@@ -515,7 +567,7 @@
         "equivalence_map",
         "warning_note"
       ],
-      "available_count": 7,
+      "available_count": 9,
       "units": [
         {
           "unit_id": "bridge:tfim-toy-model-code-method-bridge",
@@ -612,6 +664,51 @@
           "promotion_route": "L3->L4->L2"
         },
         {
+          "unit_id": "theorem:jones-ch4-finite-product",
+          "unit_type": "theorem_card",
+          "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+          "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+          "path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "auto_validated",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [
+            "theorem:finite-dimensional-block-centralizer-is-linear-product-of-block-fiber-type-i-factors"
+          ],
+          "related_units": [
+            "local_note:jones-von-neumann-algebras-definition-packet",
+            "local_note:theorem-level-package-roadmap",
+            "local_note:readme"
+          ],
+          "tags": [
+            "theorem_card",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4_auto->L2_auto"
+        },
+        {
+          "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "unit_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [
+            "strategy_memory:2026-04-14-015101-jones-close",
+            "formal_theory_review:2026-04-14-015101-jones-close"
+          ],
+          "tags": [
+            "topic_skill_projection",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
           "unit_id": "topic_skill_projection:tfim-benchmark-first-route",
           "unit_type": "topic_skill_projection",
           "title": "TFIM benchmark-first route",
@@ -702,7 +799,7 @@
         "concept",
         "derivation_object"
       ],
-      "available_count": 8,
+      "available_count": 10,
       "units": [
         {
           "unit_id": "claim_card:tfim-benchmark-before-portability-claim",
@@ -813,6 +910,51 @@
             "codrestrict",
             "submodule",
             "support-projection"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "theorem:jones-ch4-finite-product",
+          "unit_type": "theorem_card",
+          "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+          "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+          "path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "auto_validated",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [
+            "theorem:finite-dimensional-block-centralizer-is-linear-product-of-block-fiber-type-i-factors"
+          ],
+          "related_units": [
+            "local_note:jones-von-neumann-algebras-definition-packet",
+            "local_note:theorem-level-package-roadmap",
+            "local_note:readme"
+          ],
+          "tags": [
+            "theorem_card",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4_auto->L2_auto"
+        },
+        {
+          "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "unit_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [
+            "strategy_memory:2026-04-14-015101-jones-close",
+            "formal_theory_review:2026-04-14-015101-jones-close"
+          ],
+          "tags": [
+            "topic_skill_projection",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
           ],
           "promotion_route": "L3->L4->L2"
         },
@@ -1040,8 +1182,29 @@
     },
     "topic_skill_projections": {
       "unit_type": "topic_skill_projection",
-      "count": 1,
+      "count": 2,
       "units": [
+        {
+          "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "unit_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [
+            "strategy_memory:2026-04-14-015101-jones-close",
+            "formal_theory_review:2026-04-14-015101-jones-close"
+          ],
+          "tags": [
+            "topic_skill_projection",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
         {
           "unit_id": "topic_skill_projection:tfim-benchmark-first-route",
           "unit_type": "topic_skill_projection",
@@ -1079,8 +1242,8 @@
       "validated_by": 1,
       "warned_by": 4
     },
-    "units_with_dependencies": 8,
-    "units_with_related_links": 10,
+    "units_with_dependencies": 9,
+    "units_with_related_links": 12,
     "units_without_links": 1
   }
 }

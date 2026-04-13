@@ -21,7 +21,9 @@ python research/knowledge-hub/runtime/scripts/run_formal_positive_l2_acceptance.
    `source-layer/topics/jones-von-neumann-algebras/` onto the fresh topic slug.
 4. Delegates the same fresh slug into
    `run_jones_chapter4_finite_product_formal_closure_acceptance.py`.
-5. Returns both bootstrap evidence and the reused Jones closure payload.
+5. Compiles repo-local L2 workspace memory/graph/knowledge reports.
+6. Runs `consult-l2` against the promoted theorem packet and verifies parity.
+7. Returns both bootstrap evidence and the reused Jones closure payload.
 
 ## Current success boundary
 
@@ -35,9 +37,13 @@ The current wrapper now succeeds through:
 - Lean-bridge materialization
 - theorem packet `L2_auto` backend promotion
 - topic-skill projection promotion
+- repo-local canonical theorem/projection mirrors
+- compiled L2 workspace report parity
+- natural-language `consult-l2` parity for the promoted theorem packet
 
-## Current known open gap
+## Next bounded gap
 
-This wrapper does **not** yet prove repo-local compiled L2 and `consult-l2`
-parity for the positive authoritative landing. That remains the next Phase 171
-execution slice.
+Phase `171` is now closed. The next bounded gap is Phase `171.1`: prove the new
+positive authoritative rows and the already-proven negative-result
+`contradiction_watch` rows coexist honestly on the same compiled and
+consultation surfaces.

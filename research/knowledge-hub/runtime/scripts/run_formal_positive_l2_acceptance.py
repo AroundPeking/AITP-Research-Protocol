@@ -244,6 +244,31 @@ def main() -> int:
     if args.tpkn_template_root:
         jones_command.extend(["--tpkn-template-root", str(args.tpkn_template_root)])
     closure_payload = run_python_json(jones_command)
+    compile_map_payload = service.compile_l2_workspace_map()
+    compile_graph_payload = service.compile_l2_graph_report()
+    compile_report_payload = service.compile_l2_knowledge_report()
+    consult_payload = service.consult_l2(
+        query_text="Jones finite product theorem packet",
+        retrieval_profile="l3_candidate_formation",
+        max_primary_hits=8,
+    )
+    consult_ids = sorted(
+        {
+            str(row.get("id") or "").strip()
+            for row in [
+                *(consult_payload.get("primary_hits") or []),
+                *(consult_payload.get("expanded_hits") or []),
+            ]
+            if str(row.get("id") or "").strip()
+        }
+    )
+    if "theorem:jones-ch4-finite-product" not in consult_ids:
+        raise RuntimeError("Expected consult_l2 to surface the fresh Jones theorem mirror.")
+    if not any(
+        str(row.get("knowledge_id") or "").strip() == "theorem:jones-ch4-finite-product"
+        for row in (compile_report_payload.get("payload") or {}).get("knowledge_rows", [])
+    ):
+        raise RuntimeError("Expected workspace knowledge report to include the fresh Jones theorem mirror.")
 
     payload = {
         "status": "success",
@@ -266,6 +291,25 @@ def main() -> int:
         "entry_audit": entry_audit,
         "source_seed": source_seed,
         "closure": closure_payload,
+        "repo_local_l2": {
+            "workspace_memory_map": {
+                "json_path": compile_map_payload["json_path"],
+                "markdown_path": compile_map_payload["markdown_path"],
+            },
+            "workspace_graph_report": {
+                "json_path": compile_graph_payload["json_path"],
+                "markdown_path": compile_graph_payload["markdown_path"],
+            },
+            "workspace_knowledge_report": {
+                "json_path": compile_report_payload["json_path"],
+                "markdown_path": compile_report_payload["markdown_path"],
+            },
+            "consultation": {
+                "query_text": "Jones finite product theorem packet",
+                "retrieval_profile": "l3_candidate_formation",
+                "ids": consult_ids,
+            },
+        },
         "artifacts": {
             "bootstrap_topic_state": str(
                 (bootstrap_payload.get("files") or {}).get("topic_state") or ""
@@ -276,6 +320,9 @@ def main() -> int:
             "source_index": str(
                 kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl"
             ),
+            "workspace_memory_map": compile_map_payload["json_path"],
+            "workspace_graph_report": compile_graph_payload["json_path"],
+            "workspace_knowledge_report": compile_report_payload["json_path"],
         },
     }
 

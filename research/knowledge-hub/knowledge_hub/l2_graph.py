@@ -14,6 +14,7 @@ CANONICAL_DIR_BY_TYPE = {
     "atomic_note": "atomic-notes",
     "concept": "concepts",
     "physical_picture": "physical-pictures",
+    "theorem_card": "theorem-cards",
     "claim_card": "claim-cards",
     "proof_fragment": "proof-fragments",
     "derivation_object": "derivation-objects",

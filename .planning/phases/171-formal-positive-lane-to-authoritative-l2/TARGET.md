@@ -20,17 +20,21 @@
 - **Expected theorem target unit id:** `theorem:jones-ch4-finite-product`
 - **Expected projection unit id:** `topic_skill_projection:fresh-jones-finite-dimensional-factor-closure`
 
-## Current Honest Status
+## Phase 171 Closure Status
 
-As of the current slice, the fresh wrapper proves:
+Phase 171 now proves:
 
 - fresh public-front-door bootstrap works for the formal lane
 - explicit L0 source carry-over can be materialized onto the fresh topic slug
 - the reused Jones closure machinery can drive the bounded theorem packet to
   backend-side `L2_auto` promotion and topic-skill projection promotion
+- successful backend promotions are mirrored into repo-local canonical `L2`
+- compiled workspace memory/graph/knowledge reports expose the same promoted
+  theorem and projection
+- natural-language `consult-l2` returns the same authoritative theorem landing
 
-What is still not closed:
+What remains outside this phase:
 
-- authoritative positive unit parity on repo-local compiled L2 surfaces
-- natural-language `consult-l2` parity after the positive landing
-- final phase evidence and replay artifacts for Phase 171 closure
+- positive/negative coexistence hardening on the same compiled and retrieval
+  surfaces (`Phase 171.1`)
+- replay and deferred multi-mode routing closure (`Phase 171.2`)

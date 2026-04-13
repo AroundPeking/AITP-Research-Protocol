@@ -7972,6 +7972,53 @@ class AITPServiceTests(unittest.TestCase):
         ]
         self.assertEqual(candidate_rows[0]["status"], "promoted")
 
+    def test_promote_candidate_mirrors_unit_into_repo_canonical_l2_surfaces(self) -> None:
+        self._prepare_l2_graph_kernel()
+        self._write_runtime_state()
+        self._write_candidate()
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+            target_backend_root=str(tpkn_root),
+        )
+        self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+        )
+
+        payload = self.service.promote_candidate(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            target_backend_root=str(tpkn_root),
+            domain="demo-domain",
+            subdomain="demo-subdomain",
+        )
+
+        mirror_path = self.kernel_root / "canonical" / "concepts" / "concept--demo-promoted-concept.json"
+        self.assertTrue(mirror_path.exists())
+        mirror_payload = json.loads(mirror_path.read_text(encoding="utf-8"))
+        self.assertEqual(mirror_payload["id"], "concept:demo-promoted-concept")
+        self.assertEqual(mirror_payload["unit_type"], "concept")
+        self.assertEqual(mirror_payload["promotion"]["canonical_layer"], "L2")
+        self.assertIn("backend:theoretical-physics-knowledge-network", mirror_payload["provenance"]["backend_refs"])
+        self.assertEqual(Path(payload["canonical_mirror_path"]), mirror_path)
+
+        report_payload = self.service.compile_l2_knowledge_report()
+        knowledge_rows = report_payload["payload"]["knowledge_rows"]
+        self.assertTrue(any(row["knowledge_id"] == "concept:demo-promoted-concept" for row in knowledge_rows))
+
+        consult_payload = self.service.consult_l2(
+            query_text="Demo Promoted Concept",
+            retrieval_profile="l1_provisional_understanding",
+            max_primary_hits=5,
+        )
+        ids = {row["id"] for row in consult_payload["primary_hits"]} | {
+            row["id"] for row in consult_payload["expanded_hits"]
+        }
+        self.assertIn("concept:demo-promoted-concept", ids)
+
     def test_promote_topic_skill_projection_writes_tpkn_projection_unit(self) -> None:
         runtime_root = self._write_runtime_state(run_id="run-001")
         (runtime_root / "topic_state.json").write_text(

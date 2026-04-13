@@ -11,12 +11,12 @@ trustworthy enough to serve as the next multi-mode baseline.
 
 ### Positive Lane Closure
 
-- [ ] `REQ-L2POS-01`: one fresh `formal_derivation` topic enters through the
+- [x] `REQ-L2POS-01`: one fresh `formal_derivation` topic enters through the
   public front door, completes bounded source intake and validation work, and
   promotes one authoritative unit into canonical `L2` with a durable backend
   receipt.
 
-- [ ] `REQ-L2POS-02`: the promoted positive unit exposes the same authority
+- [x] `REQ-L2POS-02`: the promoted positive unit exposes the same authority
   state across the promotion gate, canonical writeback location, compiled L2
   knowledge report, workspace memory map or graph report, and `consult-l2`.
 
@@ -57,8 +57,8 @@ trustworthy enough to serve as the next multi-mode baseline.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-L2POS-01 | Phase 171 | Pending |
-| REQ-L2POS-02 | Phase 171 / 171.1 | Pending |
+| REQ-L2POS-01 | Phase 171 | Done |
+| REQ-L2POS-02 | Phase 171 / 171.1 | Phase 171 baseline done; Phase 171.1 guards coexistence |
 | REQ-L2POS-03 | Phase 171.1 | Pending |
 | REQ-L2POS-04 | Phase 171.2 | Pending |
 | REQ-L2POS-05 | Phase 171.2 | Pending |

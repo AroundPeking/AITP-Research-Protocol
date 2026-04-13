@@ -3,23 +3,23 @@ gsd_state_version: 1.0
 milestone: v1.97
 milestone_name: First Positive L0 To L2 Closure
 status: milestone_active
-stopped_at: "Milestone v1.97 started; Phase 171 not started"
-last_updated: "2026-04-14T22:55:00+08:00"
+stopped_at: "Phase 171 complete; Phase 171.1 next"
+last_updated: "2026-04-14T01:51:39+08:00"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
 
 ## Current Position
 
-Status: milestone `v1.97` `First Positive L0 To L2 Closure` is active. No
-phases started yet.
+Status: milestone `v1.97` `First Positive L0 To L2 Closure` is active. Phase
+`171` is complete and Phase `171.1` is next.
 
 **Why this milestone exists:**
 
@@ -35,7 +35,10 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 ## Immediate Next Step
 
 - active milestone: `v1.97` `First Positive L0 To L2 Closure`
-- start with Phase `171` `Formal Positive Lane To Authoritative L2`
+- Phase `171` closed one fresh formal positive route into authoritative
+  repo-local canonical `L2`
+- continue with Phase `171.1` `L2 Surface Hardening Under Real
+  Positive/Negative Coexistence`
 
 ## Accumulated Context
 
@@ -81,6 +84,9 @@ cross-cutting).
   proof
 - `v1.97` now narrows back down to the first real positive authoritative L2
   landing so L2 itself becomes trustworthy before broader multi-mode closure
+- Phase `171` now proves one fresh formal-theory theorem can land in
+  authoritative canonical `L2` with repo-local compile and `consult-l2`
+  parity; the next gap is coexistence with the negative-result route
 - Comprehensive HCI gap analysis (2026-04-13) identified 30 issues across 6
   tiers; all captured as 999.60–999.70 in BACKLOG.md
 - wow-harness comparison (2026-04-13) identified 6 borrowable patterns; all

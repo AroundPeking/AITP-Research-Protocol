@@ -229,6 +229,79 @@ class L2GraphActivationTests(unittest.TestCase):
         self.assertIn("negative_result", {row["unit_type"] for row in index_rows})
         self.assertIn("negative_result:tfim-portability-failure", {row["id"] for row in index_rows})
 
+    def test_materialize_canonical_index_and_consultation_include_theorem_card_units(self) -> None:
+        unit_path = self.kernel_root / "canonical" / "theorem-cards" / "theorem_card--jones-ch4-finite-product.json"
+        unit_path.parent.mkdir(parents=True, exist_ok=True)
+        unit_path.write_text(
+            """
+{
+  "id": "theorem:jones-ch4-finite-product",
+  "unit_type": "theorem_card",
+  "title": "Jones Chapter 4 finite-product theorem packet",
+  "summary": "Bounded theorem packet for the finite-dimensional block-centralizer finite-product result.",
+  "maturity": "auto_validated",
+  "created_at": "2026-04-14T00:00:00+00:00",
+  "updated_at": "2026-04-14T00:00:00+00:00",
+  "topic_completion_status": "promotion-ready",
+  "tags": ["jones", "theorem", "operator-algebra"],
+  "assumptions": ["Finite-dimensional only."],
+  "regime": {
+    "domain": "finite-dimensional von Neumann algebras",
+    "approximations": ["bounded theorem packet"],
+    "scale": "bounded formal lane",
+    "boundary_conditions": ["fresh public front door"],
+    "exclusions": ["whole-book closure"]
+  },
+  "scope": {
+    "applies_to": ["bounded Chapter 4 theorem packet"],
+    "out_of_scope": ["full type-I classification"]
+  },
+  "provenance": {
+    "source_ids": ["local_note:jones-von-neumann-algebras-definition-packet"],
+    "backend_refs": ["backend:theoretical-physics-knowledge-network"],
+    "l1_artifacts": ["source-layer/topics/fresh-jones/source_index.jsonl"],
+    "l3_runs": ["feedback/topics/fresh-jones/runs/run-001/candidate_ledger.jsonl"],
+    "l4_checks": ["validation/topics/fresh-jones/runs/run-001/theory-packets/candidate-demo/formal_theory_review.json"],
+    "citations": ["chapter-4/multiplicity-and-finite-dimensional-von-neumann-algebras"]
+  },
+  "promotion": {
+    "route": "L3->L4_auto->L2_auto",
+    "review_mode": "ai_auto",
+    "canonical_layer": "L2_auto",
+    "promoted_by": "test-suite",
+    "promoted_at": "2026-04-14T00:00:00+00:00",
+    "review_status": "accepted",
+    "rationale": "Fresh formal theorem packet mirrored into repo-local canonical L2."
+  },
+  "dependencies": [],
+  "related_units": [],
+  "payload": {
+    "backend_unit_type": "theorem",
+    "backend_unit_path": "external/theorems/jones-ch4-finite-product.json"
+  }
+}
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = materialize_canonical_index(self.kernel_root)
+        index_rows = read_jsonl(self.kernel_root / "canonical" / "index.jsonl")
+        consult_payload = consult_canonical_l2(
+            self.kernel_root,
+            query_text="Jones finite product theorem packet",
+            retrieval_profile="l3_candidate_formation",
+            max_primary_hits=5,
+        )
+
+        ids = {row["id"] for row in consult_payload["primary_hits"]} | {
+            row["id"] for row in consult_payload["expanded_hits"]
+        }
+        self.assertGreaterEqual(payload["row_count"], 1)
+        self.assertIn("theorem_card", {row["unit_type"] for row in index_rows})
+        self.assertIn("theorem:jones-ch4-finite-product", {row["id"] for row in index_rows})
+        self.assertIn("theorem:jones-ch4-finite-product", ids)
+
 
 if __name__ == "__main__":
     unittest.main()
