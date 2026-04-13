@@ -4744,6 +4744,38 @@ class AITPServiceTests(unittest.TestCase):
         )
         self.assertTrue(projection_log.exists())
 
+    def test_select_bounded_consultation_candidate_prefers_topic_local_staged_hits(self) -> None:
+        from knowledge_hub.consultation_followup_support import (
+            select_bounded_consultation_candidate,
+        )
+
+        payload = {
+            "staged_hits": [
+                {
+                    "entry_id": "staging:topic-local",
+                    "title": "Topic-local staged bridge note",
+                    "topic_slug": "demo-topic",
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/topic-local.json",
+                },
+                {
+                    "entry_id": "staging:other-topic",
+                    "title": "Other topic staged note",
+                    "topic_slug": "other-topic",
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/other-topic.json",
+                },
+            ]
+        }
+
+        selected = select_bounded_consultation_candidate(
+            topic_slug="demo-topic",
+            consult_payload=payload,
+        )
+
+        self.assertEqual(selected["selected_candidate_id"], "staging:topic-local")
+        self.assertEqual(selected["status"], "selected")
+
     def test_compile_l2_workspace_map_reports_seeded_physical_picture(self) -> None:
         self._prepare_l2_graph_kernel()
         self.service.seed_l2_direction(
