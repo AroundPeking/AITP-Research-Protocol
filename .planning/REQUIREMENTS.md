@@ -19,17 +19,17 @@ from the already-shipped HS negative-result route.
   contract proves the chosen positive `HS model` target is honest enough for
   promotion instead of being inferred from bootstrap or prose alone.
 
-- [ ] `REQ-HS-03`: the bounded positive `HS model` target promotes one
+- [x] `REQ-HS-03`: the bounded positive `HS model` target promotes one
   authoritative unit into canonical `L2` with durable backend and repo-local
   receipts.
 
 ### Coexistence And Replay
 
-- [ ] `REQ-HS-04`: compiled L2 and `consult-l2` preserve honest coexistence
+- [x] `REQ-HS-04`: compiled L2 and `consult-l2` preserve honest coexistence
   between the new positive `HS model` unit and the existing HS negative-result
   route without flattening authority or provenance.
 
-- [ ] `REQ-HS-05`: the milestone closes with one replayable acceptance lane
+- [x] `REQ-HS-05`: the milestone closes with one replayable acceptance lane
   for the positive `HS model` route plus explicit carry-over notes for the
   deferred `LibRPA QSGW` first-principles / code-method lane.
 
@@ -52,9 +52,9 @@ from the already-shipped HS negative-result route.
 |-------------|-------|--------|
 | REQ-HS-01 | Phase 172 | Done |
 | REQ-HS-02 | Phase 172 | Done |
-| REQ-HS-03 | Phase 172.1 | Pending |
-| REQ-HS-04 | Phase 172.1 / 172.2 | Pending |
-| REQ-HS-05 | Phase 172.2 | Pending |
+| REQ-HS-03 | Phase 172.1 | Done |
+| REQ-HS-04 | Phase 172.1 / 172.2 | Done |
+| REQ-HS-05 | Phase 172.2 | Done |
 
 **Coverage:**
 - v1 requirements: 5 total

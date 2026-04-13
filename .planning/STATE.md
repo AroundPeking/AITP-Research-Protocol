@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.98
 milestone_name: Toy Model Positive L0 To L2 Closure
 status: milestone_active
-stopped_at: "Phase 172 complete; Phase 172.1 next"
-last_updated: "2026-04-14T02:34:06+08:00"
+stopped_at: "All v1.98 phases complete; milestone lifecycle next"
+last_updated: "2026-04-14T03:00:00+08:00"
 last_activity: 2026-04-14
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -19,7 +19,7 @@ progress:
 ## Current Position
 
 Status: milestone `v1.98` `Toy Model Positive L0 To L2 Closure` is active.
-Phase `172` is complete and Phase `172.1` is next.
+All three roadmap phases are complete. Milestone lifecycle is next.
 
 **Why this milestone exists:**
 
@@ -39,8 +39,11 @@ retrieval surfaces before widening back out to more modes and topic paradigms.
 - Phase `172` chose the benchmark-backed bounded positive target
   `candidate:hs-chaos-window-finite-size-core` on a fresh `toy_model` topic
   shell and kept exact HS `alpha = 2` as the explicit negative comparator
-- immediate next step: start Phase `172.1` and promote that bounded target
-  into authoritative canonical `L2`
+- Phase `172.1` promoted that bounded target into authoritative canonical `L2`
+  as `claim:hs-like-chaos-window-finite-size-core`
+- Phase `172.2` replayed positive/negative coexistence and wrote explicit
+  carry-over notes for the deferred `LibRPA QSGW` lane
+- immediate next step: run milestone `v1.98` lifecycle handling
 
 ## Accumulated Context
 

@@ -83,9 +83,8 @@ it still does **not** mean the broader AITP architecture is finished.
 
 - Active milestone: `v1.98` `Toy Model Positive L0 To L2 Closure`
 - Latest closed milestone: `v1.97` `First Positive L0 To L2 Closure`
-- Next boundary: close one bounded positive `HS model` toy-model lane into
-  authoritative canonical `L2` before widening to the deferred `LibRPA QSGW`
-  first-principles / code-method lane
+- Next boundary: run milestone lifecycle for `v1.98`, then widen to the
+  deferred `LibRPA QSGW` first-principles / code-method lane
 
 ## Current Milestone: v1.98 Toy Model Positive L0 To L2 Closure
 
@@ -101,6 +100,9 @@ coexist honestly with the already-shipped HS negative-result route.
 - one authoritative positive toy-model unit lands in canonical `L2`
 - compiled L2 and `consult-l2` expose that positive unit while keeping the
   existing HS negative-result route explicit
+
+**Phase-level status:** all three roadmap phases are complete; milestone
+lifecycle is next.
 
 **Key context:**
 - `v1.97` closed the first trustworthy formal-theory positive-L2 baseline

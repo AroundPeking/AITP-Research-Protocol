@@ -2,13 +2,13 @@
 
 ## Result
 
-Milestone in progress.
+All milestone phases are complete. Milestone lifecycle is next.
 
 ## Phases
 
-- [ ] **Phase 172: HS Model Positive Target And Benchmark Contract** *(Axis 1 + Axis 2)*
-- [ ] **Phase 172.1: HS Model Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
-- [ ] **Phase 172.2: HS Positive Replay And HS Negative Coexistence Closure** *(Axis 4 + Axis 5)*
+- [x] **Phase 172: HS Model Positive Target And Benchmark Contract** *(Axis 1 + Axis 2)*
+- [x] **Phase 172.1: HS Model Positive Promotion To Authoritative L2** *(Axis 2 + Axis 4)*
+- [x] **Phase 172.2: HS Positive Replay And HS Negative Coexistence Closure** *(Axis 4 + Axis 5)*
 
 ## Target Outcome
 
@@ -23,7 +23,7 @@ Milestone in progress.
 
 ## Next Step
 
-Start Phase 172.1.
+Run milestone lifecycle: audit, complete, and archive `v1.98`.
 
 ### Phase 172: HS Model Positive Target And Benchmark Contract
 
@@ -79,7 +79,7 @@ front door to one authoritative canonical `L2` unit.
 
 Plans:
 
-- [ ] `172.1-01` Promote one bounded positive HS-model unit into authoritative
+- [x] `172.1-01` Promote one bounded positive HS-model unit into authoritative
   canonical `L2` and prove compiled/read-path parity
 
 ### Phase 172.2: HS Positive Replay And HS Negative Coexistence Closure
@@ -107,5 +107,5 @@ routing the deferred `LibRPA QSGW` lane explicitly forward.
 
 Plans:
 
-- [ ] `172.2-01` Replay the positive HS-model proof, prove coexistence with the
+- [x] `172.2-01` Replay the positive HS-model proof, prove coexistence with the
   HS negative route, and route the deferred QSGW lane

@@ -2,7 +2,7 @@
 
 ## v1.98 Toy Model Positive L0 To L2 Closure (Active)
 
-**Phases completed:** 0 / 3 phases, 0 / 3 plans
+**Phases completed:** 3 / 3 phases, 3 / 3 plans
 
 **Milestone goal:**
 
@@ -16,7 +16,14 @@
 
 **Key accomplishments:**
 
-- (milestone in progress)
+- one bounded HS-like toy-model target now has an explicit benchmark-backed
+  target contract on a fresh public-front-door topic shell
+- that bounded HS-like positive target now lands in authoritative canonical
+  `L2` as `claim:hs-like-chaos-window-finite-size-core`
+- the authoritative HS positive claim and the shipped HS negative-result route
+  now coexist honestly on the same compiled and consultation surfaces
+- explicit carry-over notes now isolate the deferred `LibRPA QSGW`
+  first-principles / code-method lane as the next bounded widening target
 
 ---
 

@@ -1,0 +1,291 @@
+{
+  "status": "success",
+  "topic_slug": "hs-like-finite-size-chaos-window-core",
+  "run_id": "2026-04-14-025153-bootstrap",
+  "work_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z",
+  "kernel_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub",
+  "target_contract": {
+    "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\hs_positive_target_contract.json",
+    "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\hs_positive_target_contract.md",
+    "payload": {
+      "contract_kind": "hs_toy_model_positive_target",
+      "status": "chosen",
+      "topic_slug": "hs-like-finite-size-chaos-window-core",
+      "run_id": "2026-04-14-025153-bootstrap",
+      "research_mode": "toy_model",
+      "source_topic_slug": "haldane-shastry-chaos-transition",
+      "target_candidate": {
+        "candidate_id": "candidate:hs-chaos-window-finite-size-core",
+        "candidate_type": "claim_card",
+        "title": "HS-like Finite-Size Chaos Window Robust Core",
+        "summary": "Bounded claim-card candidate: under the benchmark-calibrated finite-size ED protocol, the robust HS-like chaos window is 0.4 <= alpha <= 1.0, while alpha = 2.0 and alpha >= 2.4 remain excluded from the chaotic regime.",
+        "supporting_regression_question_ids": [
+          "regression_question:locate-hs-chaos-window-robust-core"
+        ],
+        "supporting_oracle_ids": [
+          "question_oracle:locate-hs-chaos-window-robust-core"
+        ],
+        "supporting_regression_run_ids": [
+          "regression_run:hs-fisher-ed-benchmark-recheck-2026-03-24"
+        ]
+      },
+      "benchmark_contract": {
+        "evidence_basis": [
+          "benchmark-calibrated finite-size Fisher ED protocol",
+          "benchmark-calibrated OTOC observable",
+          "paper-convention Krylov observable",
+          "supporting gap-ratio evidence only as secondary support"
+        ],
+        "rules": [
+          "Treat only the robust core window `0.4 <= alpha <= 1.0` as the positive target.",
+          "Do not promote the weaker `1.2 <= alpha <= 1.4` shoulder as part of this bounded claim.",
+          "Do not reinterpret the exact HS `alpha = 2` point as a positive chaos result.",
+          "Do not claim thermodynamic closure, operator independence, or larger-system continuation from this contract."
+        ]
+      },
+      "negative_comparator": {
+        "entry_id": "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+        "title": "HS model OTOC Lyapunov exponent: regime mismatch",
+        "reason": "Exact HS `alpha = 2` remains an explicit negative comparator, not part of the positive target."
+      },
+      "excluded_claims": [
+        "exact HS `alpha = 2` exhibits positive OTOC Lyapunov chaos",
+        "the weak `1.2 <= alpha <= 1.4` shoulder is already robust enough for promotion",
+        "the bounded finite-size core closes the whole topic in the thermodynamic limit",
+        "operator robustness or larger-system continuation are already proved"
+      ],
+      "source_refs": [
+        "local_note:hs-chaos-window-verdict",
+        "local_note:public-benchmark-gate-and-hs-like-recheck",
+        "local_note:otoc-and-krylov-evidence-chain-for-the-hs-like-model",
+        "local_note:integrable-anchors-and-exclusion-logic-for-hs-like-chain"
+      ],
+      "updated_at": "2026-04-14T02:51:54+08:00",
+      "updated_by": "hs-positive-l2-acceptance"
+    }
+  },
+  "promotion": {
+    "request": {
+      "topic_slug": "hs-like-finite-size-chaos-window-core",
+      "run_id": "2026-04-14-025153-bootstrap",
+      "candidate_id": "candidate:hs-chaos-window-finite-size-core",
+      "candidate_type": "claim_card",
+      "title": "HS-like Finite-Size Chaos Window Robust Core",
+      "summary": "Bounded claim-card candidate: under the benchmark-calibrated finite-size ED protocol, the robust HS-like chaos window is 0.4 <= alpha <= 1.0, while alpha = 2.0 and alpha >= 2.4 remain excluded from the chaotic regime.",
+      "route": "L3->L4->L2",
+      "status": "pending_human_approval",
+      "intended_l2_targets": [
+        "claim_card:hs-like-chaos-window-finite-size-core"
+      ],
+      "backend_id": "backend:theoretical-physics-knowledge-network",
+      "target_backend_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\tpkn-hs-positive",
+      "review_mode": "human",
+      "canonical_layer": "L2",
+      "coverage_status": "not_audited",
+      "consensus_status": "not_requested",
+      "regression_gate_status": "not_audited",
+      "topic_completion_status": "promotion-ready",
+      "source_layer": "L4",
+      "requested_destination_layer": "L2",
+      "resolved_destination_layer": null,
+      "approval_change_kind": "pending_review",
+      "human_modifications": [],
+      "supporting_regression_question_ids": [
+        "regression_question:locate-hs-chaos-window-robust-core"
+      ],
+      "supporting_oracle_ids": [
+        "question_oracle:locate-hs-chaos-window-robust-core"
+      ],
+      "supporting_regression_run_ids": [
+        "regression_run:hs-fisher-ed-benchmark-recheck-2026-03-24"
+      ],
+      "runtime_schema_types": [],
+      "runtime_schema_paths": {},
+      "runtime_artifact_paths": {},
+      "runtime_schema_context": {
+        "all_valid": true,
+        "artifact_types": [],
+        "schema_paths": {},
+        "artifact_paths": {},
+        "artifacts": []
+      },
+      "promotion_blockers": [],
+      "split_required": false,
+      "cited_recovery_required": false,
+      "followup_gap_ids": [],
+      "merge_outcome": "pending",
+      "requested_by": "hs-positive-l2-acceptance",
+      "requested_at": "2026-04-14T02:51:54+08:00",
+      "approved_by": null,
+      "approved_at": null,
+      "rejected_by": null,
+      "rejected_at": null,
+      "promoted_by": null,
+      "promoted_at": null,
+      "promoted_units": [],
+      "notes": "Promote the bounded HS-like finite-size chaos-window core claim card into authoritative canonical L2.",
+      "promotion_gate_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.json",
+      "promotion_gate_note_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.md",
+      "promotion_gate_log_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\validation\\topics\\hs-like-finite-size-chaos-window-core\\runs\\2026-04-14-025153-bootstrap\\promotion_gate_log.jsonl"
+    },
+    "approve": {
+      "topic_slug": "hs-like-finite-size-chaos-window-core",
+      "run_id": "2026-04-14-025153-bootstrap",
+      "candidate_id": "candidate:hs-chaos-window-finite-size-core",
+      "candidate_type": "claim_card",
+      "title": "HS-like Finite-Size Chaos Window Robust Core",
+      "summary": "Bounded claim-card candidate: under the benchmark-calibrated finite-size ED protocol, the robust HS-like chaos window is 0.4 <= alpha <= 1.0, while alpha = 2.0 and alpha >= 2.4 remain excluded from the chaotic regime.",
+      "route": "L3->L4->L2",
+      "status": "approved",
+      "intended_l2_targets": [
+        "claim_card:hs-like-chaos-window-finite-size-core"
+      ],
+      "backend_id": "backend:theoretical-physics-knowledge-network",
+      "target_backend_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\tpkn-hs-positive",
+      "review_mode": "human",
+      "canonical_layer": "L2",
+      "coverage_status": "not_audited",
+      "consensus_status": "not_requested",
+      "regression_gate_status": "not_audited",
+      "topic_completion_status": "promotion-ready",
+      "source_layer": "L4",
+      "requested_destination_layer": "L2",
+      "resolved_destination_layer": "L2",
+      "approval_change_kind": "approved_as_submitted",
+      "human_modifications": [],
+      "supporting_regression_question_ids": [
+        "regression_question:locate-hs-chaos-window-robust-core"
+      ],
+      "supporting_oracle_ids": [
+        "question_oracle:locate-hs-chaos-window-robust-core"
+      ],
+      "supporting_regression_run_ids": [
+        "regression_run:hs-fisher-ed-benchmark-recheck-2026-03-24"
+      ],
+      "runtime_schema_types": [],
+      "runtime_schema_paths": {},
+      "runtime_artifact_paths": {},
+      "runtime_schema_context": {
+        "all_valid": true,
+        "artifact_types": [],
+        "schema_paths": {},
+        "artifact_paths": {},
+        "artifacts": []
+      },
+      "promotion_blockers": [],
+      "split_required": false,
+      "cited_recovery_required": false,
+      "followup_gap_ids": [],
+      "merge_outcome": "pending",
+      "requested_by": "hs-positive-l2-acceptance",
+      "requested_at": "2026-04-14T02:51:54+08:00",
+      "approved_by": "hs-positive-l2-acceptance",
+      "approved_at": "2026-04-14T02:51:54+08:00",
+      "rejected_by": null,
+      "rejected_at": null,
+      "promoted_by": null,
+      "promoted_at": null,
+      "promoted_units": [],
+      "notes": "Human-reviewed promotion: bounded finite-size core only; exact HS negative comparator remains explicit.",
+      "promotion_gate_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.json",
+      "promotion_gate_note_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.md",
+      "promotion_gate_log_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\validation\\topics\\hs-like-finite-size-chaos-window-core\\runs\\2026-04-14-025153-bootstrap\\promotion_gate_log.jsonl"
+    },
+    "promote": {
+      "topic_slug": "hs-like-finite-size-chaos-window-core",
+      "run_id": "2026-04-14-025153-bootstrap",
+      "candidate_id": "candidate:hs-chaos-window-finite-size-core",
+      "backend_id": "backend:theoretical-physics-knowledge-network",
+      "backend_card_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\backends\\theoretical-physics-knowledge-network.json",
+      "target_backend_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\tpkn-hs-positive",
+      "target_unit_id": "claim:hs-like-chaos-window-finite-size-core",
+      "target_unit_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\tpkn-hs-positive\\units\\claims\\hs-like-chaos-window-finite-size-core.json",
+      "source_manifest_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\tpkn-hs-positive\\sources\\hs-chaos-window-verdict\\manifest.json",
+      "source_manifest_created": true,
+      "promotion_decision_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\validation\\topics\\hs-like-finite-size-chaos-window-core\\runs\\2026-04-14-025153-bootstrap\\promotion_decisions.jsonl",
+      "promotion_gate_log_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\validation\\topics\\hs-like-finite-size-chaos-window-core\\runs\\2026-04-14-025153-bootstrap\\promotion_gate_log.jsonl",
+      "merge_report_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\validation\\topics\\hs-like-finite-size-chaos-window-core\\runs\\2026-04-14-025153-bootstrap\\theory-packets\\candidate-hs-chaos-wind-4838012b\\merge_report.json",
+      "merge_outcome": "created_new",
+      "canonical_mirror_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\claim-cards\\claim_card--hs-like-chaos-window-finite-size-core.json",
+      "canonical_mirror_unit_id": "claim:hs-like-chaos-window-finite-size-core",
+      "canonical_mirror_unit_type": "claim_card",
+      "tpkn_check": {
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "scripts/kb.py",
+          "check"
+        ],
+        "stdout": "",
+        "stderr": "",
+        "scoped_paths": [
+          "units\\claims\\hs-like-chaos-window-finite-size-core.json",
+          "sources\\hs-chaos-window-verdict\\manifest.json",
+          "units\\regression-questions\\locate-hs-chaos-window-robust-core.json",
+          "units\\question-oracles\\locate-hs-chaos-window-robust-core.json"
+        ]
+      },
+      "tpkn_build": {
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "scripts/kb.py",
+          "build"
+        ],
+        "stdout": "",
+        "stderr": "",
+        "scoped_paths": [
+          "units\\claims\\hs-like-chaos-window-finite-size-core.json",
+          "sources\\hs-chaos-window-verdict\\manifest.json",
+          "units\\regression-questions\\locate-hs-chaos-window-robust-core.json",
+          "units\\question-oracles\\locate-hs-chaos-window-robust-core.json"
+        ]
+      },
+      "consultation": {
+        "consultation_request_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\consultation\\topics\\hs-like-finite-size-chaos-window-core\\calls\\consult-tpkn-promotion-candidate-hs-chaos-windo-a5bbcf4f\\request.json",
+        "consultation_result_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\consultation\\topics\\hs-like-finite-size-chaos-window-core\\calls\\consult-tpkn-promotion-candidate-hs-chaos-windo-a5bbcf4f\\result.json",
+        "consultation_application_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\consultation\\topics\\hs-like-finite-size-chaos-window-core\\calls\\consult-tpkn-promotion-candidate-hs-chaos-windo-a5bbcf4f\\application.json",
+        "consultation_index_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\consultation\\topics\\hs-like-finite-size-chaos-window-core\\consultation_index.jsonl"
+      },
+      "promotion_gate_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.json",
+      "promotion_gate_note_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.md"
+    },
+    "canonical_mirror_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\claim-cards\\claim_card--hs-like-chaos-window-finite-size-core.json",
+    "target_unit_id": "claim:hs-like-chaos-window-finite-size-core"
+  },
+  "repo_local_l2": {
+    "workspace_memory_map": {
+      "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.json",
+      "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.md"
+    },
+    "workspace_graph_report": {
+      "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.json",
+      "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.md"
+    },
+    "workspace_knowledge_report": {
+      "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json",
+      "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.md"
+    },
+    "consultation": {
+      "query_text": "HS-like finite-size chaos window robust core",
+      "retrieval_profile": "l4_adjudication",
+      "ids": [
+        "claim:hs-like-chaos-window-finite-size-core",
+        "claim_card:tfim-benchmark-before-portability-claim",
+        "concept:tfim-transverse-field-ising-model",
+        "physical_picture:tfim-weak-coupling-benchmark-intuition",
+        "theorem:jones-ch4-finite-product",
+        "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+        "topic_skill_projection:jones-von-neumann-algebras",
+        "topic_skill_projection:tfim-benchmark-first-route",
+        "validation_pattern:tfim-small-system-gap-reproduction",
+        "warning_note:tfim-dense-ed-finite-size-limit",
+        "workflow:tfim-benchmark-workflow"
+      ]
+    }
+  },
+  "artifacts": {
+    "candidate_ledger": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\feedback\\topics\\hs-like-finite-size-chaos-window-core\\runs\\2026-04-14-025153-bootstrap\\candidate_ledger.jsonl",
+    "promotion_gate": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\runtime\\topics\\hs-like-finite-size-chaos-window-core\\promotion_gate.json",
+    "canonical_mirror": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\claim-cards\\claim_card--hs-like-chaos-window-finite-size-core.json",
+    "workspace_knowledge_report": "C:\\Users\\samur\\AppData\\Local\\Temp\\hsp-sicgp_4z\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json"
+  }
+}
