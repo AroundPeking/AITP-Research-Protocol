@@ -250,6 +250,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--package-root", default=str(KERNEL_ROOT))
     parser.add_argument("--repo-root", default=str(REPO_ROOT))
     parser.add_argument("--work-root")
+    parser.add_argument("--topic")
+    parser.add_argument("--question")
+    parser.add_argument("--human-request")
     parser.add_argument("--updated-by", default="hs-positive-l2-acceptance")
     parser.add_argument("--json", action="store_true")
     return parser
@@ -267,21 +270,26 @@ def main() -> int:
     kernel_root = work_root / "knowledge-hub"
 
     contract_script = package_root / "runtime" / "scripts" / "run_hs_toy_model_target_contract_acceptance.py"
-    contract_payload = run_python_json(
-        [
-            sys.executable,
-            str(contract_script),
-            "--package-root",
-            str(package_root),
-            "--repo-root",
-            str(repo_root),
-            "--work-root",
-            str(work_root),
-            "--updated-by",
-            args.updated_by,
-            "--json",
-        ]
-    )
+    contract_command = [
+        sys.executable,
+        str(contract_script),
+        "--package-root",
+        str(package_root),
+        "--repo-root",
+        str(repo_root),
+        "--work-root",
+        str(work_root),
+        "--updated-by",
+        args.updated_by,
+        "--json",
+    ]
+    if args.topic:
+        contract_command.extend(["--topic", args.topic])
+    if args.question:
+        contract_command.extend(["--question", args.question])
+    if args.human_request:
+        contract_command.extend(["--human-request", args.human_request])
+    contract_payload = run_python_json(contract_command)
 
     service = AITPService(kernel_root=kernel_root, repo_root=repo_root)
     topic_slug = str(contract_payload["topic_slug"])

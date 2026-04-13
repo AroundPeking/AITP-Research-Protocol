@@ -15,7 +15,7 @@ ready and what still blocks broader deployment.
   formal-theory baseline can be entered through the public front door and stay
   aligned with its bounded positive authoritative-L2 route.
 
-- [ ] `REQ-E2E-02`: one real natural-language dialogue run proves the
+- [x] `REQ-E2E-02`: one real natural-language dialogue run proves the
   toy-model baseline can be entered through the public front door and stay
   aligned with its bounded positive authoritative-L2 route.
 
@@ -47,7 +47,7 @@ ready and what still blocks broader deployment.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REQ-E2E-01 | Phase 174 | Done |
-| REQ-E2E-02 | Phase 174.1 | Pending |
+| REQ-E2E-02 | Phase 174.1 | Done |
 | REQ-E2E-03 | Phase 174.2 | Pending |
 | REQ-E2E-04 | Phase 174.2 | Pending |
 | REQ-E2E-05 | Phase 174.2 | Pending |

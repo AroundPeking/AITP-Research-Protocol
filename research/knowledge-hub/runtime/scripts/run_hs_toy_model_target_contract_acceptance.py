@@ -27,6 +27,11 @@ REFERENCE_TOPIC_SLUG = "haldane-shastry-chaos-transition"
 REFERENCE_RUN_ID = "2026-03-27-030941-bootstrap"
 REFERENCE_CANDIDATE_ID = "candidate:hs-chaos-window-finite-size-core"
 NEGATIVE_COMPARATOR_ENTRY_ID = "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch"
+DEFAULT_HUMAN_REQUEST = (
+    "Open a fresh toy-model topic for the HS-like finite-size chaos-window core, "
+    "keep the target bounded to the benchmark-backed `0.4 <= alpha <= 1.0` core, "
+    "and preserve the exact HS OTOC mismatch route as an explicit negative comparator."
+)
 
 
 def now_stamp() -> str:
@@ -185,6 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
             "collapsing the exact HS negative comparator?"
         ),
     )
+    parser.add_argument("--human-request", default=DEFAULT_HUMAN_REQUEST)
     parser.add_argument("--reference-topic-slug", default=REFERENCE_TOPIC_SLUG)
     parser.add_argument("--reference-run-id", default=REFERENCE_RUN_ID)
     parser.add_argument("--reference-candidate-id", default=REFERENCE_CANDIDATE_ID)
@@ -229,11 +235,7 @@ def main() -> int:
         mode="toy_model",
         run_id=args.run_id,
         updated_by=args.updated_by,
-        human_request=(
-            "Open a fresh toy-model topic for the HS-like finite-size chaos-window core, "
-            "keep the target bounded to the benchmark-backed `0.4 <= alpha <= 1.0` core, "
-            "and preserve the exact HS OTOC mismatch route as an explicit negative comparator."
-        ),
+        human_request=args.human_request,
     )
     topic_slug = str(bootstrap_payload.get("topic_slug") or "").strip()
     check(bool(topic_slug), "Expected new_topic to return a topic slug.")

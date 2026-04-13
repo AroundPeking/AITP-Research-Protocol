@@ -2,7 +2,7 @@
 
 ## v2.0 Three-Lane Real-Topic Natural-Language E2E (Active)
 
-**Phases completed:** 0 / 3 phases, 0 / 3 plans
+**Phases completed:** 2 / 3 phases, 2 / 3 plans
 
 **Milestone goal:**
 
@@ -15,7 +15,14 @@
 
 **Key accomplishments:**
 
-- (milestone in progress)
+- the formal-theory baseline now has one real natural-language dialogue proof
+  that preserves the Jones / von Neumann request through runtime steering
+  artifacts
+- the toy-model baseline now has one real natural-language dialogue proof that
+  preserves the HS-like chaos-window request while landing the same bounded
+  authoritative-L2 claim
+- the remaining open work is the first-principles / code-method dialogue proof
+  plus the cross-lane comparative report
 
 ---
 
@@ -621,14 +628,14 @@ Completed milestone chain:
 
 ## Latest Closed Milestone
 
-- `v1.97` `First Positive L0 To L2 Closure` shipped
+- `v1.99` `LibRPA QSGW Positive L0 To L2 Closure` shipped
 
 ## Current Active Milestone
 
-- none
+- `v2.0` `Three-Lane Real-Topic Natural-Language E2E`
 
 ## Current Status
 
-- `v1.36` through `v1.97` are closed and archived or ready for archive lookup
-- the repository is between milestones after archiving `v1.97`
-- next command boundary: `$gsd-new-milestone`
+- `v1.36` through `v1.99` are closed and archived or ready for archive lookup
+- Phase `174` and Phase `174.1` are complete inside active milestone `v2.0`
+- next command boundary: continue with Phase `174.2`
