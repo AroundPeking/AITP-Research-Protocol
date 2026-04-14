@@ -62,6 +62,8 @@ def execute_auto_actions(
     allowed_backedge_auto_actions: set[str] = set()
     if "capability_gap_blocker" in transition_triggers:
         allowed_backedge_auto_actions.add("skill_discovery")
+    if "non_trivial_consultation" in transition_triggers:
+        allowed_backedge_auto_actions.add("consultation_followup")
     queue_rows = self._maybe_append_literature_intake_stage_action(
         topic_slug=topic_slug,
         queue_rows=queue_rows,
@@ -74,12 +76,14 @@ def execute_auto_actions(
     for row in queue_rows:
         if row.get("status") != "pending":
             continue
+        action_type = row.get("action_type")
         if not row.get("auto_runnable"):
-            continue
+            if action_type == "consultation_followup" and self._consultation_followup_auto_ready(topic_slug):
+                row["auto_runnable"] = True
+            else:
+                continue
         if steps_used >= max_auto_steps:
             continue
-
-        action_type = row.get("action_type")
         if transition_kind == "backedge_transition" and action_type not in allowed_backedge_auto_actions:
             continue
         started_at = _now_iso()
@@ -98,6 +102,12 @@ def execute_auto_actions(
                 result = self.audit(topic_slug=topic_slug, phase="entry", updated_by=updated_by)
             elif action_type == "literature_followup_search":
                 result = self._run_literature_followup(
+                    topic_slug=topic_slug,
+                    row=row,
+                    updated_by=updated_by,
+                )
+            elif action_type == "consultation_followup":
+                result = self._run_consultation_followup(
                     topic_slug=topic_slug,
                     row=row,
                     updated_by=updated_by,

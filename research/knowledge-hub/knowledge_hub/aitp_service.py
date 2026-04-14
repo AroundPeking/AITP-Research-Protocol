@@ -83,6 +83,14 @@ from .l2_consultation_support import (
     build_l2_consultation_record,
     consultation_projection_path,
 )
+from .consultation_followup_support import (
+    DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
+    build_consultation_followup_selection_payload,
+    consultation_followup_selection_paths,
+    derive_consultation_followup_query,
+    render_consultation_followup_selection_markdown,
+    select_bounded_consultation_candidate,
+)
 from .promotion_gate_support import (
     request_promotion,
     approve_promotion,
@@ -675,6 +683,13 @@ class AITPService:
         return {
             "json": runtime_root / "promotion_gate.json",
             "note": runtime_root / "promotion_gate.md",
+        }
+
+    def _selected_candidate_promotion_bridge_paths(self, topic_slug: str) -> dict[str, Path]:
+        runtime_root = self._runtime_root(topic_slug)
+        return {
+            "json": runtime_root / "selected_candidate_promotion_bridge.active.json",
+            "note": runtime_root / "selected_candidate_promotion_bridge.active.md",
         }
 
     def _promotion_gate_log_path(self, topic_slug: str, run_id: str) -> Path:
@@ -4476,6 +4491,50 @@ class AITPService:
                 return True
         return False
 
+    def _latest_topic_local_staged_entry_updated_at(
+        self,
+        topic_slug: str,
+    ) -> datetime | None:
+        latest: datetime | None = None
+        for row in load_staging_entries(self.kernel_root):
+            if str(row.get("topic_slug") or "").strip() != topic_slug:
+                continue
+            stamp = str(row.get("updated_at") or row.get("created_at") or "").strip()
+            if not stamp:
+                continue
+            try:
+                candidate = datetime.fromisoformat(stamp)
+            except ValueError:
+                continue
+            if latest is None or candidate > latest:
+                latest = candidate
+        return latest
+
+    def _consultation_followup_auto_ready(self, topic_slug: str) -> bool:
+        next_action_decision = read_json(
+            self._runtime_root(topic_slug) / "next_action_decision.json"
+        ) or {}
+        selected_action = next_action_decision.get("selected_action") or {}
+        if str(selected_action.get("action_type") or "").strip() != "consultation_followup":
+            return False
+        latest_staged = self._latest_topic_local_staged_entry_updated_at(topic_slug)
+        if latest_staged is None:
+            return False
+        continue_count = 0
+        for row in read_jsonl(self._runtime_root(topic_slug) / "innovation_decisions.jsonl"):
+            if str(row.get("decision") or "").strip() != "continue":
+                continue
+            stamp = str(row.get("updated_at") or "").strip()
+            if not stamp:
+                continue
+            try:
+                candidate = datetime.fromisoformat(stamp)
+            except ValueError:
+                continue
+            if candidate > latest_staged:
+                continue_count += 1
+        return continue_count >= 2
+
     def _load_candidate(
         self, topic_slug: str, run_id: str, candidate_id: str
     ) -> dict[str, Any]:
@@ -4483,6 +4542,11 @@ class AITPService:
         for row in rows:
             if str(row.get("candidate_id") or "").strip() == candidate_id:
                 return row
+        bridge_payload = read_json(
+            self._selected_candidate_promotion_bridge_paths(topic_slug)["json"]
+        ) or {}
+        if str(bridge_payload.get("candidate_id") or "").strip() == candidate_id:
+            return bridge_payload
         raise FileNotFoundError(
             f"Candidate {candidate_id} not found for topic {topic_slug} run {run_id}"
         )
@@ -4954,6 +5018,66 @@ class AITPService:
         if completed.stderr.strip():
             result["warning"] = completed.stderr.strip()
         return result
+
+    def _run_consultation_followup(
+        self,
+        *,
+        topic_slug: str,
+        row: dict[str, Any],
+        updated_by: str,
+    ) -> dict[str, Any]:
+        handler_args = row.get("handler_args") or {}
+        run_id = str(
+            handler_args.get("run_id") or self._resolve_run_id(topic_slug, None) or ""
+        ).strip() or None
+        topic_state = self.get_runtime_state(topic_slug)
+        research_question_contract = read_json(
+            self._runtime_root(topic_slug) / "research_question.contract.json"
+        )
+        query_text = derive_consultation_followup_query(
+            topic_slug=topic_slug,
+            topic_state=topic_state,
+            research_question_contract=research_question_contract,
+        )
+        consult_payload = self.consult_l2(
+            query_text=query_text,
+            retrieval_profile=DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
+            include_staging=True,
+            topic_slug=topic_slug,
+            stage="L3",
+            run_id=run_id,
+            updated_by=updated_by,
+            record_consultation=True,
+        )
+        consultation_paths = dict(consult_payload.get("consultation") or {})
+        selected = select_bounded_consultation_candidate(
+            topic_slug=topic_slug,
+            consult_payload=consult_payload,
+        )
+        selection_payload = build_consultation_followup_selection_payload(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            query_text=query_text,
+            retrieval_profile=DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
+            consultation_paths=consultation_paths,
+            consult_payload=consult_payload,
+            selected=selected,
+            updated_by=updated_by,
+        )
+        selection_paths = consultation_followup_selection_paths(
+            self._runtime_root(topic_slug)
+        )
+        write_json(selection_paths["json"], selection_payload)
+        write_text(
+            selection_paths["note"],
+            render_consultation_followup_selection_markdown(selection_payload),
+        )
+        return {
+            "consultation": consultation_paths,
+            "selection": selection_payload,
+            "selection_json_path": str(selection_paths["json"]),
+            "selection_note_path": str(selection_paths["note"]),
+        }
 
     def _maybe_append_literature_intake_stage_action(
         self,
@@ -8321,6 +8445,15 @@ class AITPService:
             result=result,
             summary=f"Candidate promotion completed for {candidate_id}.",
         )
+        runtime_policy_path = self.kernel_root / "runtime" / "closed_loop_policies.json"
+        orchestrate_script = self._kernel_script("runtime/scripts/orchestrate_topic.py")
+        if runtime_policy_path.exists() and orchestrate_script.exists():
+            result["orchestrated_runtime"] = self.orchestrate(
+                topic_slug=topic_slug,
+                run_id=resolved_run_id,
+                updated_by=promoted_by,
+                human_request=notes or f"Refresh runtime surfaces after promoting {candidate_id}.",
+            )
         return result
 
     def auto_promote_candidate(

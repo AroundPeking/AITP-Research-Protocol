@@ -379,6 +379,18 @@ def main() -> int:
         else None
     )
     consultation_index_path = consultation_root / "consultation_index.jsonl"
+    selected_consultation_candidate_path = (
+        topic_runtime_root / "consultation_followup_selection.active.json"
+    )
+    selected_consultation_candidate_note_path = (
+        topic_runtime_root / "consultation_followup_selection.active.md"
+    )
+    selected_candidate_route_choice_path = (
+        topic_runtime_root / "selected_candidate_route_choice.active.json"
+    )
+    selected_candidate_route_choice_note_path = (
+        topic_runtime_root / "selected_candidate_route_choice.active.md"
+    )
 
     l0_source_rows = read_jsonl(l0_source_index_path)
     intake_status = read_json(intake_status_path)
@@ -627,6 +639,22 @@ def main() -> int:
             "followup_subtopics_path": relative_path(followup_subtopics_path, knowledge_root),
             "followup_subtopics_note_path": relative_path(followup_subtopics_note_path, knowledge_root),
             "consultation_index_path": relative_path(consultation_index_path, knowledge_root),
+            "selected_consultation_candidate_path": relative_path(
+                selected_consultation_candidate_path,
+                knowledge_root,
+            ),
+            "selected_consultation_candidate_note_path": relative_path(
+                selected_consultation_candidate_note_path,
+                knowledge_root,
+            ),
+            "selected_candidate_route_choice_path": relative_path(
+                selected_candidate_route_choice_path,
+                knowledge_root,
+            ),
+            "selected_candidate_route_choice_note_path": relative_path(
+                selected_candidate_route_choice_note_path,
+                knowledge_root,
+            ),
             "control_note_path": control_note_rel,
             "innovation_direction_path": innovation_direction_rel,
             "innovation_decisions_path": innovation_decisions_rel,

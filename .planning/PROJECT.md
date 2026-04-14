@@ -82,6 +82,9 @@ The previously scoped GSD mainline is implemented through:
 - `v2.3`
 - `v2.4`
 - `v2.5`
+- `v2.6`
+- `v2.7`
+- `v2.8`
 
 That closes the current bounded chain through the first three-lane real-topic
 natural-language dialogue proof across formal, toy-model, and
@@ -91,37 +94,102 @@ architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v2.6` `Staged-L2 Post-Review Advancement`
-- Latest closed milestone: `v2.5` `Staged-L2 Review Reentry Coherence`
-- Next boundary: make a later benign `continue` advance beyond static
-  staged-`L2` review into one bounded post-review consultation step
+- Active milestone: `v2.9` `Promotion-Review Gate Closure`
+- Latest closed milestone: `v2.8` `Selected-Candidate Route Choice Closure`
+- Next boundary: materialize one explicit promotion-review gate from the chosen
+  route
 
-## Current Milestone: v2.6 Staged-L2 Post-Review Advancement
+## Current Milestone: v2.9 Promotion-Review Gate Closure
+
+**Goal:** make post-route continuation trustworthy enough that, once
+`l2_promotion_review` becomes the selected route on a fresh topic, the loop
+materializes one explicit promotion-review gate instead of stalling on the
+summary placeholder.
+
+**Target features:**
+- materialize one explicit promotion-review gate from the selected staged
+  candidate once `l2_promotion_review` becomes the selected route
+- keep public `next`, `status`, and dashboard surfaces aligned on that gate
+  instead of the summary placeholder
+- close with one replayable fresh-topic proof that the same topic advances from
+  promotion-review summary onto the explicit gate
+
+**Key context:**
+- `v2.8` closed selected-candidate route choice, so the same topic can already
+  reach `l2_promotion_review` honestly on the bounded baseline
+- a follow-up probe still showed that the loop cannot materialize the explicit
+  promotion-review gate once that route becomes selected
+- the next bottleneck is therefore promotion-review gate materialization, not
+  earlier consultation or route-choice closure work
+
+## Latest Closed Milestone: v2.8 Selected-Candidate Route Choice Closure
+
+**Goal:** make post-selection continuation trustworthy enough that, once a
+selected staged candidate becomes the selected route on a fresh topic, the loop
+derives one bounded deeper route choice instead of stalling on the
+candidate-summary placeholder.
+
+**Delivered features:**
+- the bounded loop now derives one first deeper route choice from the selected
+  staged candidate
+- that route choice now writes durable
+  `selected_candidate_route_choice.active.json|md`
+- public `next` / `status` now advance from selected-candidate summary onto
+  `l2_promotion_review`
+- one replayable fresh-topic proof now closes that post-selection route-choice
+  baseline
+
+**Key context:**
+- `v2.7` had already closed consultation-followup execution and candidate
+  selection
+- `v2.8` closed the remaining route-choice gap without pretending that the
+  selected promotion-review route itself was already executable
+
+## Previous Closed Milestone: v2.7 Consultation-Followup Selection Closure
+
+**Goal:** make post-review consultation trustworthy enough that, once
+`consultation_followup` becomes the selected route on a fresh topic, the loop
+can execute that consultation, write a durable selection artifact, and advance
+to one selected topic-local staged candidate instead of stalling on generic
+consult language.
+
+**Delivered features:**
+- the bounded loop now executes one topic-local `consult-l2` step once the
+  consultation-followup route is surfaced and the operator continues again
+- that consultation step now writes durable consultation and selection artifacts
+- queue materialization and public `next` / `status` now advance onto one
+  selected topic-local staged candidate
+- one replayable fresh-topic proof now closes that consultation-followup
+  selection baseline
+
+**Key context:**
+- `v2.6` had already closed the first post-review consultation surface
+- `v2.7` closed the remaining consultation-followup execution and
+  candidate-selection gap without pretending that route choice after selection
+  was already solved
+
+## Previous Closed Milestone: v2.6 Staged-L2 Post-Review Advancement
 
 **Goal:** make post-review continuation trustworthy enough that, once staged-`L2`
 review is already visible on a fresh topic, a later benign `continue`
 advances to one bounded topic-local staged-memory consultation step instead of
 stalling on the same review summary forever.
 
-**Target features:**
-- detect when a later `continue` decision is newer than the latest topic-local
-  staged entry and advance beyond static staged-L2 review
-- keep public `next`, `status`, and dashboard surfaces aligned on the same
-  bounded post-review consultation step
-- close with one replayable fresh-topic proof that the same topic advances
-  beyond staged-L2 review after that later `continue`
+**Delivered features:**
+- queue materialization now advances beyond static staged-L2 review once a
+  later `continue` decision arrives
+- public `next`, `status`, and dashboard surfaces now align on the bounded
+  post-review consultation step
+- one replayable fresh-topic proof now shows the same topic advancing beyond
+  staged-L2 review into that bounded consultation route
 
 **Key context:**
-- `v2.5` closed staged-L2 reentry posture coherence and proved that benign
-  `continue` steering no longer creates false human blockage
-- a follow-up probe still left the same topic on
-  `Inspect the current L2 staging manifest before continuing.` after another
-  later `continue`
-- the next bottleneck is therefore advancing beyond staged-L2 review itself,
-  not reopening earlier registration, staging quality, or H-plane neutrality
-  work
+- `v2.5` had already closed staged-L2 reentry posture coherence
+- `v2.6` closed the remaining post-review route-advancement gap without
+  pretending that consultation-followup execution or candidate selection were
+  already solved
 
-## Latest Closed Milestone: v2.5 Staged-L2 Review Reentry Coherence
+## Previous Closed Milestone: v2.5 Staged-L2 Review Reentry Coherence
 
 **Goal:** make staged-`L2` review reentry trustworthy enough that, after the
 first fresh-topic L1->L2 follow-through lands, benign `continue` steering no
@@ -1114,4 +1182,4 @@ QSGW` lanes instead of re-litigating whether AITP already has a trustworthy
 positive canonical-L2 path.
 
 ---
-*Last updated: 2026-04-14 after starting milestone v2.6*
+*Last updated: 2026-04-14 after starting milestone v2.9*

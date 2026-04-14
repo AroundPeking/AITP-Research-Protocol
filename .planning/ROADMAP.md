@@ -1,80 +1,80 @@
-# Roadmap: v2.6 Staged-L2 Post-Review Advancement
+# Roadmap: v2.9 Promotion-Review Gate Closure
 
 ## Result
 
-Milestone phase work complete. Lifecycle closure is next.
+Milestone execution complete. Audit / archive is next.
 
 ## Phases
 
-- [x] **Phase 180: Staged-L2 Review Advancement Rule** *(Axis 2 + Axis 4)*
-- [x] **Phase 180.1: Public Post-Review Route Advancement** *(Axis 4 + Axis 5)*
-- [x] **Phase 180.2: Fresh Post-Review Advancement Replay Proof** *(Axis 4 + Axis 3)*
+- [x] **Phase 183: Promotion-Review Gate Materialization** *(Axis 2 + Axis 4)*
+- [x] **Phase 183.1: Public Promotion-Review Gate Surface** *(Axis 4 + Axis 5)*
+- [x] **Phase 183.2: Fresh Promotion-Review Gate Replay Proof** *(Axis 4 + Axis 3)*
 
 ## Target Outcome
 
-- once staged-L2 review has already been surfaced, a later benign `continue`
-  no longer leaves the same topic on that static review summary forever
-- queue materialization and public `next` / `status` now advance onto one
-  bounded post-review consultation step against topic-local staged `L2` memory
-- one replayable fresh-topic proof records that advancement beyond staged-L2
-  review on the same bounded route
+- once `l2_promotion_review` becomes the selected route, the same topic no
+  longer stalls on that promotion-review summary forever
+- the bounded loop now materializes one explicit promotion-review gate and
+  public `next` / `status` expose that gate
+- one replayable fresh-topic proof records the sixth bounded continue step from
+  promotion-review summary into the explicit gate
 
 ## Next Step
 
-Run milestone audit / archive for `v2.6`.
+Audit / archive milestone `v2.9`, then plan the next bounded gap after explicit promotion-gate materialization.
 
-### Phase 180: Staged-L2 Review Advancement Rule
+### Phase 183: Promotion-Review Gate Materialization
 
 **Axis:** Axis 2 (inter-layer connection) + Axis 4 (human experience)
 
-**Goal:** make a later bounded `continue` advance beyond the static staged-L2
-review summary into one bounded post-review consultation step.
+**Goal:** materialize one explicit promotion-review gate once
+`l2_promotion_review` becomes the selected route.
 
 **Requirements:**
 
-- `PRA-01`
-- `PRA-02`
+- `PRG-01`
+- `PRG-02`
 
-**Depends on:** `v2.5`
+**Depends on:** `v2.8`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `180-01` Advance later continue decisions beyond static staged-L2 review into one topic-local consultation step
+- [x] `183-01` Materialize one explicit promotion-review gate from the selected staged candidate
 
-### Phase 180.1: Public Post-Review Route Advancement
+### Phase 183.1: Public Promotion-Review Gate Surface
 
 **Axis:** Axis 4 (human evidence) + Axis 5 (agent-facing steering)
 
-**Goal:** make public `next` and `status` advance beyond staged-L2 review onto
-the same bounded post-review consultation step.
+**Goal:** make public `next` and `status` advance from promotion-review summary
+to the same explicit promotion-review gate.
 
 **Requirements:**
 
-- `PRA-03`
+- `PRG-03`
 
-**Depends on:** Phase `180`
+**Depends on:** Phase `183`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `180.1-01` Align public next-action surfaces on the bounded post-review consultation step
+- [x] `183.1-01` Align public surfaces on the explicit promotion-review gate
 
-### Phase 180.2: Fresh Post-Review Advancement Replay Proof
+### Phase 183.2: Fresh Promotion-Review Gate Replay Proof
 
 **Axis:** Axis 4 (human evidence) + Axis 3 (data recording)
 
 **Goal:** close the milestone with one replayable fresh-topic proof that the
-same topic can advance beyond staged-L2 review after a later benign
-`continue`.
+same topic can advance beyond promotion-review summary into one explicit
+promotion-review gate.
 
 **Requirements:**
 
-- `PRA-04`
+- `PRG-04`
 
-**Depends on:** Phase `180.1`
+**Depends on:** Phase `183.1`
 **Plans:** 1 plan
 
 Plans:
 
-- [x] `180.2-01` Capture the replayable third-continue advancement beyond staged-L2 review
+- [x] `183.2-01` Capture the replayable sixth-continue advancement beyond promotion-review summary

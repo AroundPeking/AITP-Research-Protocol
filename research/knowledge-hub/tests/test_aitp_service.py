@@ -4744,6 +4744,38 @@ class AITPServiceTests(unittest.TestCase):
         )
         self.assertTrue(projection_log.exists())
 
+    def test_select_bounded_consultation_candidate_prefers_topic_local_staged_hits(self) -> None:
+        from knowledge_hub.consultation_followup_support import (
+            select_bounded_consultation_candidate,
+        )
+
+        payload = {
+            "staged_hits": [
+                {
+                    "entry_id": "staging:topic-local",
+                    "title": "Topic-local staged bridge note",
+                    "topic_slug": "demo-topic",
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/topic-local.json",
+                },
+                {
+                    "entry_id": "staging:other-topic",
+                    "title": "Other topic staged note",
+                    "topic_slug": "other-topic",
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/other-topic.json",
+                },
+            ]
+        }
+
+        selected = select_bounded_consultation_candidate(
+            topic_slug="demo-topic",
+            consult_payload=payload,
+        )
+
+        self.assertEqual(selected["selected_candidate_id"], "staging:topic-local")
+        self.assertEqual(selected["status"], "selected")
+
     def test_compile_l2_workspace_map_reports_seeded_physical_picture(self) -> None:
         self._prepare_l2_graph_kernel()
         self.service.seed_l2_direction(
@@ -9721,6 +9753,144 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(receipt_rows[0]["query"], "hs control-path baseline")
         queue_row = json.loads(queue_path.read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual(queue_row["status"], "completed")
+
+    def test_execute_auto_actions_runs_consultation_followup_and_writes_selection_artifact(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug)
+        queue_path = runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": f"action:{topic_slug}:consult-staged-l2",
+                    "status": "pending",
+                    "auto_runnable": True,
+                    "action_type": "consultation_followup",
+                    "summary": "Consult the topic-local staged L2 memory and choose one bounded candidate before deeper execution.",
+                    "handler_args": {"run_id": "2026-03-13-demo"},
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_json = runtime_root / "runtime_protocol.generated.json"
+        runtime_protocol_note = runtime_root / "runtime_protocol.generated.md"
+        consultation_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / "2026-03-13-demo" / "consultations"
+        consultation_root.mkdir(parents=True, exist_ok=True)
+        consultation_index_path = consultation_root / "consultation_index.jsonl"
+        consultation_result_path = consultation_root / "consultation_result.json"
+        consultation_index_path.write_text("", encoding="utf-8")
+        consultation_result_path.write_text("{}", encoding="utf-8")
+        staged_payload = {
+            "primary_hits": [],
+            "expanded_hits": [],
+            "staged_hits": [
+                {
+                    "entry_id": "staging:demo-topic-local",
+                    "title": "Demo topic local staged bridge note",
+                    "topic_slug": topic_slug,
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/staging--demo-topic-local.json",
+                }
+            ],
+            "consultation": {
+                "consultation_index_path": str(consultation_index_path),
+                "consultation_result_path": str(consultation_result_path),
+            },
+        }
+        runtime_protocol_json.write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": None,
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                    "active_research_contract": {
+                        "l1_source_intake": {
+                            "source_count": 1,
+                            "assumption_rows": [],
+                            "regime_rows": [],
+                            "reading_depth_rows": [],
+                            "method_specificity_rows": [],
+                            "notation_rows": [],
+                            "contradiction_candidates": [],
+                            "notation_tension_candidates": [],
+                        }
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        runtime_protocol_note.write_text("# Runtime protocol\n", encoding="utf-8")
+
+        with patch.object(
+            self.service,
+            "_materialize_runtime_protocol_bundle",
+            return_value={
+                "runtime_protocol_path": str(runtime_protocol_json),
+                "runtime_protocol_note_path": str(runtime_protocol_note),
+            },
+        ):
+            with patch.object(self.service, "consult_l2", return_value=staged_payload):
+                payload = self.service._execute_auto_actions(
+                    topic_slug=topic_slug,
+                    updated_by="aitp-cli",
+                    max_auto_steps=1,
+                    default_skill_queries=None,
+                )
+
+        self.assertEqual(len(payload["executed"]), 1)
+        self.assertEqual(payload["executed"][0]["action_type"], "consultation_followup")
+        self.assertEqual(payload["executed"][0]["status"], "completed")
+        self.assertTrue((runtime_root / "consultation_followup_selection.active.json").exists())
+
+    def test_run_consultation_followup_records_consultation_receipt_and_selection(self) -> None:
+        topic_slug = "demo-topic"
+        runtime_root = self._write_runtime_state(topic_slug=topic_slug, run_id="run-001")
+        consultation_root = self.kernel_root / "feedback" / "topics" / topic_slug / "runs" / "run-001" / "consultations"
+        consultation_root.mkdir(parents=True, exist_ok=True)
+        consultation_index_path = consultation_root / "consultation_index.jsonl"
+        consultation_result_path = consultation_root / "consultation_result.json"
+        consultation_index_path.write_text("", encoding="utf-8")
+        consultation_result_path.write_text("{}", encoding="utf-8")
+        staged_payload = {
+            "primary_hits": [],
+            "expanded_hits": [],
+            "staged_hits": [
+                {
+                    "entry_id": "staging:demo-topic-local",
+                    "title": "Demo topic local staged bridge note",
+                    "topic_slug": topic_slug,
+                    "trust_surface": "staging",
+                    "path": "canonical/staging/entries/staging--demo-topic-local.json",
+                }
+            ],
+            "consultation": {
+                "consultation_index_path": str(consultation_index_path),
+                "consultation_result_path": str(consultation_result_path),
+            },
+        }
+
+        with patch.object(self.service, "consult_l2", return_value=staged_payload):
+            payload = self.service._run_consultation_followup(
+                topic_slug=topic_slug,
+                row={
+                    "handler_args": {"run_id": "run-001"},
+                    "action_type": "consultation_followup",
+                },
+                updated_by="aitp-cli",
+            )
+
+        self.assertIn("consultation", payload)
+        self.assertIn("selection", payload)
+        self.assertEqual(payload["selection"]["status"], "selected")
+        self.assertTrue((runtime_root / "consultation_followup_selection.active.json").exists())
 
     def test_execute_auto_actions_appends_and_runs_literature_intake_stage(self) -> None:
         topic_slug = "demo-topic"

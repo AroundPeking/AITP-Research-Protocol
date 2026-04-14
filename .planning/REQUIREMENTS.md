@@ -1,51 +1,52 @@
-# Requirements: v2.6 Staged-L2 Post-Review Advancement
+# Requirements: v2.9 Promotion-Review Gate Closure
 
 ## Milestone Goal
 
-Make post-review continuation coherent enough that, once staged-`L2` review is
-already visible on a fresh topic, a later benign `continue` advances to one
-bounded topic-local staged-memory consultation step instead of stalling on the
-same review summary forever.
+Make post-route continuation coherent enough that, once `l2_promotion_review`
+becomes the selected route on a fresh topic, the loop materializes one explicit
+promotion-review gate and advances beyond the summary placeholder instead of
+stalling there forever.
 
 ## Active Requirements
 
-### Queue Advancement Beyond Review
+### Explicit Promotion-Review Gate
 
-- [x] `PRA-01`: once a later `continue` decision is newer than the latest
-  topic-local staged entry, queue materialization no longer leaves the topic on
-  `Inspect the current L2 staging manifest before continuing.`
+- [ ] `PRG-01`: once `l2_promotion_review` is already the selected route and
+  the operator continues again, the bounded loop materializes one explicit
+  promotion-review gate from the selected staged candidate.
 
-- [x] `PRA-02`: under that same condition, the bounded route advances to
-  `Consult the topic-local staged L2 memory and choose one bounded candidate before deeper execution.`
+- [ ] `PRG-02`: that promotion-review gate is written as a durable runtime
+  artifact rather than remaining only a transient queue guess.
 
-### Public Surface Advancement
+### Public Promotion-Review Advancement
 
-- [x] `PRA-03`: public `next`, `status`, and equivalent dashboard surfaces
-  stay aligned on the same post-review consultation step.
+- [ ] `PRG-03`: public `next`, `status`, and equivalent dashboard surfaces stay
+  aligned on the same explicit promotion-review gate.
 
 ### Replayable Proof
 
-- [x] `PRA-04`: one replayable fresh-topic proof shows the same topic can
-  advance beyond staged-L2 review into the bounded post-review consultation
-  step after a later benign `continue`.
+- [ ] `PRG-04`: one replayable fresh-topic proof shows the same topic can
+  advance beyond promotion-review summary into one explicit promotion-review
+  gate while the earlier staged-L2, consultation-selection, and route-choice
+  baselines still pass.
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Reopening benign continue neutrality from `v2.5` | treat `v2.5` reentry posture as the new baseline unless a fresh regression appears |
-| Human promotion / authoritative writeback of staged rows | `v2.6` only reaches the bounded post-review consultation handoff |
-| Full candidate execution, validation-route choice, or deeper run execution | keep the milestone bounded to the first advancement beyond staged-L2 review |
-| Broad three-lane scientific widening across formal, toy, and first-principles routes | defer until this post-review advancement step is mechanically stable |
+| Reopening selected-candidate route choice from `v2.8` | treat the `v2.8` chosen-route surface as the new baseline unless a fresh regression appears |
+| Automatically promoting the selected staged candidate into canonical `L2` | `v2.9` only materializes the explicit promotion-review gate |
+| Broad route optimization across split/validate/promote branches | keep the milestone bounded to the promotion-review gate already chosen on the baseline |
+| Broad three-lane scientific widening across formal, toy, and first-principles routes | defer until promotion-review gate materialization is mechanically stable |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PRA-01 | Phase 180 | Done |
-| PRA-02 | Phase 180 | Done |
-| PRA-03 | Phase 180.1 | Done |
-| PRA-04 | Phase 180.2 | Done |
+| PRG-01 | Phase 183 | Planned |
+| PRG-02 | Phase 183 | Planned |
+| PRG-03 | Phase 183.1 | Planned |
+| PRG-04 | Phase 183.2 | Planned |
 
 **Coverage:**
 - v1 requirements: 4 total

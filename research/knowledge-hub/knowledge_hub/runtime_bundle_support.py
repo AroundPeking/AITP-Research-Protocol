@@ -1279,6 +1279,49 @@ def materialize_runtime_protocol_bundle(
         )
     may_defer_until_trigger: list[dict[str, str]] = []
     must_read_paths = {item["path"] for item in must_read_now}
+    selected_consultation_candidate_note_path = str(
+        (topic_state.get("pointers") or {}).get("selected_consultation_candidate_note_path")
+        or ""
+    ).strip()
+    selected_candidate_route_choice_note_path = str(
+        (topic_state.get("pointers") or {}).get("selected_candidate_route_choice_note_path")
+        or ""
+    ).strip()
+    if (
+        str((selected_pending_action or {}).get("action_type") or "").strip()
+        == "selected_consultation_candidate_followup"
+        and selected_consultation_candidate_note_path
+        and selected_consultation_candidate_note_path not in must_read_paths
+    ):
+        must_read_now.insert(
+            0,
+            {
+                "path": selected_consultation_candidate_note_path,
+                "reason": "Read the durable consultation-followup selection before choosing the next deeper candidate action.",
+            },
+        )
+        must_read_paths.add(selected_consultation_candidate_note_path)
+    if (
+        str((selected_pending_action or {}).get("action_type") or "").strip()
+        in {
+            "l2_promotion_review",
+            "request_promotion",
+            "approve_promotion",
+            "promote_candidate",
+            "auto_promote_candidate",
+            "select_validation_route",
+        }
+        and selected_candidate_route_choice_note_path
+        and selected_candidate_route_choice_note_path not in must_read_paths
+    ):
+        must_read_now.insert(
+            0,
+            {
+                "path": selected_candidate_route_choice_note_path,
+                "reason": "Read the durable selected-candidate route choice before deeper execution continues.",
+            },
+        )
+        must_read_paths.add(selected_candidate_route_choice_note_path)
     for candidate, trigger, reason in (
         (
             "interaction_state.json",
