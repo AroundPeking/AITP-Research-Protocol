@@ -200,6 +200,62 @@ def latest_continue_decision_updated_at(
     return latest
 
 
+def count_continue_decisions_after(
+    *,
+    knowledge_root: Path,
+    topic_slug: str,
+    cutoff: datetime | None,
+) -> int:
+    if cutoff is None:
+        return 0
+    decisions_path = knowledge_root / "runtime" / "topics" / topic_slug / "innovation_decisions.jsonl"
+    if not decisions_path.exists():
+        return 0
+    count = 0
+    for raw_line in decisions_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if str(payload.get("decision") or "").strip() != "continue":
+            continue
+        candidate = _parse_iso_timestamp(str(payload.get("updated_at") or ""))
+        if candidate is None:
+            continue
+        if candidate > cutoff:
+            count += 1
+    return count
+
+
+def consultation_followup_ready_for_auto_run(
+    *,
+    load_json: Callable[[Path], dict | None],
+    knowledge_root: Path,
+    topic_slug: str,
+) -> bool:
+    next_action_decision = load_json(
+        knowledge_root / "runtime" / "topics" / topic_slug / "next_action_decision.json"
+    )
+    if not next_action_decision:
+        return False
+    selected_action = next_action_decision.get("selected_action") or {}
+    if str(selected_action.get("action_type") or "").strip() != "consultation_followup":
+        return False
+    latest_staged = latest_topic_local_staged_entry_updated_at(
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+    )
+    continue_count = count_continue_decisions_after(
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+        cutoff=latest_staged,
+    )
+    return continue_count >= 2
+
+
 def should_advance_past_staged_l2_review(
     *,
     knowledge_root: Path,

@@ -4484,6 +4484,50 @@ class AITPService:
                 return True
         return False
 
+    def _latest_topic_local_staged_entry_updated_at(
+        self,
+        topic_slug: str,
+    ) -> datetime | None:
+        latest: datetime | None = None
+        for row in load_staging_entries(self.kernel_root):
+            if str(row.get("topic_slug") or "").strip() != topic_slug:
+                continue
+            stamp = str(row.get("updated_at") or row.get("created_at") or "").strip()
+            if not stamp:
+                continue
+            try:
+                candidate = datetime.fromisoformat(stamp)
+            except ValueError:
+                continue
+            if latest is None or candidate > latest:
+                latest = candidate
+        return latest
+
+    def _consultation_followup_auto_ready(self, topic_slug: str) -> bool:
+        next_action_decision = read_json(
+            self._runtime_root(topic_slug) / "next_action_decision.json"
+        ) or {}
+        selected_action = next_action_decision.get("selected_action") or {}
+        if str(selected_action.get("action_type") or "").strip() != "consultation_followup":
+            return False
+        latest_staged = self._latest_topic_local_staged_entry_updated_at(topic_slug)
+        if latest_staged is None:
+            return False
+        continue_count = 0
+        for row in read_jsonl(self._runtime_root(topic_slug) / "innovation_decisions.jsonl"):
+            if str(row.get("decision") or "").strip() != "continue":
+                continue
+            stamp = str(row.get("updated_at") or "").strip()
+            if not stamp:
+                continue
+            try:
+                candidate = datetime.fromisoformat(stamp)
+            except ValueError:
+                continue
+            if candidate > latest_staged:
+                continue_count += 1
+        return continue_count >= 2
+
     def _load_candidate(
         self, topic_slug: str, run_id: str, candidate_id: str
     ) -> dict[str, Any]:
