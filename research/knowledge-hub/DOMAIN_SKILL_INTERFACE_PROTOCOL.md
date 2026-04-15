@@ -179,14 +179,16 @@ registration card — it tells AITP everything about the domain.
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "family", "description", "phases"],
-        "properties": {
-          "name": {"type": "string"},
-          "family": {"type": "string", "enum": ["computation", "development"]},
-          "description": {"type": "string"},
-          "phases": {"type": "array", "items": {"type": "string"}},
-          "required_contracts": {"type": "array", "items": {"type": "string"}}
-        }
+          "required": ["name", "family", "description", "phases"],
+          "properties": {
+            "name": {"type": "string"},
+            "family": {"type": "string", "enum": ["computation", "development"]},
+            "description": {"type": "string"},
+            "phases": {"type": "array", "items": {"type": "string"}},
+            "required_contracts": {"type": "array", "items": {"type": "string"}},
+            "spec_required": {"type": "boolean", "description": "Whether this operation requires an externalized spec before implementation"},
+            "min_path": {"type": "string", "enum": ["zero_shot", "spec_guided", "derive_first"], "description": "Minimum recommended path: zero_shot (no spec), spec_guided (spec but no derivation), derive_first (full derive-first)"}
+          }
       }
     },
     "contracts": {
@@ -212,6 +214,31 @@ registration card — it tells AITP everything about the domain.
           "description": {"type": "string"},
           "failure_mode": {"type": "string"},
           "check_method": {"type": "string"}
+        }
+      }
+    },
+    "reproducibility": {
+      "type": "object",
+      "description": "Reproducibility and externalized-spec configuration",
+      "properties": {
+        "recommended_model_combos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "spec_model": {"type": "string", "description": "Model recommended for spec generation (Phase 1)"},
+              "code_model": {"type": "string", "description": "Model recommended for code generation (Phase 3)"},
+              "typical_hitl_rounds": {"type": "integer", "description": "Expected human feedback rounds"},
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "conversation_archive": {
+          "type": "object",
+          "properties": {
+            "directory": {"type": "string", "description": "Project-relative path for conversation archives", "default": "archive/"},
+            "naming_convention": {"type": "string", "description": "Pattern: {artifact}-{model1}-{model2}#{round}-{status}.{ext}"}
+          }
         }
       }
     },
@@ -293,6 +320,7 @@ reaches a specific phase or gate.
 | `on_benchmark_systems` | Phase 5 | List of test systems with reference values, convergence parameters |
 | `on_error_classify` | Phase 6 | Error classification (category, root cause, suggested fix actions) |
 | `on_l2_artifacts` | Phase 7 | List of artifacts to promote to L2 (experience cards, reference data) |
+| `on_spec_quality_check` | Phase 1 | Spec quality criteria and minimum pass threshold for the domain |
 
 ### Hook invocation
 
@@ -406,3 +434,24 @@ instead of embedding the domain knowledge directly.
 The boundary is simple: AITP manages **how** research happens. The domain
 skill manages **what** the research is about. They meet at the contract files
 in the project directory.
+
+---
+
+## 10. Reproducibility and externalized specs
+
+AITP formalizes two principles inspired by the DMRG-LLM study (arXiv:2604.04089):
+
+1. **Externalized specifications** — intermediate technical specs that capture
+   implementation-critical knowledge absent from source literature. These are
+   first-class artifacts, not summaries.
+
+2. **Absolute reproducibility** — every conversation, every spec version, every
+   code version is preserved with structured naming in the project archive.
+
+The domain skill participates in reproducibility by:
+- Declaring `recommended_model_combos` in its manifest (§4 schema)
+- Marking each operation with `spec_required` and `min_path`
+- Providing quality criteria via the `on_spec_quality_check` hook (§5)
+
+The full protocol is documented in
+[`EXTERNALIZED_SPEC_PROTOCOL.md`](EXTERNALIZED_SPEC_PROTOCOL.md).

@@ -335,6 +335,8 @@ Useful runtime audit entrypoints once a topic exists:
 - **Humans own trust** — nothing becomes reusable memory without explicit approval
 - **Durable by default** — research state survives session resets and machine changes
 - **Light until it matters** — ordinary work stays minimal; the runtime only expands when something important happens
+- **Externalized knowledge** — implementation-critical knowledge that papers leave implicit gets written into spec artifacts before code
+- **Absolutely reproducible** — every conversation, every spec, every code version is preserved with structured naming
 
 ## Current Status
 
@@ -385,6 +387,7 @@ MIT License — see [`LICENSE`](LICENSE) file for details.
 - [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md) — why the UX converges on Superpowers' install shape
 - [`docs/roadmap.md`](docs/roadmap.md) — development roadmap
 - [`research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md`](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md) — domain skill interface specification
+- [`research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md`](research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md) — externalized specification and reproducibility protocol
 - [`research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md`](research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md) — ABACUS+LibRPA domain protocol
 - [`research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md`](research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md) — 9-phase feature development playbook
 - [**oh-my-LibRPA**](https://github.com/AroundPeking/oh-my-LibRPA) — ABACUS+LibRPA domain skill with chat-native workflow orchestration

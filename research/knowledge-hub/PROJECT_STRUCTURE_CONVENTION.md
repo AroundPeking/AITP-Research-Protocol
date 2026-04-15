@@ -45,6 +45,10 @@ this folder and nowhere else.
 │   ├── computation-workflow.*.json
 │   ├── benchmark-report.*.json
 │   └── calculation-debug.*.json
+├── archive/                       # Reproducibility archive (append-only)
+│   ├── conversations/             #   Unedited conversation transcripts
+│   ├── specs/                     #   Externalized spec versions
+│   └── hitl-log.json              #   HITL round tracking
 └── build/                         # Build configurations
     └── cmake/                     #   CMake presets
 ```
@@ -289,3 +293,69 @@ When starting a new project, the agent must:
 When this document conflicts with a general AITP convention, **this document
 takes precedence** for ABACUS+LibRPA feature development projects within the
 `code_and_materials` lane.
+
+---
+
+## 7. Reproducibility archive
+
+Every project must include an `archive/` directory for reproducibility. This
+directory is **append-only**: never modify or delete past entries.
+
+### Directory structure
+
+```
+archive/
+├── conversations/                # Unedited conversation transcripts
+│   ├── {phase}-{model}#{round}.md
+│   └── ...
+├── specs/                        # Externalized spec versions
+│   ├── spec-v1.md                # First version (LLM output)
+│   ├── spec-v2.md                # After human review
+│   └── spec-final.md             # Approved version
+├── code/                         # Code versions with pass/fail status
+│   ├── {artifact}-{model1}-{model2}#{round}-{Pass|Fail}.{ext}
+│   └── ...
+└── hitl-log.json                 # HITL round tracking
+```
+
+### Naming convention
+
+All archived materials follow the pattern:
+
+```
+{artifact}-{model1}-{model2}#{round}-{status}.{ext}
+```
+
+Where:
+- `artifact`: what was produced (`spec`, `code`, `conversation`)
+- `model1`: model that produced the spec (omitted for zero-shot)
+- `model2`: model that produced the code
+- `round`: iteration number (1, 2, 3, ...)
+- `status`: `Pass` or `Fail`
+
+### HITL log schema
+
+```json
+{
+  "project": "project-name",
+  "entries": [
+    {
+      "round": 1,
+      "phase": "3",
+      "spec_model": "claude",
+      "code_model": "claude",
+      "status": "Fail",
+      "human_feedback_summary": "Brief description of the feedback",
+      "timestamp": "2026-04-15T10:30:00Z",
+      "artifact_path": "archive/code/code-claude-claude#1-Fail.py"
+    }
+  ]
+}
+```
+
+### Rules
+
+1. **Append-only**: past entries are never modified or deleted
+2. **Complete**: every round must have an entry, including failures
+3. **Unedited**: conversation transcripts are preserved exactly as they occurred
+4. **Traceable**: each entry links to the corresponding artifact file
