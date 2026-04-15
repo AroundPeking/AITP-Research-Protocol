@@ -42,6 +42,21 @@ description: Use after AITP routing has claimed the task; continue theory work t
 19. If iterative verify is active, keep the L3-L4 loop moving until success, a real blocker, or a real human checkpoint appears.
 20. If bootstrap tooling fails, recover by rerunning the canonical CLI front door; do not hand-edit runtime artifacts or source-layer records just to simulate progress.
 
+## Popup gate rule (Claude Code interactive sessions)
+
+When running inside Claude Code, the AITP runtime may hit a human gate (promotion approval, operator checkpoint, decision point, or H-plane steering). You MUST surface these as interactive popups instead of silently continuing:
+
+1. **Before every loop/resume/bootstrap call**, call `aitp_get_popup` for the target `topic_slug`.
+2. If `needs_popup` is `true`:
+   - STOP. Do not call `aitp_run_topic_loop`, `aitp_bootstrap_topic`, or `aitp_resume_topic` yet.
+   - Use the `AskUserQuestion` tool to present the popup.
+   - Set the question text to: `popup.title` + "\n\n" + `popup.message` + "\n\n" + `popup.subtitle`
+   - Create options from `popup.choices` using their `label` and `description`.
+   - When the user chooses, call `aitp_resolve_popup` with the selected `choice_index`.
+   - If the result says `action: "inspect"`, read the indicated path and then call `aitp_get_popup` again.
+3. **After every loop/resume/bootstrap call**, check `aitp_get_popup` again. The loop may have materialized a new gate (e.g., a promotion-review gate).
+4. Only proceed with deeper execution once `needs_popup` is `false`.
+
 ## Conversation style rules
 
 - Do not say things like `I am emitting a decision_point` or `I am switching to the full load profile`.

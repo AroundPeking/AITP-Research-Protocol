@@ -334,6 +334,14 @@ def build_parser() -> argparse.ArgumentParser:
     interaction.add_argument("--updated-by", default="aitp-cli")
     interaction.add_argument("--json", action="store_true")
 
+    popup = subparsers.add_parser("popup", help="Show the active human-interaction popup for one topic")
+    popup.add_argument("--topic-slug", required=True)
+    popup.add_argument("--choice", type=int, help="Resolve the popup by choosing this option index")
+    popup.add_argument("--comment")
+    popup.add_argument("--resolved-by", default="human")
+    popup.add_argument("--updated-by", default="aitp-cli")
+    popup.add_argument("--json", action="store_true")
+
     resolve_checkpoint = subparsers.add_parser(
         "resolve-checkpoint",
         help="Resolve the active operator checkpoint for one topic",
@@ -1051,7 +1059,13 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         elif args.verbose:
             _emit_text(render_topic_status_payload(payload, tier="verbose"))
         else:
-            _emit_text(render_topic_status_payload(payload))
+            # Check for popup gate before showing plain status
+            popup_payload = service.topic_popup(topic_slug=args.topic_slug, updated_by=args.updated_by)
+            if popup_payload.get("needs_popup") and not args.json:
+                _emit_text(str(popup_payload.get("markdown") or ""))
+                print(f"\nResolve with: aitp popup --topic-slug {args.topic_slug} --choice <index>")
+            else:
+                _emit_text(render_topic_status_payload(payload))
         return 0
 
     if args.command == "interaction":
@@ -1060,6 +1074,28 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
             updated_by=args.updated_by,
         )
         _emit(payload, args.json)
+        return 0
+
+    if args.command == "popup":
+        if args.choice is not None:
+            payload = service.resolve_popup_choice(
+                topic_slug=args.topic_slug,
+                choice_index=args.choice,
+                comment=args.comment,
+                resolved_by=args.resolved_by,
+            )
+            _emit(payload, args.json)
+            return 0
+        payload = service.topic_popup(
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+        )
+        if args.json:
+            _emit(payload, True)
+        else:
+            _emit_text(str(payload.get("markdown") or ""))
+            if payload.get("needs_popup"):
+                print(f"\nResolve with: aitp popup --topic-slug {args.topic_slug} --choice <index>")
         return 0
 
     if args.command == "resolve-checkpoint":
@@ -1088,7 +1124,13 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         if args.json:
             _emit(payload, True)
         else:
-            _emit_text(render_topic_next_payload(payload))
+            # If a human gate is blocking, show the popup instead of the next action
+            popup_payload = service.topic_popup(topic_slug=args.topic_slug, updated_by=args.updated_by)
+            if popup_payload.get("needs_popup"):
+                _emit_text(str(popup_payload.get("markdown") or ""))
+                print(f"\nResolve with: aitp popup --topic-slug {args.topic_slug} --choice <index>")
+            else:
+                _emit_text(render_topic_next_payload(payload))
         return 0
 
     if args.command == "work":

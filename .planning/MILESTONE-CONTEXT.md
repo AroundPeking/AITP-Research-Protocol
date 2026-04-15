@@ -1,50 +1,52 @@
 # Milestone Context
 
-Current milestone: `v1.91` `Real Topic L0 To L2 End-To-End Validation`
+Current milestone: `v2.13` `L2 Content Quality Baseline`
 
 ## Latest Closed Milestone
 
-`v1.90` `Hypothesis Route Transition Authority Surface`
+`v2.12` `Real Lean Bridge Theory Export`
 
 ## Why It Was Next
 
-`v1.90` closed the bounded route transition-authority visibility gap and
-should stay closed.
+`v2.12` closed the bounded real Lean-export question for one real theory-facing
+result.
 
-The next clean adjacent gap is no longer a missing local protocol surface.
-It is the missing maturity proof that the current implementation actually helps
-on a real topic from an initial idea.
+The next clean adjacent gap is no longer export plumbing.
+It is whether the current `L2` corpus is deep enough to make retrieval and
+consultation genuinely useful on a real research direction.
 
-The next bounded milestone therefore needs to answer:
+The next bounded milestone therefore needed to answer:
 
-- can the current public entry surfaces carry a real idea into a bounded topic
-  honestly?
-- can one real topic make it through the current `L0 -> L1 -> L3 -> L4 -> L2`
-  route without hidden scaffolding?
-- when the run exposes real issues, how are those issues captured and routed
-  back into GSD work?
+- can one real research direction grow beyond the current thin seeded `L2`
+  baseline
+- can retrieval and consultation over that enriched corpus answer a small
+  gold-standard question set better than raw source rereading
+- can AITP state honestly what the enriched corpus still cannot answer
 
-That makes the next bounded milestone:
+## What Was Executed
 
-- execute one real-topic E2E route from an initial idea
-- write one durable postmortem with artifact refs and friction notes
-- keep issue capture explicit instead of assuming GSD will infer problems from
-  runtime artifacts automatically
+The bounded Jones-direction slice now has durable evidence for all three
+milestone phases:
+
+- Phase `187`: corpus growth
+- Phase `187.1`: retrieval / consultation usefulness evaluation
+- Phase `187.2`: honest capability reporting
 
 ## What This Scope Protects
 
-- Do not reopen closed route-transition visibility work just because a real run
-  reveals later-stage friction.
-- Do not confuse this milestone with a mock-heavy test-only milestone.
-- Keep the first slice centered on one honest real-topic run plus issue capture.
+- Do not reopen the `v2.12` Lean-export baseline unless a fresh regression
+  appears.
+- Do not widen into multi-direction corpus growth before one direction is
+  proven useful.
+- Do not conflate this bounded result with global `L2` maturity.
 
 ## Current Status
 
-`v1.91` is active.
+`v2.13` has bounded execution evidence and should be treated as complete at the
+phase-artifact level.
 
 Immediate next repository task:
 
-- execute Phase `165`
-- use the current public AITP entry surfaces first
-- write findings into a postmortem and issue ledger
-- route discovered issues explicitly into GSD-tracked follow-up work
+- unless a fresh Jones-corpus regression appears, move to `999.94`
+- force real `L4` package materialization after `L3` planning instead of
+  stopping at deferred-validation prose

@@ -22,3 +22,4 @@ During Claude Code topic work:
 5. "AITP pause" means Claude asks the human in chat and records the checkpoint, not that a background controller exists.
 6. inspect active human-choice surfaces with `aitp interaction --topic-slug <topic_slug> --json` or the native AITP MCP tool surface;
 7. when the active surface is a formal decision point, answer it with `aitp resolve-decision ...`; when it is an operator checkpoint, answer it with `aitp resolve-checkpoint ...` and add a comment when the choice needs extra steering detail.
+8. use `aitp_get_popup` (MCP tool) before continuing work; if a popup is active, present it with `AskUserQuestion` and resolve it with `aitp_resolve_popup` before any deeper execution.

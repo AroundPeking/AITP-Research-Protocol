@@ -832,6 +832,36 @@ def aitp_auto_promote_candidate(
         return _err(str(exc))
 
 
+@aitp_tool(access="read")
+def aitp_get_popup(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
+    """Get the active human-interaction popup for a topic, if any."""
+    try:
+        result = service.topic_popup(topic_slug=topic_slug, updated_by=updated_by)
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_resolve_popup(
+    topic_slug: str,
+    choice_index: int,
+    comment: str | None = None,
+    resolved_by: str = "human",
+) -> str:
+    """Resolve the active popup for a topic by choosing one of the presented options."""
+    try:
+        result = service.resolve_popup_choice(
+            topic_slug=topic_slug,
+            choice_index=choice_index,
+            comment=comment,
+            resolved_by=resolved_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
 @aitp_tool(access="write")
 def aitp_run_topic_loop(
     topic_slug: str | None = None,

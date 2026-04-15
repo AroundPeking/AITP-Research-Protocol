@@ -65,6 +65,27 @@ description: Use when a request might be theoretical-physics research, topic con
 10. report the current human-control posture in plain language before deeper work.
 11. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
 
+## Popup gate rule (Claude Code interactive sessions)
+
+Before continuing any AITP topic work inside Claude Code, you MUST check whether a human gate is blocking the topic:
+
+1. Call `aitp_get_popup` (MCP tool) with the current `topic_slug`.
+2. If `needs_popup` is `true`, STOP all execution and present the popup to the user using the `AskUserQuestion` tool.
+   - Use the `popup.title` as the question header.
+   - Use `popup.message` + `popup.subtitle` as the question body.
+   - Create one option per entry in `popup.choices` with:
+     - `label` = `choice.label`
+     - `description` = `choice.description`
+   - When the user selects an option, call `aitp_resolve_popup` with the corresponding `choice_index` (the `index` field of the chosen option).
+   - If the resolution returns `action: "inspect"`, read the indicated file and ask again.
+3. Only after `needs_popup` is `false` (or the popup has been resolved) may you proceed with `aitp loop`, `aitp resume`, or deeper work.
+4. Priority order of popup kinds (highest first):
+   - `promotion_gate` — L2 promotion awaiting approval/rejection
+   - `operator_checkpoint` — execution or route checkpoint awaiting response
+   - `decision_point` — durable research decision pending
+   - `h_plane_steering` — active redirect/pause/stop from control note
+   - `h_plane_checkpoint` — H-plane checkpoint awaiting response
+
 ## Allowed exception
 
 - If the task is AITP repo maintenance rather than AITP-governed research execution, work directly on the codebase.

@@ -1838,6 +1838,7 @@ class AITPCLITests(unittest.TestCase):
             }
             mock_service.topic_status.return_value = status_payload
             mock_service.topic_next.return_value = next_payload
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
             mock_service.kernel_root = Path("D:/demo-kernel")
             mock_factory.return_value = mock_service
 

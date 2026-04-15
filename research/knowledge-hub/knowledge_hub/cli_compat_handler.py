@@ -10,6 +10,7 @@ _CORE_HELP_COMMANDS = [
     "session-start",
     "status",
     "next",
+    "popup",
     "work",
     "consult-l2",
 ]

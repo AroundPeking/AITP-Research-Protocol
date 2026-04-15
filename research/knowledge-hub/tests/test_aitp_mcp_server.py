@@ -33,6 +33,7 @@ READ_ONLY_PROFILE_TOOLS = {
     "aitp_get_topic_interaction",
     "aitp_list_pending_decisions",
     "aitp_list_tool_manifest",
+    "aitp_get_popup",
 }
 
 WRITE_PROFILE_TOOLS = {
@@ -51,6 +52,7 @@ WRITE_PROFILE_TOOLS = {
     "aitp_reintegrate_followup",
     "aitp_resolve_pending_decision",
     "aitp_resolve_operator_checkpoint",
+    "aitp_resolve_popup",
     "aitp_prepare_lean_bridge",
     "aitp_request_promotion",
     "aitp_approve_promotion",
@@ -149,6 +151,26 @@ class _AITPStubSuccess:
     def install_agent(self, **kwargs):  # noqa: ANN003
         return {"installed": [{"path": "/tmp/demo", "kind": "skill"}]}
 
+    def topic_popup(self, *, topic_slug: str, updated_by: str = "aitp-mcp"):
+        return {
+            "topic_slug": topic_slug,
+            "needs_popup": True,
+            "popup_kind": "promotion_gate",
+            "popup": {
+                "popup_kind": "promotion_gate",
+                "title": "Promotion Review Gate",
+                "message": "Candidate ready for L2.",
+                "choices": [
+                    {"index": 1, "key": "approve", "label": "Approve", "description": "Promote to L2."},
+                    {"index": 2, "key": "reject", "label": "Reject", "description": "Keep in L3."},
+                ],
+            },
+            "markdown": "╔═...",
+        }
+
+    def resolve_popup_choice(self, *, topic_slug: str, choice_index: int, comment: str | None = None, resolved_by: str = "human"):
+        return {"status": "resolved", "topic_slug": topic_slug, "choice_index": choice_index}
+
 
 class _AITPStubFailure:
     kernel_root = Path(".")
@@ -212,6 +234,12 @@ class _AITPStubFailure:
 
     def install_agent(self, **kwargs):  # noqa: ANN003
         raise RuntimeError("install boom")
+
+    def topic_popup(self, *, topic_slug: str, updated_by: str = "aitp-mcp"):
+        raise RuntimeError("popup boom")
+
+    def resolve_popup_choice(self, *, topic_slug: str, choice_index: int, comment: str | None = None, resolved_by: str = "human"):
+        raise RuntimeError("resolve popup boom")
 
 
 class AITPMCPServerTests(unittest.TestCase):
@@ -340,6 +368,10 @@ class AITPMCPServerTests(unittest.TestCase):
                             target_backend_root="/tmp/tpkn",
                         )
                     )
+                    popup = _parse(aitp_mcp_server.aitp_get_popup("demo-topic"))
+                    resolved_popup = _parse(aitp_mcp_server.aitp_resolve_popup("demo-topic", 1))
+                    popup = _parse(aitp_mcp_server.aitp_get_popup("demo-topic"))
+                    resolved_popup = _parse(aitp_mcp_server.aitp_resolve_popup("demo-topic", 1))
                     loop = _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic"))
                     install = _parse(aitp_mcp_server.aitp_install_agent_wrapper("codex"))
 
@@ -375,6 +407,10 @@ class AITPMCPServerTests(unittest.TestCase):
         self.assertEqual(reject_promotion["status"], "success")
         self.assertEqual(promote_candidate["status"], "success")
         self.assertEqual(auto_promote_candidate["status"], "success")
+        self.assertEqual(popup["status"], "success")
+        self.assertTrue(popup["needs_popup"])
+        self.assertEqual(popup["popup_kind"], "promotion_gate")
+        self.assertEqual(resolved_popup["status"], "resolved")
         self.assertEqual(loop["status"], "success")
         self.assertEqual(install["status"], "success")
 
@@ -430,6 +466,8 @@ class AITPMCPServerTests(unittest.TestCase):
                         _parse(aitp_mcp_server.aitp_reject_promotion("demo-topic", "candidate:demo")),
                         _parse(aitp_mcp_server.aitp_promote_candidate("demo-topic", "candidate:demo")),
                         _parse(aitp_mcp_server.aitp_auto_promote_candidate("demo-topic", "candidate:demo")),
+                        _parse(aitp_mcp_server.aitp_get_popup("demo-topic")),
+                        _parse(aitp_mcp_server.aitp_resolve_popup("demo-topic", 1)),
                         _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic")),
                         _parse(aitp_mcp_server.aitp_install_agent_wrapper("codex")),
                     ]

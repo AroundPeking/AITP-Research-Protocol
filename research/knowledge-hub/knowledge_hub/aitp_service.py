@@ -199,6 +199,12 @@ from .formal_theory_audit_support import (
 from .lean_bridge_support import materialize_lean_bridge
 from .statement_compilation_support import materialize_statement_compilation
 from .h_plane_support import h_plane_audit as perform_h_plane_audit
+from .popup_support import (
+    build_popup_payload,
+    detect_popup_trigger,
+    render_popup_markdown,
+    resolve_popup_choice as resolve_popup_choice_impl,
+)
 from .paired_backend_support import paired_backend_audit as perform_paired_backend_audit
 from .capability_audit_support import capability_audit as perform_capability_audit
 from .chat_session_support import (
@@ -981,6 +987,17 @@ class AITPService:
         return {
             "json": runtime_root / "validation_contract.active.json",
             "note": runtime_root / "validation_contract.active.md",
+        }
+
+    def _minimum_l4_package_paths(self, topic_slug: str, run_id: str) -> dict[str, Path]:
+        run_root = self._validation_run_root(topic_slug, run_id)
+        return {
+            "run_root": run_root,
+            "validation_plan": run_root / "validation_plan.md",
+            "derivation_process": run_root / "derivation_process.md",
+            "execution_deferral": run_root / "execution_deferral.md",
+            "adjudication_note": run_root / "adjudication_note.md",
+            "execution_tasks_dir": run_root / "execution-tasks",
         }
 
     def _idea_packet_paths(self, topic_slug: str) -> dict[str, Path]:
@@ -9016,6 +9033,67 @@ class AITPService:
             self,
             topic_slug=topic_slug,
             updated_by=updated_by,
+        )
+
+    def topic_popup(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        interaction = self.topic_interaction(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+        )
+        promotion_gate = self._load_promotion_gate(topic_slug) or {}
+        operator_checkpoint = (
+            self._read_json(self._operator_checkpoint_paths(topic_slug)["json"]) or {}
+        )
+        h_plane_payload = perform_h_plane_audit(
+            self,
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+        )
+        trigger = detect_popup_trigger(
+            topic_slug=topic_slug,
+            promotion_gate=promotion_gate,
+            operator_checkpoint=operator_checkpoint,
+            pending_decision_points=interaction.get("pending_decision_points") or [],
+            h_plane_payload=h_plane_payload,
+        )
+        popup = build_popup_payload(
+            trigger=trigger,
+            promotion_gate=promotion_gate,
+            operator_checkpoint=operator_checkpoint,
+            pending_decision_points=interaction.get("pending_decision_points") or [],
+            h_plane_payload=h_plane_payload,
+        )
+        return {
+            "topic_slug": topic_slug,
+            "needs_popup": trigger["needs_popup"],
+            "popup_kind": popup["popup_kind"],
+            "popup": popup,
+            "trigger": trigger,
+            "markdown": render_popup_markdown(popup),
+            "h_plane_audit_path": h_plane_payload.get("audit_path"),
+        }
+
+    def resolve_popup_choice(
+        self,
+        *,
+        topic_slug: str,
+        choice_index: int,
+        comment: str | None = None,
+        resolved_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        popup_result = self.topic_popup(topic_slug=topic_slug, updated_by=resolved_by)
+        popup = popup_result["popup"]
+        return resolve_popup_choice_impl(
+            self,
+            popup=popup,
+            choice_index=choice_index,
+            comment=comment,
+            resolved_by=resolved_by,
         )
 
     def request_promotion(
