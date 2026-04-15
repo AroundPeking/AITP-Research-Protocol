@@ -622,6 +622,67 @@ class AITPServiceTests(unittest.TestCase):
         )
         return runtime_root
 
+    def _materialize_required_read_session(
+        self,
+        topic_slug: str = "demo-topic",
+        *,
+        must_read_paths: list[str] | None = None,
+        generation: str = "2026-04-16T10:00:00+08:00",
+    ) -> dict[str, object]:
+        runtime_root = self._runtime_root(topic_slug)
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        session_note_path = runtime_root / "session_start.generated.md"
+        runtime_protocol_note_path = runtime_root / "runtime_protocol.generated.md"
+        session_note_path.write_text("# Session start\n", encoding="utf-8")
+        runtime_protocol_note_path.write_text("# Runtime protocol\n", encoding="utf-8")
+
+        must_read_rows: list[dict[str, str]] = []
+        for relative_path in must_read_paths or []:
+            normalized_path = str(relative_path or "").strip()
+            if not normalized_path:
+                continue
+            disk_path = self.kernel_root / normalized_path
+            disk_path.parent.mkdir(parents=True, exist_ok=True)
+            if not disk_path.exists():
+                disk_path.write_text(f"# {Path(normalized_path).name}\n", encoding="utf-8")
+            must_read_rows.append(
+                {
+                    "path": normalized_path,
+                    "reason": "Test fixture required read.",
+                }
+            )
+
+        payload: dict[str, object] = {
+            "updated_at": generation,
+            "artifacts": {
+                "session_start_note_path": f"topics/{topic_slug}/runtime/session_start.generated.md",
+                "runtime_protocol_note_path": f"topics/{topic_slug}/runtime/runtime_protocol.generated.md",
+            },
+            "must_read_now": must_read_rows,
+        }
+        session_paths = self.service._session_start_paths(topic_slug)
+        session_paths["json"].write_text(
+            json.dumps(payload, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return payload
+
+    def _ack_current_required_reads(
+        self,
+        topic_slug: str = "demo-topic",
+        *,
+        must_read_paths: list[str] | None = None,
+    ) -> dict[str, object]:
+        self._materialize_required_read_session(
+            topic_slug=topic_slug,
+            must_read_paths=must_read_paths,
+        )
+        return self.service.acknowledge_required_reads(
+            topic_slug=topic_slug,
+            all_current=True,
+            updated_by="test",
+        )
+
     def _prepare_l2_graph_kernel(self) -> None:
         shutil.copyfile(
             self.package_root / "canonical" / "canonical-unit.schema.json",
@@ -4008,6 +4069,7 @@ class AITPServiceTests(unittest.TestCase):
         self.assertTrue(
             any(row["path"].endswith("research_question.contract.md") for row in status_payload["must_read_now"])
         )
+        self._ack_current_required_reads()
 
         verification_payload = self.service.prepare_verification(
             topic_slug="demo-topic",
@@ -4027,6 +4089,7 @@ class AITPServiceTests(unittest.TestCase):
 
     def test_prepare_verification_numeric_materializes_minimum_l4_bundle(self) -> None:
         runtime_root = self._write_runtime_state(run_id="run-001")
+        self._ack_current_required_reads()
         (runtime_root / "interaction_state.json").write_text(
             json.dumps(
                 {
@@ -4096,6 +4159,7 @@ class AITPServiceTests(unittest.TestCase):
 
     def test_prepare_verification_proof_materializes_execution_deferral_without_concrete_lane(self) -> None:
         runtime_root = self._write_runtime_state(run_id="run-002")
+        self._ack_current_required_reads()
         (runtime_root / "interaction_state.json").write_text(
             json.dumps(
                 {
@@ -8366,6 +8430,51 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(gate["gate_kind"], "startup_contract_missing")
         self.assertIn("session_start.contract.json", gate["missing_paths"][0])
 
+    def test_work_topic_returns_required_read_gate_before_direct_orchestrate_when_startup_contract_is_missing(self) -> None:
+        service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        runtime_root = service._runtime_root("demo-topic")
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = service.work_topic(
+            topic_slug="demo-topic",
+            question="Continue the bounded route.",
+            max_auto_steps=0,
+            updated_by="test",
+        )
+
+        self.assertTrue(payload["blocked"])
+        self.assertEqual(payload["gate_kind"], "startup_contract_missing")
+        self.assertEqual(service.orchestrate_calls, [])
+
+    def test_prepare_verification_returns_required_read_gate_before_materializing_when_reads_are_unacknowledged(self) -> None:
+        self._write_runtime_state()
+        self._materialize_required_read_session(
+            must_read_paths=["topics/demo-topic/runtime/topic_dashboard.md"],
+        )
+
+        payload = self.service.prepare_verification(
+            topic_slug="demo-topic",
+            mode="proof",
+        )
+
+        self.assertTrue(payload["needs_ack"])
+        self.assertEqual(payload["gate_kind"], "must_read_ack")
+        self.assertIn("topics/demo-topic/runtime/session_start.generated.md", payload["missing_paths"])
+        self.assertFalse(self.service._validation_contract_paths("demo-topic")["json"].exists())
+
     def test_start_chat_session_allocates_fresh_slug_for_explicit_new_topic_collision(self) -> None:
         existing_slug = "jones-von-neumann-algebras"
         existing_runtime_root = self._runtime_root(existing_slug)
@@ -9563,6 +9672,7 @@ class AITPServiceTests(unittest.TestCase):
             regime_note="Weak-coupling only.",
             reading_depth="targeted",
         )
+        self._ack_current_required_reads()
 
         verification_payload = self.service.prepare_verification(
             topic_slug="demo-topic",

@@ -269,6 +269,10 @@ def aitp_resume_topic(
 ) -> str:
     """Resume an existing AITP topic."""
     try:
+        if hasattr(service, "topic_required_read_gate"):
+            gate = service.topic_required_read_gate(topic_slug=topic_slug, updated_by=updated_by)
+            if isinstance(gate, dict) and (gate.get("blocked") or gate.get("needs_ack")):
+                return _ok(**gate)
         result = service.orchestrate(
             topic_slug=topic_slug,
             run_id=run_id,

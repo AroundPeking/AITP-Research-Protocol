@@ -991,6 +991,7 @@ class AITPService:
             "remaining_missing_count": len(refreshed.get("missing_paths") or []),
             "remaining_missing_paths": list(refreshed.get("missing_paths") or []),
         }
+
         for root in (self.kernel_root, self.repo_root):
             candidate = (root / path).resolve()
             if candidate.exists():
@@ -1008,6 +1009,17 @@ class AITPService:
         if raw.startswith(kernel_prefixes):
             return (self.kernel_root / path).resolve()
         return (self.repo_root / path).resolve()
+
+    def require_topic_ready_for_deeper_execution(
+        self,
+        *,
+        topic_slug: str,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any] | None:
+        gate = self.topic_required_read_gate(topic_slug=topic_slug, updated_by=updated_by)
+        if gate.get("blocked") or gate.get("needs_ack"):
+            return dict(gate)
+        return None
 
     def _research_root(self) -> Path:
         return self.kernel_root.parent
@@ -8009,6 +8021,13 @@ class AITPService:
         max_auto_steps: int = 1,
         load_profile: str | None = None,
     ) -> dict[str, Any]:
+        if topic_slug:
+            gate = self.require_topic_ready_for_deeper_execution(
+                topic_slug=topic_slug,
+                updated_by=updated_by,
+            )
+            if gate is not None:
+                return gate
         research_mode = self._template_mode_to_research_mode(mode) if mode else None
         if max_auto_steps <= 0:
             payload = self.orchestrate(
@@ -8539,6 +8558,12 @@ class AITPService:
         }
         if mode not in mode_defaults:
             raise ValueError(f"Unsupported verification mode: {mode}")
+        gate = self.require_topic_ready_for_deeper_execution(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+        )
+        if gate is not None:
+            return gate
 
         self.get_runtime_state(topic_slug)
         shell_surfaces = self.ensure_topic_shell_surfaces(

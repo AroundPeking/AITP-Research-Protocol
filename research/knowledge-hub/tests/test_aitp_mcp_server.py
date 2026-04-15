@@ -655,3 +655,24 @@ class AITPMCPServerTests(unittest.TestCase):
         self.assertEqual(payload["status"], "success")
         self.assertTrue(payload["needs_ack"])
         self.assertEqual(payload["gate_kind"], "must_read_ack")
+
+    def test_resume_topic_returns_required_read_gate_before_orchestrate_when_reads_are_missing(self) -> None:
+        class _GateStub:
+            def topic_required_read_gate(self, *, topic_slug: str, updated_by: str = "aitp-mcp"):
+                return {
+                    "topic_slug": topic_slug,
+                    "blocked": False,
+                    "needs_ack": True,
+                    "gate_kind": "must_read_ack",
+                    "missing_paths": ["topics/demo-topic/runtime/session_start.generated.md"],
+                }
+
+            def orchestrate(self, **kwargs):  # noqa: ANN003
+                raise AssertionError("orchestrate should not execute while required reads are missing")
+
+        with patch.object(aitp_mcp_server, "service", _GateStub()):
+            payload = _parse(aitp_mcp_server.aitp_resume_topic(topic_slug="demo-topic"))
+
+        self.assertEqual(payload["status"], "success")
+        self.assertTrue(payload["needs_ack"])
+        self.assertEqual(payload["gate_kind"], "must_read_ack")
