@@ -3621,6 +3621,8 @@ class AITPServiceTests(unittest.TestCase):
                             "summary": "Runtime source summary with shared reference context.",
                             "references": ["doi:10-1000/shared"],
                             "canonical_source_id": "source_identity:doi:10-1000-demo",
+                            "relevance_tier": "canonical",
+                            "role_labels": ["foundational", "review"],
                             "provenance": {
                                 "abs_url": "https://example.org/demo",
                             },
@@ -3666,6 +3668,10 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(status_payload["source_intelligence"]["source_neighbors"][0]["relation_kind"], "shared_reference")
         self.assertEqual(status_payload["source_intelligence"]["fidelity_summary"]["strongest_tier"], "peer_reviewed")
         self.assertEqual(status_payload["source_intelligence"]["fidelity_rows"][0]["fidelity_tier"], "peer_reviewed")
+        self.assertEqual(status_payload["source_intelligence"]["relevance_rows"][0]["relevance_tier"], "canonical")
+        self.assertEqual(status_payload["source_intelligence"]["relevance_summary"]["counts_by_tier"]["canonical"], 1)
+        self.assertEqual(status_payload["source_intelligence"]["relevance_summary"]["role_label_counts"]["foundational"], 1)
+        self.assertIn("review", status_payload["source_intelligence"]["relevance_rows"][0]["role_labels"])
         self.assertEqual(
             status_payload["active_research_contract"]["l1_source_intake"]["method_specificity_rows"][0]["method_family"],
             "unspecified_method",

@@ -76,6 +76,13 @@ def render_source_intelligence_markdown(payload: dict[str, Any]) -> str:
         f"- Weakest tier: `{((payload.get('fidelity_summary') or {}).get('weakest_tier') or 'unknown')}`",
         f"- Counts by tier: `{', '.join(f'{key}={value}' for key, value in ((payload.get('fidelity_summary') or {}).get('counts_by_tier') or {}).items()) or '(none)'}`",
         "",
+        "## Source relevance",
+        "",
+        f"- Strongest tier: `{((payload.get('relevance_summary') or {}).get('strongest_tier') or 'irrelevant')}`",
+        f"- Weakest tier: `{((payload.get('relevance_summary') or {}).get('weakest_tier') or 'irrelevant')}`",
+        f"- Counts by tier: `{', '.join(f'{key}={value}' for key, value in ((payload.get('relevance_summary') or {}).get('counts_by_tier') or {}).items()) or '(none)'}`",
+        f"- Role labels: `{', '.join(f'{key}={value}' for key, value in ((payload.get('relevance_summary') or {}).get('role_label_counts') or {}).items()) or '(none)'}`",
+        "",
         "## Citation edges",
         "",
     ]
