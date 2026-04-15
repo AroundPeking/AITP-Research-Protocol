@@ -787,6 +787,222 @@ aitp promote --topic-slug metal-gw --candidate-id metal-gw-feature --target-back
 
 ---
 
+## Human Interaction Protocol
+
+Every gate in this playbook is a **structured checkpoint** with the human — not
+an open-ended conversation. The agent follows the GSD-style interaction pattern:
+concise status → clear options → wait for explicit decision.
+
+### General rules
+
+1. **Never proceed past a gate without explicit human approval.** No implicit
+   "seems good, moving on."
+2. **Present status, not questions.** At each gate, show what was done, what
+   was found, and what the options are. Let the human choose.
+3. **Give options, not open questions.** Wrong: "What do you think?" Right:
+   "Here are 3 options with tradeoffs. My recommendation is A. Proceed with A
+   or choose differently?"
+4. **Adaptive questioning.** If the human has already provided context (files,
+   constraints, preferences), don't re-ask. Skip what's known.
+5. **Be concise.** Status summaries should fit on one screen. Derivation
+   reviews use the compiled PDF, not terminal dumps.
+6. **Record every decision.** Human decisions at gates are logged in the
+   project `README.md` or the relevant contract's `notes` field.
+
+### Gate interaction templates
+
+At each gate, the agent presents a structured summary using this template:
+
+```
+## Gate GX: <gate name>
+
+### What was done
+- <bullet list of completed work>
+
+### What was found
+- <key findings, issues, or decisions made>
+
+### What's next (if approved)
+- <what happens in the next phase>
+
+### Options
+1. **Approve and continue** — proceed to Phase N
+2. **Revise** — <specific revision needed>
+3. **Block** — stop work, document reason
+
+### Recommendation
+<agent's recommendation with reasoning>
+
+Proceed?
+```
+
+### Phase-specific interaction patterns
+
+#### Phase P → Phase 0: Project location
+
+```
+## Project Setup
+
+I'll create the project folder. Default location:
+  ~/projects/<topic-slug>/
+
+Options:
+1. Use default: ~/projects/<topic-slug>/
+2. Custom path: <tell me where>
+
+Where should I create the project?
+```
+
+The agent does **not** create anything until the human confirms the location.
+
+#### G0: Derivation review
+
+```
+## Gate G0: Derivation Review
+
+### What was done
+- Collected N references in L0_source/ref/
+- Derived working equations in docs/sections/02_derivation.tex
+- Compiled to docs/main.pdf
+
+### Key derivation results
+- Starting from: <equation reference>
+- Assumptions: <list>
+- Final formula: Eq. (N) — <brief description>
+- Domain of validity: <conditions>
+
+### Implementation mapping
+- Eq. (N) → <code location> — <what changes>
+- Eq. (M) → <code location> — <what changes>
+
+Please review docs/main.pdf (sections 1-2).
+
+Options:
+1. **Approve** — derivation is correct, proceed to planning
+2. **Modify** — tell me what to change
+3. **Reject** — fundamental issue, go back to literature
+```
+
+The agent compiles the LaTeX and presents the PDF path. The human reviews the
+PDF, not terminal text. **No code is written until the human picks option 1.**
+
+#### G2: Plan review
+
+```
+## Gate G2: Development Plan Review
+
+### What was done
+- Located code changes in N files across M repositories
+- Created development-task contracts (see contracts/)
+- Verified build config on compute resource
+
+### Plan summary
+| What | Where | Branch |
+|------|-------|--------|
+| <change 1> | <repo>:<file> | <branch> |
+| <change 2> | <repo>:<file> | <branch> |
+
+### Test strategy
+- Unit tests: <list>
+- Integration tests: <list>
+- Physical correctness: <description>
+
+### Estimated effort
+- Implementation: <estimate>
+- Testing: <estimate>
+- Benchmarking: <estimate>
+
+Options:
+1. **Approve plan** — start implementation
+2. **Adjust scope** — modify the plan
+3. **Add test systems** — suggest additional benchmarks
+```
+
+#### G3: Smoke test result
+
+```
+## Gate G3: Build & Smoke Test
+
+### Build result
+- Status: ✅ clean / ❌ N errors, N warnings
+- Platform: <compute-resource>
+- Toolchain: <toolchain>
+
+### Smoke test result
+| Stage | Status | Time |
+|-------|--------|------|
+| SCF   | ✅ completed | Xm Xs |
+| DF    | ✅ completed | Xm Xs |
+| NSCF  | ✅ completed | Xm Xs |
+| LibRPA| ✅ completed | Xm Xs |
+
+### Key observations
+- <anything notable>
+
+### Invariants
+- [x] shrink_consistency
+- [x] same_libri
+- [x] keyword_compat
+- [x] smoke_first
+- [x] toolchain_consistency
+
+Options:
+1. **Proceed to benchmark campaign** (Phase 5)
+2. **Debug first** (Phase 6) — <reason>
+```
+
+#### G4: Benchmark results
+
+```
+## Gate G4: Benchmark Results
+
+### Summary
+| System | Observable | New | Reference | Deviation | Pass? |
+|--------|-----------|-----|-----------|-----------|-------|
+| <sys1> | <obs1>   | <v> | <ref>     | <dev>     | ✅/❌ |
+| <sys2> | <obs2>   | <v> | <ref>     | <dev>     | ✅/❌ |
+
+### Convergence
+- k-points: <monotonic/oscillating/non_convergent>
+- <other params>: <status>
+
+### Regression
+- <insulator test>: <passed/failed> — <details>
+
+### Verdict: <pass/partial/fail>
+
+Options:
+1. **Approve** — ready for production (Phase 7)
+2. **Run more tests** — specify additional systems/parameters
+3. **Debug** — investigate failures (Phase 6)
+```
+
+### Debug escalation pattern
+
+When Phase 6 fails repeatedly, escalate to the human:
+
+```
+## Debug Escalation: <issue>
+
+### Failed attempts
+1. <attempt 1> — <result>
+2. <attempt 2> — <result>
+3. <attempt 3> — <result>
+
+### Analysis
+<root cause hypothesis>
+
+### I'm stuck. Options:
+1. **Re-derive** — go back to Phase 1, update derivation with new understanding
+2. **Change approach** — <alternative strategy>
+3. **Consult literature** — look for <specific topic> in papers
+4. **Human take over** — you investigate manually, I'll assist
+
+What would you like to do?
+```
+
+---
+
 ## Quick Reference: Failure Recovery
 
 | Symptom | Phase | Likely cause | Action |
