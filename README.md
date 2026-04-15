@@ -243,6 +243,17 @@ The same protocol kernel drives different categories of theoretical-physics work
 - **L1 three-layer vault** — Materialize raw/wiki/output intake vaults with explicit flowback receipts on the existing topic-shell path.
 - **Statement compilation before proof repair** — Compile bounded theory statements into declaration skeletons and explicit proof-repair plans before Lean-facing export.
 - **L2 compiler helpers** — Seed and inspect reusable knowledge views with commands like `aitp seed-l2-direction --direction tfim-benchmark-first`, `aitp consult-l2 --query-text "TFIM exact diagonalization benchmark workflow" --retrieval-profile l3_candidate_formation`, `aitp compile-l2-graph-report`, and `aitp compile-l2-knowledge-report`.
+- **Domain skill interface** — Plug domain-specific physics skills (GW workflows, transport calculations) into AITP through a structured contract interface.
+
+### Domain Skills
+
+AITP separates research lifecycle management from domain knowledge. Domain skills provide physics-specific contracts, operations, and invariants.
+
+| Skill | Domain | Link |
+| --- | --- | --- |
+| **oh-my-LibRPA** | ABACUS + LibRPA GW/RPA workflows | [GitHub →](https://github.com/AroundPeking/oh-my-LibRPA) |
+
+The domain skill interface protocol is documented in [`research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md`](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md).
 
 ### Runtime Support
 
@@ -352,3 +363,7 @@ MIT License — see [`LICENSE`](LICENSE) file for details.
 - [`docs/AITP_GSD_WORKFLOW_CONTRACT.md`](docs/AITP_GSD_WORKFLOW_CONTRACT.md) — when to use AITP vs GSD
 - [`docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md`](docs/AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md) — why the UX converges on Superpowers' install shape
 - [`docs/roadmap.md`](docs/roadmap.md) — development roadmap
+- [`research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md`](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md) — domain skill interface specification
+- [`research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md`](research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md) — ABACUS+LibRPA domain protocol
+- [`research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md`](research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md) — 9-phase feature development playbook
+- [**oh-my-LibRPA**](https://github.com/AroundPeking/oh-my-LibRPA) — ABACUS+LibRPA domain skill with chat-native workflow orchestration
