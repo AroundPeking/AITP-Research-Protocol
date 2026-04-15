@@ -9744,11 +9744,19 @@ class AITPService:
         runtime_policy_path = self.kernel_root / "runtime" / "closed_loop_policies.json"
         orchestrate_script = self._kernel_script("runtime/scripts/orchestrate_topic.py")
         if runtime_policy_path.exists() and orchestrate_script.exists():
+            existing_interaction_state = (
+                read_json(self._runtime_root(topic_slug) / "interaction_state.json") or {}
+            )
+            preserved_human_request = str(
+                existing_interaction_state.get("human_request") or ""
+            ).strip()
             result["orchestrated_runtime"] = self.orchestrate(
                 topic_slug=topic_slug,
                 run_id=resolved_run_id,
                 updated_by=promoted_by,
-                human_request=notes or f"Refresh runtime surfaces after promoting {candidate_id}.",
+                human_request=preserved_human_request
+                or notes
+                or f"Refresh runtime surfaces after promoting {candidate_id}.",
             )
         return result
 

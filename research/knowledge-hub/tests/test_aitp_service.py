@@ -8772,6 +8772,51 @@ class AITPServiceTests(unittest.TestCase):
         }
         self.assertIn("concept:demo-promoted-concept", ids)
 
+    def test_promote_candidate_preserves_existing_human_request_when_refreshing_runtime(self) -> None:
+        runtime_root = self._write_runtime_state()
+        runtime_policy_src = self.package_root / "runtime" / "closed_loop_policies.json"
+        runtime_policy_dst = self.kernel_root / "runtime" / "closed_loop_policies.json"
+        runtime_policy_dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(runtime_policy_src, runtime_policy_dst)
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Help me study one bounded LibRPA QSGW route without widening the claim.",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self._write_candidate()
+        tpkn_root = self._write_fake_tpkn_repo()
+        self.service.request_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+            backend_id="backend:theoretical-physics-knowledge-network",
+            target_backend_root=str(tpkn_root),
+        )
+        self.service.approve_promotion(
+            topic_slug="demo-topic",
+            candidate_id="candidate:demo-candidate",
+        )
+
+        with patch.object(self.service, "orchestrate", return_value={"topic_slug": "demo-topic"}) as mocked:
+            self.service.promote_candidate(
+                topic_slug="demo-topic",
+                candidate_id="candidate:demo-candidate",
+                target_backend_root=str(tpkn_root),
+                domain="demo-domain",
+                subdomain="demo-subdomain",
+                notes="Promote only the bounded deterministic-reduction core.",
+            )
+
+        self.assertEqual(
+            mocked.call_args.kwargs["human_request"],
+            "Help me study one bounded LibRPA QSGW route without widening the claim.",
+        )
+
     def test_promote_topic_skill_projection_writes_tpkn_projection_unit(self) -> None:
         runtime_root = self._write_runtime_state(run_id="run-001")
         (runtime_root / "topic_state.json").write_text(
