@@ -14,25 +14,33 @@ model.
 
 Feature development in computational physics is not just coding. It is a loop
 where physics correctness, numerical stability, and software engineering
-converge. This playbook defines **8 phases**, each with explicit inputs,
+converge. This playbook defines **9 phases**, each with explicit inputs,
 outputs, decision gates, and AITP layer mapping.
 
+**Prerequisite**: Read [PROJECT_STRUCTURE_CONVENTION.md](./PROJECT_STRUCTURE_CONVENTION.md)
+first. Every project must follow the folder structure, LaTeX documentation,
+and derive-first workflow defined there.
+
 ```
-Phase 0: Feature Scoping        ←→  AITP topic bootstrap (L0)
-Phase 1: Theory & Literature     ←→  AITP L0 source acquisition
-Phase 2: Development Planning     ←→  AITP L1 provisional understanding
-Phase 3: Implementation           ←→  AITP L3 exploratory outputs
-Phase 4: Build & Smoke Test       ←→  AITP L3 + L4 validation
-Phase 5: Benchmark Campaign       ←→  AITP L4 validation gate
-Phase 6: Debug Loop               ←→  AITP L4 → L3 feedback
-Phase 7: Production Readiness     ←→  AITP L2 trusted memory
+Phase P: Project Setup            ←→  Folder creation + AITP bootstrap (L0)
+Phase 0: Feature Scoping          ←→  AITP topic scoping (L0)
+Phase 1: Theory & Derivation      ←→  AITP L0 source → L1 derivation (LATEX)
+         *** GATE G0: Human approves derivation ***
+Phase 2: Development Planning      ←→  AITP L1 provisional understanding
+Phase 3: Implementation            ←→  AITP L3 exploratory outputs (CODE FOLLOWS DERIVATION)
+Phase 4: Build & Smoke Test        ←→  AITP L3 + L4 validation
+Phase 5: Benchmark Campaign        ←→  AITP L4 validation gate
+Phase 6: Debug Loop                ←→  AITP L4 → L3 feedback
+Phase 7: Production Readiness      ←→  AITP L2 trusted memory
 ```
 
 ### Contracts used
 
 | Phase | Primary contract | Supporting contracts |
 |-------|-----------------|---------------------|
-| 0–1 | AITP topic shell | — |
+| P | — | PROJECT_STRUCTURE_CONVENTION |
+| 0 | AITP topic shell | — |
+| 1 | AITP topic shell + LaTeX derivation | — |
 | 2 | `development-task` | `compute-resource` |
 | 3 | `development-task` | `computation-workflow` |
 | 4 | `computation-workflow` | `compute-resource`, `development-task` |
@@ -44,11 +52,68 @@ Phase 7: Production Readiness     ←→  AITP L2 trusted memory
 
 | Gate | Between phases | Pass criteria | Fail action |
 |------|---------------|---------------|-------------|
+| G0: Derivation approved | 1→2 | LaTeX derivation complete, human reviewed and approved | Revise derivation |
 | G1: Scope clear | 0→1 | Physics question bounded, system types identified | Refine scope |
 | G2: Plan approved | 2→3 | `development-task` contract filled, build config known | Revise plan |
 | G3: Compiles + passes smoke | 4→5 | Clean build, smoke test passes on ≥1 system | Debug loop (Phase 6) |
 | G4: Benchmarks pass | 5→7 | `benchmark-report` verdict = `pass` or `partial` | Debug loop (Phase 6) |
 | G5: Production ready | 7→done | All invariants satisfied, human approval | Back to Phase 6 |
+
+---
+
+## Phase P: Project Setup
+
+**Goal**: Create the project folder with full directory structure, LaTeX
+template, and AITP topic bootstrap. Every project starts here — no exceptions.
+
+**AITP layer**: L0 — project initialization.
+
+### Steps
+
+1. **Ask the human for the project folder location.** The agent proposes a
+   default (e.g., `~/projects/<topic-slug>/`), the human confirms or overrides.
+2. **Create the full directory structure** following
+   [PROJECT_STRUCTURE_CONVENTION.md](./PROJECT_STRUCTURE_CONVENTION.md):
+   ```
+   <project-root>/
+   ├── L0_source/ref/
+   ├── L1_intake/
+   ├── L2_canonical/
+   ├── L3_exploratory/
+   ├── L4_validation/
+   ├── docs/sections/
+   ├── docs/figures/
+   ├── code/patches/
+   ├── computation/smoke_test/
+   ├── computation/benchmark/
+   ├── contracts/
+   ├── build/cmake/
+   └── README.md
+   ```
+3. **Create `docs/main.tex`** with the standard LaTeX template (see
+   PROJECT_STRUCTURE_CONVENTION.md §5).
+4. **Create `docs/preamble.sty`** with physics macros.
+5. **Create stub `.tex` files** in `docs/sections/`.
+6. **Bootstrap the AITP topic** and record the topic slug in `README.md`.
+7. **Verify LaTeX compiles** — run `latexmk -pdf main.tex` in `docs/`.
+
+### Walkthrough: metal GW
+
+```bash
+# Human chooses location
+mkdir -p ~/projects/metal-gw/{L0_source/ref,L1_intake,L2_canonical,L3_exploratory,L4_validation}
+mkdir -p ~/projects/metal-gw/docs/{sections,figures}
+mkdir -p ~/projects/metal-gw/{code/patches,computation/{smoke_test,benchmark},contracts,build/cmake}
+
+# Create LaTeX template
+# (agent generates main.tex, preamble.sty, section stubs)
+
+# Verify
+cd ~/projects/metal-gw/docs && latexmk -pdf main.tex
+
+# Bootstrap AITP topic
+aitp bootstrap --topic "metal-gw" --statement "Enable GW for metallic systems."
+```
 
 ---
 
@@ -103,55 +168,83 @@ aitp bootstrap \
 
 ---
 
-## Phase 1: Theory & Literature
+## Phase 1: Theory & Derivation
 
-**Goal**: Gather the formalism, prior implementations, and known pitfalls
-before writing any code.
+**Goal**: Gather the formalism, derive the working equations in LaTeX, and get
+human approval before any code is written.
 
-**AITP layer**: L0 — source acquisition.
+**AITP layer**: L0→L1 — source acquisition and provisional understanding.
 
 ### Steps
 
-1. **Collect primary references**: papers that define the algorithm.
-2. **Study existing implementations**: how do VASP, QE, BerkeleyGW handle metal
-  GW?
-3. **Identify known pitfalls**: Fermi surface integration, k-point convergence
-  for metals, tetrahedron method vs. Gaussian smearing.
-4. **Note ABACUS+LibRPA-specific constraints**: what data flows between ABACUS
-  NSCF → LibRPA? What format changes are needed?
-5. **Record in AITP L0**: register sources, attach papers, write analysis notes.
+1. **Collect primary references**: papers that define the algorithm. Download
+   PDFs and TeX sources into `L0_source/ref/`.
+2. **Study existing implementations**: how do VASP, QE, BerkeleyGW handle this?
+3. **Identify known pitfalls** for the specific physics problem.
+4. **Derive the working equations in LaTeX**: write `docs/sections/02_derivation.tex`
+   with:
+   - Starting equations (with literature citations)
+   - Assumptions and approximations
+   - Step-by-step algebra
+   - Final formula(s) that will be implemented in code
+   - Domain of validity
+5. **Write the implementation mapping**: `docs/sections/03_implementation.tex`
+   mapping each derived equation to the code location where it will be
+   implemented.
+6. **Compile LaTeX** and present the PDF to the human.
 
 ### Walkthrough: metal GW
 
-**Primary references**:
-- Hybertsen & Louie, Phys. Rev. B 34, 5390 (1986) — GW formalism
-- Shishkin & Kresse, Phys. Rev. B 75, 235102 (2007) — metal GW with
-  analytic continuation and Fermi-surface treatment
-- Bruneval & Gonze, Phys. Rev. B 79, 115117 (2009) — smearing in GW
+**Primary references** (downloaded to `L0_source/ref/`):
+- `Hybertsen_Louie_PRB34_5390_1986.pdf` — GW formalism
+- `Shishkin_Kresse_PRB75_235102_2007.pdf` — metal GW with analytic continuation
+- `Bruneval_Gonze_PRB79_115117_2009.pdf` — smearing in GW
 
-**Known pitfalls**:
-- k-point convergence is much slower for metals than insulators (need 12×12×12
-  or higher for bulk Al)
-- Gaussian smearing width choice affects quasiparticle energies (convergence
-  test required)
-- Tetrahedron method may be more reliable but requires IBZ k-point lists from
-  ABACUS
-- LibRPA reads band occupancies from ABACUS output — format must support
-  fractional occupations
+**Derivation** (`docs/sections/02_derivation.tex`):
 
-**ABACUS constraints**:
-- NSCF output must include ` occu ` information for each band and k-point
-- `librpa.in` must support a new keyword for smearing treatment
+The key derivation covers the polarizability with partial occupancies:
+
+$$\chi^0_{GG'}(q, i\omega) = \frac{1}{\Omega} \sum_{k} \sum_{n,m}
+\frac{(f_{nk} - f_{m,k+q})\, M_{nmk}(G,q)\, M_{nmk}^*(G',q)}
+{\epsilon_{nk} - \epsilon_{m,k+q} + i\omega + i\eta\,\text{sgn}(\epsilon_{nk} - \epsilon_{m,k+q})}$$
+
+where $f_{nk}$ is the Fermi-Dirac occupation:
+
+$$f_{nk} = \frac{1}{1 + \exp\left(\frac{\epsilon_{nk} - E_F}{\sigma}\right)}$$
+
+The derivation then covers:
+1. How $E_F$ is determined from the NSCF band structure
+2. How the smearing width $\sigma$ affects convergence
+3. The limit $\sigma \to 0$ recovers the insulator formula
+4. Implementation in the existing LibRPA $\chi^0$ loop structure
+
+**Implementation mapping** (`docs/sections/03_implementation.tex`):
+
+| Equation | Code location | Change |
+|----------|--------------|--------|
+| Fermi-Dirac $f_{nk}$ | ABACUS `write_wfc_nao.cpp` | Compute and write to NSCF output |
+| $\chi^0$ with occupations | LibRPA `gw.cpp:compute_chi0()` | Replace `if(occupied)` with `weight = f_nk * (1 - f_mk)` |
+| $E_F$ determination | LibRPA `read_abacus_output.cpp` | Parse Fermi level from NSCF output |
+
+### Gate G0: Derivation approved
+
+**This is the most critical gate. No code may be written until this gate passes.**
+
+- [ ] `docs/sections/02_derivation.tex` is complete with all elements:
+  starting equations, assumptions, steps, final formula, validity domain
+- [ ] LaTeX compiles without errors
+- [ ] Human has reviewed the compiled PDF and explicitly approved the derivation
+- [ ] Human has confirmed the implementation mapping makes sense
+
+If the human requests modifications → update the derivation, recompile,
+re-present. **Do not proceed to Phase 2 until the human says "approved".**
 
 ### AITP integration
 
 ```bash
 aitp loop --topic-slug metal-gw \
-  --human-request "Collect and analyze references on GW calculations for metallic systems, focusing on smearing methods and k-point convergence strategies."
+  --human-request "Collect references on GW for metallic systems and derive the polarizability formula with Fermi-Dirac occupations in docs/sections/02_derivation.tex."
 ```
-
-Attach papers and notes to the topic's L0 layer. Record the data-flow
-dependency: `ABACUS NSCF (with smearing) → LibRPA polarizability`.
 
 ---
 
@@ -268,35 +361,49 @@ The `development-task` contracts become L1 artifacts in the topic.
 
 ## Phase 3: Implementation
 
-**Goal**: Write the code, make it compile, make unit tests pass.
+**Goal**: Write the code that implements the approved derivation — strictly
+following the equations in `docs/sections/02_derivation.tex`.
 
 **AITP layer**: L3 — exploratory outputs.
+
+**Prerequisite**: Gate G0 must have passed. The derivation in
+`docs/sections/02_derivation.tex` has been human-approved. Code must implement
+exactly what the derivation says — no deviations.
 
 ### Steps
 
 1. **Create feature branch** on each target repository.
-2. **Implement changes** — follow the file list from `development-task`.
-3. **Write unit tests** — test the new functions in isolation.
+2. **Implement changes** — following the implementation mapping in
+   `docs/sections/03_implementation.tex`. Every code block must reference the
+   specific equation number from the derivation.
+3. **Write unit tests** — test the new functions in isolation, using values
+   computed from the derivation formulas.
 4. **Update `development-task.status`** to `in_progress`.
 5. **Record progress notes** in the AITP topic.
 
 ### Rules
 
+- **Code follows derivation.** Every function that implements physics must have
+  a comment referencing the equation: `// Implements Eq. (12) from
+  docs/sections/02_derivation.tex`.
+- **No derivation deviations.** If the code needs a different formula than what
+  was derived, stop. Go back to Phase 1, update the derivation, get human
+  approval, then return to implementation.
 - **One concern per commit** — do not mix smearing logic with refactoring.
 - **Backwards compatibility** — existing insulator workflows must still work.
 - **No suppressed errors** — no `#pragma`, no `try/catch {}`, no `as any`.
-- **Document format changes** — if ABACUS NSCF output format changes, document
-  the new fields and their semantics.
 
 ### Walkthrough: metal GW
 
-**ABACUS changes**:
+**ABACUS changes** (implements derivation Eqs. 2–4):
 1. Add `smearing_method` and `smearing_sigma` keywords to `INPUT` parsing.
-2. In NSCF run, compute Fermi-Dirac occupations for each band and k-point.
+2. In NSCF run, compute Fermi-Dirac occupations (Eq. 2 in derivation):
+   `// Implements Eq. (2): Fermi-Dirac distribution from 02_derivation.tex`
 3. Write `occupancy` field to NSCF output (new section, backwards-compatible).
-4. Unit test: verify `f(E) = 1/(1+exp((E-Ef)/sigma))` for known values.
+4. Unit test: verify `f(E) = 1/(1+exp((E-Ef)/sigma))` for known values
+   (computed from the derivation formula).
 
-**LibRPA changes**:
+**LibRPA changes** (implements derivation Eq. 1):
 1. Read occupancy data from ABACUS NSCF output (new parser).
 2. In `χ₀` computation, weight each band pair by `f_nk × (1 - f_mk')`.
 3. Add `smearing` section to `librpa.in` schema.
@@ -696,12 +803,15 @@ aitp promote --topic-slug metal-gw --candidate-id metal-gw-feature --target-back
 
 Before declaring the feature done, verify every contract:
 
+- [ ] **Project structure**: follows PROJECT_STRUCTURE_CONVENTION.md (L0–L4 dirs, docs/, code/)
+- [ ] **LaTeX derivation**: `docs/sections/02_derivation.tex` complete, compiled, human-approved (G0)
 - [ ] **`development-task`**: status = `merged`, all fields complete
 - [ ] **`computation-workflow`**: ≥1 smoke test + ≥1 production run, all stages `completed`
 - [ ] **`benchmark-report`**: verdict = `pass`, convergence = `monotonic`, regression clear
 - [ ] **`calculation-debug`**: all debug sessions closed, `re_run_status` = `passed`
 - [ ] **`compute-resource`**: all resources used are documented
 - [ ] **Protocol invariants**: all 5 pass (shrink_consistency, same_libri, keyword_compat, smoke_first, toolchain_consistency)
+- [ ] **Code-equation traceability**: every physics function references its derivation equation
 
 ---
 

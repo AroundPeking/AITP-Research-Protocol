@@ -180,7 +180,32 @@ executables.
 All contracts live under `contracts/` with matching JSON schemas under
 `schemas/`.
 
+### Supporting documents
+
+| Document | Purpose |
+|---|---|
+| [PROJECT_STRUCTURE_CONVENTION.md](./PROJECT_STRUCTURE_CONVENTION.md) | Mandatory folder layout, LaTeX documentation, derive-first workflow |
+| [FEATURE_DEVELOPMENT_PLAYBOOK.md](./FEATURE_DEVELOPMENT_PLAYBOOK.md) | Phase-by-phase feature development process |
+
 ## 9. Layer mapping
+
+### 9.0 Project structure
+
+Every feature project must follow the directory structure defined in
+[PROJECT_STRUCTURE_CONVENTION.md](./PROJECT_STRUCTURE_CONVENTION.md). Layers
+map to concrete filesystem directories within the project folder:
+
+| AITP layer | Directory | Purpose |
+|---|---|---|
+| L0 | `L0_source/` (with `ref/` for papers) | Source acquisition |
+| L1 | `L1_intake/` | Provisional understanding |
+| L3 | `L3_exploratory/` | Exploratory outputs |
+| L4 | `L4_validation/` | Validation and trust audit |
+| L2 | `L2_canonical/` | Trusted memory |
+| — | `docs/` (LaTeX) | Derivations, implementation mapping, results |
+| — | `code/` | Source code changes |
+| — | `computation/` | Computation outputs |
+| — | `contracts/` | AITP contract instances |
 
 ### 9.1 Computation sub-domain
 
@@ -196,11 +221,11 @@ All contracts live under `contracts/` with matching JSON schemas under
 
 | Layer | Phase | Artifacts |
 |---|---|---|
-| **L0** | Source acquisition | Algorithm reference, upstream code, existing test cases |
-| **L1** | Provisional understanding | Implementation plan, code location analysis |
-| **L3** | Exploratory outputs | Feature branch code, build output, initial test results |
-| **L4** | Validation | Benchmark report, regression check, code review |
-| **L2** | Trusted memory | Merged feature, reusable build config, benchmark reference data |
+| **L0** | Source acquisition | Algorithm reference, upstream code, existing test cases, papers in `L0_source/ref/` |
+| **L1** | Provisional understanding | LaTeX derivation (`docs/sections/02_derivation.tex`), implementation plan, code location analysis |
+| **L3** | Exploratory outputs | Feature branch code (with equation references), build output, initial test results |
+| **L4** | Validation | Benchmark report, regression check, code review, derivation-code traceability |
+| **L2** | Trusted memory | Merged feature, approved derivation PDF, reusable build config, benchmark reference data |
 
 ## 10. Relationship to oh-my-librpa
 
