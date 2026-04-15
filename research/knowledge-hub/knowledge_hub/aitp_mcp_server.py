@@ -40,17 +40,23 @@ def aitp_tool(*, access: str) -> Callable[[Callable[..., str]], Callable[..., st
 def _sanitize_tool_schema(schema: dict[str, Any] | list[Any] | Any) -> dict[str, Any] | list[Any] | Any:
     """Sanitize JSON schema for Zhipu GLM API compatibility."""
     if isinstance(schema, dict):
+        # Resolve anyOf/oneOf/allOf first so hidden types are exposed.
+        for key in list(schema.keys()):
+            if key in ("anyOf", "oneOf", "allOf"):
+                branches = schema[key]
+                if isinstance(branches, list):
+                    non_null = [b for b in branches if b != {"type": "null"}]
+                    if non_null and isinstance(non_null[0], dict):
+                        schema.update(non_null[0])
+                del schema[key]
         # Zhipu does not support 'integer'; use 'number' instead.
         if schema.get("type") == "integer":
             schema["type"] = "number"
+        # Zhipu does not support 'boolean'; use 'string' instead.
+        if schema.get("type") == "boolean":
+            schema["type"] = "string"
         for key in list(schema.keys()):
-            if key in ("anyOf", "oneOf", "allOf", "title", "$defs", "default"):
-                if key in ("anyOf", "oneOf", "allOf"):
-                    branches = schema[key]
-                    if isinstance(branches, list):
-                        non_null = [b for b in branches if b != {"type": "null"}]
-                        if non_null and isinstance(non_null[0], dict):
-                            schema.update(non_null[0])
+            if key in ("title", "$defs", "default", "description", "additionalProperties"):
                 del schema[key]
             else:
                 schema[key] = _sanitize_tool_schema(schema[key])
@@ -60,6 +66,12 @@ def _sanitize_tool_schema(schema: dict[str, Any] | list[Any] | Any) -> dict[str,
             for field in schema["required"]:
                 if field not in schema["properties"]:
                     schema["properties"][field] = {"type": "string"}
+        # Simplify array items to plain string if they are complex objects,
+        # because Zhipu does not support nested object schemas inside array items.
+        if schema.get("type") == "array" and "items" in schema:
+            items = schema["items"]
+            if isinstance(items, dict) and items.get("type") not in ("string", "number"):
+                schema["items"] = {"type": "string"}
         return schema
     elif isinstance(schema, list):
         return [_sanitize_tool_schema(item) for item in schema]
