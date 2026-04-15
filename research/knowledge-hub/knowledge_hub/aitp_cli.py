@@ -76,13 +76,18 @@ def _emit_required_read_gate(
     if not normalized_topic_slug:
         return None
     gate_payload = service.topic_required_read_gate(topic_slug=normalized_topic_slug, updated_by=updated_by)
-    if not isinstance(gate_payload, dict) or not gate_payload.get("needs_ack"):
+    if not isinstance(gate_payload, dict):
+        return None
+    if not gate_payload.get("blocked") and not gate_payload.get("needs_ack"):
         return None
     if as_json:
         _emit(gate_payload, True)
     else:
         _emit_text(str(gate_payload.get("markdown") or ""))
-        print(f"\nResolve with: aitp ack-read --topic-slug {normalized_topic_slug} --all-current")
+        if gate_payload.get("blocked"):
+            print(f'\nResolve with: aitp session-start --topic-slug {normalized_topic_slug} "continue this topic"')
+        else:
+            print(f"\nResolve with: aitp ack-read --topic-slug {normalized_topic_slug} --all-current")
     return 2 if blocking else 0
 
 

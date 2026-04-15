@@ -8353,6 +8353,19 @@ class AITPServiceTests(unittest.TestCase):
         self.assertFalse(gate_after["needs_ack"])
         self.assertEqual(gate_after["missing_paths"], [])
 
+    def test_required_read_gate_blocks_when_session_start_contract_is_missing_for_existing_topic(self) -> None:
+        runtime_root = self.service._runtime_root("demo-topic")
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps({"topic_slug": "demo-topic"}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        gate = self.service.topic_required_read_gate(topic_slug="demo-topic")
+        self.assertTrue(gate["blocked"])
+        self.assertEqual(gate["gate_kind"], "startup_contract_missing")
+        self.assertIn("session_start.contract.json", gate["missing_paths"][0])
+
     def test_start_chat_session_allocates_fresh_slug_for_explicit_new_topic_collision(self) -> None:
         existing_slug = "jones-von-neumann-algebras"
         existing_runtime_root = self._runtime_root(existing_slug)

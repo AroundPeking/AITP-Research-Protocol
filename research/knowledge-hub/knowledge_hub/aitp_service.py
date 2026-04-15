@@ -819,6 +819,27 @@ class AITPService:
         return self._dedupe_strings([str(item) for item in required_paths if str(item or "").strip()])
 
     def _render_required_read_gate_markdown(self, payload: dict[str, Any]) -> str:
+        if payload.get("blocked"):
+            lines = [
+                "# Startup contract missing",
+                "",
+                "Materialize the current topic startup contract before deeper execution continues.",
+                "",
+                "## Missing paths",
+                "",
+            ]
+            for path in payload.get("missing_paths") or ["(none)"]:
+                lines.append(f"- `{path}`" if path != "(none)" else "- (none)")
+            lines.extend(
+                [
+                    "",
+                    "Resolve with:",
+                    "",
+                    f"`aitp session-start --topic-slug {payload.get('topic_slug') or '<topic_slug>'} \"continue this topic\"`",
+                    "",
+                ]
+            )
+            return "\n".join(lines)
         if not payload.get("needs_ack"):
             return "# Required reads\n\nNo active required-read gate is currently blocking deeper execution.\n"
         lines = [
@@ -854,15 +875,23 @@ class AITPService:
     ) -> dict[str, Any]:
         session_payload = self._session_start_payload_for_required_reads(topic_slug)
         if not session_payload:
+            topic_exists = bool(read_json(self._runtime_root(topic_slug) / "topic_state.json"))
+            missing_paths = []
+            if topic_exists:
+                missing_paths = [
+                    self._relativize(self._session_start_paths(topic_slug)["json"]),
+                    self._relativize(self._runtime_root(topic_slug) / "runtime_protocol.generated.md"),
+                ]
             payload = {
                 "topic_slug": topic_slug,
                 "updated_by": updated_by,
-                "gate_kind": "none",
+                "gate_kind": "startup_contract_missing" if topic_exists else "none",
+                "blocked": topic_exists,
                 "needs_ack": False,
                 "generation": "",
                 "required_paths": [],
                 "acknowledged_paths": [],
-                "missing_paths": [],
+                "missing_paths": missing_paths,
                 "receipt_path": self._relativize(self._required_read_receipts_path(topic_slug)),
             }
             payload["markdown"] = self._render_required_read_gate_markdown(payload)
@@ -884,6 +913,7 @@ class AITPService:
             "topic_slug": topic_slug,
             "updated_by": updated_by,
             "gate_kind": "must_read_ack",
+            "blocked": False,
             "needs_ack": bool(missing_paths),
             "generation": generation,
             "required_paths": required_paths,

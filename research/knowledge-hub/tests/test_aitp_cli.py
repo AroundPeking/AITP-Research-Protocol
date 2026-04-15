@@ -1989,6 +1989,7 @@ class AITPCLITests(unittest.TestCase):
             mock_service = MagicMock()
             mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
             mock_service.topic_required_read_gate.return_value = {
+                "blocked": False,
                 "needs_ack": True,
                 "markdown": "# Required reads\n\nAcknowledge the current startup reads before continuing.",
             }
@@ -2007,6 +2008,32 @@ class AITPCLITests(unittest.TestCase):
         output = stream.getvalue()
         self.assertIn("# Required reads", output)
         self.assertIn("Resolve with: aitp ack-read --topic-slug demo-topic --all-current", output)
+        mock_service.work_topic.assert_not_called()
+
+    def test_main_blocks_work_when_startup_contract_is_missing(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
+            mock_service.topic_required_read_gate.return_value = {
+                "blocked": True,
+                "needs_ack": False,
+                "markdown": "# Startup contract missing\n\nMaterialize session-start before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "work", "--topic-slug", "demo-topic", "--question", "Continue the topic"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn("# Startup contract missing", output)
+        self.assertIn("Resolve with: aitp session-start --topic-slug demo-topic", output)
         mock_service.work_topic.assert_not_called()
 
     def test_main_blocks_verify_with_popup_gate_in_json_mode(self) -> None:
