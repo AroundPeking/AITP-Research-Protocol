@@ -281,6 +281,7 @@ def start_chat_session(
         explicit_current_topic=explicit_current_topic,
         explicit_latest_topic=explicit_latest_topic,
     )
+    routing = self._resolve_new_topic_routing(routing)
     management_payload = _management_route_payload(
         self,
         task=task,

@@ -312,6 +312,171 @@ class TopicStartRegressionTests(unittest.TestCase):
         self.assertEqual(l1_source_intake["method_specificity_rows"][0]["method_family"], "formal_derivation")
         self.assertEqual(l1_source_intake["method_specificity_rows"][0]["specificity_tier"], "high")
 
+    def test_distill_from_sources_uses_deepxiv_brief_only_in_discussion_mode(self) -> None:
+        distilled = self.service._distill_from_sources(
+            [
+                {
+                    "source_id": "paper:bounded-closure-2401-00001",
+                    "source_type": "paper",
+                    "title": "Bounded Closure Route",
+                    "summary": "Summary fallback should stay deferred in discussion mode because it only mentions strong coupling.",
+                    "provenance": {
+                        "abs_url": "https://example.org/bounded-closure",
+                        "deepxiv_tldr": "We assume the bounded closure remains valid in the weak coupling limit.",
+                        "deepxiv_sections": [
+                            {
+                                "name": "Introduction",
+                                "idx": 0,
+                                "tldr": "At zero temperature, the paper becomes theorem-facing.",
+                                "token_count": 120,
+                            },
+                            {
+                                "name": "Results",
+                                "idx": 4,
+                                "tldr": "A proof sketch closes the first theorem route.",
+                                "token_count": 180,
+                            },
+                        ],
+                    },
+                }
+            ],
+            "demo-topic",
+            runtime_mode="discussion",
+        )
+
+        self.assertIn("bounded closure remains valid", distilled["distilled_initial_idea"])
+        self.assertNotIn("zero temperature", distilled["distilled_initial_idea"])
+        self.assertNotIn("strong coupling", distilled["distilled_initial_idea"])
+        l1_source_intake = distilled["distilled_l1_source_intake"]
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["reading_depth"], "abstract_only")
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["basis"], "deepxiv_brief")
+        self.assertIn("weak coupling", json.dumps(l1_source_intake["regime_rows"]))
+        self.assertNotIn("zero temperature", json.dumps(l1_source_intake["regime_rows"]))
+        self.assertNotIn("strong coupling", json.dumps(l1_source_intake["regime_rows"]))
+
+    def test_distill_from_sources_uses_deepxiv_head_and_relevant_sections_in_verify_mode(self) -> None:
+        distilled = self.service._distill_from_sources(
+            [
+                {
+                    "source_id": "paper:bounded-closure-2401-00002",
+                    "source_type": "paper",
+                    "title": "Bounded Closure Route",
+                    "summary": "Summary fallback should stay deferred in verify mode when section TLDRs are available.",
+                    "provenance": {
+                        "abs_url": "https://example.org/bounded-closure-verify",
+                        "deepxiv_tldr": "This paper studies the bounded closure route.",
+                        "deepxiv_sections": [
+                            {
+                                "name": "Introduction",
+                                "idx": 0,
+                                "tldr": "The paper frames the theorem-facing route.",
+                                "token_count": 120,
+                            },
+                            {
+                                "name": "Setup",
+                                "idx": 1,
+                                "tldr": "We assume the closure remains valid in the weak coupling limit.",
+                                "token_count": 160,
+                            },
+                            {
+                                "name": "Results",
+                                "idx": 4,
+                                "tldr": "At zero temperature, the proof closes the first bounded theorem route.",
+                                "token_count": 180,
+                            },
+                        ],
+                    },
+                }
+            ],
+            "demo-topic",
+            runtime_mode="verify",
+        )
+
+        self.assertIn("[Results]", distilled["distilled_initial_idea"])
+        self.assertNotIn("Summary fallback should stay deferred", distilled["distilled_initial_idea"])
+        l1_source_intake = distilled["distilled_l1_source_intake"]
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["reading_depth"], "skim")
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["basis"], "deepxiv_sections")
+        self.assertIn("weak coupling", json.dumps(l1_source_intake["regime_rows"]))
+        self.assertIn("zero temperature", json.dumps(l1_source_intake["regime_rows"]))
+        self.assertEqual(l1_source_intake["method_specificity_rows"][0]["method_family"], "formal_derivation")
+
+    def test_distill_from_sources_collects_source_concept_graph_into_l1_source_intake(self) -> None:
+        topic_slug = "demo-topic-graph"
+        source_root = self.kernel_root / "source-layer" / "topics" / topic_slug
+        source_root.mkdir(parents=True, exist_ok=True)
+        source_slug = "paper-topological-order-and-anyon-condensation-2401-00001"
+        source_dir = source_root / "sources" / source_slug
+        source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "snapshot.md").write_text(
+            "# Snapshot\n\n"
+            "## Preview\n"
+            "Topological order supports the bounded condensation route.\n",
+            encoding="utf-8",
+        )
+        (source_dir / "concept_graph.json").write_text(
+            json.dumps(
+                {
+                    "kind": "source_concept_graph",
+                    "graph_version": 1,
+                    "topic_slug": topic_slug,
+                    "source_id": "paper:topological-order-and-anyon-condensation-2401-00001",
+                    "source_json_path": f"source-layer/topics/{topic_slug}/sources/{source_slug}/source.json",
+                    "generated_at": "2026-04-13T00:00:00+08:00",
+                    "generated_by": "test",
+                    "provider": "override_json",
+                    "nodes": [
+                        {
+                            "node_id": "concept:topological-order",
+                            "label": "Topological order",
+                            "node_type": "concept",
+                            "confidence_tier": "EXTRACTED",
+                            "confidence_score": 0.95,
+                            "evidence_refs": [f"source-layer/topics/{topic_slug}/sources/{source_slug}/source.json"],
+                            "notes": "",
+                        }
+                    ],
+                    "edges": [],
+                    "hyperedges": [],
+                    "communities": [
+                        {
+                            "community_id": "community-topological-order",
+                            "label": "Topological order cluster",
+                            "node_ids": ["concept:topological-order"],
+                        }
+                    ],
+                    "god_nodes": ["concept:topological-order"],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        distilled = self.service._distill_from_sources(
+            [
+                {
+                    "source_id": "paper:topological-order-and-anyon-condensation-2401-00001",
+                    "source_type": "paper",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "Topological order supports the bounded condensation route.",
+                    "locator": {
+                        "concept_graph_path": f"source-layer/topics/{topic_slug}/sources/{source_slug}/concept_graph.json",
+                    },
+                    "provenance": {
+                        "abs_url": "https://example.org/topological-order",
+                    },
+                }
+            ],
+            topic_slug,
+        )
+
+        concept_graph = distilled["distilled_l1_source_intake"]["concept_graph"]
+        self.assertEqual(concept_graph["nodes"][0]["node_id"], "concept:topological-order")
+        self.assertEqual(concept_graph["communities"][0]["label"], "Topological order cluster")
+        self.assertEqual(concept_graph["god_nodes"][0]["node_id"], "concept:topological-order")
+
     def test_source_backed_topic_start_surfaces_contradiction_and_notation_tension(self) -> None:
         topic_slug = "demo-topic"
         runtime_root, thesis_path = self._write_source_backed_topic(topic_slug=topic_slug)

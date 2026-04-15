@@ -5,8 +5,10 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
+from .graph_analysis_tools import empty_graph_analysis
 from .l1_source_intake_support import (
     l1_assumption_depth_summary_lines,
+    l1_concept_graph_summary_lines,
     l1_contradiction_summary_lines,
     l1_notation_tension_lines,
     l1_reading_depth_limit_lines,
@@ -41,6 +43,13 @@ def empty_l1_source_intake() -> dict[str, Any]:
         "notation_rows": [],
         "contradiction_candidates": [],
         "notation_tension_candidates": [],
+        "concept_graph": {
+            "nodes": [],
+            "edges": [],
+            "hyperedges": [],
+            "communities": [],
+            "god_nodes": [],
+        },
     }
 
 
@@ -62,6 +71,27 @@ def empty_source_intelligence(*, topic_slug: str) -> dict[str, Any]:
         "neighbor_signal_count": 0,
         "path": f"runtime/topics/{topic_slug}/source_intelligence.json",
         "note_path": f"runtime/topics/{topic_slug}/source_intelligence.md",
+    }
+
+
+def _zero_graph_diff() -> dict[str, Any]:
+    return {
+        "added": {
+            "node_count": 0,
+            "node_labels": [],
+            "edge_count": 0,
+            "edge_relations": [],
+            "god_node_count": 0,
+            "god_node_labels": [],
+        },
+        "removed": {
+            "node_count": 0,
+            "node_labels": [],
+            "edge_count": 0,
+            "edge_relations": [],
+            "god_node_count": 0,
+            "god_node_labels": [],
+        },
     }
 
 
@@ -2315,6 +2345,9 @@ def append_l1_source_intake_markdown(lines: list[str], payload: dict[str, Any]) 
     lines.extend(["", "## Notation-alignment tension", ""])
     for row in l1_notation_tension_lines(l1_source_intake) or ["(none)"]:
         lines.append(f"- {row}")
+    lines.extend(["", "## Concept graph", ""])
+    for row in l1_concept_graph_summary_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
 
 
 def append_l1_vault_markdown(lines: list[str], payload: dict[str, Any]) -> None:
@@ -2399,6 +2432,75 @@ def append_source_intelligence_markdown(lines: list[str], payload: dict[str, Any
             )
 
 
+def append_graph_analysis_markdown(lines: list[str], payload: dict[str, Any]) -> None:
+    summary = payload.get("summary") or {}
+    diff = payload.get("diff") or _zero_graph_diff()
+    lines.extend(
+        [
+            "",
+            "## Graph analysis",
+            "",
+            f"- JSON path: `{payload.get('path') or '(missing)'}`",
+            f"- Note path: `{payload.get('note_path') or '(missing)'}`",
+            f"- History path: `{payload.get('history_path') or '(missing)'}`",
+            f"- Connection count: `{summary.get('connection_count') or 0}`",
+            f"- Question count: `{summary.get('question_count') or 0}`",
+            f"- History length: `{summary.get('history_length') or 0}`",
+            "",
+            "## Graph connections",
+            "",
+        ]
+    )
+    for row in payload.get("connections") or ["(none)"]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('kind') or '(missing)'}` `{row.get('bridge_label') or '(missing)'}`: "
+                f"{row.get('detail') or '(missing)'}"
+            )
+        else:
+            lines.append(f"- {row}")
+    lines.extend(["", "## Graph question seeds", ""])
+    for row in payload.get("questions") or ["(none)"]:
+        if isinstance(row, dict):
+            lines.append(
+                f"- `{row.get('question_type') or '(missing)'}` `{row.get('bridge_label') or '(missing)'}`: "
+                f"{row.get('question') or '(missing)'}"
+            )
+        else:
+            lines.append(f"- {row}")
+    lines.extend(
+        [
+            "",
+            "## Graph diff",
+            "",
+            f"- Added nodes: `{(diff.get('added') or {}).get('node_count') or 0}`",
+            f"- Removed nodes: `{(diff.get('removed') or {}).get('node_count') or 0}`",
+            f"- Added labels: `{', '.join((diff.get('added') or {}).get('node_labels') or []) or '(none)'}`",
+            f"- Removed labels: `{', '.join((diff.get('removed') or {}).get('node_labels') or []) or '(none)'}`",
+        ]
+    )
+
+
+def normalized_graph_analysis(
+    *,
+    topic_slug: str,
+    shell_surfaces: dict[str, Any],
+    relativize: Callable[[Path], str],
+) -> dict[str, Any]:
+    payload = dict(shell_surfaces.get("graph_analysis") or empty_graph_analysis(topic_slug=topic_slug))
+    if shell_surfaces.get("graph_analysis_path"):
+        payload["path"] = relativize(Path(shell_surfaces["graph_analysis_path"]))
+    if shell_surfaces.get("graph_analysis_note_path"):
+        payload["note_path"] = relativize(Path(shell_surfaces["graph_analysis_note_path"]))
+    if shell_surfaces.get("graph_analysis_history_path"):
+        payload["history_path"] = relativize(Path(shell_surfaces["graph_analysis_history_path"]))
+    payload.setdefault("connections", [])
+    payload.setdefault("questions", [])
+    payload.setdefault("diff", _zero_graph_diff())
+    payload.setdefault("summary", {"connection_count": 0, "question_count": 0, "history_length": 0})
+    return payload
+
+
 def normalized_source_intelligence(
     *,
     topic_slug: str,
@@ -2420,8 +2522,8 @@ def build_active_research_contract_payload(
     shell_surfaces: dict[str, Any],
     relativize: Callable[[Path], str],
 ) -> dict[str, Any]:
-    topic_slug = str(research_contract.get("topic_slug") or "")
     topic_root = Path(shell_surfaces["research_question_contract_path"]).parent
+    topic_slug = str(research_contract.get("topic_slug") or "").strip() or topic_root.name
     competing_hypotheses = normalize_competing_hypotheses(
         research_contract.get("competing_hypotheses") or [],
         topic_slug=topic_slug,

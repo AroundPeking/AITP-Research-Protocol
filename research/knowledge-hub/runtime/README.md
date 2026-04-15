@@ -431,6 +431,8 @@ For an isolated bounded Layer 0 discovery -> registration acceptance pass, run:
 
 ```bash
 python research/knowledge-hub/runtime/scripts/run_l0_source_discovery_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_enrichment_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_concept_graph_acceptance.py --json
 ```
 
 That acceptance script uses a temporary kernel root, feeds one bounded
@@ -438,7 +440,8 @@ That acceptance script uses a temporary kernel root, feeds one bounded
 `source-layer/scripts/discover_and_register.py`, verifies that
 `candidate_evaluation.json` keeps the winning source explicit, and confirms
 that the selected paper is still registered through the normal Layer 0
-`source.json` plus Layer 1 projection path.
+`source.json` plus Layer 1 projection path, now with integrated enrichment and
+concept-graph artifacts.
 
 For an isolated bounded L1 method-specificity acceptance pass, run:
 
@@ -455,6 +458,7 @@ For an isolated bounded L1 assumption and reading-depth acceptance pass, run:
 
 ```bash
 python research/knowledge-hub/runtime/scripts/run_l1_assumption_depth_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l1_concept_graph_acceptance.py --json
 ```
 
 That acceptance script uses a temporary kernel root, runs production
@@ -463,6 +467,18 @@ contradiction signals stay visible through the existing `l1_source_intake`
 path, and checks that the same honesty surface is visible in
 `research_question.contract.md`, `topic_dashboard.md`, the runtime protocol
 note, and the `L1` vault wiki source-intake page.
+
+For an isolated bounded L1 concept-graph acceptance pass, run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_l1_concept_graph_acceptance.py --json
+```
+
+That acceptance script uses a temporary kernel root, runs production
+`status --json`, verifies that `l1_source_intake.concept_graph` is materialized
+from source-local graph artifacts, and checks that the same graph surface is
+visible in `research_question.contract.md`, the runtime protocol note, and the
+`L1` vault wiki source-intake page.
 
 For an isolated bounded runtime transition and demotion-history acceptance
 pass, run:
@@ -773,6 +789,21 @@ For an isolated bounded first-run topic acceptance pass, run:
 python research/knowledge-hub/runtime/scripts/run_first_run_topic_acceptance.py --json
 ```
 
+For the next bounded fresh-topic follow-through after first-source registration,
+run:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_first_source_followthrough_acceptance.py --json
+```
+
+That acceptance script replays the same fresh bootstrap and first-source
+registration lane, then executes exactly one bounded `literature_intake_stage`
+auto step and proves that runtime status advances onto L2 staging review rather
+than repeating the same L1->L2 action forever. It also checks that the
+workspace staging manifest becomes the foreground read surface and that
+`consult_l2(include_staging=True)` can retrieve the freshly staged topic-local
+row.
+
 That acceptance script uses a temporary kernel root, runs production
 `bootstrap --json`, production `loop --json`, then production `status --json`,
 and checks that the shared `bootstrap -> loop -> status` quickstart path keeps
@@ -818,6 +849,20 @@ python research/knowledge-hub/runtime/scripts/run_runtime_parity_audit.py --json
 That audit reuses the Codex, Claude Code, and OpenCode bounded probes and emits
 one closure report naming equivalent surfaces, degraded surfaces, and still-open
 gaps.
+
+When you have real Claude Code and/or OpenCode first-turn evidence from a live
+front door, place JSON files named
+`claude_code.live-first-turn.json` and/or
+`opencode.live-first-turn.json` in one directory and rerun:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_audit.py --live-evidence-root <evidence_dir> --json
+```
+
+Those files must validate against
+`runtime/schemas/runtime-live-first-turn-evidence.schema.json`. The audit only
+closes the remaining live-app gap when the evidence marks the bootstrap and
+human-control posture checks as explicitly verified.
 
 For an isolated bounded quick-exploration acceptance pass, run:
 

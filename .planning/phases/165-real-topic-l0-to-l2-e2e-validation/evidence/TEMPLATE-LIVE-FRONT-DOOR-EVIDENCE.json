@@ -1,0 +1,33 @@
+{
+  "report_kind": "runtime_live_first_turn_evidence",
+  "contract_version": 1,
+  "runtime": "claude_code",
+  "status": "partial",
+  "captured_at": "2026-04-13T00:00:00+08:00",
+  "entry_surface": "Claude Code SessionStart bootstrap",
+  "operator_summary": "Replace with a short honest summary of what the live first turn proved or failed to prove.",
+  "first_user_turn": "Replace with the exact first natural-language turn sent by the human.",
+  "first_agent_turn_summary": "Replace with a concise summary of the first substantive agent response.",
+  "checks": {
+    "bootstrap_consumed_before_first_substantive_action": false,
+    "human_interaction_posture_visible": false,
+    "autonomy_posture_visible": false,
+    "wait_state_matches_contract": false,
+    "continue_state_matches_contract": false
+  },
+  "artifacts": {
+    "transcript_path": "Replace with the transcript or notes path for the live run.",
+    "session_start_path": "Replace with the session_start.generated.md path.",
+    "runtime_protocol_path": "Replace with the runtime_protocol.generated.md path.",
+    "status_payload_path": "Replace with the captured status --json path.",
+    "evidence_refs": [
+      "Replace with additional screenshot or artifact refs as needed."
+    ]
+  },
+  "limitations": [
+    "Replace with anything the run did not prove."
+  ],
+  "notes": [
+    "Copy this file once per runtime and rename to claude_code.live-first-turn.json or opencode.live-first-turn.json."
+  ]
+}

@@ -1,42 +1,80 @@
-# Roadmap: v1.91 Real Topic L0 To L2 End-To-End Validation
+# Roadmap: v2.9 Promotion-Review Gate Closure
 
 ## Result
 
-`v1.91` is active.
+Milestone execution complete. Audit / archive is next.
 
 ## Phases
 
-- [ ] **Phase 165: Real Topic L0 To L2 End-To-End Validation**
+- [x] **Phase 183: Promotion-Review Gate Materialization** *(Axis 2 + Axis 4)*
+- [x] **Phase 183.1: Public Promotion-Review Gate Surface** *(Axis 4 + Axis 5)*
+- [x] **Phase 183.2: Fresh Promotion-Review Gate Replay Proof** *(Axis 4 + Axis 3)*
 
 ## Target Outcome
 
-- one real-topic run from an initial idea through the current public AITP
-  entry surfaces
-- one durable postmortem naming where the protocol helped, where it created
-  friction, and what bounded outcome was actually reached
-- one explicit issue ledger that routes discovered problems into GSD-visible
-  follow-up work instead of leaving them implicit
+- once `l2_promotion_review` becomes the selected route, the same topic no
+  longer stalls on that promotion-review summary forever
+- the bounded loop now materializes one explicit promotion-review gate and
+  public `next` / `status` expose that gate
+- one replayable fresh-topic proof records the sixth bounded continue step from
+  promotion-review summary into the explicit gate
 
 ## Next Step
 
-Execute Phase `165`.
+Audit / archive milestone `v2.9`, then plan the next bounded gap after explicit promotion-gate materialization.
 
-### Phase 165: Real Topic L0 To L2 End-To-End Validation
+### Phase 183: Promotion-Review Gate Materialization
 
-**Goal:** Close the next post-`v1.90` maturity gap by proving whether the
-current AITP implementation is genuinely useful on a real topic from an
-initial idea through one honest bounded research outcome.
+**Axis:** Axis 2 (inter-layer connection) + Axis 4 (human experience)
+
+**Goal:** materialize one explicit promotion-review gate once
+`l2_promotion_review` becomes the selected route.
+
 **Requirements:**
-- one real topic must run through the current public AITP entry surfaces from
-  an initial idea
-- the run must leave a durable postmortem and artifact-backed outcome
-- every discovered issue must be converted into explicit GSD-tracked follow-up
-  work
-- the milestone must stay honest about whether the topic reached `L2`,
-  `promotion-ready`, or a blocked / deferred state
-**Depends on:** v1.90 completion
+
+- `PRG-01`
+- `PRG-02`
+
+**Depends on:** `v2.8`
 **Plans:** 1 plan
 
 Plans:
-- [ ] `165-01` Execute one real-topic E2E route and capture all findings into
-  GSD-visible artifacts
+
+- [x] `183-01` Materialize one explicit promotion-review gate from the selected staged candidate
+
+### Phase 183.1: Public Promotion-Review Gate Surface
+
+**Axis:** Axis 4 (human evidence) + Axis 5 (agent-facing steering)
+
+**Goal:** make public `next` and `status` advance from promotion-review summary
+to the same explicit promotion-review gate.
+
+**Requirements:**
+
+- `PRG-03`
+
+**Depends on:** Phase `183`
+**Plans:** 1 plan
+
+Plans:
+
+- [x] `183.1-01` Align public surfaces on the explicit promotion-review gate
+
+### Phase 183.2: Fresh Promotion-Review Gate Replay Proof
+
+**Axis:** Axis 4 (human evidence) + Axis 3 (data recording)
+
+**Goal:** close the milestone with one replayable fresh-topic proof that the
+same topic can advance beyond promotion-review summary into one explicit
+promotion-review gate.
+
+**Requirements:**
+
+- `PRG-04`
+
+**Depends on:** Phase `183.1`
+**Plans:** 1 plan
+
+Plans:
+
+- [x] `183.2-01` Capture the replayable sixth-continue advancement beyond promotion-review summary

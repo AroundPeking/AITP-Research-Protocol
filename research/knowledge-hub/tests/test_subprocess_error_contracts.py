@@ -49,10 +49,12 @@ class SubprocessErrorContractTests(unittest.TestCase):
                 self.service._run(["demo-tool", "--flag", "value"])
 
         message = str(raised.exception)
-        self.assertIn("returncode=17", message)
-        self.assertIn("demo-tool", message)
-        self.assertIn("--flag", message)
-        self.assertIn("demo stderr", message)
+        self.assertIn("AITP could not finish", message)
+        self.assertIn("Exit code: 17", message)
+        self.assertIn("Command: demo-tool --flag value", message)
+        self.assertIn("Error: demo stderr", message)
+        self.assertIn("Try:", message)
+        self.assertNotIn("Traceback", message)
 
     def test_migrate_local_install_failure_includes_context_command_and_returncode(self) -> None:
         workspace_root = Path(self._tmpdir.name) / "workspace"
@@ -83,9 +85,10 @@ class SubprocessErrorContractTests(unittest.TestCase):
 
         message = str(raised.exception)
         self.assertIn("migrate-local-install pip install", message)
-        self.assertIn("returncode=23", message)
-        self.assertIn("pip install -e", message)
+        self.assertIn("Exit code: 23", message)
+        self.assertIn("-m pip install -e", message)
         self.assertIn("access denied", message)
+        self.assertIn("Check that Python and pip can write to the target environment", message)
 
 
 if __name__ == "__main__":

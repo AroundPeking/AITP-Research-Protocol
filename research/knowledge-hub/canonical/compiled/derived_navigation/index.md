@@ -1,6 +1,6 @@
 # L2 Graph Navigation Index
 
-- Generated at: `2026-04-11T19:14:59+08:00`
+- Generated at: `2026-04-14T01:51:05+08:00`
 - Source report: `canonical/compiled/workspace_graph_report.md`
 
 ## Top Hubs
@@ -34,7 +34,14 @@
 ### `physical_picture`
 - [[physical_picture--tfim-weak-coupling-benchmark-intuition|TFIM weak-coupling benchmark intuition]] - Weak-coupling physical picture for why the TFIM exact diagonalization benchmark workflow is a useful first bounded route. (degree=`3`)
 
+### `proof_fragment`
+- [[proof_fragment--jones-codrestrict-comp-subtype-construction-recipe|Jones codRestrict + subtype composition construction recipe]] - Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map. (degree=`0`)
+
+### `theorem_card`
+- [[theorem_card--jones-ch4-finite-product|Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet]] - Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route. (degree=`0`)
+
 ### `topic_skill_projection`
+- [[topic_skill_projection--fresh-jones-finite-dimensional-factor-closure|Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection]] - Validated reusable execution projection for the topic's theorem-facing formal-theory route. (degree=`0`)
 - [[topic_skill_projection--tfim-benchmark-first-route|TFIM benchmark-first route]] - Reusable route capsule for the bounded TFIM exact benchmark workflow and its limitation note. (degree=`4`)
 
 ### `validation_pattern`

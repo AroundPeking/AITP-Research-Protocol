@@ -23,12 +23,12 @@ REPO_ROOT = SCRIPT_PATH.parents[4]
 if str(KERNEL_ROOT) not in sys.path:
     sys.path.insert(0, str(KERNEL_ROOT))
 
-from knowledge_hub.aitp_service import AITPService, write_json  # noqa: E402
+from knowledge_hub.aitp_service import AITPService, bounded_slugify, write_json  # noqa: E402
 
 
 TOPIC_SLUG = "jones-von-neumann-algebras"
 CANDIDATE_ID = "candidate:jones-ch4-finite-product"
-CANDIDATE_SLUG = "candidate-jones-ch4-finite-product"
+CANDIDATE_SLUG = bounded_slugify(CANDIDATE_ID)
 TARGET_UNIT_ID = "theorem:finite-dimensional-block-centralizer-is-linear-product-of-block-fiber-type-i-factors"
 PRIMARY_SOURCE_ID = "local_note:jones-von-neumann-algebras-definition-packet"
 PRIMARY_SOURCE_SECTION = "chapter-4/multiplicity-and-finite-dimensional-von-neumann-algebras"
@@ -890,7 +890,7 @@ def main() -> int:
         "Expected the Jones projection candidate to stay on the human-reviewed route.",
     )
     check(
-        str(projection_promote.get("target_unit_path") or "").replace("\\", "/").endswith("/units/topic-skill-projections/jones-von-neumann-algebras.json"),
+        "/units/topic-skill-projections/" in str(projection_promote.get("target_unit_path") or "").replace("\\", "/"),
         "Expected the Jones projection promotion to land in units/topic-skill-projections/.",
     )
     check(

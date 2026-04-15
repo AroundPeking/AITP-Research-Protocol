@@ -81,6 +81,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("proof_fragment", unit_types)
         self.assertIn("topic_skill_projection", unit_types)
         self.assertIn("physical_picture", unit_types)
+        self.assertIn("negative_result", unit_types)
         maturity_states = set(payload["properties"]["maturity"]["enum"])
         self.assertIn("auto_validated", maturity_states)
         route_states = set(payload["properties"]["promotion"]["properties"]["route"]["enum"])
@@ -132,6 +133,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("stuckness_status", runtime_focus)
         self.assertIn("surprise_status", runtime_focus)
         self.assertIn("judgment_summary", runtime_focus)
+        self.assertIn("l0_source_handoff", runtime_focus)
         truth_sources = payload["properties"]["truth_sources"]["properties"]
         self.assertIn("topic_state_path", truth_sources)
         self.assertIn("next_action_surface_path", truth_sources)
@@ -201,6 +203,18 @@ class SchemaContractTests(unittest.TestCase):
         self.assertEqual(statement_compilation_active_payload["properties"]["compilation_version"]["const"], 1)
         self.assertIn("needs_repair_count", statement_compilation_active_payload["required"])
 
+    def test_package_schema_mirrors_include_runtime_proof_packets(self) -> None:
+        lean_ready_payload = self._read_json("schemas/lean-ready-packet.schema.json")
+        statement_compilation_payload = self._read_json("schemas/statement-compilation-packet.schema.json")
+        proof_repair_payload = self._read_json("schemas/proof-repair-plan.schema.json")
+
+        self.assertEqual(lean_ready_payload["properties"]["bridge_version"]["const"], 1)
+        self.assertIn("proof_obligation_count", lean_ready_payload["required"])
+        self.assertEqual(statement_compilation_payload["properties"]["compilation_version"]["const"], 1)
+        self.assertIn("declarations", statement_compilation_payload["required"])
+        self.assertEqual(proof_repair_payload["properties"]["plan_version"]["const"], 1)
+        self.assertIn("proof_holes", proof_repair_payload["required"])
+
     def test_progressive_disclosure_runtime_schema_exposes_stable_trigger_contract(self) -> None:
         payload = self._read_json("runtime/schemas/progressive-disclosure-runtime-bundle.schema.json")
         self.assertEqual(payload["properties"]["bundle_kind"]["const"], "progressive_disclosure_runtime_bundle")
@@ -209,6 +223,8 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("active_submode", payload["properties"])
         self.assertIn("mode_envelope", payload["properties"])
         self.assertIn("transition_posture", payload["properties"])
+        self.assertIn("human_interaction_posture", payload["properties"])
+        self.assertIn("autonomy_posture", payload["properties"])
         self.assertIn("active_research_contract", payload["properties"])
         self.assertIn("promotion_readiness", payload["properties"])
         self.assertIn("validation_review_bundle", payload["properties"])
@@ -220,6 +236,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("scratchpad", payload["properties"])
         self.assertIn("open_gap_summary", payload["properties"])
         self.assertIn("dependency_state", payload["properties"])
+        self.assertIn("protocol_manifest", payload["properties"])
         self.assertIn("topic_completion", payload["properties"])
         self.assertIn("statement_compilation", payload["properties"])
         self.assertIn("lean_bridge", payload["properties"])
@@ -253,6 +270,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("notation_rows", topic_intake)
         self.assertIn("contradiction_candidates", topic_intake)
         self.assertIn("notation_tension_candidates", topic_intake)
+        self.assertIn("concept_graph", topic_intake)
         competing_hypothesis = payload["$defs"]["competing_hypothesis"]["properties"]
         self.assertIn("route_kind", competing_hypothesis)
         self.assertIn("route_target_summary", competing_hypothesis)
@@ -311,11 +329,29 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("repair_kind", route_transition_repair)
         self.assertIn("primary_repair_ref", route_transition_repair)
         self.assertIn("repair_artifact_refs", route_transition_repair)
+        validation_review_bundle = payload["properties"]["validation_review_bundle"]["properties"]
+        self.assertIn("analytical_cross_check_surface", validation_review_bundle)
+        analytical_surface = payload["$defs"]["analytical_cross_check_surface"]["properties"]
+        self.assertIn("status", analytical_surface)
+        self.assertIn("candidate_id", analytical_surface)
+        self.assertIn("check_rows", analytical_surface)
+        analytical_row = payload["$defs"]["analytical_cross_check_row"]["properties"]
+        self.assertIn("kind", analytical_row)
+        self.assertIn("source_anchors", analytical_row)
+        self.assertIn("assumption_refs", analytical_row)
+        self.assertIn("regime_note", analytical_row)
+        self.assertIn("reading_depth", analytical_row)
+        self.assertIn("notes", analytical_row)
         route_transition_escalation = payload["$defs"]["route_transition_escalation"]["properties"]
         self.assertIn("escalation_status", route_transition_escalation)
         self.assertIn("repair_status", route_transition_escalation)
         self.assertIn("repair_kind", route_transition_escalation)
         self.assertIn("primary_repair_ref", route_transition_escalation)
+        protocol_manifest = payload["$defs"]["protocol_manifest"]["properties"]
+        self.assertIn("declared_state", protocol_manifest)
+        self.assertIn("overall_status", protocol_manifest)
+        self.assertIn("missing_paths", protocol_manifest)
+        self.assertIn("state_catalog", protocol_manifest)
         self.assertIn("checkpoint_status", route_transition_escalation)
         self.assertIn("checkpoint_kind", route_transition_escalation)
         self.assertIn("checkpoint_ref", route_transition_escalation)
@@ -379,6 +415,7 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("stuckness_status", runtime_focus)
         self.assertIn("surprise_status", runtime_focus)
         self.assertIn("judgment_summary", runtime_focus)
+        self.assertIn("l0_source_handoff", runtime_focus)
         decision_surface = payload["properties"]["decision_surface"]["properties"]
         self.assertIn("momentum_status", decision_surface)
         self.assertIn("stuckness_status", decision_surface)
@@ -410,6 +447,15 @@ class SchemaContractTests(unittest.TestCase):
         self.assertIn("notation_rows", intake)
         self.assertIn("contradiction_candidates", intake)
         self.assertIn("notation_tension_candidates", intake)
+        self.assertIn("concept_graph", intake)
+        contradiction_candidate = payload["$defs"]["l1_contradiction_candidate"]["properties"]
+        self.assertIn("comparison_basis", contradiction_candidate)
+        self.assertIn("source_basis_type", contradiction_candidate)
+        self.assertIn("source_basis_summary", contradiction_candidate)
+        self.assertIn("source_evidence_excerpt", contradiction_candidate)
+        self.assertIn("against_basis_type", contradiction_candidate)
+        self.assertIn("against_basis_summary", contradiction_candidate)
+        self.assertIn("against_evidence_excerpt", contradiction_candidate)
         retrieval_profiles = self._read_json("canonical/retrieval_profiles.json")
         l3_types = set(retrieval_profiles["profiles"]["l3_candidate_formation"]["preferred_unit_types"])
         l4_types = set(retrieval_profiles["profiles"]["l4_adjudication"]["preferred_unit_types"])
@@ -427,6 +473,33 @@ class SchemaContractTests(unittest.TestCase):
         self.assertTrue((policy_payload.get("lean_bridge_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("candidate_split_policy") or {}).get("enabled"))
         self.assertTrue((policy_payload.get("deferred_buffer_policy") or {}).get("auto_reactivate"))
+
+    def test_runtime_live_first_turn_evidence_schema_requires_posture_checks(self) -> None:
+        payload = self._read_json("runtime/schemas/runtime-live-first-turn-evidence.schema.json")
+        self.assertEqual(payload["properties"]["report_kind"]["const"], "runtime_live_first_turn_evidence")
+        self.assertEqual(payload["properties"]["contract_version"]["const"], 1)
+        self.assertIn("runtime", payload["required"])
+        self.assertIn("status", payload["required"])
+        self.assertIn("checks", payload["required"])
+        self.assertIn("artifacts", payload["required"])
+        runtimes = set(payload["properties"]["runtime"]["enum"])
+        self.assertIn("claude_code", runtimes)
+        self.assertIn("opencode", runtimes)
+        statuses = set(payload["properties"]["status"]["enum"])
+        self.assertIn("verified", statuses)
+        self.assertIn("failed", statuses)
+        checks = payload["properties"]["checks"]["properties"]
+        self.assertIn("bootstrap_consumed_before_first_substantive_action", checks)
+        self.assertIn("human_interaction_posture_visible", checks)
+        self.assertIn("autonomy_posture_visible", checks)
+        self.assertIn("wait_state_matches_contract", checks)
+        self.assertIn("continue_state_matches_contract", checks)
+        artifacts = payload["properties"]["artifacts"]["properties"]
+        self.assertIn("transcript_path", artifacts)
+        self.assertIn("session_start_path", artifacts)
+        self.assertIn("runtime_protocol_path", artifacts)
+        self.assertIn("status_payload_path", artifacts)
+        self.assertIn("evidence_refs", artifacts)
 
 
 if __name__ == "__main__":

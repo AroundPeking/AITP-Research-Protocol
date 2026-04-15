@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,9 +63,61 @@ class RuntimeScriptTests(unittest.TestCase):
             "aitp_l0_source_discovery_acceptance_test",
             "runtime/scripts/run_l0_source_discovery_acceptance.py",
         )
+        self.l0_source_enrichment_acceptance = _load_module(
+            "aitp_l0_source_enrichment_acceptance_test",
+            "runtime/scripts/run_l0_source_enrichment_acceptance.py",
+        )
+        self.l0_source_concept_graph_acceptance = _load_module(
+            "aitp_l0_source_concept_graph_acceptance_test",
+            "runtime/scripts/run_l0_source_concept_graph_acceptance.py",
+        )
+        self.l1_concept_graph_acceptance = _load_module(
+            "aitp_l1_concept_graph_acceptance_test",
+            "runtime/scripts/run_l1_concept_graph_acceptance.py",
+        )
         self.l1_assumption_depth_acceptance = _load_module(
             "aitp_l1_assumption_depth_acceptance_test",
             "runtime/scripts/run_l1_assumption_depth_acceptance.py",
+        )
+        self.l1_progressive_reading_acceptance = _load_module(
+            "aitp_l1_progressive_reading_acceptance_test",
+            "runtime/scripts/run_l1_progressive_reading_acceptance.py",
+        )
+        self.l1_graph_analysis_staging_acceptance = _load_module(
+            "aitp_l1_graph_analysis_staging_acceptance_test",
+            "runtime/scripts/run_l1_graph_analysis_staging_acceptance.py",
+        )
+        self.l1_graph_diff_runtime_acceptance = _load_module(
+            "aitp_l1_graph_diff_runtime_acceptance_test",
+            "runtime/scripts/run_l1_graph_diff_runtime_acceptance.py",
+        )
+        self.l1_graph_diff_staging_acceptance = _load_module(
+            "aitp_l1_graph_diff_staging_acceptance_test",
+            "runtime/scripts/run_l1_graph_diff_staging_acceptance.py",
+        )
+        self.l1_graph_community_bridge_acceptance = _load_module(
+            "aitp_l1_graph_community_bridge_acceptance_test",
+            "runtime/scripts/run_l1_graph_community_bridge_acceptance.py",
+        )
+        self.l1_graph_hyperedge_pattern_acceptance = _load_module(
+            "aitp_l1_graph_hyperedge_pattern_acceptance_test",
+            "runtime/scripts/run_l1_graph_hyperedge_pattern_acceptance.py",
+        )
+        self.l1_graph_obsidian_export_acceptance = _load_module(
+            "aitp_l1_graph_obsidian_export_acceptance_test",
+            "runtime/scripts/run_l1_graph_obsidian_export_acceptance.py",
+        )
+        self.l1_graph_obsidian_multicommunity_acceptance = _load_module(
+            "aitp_l1_graph_obsidian_multicommunity_acceptance_test",
+            "runtime/scripts/run_l1_graph_obsidian_multicommunity_acceptance.py",
+        )
+        self.l1_graph_obsidian_brain_bridge_acceptance = _load_module(
+            "aitp_l1_graph_obsidian_brain_bridge_acceptance_test",
+            "runtime/scripts/run_l1_graph_obsidian_brain_bridge_acceptance.py",
+        )
+        self.mode_enforcement_acceptance = _load_module(
+            "aitp_mode_enforcement_acceptance_test",
+            "runtime/scripts/run_mode_enforcement_acceptance.py",
         )
         self.transition_history_acceptance = _load_module(
             "aitp_transition_history_acceptance_test",
@@ -145,6 +198,531 @@ class RuntimeScriptTests(unittest.TestCase):
         self.hypothesis_route_transition_authority_acceptance = _load_module(
             "aitp_hypothesis_route_transition_authority_acceptance_test",
             "runtime/scripts/run_hypothesis_route_transition_authority_acceptance.py",
+        )
+        self.first_run_topic_acceptance = _load_module(
+            "aitp_first_run_topic_acceptance_test",
+            "runtime/scripts/run_first_run_topic_acceptance.py",
+        )
+        self.first_source_followthrough_acceptance = _load_module(
+            "aitp_first_source_followthrough_acceptance_test",
+            "runtime/scripts/run_first_source_followthrough_acceptance.py",
+        )
+        self.staged_l2_reentry_acceptance = _load_module(
+            "aitp_staged_l2_reentry_acceptance_test",
+            "runtime/scripts/run_staged_l2_reentry_acceptance.py",
+        )
+        self.staged_l2_advancement_acceptance = _load_module(
+            "aitp_staged_l2_advancement_acceptance_test",
+            "runtime/scripts/run_staged_l2_advancement_acceptance.py",
+        )
+
+    def test_ensure_topic_shell_seeds_concrete_l0_source_handoff_after_bootstrap(self) -> None:
+        self.orchestrate_topic.ensure_topic_shell(
+            self.knowledge_root,
+            "demo-topic",
+            "Recover the missing source chain for the topic.",
+            "Demo Topic",
+        )
+
+        run_root = self.knowledge_root / "feedback" / "topics" / "demo-topic" / "runs"
+        next_actions_files = sorted(run_root.glob("*-bootstrap/next_actions.md"))
+        self.assertEqual(len(next_actions_files), 1)
+        next_actions_text = next_actions_files[0].read_text(encoding="utf-8")
+
+        self.assertIn("source-layer/scripts/discover_and_register.py", next_actions_text)
+        self.assertIn("source-layer/scripts/register_arxiv_source.py", next_actions_text)
+        self.assertIn("intake/ARXIV_FIRST_SOURCE_INTAKE.md", next_actions_text)
+
+    def test_first_run_acceptance_parser_supports_registration_continuation(self) -> None:
+        parser = self.first_run_topic_acceptance.build_parser()
+        args = parser.parse_args(
+            [
+                "--topic-slug",
+                "fresh-demo-topic",
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                "metadata.json",
+                "--use-package-root-as-kernel",
+            ]
+        )
+
+        self.assertEqual(args.topic_slug, "fresh-demo-topic")
+        self.assertEqual(args.register_arxiv_id, "2401.00001v2")
+        self.assertEqual(args.registration_metadata_json, "metadata.json")
+        self.assertTrue(args.use_package_root_as_kernel)
+
+    def test_first_run_acceptance_script_runs_registration_and_refreshes_status(self) -> None:
+        work_root = Path(self._tmpdir.name) / "first-run-registration-acceptance"
+        tar_path = Path(self._tmpdir.name) / "source.tar"
+        tex_path = Path(self._tmpdir.name) / "paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_first_run_topic_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = self.first_run_topic_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics").exists())
+
+    def test_first_source_followthrough_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "first-source-followthrough-acceptance"
+        tar_path = Path(self._tmpdir.name) / "followthrough-source.tar"
+        tex_path = Path(self._tmpdir.name) / "followthrough-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "followthrough-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_first_source_followthrough_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = self.first_source_followthrough_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics").exists())
+
+    def test_staged_l2_reentry_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "staged-l2-reentry-acceptance"
+        tar_path = Path(self._tmpdir.name) / "reentry-source.tar"
+        tex_path = Path(self._tmpdir.name) / "reentry-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "reentry-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_staged_l2_reentry_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = self.staged_l2_reentry_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics").exists())
+
+    def test_staged_l2_advancement_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "staged-l2-advancement-acceptance"
+        tar_path = Path(self._tmpdir.name) / "advancement-source.tar"
+        tex_path = Path(self._tmpdir.name) / "advancement-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "advancement-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_staged_l2_advancement_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = self.staged_l2_advancement_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics").exists())
+
+    def test_consultation_followup_selection_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "consultation-followup-selection-acceptance"
+        tar_path = Path(self._tmpdir.name) / "consultation-followup-source.tar"
+        tex_path = Path(self._tmpdir.name) / "consultation-followup-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "consultation-followup-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        module = _load_module(
+            "aitp_consultation_followup_selection_acceptance_test",
+            "runtime/scripts/run_consultation_followup_selection_acceptance.py",
+        )
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_consultation_followup_selection_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics").exists())
+        self.assertTrue(
+            (
+                work_root
+                / "kernel"
+                / "runtime"
+                / "topics"
+                / "jones-chapter-4-finite-dimensional-backbone"
+                / "consultation_followup_selection.active.json"
+            ).exists()
+        )
+
+    def test_selected_candidate_route_choice_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "selected-candidate-route-choice-acceptance"
+        tar_path = Path(self._tmpdir.name) / "selected-candidate-route-choice-source.tar"
+        tex_path = Path(self._tmpdir.name) / "selected-candidate-route-choice-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "selected-candidate-route-choice-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        module = _load_module(
+            "aitp_selected_candidate_route_choice_acceptance_test",
+            "runtime/scripts/run_selected_candidate_route_choice_acceptance.py",
+        )
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_selected_candidate_route_choice_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "kernel"
+                / "runtime"
+                / "topics"
+                / "jones-chapter-4-finite-dimensional-backbone"
+                / "selected_candidate_route_choice.active.json"
+            ).exists()
+        )
+
+    def test_promotion_review_gate_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "promotion-review-gate-acceptance"
+        tar_path = Path(self._tmpdir.name) / "promotion-review-gate-source.tar"
+        tex_path = Path(self._tmpdir.name) / "promotion-review-gate-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "promotion-review-gate-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        module = _load_module(
+            "aitp_promotion_review_gate_acceptance_test",
+            "runtime/scripts/run_promotion_review_gate_acceptance.py",
+        )
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_promotion_review_gate_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "kernel"
+                / "runtime"
+                / "topics"
+                / "jones-chapter-4-finite-dimensional-backbone"
+                / "promotion_gate.json"
+            ).exists()
+        )
+
+    def test_selected_candidate_promotion_writeback_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "scpw"
+        tar_path = Path(self._tmpdir.name) / "selected-candidate-promotion-writeback-source.tar"
+        tex_path = Path(self._tmpdir.name) / "selected-candidate-promotion-writeback-paper.tex"
+        metadata_path = Path(self._tmpdir.name) / "selected-candidate-promotion-writeback-metadata.json"
+
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}demo\\end{document}\n",
+            encoding="utf-8",
+        )
+        with tarfile.open(tar_path, "w") as archive:
+            archive.add(tex_path, arcname="paper.tex")
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "arxiv_id": "2401.00001v2",
+                    "title": "Topological Order and Anyon Condensation",
+                    "summary": "A direct match for topological order and anyon condensation discovery.",
+                    "published": "2024-01-03T00:00:00Z",
+                    "updated": "2024-01-05T00:00:00Z",
+                    "authors": ["Primary Author", "Secondary Author"],
+                    "identifier": "https://arxiv.org/abs/2401.00001v2",
+                    "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                    "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                    "source_url": tar_path.as_uri(),
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        module = _load_module(
+            "aitp_selected_candidate_promotion_writeback_acceptance_test",
+            "runtime/scripts/run_selected_candidate_promotion_writeback_acceptance.py",
+        )
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_selected_candidate_promotion_writeback_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--register-arxiv-id",
+                "2401.00001v2",
+                "--registration-metadata-json",
+                str(metadata_path),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "kernel"
+                / "runtime"
+                / "topics"
+                / "jones-chapter-4-finite-dimensional-backbone"
+                / "promotion_gate.json"
+            ).exists()
         )
 
     def tearDown(self) -> None:
@@ -542,6 +1120,956 @@ class RuntimeScriptTests(unittest.TestCase):
         )
 
         self.assertEqual(queue[0]["action_type"], "skill_discovery")
+
+    def test_materialize_action_queue_appends_literature_intake_stage_in_literature_submode(self) -> None:
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            {
+                "runtime_mode": "explore",
+                "active_submode": "literature",
+                "transition_posture": {
+                    "transition_kind": "boundary_hold",
+                    "triggered_by": [],
+                },
+                "active_research_contract": {
+                    "l1_source_intake": {
+                        "source_count": 1,
+                        "method_specificity_rows": [
+                            {
+                                "source_id": "paper:weak-coupling",
+                                "source_title": "Weak coupling closure",
+                                "source_type": "paper",
+                                "method_family": "formal_derivation",
+                                "specificity_tier": "high",
+                                "reading_depth": "full_read",
+                                "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                            }
+                        ],
+                        "contradiction_candidates": [],
+                    }
+                },
+            },
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "pending_actions": [
+                    "Continue a bounded manual literature follow-up.",
+                ],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertEqual(queue[0]["action_type"], "literature_intake_stage")
+        self.assertEqual(queue[0]["queue_source"], "runtime_appended")
+        self.assertTrue(queue[0]["auto_runnable"])
+
+    def test_materialize_action_queue_advances_to_staging_review_after_matching_literature_stage(self) -> None:
+        runtime_payload = {
+            "runtime_mode": "explore",
+            "active_submode": "literature",
+            "transition_posture": {
+                "transition_kind": "boundary_hold",
+                "triggered_by": [],
+            },
+            "active_research_contract": {
+                "l1_source_intake": {
+                    "source_count": 1,
+                    "method_specificity_rows": [
+                        {
+                            "source_id": "paper:weak-coupling",
+                            "source_title": "Weak coupling closure",
+                            "source_type": "paper",
+                            "method_family": "formal_derivation",
+                            "specificity_tier": "high",
+                            "reading_depth": "full_read",
+                            "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                        }
+                    ],
+                    "contradiction_candidates": [],
+                }
+            },
+        }
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            runtime_payload,
+        )
+        signature = self.orchestrate_topic.compute_literature_intake_stage_signature(runtime_payload)
+        self._write_json(
+            "canonical/staging/entries/staging--demo-topic-existing.json",
+            {
+                "entry_id": "staging:demo-topic-existing",
+                "topic_slug": "demo-topic",
+                "entry_kind": "claim_card",
+                "candidate_unit_type": "claim_card",
+                "title": "Existing staged literature unit",
+                "summary": "Existing staged literature unit.",
+                "status": "staged",
+                "authoritative": False,
+                "path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "note_path": "canonical/staging/entries/staging--demo-topic-existing.md",
+                "provenance": {
+                    "literature_stage_signature": signature,
+                },
+            },
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "source_count": 1,
+                "pending_actions": [],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertFalse(any(row["action_type"] == "literature_intake_stage" for row in queue))
+        self.assertEqual(queue[0]["action_type"], "inspect_resume_state")
+        self.assertEqual(queue[0]["summary"], "Inspect the current L2 staging manifest before continuing.")
+
+    def test_materialize_action_queue_advances_past_staged_l2_review_after_later_continue(self) -> None:
+        runtime_payload = {
+            "runtime_mode": "explore",
+            "active_submode": "literature",
+            "transition_posture": {
+                "transition_kind": "boundary_hold",
+                "triggered_by": [],
+            },
+            "active_research_contract": {
+                "l1_source_intake": {
+                    "source_count": 1,
+                    "method_specificity_rows": [
+                        {
+                            "source_id": "paper:weak-coupling",
+                            "source_title": "Weak coupling closure",
+                            "source_type": "paper",
+                            "method_family": "formal_derivation",
+                            "specificity_tier": "high",
+                            "reading_depth": "full_read",
+                            "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                        }
+                    ],
+                    "contradiction_candidates": [],
+                }
+            },
+        }
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            runtime_payload,
+        )
+        signature = self.orchestrate_topic.compute_literature_intake_stage_signature(runtime_payload)
+        self._write_json(
+            "canonical/staging/entries/staging--demo-topic-existing.json",
+            {
+                "entry_id": "staging:demo-topic-existing",
+                "topic_slug": "demo-topic",
+                "entry_kind": "claim_card",
+                "candidate_unit_type": "claim_card",
+                "title": "Existing staged literature unit",
+                "summary": "Existing staged literature unit.",
+                "status": "staged",
+                "authoritative": False,
+                "updated_at": "2026-04-14T06:00:00+08:00",
+                "path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "note_path": "canonical/staging/entries/staging--demo-topic-existing.md",
+                "provenance": {
+                    "literature_stage_signature": signature,
+                },
+            },
+        )
+        self._write_jsonl(
+            "runtime/topics/demo-topic/innovation_decisions.jsonl",
+            [
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:05:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue the active topic under the current operator steering.",
+                }
+            ],
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "source_count": 1,
+                "pending_actions": [],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertEqual(queue[0]["action_type"], "consultation_followup")
+        self.assertEqual(
+            queue[0]["summary"],
+            "Consult the topic-local staged L2 memory and choose one bounded candidate before deeper execution.",
+        )
+
+    def test_materialize_action_queue_advances_to_selected_consultation_candidate_when_selection_exists(self) -> None:
+        runtime_payload = {
+            "runtime_mode": "explore",
+            "active_submode": "literature",
+            "transition_posture": {
+                "transition_kind": "boundary_hold",
+                "triggered_by": [],
+            },
+            "active_research_contract": {
+                "l1_source_intake": {
+                    "source_count": 1,
+                    "method_specificity_rows": [
+                        {
+                            "source_id": "paper:weak-coupling",
+                            "source_title": "Weak coupling closure",
+                            "source_type": "paper",
+                            "method_family": "formal_derivation",
+                            "specificity_tier": "high",
+                            "reading_depth": "full_read",
+                            "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                        }
+                    ],
+                    "contradiction_candidates": [],
+                }
+            },
+        }
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            runtime_payload,
+        )
+        signature = self.orchestrate_topic.compute_literature_intake_stage_signature(runtime_payload)
+        self._write_json(
+            "canonical/staging/entries/staging--demo-topic-existing.json",
+            {
+                "entry_id": "staging:demo-topic-existing",
+                "topic_slug": "demo-topic",
+                "entry_kind": "claim_card",
+                "candidate_unit_type": "claim_card",
+                "title": "Existing staged literature unit",
+                "summary": "Existing staged literature unit.",
+                "status": "staged",
+                "authoritative": False,
+                "updated_at": "2026-04-14T06:00:00+08:00",
+                "path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "note_path": "canonical/staging/entries/staging--demo-topic-existing.md",
+                "provenance": {
+                    "literature_stage_signature": signature,
+                },
+            },
+        )
+        self._write_jsonl(
+            "runtime/topics/demo-topic/innovation_decisions.jsonl",
+            [
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:05:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue the active topic under the current operator steering.",
+                }
+            ],
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/consultation_followup_selection.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selection_reason": "Selected the first topic-local staged hit from the bounded consultation result.",
+            },
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "source_count": 1,
+                "pending_actions": [],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertEqual(queue[0]["action_type"], "selected_consultation_candidate_followup")
+        self.assertIn("Review the selected staged candidate", queue[0]["summary"])
+        self.assertEqual(queue[0]["handler_args"]["candidate_id"], "staging:demo-topic-existing")
+
+    def test_materialize_action_queue_advances_beyond_selected_consultation_candidate_after_later_continue(self) -> None:
+        runtime_payload = {
+            "runtime_mode": "explore",
+            "active_submode": "literature",
+            "transition_posture": {
+                "transition_kind": "boundary_hold",
+                "triggered_by": [],
+            },
+            "active_research_contract": {
+                "l1_source_intake": {
+                    "source_count": 1,
+                    "method_specificity_rows": [
+                        {
+                            "source_id": "paper:weak-coupling",
+                            "source_title": "Weak coupling closure",
+                            "source_type": "paper",
+                            "method_family": "formal_derivation",
+                            "specificity_tier": "high",
+                            "reading_depth": "full_read",
+                            "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                        }
+                    ],
+                    "contradiction_candidates": [],
+                }
+            },
+        }
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            runtime_payload,
+        )
+        signature = self.orchestrate_topic.compute_literature_intake_stage_signature(runtime_payload)
+        self._write_json(
+            "canonical/staging/entries/staging--demo-topic-existing.json",
+            {
+                "entry_id": "staging:demo-topic-existing",
+                "topic_slug": "demo-topic",
+                "entry_kind": "concept",
+                "candidate_unit_type": "concept",
+                "title": "Existing staged literature unit",
+                "summary": "Existing staged literature unit.",
+                "status": "staged",
+                "authoritative": False,
+                "updated_at": "2026-04-14T06:00:00+08:00",
+                "path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "note_path": "canonical/staging/entries/staging--demo-topic-existing.md",
+                "provenance": {
+                    "literature_stage_signature": signature,
+                },
+            },
+        )
+        self._write_jsonl(
+            "runtime/topics/demo-topic/innovation_decisions.jsonl",
+            [
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-01",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:05:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after staged review.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-02",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:06:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue into consultation follow-up.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-03",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:07:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue beyond selected candidate summary.",
+                },
+            ],
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/next_action_decision.json",
+            {
+                "topic_slug": "demo-topic",
+                "updated_at": "2026-04-14T06:06:00+08:00",
+                "selected_action": {
+                    "action_type": "selected_consultation_candidate_followup",
+                },
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/consultation_followup_selection.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_trust_surface": "staging",
+                "selected_candidate_topic_slug": "demo-topic",
+                "selection_reason": "Selected the first topic-local staged hit from the bounded consultation result.",
+            },
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "source_count": 1,
+                "pending_actions": [],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertEqual(queue[0]["action_type"], "l2_promotion_review")
+        self.assertIn("Review Layer 2 promotion", queue[0]["summary"])
+        self.assertEqual(queue[0]["handler_args"]["candidate_id"], "staging:demo-topic-existing")
+
+    def test_materialize_action_queue_materializes_promotion_review_gate_after_later_continue(self) -> None:
+        runtime_payload = {
+            "runtime_mode": "explore",
+            "active_submode": "literature",
+            "transition_posture": {
+                "transition_kind": "boundary_hold",
+                "triggered_by": [],
+            },
+            "active_research_contract": {
+                "l1_source_intake": {
+                    "source_count": 1,
+                    "method_specificity_rows": [
+                        {
+                            "source_id": "paper:weak-coupling",
+                            "source_title": "Weak coupling closure",
+                            "source_type": "paper",
+                            "method_family": "formal_derivation",
+                            "specificity_tier": "high",
+                            "reading_depth": "full_read",
+                            "evidence_excerpt": "Derives the bounded closure in weak coupling.",
+                        }
+                    ],
+                    "contradiction_candidates": [],
+                }
+            },
+        }
+        self._write_json(
+            "runtime/topics/demo-topic/runtime_protocol.generated.json",
+            runtime_payload,
+        )
+        signature = self.orchestrate_topic.compute_literature_intake_stage_signature(runtime_payload)
+        self._write_json(
+            "canonical/staging/entries/staging--demo-topic-existing.json",
+            {
+                "entry_id": "staging:demo-topic-existing",
+                "topic_slug": "demo-topic",
+                "entry_kind": "concept",
+                "candidate_unit_type": "concept",
+                "title": "Existing staged literature unit",
+                "summary": "Existing staged literature unit.",
+                "status": "staged",
+                "authoritative": False,
+                "updated_at": "2026-04-14T06:00:00+08:00",
+                "path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "note_path": "canonical/staging/entries/staging--demo-topic-existing.md",
+                "provenance": {
+                    "literature_stage_signature": signature,
+                },
+            },
+        )
+        self._write_jsonl(
+            "runtime/topics/demo-topic/innovation_decisions.jsonl",
+            [
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-01",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:05:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after staged review.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-02",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:06:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue into consultation follow-up.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-03",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:07:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue beyond selected candidate summary.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-04",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:08:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue from promotion-review summary into the first explicit gate.",
+                },
+            ],
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/next_action_decision.json",
+            {
+                "topic_slug": "demo-topic",
+                "updated_at": "2026-04-14T06:07:00+08:00",
+                "selected_action": {
+                    "action_type": "l2_promotion_review",
+                },
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/consultation_followup_selection.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_trust_surface": "staging",
+                "selected_candidate_topic_slug": "demo-topic",
+                "selection_reason": "Selected the first topic-local staged hit from the bounded consultation result.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/selected_candidate_route_choice.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_unit_type": "concept",
+                "chosen_action_type": "l2_promotion_review",
+                "chosen_action_summary": "Review Layer 2 promotion for selected staged candidate `staging:demo-topic-existing` before deeper execution.",
+                "route_choice_reason": "Selected staged reusable units should first enter bounded Layer 2 promotion review.",
+            },
+        )
+
+        queue, queue_meta = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L1",
+                "source_count": 1,
+                "pending_actions": [],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertEqual(queue[0]["action_type"], "approve_promotion")
+        self.assertIn("promotion gate", queue[0]["summary"].lower())
+        self.assertEqual(queue[0]["handler_args"]["candidate_id"], "staging:demo-topic-existing")
+        gate_payload = queue_meta.get("selected_candidate_promotion_gate_payload")
+        self.assertIsInstance(gate_payload, dict)
+        self.assertEqual(gate_payload["status"], "pending_human_approval")
+        self.assertEqual(gate_payload["candidate_id"], "staging:demo-topic-existing")
+
+    def test_materialize_action_queue_does_not_repeat_completion_refresh_when_completion_is_current(self) -> None:
+        self._write_json(
+            "runtime/topics/demo-topic/consultation_followup_selection.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_trust_surface": "staging",
+                "selected_candidate_topic_slug": "demo-topic",
+                "selection_reason": "Selected the first topic-local staged hit from the bounded consultation result.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/selected_candidate_route_choice.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_unit_type": "concept",
+                "chosen_action_type": "l2_promotion_review",
+                "chosen_action_summary": "Review Layer 2 promotion for selected staged candidate `staging:demo-topic-existing` before deeper execution.",
+                "route_choice_reason": "Selected staged reusable units should first enter bounded Layer 2 promotion review.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/promotion_gate.json",
+            {
+                "status": "promoted",
+                "candidate_id": "staging:demo-topic-existing",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/topic_completion.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "promoted",
+                "candidate_count": 1,
+                "followup_subtopic_count": 0,
+            },
+        )
+        self._write_jsonl(
+            "feedback/topics/demo-topic/runs/2026-03-13-demo/candidate_ledger.jsonl",
+            [
+                {
+                    "candidate_id": "staging:demo-topic-existing",
+                    "candidate_type": "concept",
+                    "status": "promoted",
+                    "summary": "Existing staged literature unit.",
+                    "title": "Existing staged literature unit",
+                }
+            ],
+        )
+
+        queue, _ = self.orchestrate_topic.materialize_action_queue(
+            {
+                "topic_slug": "demo-topic",
+                "latest_run_id": "2026-03-13-demo",
+                "resume_stage": "L2",
+                "source_count": 1,
+                "pending_actions": [],
+            },
+            [],
+            self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+            self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+            self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+            self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+            self.knowledge_root,
+        )
+
+        self.assertNotEqual(queue[0]["action_type"], "assess_topic_completion")
+
+    def test_materialize_action_queue_advances_beyond_post_promotion_inspect_after_later_continue(self) -> None:
+        self._write_json(
+            "runtime/topics/demo-topic/consultation_followup_selection.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_trust_surface": "staging",
+                "selected_candidate_topic_slug": "demo-topic",
+                "selection_reason": "Selected the first topic-local staged hit from the bounded consultation result.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/selected_candidate_route_choice.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_unit_type": "concept",
+                "chosen_action_type": "l2_promotion_review",
+                "chosen_action_summary": "Review Layer 2 promotion for selected staged candidate `staging:demo-topic-existing` before deeper execution.",
+                "route_choice_reason": "Selected staged reusable units should first enter bounded Layer 2 promotion review.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/promotion_gate.json",
+            {
+                "status": "promoted",
+                "candidate_id": "staging:demo-topic-existing",
+                "promoted_at": "2026-04-14T06:09:00+08:00",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/topic_completion.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "promoted",
+                "candidate_count": 1,
+                "followup_subtopic_count": 0,
+                "completion_gate_checks": [
+                    {
+                        "check": "regression_questions_present",
+                        "status": "blocked",
+                        "summary": "No stable regression question ids are attached to the active topic.",
+                    },
+                    {
+                        "check": "question_oracles_present",
+                        "status": "blocked",
+                        "summary": "No stable question oracle ids are attached to the active topic.",
+                    },
+                ],
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/next_action_decision.json",
+            {
+                "topic_slug": "demo-topic",
+                "updated_at": "2026-04-14T06:09:30+08:00",
+                "selected_action": {
+                    "action_type": "inspect_resume_state",
+                },
+            },
+        )
+        self._write_jsonl(
+            "runtime/topics/demo-topic/innovation_decisions.jsonl",
+            [
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-01",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:10:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after promoted writeback.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-02",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:11:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after promoted writeback inspection.",
+                }
+            ],
+        )
+        self._write_jsonl(
+            "feedback/topics/demo-topic/runs/2026-03-13-demo/candidate_ledger.jsonl",
+            [
+                {
+                    "candidate_id": "staging:demo-topic-existing",
+                    "candidate_type": "concept",
+                    "status": "promoted",
+                    "summary": "Existing staged literature unit.",
+                    "title": "Existing staged literature unit",
+                }
+            ],
+        )
+
+        with patch.object(
+            self.orchestrate_topic,
+            "append_runtime_helper_actions",
+            side_effect=lambda queue, **kwargs: None,
+        ):
+            queue, queue_meta = self.orchestrate_topic.materialize_action_queue(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L2",
+                    "source_count": 1,
+                    "pending_actions": [],
+                },
+                [],
+                self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+                self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+                self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+                self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+                self.knowledge_root,
+            )
+
+        self.assertEqual(queue[0]["action_type"], "review_topic_completion_blockers")
+        self.assertIn("regression question ids", queue[0]["summary"])
+        followup_payload = queue_meta.get("post_promotion_followup_payload")
+        self.assertIsInstance(followup_payload, dict)
+        self.assertEqual(followup_payload["chosen_action_type"], "review_topic_completion_blockers")
+
+    def test_materialize_action_queue_advances_beyond_topic_completion_blocker_review(self) -> None:
+        self._write_json(
+            "runtime/topics/demo-topic/consultation_followup_selection.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_trust_surface": "staging",
+                "selected_candidate_topic_slug": "demo-topic",
+                "selection_reason": "Selected the first topic-local staged hit from the bounded consultation result.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/selected_candidate_route_choice.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "selected_candidate_id": "staging:demo-topic-existing",
+                "selected_candidate_path": "canonical/staging/entries/staging--demo-topic-existing.json",
+                "selected_candidate_title": "Existing staged literature unit",
+                "selected_candidate_unit_type": "concept",
+                "chosen_action_type": "l2_promotion_review",
+                "chosen_action_summary": "Review Layer 2 promotion for selected staged candidate `staging:demo-topic-existing` before deeper execution.",
+                "route_choice_reason": "Selected staged reusable units should first enter bounded Layer 2 promotion review.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/promotion_gate.json",
+            {
+                "status": "promoted",
+                "candidate_id": "staging:demo-topic-existing",
+                "promoted_at": "2026-04-14T06:09:00+08:00",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/topic_completion.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "promoted",
+                "candidate_count": 1,
+                "followup_subtopic_count": 0,
+                "completion_gate_checks": [
+                    {
+                        "check": "regression_questions_present",
+                        "status": "blocked",
+                        "summary": "No stable regression question ids are attached to the active topic.",
+                    }
+                ],
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/post_promotion_followup.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "selected",
+                "candidate_id": "staging:demo-topic-existing",
+                "promotion_gate_status": "promoted",
+                "topic_completion_status": "promoted",
+                "blocked_checks": [
+                    {
+                        "check": "regression_questions_present",
+                        "status": "blocked",
+                        "summary": "No stable regression question ids are attached to the active topic.",
+                    }
+                ],
+                "chosen_action_type": "review_topic_completion_blockers",
+                "chosen_action_summary": "Review post-promotion completion blockers before opening another bounded route: No stable regression question ids are attached to the active topic.",
+                "followup_reason": "Layer 2 writeback is complete, so the next honest bounded work is to review the remaining topic-completion blockers instead of repeating a generic resume-state inspection.",
+            },
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/next_action_decision.json",
+            {
+                "topic_slug": "demo-topic",
+                "updated_at": "2026-04-14T06:11:30+08:00",
+                "selected_action": {
+                    "action_type": "review_topic_completion_blockers",
+                },
+            },
+        )
+        self._write_jsonl(
+            "runtime/topics/demo-topic/innovation_decisions.jsonl",
+            [
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-01",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:10:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after promoted writeback.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-02",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:11:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after promoted writeback inspection.",
+                },
+                {
+                    "decision_id": "innovation-decision:demo-topic:continue-03",
+                    "topic_slug": "demo-topic",
+                    "updated_at": "2026-04-14T06:12:00+08:00",
+                    "decision": "continue",
+                    "summary": "Continue after reviewing topic-completion blockers.",
+                },
+            ],
+        )
+        self._write_jsonl(
+            "feedback/topics/demo-topic/runs/2026-03-13-demo/candidate_ledger.jsonl",
+            [
+                {
+                    "candidate_id": "staging:demo-topic-existing",
+                    "candidate_type": "concept",
+                    "status": "promoted",
+                    "summary": "Existing staged literature unit.",
+                    "title": "Existing staged literature unit",
+                    "supporting_regression_question_ids": [],
+                    "supporting_oracle_ids": [],
+                    "supporting_regression_run_ids": [],
+                }
+            ],
+        )
+        self._write_json(
+            "runtime/topics/demo-topic/statement_compilation.active.json",
+            {
+                "topic_slug": "demo-topic",
+                "run_id": "2026-03-13-demo",
+                "status": "needs_repair",
+                "packet_count": 1,
+                "ready_packet_count": 0,
+                "needs_repair_count": 1,
+                "packets": [
+                    {
+                        "candidate_id": "staging:demo-topic-existing",
+                        "candidate_type": "concept",
+                        "statement_kind": "definition",
+                        "status": "needs_repair",
+                        "proof_hole_count": 2,
+                    }
+                ],
+            },
+        )
+
+        with patch.object(
+            self.orchestrate_topic,
+            "append_runtime_helper_actions",
+            side_effect=lambda queue, **kwargs: None,
+        ):
+            queue, queue_meta = self.orchestrate_topic.materialize_action_queue(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L2",
+                    "source_count": 1,
+                    "pending_actions": [],
+                },
+                [],
+                self.knowledge_root / "runtime" / "scripts" / "discover_external_skills.py",
+                self.knowledge_root / "runtime" / "scripts" / "advance_closed_loop.py",
+                self.knowledge_root / "runtime" / "scripts" / "handoff_execution.py",
+                self.knowledge_root / "runtime" / "scripts" / "run_literature_followup.py",
+                self.knowledge_root,
+            )
+
+        self.assertEqual(queue[0]["action_type"], "review_statement_compilation")
+        self.assertIn("statement-compilation", queue[0]["summary"])
+        blocker_route_payload = queue_meta.get("post_promotion_blocker_route_choice_payload")
+        self.assertIsInstance(blocker_route_payload, dict)
+        self.assertEqual(blocker_route_payload["chosen_action_type"], "review_statement_compilation")
 
     def test_materialize_action_queue_prefers_promotion_review_in_promote_mode(self) -> None:
         self._write_json(
@@ -995,6 +2523,67 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertEqual(unfinished["queue_head_action_id"], "action:demo:2")
         self.assertEqual(decision["selected_action"]["action_id"], "action:demo:2")
         self.assertEqual(decision["decision_basis"], "runtime_contract_preferred:skill_discovery")
+
+    def test_decide_next_action_prefers_literature_intake_stage_in_literature_submode(self) -> None:
+        topic_runtime_root = self.knowledge_root / "runtime" / "topics" / "demo-topic"
+        topic_runtime_root.mkdir(parents=True, exist_ok=True)
+        (topic_runtime_root / "runtime_protocol.generated.json").write_text(
+            json.dumps(
+                {
+                    "runtime_mode": "explore",
+                    "active_submode": "literature",
+                    "transition_posture": {
+                        "transition_kind": "boundary_hold",
+                        "triggered_by": [],
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        topic_state = {
+            "topic_slug": "demo-topic",
+            "resume_stage": "L1",
+            "latest_run_id": "2026-03-13-demo",
+        }
+        queue_rows = [
+            {
+                "action_id": "action:demo:1",
+                "action_type": "manual_followup",
+                "summary": "Keep a manual follow-up open.",
+                "status": "pending",
+                "auto_runnable": False,
+            },
+            {
+                "action_id": "action:demo:2",
+                "action_type": "literature_intake_stage",
+                "summary": "Stage bounded literature-intake units from the current L1 vault into L2 staging.",
+                "status": "pending",
+                "auto_runnable": True,
+            },
+        ]
+        control_note = {"status": "missing", "directive": None, "allow_override_decision_contract": False}
+        runtime_contract = self.decide_next_action.load_runtime_contract(topic_runtime_root)
+
+        unfinished = self.decide_next_action.build_unfinished_work(
+            topic_state,
+            queue_rows,
+            control_note,
+            runtime_contract,
+        )
+        decision = self.decide_next_action.build_next_action_decision(
+            topic_state,
+            queue_rows,
+            control_note,
+            runtime_contract,
+        )
+
+        self.assertEqual(unfinished["queue_head_action_id"], "action:demo:2")
+        self.assertEqual(decision["selected_action"]["action_id"], "action:demo:2")
+        self.assertEqual(decision["decision_basis"], "runtime_contract_preferred:literature_intake_stage")
 
     def test_decide_next_action_prefers_promotion_review_in_promote_mode(self) -> None:
         topic_runtime_root = self.knowledge_root / "runtime" / "topics" / "demo-topic"
@@ -1570,6 +3159,62 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "discoveries").exists())
         self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
         self.assertTrue((work_root / "kernel" / "source-layer" / "global_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "sources").exists())
+
+    def test_l0_source_enrichment_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l0-source-enrichment-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l0_source_enrichment_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l0_source_enrichment_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "sources").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "sources").exists())
+
+    def test_l0_source_concept_graph_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l0-source-concept-graph-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l0_source_concept_graph_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l0_source_concept_graph_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "source_index.jsonl").exists())
+        self.assertTrue((work_root / "kernel" / "source-layer" / "topics" / "demo-topic" / "sources").exists())
+
+    def test_l1_concept_graph_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-concept-graph-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_concept_graph_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_concept_graph_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
 
     def test_l1_assumption_depth_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "l1-assumption-depth-acceptance"
@@ -1589,6 +3234,584 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
         self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_dashboard.md").exists())
         self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_l1_contradiction_surface_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_l1_contradiction_surface_acceptance_test",
+            "runtime/scripts/run_l1_contradiction_surface_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "l1-contradiction-surface-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_contradiction_surface_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "topic_dashboard.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_analytical_cross_check_surface_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_analytical_cross_check_surface_acceptance_test",
+            "runtime/scripts/run_analytical_cross_check_surface_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "analytical-cross-check-surface-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_analytical_cross_check_surface_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "validation_review_bundle.active.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+
+    def test_analytical_judgment_surface_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_analytical_judgment_surface_acceptance_test",
+            "runtime/scripts/run_analytical_judgment_surface_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "analytical-judgment-surface-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_analytical_judgment_surface_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "validation_review_bundle.active.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+
+    def test_formal_positive_l2_acceptance_parser_supports_fresh_topic_inputs(self) -> None:
+        module = _load_module(
+            "aitp_formal_positive_l2_acceptance_test",
+            "runtime/scripts/run_formal_positive_l2_acceptance.py",
+        )
+
+        parser = module.build_parser()
+        args = parser.parse_args(
+            [
+                "--topic",
+                "Fresh Jones finite-dimensional factor closure",
+                "--question",
+                "Promote one bounded Jones finite-dimensional factor result into authoritative L2.",
+                "--reference-topic-slug",
+                "jones-von-neumann-algebras",
+                "--json",
+            ]
+        )
+
+        self.assertEqual(args.topic, "Fresh Jones finite-dimensional factor closure")
+        self.assertEqual(
+            args.question,
+            "Promote one bounded Jones finite-dimensional factor result into authoritative L2.",
+        )
+        self.assertEqual(args.reference_topic_slug, "jones-von-neumann-algebras")
+        self.assertTrue(args.json)
+
+    def test_positive_negative_l2_coexistence_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_positive_negative_l2_coexistence_acceptance_test",
+            "runtime/scripts/run_positive_negative_l2_coexistence_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "pnco"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_positive_negative_l2_coexistence_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "compiled" / "workspace_knowledge_report.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "theorem-cards" / "theorem_card--jones-ch4-finite-product.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "staging" / "entries").exists())
+
+    def test_hs_toy_model_target_contract_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_hs_toy_model_target_contract_acceptance_test",
+            "runtime/scripts/run_hs_toy_model_target_contract_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "hsct"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hs_toy_model_target_contract_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "knowledge-hub" / "runtime" / "topics").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "source-layer" / "topics").exists())
+
+    def test_hs_positive_l2_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_hs_positive_l2_acceptance_test",
+            "runtime/scripts/run_hs_positive_l2_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "hsp"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hs_positive_l2_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "claim-cards" / "claim_card--hs-like-chaos-window-finite-size-core.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "compiled" / "workspace_knowledge_report.json").exists())
+
+    def test_hs_positive_negative_coexistence_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_hs_positive_negative_coexistence_acceptance_test",
+            "runtime/scripts/run_hs_positive_negative_coexistence_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "hspn"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_hs_positive_negative_coexistence_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "compiled" / "workspace_knowledge_report.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "claim-cards" / "claim_card--hs-like-chaos-window-finite-size-core.json").exists())
+        self.assertTrue((work_root / "knowledge-hub" / "canonical" / "staging" / "entries" / "staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json").exists())
+
+    def test_librpa_qsgw_target_contract_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_librpa_qsgw_target_contract_acceptance_test",
+            "runtime/scripts/run_librpa_qsgw_target_contract_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "lqtc"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_librpa_qsgw_target_contract_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        runtime_topics_root = work_root / "knowledge-hub" / "runtime" / "topics"
+        source_topics_root = work_root / "knowledge-hub" / "source-layer" / "topics"
+        feedback_root = work_root / "knowledge-hub" / "feedback" / "topics"
+        self.assertTrue(runtime_topics_root.exists())
+        self.assertTrue(source_topics_root.exists())
+        self.assertTrue(any(runtime_topics_root.glob("*/librpa_qsgw_target_contract.json")))
+        self.assertTrue(any(source_topics_root.glob("*/source_index.jsonl")))
+        self.assertTrue(any(feedback_root.glob("*/runs/*/candidate_ledger.jsonl")))
+
+    def test_librpa_qsgw_positive_l2_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_librpa_qsgw_positive_l2_acceptance_test",
+            "runtime/scripts/run_librpa_qsgw_positive_l2_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "lqpl2"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_librpa_qsgw_positive_l2_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "claim-cards"
+                / "claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json"
+            ).exists()
+        )
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "compiled"
+                / "workspace_knowledge_report.json"
+            ).exists()
+        )
+
+    def test_first_principles_real_topic_dialogue_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_first_principles_real_topic_dialogue_acceptance_test",
+            "runtime/scripts/run_first_principles_real_topic_dialogue_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "fprtd"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_first_principles_real_topic_dialogue_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "claim-cards"
+                / "claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json"
+            ).exists()
+        )
+        self.assertTrue(
+            any(
+                (
+                    work_root
+                    / "knowledge-hub"
+                    / "runtime"
+                    / "topics"
+                ).glob("*/interaction_state.json")
+            )
+        )
+
+    def test_formal_real_topic_dialogue_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_formal_real_topic_dialogue_acceptance_test",
+            "runtime/scripts/run_formal_real_topic_dialogue_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "frtd"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_formal_real_topic_dialogue_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "theorem-cards"
+                / "theorem_card--jones-ch4-finite-product.json"
+            ).exists()
+        )
+        self.assertTrue(
+            any(
+                (
+                    work_root
+                    / "knowledge-hub"
+                    / "runtime"
+                    / "topics"
+                ).glob("*/interaction_state.json")
+            )
+        )
+
+    def test_toy_model_real_topic_dialogue_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_toy_model_real_topic_dialogue_acceptance_test",
+            "runtime/scripts/run_toy_model_real_topic_dialogue_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "trtd"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_toy_model_real_topic_dialogue_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(
+            (
+                work_root
+                / "knowledge-hub"
+                / "canonical"
+                / "claim-cards"
+                / "claim_card--hs-like-chaos-window-finite-size-core.json"
+            ).exists()
+        )
+        self.assertTrue(
+            any(
+                (
+                    work_root
+                    / "knowledge-hub"
+                    / "runtime"
+                    / "topics"
+                ).glob("*/interaction_state.json")
+            )
+        )
+
+    def test_l1_progressive_reading_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-progressive-reading-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_progressive_reading_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_progressive_reading_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "research_question.contract.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_l1_graph_analysis_staging_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-analysis-staging-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_analysis_staging_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_analysis_staging_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "runtime_protocol.generated.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "source-intake.md").exists())
+
+    def test_l1_graph_diff_runtime_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-diff-runtime-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_diff_runtime_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_diff_runtime_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.md").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis_history.jsonl").exists())
+
+    def test_l1_graph_diff_staging_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-diff-staging-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_diff_staging_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_diff_staging_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis_history.jsonl").exists())
+
+    def test_l1_graph_community_bridge_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-community-bridge-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_community_bridge_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_community_bridge_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.md").exists())
+
+    def test_l1_graph_hyperedge_pattern_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-hyperedge-pattern-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_hyperedge_pattern_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_hyperedge_pattern_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-topic" / "graph_analysis.md").exists())
+
+    def test_multi_paper_l2_relevance_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        module = _load_module(
+            "aitp_multi_paper_l2_relevance_acceptance_test",
+            "runtime/scripts/run_multi_paper_l2_relevance_acceptance.py",
+        )
+        work_root = Path(self._tmpdir.name) / "multi-paper-l2-relevance-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_multi_paper_l2_relevance_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "canonical" / "compiled" / "workspace_knowledge_report.json").exists())
+
+    def test_l1_graph_obsidian_export_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-obsidian-export-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_obsidian_export_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_obsidian_export_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "manifest.json").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "index.md").exists())
+
+    def test_l1_graph_obsidian_multicommunity_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-obsidian-multicommunity-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_obsidian_multicommunity_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_obsidian_multicommunity_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "category-theory-cluster" / "index.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "topological-order-cluster" / "index.md").exists())
+
+    def test_l1_graph_obsidian_brain_bridge_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "l1-graph-obsidian-brain-bridge-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_l1_graph_obsidian_brain_bridge_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.l1_graph_obsidian_brain_bridge_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "brain" / "90 AITP Imports" / "concept-graphs" / "demo-topic" / "index.md").exists())
+        self.assertTrue((work_root / "kernel" / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph" / "theoretical_physics_brain_sync.receipt.json").exists())
+
+    def test_mode_enforcement_acceptance_script_runs_on_isolated_work_root(self) -> None:
+        work_root = Path(self._tmpdir.name) / "mode-enforcement-acceptance"
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run_mode_enforcement_acceptance.py",
+                "--work-root",
+                str(work_root),
+                "--json",
+            ],
+        ):
+            exit_code = self.mode_enforcement_acceptance.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-discussion" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-explore" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-verify" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "runtime" / "topics" / "demo-promote" / "runtime_protocol.generated.json").exists())
+        self.assertTrue((work_root / "kernel" / "canonical" / "staging" / "workspace_staging_manifest.json").exists())
 
     def test_transition_history_acceptance_script_runs_on_isolated_work_root(self) -> None:
         work_root = Path(self._tmpdir.name) / "transition-history-acceptance"

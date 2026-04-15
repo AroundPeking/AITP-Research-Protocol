@@ -36,6 +36,13 @@ from .research_judgment_runtime_support import (
 )
 from .runtime_read_path_support import normalize_competing_hypotheses
 from .runtime_projection_handler import write_topic_skill_projection
+from .graph_analysis_tools import (
+    build_graph_analysis_surface,
+    graph_analysis_paths,
+    render_graph_analysis_markdown,
+    write_graph_analysis_history,
+)
+from .validation_review_service import analytical_cross_check_markdown_lines
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -392,11 +399,14 @@ def derive_operator_checkpoint(
         checkpoint_kind = "promotion_approval"
         candidate_id = str(promotion_gate.get("candidate_id") or "").strip() or "(missing)"
         backend_id = str(promotion_gate.get("backend_id") or "").strip() or "(missing)"
-        question = f"Should AITP approve promotion for `{candidate_id}` into `{backend_id}`?"
-        required_response = "Approve, reject, or narrow the current promotion request before writeback continues."
+        question = f"Is `{candidate_id}` ready to save as reusable knowledge in `{backend_id}`?"
+        required_response = (
+            "Say whether this is ready to save as reusable knowledge, should be rejected, "
+            "or should be narrowed before writeback continues."
+        )
         blocker_summary = self._dedupe_strings(
             list(promotion_gate.get("promotion_blockers") or [])
-            or ["Promotion is waiting for an explicit human decision."]
+            or ["A reusable-knowledge decision is waiting for an explicit human response."]
         )
         evidence_refs = self._dedupe_strings(
             [
@@ -417,7 +427,7 @@ def derive_operator_checkpoint(
         checkpoint_kind = "execution_lane_confirmation"
         question = "AITP has prepared an L4 execution plan and needs the operator to confirm the execution lane before dispatch."
         required_response = (
-            "Confirm whether this should stay local, use an external runtime/server lane, switch to Lean/formal work, or be narrowed to a cheaper bounded route."
+            "Confirm whether this should stay local, use an external runtime/server lane, switch to Lean/formal work, or be narrowed to a cheaper chosen approach."
         )
         blocker_summary = self._dedupe_strings(
             [
@@ -446,11 +456,11 @@ def derive_operator_checkpoint(
         )
     elif any(needle in selected_action_summary_lower for needle in ("contradiction", "conflict", "regime mismatch")):
         checkpoint_kind = "contradiction_adjudication"
-        question = "AITP found a contradiction-style blocker and needs the operator to choose the adjudication route."
-        required_response = "Choose whether to split regimes, downgrade the claim, or return to L0 for source recovery."
+        question = "AITP found a contradiction-style blocker and needs the operator to choose how to judge this."
+        required_response = "Choose whether to split regimes, downgrade the claim, or restart from source intake."
         blocker_summary = [
             selected_action_summary or "An unresolved contradiction/regime conflict is active.",
-            "Do not let the queue guess the adjudication route without an explicit operator choice.",
+            "Do not let the queue guess how to judge this without an explicit operator choice.",
         ]
         evidence_refs = [
             self._relativize(self._gap_map_path(topic_slug)),
@@ -616,6 +626,7 @@ def render_topic_dashboard_markdown(
     topic_slug: str,
     topic_state: dict[str, Any],
     source_intelligence: dict[str, Any],
+    graph_analysis: dict[str, Any],
     runtime_focus: dict[str, Any],
     selected_pending_action: dict[str, Any] | None,
     pending_actions: list[dict[str, Any]],
@@ -637,6 +648,7 @@ def render_topic_dashboard_markdown(
     selected_action_summary = str(runtime_focus.get("next_action_summary") or "").strip()
     if not selected_action_summary:
         selected_action_summary = str((selected_pending_action or {}).get("summary") or "").strip() or "(none)"
+    l0_source_handoff = runtime_focus.get("l0_source_handoff") or {}
     current_route_choice = topic_status_explainability.get("current_route_choice") or {}
     last_evidence_return = topic_status_explainability.get("last_evidence_return") or {}
     active_human_need = topic_status_explainability.get("active_human_need") or {}
@@ -747,9 +759,68 @@ def render_topic_dashboard_markdown(
         "",
         source_intelligence.get("summary") or "(missing)",
         "",
+        "## Graph analysis",
+        "",
+        f"- Connection count: `{((graph_analysis.get('summary') or {}).get('connection_count') or 0)}`",
+        f"- Question count: `{((graph_analysis.get('summary') or {}).get('question_count') or 0)}`",
+        f"- History length: `{((graph_analysis.get('summary') or {}).get('history_length') or 0)}`",
+        f"- Note path: `{graph_analysis.get('note_path') or '(missing)'}`",
+        "",
         "## L1 intake honesty",
         "",
     ]
+    if l0_source_handoff:
+        lines[730:730] = [
+            "## L0 source handoff",
+            "",
+            f"- Status: `{l0_source_handoff.get('status') or '(missing)'}`",
+            f"- Summary: {l0_source_handoff.get('summary') or '(missing)'}",
+            f"- Primary lane: `{l0_source_handoff.get('primary_path') or '(missing)'}`",
+            f"- Use when: {l0_source_handoff.get('primary_when') or '(missing)'}",
+            "",
+            "### Alternate entries",
+            "",
+        ] + [
+            f"- `{row.get('path') or '(missing)'}`: {row.get('when') or '(missing)'}"
+            if isinstance(row, dict)
+            else f"- {row}"
+            for row in (l0_source_handoff.get("alternate_entries") or ["(none)"])
+        ] + [
+            "",
+        ]
+    for item in graph_analysis.get("connections") or ["(none)"]:
+        if item == (graph_analysis.get("connections") or [None])[0]:
+            lines.extend(["### Graph connections", ""])
+        if isinstance(item, dict):
+            lines.append(
+                f"- `{item.get('kind') or '(missing)'}` `{item.get('bridge_label') or '(missing)'}`: "
+                f"{item.get('detail') or '(missing)'}"
+            )
+        else:
+            lines.append(f"- {item}")
+    for item in graph_analysis.get("questions") or ["(none)"]:
+        if item == (graph_analysis.get("questions") or [None])[0]:
+            lines.extend(["", "### Graph question seeds", ""])
+        if isinstance(item, dict):
+            lines.append(
+                f"- `{item.get('question_type') or '(missing)'}` `{item.get('bridge_label') or '(missing)'}`: "
+                f"{item.get('question') or '(missing)'}"
+            )
+        else:
+            lines.append(f"- {item}")
+    diff = graph_analysis.get("diff") or {}
+    lines.extend(
+        [
+            "",
+            "### Graph diff",
+            "",
+            f"- Added nodes: `{((diff.get('added') or {}).get('node_count') or 0)}`",
+            f"- Removed nodes: `{((diff.get('removed') or {}).get('node_count') or 0)}`",
+            f"- Added labels: `{', '.join((diff.get('added') or {}).get('node_labels') or []) or '(none)'}`",
+            f"- Removed labels: `{', '.join((diff.get('removed') or {}).get('node_labels') or []) or '(none)'}`",
+            "",
+        ]
+    )
     for item in l1_assumption_depth_summary_lines(l1_source_intake) or ["(none)"]:
         lines.append(f"- {item}")
     lines.extend(["", "### Reading-depth limits", ""])
@@ -774,6 +845,9 @@ def render_topic_dashboard_markdown(
         "## Blocker summary",
         "",
     ])
+    lines.extend(analytical_cross_check_markdown_lines(validation_review_bundle.get("analytical_cross_check_surface") or {}))
+    if validation_review_bundle.get("analytical_cross_check_surface"):
+        lines.append("")
     for item in blocker_summary or ["(none)"]:
         lines.append(f"- {item}")
     lines.extend([
@@ -1090,6 +1164,7 @@ def ensure_topic_shell_surfaces(
     validation_review_bundle_paths = self._validation_review_bundle_paths(topic_slug)
     gap_map_path = self._gap_map_path(topic_slug)
     source_intelligence_artifact_paths = source_intelligence_paths(runtime_root)
+    graph_analysis_artifact_paths = graph_analysis_paths(runtime_root)
 
     existing_research = _read_json(research_paths["json"]) or {}
     existing_validation = _read_json(validation_paths["json"]) or {}
@@ -1169,7 +1244,7 @@ def ensure_topic_shell_surfaces(
     forbidden_proxy_defaults = [
         "Do not treat polished prose, hidden assumptions, or memory-only agreement as proof.",
         "Do not silently widen scope without updating this contract.",
-        "Do not bypass L0 recovery when the blocker is really a missing source, citation chain, or prior-work comparison.",
+        "Do not skip a restart from source intake when the blocker is really a missing source, citation chain, or prior-work comparison.",
     ]
     uncertainty_defaults = open_gap_summary["blockers"] or [
         "Mark unresolved notation, source, or regime gaps explicitly before continuing."
@@ -1185,6 +1260,19 @@ def ensure_topic_shell_surfaces(
             l1_source_intake=l1_source_intake,
         )
     )
+    previous_graph_analysis = _read_json(graph_analysis_artifact_paths["json"]) or {}
+    graph_analysis = build_graph_analysis_surface(
+        topic_slug=topic_slug,
+        l1_source_intake=l1_source_intake,
+        previous_payload=previous_graph_analysis,
+        updated_by=updated_by,
+    )
+    graph_analysis_surface = {
+        **graph_analysis,
+        "path": self._relativize(graph_analysis_artifact_paths["json"]),
+        "note_path": self._relativize(graph_analysis_artifact_paths["note"]),
+        "history_path": self._relativize(graph_analysis_artifact_paths["history"]),
+    }
     research_contract = {
         "contract_version": 1,
         "question_id": self._coalesce_string(
@@ -1489,6 +1577,9 @@ def ensure_topic_shell_surfaces(
     _write_text(research_paths["note"], self._render_research_question_contract_markdown(research_contract))
     _write_json(source_intelligence_artifact_paths["json"], source_intelligence_surface)
     _write_text(source_intelligence_artifact_paths["note"], render_source_intelligence_markdown(source_intelligence_surface))
+    _write_json(graph_analysis_artifact_paths["json"], graph_analysis_surface)
+    _write_text(graph_analysis_artifact_paths["note"], render_graph_analysis_markdown(graph_analysis_surface))
+    write_graph_analysis_history(graph_analysis_artifact_paths["history"], payload=graph_analysis_surface)
     _write_json(validation_paths["json"], validation_contract)
     _write_text(validation_paths["note"], self._render_validation_contract_markdown(validation_contract))
     _write_json(validation_review_bundle_paths["json"], validation_review_bundle)
@@ -1545,6 +1636,7 @@ def ensure_topic_shell_surfaces(
         topic_slug=topic_slug,
         topic_state=resolved_topic_state,
         source_intelligence=source_intelligence_surface,
+        graph_analysis=graph_analysis_surface,
         runtime_focus=runtime_focus,
         selected_pending_action=selected_pending_action,
         pending_actions=pending_actions,
@@ -1611,6 +1703,9 @@ def ensure_topic_shell_surfaces(
         "topic_dashboard_path": str(dashboard_path),
         "source_intelligence_path": str(source_intelligence_artifact_paths["json"]),
         "source_intelligence_note_path": str(source_intelligence_artifact_paths["note"]),
+        "graph_analysis_path": str(graph_analysis_artifact_paths["json"]),
+        "graph_analysis_note_path": str(graph_analysis_artifact_paths["note"]),
+        "graph_analysis_history_path": str(graph_analysis_artifact_paths["history"]),
         "topic_skill_projection_path": str(topic_skill_projection_paths["json"]),
         "topic_skill_projection_note_path": str(topic_skill_projection_paths["note"]),
         "promotion_readiness_path": str(readiness_path),
@@ -1628,6 +1723,7 @@ def ensure_topic_shell_surfaces(
         "research_question_contract": research_contract,
         "l1_vault": l1_vault["payload"],
         "source_intelligence": source_intelligence_surface,
+        "graph_analysis": graph_analysis_surface,
         "validation_contract": validation_contract,
         "validation_review_bundle": {
             **validation_review_bundle,

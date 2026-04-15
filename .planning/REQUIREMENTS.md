@@ -1,34 +1,54 @@
-# Requirements: v1.91 Real Topic L0 To L2 End-To-End Validation
+# Requirements: v2.9 Promotion-Review Gate Closure
 
 ## Milestone Goal
 
-Close the next post-`v1.90` maturity gap so AITP can prove whether the current
-protocol and implementation are genuinely useful on a real topic from an
-initial idea through one honest bounded research outcome.
+Make post-route continuation coherent enough that, once `l2_promotion_review`
+becomes the selected route on a fresh topic, the loop materializes one explicit
+promotion-review gate and advances beyond the summary placeholder instead of
+stalling there forever.
 
 ## Active Requirements
 
-### Real Topic E2E Surface
+### Explicit Promotion-Review Gate
 
-- [ ] `REQ-E2E-01`: at least one real topic runs through the current public
-  AITP entry surfaces from an initial idea rather than from a synthetic seeded
-  fixture.
-- [ ] `REQ-E2E-02`: the real-topic run leaves one durable postmortem naming
-  the actual route, artifact refs, friction points, and bounded outcome.
+- [ ] `PRG-01`: once `l2_promotion_review` is already the selected route and
+  the operator continues again, the bounded loop materializes one explicit
+  promotion-review gate from the selected staged candidate.
 
-### GSD Linkage Rule
+- [ ] `PRG-02`: that promotion-review gate is written as a durable runtime
+  artifact rather than remaining only a transient queue guess.
 
-- [ ] `REQ-E2E-03`: every discovered issue is recorded in one durable issue
-  ledger and is not left only in runtime artifacts or chat memory.
-- [ ] `REQ-E2E-04`: every issue from the ledger is routed into explicit
-  GSD-tracked follow-up work (decimal phase, next milestone candidate, or
-  backlog item) instead of assuming GSD will auto-discover it.
+### Public Promotion-Review Advancement
+
+- [ ] `PRG-03`: public `next`, `status`, and equivalent dashboard surfaces stay
+  aligned on the same explicit promotion-review gate.
+
+### Replayable Proof
+
+- [ ] `PRG-04`: one replayable fresh-topic proof shows the same topic can
+  advance beyond promotion-review summary into one explicit promotion-review
+  gate while the earlier staged-L2, consultation-selection, and route-choice
+  baselines still pass.
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Reopening selected-candidate route choice from `v2.8` | treat the `v2.8` chosen-route surface as the new baseline unless a fresh regression appears |
+| Automatically promoting the selected staged candidate into canonical `L2` | `v2.9` only materializes the explicit promotion-review gate |
+| Broad route optimization across split/validate/promote branches | keep the milestone bounded to the promotion-review gate already chosen on the baseline |
+| Broad three-lane scientific widening across formal, toy, and first-principles routes | defer until promotion-review gate materialization is mechanically stable |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-E2E-01 | Phase 165 | Pending |
-| REQ-E2E-02 | Phase 165 | Pending |
-| REQ-E2E-03 | Phase 165 | Pending |
-| REQ-E2E-04 | Phase 165 | Pending |
+| PRG-01 | Phase 183 | Planned |
+| PRG-02 | Phase 183 | Planned |
+| PRG-03 | Phase 183.1 | Planned |
+| PRG-04 | Phase 183.2 | Planned |
+
+**Coverage:**
+- v1 requirements: 4 total
+- mapped to phases: 4
+- unmapped: 0

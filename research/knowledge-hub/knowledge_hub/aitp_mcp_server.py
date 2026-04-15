@@ -1,23 +1,56 @@
 from __future__ import annotations
 
 import json
+import os
 import traceback
+from pathlib import Path
+from typing import Any, Callable
 
 from mcp.server.fastmcp import FastMCP
 
-from .aitp_service import AITPService
-from .bundle_support import PACKAGE_DISTRIBUTION_NAME
-
-
-mcp = FastMCP(
-    PACKAGE_DISTRIBUTION_NAME,
-    instructions=(
-        "AITP kernel tools for orchestrating topic runs, reading runtime state, "
-        "scaffolding trust gates, auditing conformance, and installing agent wrappers."
-    ),
+from .aitp_mcp_profiles import (
+    build_profile_tool_manifest,
+    normalize_mcp_profile,
+    profile_instructions,
+    server_name_for_mcp_profile,
+    tool_allowed_in_profile,
 )
+from .aitp_service import AITPService
 
 service = AITPService()
+ACTIVE_MCP_PROFILE = normalize_mcp_profile(os.environ.get("AITP_MCP_PROFILE"))
+AITP_MCP_TOOL_ACCESS: dict[str, str] = {}
+AITP_MCP_TOOL_FUNCTIONS: list[Callable[..., str]] = []
+
+
+def aitp_tool(*, access: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
+    normalized_access = str(access).strip().lower()
+    if normalized_access not in {"read", "write"}:
+        raise ValueError(f"Unsupported MCP tool access mode: {access}")
+
+    def decorator(func: Callable[..., str]) -> Callable[..., str]:
+        AITP_MCP_TOOL_ACCESS[func.__name__] = normalized_access
+        AITP_MCP_TOOL_FUNCTIONS.append(func)
+        return func
+
+    return decorator
+
+
+def build_mcp_server(profile: str | None = None) -> FastMCP:
+    resolved_profile = normalize_mcp_profile(profile)
+    server = FastMCP(
+        server_name_for_mcp_profile(resolved_profile),
+        instructions=profile_instructions(resolved_profile),
+    )
+    for func in AITP_MCP_TOOL_FUNCTIONS:
+        access = AITP_MCP_TOOL_ACCESS[func.__name__]
+        if tool_allowed_in_profile(func.__name__, access, resolved_profile):
+            server.add_tool(func)
+    return server
+
+
+def _tool_manifest(profile: str | None = None) -> dict[str, Any]:
+    return build_profile_tool_manifest(profile, AITP_MCP_TOOL_ACCESS)
 
 
 def _ok(**payload: object) -> str:
@@ -36,7 +69,119 @@ def _err(message: str) -> str:
     )
 
 
-@mcp.tool()
+def _compact_topic_state(topic_state: dict[str, Any] | None) -> dict[str, Any]:
+    payload = topic_state or {}
+    explainability = payload.get("status_explainability") or {}
+    return {
+        "resume_stage": payload.get("resume_stage"),
+        "last_materialized_stage": payload.get("last_materialized_stage"),
+        "research_mode": payload.get("research_mode"),
+        "load_profile": payload.get("load_profile"),
+        "summary": payload.get("summary") or explainability.get("current_status_summary"),
+    }
+
+
+def _compact_current_topic_memory(current_topic_memory: dict[str, Any] | None) -> dict[str, Any]:
+    payload = current_topic_memory or {}
+    return {
+        "topic_slug": payload.get("topic_slug"),
+        "summary": payload.get("summary"),
+        "current_topic_path": payload.get("current_topic_path") or payload.get("current_topic_memory_path"),
+        "current_topic_note_path": payload.get("current_topic_note_path"),
+    }
+
+
+def _runtime_protocol_postures(runtime_protocol: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    runtime_protocol_payload = runtime_protocol or {}
+    protocol_path = runtime_protocol_payload.get("runtime_protocol_path")
+    if not isinstance(protocol_path, str) or not protocol_path:
+        return {}, {}
+    try:
+        payload = json.loads(Path(protocol_path).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}, {}
+    return (
+        payload.get("human_interaction_posture") or {},
+        payload.get("autonomy_posture") or {},
+    )
+
+
+def _compact_bootstrap_result(result: dict[str, Any]) -> dict[str, Any]:
+    conformance_state = result.get("conformance_state") or {}
+    return {
+        "topic_slug": result.get("topic_slug"),
+        "runtime_root": result.get("runtime_root"),
+        "command": result.get("command"),
+        "conformance": {
+            "overall_status": conformance_state.get("overall_status"),
+        },
+        "files": result.get("files") or {},
+        "topic_state_summary": _compact_topic_state(result.get("topic_state")),
+    }
+
+
+def _compact_loop_result(result: dict[str, Any]) -> dict[str, Any]:
+    loop_state = result.get("loop_state") or {}
+    bootstrap = result.get("bootstrap") or {}
+    bootstrap_topic_state = bootstrap.get("topic_state") or {}
+    explainability = bootstrap_topic_state.get("status_explainability") or {}
+    entry_audit = result.get("entry_audit") or {}
+    exit_audit = result.get("exit_audit") or {}
+    capability_audit = result.get("capability_audit") or {}
+    trust_audit = result.get("trust_audit") or {}
+    runtime_protocol = result.get("runtime_protocol") or {}
+    human_interaction_posture, autonomy_posture = _runtime_protocol_postures(runtime_protocol)
+    return {
+        "topic_slug": result.get("topic_slug"),
+        "run_id": result.get("run_id"),
+        "load_profile": result.get("load_profile"),
+        "loop_state_path": result.get("loop_state_path"),
+        "loop_history_path": result.get("loop_history_path"),
+        "runtime_protocol": runtime_protocol,
+        "current_topic_memory": _compact_current_topic_memory(result.get("current_topic_memory")),
+        "selected_action": explainability.get("next_bounded_action") or {},
+        "human_interaction_posture": human_interaction_posture,
+        "autonomy_posture": autonomy_posture,
+        "audits": {
+            "entry_conformance": (entry_audit.get("conformance_state") or {}).get("overall_status"),
+            "exit_conformance": (exit_audit.get("conformance_state") or {}).get("overall_status"),
+            "capability_status": capability_audit.get("overall_status") or loop_state.get("capability_status"),
+            "capability_report_path": capability_audit.get("capability_report_path"),
+            "trust_status": trust_audit.get("overall_status") or loop_state.get("trust_status"),
+            "trust_audit_path": trust_audit.get("trust_audit_path"),
+            "trust_report_path": trust_audit.get("trust_report_path"),
+        },
+        "auto_actions_executed": loop_state.get("auto_actions_executed"),
+        "steering_artifacts": result.get("steering_artifacts") or {},
+    }
+
+
+@aitp_tool(access="read")
+def aitp_describe_mcp_profile(profile: str | None = None) -> str:
+    """Describe the active or requested AITP MCP profile and whether it is read-only."""
+    try:
+        manifest = _tool_manifest(profile or ACTIVE_MCP_PROFILE)
+        return _ok(
+            profile=manifest["profile"],
+            server_name=manifest["server_name"],
+            read_only=manifest["read_only"],
+            allowed_tool_count=len(manifest["allowed_tools"]),
+            blocked_tool_count=len(manifest["blocked_tools"]),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_list_tool_manifest(profile: str | None = None) -> str:
+    """Show the MCP tool manifest for the active or requested AITP profile."""
+    try:
+        return _ok(manifest=_tool_manifest(profile or ACTIVE_MCP_PROFILE))
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
 def aitp_bootstrap_topic(
     topic: str | None = None,
     topic_slug: str | None = None,
@@ -63,12 +208,12 @@ def aitp_bootstrap_topic(
             skill_queries=skill_queries or [],
             human_request=human_request,
         )
-        return _ok(**result)
+        return _ok(**_compact_bootstrap_result(result))
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_resume_topic(
     topic_slug: str,
     run_id: str | None = None,
@@ -92,7 +237,7 @@ def aitp_resume_topic(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="read")
 def aitp_get_runtime_state(topic_slug: str) -> str:
     """Read the runtime topic_state.json for an AITP topic."""
     try:
@@ -101,7 +246,7 @@ def aitp_get_runtime_state(topic_slug: str) -> str:
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_audit_conformance(topic_slug: str, phase: str = "entry", updated_by: str = "aitp-mcp") -> str:
     """Run the AITP conformance audit for a topic."""
     try:
@@ -111,7 +256,7 @@ def aitp_audit_conformance(topic_slug: str, phase: str = "entry", updated_by: st
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_scaffold_baseline(
     topic_slug: str,
     run_id: str,
@@ -139,7 +284,7 @@ def aitp_scaffold_baseline(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_scaffold_atomic_understanding(
     topic_slug: str,
     run_id: str,
@@ -161,7 +306,7 @@ def aitp_scaffold_atomic_understanding(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_scaffold_operation(
     topic_slug: str,
     run_id: str | None,
@@ -195,7 +340,7 @@ def aitp_scaffold_operation(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_update_operation(
     topic_slug: str,
     run_id: str | None,
@@ -229,7 +374,7 @@ def aitp_update_operation(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_audit_operation_trust(
     topic_slug: str,
     run_id: str | None = None,
@@ -247,7 +392,7 @@ def aitp_audit_operation_trust(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_audit_capability(
     topic_slug: str,
     updated_by: str = "aitp-mcp",
@@ -263,7 +408,7 @@ def aitp_audit_capability(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_audit_theory_coverage(
     topic_slug: str,
     candidate_id: str,
@@ -321,7 +466,7 @@ def aitp_audit_theory_coverage(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_audit_formal_theory(
     topic_slug: str,
     candidate_id: str,
@@ -389,7 +534,7 @@ def aitp_audit_formal_theory(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_complete_topic(
     topic_slug: str,
     run_id: str | None = None,
@@ -407,7 +552,7 @@ def aitp_complete_topic(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_update_followup_return(
     topic_slug: str,
     return_status: str,
@@ -435,7 +580,7 @@ def aitp_update_followup_return(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_reintegrate_followup(
     topic_slug: str,
     child_topic_slug: str,
@@ -455,7 +600,7 @@ def aitp_reintegrate_followup(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_prepare_lean_bridge(
     topic_slug: str,
     run_id: str | None = None,
@@ -475,7 +620,7 @@ def aitp_prepare_lean_bridge(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_request_promotion(
     topic_slug: str,
     candidate_id: str,
@@ -505,7 +650,7 @@ def aitp_request_promotion(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_approve_promotion(
     topic_slug: str,
     candidate_id: str,
@@ -529,7 +674,7 @@ def aitp_approve_promotion(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_reject_promotion(
     topic_slug: str,
     candidate_id: str,
@@ -553,7 +698,7 @@ def aitp_reject_promotion(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_promote_candidate(
     topic_slug: str,
     candidate_id: str,
@@ -589,7 +734,7 @@ def aitp_promote_candidate(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_auto_promote_candidate(
     topic_slug: str,
     candidate_id: str,
@@ -625,7 +770,7 @@ def aitp_auto_promote_candidate(
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_run_topic_loop(
     topic_slug: str | None = None,
     topic: str | None = None,
@@ -650,18 +795,19 @@ def aitp_run_topic_loop(
             skill_queries=skill_queries or [],
             max_auto_steps=max_auto_steps,
         )
-        return _ok(**result)
+        return _ok(**_compact_loop_result(result))
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
 
 
-@mcp.tool()
+@aitp_tool(access="write")
 def aitp_install_agent_wrapper(
     agent: str,
     scope: str = "user",
     target_root: str | None = None,
     force: bool = True,
     install_mcp: bool = True,
+    mcp_profile: str = "full",
 ) -> str:
     """Install AITP wrapper files for Codex, OpenClaw, or OpenCode."""
     try:
@@ -671,10 +817,14 @@ def aitp_install_agent_wrapper(
             target_root=target_root,
             force=force,
             install_mcp=install_mcp,
+            mcp_profile=mcp_profile,
         )
         return _ok(**result)
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
+
+
+mcp = build_mcp_server(ACTIVE_MCP_PROFILE)
 
 
 def main() -> None:

@@ -267,12 +267,16 @@ on the canonical registration path without mutating repo runtime state.
 
 ```bash
 python research/knowledge-hub/runtime/scripts/run_l0_source_discovery_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_enrichment_acceptance.py --json
+python research/knowledge-hub/runtime/scripts/run_l0_source_concept_graph_acceptance.py --json
 ```
 
 Pass condition:
 - `discover_and_register.py` writes a durable `discoveries/<discovery_id>/` receipt set
 - `candidate_evaluation.json` keeps the winning arXiv candidate explicit
 - `registration_receipt.json` points back to the usual Layer 0 source paths
+- integrated enrichment writes `deepxiv_enrichment.json`
+- integrated concept-graph build writes `concept_graph.json` and `concept_graph_receipt.json`
 - `source-layer/topics/<topic_slug>/source_index.jsonl` and `source-layer/global_index.jsonl` are updated
 - the intake projection mirrors the selected registered source
 - the acceptance runs on an isolated temp kernel root
@@ -310,6 +314,22 @@ Pass condition:
 - `topic_dashboard.md` keeps the derived reading-depth/conflict ambiguity explicit
 - the runtime protocol note keeps the same assumption/depth honesty visible
 - `intake/topics/<topic_slug>/vault/wiki/source-intake.md` keeps assumptions and reading depth visible
+- the acceptance runs on an isolated temp kernel root
+
+## 13.7. Isolated acceptance: L1 concept graph
+
+Use this when you want one bounded proof that source-local concept-graph
+artifacts are visible through the real runtime status surface.
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_l1_concept_graph_acceptance.py --json
+```
+
+Pass condition:
+- `status --json` surfaces `l1_source_intake.concept_graph`
+- `research_question.contract.md` includes `## Concept graph`
+- the runtime protocol note includes `## Concept graph`
+- `intake/topics/<topic_slug>/vault/wiki/source-intake.md` includes `## Concept graph`
 - the acceptance runs on an isolated temp kernel root
 
 ## 13.65. Isolated acceptance: runtime transition and demotion history
@@ -806,6 +826,26 @@ Pass condition:
 - the runtime protocol survives all three commands
 - the acceptance runs on an isolated temp kernel root
 
+## 17.1 Isolated acceptance: first-source follow-through into staged L2
+
+Use this when you want one bounded proof that the same fresh-topic lane can
+continue one honest step past first-source registration and surface the staged
+L2 review point instead of repeating literature-intake staging forever.
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_first_source_followthrough_acceptance.py --json
+```
+
+Pass condition:
+- the fresh-topic lane still reaches the post-registration
+  `literature_intake_stage` follow-through step
+- one bounded `literature_intake_stage` auto action completes successfully
+- `status --json` then advances to `Inspect the current L2 staging manifest
+  before continuing.`
+- the workspace staging manifest exists under `canonical/staging/`
+- `consult_l2(include_staging=True)` returns at least one staged hit from the
+  current fresh topic
+
 ## 18. Isolated acceptance: public install smoke
 
 Use this when you want one bounded proof that the published-style
@@ -874,3 +914,21 @@ Pass condition:
 - the report names `equivalent_surfaces`
 - the report names `degraded_surfaces`
 - the report names `open_gaps` rather than hiding them
+
+When you have real live-app first-turn evidence for Claude Code and/or
+OpenCode, write one file per runtime using
+`runtime/schemas/runtime-live-first-turn-evidence.schema.json` and name them:
+
+- `claude_code.live-first-turn.json`
+- `opencode.live-first-turn.json`
+
+Then rerun the closure audit with:
+
+```bash
+python research/knowledge-hub/runtime/scripts/run_runtime_parity_audit.py --live-evidence-root <evidence_dir> --json
+```
+
+Additional pass condition for live closure:
+- the audit reports `runtime_live_first_turn_evidence` under the supplied evidence
+- the audit only removes `live_first_turn_bootstrap_consumption` from degraded surfaces when the evidence status is `verified`
+- the evidence checks explicitly confirm the bootstrap was consumed before the first substantive action and that the human-control/autonomy posture remained visible

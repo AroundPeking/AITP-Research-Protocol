@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -126,6 +127,83 @@ class AITPCLIE2ETests(unittest.TestCase):
             (self.kernel_root / "canonical" / "staging" / "entries" / "staging--portability-route-failed.json").exists()
         )
 
+    def test_hello_cli_json_path_returns_welcome_when_no_topic_exists(self) -> None:
+        self._prepare_first_run_kernel()
+
+        completed = self._run_cli(
+            "hello",
+            "--json",
+        )
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["mode"], "welcome")
+        self.assertTrue(str(payload["install"]["overall_status"]))
+        self.assertIn("aitp bootstrap", payload["suggested_command"])
+
+    def test_hello_cli_json_path_uses_current_topic_when_available(self) -> None:
+        self._prepare_first_run_kernel()
+
+        bootstrap = self._run_cli(
+            "bootstrap",
+            "--topic",
+            "Demo topic",
+            "--statement",
+            "What is the first bounded question?",
+            "--json",
+        )
+        self.assertEqual(bootstrap.returncode, 0, msg=bootstrap.stderr)
+
+        completed = self._run_cli(
+            "hello",
+            "--json",
+        )
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["mode"], "current_topic")
+        self.assertEqual(payload["topic_slug"], "demo-topic")
+        self.assertEqual(payload["status"]["topic_slug"], "demo-topic")
+        self.assertTrue(Path(payload["status"]["runtime_protocol_note_path"]).exists())
+
+    def test_help_cli_human_paths(self) -> None:
+        core = self._run_cli("help")
+        self.assertEqual(core.returncode, 0, msg=core.stderr)
+        self.assertIn("AITP Help", core.stdout)
+        self.assertIn("Core commands", core.stdout)
+        self.assertIn("session-start", core.stdout)
+        self.assertIn("consult-l2", core.stdout)
+        self.assertNotIn("new-topic", core.stdout)
+
+        expanded = self._run_cli("help", "--all")
+        self.assertEqual(expanded.returncode, 0, msg=expanded.stderr)
+        self.assertIn("AITP Help", expanded.stdout)
+        self.assertIn("All registered commands", expanded.stdout)
+        self.assertIn("Topic lifecycle", expanded.stdout)
+        self.assertIn("new-topic", expanded.stdout)
+        self.assertIn("doctor", expanded.stdout)
+
+    def test_steer_topic_text_cli_json_path_materializes_direction(self) -> None:
+        self._write_topic_state(
+            "demo-topic",
+            updated_at="2026-04-13T10:00:00+08:00",
+            latest_run_id="run-001",
+        )
+
+        completed = self._run_cli(
+            "steer-topic",
+            "--topic-slug",
+            "demo-topic",
+            "--text",
+            "继续这个 topic，方向改成 modular bootstrap constraints",
+            "--json",
+        )
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertTrue(payload["detected"])
+        self.assertEqual(payload["decision"], "redirect")
+        self.assertEqual(payload["direction"], "modular bootstrap constraints")
+        self.assertTrue((self.kernel_root / payload["innovation_direction_path"]).exists())
+        self.assertTrue((self.kernel_root / payload["control_note_path"]).exists())
+
     def test_first_run_bootstrap_loop_status_cli_flow(self) -> None:
         self._prepare_first_run_kernel()
 
@@ -143,6 +221,7 @@ class AITPCLIE2ETests(unittest.TestCase):
         self.assertEqual(topic_slug, "jones-chapter-4-finite-dimensional-backbone")
         self.assertTrue(Path(bootstrap_payload["files"]["topic_state"]).exists())
         self.assertTrue(Path(bootstrap_payload["files"]["runtime_protocol"]).exists())
+        self.assertIn("next_action_hint", bootstrap_payload)
 
         loop = self._run_cli(
             "loop",
@@ -183,6 +262,111 @@ class AITPCLIE2ETests(unittest.TestCase):
         self.assertTrue(bool(status_payload["selected_action_type"]))
         self.assertTrue(Path(status_payload["runtime_protocol_path"]).exists())
         self.assertTrue(Path(status_payload["runtime_protocol_note_path"]).exists())
+
+        status_human = self._run_cli(
+            "status",
+            "--topic-slug",
+            topic_slug,
+        )
+        self.assertEqual(status_human.returncode, 0, msg=status_human.stderr)
+        self.assertIn("AITP Status", status_human.stdout)
+        self.assertIn("Topic:", status_human.stdout)
+        self.assertIn("Machine view: aitp status --topic-slug", status_human.stdout)
+
+        next_human = self._run_cli(
+            "next",
+            "--topic-slug",
+            topic_slug,
+        )
+        self.assertEqual(next_human.returncode, 0, msg=next_human.stderr)
+        self.assertIn("AITP Next", next_human.stdout)
+        self.assertIn("Do:", next_human.stdout)
+        self.assertIn("Machine view: aitp next --topic-slug", next_human.stdout)
+
+        status_full = self._run_cli(
+            "status",
+            "--topic-slug",
+            topic_slug,
+            "--full",
+        )
+        self.assertEqual(status_full.returncode, 0, msg=status_full.stderr)
+        self.assertIn("# Topic dashboard", status_full.stdout)
+
+    def test_first_run_acceptance_can_continue_into_source_registration(self) -> None:
+        script_path = self.package_root / "runtime" / "scripts" / "run_first_run_topic_acceptance.py"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            work_root = Path(tmpdir)
+            tar_path = work_root / "source.tar"
+            tex_path = work_root / "paper.tex"
+            tex_path.write_text("\\\\documentclass{article}\\n\\\\begin{document}demo\\\\end{document}\\n", encoding="utf-8")
+            with tarfile.open(tar_path, "w") as archive:
+                archive.add(tex_path, arcname="paper.tex")
+
+            metadata_path = work_root / "metadata.json"
+            metadata_path.write_text(
+                json.dumps(
+                    {
+                        "arxiv_id": "2401.00001v2",
+                        "title": "Topological Order and Anyon Condensation",
+                        "summary": "A direct match for topological order and anyon condensation discovery.",
+                        "published": "2024-01-03T00:00:00Z",
+                        "updated": "2024-01-05T00:00:00Z",
+                        "authors": ["Primary Author", "Secondary Author"],
+                        "identifier": "https://arxiv.org/abs/2401.00001v2",
+                        "abs_url": "https://arxiv.org/abs/2401.00001v2",
+                        "pdf_url": "https://arxiv.org/pdf/2401.00001.pdf",
+                        "source_url": tar_path.as_uri(),
+                    },
+                    ensure_ascii=True,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(script_path),
+                    "--package-root",
+                    str(self.package_root),
+                    "--repo-root",
+                    str(self.repo_root),
+                    "--register-arxiv-id",
+                    "2401.00001v2",
+                    "--registration-metadata-json",
+                    str(metadata_path),
+                    "--json",
+                ],
+                cwd=self.package_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertIn("discover_and_register.py", payload["status"]["selected_action_summary"])
+        self.assertIn("register_arxiv_source.py", payload["status"]["selected_action_summary"])
+        self.assertEqual(payload["registration"]["download_status"], "downloaded")
+        self.assertEqual(payload["registration"]["extraction_status"], "extracted")
+        self.assertTrue(Path(payload["registration"]["layer0_source_json"]).exists())
+        self.assertIn("status_after_registration", payload)
+        self.assertGreaterEqual(
+            int(
+                (
+                    (payload["status_after_registration"].get("active_research_contract") or {})
+                    .get("l1_source_intake")
+                    or {}
+                ).get("source_count")
+                or 0
+            ),
+            1,
+        )
+        post_registration_summary = str(payload["status_after_registration"].get("selected_action_summary") or "")
+        self.assertNotIn("discover_and_register.py", post_registration_summary)
+        self.assertNotIn("register_arxiv_source.py", post_registration_summary)
 
     def test_record_collaborator_memory_json_and_human_paths(self) -> None:
         human = self._run_cli(
@@ -671,7 +855,7 @@ class AITPCLIE2ETests(unittest.TestCase):
             "--candidate-id",
             "candidate:demo-candidate",
             "--check",
-            "limiting_case=weak-coupling:passed:Matches the known free limit.",
+            "source_cross_reference=intro-vs-appendix:passed:Cross-referenced source sections agree on the bounded limit.",
             "--source-anchor",
             "paper:demo-source#sec:intro",
             "--assumption",
@@ -685,7 +869,14 @@ class AITPCLIE2ETests(unittest.TestCase):
         self.assertEqual(reviewed.returncode, 0, msg=reviewed.stderr)
         reviewed_payload = json.loads(reviewed.stdout)
         self.assertEqual(reviewed_payload["overall_status"], "ready")
-        self.assertTrue(Path(reviewed_payload["paths"]["analytical_review"]).exists())
+        review_path = Path(reviewed_payload["paths"]["analytical_review"])
+        self.assertTrue(review_path.exists())
+        review_payload = json.loads(review_path.read_text(encoding="utf-8"))
+        self.assertEqual(review_payload["checks"][0]["kind"], "source_cross_reference")
+        self.assertEqual(review_payload["checks"][0]["source_anchors"], ["paper:demo-source#sec:intro"])
+        self.assertEqual(review_payload["checks"][0]["assumption_refs"], ["assumption:weak-coupling-regime"])
+        self.assertEqual(review_payload["checks"][0]["regime_note"], "Weak-coupling only.")
+        self.assertEqual(review_payload["checks"][0]["reading_depth"], "targeted")
 
         verified = self._run_cli(
             "verify",
@@ -1116,6 +1307,78 @@ class AITPCLIE2ETests(unittest.TestCase):
         self.assertTrue(Path(import_payload["markdown_path"]).exists())
         self.assertTrue(Path(import_payload["source_index_path"]).exists())
         self.assertEqual(import_payload["payload"]["summary"]["imported_entry_count"], 1)
+
+    def test_sync_l1_graph_export_to_theoretical_physics_brain_cli_json_path(self) -> None:
+        export_root = self.kernel_root / "intake" / "topics" / "demo-topic" / "vault" / "wiki" / "concept-graph"
+        export_root.mkdir(parents=True, exist_ok=True)
+        (export_root / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "kind": "obsidian_concept_graph_export",
+                    "topic_slug": "demo-topic",
+                    "root_path": "intake/topics/demo-topic/vault/wiki/concept-graph",
+                    "index_path": "intake/topics/demo-topic/vault/wiki/concept-graph/index.md",
+                    "summary": {
+                        "node_note_count": 1,
+                        "community_folder_count": 1,
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (export_root / "index.md").write_text("# Concept Graph\n", encoding="utf-8")
+        note_dir = export_root / "topological-order-cluster"
+        note_dir.mkdir(parents=True, exist_ok=True)
+        (note_dir / "index.md").write_text("# Cluster\n", encoding="utf-8")
+        (note_dir / "topological-order.md").write_text("# Topological order\n", encoding="utf-8")
+
+        brain_root = self.kernel_root.parent / "brain"
+        backends_root = self.kernel_root / "canonical" / "backends"
+        backends_root.mkdir(parents=True, exist_ok=True)
+        (backends_root / "theoretical-physics-brain.json").write_text(
+            json.dumps(
+                {
+                    "backend_id": "backend:theoretical-physics-brain",
+                    "title": "Theoretical Physics Brain",
+                    "backend_type": "human_note_library",
+                    "status": "active",
+                    "root_paths": [str(brain_root)],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (backends_root / "backend_index.jsonl").write_text(
+            json.dumps(
+                {
+                    "backend_id": "backend:theoretical-physics-brain",
+                    "title": "Theoretical Physics Brain",
+                    "backend_type": "human_note_library",
+                    "status": "active",
+                    "card_path": "canonical/backends/theoretical-physics-brain.json",
+                },
+                ensure_ascii=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        synced = self._run_cli(
+            "sync-l1-graph-export-to-theoretical-physics-brain",
+            "--topic-slug",
+            "demo-topic",
+            "--json",
+        )
+        self.assertEqual(synced.returncode, 0, msg=synced.stderr)
+        sync_payload = json.loads(synced.stdout)
+        self.assertTrue(Path(sync_payload["receipt_path"]).exists())
+        self.assertTrue((brain_root / "90 AITP Imports" / "concept-graphs" / "demo-topic" / "index.md").exists())
+        self.assertEqual(sync_payload["summary"]["mirrored_file_count"], 4)
 
     def test_topics_and_current_topic_commands_use_real_service_paths(self) -> None:
         self._write_topic_state(

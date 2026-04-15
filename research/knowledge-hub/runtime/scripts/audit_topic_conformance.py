@@ -48,6 +48,185 @@ def check(condition: bool, code: str, description: str) -> dict:
     }
 
 
+def _dedupe_strings(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value or "").strip()
+        if text and text not in seen:
+            seen.add(text)
+            deduped.append(text)
+    return deduped
+
+
+def _baseline_status_ready(status: str) -> bool:
+    return str(status or "").strip().lower() in {
+        "not_required",
+        "confirmed",
+        "pass",
+        "passed",
+        "satisfied",
+        "complete",
+        "completed",
+    }
+
+
+def _load_return_packet_status(topic_root: Path, row: dict) -> str:
+    packet_path = str(row.get("return_packet_path") or "").strip()
+    if not packet_path:
+        return ""
+    candidate = Path(packet_path)
+    if not candidate.is_absolute():
+        candidate = topic_root.parents[2] / candidate
+    payload = read_json(candidate)
+    return str((payload or {}).get("return_status") or "").strip()
+
+
+def build_mechanical_completion_preflight(
+    *,
+    knowledge_root: Path,
+    topic_root: Path,
+    topic_slug: str,
+    topic_state: dict | None,
+    queue_rows: list[dict],
+) -> dict:
+    run_id = str((topic_state or {}).get("latest_run_id") or "").strip()
+
+    operations_root = (
+        knowledge_root / "validation" / "topics" / topic_slug / "runs" / run_id / "operations"
+        if run_id
+        else None
+    )
+    operations: list[dict] = []
+    operations_missing_baseline: list[str] = []
+    if operations_root and operations_root.exists():
+        for manifest_path in sorted(operations_root.glob("*/operation_manifest.json")):
+            manifest = read_json(manifest_path)
+            if manifest is None:
+                continue
+            title = str(manifest.get("title") or manifest.get("operation_id") or manifest_path.parent.name).strip()
+            baseline_status = str(manifest.get("baseline_status") or "").strip() or "missing"
+            ready = _baseline_status_ready(baseline_status)
+            operations.append(
+                {
+                    "operation_id": str(manifest.get("operation_id") or "").strip(),
+                    "title": title,
+                    "baseline_status": baseline_status,
+                    "baseline_ready": ready,
+                    "manifest_path": str(manifest_path),
+                }
+            )
+            if not ready:
+                operations_missing_baseline.append(f"{title}: baseline_status={baseline_status}")
+
+    candidate_rows = (
+        read_jsonl(knowledge_root / "feedback" / "topics" / topic_slug / "runs" / run_id / "candidate_ledger.jsonl")
+        if run_id
+        else []
+    )
+    unresolved_gap_reasons: list[str] = []
+    for row in candidate_rows:
+        candidate_id = str(row.get("candidate_id") or "candidate").strip()
+        for blocker in row.get("promotion_blockers") or []:
+            text = str(blocker or "").strip()
+            if text:
+                unresolved_gap_reasons.append(f"{candidate_id}: {text}")
+        if row.get("split_required"):
+            unresolved_gap_reasons.append(f"{candidate_id}: split required before completion")
+        if row.get("cited_recovery_required"):
+            unresolved_gap_reasons.append(f"{candidate_id}: cited recovery still required")
+        for gap_id in row.get("followup_gap_ids") or []:
+            text = str(gap_id or "").strip()
+            if text:
+                unresolved_gap_reasons.append(text)
+        for gap_id in row.get("parent_gap_ids") or []:
+            text = str(gap_id or "").strip()
+            if text:
+                unresolved_gap_reasons.append(text)
+
+    followup_rows = read_jsonl(topic_root / "followup_subtopics.jsonl")
+    reintegration_rows = read_jsonl(topic_root / "followup_reintegration.jsonl")
+    reintegrated_children = {
+        str(row.get("child_topic_slug") or "").strip()
+        for row in reintegration_rows
+        if str(row.get("child_topic_slug") or "").strip()
+    }
+    pending_followups: list[str] = []
+    for row in queue_rows:
+        if str(row.get("status") or "").strip() != "pending":
+            continue
+        if str(row.get("action_type") or "").strip() == "manual_followup":
+            pending_followups.append(
+                str(row.get("summary") or row.get("action_id") or "pending manual follow-up").strip()
+            )
+    for row in followup_rows:
+        child_topic_slug = str(row.get("child_topic_slug") or "").strip()
+        if not child_topic_slug or child_topic_slug in reintegrated_children:
+            continue
+        row_status = str(row.get("status") or "").strip()
+        return_status = _load_return_packet_status(topic_root, row)
+        if row_status == "returned_with_gap" or return_status == "returned_with_gap":
+            unresolved_gap_reasons.append(f"{child_topic_slug}: returned from follow-up with unresolved gaps")
+            pending_followups.append(f"{child_topic_slug}: follow-up return still unresolved")
+            continue
+        if row_status == "reintegrated":
+            continue
+        pending_followups.append(f"{child_topic_slug}: follow-up child topic not yet reintegrated")
+
+    followup_gap_writeback_rows = read_jsonl(topic_root / "followup_gap_writeback.jsonl")
+    for row in followup_gap_writeback_rows:
+        child_topic_slug = str(row.get("child_topic_slug") or "followup-child").strip()
+        summary = str(row.get("summary") or "").strip()
+        unresolved_gap_reasons.append(
+            f"{child_topic_slug}: {summary}" if summary else f"{child_topic_slug}: follow-up gap writeback remains open"
+        )
+
+    unresolved_gap_reasons = _dedupe_strings(unresolved_gap_reasons)
+    pending_followups = _dedupe_strings(pending_followups)
+    checks = [
+        {
+            "code": "operations_baseline_confirmed",
+            "status": "pass" if not operations_missing_baseline else "fail",
+            "summary": (
+                "All discovered operation manifests have a mechanically accepted baseline status."
+                if not operations_missing_baseline
+                else "At least one operation manifest still lacks a confirmed baseline."
+            ),
+        },
+        {
+            "code": "unresolved_gaps_clear",
+            "status": "pass" if not unresolved_gap_reasons else "fail",
+            "summary": (
+                "No unresolved candidate or follow-up gap debt is currently recorded."
+                if not unresolved_gap_reasons
+                else "At least one explicit gap or blocker remains open."
+            ),
+        },
+        {
+            "code": "pending_followups_clear",
+            "status": "pass" if not pending_followups else "fail",
+            "summary": (
+                "No pending manual or child follow-up work remains."
+                if not pending_followups
+                else "At least one follow-up path is still pending."
+            ),
+        },
+    ]
+    blocking_reasons = _dedupe_strings(operations_missing_baseline + unresolved_gap_reasons + pending_followups)
+    status = "pass" if all(item["status"] == "pass" for item in checks) else "blocked"
+    return {
+        "status": status,
+        "llm_audit_eligible": status == "pass",
+        "run_id": run_id,
+        "operation_count": len(operations),
+        "unresolved_gap_count": len(unresolved_gap_reasons),
+        "pending_followup_count": len(pending_followups),
+        "checks": checks,
+        "blocking_reasons": blocking_reasons,
+        "operations": operations,
+    }
+
+
 def build_report(state: dict) -> str:
     lines = [
         "# Topic conformance report",
@@ -63,6 +242,27 @@ def build_report(state: dict) -> str:
     ]
     for item in state["checks"]:
         lines.append(f"- [{item['status']}] `{item['code']}` {item['description']}")
+    preflight = state.get("mechanical_completion_preflight") or {}
+    if preflight:
+        lines.extend(
+            [
+                "",
+                "## Mechanical completion preflight",
+                "",
+                f"- Status: `{preflight.get('status') or 'unknown'}`",
+                f"- LLM audit eligible: `{str(bool(preflight.get('llm_audit_eligible'))).lower()}`",
+                f"- Operation count: `{preflight.get('operation_count') or 0}`",
+                f"- Unresolved gap count: `{preflight.get('unresolved_gap_count') or 0}`",
+                f"- Pending follow-up count: `{preflight.get('pending_followup_count') or 0}`",
+                "",
+            ]
+        )
+        for item in preflight.get("checks") or []:
+            lines.append(f"- [{item['status']}] `{item['code']}` {item.get('summary') or '(missing)' }")
+        blocking_reasons = list(preflight.get("blocking_reasons") or [])
+        lines.extend(["", "### Blocking reasons", ""])
+        for item in blocking_reasons or ["(none)"]:
+            lines.append(f"- {item}")
     lines.extend(
         [
             "",
@@ -241,7 +441,20 @@ def main() -> int:
             ]
         )
 
-    overall_status = "pass" if all(item["status"] == "pass" for item in checks) else "fail"
+    mechanical_completion_preflight = build_mechanical_completion_preflight(
+        knowledge_root=knowledge_root,
+        topic_root=topic_root,
+        topic_slug=args.topic_slug,
+        topic_state=topic_state,
+        queue_rows=queue_rows,
+    )
+
+    overall_status = (
+        "pass"
+        if all(item["status"] == "pass" for item in checks)
+        and mechanical_completion_preflight.get("status") == "pass"
+        else "fail"
+    )
     payload = {
         "topic_slug": args.topic_slug,
         "phase": args.phase,
@@ -249,6 +462,7 @@ def main() -> int:
         "updated_by": args.updated_by,
         "overall_status": overall_status,
         "checks": checks,
+        "mechanical_completion_preflight": mechanical_completion_preflight,
     }
 
     write_json(topic_root / "conformance_state.json", payload)

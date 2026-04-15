@@ -1,13 +1,13 @@
 {
   "kind": "l2_workspace_graph_report",
   "compiler_version": 1,
-  "generated_at": "2026-04-11T19:14:59+08:00",
+  "generated_at": "2026-04-14T01:51:05+08:00",
   "source_contract_path": "canonical/L2_COMPILER_PROTOCOL.md",
   "summary": {
-    "total_units": 10,
+    "total_units": 13,
     "edge_count": 15,
     "connected_unit_count": 10,
-    "isolated_unit_count": 0,
+    "isolated_unit_count": 3,
     "relation_kinds_present": [
       "depends_on",
       "uses_method",
@@ -189,7 +189,7 @@
         "equivalence_map",
         "warning_note"
       ],
-      "available_count": 6,
+      "available_count": 9,
       "units": [
         {
           "unit_id": "bridge:tfim-toy-model-code-method-bridge",
@@ -261,6 +261,72 @@
             "physical-picture",
             "weak-coupling",
             "benchmark-first"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+          "unit_type": "proof_fragment",
+          "title": "Jones codRestrict + subtype composition construction recipe",
+          "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+          "path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+          "updated_at": "2026-04-12T19:22:16+00:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [],
+          "tags": [
+            "lean",
+            "proof-engineering",
+            "jones2015",
+            "codrestrict",
+            "submodule",
+            "support-projection"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "theorem:jones-ch4-finite-product",
+          "unit_type": "theorem_card",
+          "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+          "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+          "path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "auto_validated",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [
+            "theorem:finite-dimensional-block-centralizer-is-linear-product-of-block-fiber-type-i-factors"
+          ],
+          "related_units": [
+            "local_note:jones-von-neumann-algebras-definition-packet",
+            "local_note:theorem-level-package-roadmap",
+            "local_note:readme"
+          ],
+          "tags": [
+            "theorem_card",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4_auto->L2_auto"
+        },
+        {
+          "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "unit_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [
+            "strategy_memory:2026-04-14-015101-jones-close",
+            "formal_theory_review:2026-04-14-015101-jones-close"
+          ],
+          "tags": [
+            "topic_skill_projection",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
           ],
           "promotion_route": "L3->L4->L2"
         },
@@ -355,7 +421,7 @@
         "concept",
         "derivation_object"
       ],
-      "available_count": 7,
+      "available_count": 10,
       "units": [
         {
           "unit_id": "claim_card:tfim-benchmark-before-portability-claim",
@@ -445,6 +511,72 @@
             "physical-picture",
             "weak-coupling",
             "benchmark-first"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+          "unit_type": "proof_fragment",
+          "title": "Jones codRestrict + subtype composition construction recipe",
+          "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+          "path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+          "updated_at": "2026-04-12T19:22:16+00:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [],
+          "tags": [
+            "lean",
+            "proof-engineering",
+            "jones2015",
+            "codrestrict",
+            "submodule",
+            "support-projection"
+          ],
+          "promotion_route": "L3->L4->L2"
+        },
+        {
+          "unit_id": "theorem:jones-ch4-finite-product",
+          "unit_type": "theorem_card",
+          "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+          "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+          "path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "auto_validated",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [
+            "theorem:finite-dimensional-block-centralizer-is-linear-product-of-block-fiber-type-i-factors"
+          ],
+          "related_units": [
+            "local_note:jones-von-neumann-algebras-definition-packet",
+            "local_note:theorem-level-package-roadmap",
+            "local_note:readme"
+          ],
+          "tags": [
+            "theorem_card",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
+          ],
+          "promotion_route": "L3->L4_auto->L2_auto"
+        },
+        {
+          "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+          "unit_type": "topic_skill_projection",
+          "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+          "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+          "path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+          "updated_at": "2026-04-14T01:51:04+08:00",
+          "maturity": "human_promoted",
+          "topic_completion_status": "promotion-ready",
+          "dependencies": [],
+          "related_units": [
+            "strategy_memory:2026-04-14-015101-jones-close",
+            "formal_theory_review:2026-04-14-015101-jones-close"
+          ],
+          "tags": [
+            "topic_skill_projection",
+            "fresh-jones-finite-dimensional-factor-closure",
+            "backend:theoretical-physics-knowledge-network"
           ],
           "promotion_route": "L3->L4->L2"
         },
@@ -1047,7 +1179,29 @@
       ]
     }
   ],
-  "isolated_units": [],
+  "isolated_units": [
+    {
+      "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+      "unit_type": "proof_fragment",
+      "title": "Jones codRestrict + subtype composition construction recipe",
+      "page_name": "proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.md",
+      "page_path": "canonical/compiled/derived_navigation/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.md"
+    },
+    {
+      "unit_id": "theorem:jones-ch4-finite-product",
+      "unit_type": "theorem_card",
+      "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+      "page_name": "theorem_card--jones-ch4-finite-product.md",
+      "page_path": "canonical/compiled/derived_navigation/theorem_card--jones-ch4-finite-product.md"
+    },
+    {
+      "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+      "unit_type": "topic_skill_projection",
+      "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+      "page_name": "topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.md",
+      "page_path": "canonical/compiled/derived_navigation/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.md"
+    }
+  ],
   "relation_clusters": [
     {
       "relation": "depends_on",
@@ -1498,6 +1652,60 @@
           "target_page_name": "warning_note--tfim-dense-ed-finite-size-limit.md"
         }
       ],
+      "incoming_relations": []
+    },
+    {
+      "unit_id": "proof_fragment:jones-codrestrict-comp-subtype-construction-recipe",
+      "unit_type": "proof_fragment",
+      "title": "Jones codRestrict + subtype composition construction recipe",
+      "summary": "Reusable Lean proof fragment for building a range-facing map by first codRestricting into a proved range target and then composing with the ambient subtype map.",
+      "canonical_path": "canonical/proof-fragments/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.json",
+      "page_name": "proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.md",
+      "page_path": "canonical/compiled/derived_navigation/proof_fragment--jones-codrestrict-comp-subtype-construction-recipe.md",
+      "consultation_profiles": [
+        "l3_candidate_formation",
+        "l4_adjudication"
+      ],
+      "outgoing_count": 0,
+      "incoming_count": 0,
+      "degree": 0,
+      "outgoing_relations": [],
+      "incoming_relations": []
+    },
+    {
+      "unit_id": "theorem:jones-ch4-finite-product",
+      "unit_type": "theorem_card",
+      "title": "Jones Chapter 4 Finite-Product Block-Centralizer Type-I Packet",
+      "summary": "Bounded theorem-card candidate for the current Jones Chapter 4 finite-dimensional/type-I backbone: package the compile-checked block-centralizer finite-product theorem packet as the current honest finite-dimensional anchor, exposing the ambient centralizer as a linear product of block-fiber full-operator/type-I pieces together with the centralizer subalgebra identification, diagonal block-compression formula, and finrank audit, without claiming the stronger subalgebra-level AlgEquiv product theorem or the full Chapter 4 classification route.",
+      "canonical_path": "canonical/theorem-cards/theorem_card--jones-ch4-finite-product.json",
+      "page_name": "theorem_card--jones-ch4-finite-product.md",
+      "page_path": "canonical/compiled/derived_navigation/theorem_card--jones-ch4-finite-product.md",
+      "consultation_profiles": [
+        "l3_candidate_formation",
+        "l4_adjudication"
+      ],
+      "outgoing_count": 0,
+      "incoming_count": 0,
+      "degree": 0,
+      "outgoing_relations": [],
+      "incoming_relations": []
+    },
+    {
+      "unit_id": "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+      "unit_type": "topic_skill_projection",
+      "title": "Fresh Jones Finite Dimensional Factor Closure Topic Skill Projection",
+      "summary": "Validated reusable execution projection for the topic's theorem-facing formal-theory route.",
+      "canonical_path": "canonical/topic-skill-projections/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.json",
+      "page_name": "topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.md",
+      "page_path": "canonical/compiled/derived_navigation/topic_skill_projection--fresh-jones-finite-dimensional-factor-closure.md",
+      "consultation_profiles": [
+        "l3_candidate_formation",
+        "l4_adjudication"
+      ],
+      "outgoing_count": 0,
+      "incoming_count": 0,
+      "degree": 0,
+      "outgoing_relations": [],
       "incoming_relations": []
     },
     {

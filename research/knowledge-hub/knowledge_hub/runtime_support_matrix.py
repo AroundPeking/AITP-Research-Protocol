@@ -209,6 +209,7 @@ def _codex_runtime_row(
 def _claude_runtime_row(
     *,
     claude_hook_status: dict[str, Any],
+    claude_mcp_status: dict[str, Any],
     legacy_claude_commands: list[str],
     workspace_root: str,
 ) -> dict[str, Any]:
@@ -243,9 +244,34 @@ def _claude_runtime_row(
     if legacy_claude_commands:
         issues.append("legacy_claude_commands_present")
 
+    user_mcp_ready = bool(claude_mcp_status.get("user_mcp_server_matches_canonical"))
+    project_mcp_ready = bool(claude_mcp_status.get("project_mcp_server_matches_canonical"))
+    if not (user_mcp_ready or project_mcp_ready):
+        if claude_mcp_status.get("user_config_exists") and not claude_mcp_status.get("user_config_parse_ok"):
+            issues.append("user_mcp_config_invalid")
+        elif claude_mcp_status.get("user_mcp_server_present"):
+            issues.append("user_mcp_server_stale")
+        elif claude_mcp_status.get("project_config_exists") and not claude_mcp_status.get("project_config_parse_ok"):
+            issues.append("project_mcp_config_invalid")
+        elif claude_mcp_status.get("project_mcp_server_present"):
+            issues.append("project_mcp_server_stale")
+        else:
+            issues.append("mcp_server_missing")
+
+    mcp_issue_present = any(
+        issue in {
+            "mcp_server_missing",
+            "user_mcp_config_invalid",
+            "user_mcp_server_stale",
+            "project_mcp_config_invalid",
+            "project_mcp_server_stale",
+        }
+        for issue in issues
+    )
+
     if not any(present_flags):
         status = "missing"
-    elif any(issue.endswith("_stale") or issue.endswith("_mismatch") for issue in issues) or legacy_claude_commands:
+    elif any(issue.endswith("_stale") or issue.endswith("_mismatch") for issue in issues) or legacy_claude_commands or mcp_issue_present:
         status = "stale"
     elif all(present_flags):
         status = "ready"
@@ -258,6 +284,10 @@ def _claude_runtime_row(
     ]
     if status == "ready":
         notes.append("Windows-native SessionStart can run through the Python hook sidecar without requiring bash.")
+        if user_mcp_ready:
+            notes.append("Native Claude MCP tool access is enabled from the user-scoped Claude config.")
+        elif project_mcp_ready:
+            notes.append("Project-local Claude MCP config is present for the current workspace.")
     if status != "ready":
         notes.append("Fallback remains `aitp session-start \"<task>\"` until SessionStart is converged.")
     repair_status = "none_required" if status == "ready" else "required"
@@ -269,6 +299,25 @@ def _claude_runtime_row(
                 {
                     "issue": issue,
                     "hint": "Remove legacy `~/.claude/commands/aitp*.md` bundles or run the full migration command.",
+                }
+            )
+        elif issue == "mcp_server_missing":
+            issue_hints.append(
+                {
+                    "issue": issue,
+                    "hint": "Run `aitp install-agent --agent claude-code --scope user` to register the AITP MCP server in Claude Code.",
+                }
+            )
+        elif issue in {
+            "user_mcp_config_invalid",
+            "user_mcp_server_stale",
+            "project_mcp_config_invalid",
+            "project_mcp_server_stale",
+        }:
+            issue_hints.append(
+                {
+                    "issue": issue,
+                    "hint": "Run `aitp install-agent --agent claude-code --scope user` to refresh the canonical Claude MCP registration, or regenerate the workspace `.mcp.json` config if you intentionally use project scope.",
                 }
             )
         else:
@@ -298,6 +347,7 @@ def _claude_runtime_row(
         ),
         "surface_checks": {
             **claude_hook_status,
+            **claude_mcp_status,
             "legacy_command_paths": legacy_claude_commands,
         },
     }
@@ -523,6 +573,7 @@ def build_runtime_support_matrix(
     workspace_root: str,
     codex_skill_status: dict[str, Any],
     claude_hook_status: dict[str, Any],
+    claude_mcp_status: dict[str, Any],
     legacy_claude_commands: list[Path | str],
     opencode_status: dict[str, Any],
 ) -> dict[str, Any]:
@@ -539,6 +590,7 @@ def build_runtime_support_matrix(
         ),
         "claude_code": _claude_runtime_row(
             claude_hook_status=claude_hook_status,
+            claude_mcp_status=claude_mcp_status,
             legacy_claude_commands=legacy_command_rows,
             workspace_root=workspace_root,
         ),

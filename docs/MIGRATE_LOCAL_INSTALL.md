@@ -54,6 +54,8 @@ Default behavior:
 2. if the editable install is not the canonical repo, uninstall the old package and reinstall from:
    - `AITP-Research-Protocol/research/knowledge-hub`
 3. refresh user-level Codex, Claude Code, and OpenCode AITP assets
+   - Claude Code now also refreshes the native AITP MCP registration in
+     `~/.claude.json`
 4. explicitly enable the OpenCode AITP plugin in `~/.config/opencode/opencode.json`
 5. back up and remove workspace-root legacy harness files
 6. back up and remove any user-level Claude `aitp*.md` legacy command bundles
@@ -87,6 +89,7 @@ The local install is considered converged when:
 - `package.editable_project_location` points to the canonical repo
 - Codex skills are present and match canonical text
 - Claude hook surfaces are present
+- Claude MCP registration is present and canonical
 - OpenCode plugin is actually enabled in `opencode.json`
 - no workspace-root legacy harness files remain active
 - `runtime_convergence_after.front_door_runtimes_converged` is `true`

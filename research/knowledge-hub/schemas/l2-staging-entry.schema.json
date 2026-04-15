@@ -35,6 +35,7 @@
       "enum": [
         "atomic_note",
         "concept",
+        "physical_picture",
         "claim_card",
         "method",
         "workflow",
@@ -107,6 +108,54 @@
     },
     "topic_slug": {
       "type": "string"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "literature_intake_fast_path": {
+          "type": "boolean"
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "source_title": {
+          "type": "string"
+        },
+        "source_slug": {
+          "type": "string"
+        },
+        "literature_stage_signature": {
+          "type": "string"
+        },
+        "vault_wiki_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "graph_analysis_kind": {
+          "type": "string"
+        },
+        "question_type": {
+          "type": "string"
+        },
+        "bridge_label": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "community_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "created_at": {
       "type": "string",

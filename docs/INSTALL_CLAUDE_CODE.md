@@ -1,7 +1,7 @@
 # Install Claude Code Adapter
 
-Claude Code should use AITP through SessionStart bootstrap, not through
-`/aitp`-style command bundles.
+Claude Code should use AITP through SessionStart bootstrap plus a native AITP
+MCP server, not through `/aitp`-style command bundles.
 
 ## Prerequisites
 
@@ -43,6 +43,7 @@ scripts\aitp-local.cmd install-agent --agent claude-code --scope user
 The intended outer behavior matches Superpowers:
 
 - SessionStart injects `using-aitp`;
+- Claude Code can call native `mcp__aitp__...` tools for structured AITP actions;
 - natural-language theory requests enter AITP before substantive work;
 - current-topic continuation and steering stay natural-language first.
 - ordinary topic work should remain in a light runtime profile unless a real
@@ -51,6 +52,9 @@ The intended outer behavior matches Superpowers:
 This is the preferred path because Claude Code should not need a custom
 `/aitp` command vocabulary for normal AITP use. The session should already be
 inside the right routing discipline before substantial work begins.
+The same install now also writes the canonical Claude MCP registration so AITP
+runtime actions are available as native Claude tools instead of shell-only
+fallbacks.
 
 On Windows-native, the generated hook wrapper now prefers a Python
 `session-start.py` sidecar before any bash fallback, so Git Bash is no longer
@@ -79,9 +83,11 @@ scripts\aitp-local.cmd install-agent --agent claude-code --scope user
 
 This now writes:
 
+- `.claude.json`
 - `.claude/skills/using-aitp/`
 - `.claude/skills/aitp-runtime/`
 - `.claude/skills/aitp-runtime/AITP_MCP_SETUP.md`
+- `.mcp.json`
 - `.claude/hooks/session-start`
 - `.claude/hooks/session-start.py`
 - `.claude/hooks/run-hook.cmd`
@@ -95,6 +101,7 @@ It no longer writes `.claude/commands/aitp*.md` by default.
 Claude Code should now:
 
 - inject `using-aitp` at SessionStart;
+- expose an `aitp` MCP server through Claude Code's native tool layer;
 - route substantial theory work through AITP before response;
 - follow `runtime_protocol.generated.md` after routing succeeds.
 
@@ -106,6 +113,10 @@ The same JSON report should show:
 - `runtime_support_matrix.runtimes.claude_code.status` as `ready`
 - `runtime_support_matrix.runtimes.claude_code.remediation` when the Claude
   row needs repair
+- `claude_mcp_surface.user_mcp_server_matches_canonical` when the user-scope
+  Claude MCP registration is current
+- `claude_mcp_surface.project_mcp_server_matches_canonical` when the
+  workspace-local `.mcp.json` compatibility surface is current
 - `runtime_support_matrix.deep_execution_parity.runtimes.claude_code.status`
   as `probe_available` once the bounded Claude runtime probe is present
 - `runtime_convergence.front_door_runtimes_converged` when the full front-door
@@ -117,6 +128,11 @@ The same JSON report should show:
 If the Claude row is not `ready`, run the command in
 `runtime_support_matrix.runtimes.claude_code.remediation.command`, then rerun
 `runtime_support_matrix.runtimes.claude_code.remediation.followup_command`.
+You can also inspect the native MCP registration directly with:
+
+```bash
+claude mcp list
+```
 
 To run the bounded deep-execution probe explicitly:
 
@@ -125,7 +141,8 @@ python research/knowledge-hub/runtime/scripts/run_runtime_parity_acceptance.py -
 ```
 
 That report should stay limitation-heavy: it proves the SessionStart bootstrap
-receipt plus bounded AITP runtime artifacts, but it does not yet claim full
+receipt, native MCP availability, plus bounded AITP runtime artifacts, but it
+does not yet claim full
 live-Claude parity with the Codex baseline.
 
 Useful follow-up commands once a topic exists:

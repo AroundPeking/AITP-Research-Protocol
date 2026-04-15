@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from .runtime_projection_handler import append_transition_history
+from .runtime_schema_promotion_bridge import collect_runtime_schema_context
+from .l2_graph import materialize_canonical_index
 from .tpkn_bridge import (
     build_supporting_question_oracle_unit,
     build_supporting_regression_question_unit,
@@ -24,6 +26,33 @@ from .tpkn_bridge import (
     unit_path_for,
     write_json as write_external_json,
 )
+
+
+_TPKN_TO_CANONICAL_UNIT_TYPE = {
+    "bridge": "bridge",
+    "claim": "claim_card",
+    "concept": "concept",
+    "method": "method",
+    "physical_picture": "physical_picture",
+    "proof_fragment": "proof_fragment",
+    "theorem": "theorem_card",
+    "topic_skill_projection": "topic_skill_projection",
+    "warning": "warning_note",
+    "workflow": "workflow",
+}
+
+_CANONICAL_DIR_BY_TYPE = {
+    "bridge": "bridges",
+    "claim_card": "claim-cards",
+    "concept": "concepts",
+    "method": "methods",
+    "physical_picture": "physical-pictures",
+    "proof_fragment": "proof-fragments",
+    "theorem_card": "theorem-cards",
+    "topic_skill_projection": "topic-skill-projections",
+    "warning_note": "warning-notes",
+    "workflow": "workflows",
+}
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -74,6 +103,184 @@ def _bounded_slug(text: str, *, max_length: int = 48) -> str:
     digest = hashlib.sha1(slug.encode("utf-8")).hexdigest()[:8]
     head = slug[: max(8, max_length - len(digest) - 1)].rstrip("-")
     return f"{head}-{digest}"
+
+
+def _canonical_mirror_path(kernel_root: Path, *, unit_id: str, unit_type: str) -> Path:
+    slug = unit_id.split(":", 1)[1]
+    return kernel_root / "canonical" / _CANONICAL_DIR_BY_TYPE[unit_type] / f"{unit_type}--{slug}.json"
+
+
+def _canonical_mirror_payload(
+    self,
+    *,
+    topic_slug: str,
+    candidate_id: str,
+    promoted_by: str,
+    context: dict[str, Any],
+    artifacts: dict[str, Any],
+    unit_payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    canonical_unit_type = _TPKN_TO_CANONICAL_UNIT_TYPE.get(str(context["mapped_type"]))
+    if canonical_unit_type is None:
+        return None
+
+    candidate = context["candidate"]
+    source_row = context.get("source_row") or {}
+    timestamp = _now_iso()
+    source_artifacts = []
+    locator = source_row.get("locator") or {}
+    for key in ("local_path", "snapshot_path"):
+        value = str(locator.get(key) or "").strip()
+        if value:
+            source_artifacts.append(value)
+
+    assumptions = self._dedupe_strings(
+        [str(item) for item in (candidate.get("assumptions") or []) if str(item).strip()]
+    )
+    if not assumptions:
+        assumptions = ["Promoted from an AITP candidate through explicit backend writeback."]
+
+    l4_checks = self._dedupe_strings(
+        [
+            self._relativize(self._promotion_gate_paths(topic_slug)["json"]),
+            self._relativize(context["packet_paths"]["merge_report"]),
+            self._relativize(Path(artifacts["consultation_paths"]["consultation_result_path"])),
+            self._relativize(context["packet_paths"]["coverage_ledger"])
+            if context["packet_paths"]["coverage_ledger"].exists()
+            else "",
+            self._relativize(context["packet_paths"]["formal_theory_review"])
+            if context["packet_paths"]["formal_theory_review"].exists()
+            else "",
+        ]
+    )
+
+    return {
+        "id": context["target_unit_id"],
+        "unit_type": canonical_unit_type,
+        "title": str(unit_payload.get("title") or candidate.get("title") or context["target_unit_id"]),
+        "summary": str(unit_payload.get("summary") or candidate.get("summary") or ""),
+        "maturity": "auto_validated" if context["resolved_review_mode"] == "ai_auto" else "human_promoted",
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "topic_completion_status": str(
+            context["regression_summary"].get("topic_completion_status")
+            or candidate.get("topic_completion_status")
+            or "not_assessed"
+        ),
+        "tags": self._dedupe_strings(
+            [
+                str(candidate.get("candidate_type") or "").strip(),
+                str(candidate.get("topic_slug") or "").strip(),
+                canonical_unit_type,
+                str(context["resolved_backend_id"] or "").strip(),
+            ]
+        ),
+        "assumptions": assumptions,
+        "regime": {
+            "domain": str(context["default_domain"] or topic_slug),
+            "approximations": self._dedupe_strings(
+                [
+                    f"backend promotion via {context['resolved_review_mode']}",
+                    f"canonical layer {context['resolved_canonical_layer']}",
+                ]
+            ),
+            "scale": "bounded promoted unit",
+            "boundary_conditions": [
+                "external backend writeback completed",
+                "repo-local canonical mirror materialized",
+            ],
+            "exclusions": [str(item) for item in (context["regression_summary"].get("followup_gap_ids") or [])],
+        },
+        "scope": {
+            "applies_to": [str(candidate.get("question") or candidate.get("title") or context["target_unit_id"])],
+            "out_of_scope": [str(item) for item in (context["regression_summary"].get("followup_gap_ids") or [])],
+        },
+        "provenance": {
+            "source_ids": self._dedupe_strings([str(context["resolved_source_id"] or "")]),
+            "backend_refs": self._dedupe_strings([str(context["resolved_backend_id"] or "")]),
+            "l1_artifacts": self._dedupe_strings(source_artifacts),
+            "l3_runs": self._dedupe_strings(
+                [self._relativize(self._candidate_ledger_path(topic_slug, context["resolved_run_id"]))]
+            ),
+            "l4_checks": l4_checks,
+            "citations": self._dedupe_strings(
+                [
+                    str(context["resolved_source_section"] or ""),
+                    str(context["resolved_source_section_title"] or ""),
+                ]
+            ),
+        },
+        "promotion": {
+            "route": str(context["gate_payload"].get("route") or "L3->L4->L2"),
+            "review_mode": context["resolved_review_mode"],
+            "canonical_layer": context["resolved_canonical_layer"],
+            "promoted_by": promoted_by,
+            "promoted_at": timestamp,
+            "review_status": "accepted",
+            "rationale": (
+                "Mirrored into repo-local canonical L2 after successful external backend promotion."
+            ),
+        },
+        "dependencies": self._dedupe_strings(
+            [
+                str(item)
+                for item in (candidate.get("intended_l2_targets") or [])
+                if str(item).strip() and str(item).strip() != str(context["target_unit_id"])
+            ]
+        ),
+        "related_units": self._dedupe_strings(
+            [str(ref.get("id") or "").strip() for ref in (candidate.get("origin_refs") or [])]
+        ),
+        "payload": {
+            "backend_unit_type": str(context["mapped_type"] or ""),
+            "backend_unit_path": str(artifacts["unit_path"]),
+            "backend_root": str(context["tpkn_root"]),
+            "candidate_id": candidate_id,
+            "candidate_type": str(candidate.get("candidate_type") or ""),
+            "source_manifest_path": str(artifacts["manifest_path"]),
+            "merge_report_path": self._relativize(context["packet_paths"]["merge_report"]),
+            "consultation_result_path": self._relativize(
+                Path(artifacts["consultation_paths"]["consultation_result_path"])
+            ),
+            "review_artifacts": context["review_artifacts_payload"],
+        },
+    }
+
+
+def _materialize_canonical_mirror(
+    self,
+    *,
+    topic_slug: str,
+    candidate_id: str,
+    promoted_by: str,
+    context: dict[str, Any],
+    artifacts: dict[str, Any],
+    unit_payload: dict[str, Any],
+) -> dict[str, Any]:
+    payload = _canonical_mirror_payload(
+        self,
+        topic_slug=topic_slug,
+        candidate_id=candidate_id,
+        promoted_by=promoted_by,
+        context=context,
+        artifacts=artifacts,
+        unit_payload=unit_payload,
+    )
+    if payload is None:
+        return {"path": None, "unit_id": None, "unit_type": None}
+
+    mirror_path = _canonical_mirror_path(
+        self.kernel_root,
+        unit_id=str(payload["id"]),
+        unit_type=str(payload["unit_type"]),
+    )
+    _write_json(mirror_path, payload)
+    materialize_canonical_index(self.kernel_root)
+    return {
+        "path": str(mirror_path),
+        "unit_id": str(payload["id"]),
+        "unit_type": str(payload["unit_type"]),
+    }
 
 
 def _resolve_promotion_context(
@@ -197,6 +404,12 @@ def _resolve_promotion_context(
             list(candidate.get("promotion_blockers") or []) or bool(candidate.get("cited_recovery_required"))
         ),
     }
+    runtime_schema_context = collect_runtime_schema_context(
+        self,
+        topic_slug=topic_slug,
+        run_id=resolved_run_id,
+        candidate_id=candidate_id,
+    )
 
     return {
         "gate_payload": gate_payload,
@@ -226,6 +439,7 @@ def _resolve_promotion_context(
         "packet_paths": packet_paths,
         "review_artifacts_payload": review_artifacts_payload,
         "regression_summary": regression_summary,
+        "runtime_schema_context": runtime_schema_context,
         "coverage_summary": coverage_summary,
         "consensus_summary": consensus_summary,
     }
@@ -424,6 +638,7 @@ def _materialize_tpkn_artifacts(
     )
     return {
         "unit_path": unit_path,
+        "unit_payload": unit_payload,
         "manifest_path": manifest_path,
         "created_manifest": created_manifest,
         "check_results": check_results,
@@ -626,6 +841,15 @@ def promote_candidate(
         notes=notes,
         context=context,
     )
+    canonical_mirror = _materialize_canonical_mirror(
+        self,
+        topic_slug=topic_slug,
+        candidate_id=candidate_id,
+        promoted_by=promoted_by,
+        context=context,
+        artifacts=artifacts,
+        unit_payload=artifacts["unit_payload"],
+    )
     finalized = _record_promotion_and_finalize(
         self,
         topic_slug=topic_slug,
@@ -650,6 +874,9 @@ def promote_candidate(
         "promotion_gate_log_path": finalized["log_path"],
         "merge_report_path": str(context["packet_paths"]["merge_report"]),
         "merge_outcome": context["merge_outcome"],
+        "canonical_mirror_path": canonical_mirror["path"],
+        "canonical_mirror_unit_id": canonical_mirror["unit_id"],
+        "canonical_mirror_unit_type": canonical_mirror["unit_type"],
         "tpkn_check": artifacts["check_results"]["check"],
         "tpkn_build": artifacts["check_results"]["build"],
         "consultation": artifacts["consultation_paths"],

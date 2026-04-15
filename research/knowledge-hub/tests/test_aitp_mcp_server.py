@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -24,6 +25,37 @@ def _parse(result: str) -> dict:
     if not isinstance(payload, dict):
         raise AssertionError("MCP result must be a JSON object")
     return payload
+
+
+READ_ONLY_PROFILE_TOOLS = {
+    "aitp_describe_mcp_profile",
+    "aitp_get_runtime_state",
+    "aitp_list_tool_manifest",
+}
+
+WRITE_PROFILE_TOOLS = {
+    "aitp_bootstrap_topic",
+    "aitp_resume_topic",
+    "aitp_scaffold_baseline",
+    "aitp_scaffold_atomic_understanding",
+    "aitp_scaffold_operation",
+    "aitp_update_operation",
+    "aitp_audit_operation_trust",
+    "aitp_audit_capability",
+    "aitp_audit_theory_coverage",
+    "aitp_audit_formal_theory",
+    "aitp_complete_topic",
+    "aitp_update_followup_return",
+    "aitp_reintegrate_followup",
+    "aitp_prepare_lean_bridge",
+    "aitp_request_promotion",
+    "aitp_approve_promotion",
+    "aitp_reject_promotion",
+    "aitp_promote_candidate",
+    "aitp_auto_promote_candidate",
+    "aitp_run_topic_loop",
+    "aitp_install_agent_wrapper",
+}
 
 
 class _AITPStubSuccess:
@@ -144,6 +176,22 @@ class _AITPStubFailure:
 
 
 class AITPMCPServerTests(unittest.TestCase):
+    def test_review_and_skeptic_profiles_register_only_read_only_tools(self) -> None:
+        full_server = aitp_mcp_server.build_mcp_server("full")
+        review_server = aitp_mcp_server.build_mcp_server("review")
+        skeptic_server = aitp_mcp_server.build_mcp_server("skeptic")
+
+        full_tools = set(full_server._tool_manager._tools)
+        review_tools = set(review_server._tool_manager._tools)
+        skeptic_tools = set(skeptic_server._tool_manager._tools)
+
+        self.assertTrue(READ_ONLY_PROFILE_TOOLS.issubset(full_tools))
+        self.assertTrue(WRITE_PROFILE_TOOLS.issubset(full_tools))
+        self.assertEqual(review_tools, READ_ONLY_PROFILE_TOOLS)
+        self.assertEqual(skeptic_tools, READ_ONLY_PROFILE_TOOLS)
+        self.assertFalse(review_tools & WRITE_PROFILE_TOOLS)
+        self.assertFalse(skeptic_tools & WRITE_PROFILE_TOOLS)
+
     def test_aitp_tools_return_success_payloads(self) -> None:
         with patch.object(aitp_mcp_server, "service", _AITPStubSuccess()):
             bootstrap = _parse(aitp_mcp_server.aitp_bootstrap_topic(topic_slug="demo-topic"))
@@ -316,3 +364,127 @@ class AITPMCPServerTests(unittest.TestCase):
             self.assertEqual(result["status"], "error")
             self.assertIn("boom", result["error"])
             self.assertIn("Traceback", result["traceback"])
+
+    def test_bootstrap_and_loop_tools_return_compact_operator_facing_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime_protocol_path = Path(tmp) / "runtime_protocol.generated.json"
+            runtime_protocol_path.write_text(
+                json.dumps(
+                    {
+                        "human_interaction_posture": {
+                            "requires_human_input_now": False,
+                            "summary": "No active human checkpoint is blocking work.",
+                        },
+                        "autonomy_posture": {
+                            "mode": "continuous_bounded_loop",
+                            "can_continue_without_human": True,
+                            "summary": "Continue bounded work.",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            class _CompactStub:
+                def orchestrate(self, **kwargs):  # noqa: ANN003
+                    return {
+                        "topic_slug": kwargs.get("topic_slug") or "demo-topic",
+                        "runtime_root": "/tmp/runtime/demo-topic",
+                        "command": ["python", "orchestrate"],
+                        "conformance_state": {"overall_status": "pass"},
+                        "files": {
+                            "topic_state": "/tmp/runtime/demo-topic/topic_state.json",
+                            "runtime_protocol": "/tmp/runtime/demo-topic/runtime_protocol.generated.json",
+                        },
+                        "topic_state": {
+                            "resume_stage": "L3",
+                            "last_materialized_stage": "L3",
+                            "research_mode": "exploratory_general",
+                            "load_profile": "light",
+                            "summary": "Resume at L3.",
+                            "status_explainability": {
+                                "current_status_summary": "Resume at L3.",
+                            },
+                        },
+                        "stdout": "very large bootstrap payload omitted",
+                    }
+
+                def run_topic_loop(self, **kwargs):  # noqa: ANN003
+                    return {
+                        "topic_slug": kwargs.get("topic_slug") or "demo-topic",
+                        "run_id": "2026-04-13-demo",
+                        "load_profile": "light",
+                        "loop_state_path": "/tmp/runtime/demo-topic/loop_state.json",
+                        "loop_history_path": "/tmp/runtime/demo-topic/loop_history.jsonl",
+                        "loop_state": {
+                            "entry_conformance": "pass",
+                            "exit_conformance": "pass",
+                            "capability_status": "missing_trust",
+                            "trust_status": "missing",
+                            "auto_actions_executed": 0,
+                        },
+                        "runtime_protocol": {
+                            "runtime_protocol_path": str(runtime_protocol_path),
+                            "runtime_protocol_note_path": "/tmp/runtime/demo-topic/runtime_protocol.generated.md",
+                        },
+                        "current_topic_memory": {
+                            "topic_slug": "demo-topic",
+                            "summary": "Stage L3; next source expansion.",
+                            "current_topic_path": "/tmp/runtime/current_topic.json",
+                        },
+                        "bootstrap": {
+                            "topic_state": {
+                                "status_explainability": {
+                                    "next_bounded_action": {
+                                        "action_id": "action:demo-topic:01",
+                                        "action_type": "l0_source_expansion",
+                                        "summary": "Start with source-layer/scripts/discover_and_register.py when you have a topic query; if you already know the arXiv id, use source-layer/scripts/register_arxiv_source.py and intake/ARXIV_FIRST_SOURCE_INTAKE.md.",
+                                        "auto_runnable": False,
+                                    }
+                                }
+                            }
+                        },
+                        "entry_audit": {
+                            "conformance_state": {"overall_status": "pass"},
+                            "conformance_report_path": "/tmp/runtime/demo-topic/entry.md",
+                        },
+                        "exit_audit": {
+                            "conformance_state": {"overall_status": "pass"},
+                            "conformance_report_path": "/tmp/runtime/demo-topic/exit.md",
+                        },
+                        "capability_audit": {
+                            "overall_status": "missing_trust",
+                            "capability_report_path": "/tmp/runtime/demo-topic/capability.md",
+                        },
+                        "trust_audit": {
+                            "overall_status": "missing",
+                            "trust_audit_path": "/tmp/runtime/demo-topic/trust.json",
+                            "trust_report_path": "/tmp/runtime/demo-topic/trust.md",
+                        },
+                        "steering_artifacts": {},
+                        "auto_actions": [],
+                    }
+
+            with patch.object(aitp_mcp_server, "service", _CompactStub()):
+                bootstrap = _parse(aitp_mcp_server.aitp_bootstrap_topic(topic_slug="demo-topic"))
+                loop = _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic"))
+
+        self.assertEqual(bootstrap["status"], "success")
+        self.assertIn("topic_state_summary", bootstrap)
+        self.assertNotIn("topic_state", bootstrap)
+        self.assertEqual(bootstrap["topic_state_summary"]["resume_stage"], "L3")
+        self.assertEqual(bootstrap["conformance"]["overall_status"], "pass")
+
+        self.assertEqual(loop["status"], "success")
+        self.assertIn("selected_action", loop)
+        self.assertEqual(loop["selected_action"]["action_type"], "l0_source_expansion")
+        self.assertIn("discover_and_register.py", loop["selected_action"]["summary"])
+        self.assertIn("register_arxiv_source.py", loop["selected_action"]["summary"])
+        self.assertIn("ARXIV_FIRST_SOURCE_INTAKE.md", loop["selected_action"]["summary"])
+        self.assertIn("human_interaction_posture", loop)
+        self.assertIn("autonomy_posture", loop)
+        self.assertEqual(loop["autonomy_posture"]["mode"], "continuous_bounded_loop")
+        self.assertIn("audits", loop)
+        self.assertNotIn("bootstrap", loop)
+        self.assertNotIn("entry_audit", loop)
+        self.assertNotIn("exit_audit", loop)

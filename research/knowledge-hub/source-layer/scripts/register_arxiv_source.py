@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import importlib.util
 import json
 import re
+import sys
 import tarfile
 import textwrap
 import urllib.error
@@ -18,6 +21,8 @@ from typing import Any
 
 
 ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def now_iso() -> str:
@@ -29,6 +34,15 @@ def slugify(text: str) -> str:
     text = re.sub(r"[^a-z0-9]+", "-", text)
     text = re.sub(r"-+", "-", text).strip("-")
     return text or "arxiv-paper"
+
+
+def bounded_slugify(text: str, *, max_length: int = 24) -> str:
+    slug = slugify(text)
+    if len(slug) <= max_length:
+        return slug
+    digest = hashlib.sha1(slug.encode("utf-8")).hexdigest()[:8]
+    head = slug[: max(8, max_length - len(digest) - 1)].rstrip("-")
+    return f"{head}-{digest}"
 
 
 def short_summary(text: str, limit: int = 260) -> str:
@@ -174,6 +188,117 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
         "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows),
         encoding="utf-8",
     )
+
+
+def load_enrich_module(script_path: Path):
+    spec = importlib.util.spec_from_file_location("enrich_with_deepxiv_module", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load enrichment module from {script_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_graph_module(script_path: Path):
+    spec = importlib.util.spec_from_file_location("build_concept_graph_module", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load concept-graph module from {script_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def build_source_slug(metadata: dict[str, Any]) -> str:
+    base_id = bounded_slugify(
+        str(metadata.get("base_id") or metadata.get("versioned_id") or ""),
+        max_length=20,
+    )
+    digest_input = "|".join(
+        [
+            str(metadata.get("title") or ""),
+            str(metadata.get("versioned_id") or ""),
+            str(metadata.get("abs_url") or ""),
+        ]
+    )
+    digest = hashlib.sha1(digest_input.encode("utf-8")).hexdigest()[:8]
+    if base_id:
+        return f"paper-{base_id}-{digest}"
+    return f"paper-{digest}"
+
+
+def sync_runtime_status_after_registration(
+    *,
+    knowledge_root: Path,
+    topic_slug: str,
+    source_id: str,
+    updated_by: str,
+) -> dict[str, Any]:
+    topic_state_path = knowledge_root / "runtime" / "topics" / topic_slug / "topic_state.json"
+    if not topic_state_path.exists():
+        return {
+            "status": "skipped",
+            "reason": "runtime_topic_missing",
+            "runtime_protocol_path": "",
+            "runtime_protocol_note_path": "",
+            "source_count": 0,
+            "source_intelligence_summary": "",
+        }
+
+    if str(PACKAGE_ROOT) not in sys.path:
+        sys.path.insert(0, str(PACKAGE_ROOT))
+
+    from knowledge_hub.aitp_service import AITPService
+
+    service = AITPService(kernel_root=knowledge_root, repo_root=REPO_ROOT)
+    human_request = f"Registered source {source_id}; refresh runtime status surfaces."
+    service.refresh_runtime_context(
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        human_request=human_request,
+    )
+    service.orchestrate(
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        human_request=human_request,
+    )
+    payload = service.refresh_runtime_context(
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        human_request=human_request,
+    )
+    current_topic_payload = load_json(knowledge_root / "runtime" / "current_topic.json") or {}
+    if str(current_topic_payload.get("topic_slug") or "").strip() == topic_slug:
+        service.remember_current_topic(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+            source="source-registration-sync",
+            human_request=human_request,
+        )
+    else:
+        service._sync_active_topics_registry(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+            source="source-registration-sync",
+            human_request=human_request,
+            focus=False,
+        )
+    return {
+        "status": "refreshed",
+        "reason": "runtime_topic_present",
+        "runtime_protocol_path": str(payload["runtime_protocol_path"]),
+        "runtime_protocol_note_path": str(payload["runtime_protocol_note_path"]),
+        "source_count": int(
+            (
+                ((payload.get("topic_synopsis") or {}).get("l1_source_intake") or {}).get(
+                    "source_count"
+                )
+                or 0
+            )
+        ),
+        "source_intelligence_summary": str(
+            (payload.get("source_intelligence") or {}).get("summary") or ""
+        ),
+    }
 
 
 def ensure_topic_manifest(topic_root: Path, topic_slug: str, created_at: str) -> None:
@@ -341,10 +466,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--topic-slug", required=True)
     parser.add_argument("--arxiv-id", required=True)
     parser.add_argument("--registered-by", default="codex")
-    parser.add_argument("--download-source", action="store_true")
+    download_group = parser.add_mutually_exclusive_group()
+    download_group.add_argument("--download-source", dest="download_source", action="store_true")
+    download_group.add_argument("--metadata-only", dest="download_source", action="store_false")
+    parser.set_defaults(download_source=True)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--skip-intake-projection", action="store_true")
+    parser.add_argument("--skip-enrichment", action="store_true")
+    parser.add_argument("--skip-graph-build", action="store_true")
     parser.add_argument("--metadata-json")
+    parser.add_argument("--enrichment-json")
+    parser.add_argument("--graph-json")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -355,10 +487,14 @@ def register_arxiv_source(
     topic_slug: str,
     arxiv_id: str,
     registered_by: str = "codex",
-    download_source: bool = False,
+    download_source: bool = True,
     force: bool = False,
     skip_intake_projection: bool = False,
     metadata_override: dict[str, Any] | None = None,
+    skip_enrichment: bool = False,
+    enrichment_override: dict[str, Any] | None = None,
+    skip_graph_build: bool = False,
+    graph_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     del force  # Reserved for future parity with the CLI surface.
     metadata = (
@@ -366,7 +502,7 @@ def register_arxiv_source(
         if metadata_override is not None
         else fetch_metadata(arxiv_id)
     )
-    source_slug = f"paper-{slugify(metadata['title'])}-{metadata['base_id'].replace('.', '-')}"
+    source_slug = build_source_slug(metadata)
 
     source_layer_topic_root = knowledge_root / "source-layer" / "topics" / topic_slug
     layer0_source_root = source_layer_topic_root / "sources" / source_slug
@@ -488,6 +624,63 @@ def register_arxiv_source(
             status_payload["last_updated"] = acquired_at
             write_json(status_json, status_payload)
 
+    enrichment_status = "skipped" if skip_enrichment else "pending"
+    enrichment_receipt_path: Path | None = None
+    enrichment_error = ""
+    if not skip_enrichment:
+        try:
+            enrich_script = Path(__file__).resolve().parent / "enrich_with_deepxiv.py"
+            enrich_module = load_enrich_module(enrich_script)
+            enrichment_result = enrich_module.enrich_registered_source(
+                knowledge_root=knowledge_root,
+                topic_slug=topic_slug,
+                source_id=source_id,
+                enriched_by=registered_by,
+                enrichment_override=enrichment_override,
+            )
+            enrichment_status = str(enrichment_result.get("status") or "enriched")
+            receipt_text = str(enrichment_result.get("receipt_path") or "").strip()
+            if receipt_text:
+                enrichment_receipt_path = Path(receipt_text)
+        except Exception as exc:  # noqa: BLE001
+            enrichment_status = "failed"
+            enrichment_error = str(exc)
+
+    graph_build_status = "skipped" if skip_graph_build else "pending"
+    concept_graph_path: Path | None = None
+    concept_graph_relative_path = ""
+    graph_receipt_path: Path | None = None
+    graph_error = ""
+    if not skip_graph_build:
+        try:
+            graph_script = Path(__file__).resolve().parent / "build_concept_graph.py"
+            graph_module = load_graph_module(graph_script)
+            graph_result = graph_module.build_concept_graph_for_registered_source(
+                knowledge_root=knowledge_root,
+                topic_slug=topic_slug,
+                source_id=source_id,
+                built_by=registered_by,
+                graph_override=graph_override,
+            )
+            graph_build_status = str(graph_result.get("status") or "built")
+            graph_path_text = str(graph_result.get("concept_graph_path") or "").strip()
+            if graph_path_text:
+                concept_graph_path = Path(graph_path_text)
+            concept_graph_relative_path = str(graph_result.get("concept_graph_relative_path") or "").strip()
+            receipt_text = str(graph_result.get("receipt_path") or "").strip()
+            if receipt_text:
+                graph_receipt_path = Path(receipt_text)
+        except Exception as exc:  # noqa: BLE001
+            graph_build_status = "failed"
+            graph_error = str(exc)
+
+    runtime_status_sync = sync_runtime_status_after_registration(
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+        source_id=source_id,
+        updated_by=registered_by,
+    )
+
     return {
         "status": "registered",
         "knowledge_root": knowledge_root,
@@ -505,6 +698,15 @@ def register_arxiv_source(
         "download_status": download_status,
         "extraction_status": extraction_status,
         "download_error": download_error,
+        "enrichment_status": enrichment_status,
+        "enrichment_receipt_path": enrichment_receipt_path,
+        "enrichment_error": enrichment_error,
+        "graph_build_status": graph_build_status,
+        "concept_graph_path": concept_graph_path,
+        "concept_graph_relative_path": concept_graph_relative_path,
+        "graph_receipt_path": graph_receipt_path,
+        "graph_error": graph_error,
+        "runtime_status_sync": runtime_status_sync,
     }
 
 
@@ -521,6 +723,18 @@ def main() -> int:
         metadata_override = load_json(metadata_path)
         if metadata_override is None:
             raise FileNotFoundError(f"Metadata override file does not exist: {metadata_path}")
+    enrichment_override = None
+    if args.enrichment_json:
+        enrichment_path = Path(args.enrichment_json).expanduser().resolve()
+        enrichment_override = load_json(enrichment_path)
+        if enrichment_override is None:
+            raise FileNotFoundError(f"Enrichment JSON file does not exist: {enrichment_path}")
+    graph_override = None
+    if args.graph_json:
+        graph_path = Path(args.graph_json).expanduser().resolve()
+        graph_override = load_json(graph_path)
+        if graph_override is None:
+            raise FileNotFoundError(f"Graph JSON file does not exist: {graph_path}")
 
     result = register_arxiv_source(
         knowledge_root=knowledge_root,
@@ -531,6 +745,10 @@ def main() -> int:
         force=args.force,
         skip_intake_projection=args.skip_intake_projection,
         metadata_override=metadata_override,
+        skip_enrichment=args.skip_enrichment,
+        enrichment_override=enrichment_override,
+        skip_graph_build=args.skip_graph_build,
+        graph_override=graph_override,
     )
     if args.json:
         payload = {
@@ -550,6 +768,17 @@ def main() -> int:
             "download_status": result["download_status"],
             "extraction_status": result["extraction_status"],
             "download_error": result["download_error"],
+            "enrichment_status": result["enrichment_status"],
+            "enrichment_receipt_path": (
+                str(result["enrichment_receipt_path"]) if result["enrichment_receipt_path"] is not None else ""
+            ),
+            "enrichment_error": result["enrichment_error"],
+            "graph_build_status": result["graph_build_status"],
+            "concept_graph_path": str(result["concept_graph_path"]) if result["concept_graph_path"] is not None else "",
+            "concept_graph_relative_path": result["concept_graph_relative_path"],
+            "graph_receipt_path": str(result["graph_receipt_path"]) if result["graph_receipt_path"] is not None else "",
+            "graph_error": result["graph_error"],
+            "runtime_status_sync": result["runtime_status_sync"],
         }
         print(json.dumps(payload, ensure_ascii=True, indent=2))
         return 0
@@ -559,6 +788,10 @@ def main() -> int:
     print(f"- layer0 snapshot.md: {result['layer0_snapshot']}")
     if result["intake_projection_root"] is not None:
         print(f"- intake projection: {result['intake_projection_root']}")
+    if result["enrichment_receipt_path"] is not None:
+        print(f"- enrichment receipt: {result['enrichment_receipt_path']}")
+    if result["concept_graph_path"] is not None:
+        print(f"- concept graph: {result['concept_graph_path']}")
     if result["bundle_path"] is not None:
         print(f"- bundle: {result['bundle_path']}")
     if result["extract_dir"] is not None:

@@ -1,0 +1,89 @@
+{
+  "status": "success",
+  "work_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8",
+  "kernel_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub",
+  "positive_acceptance": {
+    "topic_slug": "hs-like-finite-size-chaos-window-core",
+    "run_id": "2026-04-14-025154-bootstrap",
+    "target_unit_id": "claim:hs-like-chaos-window-finite-size-core",
+    "canonical_mirror_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\claim-cards\\claim_card--hs-like-chaos-window-finite-size-core.json",
+    "workspace_knowledge_report": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json"
+  },
+  "negative_result": {
+    "entry_id": "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+    "entry_json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\staging\\entries\\staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json"
+  },
+  "knowledge_report": {
+    "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json",
+    "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.md",
+    "positive_row": {
+      "knowledge_id": "claim:hs-like-chaos-window-finite-size-core",
+      "title": "HS-like Finite-Size Chaos Window Robust Core",
+      "summary": "Bounded claim-card candidate: under the benchmark-calibrated finite-size ED protocol, the robust HS-like chaos window is 0.4 <= alpha <= 1.0, while alpha = 2.0 and alpha >= 2.4 remain excluded from the chaotic regime.",
+      "source_surface": "canonical_l2",
+      "authority_level": "authoritative_canonical",
+      "knowledge_state": "trusted",
+      "path": "canonical/claim-cards/claim_card--hs-like-chaos-window-finite-size-core.json",
+      "updated_at": "2026-04-14T02:51:55+08:00",
+      "provenance_refs": [
+        "canonical/claim-cards/claim_card--hs-like-chaos-window-finite-size-core.json"
+      ],
+      "tags": [
+        "claim_card",
+        "hs-like-finite-size-chaos-window-core",
+        "backend:theoretical-physics-knowledge-network"
+      ],
+      "change_fingerprint": "a2c9d1dd039ea292afb87f44f6d577b03540d554",
+      "change_status": "unchanged"
+    },
+    "negative_row": {
+      "knowledge_id": "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+      "title": "HS model OTOC Lyapunov exponent: regime mismatch",
+      "summary": "The Haldane-Shastry model does NOT exhibit a well-defined OTOC-based quantum Lyapunov exponent at finite N. The HS model is integrable, OTOC growth is power-law not exponential, and the MSS chaos bound does not apply.",
+      "source_surface": "staging_l2",
+      "authority_level": "non_authoritative_staging",
+      "knowledge_state": "contradiction_watch",
+      "path": "canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json",
+      "updated_at": "2026-04-13T23:12:38+08:00",
+      "topic_slug": "global",
+      "provenance_refs": [
+        "canonical/staging/entries/staging--hs-model-otoc-lyapunov-exponent-regime-mismatch.json"
+      ],
+      "tags": [],
+      "change_fingerprint": "7fc74298047bb39ed5efcc5677c5629b3fd9e424",
+      "change_status": "unchanged"
+    }
+  },
+  "consultation": {
+    "query_text": "HS-like finite-size chaos window robust core OTOC Lyapunov exponent regime mismatch",
+    "retrieval_profile": "l4_adjudication",
+    "canonical_ids": [
+      "claim:hs-like-chaos-window-finite-size-core",
+      "claim_card:tfim-benchmark-before-portability-claim",
+      "concept:tfim-transverse-field-ising-model",
+      "physical_picture:tfim-weak-coupling-benchmark-intuition",
+      "theorem:jones-ch4-finite-product",
+      "topic_skill_projection:fresh-jones-finite-dimensional-factor-closure",
+      "topic_skill_projection:jones-von-neumann-algebras",
+      "topic_skill_projection:tfim-benchmark-first-route",
+      "validation_pattern:tfim-small-system-gap-reproduction",
+      "warning_note:tfim-dense-ed-finite-size-limit",
+      "workflow:tfim-benchmark-workflow"
+    ],
+    "staged_ids": [
+      "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch",
+      "staging:knowledge-report-contradiction-aitp-l2-knowledge-report-acceptance-wmv5fkem",
+      "staging:knowledge-report-contradiction-knowledge-acceptance",
+      "staging:measurement-induced-phase-transitions-in-the-dynamics-of-entanglement-notation-classes",
+      "staging:measurement-induced-phase-transitions-in-the-dynamics-of-entanglement-unspecified-method-method-signal",
+      "staging:phase138-test-contradiction-aitp-cli-e2e-beo7dvwo",
+      "staging:phase138-test-contradiction-aitp-cli-e2e-nna0xm3v",
+      "staging:phase138-test-contradiction-aitp-cli-e2e-yd9ud3qx"
+    ]
+  },
+  "compiled_reports": {
+    "workspace_memory_map": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.json",
+    "workspace_graph_report": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.json",
+    "workspace_knowledge_report": "C:\\Users\\samur\\AppData\\Local\\Temp\\hspn-6e_xzsy8\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json"
+  }
+}

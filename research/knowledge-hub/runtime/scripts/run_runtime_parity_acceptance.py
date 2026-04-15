@@ -59,6 +59,18 @@ def expected_artifacts(topic_slug: str) -> list[str]:
     ]
 
 
+def posture_contract_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
+    human_interaction_posture = payload.get("human_interaction_posture") or {}
+    autonomy_posture = payload.get("autonomy_posture") or {}
+    return {
+        "human_interaction_posture_present": bool(human_interaction_posture),
+        "autonomy_posture_present": bool(autonomy_posture),
+        "requires_human_input_now": human_interaction_posture.get("requires_human_input_now"),
+        "autonomy_mode": autonomy_posture.get("mode"),
+        "applied_max_auto_steps": autonomy_posture.get("applied_max_auto_steps"),
+    }
+
+
 def pending_probe_payload(runtime: str) -> dict[str, Any]:
     return {
         "report_kind": "runtime_deep_execution_parity",
@@ -257,6 +269,22 @@ def claude_probe_payload(*, package_root: Path, repo_root: Path, work_root: Path
         "Claude bounded probe should stay in the light runtime profile",
     )
     check(bool(status_payload.get("selected_action_id")), "Claude status should expose the next bounded action")
+    check(
+        bool((session_start_payload.get("session_start") or {}).get("human_interaction_posture")),
+        "Claude session-start should surface the human-interaction posture contract",
+    )
+    check(
+        bool((session_start_payload.get("session_start") or {}).get("autonomy_posture")),
+        "Claude session-start should surface the autonomy posture contract",
+    )
+    check(
+        bool(status_payload.get("human_interaction_posture")),
+        "Claude status should surface the human-interaction posture contract",
+    )
+    check(
+        bool(status_payload.get("autonomy_posture")),
+        "Claude status should surface the autonomy posture contract",
+    )
 
     checked_artifacts = [
         {"label": "claude_using_skill", "path": str(claude_root / "skills" / "using-aitp" / "SKILL.md"), "status": "present"},
@@ -293,6 +321,7 @@ def claude_probe_payload(*, package_root: Path, repo_root: Path, work_root: Path
             "A bounded natural-language request reaches topic_state, loop_state, and runtime_protocol artifacts on an isolated kernel root.",
             "The bounded probe stays in the light runtime profile and preserves a selected_action_id through status.",
             "Current-topic memory plus session_start contract/note artifacts are materialized for the new topic.",
+            "Claude session-start and status surfaces both expose the same human-control and autonomous-continuation posture contract family.",
         ],
         "falls_short_of_codex_baseline": [
             "The probe validates the SessionStart receipt and the downstream AITP runtime in two explicit steps rather than one live Claude Code chat turn.",
@@ -314,6 +343,10 @@ def claude_probe_payload(*, package_root: Path, repo_root: Path, work_root: Path
         "install": install_payload,
         "session_start": session_start_payload,
         "status_payload": status_payload,
+        "posture_contracts": {
+            "session_start": posture_contract_snapshot(session_start_payload.get("session_start") or {}),
+            "status": posture_contract_snapshot(status_payload),
+        },
     }
 
 
@@ -392,6 +425,22 @@ def opencode_probe_payload(*, package_root: Path, repo_root: Path, work_root: Pa
         "OpenCode bounded probe should stay in the light runtime profile",
     )
     check(bool(status_payload.get("selected_action_id")), "OpenCode status should expose the next bounded action")
+    check(
+        bool((session_start_payload.get("session_start") or {}).get("human_interaction_posture")),
+        "OpenCode session-start should surface the human-interaction posture contract",
+    )
+    check(
+        bool((session_start_payload.get("session_start") or {}).get("autonomy_posture")),
+        "OpenCode session-start should surface the autonomy posture contract",
+    )
+    check(
+        bool(status_payload.get("human_interaction_posture")),
+        "OpenCode status should surface the human-interaction posture contract",
+    )
+    check(
+        bool(status_payload.get("autonomy_posture")),
+        "OpenCode status should surface the autonomy posture contract",
+    )
 
     checked_artifacts = [
         {"label": "opencode_using_skill", "path": str(opencode_root / "skills" / "using-aitp" / "SKILL.md"), "status": "present"},
@@ -425,6 +474,7 @@ def opencode_probe_payload(*, package_root: Path, repo_root: Path, work_root: Pa
             "The supported OpenCode plugin injects using-aitp and tool-mapping context through the real system-transform hook.",
             "A bounded natural-language request reaches topic_state, loop_state, and runtime_protocol artifacts on an isolated kernel root.",
             "The bounded probe stays in the light runtime profile and preserves a selected_action_id through status.",
+            "OpenCode session-start and status surfaces both expose the same human-control and autonomous-continuation posture contract family.",
         ],
         "falls_short_of_codex_baseline": [
             "The probe validates the plugin module hooks and the downstream AITP runtime in explicit steps rather than one live restarted OpenCode app session.",
@@ -448,6 +498,10 @@ def opencode_probe_payload(*, package_root: Path, repo_root: Path, work_root: Pa
         "install": install_payload,
         "session_start": session_start_payload,
         "status_payload": status_payload,
+        "posture_contracts": {
+            "session_start": posture_contract_snapshot(session_start_payload.get("session_start") or {}),
+            "status": posture_contract_snapshot(status_payload),
+        },
     }
 
 
@@ -500,6 +554,8 @@ def codex_baseline_payload(*, package_root: Path, repo_root: Path, work_root: Pa
     check(status_payload["topic_slug"] == TOPIC_SLUG, "status should read the same topic")
     check(loop_payload["load_profile"] == "light", "Codex baseline should stay in the light runtime profile")
     check(bool(status_payload.get("selected_action_id")), "status should expose the next bounded action")
+    check(bool(status_payload.get("human_interaction_posture")), "Codex status should surface the human-interaction posture contract")
+    check(bool(status_payload.get("autonomy_posture")), "Codex status should surface the autonomy posture contract")
 
     checked_artifacts = [
         {"label": "topic_state", "path": str(Path(bootstrap_payload["files"]["topic_state"])), "status": "present"},
@@ -532,6 +588,9 @@ def codex_baseline_payload(*, package_root: Path, repo_root: Path, work_root: Pa
         "bootstrap": bootstrap_payload,
         "loop": loop_payload,
         "status_payload": status_payload,
+        "posture_contracts": {
+            "status": posture_contract_snapshot(status_payload),
+        },
     }
 
 

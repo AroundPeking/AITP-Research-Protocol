@@ -383,7 +383,9 @@ export so literature navigation matches how physicists actually work.
 contradictory assumptions instead of shallow keyword extraction alone.
 **Status:** First production slice implemented in `v1.64`
 (`method_specificity_rows`, runtime/status exposure, and isolated acceptance).
-Broader intake maturity remains open.
+Broader intake maturity remains open. The contradiction-adjudication remainder
+landed in `v1.93`; further work would now be broader intake maturity beyond the
+contradiction surface itself.
 **Source:** L0-L4 layer audit 2026-04-07
 **Context:** `.planning/backlog/999.27-l1-assumption-extraction-reading-depth/`
 
@@ -402,6 +404,8 @@ Broader scratch-mode work remains open.
 
 **Goal:** Add limiting-case, dimensional, symmetry, cross-reference, and
 self-consistency validation modes alongside current numerical execution checks.
+**Status:** First production slice implemented in `v1.47`; broader analytical
+validation maturity is now promoted into `v1.94`.
 **Source:** L0-L4 layer audit 2026-04-07
 **Context:** `.planning/backlog/999.29-l4-analytical-validation/`
 
@@ -588,6 +592,31 @@ semi-formal layer and Lean's formal requirements is too large to bridge
 without additional intermediate tooling.
 **Context:** `.planning/backlog/999.47-lean-bridge-real-theory-result/`
 
+### 999.52: Proof Engineering Memory And Proof-Fragment Distillation
+
+**Goal:** Turn reusable formal-proof engineering knowledge into a first-class
+AITP path by extending run-local `strategy_memory` for proof-engineering
+patterns, then distilling high-confidence rows into `proof_fragment`
+candidates that can promote into canonical `L2`.
+**Success criteria:** one runtime-side proof-engineering memory path exists for
+formal topics; one distillation path converts high-confidence
+proof-engineering rows into `proof_fragment` candidates; one promoted canonical
+`proof_fragment` proves the pattern can survive `L3/L4` review and cross-topic
+reuse without collapsing into ad hoc notes.
+**Why this matters:** the repository already reserves `proof_fragment` and
+`derivation_step` as legal `L2` families, and runtime proof/repair artifacts
+already exist, but there is still no honest bridge from real proof debugging
+work into durable reusable knowledge. Without that bridge, formal-theory work
+keeps rediscovering local Lean/mathlib tactics instead of accumulating them as
+governed AITP memory.
+**Recommended shape:** do not add a brand-new canonical family. Instead:
+- extend `strategy_memory` to support proof-engineering pattern rows
+- add family-specific payload contracts and storage routes for canonical
+  `proof_fragment`
+- distill high-confidence runtime rows into `proof_fragment` candidates before
+  normal promotion
+**Context:** `.planning/backlog/999.52-proof-engineering-memory-and-proof-fragment-distillation/`
+
 ## Installation And Adoption Readiness
 
 These items address the gap between "a researcher who already committed to AITP
@@ -671,6 +700,506 @@ and directly gates adoption for non-Linux users.
 **Merged predecessors:** broader Windows follow-up beyond the already-fixed
 warning contract in `999.4`.
 **Context:** `scripts/aitp-local.cmd`, `docs/INSTALL.md`, all `INSTALL_*.md`
+
+## HCI-Prioritized Gap Analysis (2026-04-13)
+
+Cross-reference with wow-harness borrowable patterns below.
+Items 999.60–999.73 are new; items already tracked in Phase 165.2 are noted.
+
+### Tier 1 — HCI Foundation (unlocks everything else)
+
+### 999.60: Human-Readable Status/Next Rendering
+
+**Goal:** Add a `--human` flag (or make it default) that renders topic status in
+under 10 lines: topic name, current mode, last action, next step, blocked items.
+**Problem:** Dashboard outputs 40+ sections with no visual hierarchy; humans
+cannot scan status at a glance.
+**Files:** `kernel_markdown_renderers.py`, `topic_shell_support.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.61: First-Run Onboarding Experience
+
+**Goal:** `aitp hello` or `aitp tutorial` that walks: install check → create
+first topic → check status → read a paper. Three steps, zero jargon.
+**Problem:** No help.md, no tutorial, no getting-started. 60+ commands with no
+guidance.
+**Files:** New `cli_onboarding_handler.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.62: Jargon Cleanup — Human-Facing Surfaces Only
+
+**Goal:** Audit all `checkpoint_questions` templates; replace "adjudication
+route", "L0 recovery", "promotion approval" with plain language. Add a
+jargon-regex gate in CI.
+**Problem:** Checkpoint questions contain protocol jargon despite explicit rules.
+**Files:** All `*_support.py` files that emit checkpoint questions
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.63: Progressive Disclosure for CLI Commands
+
+**Goal:** Group commands: Core (5 commands), Advanced, Maintenance. `aitp help`
+shows Core only; `aitp help --all` shows everything.
+**Problem:** 60+ flat commands with no grouping.
+**Files:** `aitp_cli.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.64: Natural-Language Steering
+
+**Goal:** `steer-topic` accepts free-text input; parse into structured steering
+internally instead of requiring JSON direction/decision/control-note.
+**Problem:** Humans should say "换方向到X", not fill JSON.
+**Files:** `aitp_cli.py` steer handler, `chat_session_support.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### Tier 2 — Interaction Friction Removal
+
+### 999.65: "Where Am I?" Progress Indicator
+
+**Goal:** Add pipeline stage tracking to topic_state.json; render as progress bar
+or stage list in status/next output.
+**Problem:** No "Step N of M" metaphor.
+**Files:** `topic_shell_support.py`, `topic_state.json` schema
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.66: Session Summary / Handoff Surface
+
+**Goal:** Materialize `session_summary.md` on session end: attempted, succeeded,
+pending, changed since last session.
+**Problem:** Every session starts from amnesia.
+**Files:** Extend `session_chronicle_handler.py` or new `session_summary_support.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.67: Change Log / Diff Surface
+
+**Goal:** Track artifact timestamps; diff against last session; render delta
+summary on session start.
+**Problem:** No "what changed since last session" view.
+**Files:** `topic_shell_support.py`, new `change_tracking_support.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.68: Feedback Mechanism for Checkpoint Questions
+
+**Goal:** Add dismiss/rephrase/skip options to checkpoint rendering; log
+dismissals for future prompt improvement.
+**Problem:** Cannot say "this question is wrong" or skip.
+**Files:** `topic_loop_support.py`, runtime protocol templates
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.69: Idea Packet Exploratory Bypass
+
+**Goal:** Add `exploratory` mode requiring only `title` + `one_sentence`;
+remaining fields auto-fill with TBD.
+**Problem:** 5 required fields block exploration; inspiration dies at the form.
+**Files:** `topic_shell_support.py`, idea_packet schema
+**Source:** HCI gap analysis 2026-04-13
+
+### 999.70: Error Messages for Humans, Not Python Tracebacks
+
+**Goal:** Wrap all subprocess calls with human-readable error messages + suggested
+fix actions.
+**Problem:** `FileNotFoundError` from missing `orchestrate_topic.py` leaks
+Python exceptions.
+**Files:** `aitp_service.py` (orchestrate, audit methods)
+**Source:** HCI gap analysis 2026-04-13
+
+### Tier 3 — Knowledge Pipeline (see also 999.14–999.19)
+
+### 999.71: Default `--download-source` for arXiv Registration
+
+**Goal:** Make `--download-source` the default; add `--metadata-only` for
+explicit lightweight registration.
+**Problem:** Default is metadata-only; most registered papers have no content.
+**Status:** Implemented in `v1.92` Phase `166.1`
+**Plan:** `166.1-01`
+**Files:** `register_arxiv_source.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### Tier 4 — Robustness & Recovery (see also 999.21–999.24)
+
+### 999.72: Crash Recovery / Checkpoint-Restore
+
+**Goal:** Snapshot topic_state before each loop step; on crash detect last good
+snapshot; offer `aitp recover --topic-slug X`.
+**Problem:** Mid-loop failure has no rollback.
+**Files:** `topic_loop_support.py`, new `recovery_support.py`
+**Source:** HCI gap analysis 2026-04-13
+
+### Tier 5 — wow-harness Borrowable Patterns
+
+### 999.73: Mechanical Completion Verification (from wow-harness stop-evaluator)
+
+**Goal:** Before invoking expensive LLM evaluation for topic completion, run a
+zero-cost mechanical check: all tracked operations have `baseline_status:
+confirmed`, no unresolved gaps, no pending follow-ups. Only invoke LLM if
+mechanical check passes.
+**Problem:** AITP relies on LLM evaluation for everything, even trivially
+checkable mechanical conditions.
+**Pattern source:** `wow-harness/scripts/hooks/stop-evaluator.py`
+**Files:** `topic_loop_support.py`, `topic_shell_support.py`
+**Source:** wow-harness comparison 2026-04-13
+
+### 999.74: Session-Scoped Context Injection with Dedup (from wow-harness fragments)
+
+**Goal:** When agents edit theory artifacts, auto-inject domain-specific context
+(notation bindings, prerequisite closure status, relevant L2 units) via a
+path-scoped fragment map. Deduplicate with TTL so same fragment injects once per
+session.
+**Problem:** Agents edit theory files without seeing the notation/convention
+context they should follow.
+**Pattern source:** `wow-harness/scripts/context_router.py`,
+`wow-harness/scripts/guard-feedback.py`
+**Files:** New `theory_context_injection.py`, `runtime_bundle_support.py`
+**Source:** wow-harness comparison 2026-04-13
+
+### 999.75: Schema-Level Agent Isolation (from wow-harness review-agent-gatekeeper)
+
+**Goal:** Enforce that Skeptic-D and review agents are physically unable to modify
+the artifacts they review — not via prompt constraint but via tool manifest
+exclusion.
+**Problem:** AITP relies on prompt-level "do not edit" constraints that can be
+violated.
+**Pattern source:** `wow-harness/scripts/hooks/review-agent-gatekeeper.py`
+**Files:** MCP tool registration, agent dispatch
+**Source:** wow-harness comparison 2026-04-13
+
+### 999.76: JSONL Metrics → Self-Evolution Loop (from wow-harness trace-analyzer)
+
+**Goal:** Log all theory operations (coverage audits, promotion attempts,
+conformance checks, derivation retries) as append-only JSONL. Periodically
+analyze for systematic patterns: "Skeptic-D consistently flags missing
+prerequisite proofs in quantum gravity topics". Surface actionable proposals for
+human review.
+**Problem:** No observability into what patterns recur across topics.
+**Pattern source:** `wow-harness/scripts/hooks/trace-analyzer.py`
+**Files:** New `theory_metrics.py`, extend existing audit flows
+**Source:** wow-harness comparison 2026-04-13
+
+### 999.77: Derivation Loop Detection with Intervention (from wow-harness loop-detection)
+
+**Goal:** Track per-artifact edit count within a topic loop. When a derivation or
+proof attempt exceeds N retries on the same approach, inject a suggestion to
+decompose or try a different strategy.
+**Problem:** AITP can silently retry failing approaches without intervention.
+**Pattern source:** `wow-harness/scripts/hooks/loop-detection.py`
+**Files:** `topic_loop_support.py`
+**Source:** wow-harness comparison 2026-04-13
+
+### 999.78: Manifest-as-Truth-Source (from wow-harness MANIFEST.yaml)
+
+**Goal:** Formalize what artifacts must exist at each topic state (bootstrapped,
+exploring, verifying, promoting, completed). Enable integrity checks: "topic
+claims to be in verify mode but validation_contract.md is missing".
+**Problem:** No single source of truth for what the protocol requires at each
+state; drift goes undetected.
+**Pattern source:** `wow-harness/.wow-harness/MANIFEST.yaml`
+**Files:** New `protocol_manifest.py` or extend `conformance_state`
+**Source:** wow-harness comparison 2026-04-13
+
+## wow-harness Comparison Summary (2026-04-13)
+
+## L0/L1 Deep Integration — DeepXiv + Graphify (2026-04-14)
+
+These items capture the integration of design patterns from DeepXiv SDK
+(progressive arXiv reading) and Graphify (knowledge graph construction from
+documents) into AITP's L0 source layer and L1 intake layer. Both tools are MIT
+License; integration requires copyright attribution in source files + NOTICE entry.
+
+**External references:**
+- Graphify v0.4.5: https://github.com/safishamsi/graphify
+- DeepXiv SDK v0.2.4: https://github.com/DeepXiv/deepxiv_sdk
+
+**Key design principle:** Deep internalization of their patterns with
+physics-specific extensions, not shallow `pip install`. The integration must feel
+like AITP-native code written from a theoretical physicist's research perspective.
+
+### 999.79: Post-Registration Source Enrichment via DeepXiv Progressive Reading
+
+**Goal:** Add a post-registration enrichment step (`enrich_with_deepxiv.py`) that
+runs after `register_arxiv_source.py` completes. Uses DeepXiv's 5-level progressive
+reading chain to fill `provenance` with TLDR, keywords, section structure
+({name, idx, tldr, token_count} per section), and GitHub URL.
+**Axis:** A1 (L0 internal)
+**Phase:** 165.5 (plan 165.5-01)
+**Files:** New `enrich_with_deepxiv.py`, existing `register_arxiv_source.py`,
+  existing `discover_and_register.py`
+**Borrowed patterns:** DeepXiv SDK's `PaperInfo` TypedDict, `_match_section_name()`
+  fuzzy matching, `_retry()` exponential backoff, `brief()`/`head()` progressive
+  reading API
+**Contract safety:** New data goes into `provenance` sub-object (free-form, safe to
+  extend without changing `source-item.schema.json` top-level). Graceful degradation:
+  if DeepXiv cloud API unavailable, proceeds with metadata-only registration.
+**Source:** DeepXiv SDK integration analysis 2026-04-14
+
+### 999.80: Physics-Adapted Concept Graph Construction from Sources
+
+**Goal:** Add a concept graph construction step (`build_concept_graph.py`) that
+runs after enrichment. Uses an adapted version of Graphify's LLM extraction prompt
+with physics-specific node types (theorem, definition, conjecture, regime,
+approximation, notation_system, proof, equation, observable) and relation types
+(assumes, valid_in, contradicts, derives, notation_for, generalizes,
+special_case_of, implies). Runs Graphify's 3-layer dedup + Leiden community
+detection. Supports hyperedges for physics patterns like "theorem + assumption +
+approximation → conclusion".
+**Axis:** A1 (L0 internal — graph construction is a source-layer capability)
+**Phase:** 165.5 (plan 165.5-01)
+**Files:** New `build_concept_graph.py`, new physics-specific extraction prompt,
+  new `concept_graph.schema.json`
+**Borrowed patterns:** Graphify's LLM extraction prompt (skill.md ~L253-303),
+  3-tier confidence (EXTRACTED/INFERRED/AMBIGUOUS), `build.py` 3-layer dedup,
+  `cluster.py` Leiden detection, SHA256 per-file caching, `extract_pdf_text()`,
+  `_looks_like_paper()` heuristic
+**Output:** `concept_graph.json` stored alongside `source.json` in source directory.
+**Source:** Graphify integration analysis 2026-04-14
+
+### 999.81: Graph-Based L1 Intake Extension with Concept Graph Data
+
+**Goal:** Extend L1 intake to include concept graph data as a new `concept_graph`
+key containing `{nodes[], edges[], hyperedges[], communities[], god_nodes[]}`.
+`god_nodes[]` identifies foundational concepts (many dependents) for prerequisite
+detection. Preserves all 8 existing required L1 keys — graph data augments, does
+not replace, regex patterns.
+**Axis:** A1 (L1 internal)
+**Phase:** 165.5 (plan 165.5-02)
+**Files:** Existing `source_intelligence.py`, existing `l1_source_intake_support.py`,
+  existing `source_distillation_support.py`
+**Contract safety:** New key in L1 intake dict; existing consumers ignore unknown
+  keys. No changes to 8 required fields.
+**Source:** L1 contract analysis 2026-04-14
+
+### 999.82: Progressive Reading Chain in L0→L1 Distillation
+
+**Goal:** Replace brute-force preview truncation (currently 200–500 chars) with
+DeepXiv's section-aware progressive loading: brief (~200 tokens) → head (~2K
+tokens) → section (targeted) → raw (full paper). Token-budget-aware by AITP mode:
+Discussion=brief only, Explore=brief+head, Verify=brief+head+relevant sections,
+Promote=full as needed. Reuse DeepXiv agent submodule's LangGraph ReAct pattern
+for token-budget management.
+**Axis:** A2 (L0→L1 connection)
+**Phase:** 165.5 (plan 165.5-02)
+**Files:** Existing `source_distillation_support.py`, existing
+  `runtime_bundle_support.py`
+**Depends on:** Phase 165.2 (mode-aware runtime bundle must exist for mode-varying
+  context loading)
+**Borrowed patterns:** DeepXiv SDK's progressive reading chain (brief/head/section/
+  raw), token-budget-aware agent from `agent/` submodule, LangGraph ReAct pattern
+**Source:** DeepXiv SDK integration analysis 2026-04-14
+
+### 999.83: Concept Graph Analysis Tools for L1→L2 Knowledge Staging
+
+**Goal:** Adapt Graphify's `analyze.py` functions for AITP's L1→L2 connection:
+`surprising_connections()` for cross-domain links between sources,
+`suggest_questions()` for auto-generating research questions from graph structure,
+`graph_diff()` for tracking knowledge evolution across topic iterations. These
+feed into Phase 165.2's literature-intake fast path for L2 staging.
+**Axis:** A2 (L1→L2 connection)
+**Phase:** 165.5 (plan 165.5-02)
+**Files:** New `graph_analysis_tools.py`, existing `source_distillation_support.py`
+**Borrowed patterns:** Graphify's `god_nodes()`, `surprising_connections()`,
+  `suggest_questions()`, `graph_diff()` from `analyze.py`
+**Source:** Graphify integration analysis 2026-04-14
+
+### 999.84: Obsidian Concept Graph Export for Theoretical-Physics Brain
+
+**Goal:** Adapt Graphify's Obsidian vault export for direct compatibility with the
+theoretical-physics brain. Export concept graph nodes as Obsidian notes with
+wikilinks for edges. Community clusters map to Obsidian folders. Enables seamless
+flow from AITP concept graphs to the researcher's existing knowledge vault.
+**Axis:** A1 (L1 internal — export is a layer capability)
+**Phase:** 165.5 (plan 165.5-03)
+**Files:** New `obsidian_graph_export.py`
+**Borrowed patterns:** Graphify's vault export format, Obsidian wikilink + embed
+  syntax from existing AITP Obsidian integration skills
+**Source:** Graphify + Obsidian integration analysis 2026-04-14
+
+### 999.85: MIT Attribution for Integrated DeepXiv and Graphify Code
+
+**Goal:** Add copyright notice comments in all AITP source files that borrow code
+or design patterns from Graphify or DeepXiv SDK. Add both projects to AITP's
+NOTICE/LICENSE file with full MIT license text. This is a legal requirement under
+MIT License — must preserve copyright notices and license text.
+**Axis:** A3 (data recording — license/attribution metadata)
+**Phase:** 165.5 (plan 165.5-01 — done early to ensure compliance from start)
+**Files:** All new files from 999.79–999.84, existing `NOTICE` or `LICENSE` file
+**Source:** MIT License compliance requirement 2026-04-14
+
+### 999.86: Concrete L0 Source-Acquisition Handoff After Public Bootstrap
+
+**Goal:** When a fresh public bootstrap honestly returns a topic to `L0 source
+expansion`, the selected next action should point to the concrete shipped source
+entry surfaces (`discover_and_register.py`, `register_arxiv_source.py`,
+`ARXIV_FIRST_SOURCE_INTAKE.md`) instead of generic prose about converting the
+topic statement into sources and candidates.
+**Axis:** A4 (human experience) + A2 (L0→L1 connection)
+**Status:** Implemented in `v1.92` Phase `166`
+**Phase:** `166`
+**Plan:** `166-01`
+**Files:** `topic_shell_support.py`, `runtime_bundle_support.py`,
+  `topic_dashboard_surface_support.py`, related CLI/runtime tests
+**Source:** public-front-door closure run 2026-04-13
+
+## wow-harness Comparison Summary (2026-04-13)
+
+**Repo**: https://github.com/NatureBlueee/wow-harness
+**Domain**: AI agent governance for software development (Claude Code)
+**Core insight**: "CLAUDE.md instruction compliance: ~20% / PreToolUse hook enforcement: 100%"
+**Key borrowable patterns**: 999.73–999.78 above
+**Architecture**: 16 hooks across 7 lifecycle stages, 17 context fragments with
+path-scoped injection, 15 guard scripts, 16 skills, 8-gate state machine,
+self-evolving via JSONL metrics → trace-analyzer → proposals
+
+### Key Difference
+
+wow-harness enforces via **mechanical hooks** (Python scripts that block/allow
+tool calls). AITP enforces via **layer promotion gates** (L3→L4→L2 audits).
+Both are trust-boundary systems, but wow-harness's approach is more
+deterministic and zero-LLM-cost for mechanical checks. The borrowable insight:
+use mechanical checks first, LLM evaluation only when mechanical passes.
+
+## AI Scientist Benchmark Alignment (2026-04-14)
+
+**Source**: AI Scientist Benchmark PDF — a structured framework for evaluating
+AI research capabilities along two axes: paper search (expert-level literature
+relevance grading) and paper understanding (structured knowledge extraction
+with conditions, motivations, and open problems).
+
+**Core insight**: The benchmark defines a granular knowledge-extraction standard
+that AITP's current L0/L1/L3 layers do not yet match. Specifically:
+- source-item has no relevance tier or role labels
+- candidate-claim has no knowledge type distinction (conclusion vs motivation vs open problem)
+- candidate-claim does not require conditions/assumptions
+- evidence tracing is section-level, not sentence-level
+- L4 validation has no condition-understanding completeness dimension
+
+These gaps mean AITP's knowledge extraction is structurally weaker than what
+the benchmark treats as the minimum for evaluating AI research competence.
+
+**Milestone proposal**: `.planning/backlog/999.87-ai-scientist-benchmark-alignment/CONTEXT.md`
+— proposed `v1.96` with 5 phases (A–E), dependency graph, and success criteria.
+
+**Borrowable patterns (999.87–999.92)**:
+
+### 999.87: Source Relevance Tier and Role Labels
+
+**Goal:** Add expert-grade relevance classification to `source-item.schema.json`.
+Introduce a five-tier relevance scale (`canonical`, `must_read`,
+`strongly_relevant`, `useful`, `irrelevant`) and an open vocabulary of role
+labels (`foundational`, `key_result`, `modern_reference`, `review`,
+`technical_tool`, `limitation`, `application_connection`) so that L0 sources
+carry structured relevance metadata beyond simple acquire/pending status.
+
+**Motivation:** AITP's L0 currently distinguishes acquired vs pending sources
+but provides no structured judgment about which sources are core, which are
+supplementary, and which serve specific roles (foundational, technical tool,
+review, etc.). This means the L0→L1 transition treats all acquired sources
+equally, which is not how researchers actually triage literature.
+
+**Axis:** A1 (L0 internal capability) + A2 (L0→L1 connection — relevance
+tier directly informs which sources deserve deep L1 reading)
+**Files:** `schemas/source-item.schema.json`, runtime mirror, L0 intake
+helpers, `source_catalog_support.py`, runtime bundle surfaces
+**Source:** AI Scientist Benchmark §3.4 (relevance tiers 3+/3/2/1/0) and
+§3.6 (role labels)
+
+### 999.88: Candidate Knowledge Type Trichotomy
+
+**Goal:** Extend `candidate-claim.schema.json` with a `knowledge_type` field
+that distinguishes three categories of extractable knowledge:
+- `conclusion` — what the paper establishes, under what conditions
+- `motivation_insight` — why the paper is worth doing, what difficulty it
+  targets, what the central idea or conceptual transformation is
+- `open_problem` — where the paper stops, what the most important next step is
+
+Each type would carry type-specific required fields (e.g., conclusions require
+`conditions_and_assumptions`; open problems require `boundary_origin`).
+
+**Motivation:** AITP's L3 candidate claims are currently flat — all claims are
+treated identically regardless of whether they represent an established result,
+a motivating insight, or an unsolved problem. The benchmark's trichotomy is
+more aligned with how researchers actually organize their knowledge and would
+enable type-specific validation in L4.
+
+**Axis:** A1 (L3 internal — candidate type discrimination) + A2 (L3→L4 —
+type-specific validation paths)
+**Files:** `schemas/candidate-claim.schema.json`, runtime mirror, candidate
+production helpers, validation contract surfaces
+**Source:** AI Scientist Benchmark §4.2 (three extraction categories)
+
+### 999.89: Mandatory Conditions and Assumptions on Conclusions
+
+**Goal:** Make `conditions_and_assumptions` a required field for all
+candidate claims of type `conclusion`. The field must explicitly state the
+regime, model assumptions, parameter ranges, or other prerequisites under
+which the claimed result holds. Claims without this field should fail schema
+validation.
+
+**Motivation:** The benchmark's strongest design choice is requiring every
+conclusion to state its conditions. This directly serves AITP Charter Article
+2 (evidence hierarchy) — without condition tracking, "theoretical conclusion"
+and "approximation valid only in a specific regime" are indistinguishable.
+Current AITP candidate-claim has no such field, so L4 audits cannot check
+whether the agent understood the scope of a result.
+
+**Axis:** A1 (L1/L3 internal — extraction quality) + A2 (L3→L4 — condition
+completeness as a validation dimension)
+**Files:** `schemas/candidate-claim.schema.json`, runtime mirror, candidate
+production helpers, L4 validation surfaces
+**Source:** AI Scientist Benchmark §4.5.1 (conditions/assumptions mandatory
+field)
+
+### 999.90: Sentence-Level Evidence Anchoring
+
+**Goal:** Add sentence-level evidence anchoring to the L1 vault intake path.
+Each extracted knowledge unit should carry 1–3 sentence identifiers that
+constitute the minimal necessary evidence for that extraction. This refines
+AITP's current section-level source tracing to the sentence level.
+
+**Motivation:** The benchmark requires evidence sentence IDs for every
+annotated knowledge unit. AITP's current source tracing operates at section
+granularity. Sentence-level anchoring makes L4 audits mechanical (does the
+claim follow from these sentences?) and directly supports the "evidence before
+confidence" charter principle.
+
+**Axis:** A1 (L1 internal — extraction precision) + A3 (data recording —
+evidence traceability)
+**Files:** L1 vault intake helpers, `l1_source_intake` path, source trace
+schema, validation surfaces
+**Source:** AI Scientist Benchmark §4.5.1 (evidence sentences, 1–3 IDs)
+
+### 999.91: Multi-Reviewer L4 Cross-Validation Protocol
+
+**Goal:** Introduce a multi-reviewer cross-validation mechanism in L4. When a
+candidate claim reaches L4 validation, it should be evaluated by at least two
+independent reviewer passes (e.g., different LLM calls with different system
+prompts). Claims where reviewers disagree should be flagged for human
+escalation. Higher-importance claims get weighted more in the aggregate score.
+
+**Motivation:** The benchmark uses three fixed AI reviewer models to evaluate
+consistency with expert annotations, weighting higher-importance items more.
+AITP's current L4 is single-path. Multi-reviewer cross-validation would make
+the L4→L2 promotion gate more robust and catch single-reviewer blind spots.
+
+**Axis:** A1 (L4 internal — validation quality) + A2 (L4→L2 — gate robustness)
+**Files:** L4 validation contract, validation helpers, promotion gate surfaces
+**Source:** AI Scientist Benchmark §5 (three fixed AI reviewers, importance
+weighting)
+
+### 999.92: Expert Annotation Attachment on L2 Knowledge
+
+**Goal:** Allow L2 promoted knowledge items to carry structured expert
+annotations — including relevance tier, role labels, short comments, and key
+points — that were either provided by the human during the promotion gate or
+imported from external benchmark data. This makes L2 knowledge traceable to
+human expert judgment rather than only AI-generated summaries.
+
+**Motivation:** The benchmark's expert annotations are themselves high-value
+data. If AITP can attach expert-level annotations to L2 items, then promoted
+knowledge becomes anchored to human judgment rather than purely AI-synthesized
+summaries. This directly improves L2 reusability and trustworthiness.
+
+**Axis:** A2 (L4→L2 — promotion enrichment) + A4 (human experience —
+annotation workflow)
+**Files:** L2 compiler helpers, promotion contract, `knowledge-packet.schema.json`
+**Source:** AI Scientist Benchmark §4.5 (structured annotation template)
 
 ## Legacy Note
 

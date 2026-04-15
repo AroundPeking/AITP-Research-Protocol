@@ -14,7 +14,9 @@ CANONICAL_DIR_BY_TYPE = {
     "atomic_note": "atomic-notes",
     "concept": "concepts",
     "physical_picture": "physical-pictures",
+    "theorem_card": "theorem-cards",
     "claim_card": "claim-cards",
+    "proof_fragment": "proof-fragments",
     "derivation_object": "derivation-objects",
     "method": "methods",
     "workflow": "workflows",
@@ -23,6 +25,7 @@ CANONICAL_DIR_BY_TYPE = {
     "example_card": "examples",
     "validation_pattern": "validation-patterns",
     "warning_note": "warning-notes",
+    "negative_result": "negative-results",
 }
 
 
@@ -83,6 +86,48 @@ def _path_node_ids(path: list[dict[str, str]]) -> list[str]:
     if not path:
         return []
     return [path[0]["from_id"], *[step["to_id"] for step in path]]
+
+
+def _rank_overlap(
+    *,
+    searchable: str,
+    query_terms: set[str],
+    query_phrase: str,
+    preferred_unit_types: set[str],
+    unit_type: str,
+) -> tuple[float, list[str]]:
+    terms = set(_tokenize(searchable))
+    overlap = sorted(query_terms & terms)
+    score = float(len(overlap))
+    if query_phrase and query_phrase in searchable.lower():
+        score += 2.0
+    if unit_type in preferred_unit_types:
+        score += 0.5
+    return score, overlap
+
+
+def _normalize_staging_hit_for_primary(
+    row: dict[str, Any],
+    *,
+    score: float,
+    matched_terms: list[str],
+) -> dict[str, Any]:
+    unit_type = str(row.get("candidate_unit_type") or row.get("entry_kind") or "l2_unit")
+    entry_id = str(row.get("entry_id") or "")
+    return {
+        "id": entry_id,
+        "unit_id": entry_id,
+        "unit_type": unit_type,
+        "object_type": unit_type,
+        "title": str(row.get("title") or entry_id),
+        "summary": str(row.get("summary") or ""),
+        "path": str(row.get("path") or ""),
+        "topic_slug": str(row.get("topic_slug") or ""),
+        "trust_surface": "staging",
+        "authority_level": "non_authoritative_staging",
+        "score": round(score, 3),
+        "matched_terms": matched_terms,
+    }
 
 
 def _unit_path(kernel_root: Path, unit_id: str, unit_type: str) -> Path:
@@ -436,6 +481,7 @@ def stage_l2_insight(
     scope_note: str | None = None,
     topic_slug: str | None = None,
     notes: str | None = None,
+    provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     timestamp = now_iso()
     slug = re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", title.lower())).strip("-") or "l2-insight"
@@ -458,6 +504,7 @@ def stage_l2_insight(
         "next_implication": next_implication or "",
         "scope_note": scope_note or "",
         "topic_slug": topic_slug or "",
+        "provenance": dict(provenance or {}),
         "created_at": timestamp,
         "updated_at": timestamp,
         "created_by": created_by,
@@ -470,6 +517,7 @@ def stage_l2_insight(
     rows.append(
         {
             "entry_id": entry_id,
+            "topic_slug": topic_slug or "",
             "title": title,
             "summary": summary,
             "candidate_unit_type": candidate_unit_type,
@@ -494,8 +542,13 @@ def stage_l2_insight(
                     failure_kind or "",
                     failed_route or "",
                     next_implication or "",
+                    str((provenance or {}).get("source_id") or ""),
+                    str((provenance or {}).get("source_title") or ""),
+                    str((provenance or {}).get("source_slug") or ""),
+                    " ".join(str(item) for item in ((provenance or {}).get("vault_wiki_paths") or [])),
                 ]
             ),
+            "provenance": dict(provenance or {}),
             "created_at": timestamp,
             "updated_at": timestamp,
         }
@@ -512,6 +565,7 @@ def consult_canonical_l2(
     retrieval_profile: str,
     max_primary_hits: int | None = None,
     include_staging: bool = False,
+    topic_slug: str | None = None,
 ) -> dict[str, Any]:
     canonical_root = kernel_root / "canonical"
     index_path = canonical_root / "index.jsonl"
@@ -531,23 +585,31 @@ def consult_canonical_l2(
     row_by_id = {str(row["id"]): row for row in index_rows}
     query_terms = set(_tokenize(query_text))
     query_phrase = " ".join(query_text.lower().split())
+    resolved_topic_slug = str(topic_slug or "").strip()
 
     scored: list[dict[str, Any]] = []
     for row in index_rows:
         searchable = str(row.get("search_terms") or "")
-        terms = set(_tokenize(searchable))
-        overlap = query_terms & terms
+        score, overlap = _rank_overlap(
+            searchable=searchable,
+            query_terms=query_terms,
+            query_phrase=query_phrase,
+            preferred_unit_types=preferred_types,
+            unit_type=str(row.get("unit_type") or ""),
+        )
         if not overlap and query_phrase not in searchable.lower():
             continue
-        score = float(len(overlap))
-        if query_phrase and query_phrase in searchable.lower():
-            score += 2.0
-        if str(row.get("unit_type") or "") in preferred_types:
-            score += 0.5
-        scored.append({**row, "score": round(score, 3), "matched_terms": sorted(overlap)})
+        scored.append(
+            {
+                **row,
+                "trust_surface": "canonical",
+                "score": round(score, 3),
+                "matched_terms": overlap,
+            }
+    )
     scored.sort(key=lambda row: (-float(row["score"]), str(row["id"])))
     primary_hits = scored[:limit]
-    primary_ids = {str(row["id"]) for row in primary_hits}
+    traversal_primary_ids = {str(row["id"]) for row in primary_hits}
 
     adjacency: dict[str, list[tuple[str, dict[str, str]]]] = {}
     expanded_edge_types: list[str] = []
@@ -576,8 +638,8 @@ def consult_canonical_l2(
         adjacency[node_id].sort(key=lambda item: (item[1]["relation"], item[0]))
 
     traversal_paths_by_target: dict[str, list[dict[str, str]]] = {}
-    best_depth: dict[str, int] = {node_id: 0 for node_id in primary_ids}
-    queue: deque[tuple[str, list[dict[str, str]]]] = deque((node_id, []) for node_id in sorted(primary_ids))
+    best_depth: dict[str, int] = {node_id: 0 for node_id in traversal_primary_ids}
+    queue: deque[tuple[str, list[dict[str, str]]]] = deque((node_id, []) for node_id in sorted(traversal_primary_ids))
     while queue and len(traversal_paths_by_target) < max_expanded_hits:
         current_id, current_path = queue.popleft()
         current_depth = len(current_path)
@@ -585,7 +647,7 @@ def consult_canonical_l2(
             continue
         for next_id, step in adjacency.get(current_id, []):
             next_depth = current_depth + 1
-            if next_id in primary_ids:
+            if next_id in traversal_primary_ids:
                 continue
             existing_depth = best_depth.get(next_id)
             if existing_depth is not None and next_depth >= existing_depth:
@@ -628,19 +690,52 @@ def consult_canonical_l2(
             break
 
     staged_hits: list[dict[str, Any]] = []
+    local_primary_candidates: list[dict[str, Any]] = []
     if include_staging:
         staging_rows = read_jsonl(_staging_root(kernel_root) / "staging_index.jsonl")
         for row in staging_rows:
             searchable = str(row.get("search_terms") or "")
-            terms = set(_tokenize(searchable))
-            overlap = query_terms & terms
+            unit_type = str(row.get("candidate_unit_type") or row.get("entry_kind") or "")
+            score, overlap = _rank_overlap(
+                searchable=searchable,
+                query_terms=query_terms,
+                query_phrase=query_phrase,
+                preferred_unit_types=preferred_types,
+                unit_type=unit_type,
+            )
             if not overlap and query_phrase not in searchable.lower():
                 continue
-            staged_hits.append({**row, "matched_terms": sorted(overlap)})
+            staged_row = {
+                **row,
+                "trust_surface": str(row.get("trust_surface") or "staging"),
+                "score": round(score, 3),
+                "matched_terms": overlap,
+            }
+            staged_hits.append(staged_row)
+            if resolved_topic_slug and str(row.get("topic_slug") or "").strip() == resolved_topic_slug:
+                local_primary_candidates.append(
+                    _normalize_staging_hit_for_primary(
+                        row,
+                        score=score + 4.0,
+                        matched_terms=overlap,
+                    )
+                )
+
+    if local_primary_candidates:
+        merged_primary = [*scored, *local_primary_candidates]
+        merged_primary.sort(key=lambda row: (-float(row["score"]), str(row["id"])))
+        primary_hits = merged_primary[:limit]
+
+    primary_ids = {
+        str(row["id"])
+        for row in primary_hits
+        if str(row.get("id") or "") in row_by_id
+    }
 
     return {
         "query_text": query_text,
         "retrieval_profile": retrieval_profile,
+        "topic_slug": resolved_topic_slug,
         "primary_hits": primary_hits,
         "expanded_hits": expanded_hits,
         "staged_hits": staged_hits,

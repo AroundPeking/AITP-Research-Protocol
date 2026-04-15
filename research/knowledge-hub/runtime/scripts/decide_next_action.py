@@ -446,6 +446,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
     if not runtime_contract:
         return []
     runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    active_submode = str(runtime_contract.get("active_submode") or "").strip()
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
     triggered_by = {
@@ -473,6 +474,8 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
             "await_execution_result",
             "ingest_execution_result",
         ]
+    if runtime_mode == "explore" and active_submode == "literature":
+        return ["literature_intake_stage"]
     return []
 
 

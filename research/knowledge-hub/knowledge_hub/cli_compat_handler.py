@@ -6,6 +6,193 @@ from typing import Any
 
 from .l2_staging import stage_negative_result_entry
 
+_CORE_HELP_COMMANDS = [
+    "session-start",
+    "status",
+    "next",
+    "work",
+    "consult-l2",
+]
+
+_HELP_GROUPS: list[tuple[str, list[str]]] = [
+    ("Core commands", _CORE_HELP_COMMANDS),
+    (
+        "Front door and install",
+        [
+            "hello",
+            "explore",
+            "promote-exploration",
+            "install-agent",
+            "migrate-local-install",
+            "doctor",
+        ],
+    ),
+    (
+        "Topic lifecycle",
+        [
+            "bootstrap",
+            "new-topic",
+            "resume",
+            "loop",
+            "steer-topic",
+            "layer-graph",
+            "verify",
+            "complete-topic",
+            "reintegrate-followup",
+            "update-followup-return",
+            "topics",
+            "current-topic",
+            "state",
+        ],
+    ),
+    (
+        "Knowledge reuse and source work",
+        [
+            "seed-l2-direction",
+            "stage-l2-provisional",
+            "compile-l2-map",
+            "compile-l2-graph-report",
+            "compile-l2-knowledge-report",
+            "compile-source-catalog",
+            "compile-source-family",
+            "trace-source-citations",
+            "export-source-bibtex",
+            "import-bibtex-sources",
+            "sync-l1-graph-export-to-theoretical-physics-brain",
+            "stage-negative-result",
+        ],
+    ),
+    (
+        "Validation and promotion",
+        [
+            "audit",
+            "ci-check",
+            "baseline",
+            "atomize",
+            "operation-init",
+            "operation-update",
+            "trust-audit",
+            "capability-audit",
+            "paired-backend-audit",
+            "h-plane-audit",
+            "coverage-audit",
+            "formal-theory-audit",
+            "analytical-review",
+            "lean-bridge",
+            "statement-compilation",
+            "request-promotion",
+            "approve-promotion",
+            "reject-promotion",
+            "promote",
+            "auto-promote",
+            "audit-l2-hygiene",
+            "prune-compat-surfaces",
+        ],
+    ),
+    (
+        "Memory and scratchpad",
+        [
+            "collaborator-memory",
+            "show-collaborator-memory",
+            "record-collaborator-memory",
+            "scratch-log",
+            "record-scratch-note",
+            "record-negative-result",
+            "taste-profile",
+            "record-taste",
+            "replay-topic",
+        ],
+    ),
+    (
+        "Active topic registry",
+        [
+            "focus-topic",
+            "pause-topic",
+            "resume-topic",
+            "block-topic",
+            "unblock-topic",
+            "clear-topic-dependencies",
+        ],
+    ),
+    (
+        "Decisions and chronicle",
+        [
+            "emit-decision",
+            "resolve-decision",
+            "list-decisions",
+            "trace-decision",
+            "chronicle",
+        ],
+    ),
+]
+
+
+def _command_help_map(parser: argparse.ArgumentParser) -> dict[str, str]:
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return {
+                str(choice_action.dest): str(choice_action.help or "").strip()
+                for choice_action in action._choices_actions
+            }
+    return {}
+
+
+def _render_help_rows(command_names: list[str], help_map: dict[str, str]) -> list[str]:
+    lines: list[str] = []
+    if not command_names:
+        return lines
+    width = max(len(name) for name in command_names)
+    for command_name in command_names:
+        description = help_map.get(command_name) or "Registered AITP command."
+        lines.append(f"  {command_name.ljust(width)}  {description}")
+    return lines
+
+
+def render_cli_help(parser: argparse.ArgumentParser, *, show_all: bool = False) -> str:
+    help_map = _command_help_map(parser)
+    lines = [
+        "AITP Help",
+        "",
+    ]
+
+    if not show_all:
+        lines.append("Core commands")
+        lines.extend(_render_help_rows(list(_CORE_HELP_COMMANDS), help_map))
+        lines.extend(
+            [
+                "",
+                "See everything: aitp help --all",
+                "Argparse reference: aitp -h",
+            ]
+        )
+        return "\n".join(lines).rstrip()
+
+    lines.append(f"All registered commands: {len(help_map)}")
+    assigned: set[str] = set()
+    for heading, command_names in _HELP_GROUPS:
+        visible_names = [name for name in command_names if name in help_map and name not in assigned]
+        if not visible_names:
+            continue
+        if len(lines) > 3:
+            lines.append("")
+        lines.append(heading)
+        lines.extend(_render_help_rows(visible_names, help_map))
+        assigned.update(visible_names)
+
+    remaining = sorted(name for name in help_map if name not in assigned)
+    if remaining:
+        lines.append("")
+        lines.append("Other commands")
+        lines.extend(_render_help_rows(remaining, help_map))
+
+    lines.extend(
+        [
+            "",
+            "Argparse reference: aitp -h",
+        ]
+    )
+    return "\n".join(lines).rstrip()
+
 
 def _humanize_key(key: str) -> str:
     return str(key or "").replace("_", " ").strip() or "value"
@@ -41,6 +228,109 @@ def _render_human_lines(payload: Any, *, indent: int = 0, key: str | None = None
 
 def _looks_like_doctor_payload(payload: Any) -> bool:
     return isinstance(payload, dict) and "overall_status" in payload and "runtime_support_matrix" in payload and "package" in payload
+
+
+def _topic_status_word(payload: dict[str, Any]) -> str:
+    completion_status = str(((payload.get("topic_completion") or {}).get("status")) or "").strip().lower()
+    gap_status = str(((payload.get("open_gap_summary") or {}).get("status")) or "").strip().lower()
+    stage = str(payload.get("current_stage") or "").strip().lower()
+    if completion_status in {"promoted", "complete", "completed"} or stage in {"l5", "complete", "completed"}:
+        return "complete"
+    if gap_status and gap_status not in {"clear", "unknown", "none", "not_applicable"}:
+        return "blocked"
+    return "active"
+
+
+def render_topic_status_payload(payload: dict[str, Any], *, tier: str = "summary") -> str:
+    topic = str(payload.get("title") or payload.get("topic_slug") or "(missing)")
+    stage = str(payload.get("current_stage") or "(missing)")
+    mode = str(payload.get("research_mode") or "(missing)")
+    current = str(payload.get("selected_action_summary") or payload.get("next_action_hint") or "(no selected action)")
+    next_action_hint = str(payload.get("next_action_hint") or "").strip()
+    must_read_now = list(payload.get("must_read_now") or [])
+    read_now = str((must_read_now[0] or {}).get("path") or "(none)") if must_read_now else "(none)"
+    gap_status = str(((payload.get("open_gap_summary") or {}).get("status")) or "").strip() or "unknown"
+    blocked = "none" if gap_status in {"clear", "unknown"} else gap_status.replace("_", " ")
+    topic_slug = str(payload.get("topic_slug") or "").strip() or "<topic_slug>"
+    status_word = _topic_status_word(payload)
+    lines = [
+        "AITP Status",
+        "",
+        f"Topic: {topic}",
+        f"Topic slug: {topic_slug}",
+        f"Stage: {stage}",
+        f"Status: {status_word}",
+        f"Next: {current}",
+        f"Machine view: aitp status --topic-slug {topic_slug} --json",
+    ]
+    if tier == "verbose":
+        lines.extend(
+            [
+                "",
+                "Key sections",
+                "",
+                f"Mode: {mode}",
+                f"Read now: {read_now}",
+                f"Blocked: {blocked}",
+                f"Hint: {next_action_hint or '(none)'}",
+                f"Promotion readiness: {str(((payload.get('promotion_readiness') or {}).get('status')) or '(missing)')}",
+                f"Topic completion: {str(((payload.get('topic_completion') or {}).get('status')) or '(missing)')}",
+                f"Statement compilation: {str(((payload.get('statement_compilation') or {}).get('status')) or '(missing)')}",
+                f"Lean bridge: {str(((payload.get('lean_bridge') or {}).get('status')) or '(missing)')}",
+            ]
+        )
+    return "\n".join(lines).rstrip()
+
+
+def render_topic_next_payload(payload: dict[str, Any]) -> str:
+    topic_slug = str(payload.get("topic_slug") or "").strip() or "<topic_slug>"
+    current = str(payload.get("selected_action_summary") or "(no selected action)")
+    must_read_now = list(payload.get("must_read_now") or [])
+    read_now = str((must_read_now[0] or {}).get("path") or payload.get("open_next") or "(none)") if must_read_now else str(payload.get("open_next") or "(none)")
+    gap_status = str(((payload.get("open_gap_summary") or {}).get("status")) or "").strip() or "unknown"
+    blocked = "none" if gap_status in {"clear", "unknown"} else gap_status.replace("_", " ")
+    lines = [
+        "AITP Next",
+        "",
+        f"Topic: {topic_slug}",
+        f"Do: {current}",
+        f"Read now: {read_now}",
+        f"Blocked: {blocked}",
+        f"Machine view: aitp next --topic-slug {topic_slug} --json",
+    ]
+    return "\n".join(lines).rstrip()
+
+
+def render_hello_payload(payload: dict[str, Any]) -> str:
+    mode = str(payload.get("mode") or "welcome")
+    topic_slug = str(payload.get("topic_slug") or "").strip() or "<topic_slug>"
+    install_status = str(((payload.get("install") or {}).get("overall_status")) or "unknown")
+    status = payload.get("status") or {}
+    title = str(payload.get("topic_title") or topic_slug).replace("-", " ").strip().title() or topic_slug
+    next_step = str(status.get("selected_action_summary") or payload.get("suggested_command") or "(missing)")
+    if mode == "current_topic":
+        lines = [
+            "AITP Hello",
+            "",
+            f"Install check: {install_status}",
+            f"Topic: {title}",
+            f"Topic slug: {topic_slug}",
+            f"Next step: {next_step}",
+            f"Docs: {str(payload.get('docs_hint') or 'research/knowledge-hub/README.md')}",
+            "Machine view: aitp hello --json",
+        ]
+        return "\n".join(lines).rstrip()
+    lines = [
+        "AITP Hello",
+        "",
+        f"Install check: {install_status}",
+        "Status: no active topic",
+        "AITP helps turn one bounded research topic into an auditable runtime loop.",
+        f"First step: {next_step}",
+        f"Docs: {str(payload.get('docs_hint') or 'research/knowledge-hub/README.md')}",
+        "Machine view: aitp hello --json",
+    ]
+    return "\n".join(lines).rstrip()
 
 
 def _doctor_runtime_lines(runtime_key: str, row: dict[str, Any], *, indent: int = 2) -> list[str]:

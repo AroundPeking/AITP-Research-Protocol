@@ -116,7 +116,7 @@ Default storage projection:
 - `regime_card` -> backend-defined regimes storage
 - `theorem_card` -> backend-defined theorems storage
 - `claim_card` -> `canonical/claim-cards/`
-- `proof_fragment` -> backend-defined proof-fragment storage
+- `proof_fragment` -> `canonical/proof-fragments/`
 - `derivation_step` -> backend-defined derivation-step storage
 - `derivation_object` -> `canonical/derivation-objects/`
 - `method` -> `canonical/methods/`

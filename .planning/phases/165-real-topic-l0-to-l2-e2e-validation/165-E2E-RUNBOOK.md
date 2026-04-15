@@ -66,6 +66,35 @@ Use these companion files during the run:
 - `165-ISSUE-LEDGER.md`
 - `evidence/TEMPLATE-POSTMORTEM.md`
 - `evidence/TEMPLATE-COMMANDS.md`
+- `evidence/TEMPLATE-LIVE-FRONT-DOOR-EVIDENCE.json`
+
+## Live Front-Door Parity Closure
+
+Use this when the real-topic run also needs to close the remaining
+Claude Code / OpenCode first-turn bootstrap gap with honest evidence.
+
+1. Pick a shared evidence directory, for example:
+   `.planning/phases/165-real-topic-l0-to-l2-e2e-validation/evidence/live-front-door/`
+2. Copy `evidence/TEMPLATE-LIVE-FRONT-DOOR-EVIDENCE.json` once per runtime and rename to:
+   `claude_code.live-first-turn.json`
+   `opencode.live-first-turn.json`
+3. Run one real natural-language first turn in the target front door.
+4. Fill the JSON with:
+   - the exact first user turn
+   - a concise summary of the first substantive agent turn
+   - transcript / screenshot / artifact refs
+   - the concrete `session_start.generated.md`, `runtime_protocol.generated.md`, and `status --json` artifact paths
+   - explicit booleans for whether bootstrap consumption and posture visibility were actually observed
+5. Re-run the shared parity audit with:
+   `python research/knowledge-hub/runtime/scripts/run_runtime_parity_audit.py --live-evidence-root .planning/phases/165-real-topic-l0-to-l2-e2e-validation/evidence/live-front-door --json`
+
+Honesty rule:
+
+- if the first turn is ambiguous, missing artifacts, or does not clearly show the
+  human-control/autonomy posture, mark the evidence `partial` or `failed`
+  instead of forcing `verified`
+- the audit should only close the live gap when the evidence file is explicitly
+  `verified`
 
 ## Postmortem Questions
 

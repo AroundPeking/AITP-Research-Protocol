@@ -57,8 +57,30 @@ class AITPCodexTests(unittest.TestCase):
             "session_start": {
                 "session_start_contract_path": "/tmp/runtime/demo-topic/session_start.contract.json",
                 "session_start_note_path": "/tmp/runtime/demo-topic/session_start.generated.md",
+                "human_interaction_posture": {
+                    "requires_human_input_now": False,
+                    "summary": "No active human checkpoint is currently blocking the bounded loop.",
+                    "next_action": "AITP may continue bounded work autonomously until a real checkpoint or blocker appears.",
+                },
+                "autonomy_posture": {
+                    "mode": "continuous_iterative_verify",
+                    "summary": "Keep the bounded L3-L4 loop running until validation succeeds, or until a real blocker, contradiction, or human checkpoint appears.",
+                    "applied_max_auto_steps": 16,
+                },
                 "artifacts": {
                     "runtime_protocol_note_path": "/tmp/runtime/demo-topic/runtime_protocol.generated.md",
+                },
+                "theory_context_injection": {
+                    "status": "active",
+                    "fragments": [
+                        {
+                            "fragment_id": "theory-context:notation:demo-topic",
+                            "kind": "notation_bindings",
+                            "summary": "Notation bindings for the bounded theorem packet: H = Hamiltonian.",
+                            "path": "/tmp/runtime/demo-topic/context_fragments/theory-context-notation.md",
+                            "delivery_status": "inject_now",
+                        }
+                    ],
                 },
             },
         }
@@ -68,6 +90,13 @@ class AITPCodexTests(unittest.TestCase):
         self.assertIn("/tmp/runtime/demo-topic/agent_brief.md", prompt)
         self.assertIn("/tmp/innovation-direction.md", prompt)
         self.assertIn("trust: `blocked`", prompt)
+        self.assertIn("Human interaction posture", prompt)
+        self.assertIn("No active human checkpoint is currently blocking the bounded loop.", prompt)
+        self.assertIn("Autonomous continuation", prompt)
+        self.assertIn("continuous_iterative_verify", prompt)
+        self.assertIn("applied auto-step budget: `16`", prompt)
+        self.assertIn("/tmp/runtime/demo-topic/context_fragments/theory-context-notation.md", prompt)
+        self.assertIn("Theory context injection", prompt)
         self.assertIn("Continue the topic", prompt)
 
     def test_parser_accepts_topic_slug_and_task(self) -> None:

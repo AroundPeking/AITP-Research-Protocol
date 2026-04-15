@@ -34,6 +34,12 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     )
 
 
+def _read_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _bootstrap_loop_context(
     self,
     *,
@@ -168,6 +174,52 @@ def _execute_loop_auto_actions(
     }
 
 
+def _resolve_loop_auto_step_budget(
+    self,
+    *,
+    topic_slug: str,
+    updated_by: str,
+    human_request: str | None,
+    requested_max_auto_steps: int,
+    load_profile: str | None,
+) -> dict[str, Any]:
+    if requested_max_auto_steps <= 0:
+        return {
+            "requested_max_auto_steps": requested_max_auto_steps,
+            "applied_max_auto_steps": requested_max_auto_steps,
+            "auto_step_budget_reason": "explicit_budget_disabled",
+        }
+
+    preview_protocol = self._materialize_runtime_protocol_bundle(
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        human_request=human_request,
+        load_profile=load_profile,
+        requested_max_auto_steps=requested_max_auto_steps,
+        applied_max_auto_steps=requested_max_auto_steps,
+        auto_step_budget_reason="requested_budget",
+    )
+    bundle_path = Path(preview_protocol["runtime_protocol_path"])
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8")) if bundle_path.exists() else {}
+    human_posture = bundle.get("human_interaction_posture") or {}
+    runtime_mode = str(bundle.get("runtime_mode") or "")
+    active_submode = str(bundle.get("active_submode") or "")
+
+    applied_max_auto_steps = requested_max_auto_steps
+    auto_step_budget_reason = "requested_budget"
+    if bool(human_posture.get("requires_human_input_now")):
+        auto_step_budget_reason = "human_checkpoint_active"
+    elif runtime_mode == "verify" and active_submode == "iterative_verify":
+        applied_max_auto_steps = max(requested_max_auto_steps, 16)
+        auto_step_budget_reason = "iterative_verify_auto_extension"
+
+    return {
+        "requested_max_auto_steps": requested_max_auto_steps,
+        "applied_max_auto_steps": applied_max_auto_steps,
+        "auto_step_budget_reason": auto_step_budget_reason,
+    }
+
+
 def _finalize_loop_outcome(
     self,
     *,
@@ -177,6 +229,8 @@ def _finalize_loop_outcome(
     updated_by: str,
     human_request: str | None,
     max_auto_steps: int,
+    applied_max_auto_steps: int,
+    auto_step_budget_reason: str,
     load_profile: str | None,
     entry_audit: dict[str, Any],
     auto_actions: dict[str, Any],
@@ -209,6 +263,9 @@ def _finalize_loop_outcome(
         "updated_by": updated_by,
         "human_request": human_request or "",
         "max_auto_steps": max_auto_steps,
+        "requested_max_auto_steps": max_auto_steps,
+        "applied_max_auto_steps": applied_max_auto_steps,
+        "auto_step_budget_reason": auto_step_budget_reason,
         "bootstrap_runtime_root": bootstrap["runtime_root"],
         "entry_conformance": (entry_audit.get("conformance_state") or {}).get("overall_status"),
         "exit_conformance": (exit_audit.get("conformance_state") or {}).get("overall_status"),
@@ -245,7 +302,15 @@ def _finalize_loop_outcome(
         updated_by=updated_by,
         human_request=human_request,
         load_profile=resolved_load_profile,
+        requested_max_auto_steps=max_auto_steps,
+        applied_max_auto_steps=applied_max_auto_steps,
+        auto_step_budget_reason=auto_step_budget_reason,
     )
+    runtime_bundle = _read_json(Path(protocol_paths["runtime_protocol_path"])) or {}
+    loop_state["loop_detection"] = runtime_bundle.get("loop_detection") or {}
+    _write_json(loop_state_path, loop_state)
+    history_rows[-1] = loop_state
+    _write_jsonl(loop_history_path, history_rows)
     return {
         "topic_slug": topic_slug,
         "run_id": run_id,
@@ -296,6 +361,14 @@ def run_topic_loop(
     resolved_topic_slug = loop_context["resolved_topic_slug"]
     resolved_run_id = loop_context["resolved_run_id"]
     entry_audit = self.audit(topic_slug=resolved_topic_slug, phase="entry", updated_by=updated_by)
+    auto_step_budget = _resolve_loop_auto_step_budget(
+        self,
+        topic_slug=resolved_topic_slug,
+        updated_by=updated_by,
+        human_request=human_request,
+        requested_max_auto_steps=max_auto_steps,
+        load_profile=load_profile,
+    )
     auto_actions = _execute_loop_auto_actions(
         self,
         topic_slug=resolved_topic_slug,
@@ -304,7 +377,7 @@ def run_topic_loop(
         updated_by=updated_by,
         human_request=human_request,
         skill_queries=skill_queries,
-        max_auto_steps=max_auto_steps,
+        max_auto_steps=auto_step_budget["applied_max_auto_steps"],
         research_mode=research_mode,
     )
     return _finalize_loop_outcome(
@@ -315,6 +388,8 @@ def run_topic_loop(
         updated_by=updated_by,
         human_request=human_request,
         max_auto_steps=max_auto_steps,
+        applied_max_auto_steps=auto_step_budget["applied_max_auto_steps"],
+        auto_step_budget_reason=auto_step_budget["auto_step_budget_reason"],
         load_profile=load_profile,
         entry_audit=entry_audit,
         auto_actions=auto_actions,

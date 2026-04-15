@@ -22,15 +22,41 @@ from interaction_surface_support import (
 )
 from orchestrator_contract_support import (
     append_closed_loop_actions,
+    consultation_followup_ready_for_auto_run,
+    derive_post_promotion_followup,
+    derive_post_promotion_blocker_route_choice,
+    derive_selected_candidate_promotion_gate,
+    derive_selected_candidate_route_choice,
+    load_consultation_followup_selection,
+    load_post_promotion_blocker_route_choice,
+    load_post_promotion_followup,
+    load_selected_candidate_promotion_gate,
+    load_selected_candidate_route_choice,
     append_literature_followup_actions,
     append_runtime_helper_actions,
+    compute_literature_intake_stage_signature,
     enrich_queue_meta,
     load_operator_checkpoint,
     load_runtime_contract,
+    maybe_append_literature_intake_stage_action,
     maybe_append_skill_discovery_action,
     queue_rows_from_pending_actions,
     queue_shaping_policy_from_contract_artifacts,
     reorder_queue_with_runtime_contract,
+    render_post_promotion_blocker_route_choice_markdown,
+    render_post_promotion_followup_markdown,
+    render_selected_candidate_promotion_gate_markdown,
+    render_selected_candidate_route_choice_markdown,
+    post_promotion_blocker_route_choice_paths,
+    post_promotion_blocker_route_choice_ready_for_materialization,
+    post_promotion_followup_paths,
+    post_promotion_followup_ready_for_materialization,
+    selected_candidate_promotion_gate_paths,
+    selected_candidate_promotion_gate_ready_for_materialization,
+    should_advance_past_staged_l2_review,
+    selected_candidate_route_choice_paths,
+    selected_candidate_route_choice_ready_for_materialization,
+    topic_has_staged_entries,
 )
 
 NEXT_ACTIONS_CONTRACT_FILENAME = "next_actions.contract.json"
@@ -127,9 +153,9 @@ def relative_path(path: Path | None, root: Path) -> str | None:
         return str(path)
 
 
-def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | None) -> None:
+def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | None, topic_title: str | None = None) -> None:
     created_at = now_iso()
-    title = topic_slug.replace("-", " ").title()
+    title = str(topic_title or "").strip() or topic_slug.replace("-", " ").title()
 
     layer0_topic = knowledge_root / "source-layer" / "topics" / topic_slug / "topic.json"
     if not layer0_topic.exists():
@@ -182,7 +208,7 @@ def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | N
             )
             write_text(
                 run_root / "next_actions.md",
-                "# Next actions\n\n1. Convert the topic statement into explicit source and candidate artifacts.\n",
+                "# Next actions\n\n1. Start with source-layer/scripts/discover_and_register.py when you have a topic query; if you already know the arXiv id, use source-layer/scripts/register_arxiv_source.py and intake/ARXIV_FIRST_SOURCE_INTAKE.md.\n",
             )
 
 
@@ -587,15 +613,23 @@ def topic_completion_actions(knowledge_root: Path, topic_state: dict, queue_meta
         knowledge_root / "feedback" / "topics" / topic_slug / "runs" / run_id / "candidate_ledger.jsonl"
     )
     followup_rows = read_jsonl(knowledge_root / "runtime" / "topics" / topic_slug / FOLLOWUP_SUBTOPICS_FILENAME)
-    if not candidate_rows and not followup_rows:
-        return []
-    completion_payload = load_json(knowledge_root / "runtime" / "topics" / topic_slug / TOPIC_COMPLETION_FILENAME) or {}
     promotion_gate = load_json(knowledge_root / "runtime" / "topics" / topic_slug / "promotion_gate.json") or {}
     gate_status = str(promotion_gate.get("status") or "").strip()
+    if not candidate_rows and not followup_rows and gate_status != "promoted":
+        return []
+    completion_payload = load_json(knowledge_root / "runtime" / "topics" / topic_slug / TOPIC_COMPLETION_FILENAME) or {}
+    candidate_count_value = completion_payload.get("candidate_count")
+    followup_count_value = completion_payload.get("followup_subtopic_count")
+    candidate_count_matches = (
+        candidate_count_value is not None and int(candidate_count_value) == len(candidate_rows)
+    )
+    followup_count_matches = (
+        followup_count_value is not None and int(followup_count_value) == len(followup_rows)
+    )
     needs_refresh = (
         str(completion_payload.get("run_id") or "") != run_id
-        or int(completion_payload.get("candidate_count") or -1) != len(candidate_rows)
-        or int(completion_payload.get("followup_subtopic_count") or -1) != len(followup_rows)
+        or not candidate_count_matches
+        or not followup_count_matches
         or (gate_status == "promoted" and str(completion_payload.get("status") or "") != "promoted")
     )
     if not needs_refresh:
@@ -625,16 +659,33 @@ def prune_obsolete_actions(knowledge_root: Path, topic_state: dict, queue: list[
     completion_payload = load_json(runtime_root / TOPIC_COMPLETION_FILENAME) or {}
     completion_status = str(completion_payload.get("status") or "").strip()
     latest_run_id = str(topic_state.get("latest_run_id") or "").strip()
+    source_count = int(topic_state.get("source_count") or 0)
 
     filtered: list[dict] = []
     for row in queue:
         action_type = str(row.get("action_type") or "").strip()
+        action_summary = str(row.get("summary") or "").strip().lower()
         queue_source = str(row.get("queue_source") or "").strip()
         handler_args = row.get("handler_args") or {}
         action_run_id = str(handler_args.get("run_id") or "").strip()
 
+        if (
+            source_count > 0
+            and action_type == "l0_source_expansion"
+            and "discover_and_register.py" in action_summary
+            and "register_arxiv_source.py" in action_summary
+        ):
+            continue
+
         if gate_status == "promoted":
             if action_type == "auto_promote_candidate":
+                continue
+            if action_type in {
+                "l2_promotion_review",
+                "request_promotion",
+                "approve_promotion",
+                "promote_candidate",
+            }:
                 continue
             if action_type == "assess_topic_completion" and queue_source == "heuristic" and not handler_args:
                 continue
@@ -975,6 +1026,14 @@ def materialize_action_queue(
         queue_meta=queue_meta,
         queue_shaping_policy=queue_shaping_policy,
     )
+    maybe_append_literature_intake_stage_action(
+        queue,
+        topic_state=topic_state,
+        runtime_contract=runtime_contract,
+        knowledge_root=knowledge_root,
+        queue_meta=queue_meta,
+        queue_shaping_policy=queue_shaping_policy,
+    )
 
     closed_loop = compute_closed_loop_status(
         knowledge_root,
@@ -1030,6 +1089,381 @@ def materialize_action_queue(
         runtime_contract,
         declared_contract_used=bool(queue_meta.get("declared_contract_used")),
     )
+
+    if not queue and int(topic_state.get("source_count") or 0) > 0:
+        selection_payload = load_consultation_followup_selection(
+            load_json=load_json,
+            knowledge_root=knowledge_root,
+            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+        )
+        if (
+            isinstance(selection_payload, dict)
+            and str(selection_payload.get("status") or "").strip() == "selected"
+        ):
+            route_choice_payload = load_selected_candidate_route_choice(
+                load_json=load_json,
+                knowledge_root=knowledge_root,
+                topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+            )
+            if route_choice_payload is None and selected_candidate_route_choice_ready_for_materialization(
+                load_json=load_json,
+                knowledge_root=knowledge_root,
+                topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+            ):
+                route_choice_payload = derive_selected_candidate_route_choice(
+                    load_json=load_json,
+                    knowledge_root=knowledge_root,
+                    topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                    updated_by=str(topic_state.get("updated_by") or "codex"),
+                )
+                if isinstance(route_choice_payload, dict):
+                    queue_meta["selected_candidate_route_choice_payload"] = route_choice_payload
+            if isinstance(route_choice_payload, dict):
+                promotion_gate_payload = load_selected_candidate_promotion_gate(
+                    load_json=load_json,
+                    knowledge_root=knowledge_root,
+                    topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                )
+                if promotion_gate_payload is None and selected_candidate_promotion_gate_ready_for_materialization(
+                    load_json=load_json,
+                    knowledge_root=knowledge_root,
+                    topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                ):
+                    promotion_gate_payload = derive_selected_candidate_promotion_gate(
+                        load_json=load_json,
+                        knowledge_root=knowledge_root,
+                        topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                        requested_by=str(topic_state.get("updated_by") or "codex"),
+                    )
+                    if isinstance(promotion_gate_payload, dict):
+                        queue_meta["selected_candidate_promotion_gate_payload"] = promotion_gate_payload
+                if isinstance(promotion_gate_payload, dict):
+                    gate_status = str(promotion_gate_payload.get("status") or "").strip()
+                    if gate_status == "pending_human_approval":
+                        queue.append(
+                            {
+                                "action_id": f"action:{topic_state['topic_slug']}:selected-candidate-promotion-gate",
+                                "topic_slug": topic_state["topic_slug"],
+                                "resume_stage": topic_state["resume_stage"],
+                                "status": "pending",
+                                "action_type": "approve_promotion",
+                                "summary": (
+                                    "Review the pending promotion gate for the selected staged candidate "
+                                    f"`{str(promotion_gate_payload.get('candidate_id') or '').strip()}` "
+                                    "before any Layer 2 writeback."
+                                ),
+                                "auto_runnable": False,
+                                "handler": None,
+                                "handler_args": {
+                                    "run_id": topic_state.get("latest_run_id"),
+                                    "candidate_id": str(
+                                        promotion_gate_payload.get("candidate_id") or ""
+                                    ).strip(),
+                                    "candidate_path": str(
+                                        route_choice_payload.get("selected_candidate_path") or ""
+                                    ).strip(),
+                                },
+                                "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                                "declared_contract_path": queue_meta.get("declared_contract_path"),
+                            }
+                        )
+                        return queue, queue_meta
+                    if gate_status == "approved":
+                        queue.append(
+                            {
+                                "action_id": f"action:{topic_state['topic_slug']}:selected-candidate-promotion-approved",
+                                "topic_slug": topic_state["topic_slug"],
+                                "resume_stage": topic_state["resume_stage"],
+                                "status": "pending",
+                                "action_type": "promote_candidate",
+                                "summary": (
+                                    "Promote the selected staged candidate "
+                                    f"`{str(promotion_gate_payload.get('candidate_id') or '').strip()}` "
+                                    "into Layer 2 using the approved promotion gate."
+                                ),
+                                "auto_runnable": False,
+                                "handler": None,
+                                "handler_args": {
+                                    "run_id": topic_state.get("latest_run_id"),
+                                    "candidate_id": str(
+                                        promotion_gate_payload.get("candidate_id") or ""
+                                    ).strip(),
+                                    "candidate_path": str(
+                                        route_choice_payload.get("selected_candidate_path") or ""
+                                    ).strip(),
+                                },
+                                "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                                "declared_contract_path": queue_meta.get("declared_contract_path"),
+                            }
+                        )
+                        return queue, queue_meta
+                    if gate_status == "promoted":
+                        run_id = str(topic_state.get("latest_run_id") or "").strip()
+                        candidate_rows = (
+                            read_jsonl(
+                                knowledge_root
+                                / "feedback"
+                                / "topics"
+                                / topic_state["topic_slug"]
+                                / "runs"
+                                / run_id
+                                / "candidate_ledger.jsonl"
+                            )
+                            if run_id
+                            else []
+                        )
+                        followup_rows = read_jsonl(
+                            knowledge_root
+                            / "runtime"
+                            / "topics"
+                            / topic_state["topic_slug"]
+                            / FOLLOWUP_SUBTOPICS_FILENAME
+                        )
+                        completion_payload = load_json(
+                            knowledge_root
+                            / "runtime"
+                            / "topics"
+                            / topic_state["topic_slug"]
+                            / TOPIC_COMPLETION_FILENAME
+                        ) or {}
+                        candidate_count_value = completion_payload.get("candidate_count")
+                        followup_count_value = completion_payload.get("followup_subtopic_count")
+                        candidate_count_matches = (
+                            candidate_count_value is not None and int(candidate_count_value) == len(candidate_rows)
+                        )
+                        followup_count_matches = (
+                            followup_count_value is not None and int(followup_count_value) == len(followup_rows)
+                        )
+                        completion_stale = (
+                            str(completion_payload.get("run_id") or "") != run_id
+                            or not candidate_count_matches
+                            or not followup_count_matches
+                            or str(completion_payload.get("status") or "") != "promoted"
+                        )
+                        post_promotion_followup = load_post_promotion_followup(
+                            load_json=load_json,
+                            knowledge_root=knowledge_root,
+                            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                        )
+                        if post_promotion_followup is None and post_promotion_followup_ready_for_materialization(
+                            load_json=load_json,
+                            knowledge_root=knowledge_root,
+                            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                        ):
+                            post_promotion_followup = derive_post_promotion_followup(
+                                load_json=load_json,
+                                knowledge_root=knowledge_root,
+                                topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                                updated_by=str(topic_state.get("updated_by") or "codex"),
+                            )
+                            if isinstance(post_promotion_followup, dict):
+                                queue_meta["post_promotion_followup_payload"] = post_promotion_followup
+                        if completion_stale:
+                            queue.append(
+                                {
+                                    "action_id": f"action:{topic_state['topic_slug']}:selected-candidate-post-promotion",
+                                    "topic_slug": topic_state["topic_slug"],
+                                    "resume_stage": "L4",
+                                    "status": "pending",
+                                    "action_type": "assess_topic_completion",
+                                    "summary": (
+                                        "Refresh topic-completion state after the selected staged candidate "
+                                        "has already been written back into Layer 2."
+                                    ),
+                                    "auto_runnable": True,
+                                    "handler": None,
+                                    "handler_args": {
+                                        "run_id": topic_state.get("latest_run_id"),
+                                    },
+                                    "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                                    "declared_contract_path": queue_meta.get("declared_contract_path"),
+                                }
+                            )
+                        elif isinstance(post_promotion_followup, dict):
+                            blocker_route_choice_payload = load_post_promotion_blocker_route_choice(
+                                load_json=load_json,
+                                knowledge_root=knowledge_root,
+                                topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                            )
+                            if blocker_route_choice_payload is None and post_promotion_blocker_route_choice_ready_for_materialization(
+                                load_json=load_json,
+                                knowledge_root=knowledge_root,
+                                topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                            ):
+                                blocker_route_choice_payload = derive_post_promotion_blocker_route_choice(
+                                    load_json=load_json,
+                                    knowledge_root=knowledge_root,
+                                    topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+                                    updated_by=str(topic_state.get("updated_by") or "codex"),
+                                )
+                                if isinstance(blocker_route_choice_payload, dict):
+                                    queue_meta["post_promotion_blocker_route_choice_payload"] = blocker_route_choice_payload
+                            if isinstance(blocker_route_choice_payload, dict):
+                                queue.append(
+                                    {
+                                        "action_id": f"action:{topic_state['topic_slug']}:post-promotion-blocker-route-choice",
+                                        "topic_slug": topic_state["topic_slug"],
+                                        "resume_stage": "L4",
+                                        "status": "pending",
+                                        "action_type": str(
+                                            blocker_route_choice_payload.get("chosen_action_type") or ""
+                                        ).strip(),
+                                        "summary": str(
+                                            blocker_route_choice_payload.get("chosen_action_summary") or ""
+                                        ).strip(),
+                                        "auto_runnable": False,
+                                        "handler": None,
+                                        "handler_args": {
+                                            "run_id": topic_state.get("latest_run_id"),
+                                            "candidate_id": str(
+                                                blocker_route_choice_payload.get("candidate_id") or ""
+                                            ).strip(),
+                                        },
+                                        "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                                        "declared_contract_path": queue_meta.get("declared_contract_path"),
+                                    }
+                                )
+                                return queue, queue_meta
+                            queue.append(
+                                {
+                                    "action_id": f"action:{topic_state['topic_slug']}:post-promotion-followup",
+                                    "topic_slug": topic_state["topic_slug"],
+                                    "resume_stage": "L4",
+                                    "status": "pending",
+                                    "action_type": str(
+                                        post_promotion_followup.get("chosen_action_type") or ""
+                                    ).strip(),
+                                    "summary": str(
+                                        post_promotion_followup.get("chosen_action_summary") or ""
+                                    ).strip(),
+                                    "auto_runnable": False,
+                                    "handler": None,
+                                    "handler_args": {
+                                        "run_id": topic_state.get("latest_run_id"),
+                                        "candidate_id": str(
+                                            post_promotion_followup.get("candidate_id") or ""
+                                        ).strip(),
+                                    },
+                                    "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                                    "declared_contract_path": queue_meta.get("declared_contract_path"),
+                                }
+                            )
+                        else:
+                            queue.append(
+                                {
+                                    "action_id": f"action:{topic_state['topic_slug']}:post-promotion-inspect",
+                                    "topic_slug": topic_state["topic_slug"],
+                                    "resume_stage": "L4",
+                                    "status": "pending",
+                                    "action_type": "inspect_resume_state",
+                                    "summary": (
+                                        "Inspect the promoted Layer 2 writeback artifacts and current topic-completion "
+                                        "surface before opening another bounded route."
+                                    ),
+                                    "auto_runnable": False,
+                                    "handler": None,
+                                    "handler_args": {},
+                                    "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                                    "declared_contract_path": queue_meta.get("declared_contract_path"),
+                                }
+                            )
+                        return queue, queue_meta
+                queue.append(
+                    {
+                        "action_id": f"action:{topic_state['topic_slug']}:selected-candidate-route-choice",
+                        "topic_slug": topic_state["topic_slug"],
+                        "resume_stage": topic_state["resume_stage"],
+                        "status": "pending",
+                        "action_type": str(route_choice_payload.get("chosen_action_type") or "").strip(),
+                        "summary": str(route_choice_payload.get("chosen_action_summary") or "").strip(),
+                        "auto_runnable": False,
+                        "handler": None,
+                        "handler_args": {
+                            "run_id": topic_state.get("latest_run_id"),
+                            "candidate_id": str(route_choice_payload.get("selected_candidate_id") or "").strip(),
+                            "candidate_path": str(route_choice_payload.get("selected_candidate_path") or "").strip(),
+                        },
+                        "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                        "declared_contract_path": queue_meta.get("declared_contract_path"),
+                    }
+                )
+                return queue, queue_meta
+            selected_candidate_id = str(
+                selection_payload.get("selected_candidate_id") or ""
+            ).strip()
+            selected_candidate_path = str(
+                selection_payload.get("selected_candidate_path") or ""
+            ).strip()
+            queue.append(
+                {
+                    "action_id": f"action:{topic_state['topic_slug']}:selected-consultation-candidate",
+                    "topic_slug": topic_state["topic_slug"],
+                    "resume_stage": topic_state["resume_stage"],
+                    "status": "pending",
+                    "action_type": "selected_consultation_candidate_followup",
+                    "summary": (
+                        f"Review the selected staged candidate `{selected_candidate_id}` "
+                        "and decide whether to split, validate, or promote it before deeper execution."
+                    ),
+                    "auto_runnable": False,
+                    "handler": None,
+                    "handler_args": {
+                        "run_id": topic_state.get("latest_run_id"),
+                        "candidate_id": selected_candidate_id,
+                        "candidate_path": selected_candidate_path,
+                    },
+                    "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                    "declared_contract_path": queue_meta.get("declared_contract_path"),
+                }
+            )
+            return queue, queue_meta
+        if should_advance_past_staged_l2_review(
+            knowledge_root=knowledge_root,
+            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+            runtime_contract=runtime_contract,
+        ):
+            consultation_auto_runnable = consultation_followup_ready_for_auto_run(
+                load_json=load_json,
+                knowledge_root=knowledge_root,
+                topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+            )
+            queue.append(
+                {
+                    "action_id": f"action:{topic_state['topic_slug']}:consult-staged-l2",
+                    "topic_slug": topic_state["topic_slug"],
+                    "resume_stage": topic_state["resume_stage"],
+                    "status": "pending",
+                    "action_type": "consultation_followup",
+                    "summary": "Consult the topic-local staged L2 memory and choose one bounded candidate before deeper execution.",
+                    "auto_runnable": consultation_auto_runnable,
+                    "handler": None,
+                    "handler_args": {"run_id": topic_state.get("latest_run_id")},
+                    "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                    "declared_contract_path": queue_meta.get("declared_contract_path"),
+                }
+            )
+            return queue, queue_meta
+        fallback_summary = "Inspect the compiled L1 vault before continuing."
+        if topic_has_staged_entries(
+            knowledge_root=knowledge_root,
+            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
+        ):
+            fallback_summary = "Inspect the current L2 staging manifest before continuing."
+        queue.append(
+            {
+                "action_id": f"action:{topic_state['topic_slug']}:inspect-l1-vault",
+                "topic_slug": topic_state["topic_slug"],
+                "resume_stage": topic_state["resume_stage"],
+                "status": "pending",
+                "action_type": "inspect_resume_state",
+                "summary": fallback_summary,
+                "auto_runnable": False,
+                "handler": None,
+                "handler_args": {},
+                "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+                "declared_contract_path": queue_meta.get("declared_contract_path"),
+            }
+        )
 
     if not queue:
         queue.append(
@@ -1112,7 +1546,7 @@ def main() -> int:
 
     knowledge_root = Path(__file__).resolve().parents[2]
     research_root = knowledge_root.parent
-    ensure_topic_shell(knowledge_root, topic_slug, args.statement)
+    ensure_topic_shell(knowledge_root, topic_slug, args.statement, args.topic)
 
     register_arxiv = knowledge_root / "source-layer" / "scripts" / "register_arxiv_source.py"
     register_local = knowledge_root / "source-layer" / "scripts" / "register_local_note_source.py"
@@ -1203,6 +1637,50 @@ def main() -> int:
         literature_followup_script,
         knowledge_root,
     )
+    route_choice_payload = queue_meta.get("selected_candidate_route_choice_payload")
+    if isinstance(route_choice_payload, dict):
+        route_choice_paths = selected_candidate_route_choice_paths(
+            knowledge_root=knowledge_root,
+            topic_slug=topic_slug,
+        )
+        write_json(route_choice_paths["json"], route_choice_payload)
+        write_text(
+            route_choice_paths["note"],
+            render_selected_candidate_route_choice_markdown(route_choice_payload),
+        )
+    promotion_gate_payload = queue_meta.get("selected_candidate_promotion_gate_payload")
+    if isinstance(promotion_gate_payload, dict):
+        promotion_gate_paths = selected_candidate_promotion_gate_paths(
+            knowledge_root=knowledge_root,
+            topic_slug=topic_slug,
+        )
+        write_json(promotion_gate_paths["json"], promotion_gate_payload)
+        write_text(
+            promotion_gate_paths["note"],
+            render_selected_candidate_promotion_gate_markdown(promotion_gate_payload),
+        )
+    post_promotion_followup_payload = queue_meta.get("post_promotion_followup_payload")
+    if isinstance(post_promotion_followup_payload, dict):
+        followup_paths = post_promotion_followup_paths(
+            knowledge_root=knowledge_root,
+            topic_slug=topic_slug,
+        )
+        write_json(followup_paths["json"], post_promotion_followup_payload)
+        write_text(
+            followup_paths["note"],
+            render_post_promotion_followup_markdown(post_promotion_followup_payload),
+        )
+    blocker_route_choice_payload = queue_meta.get("post_promotion_blocker_route_choice_payload")
+    if isinstance(blocker_route_choice_payload, dict):
+        blocker_paths = post_promotion_blocker_route_choice_paths(
+            knowledge_root=knowledge_root,
+            topic_slug=topic_slug,
+        )
+        write_json(blocker_paths["json"], blocker_route_choice_payload)
+        write_text(
+            blocker_paths["note"],
+            render_post_promotion_blocker_route_choice_markdown(blocker_route_choice_payload),
+        )
     write_jsonl(topic_runtime_root / "action_queue.jsonl", action_queue)
     queue_contract_snapshot = build_action_queue_contract_snapshot(
         topic_state,

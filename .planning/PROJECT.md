@@ -67,18 +67,440 @@ The previously scoped GSD mainline is implemented through:
 - `v1.88`
 - `v1.89`
 - `v1.90`
+- `v1.91`
+- `v1.92`
+- `v1.93`
+- `v1.94`
+- `v1.95`
+- `v1.96`
+- `v1.97`
+- `v1.98`
+- `v1.99`
+- `v2.0`
+- `v2.1`
+- `v2.2`
+- `v2.3`
+- `v2.4`
+- `v2.5`
+- `v2.6`
+- `v2.7`
+- `v2.8`
 
-That closes the current bounded chain through the first operator-visible
-hypothesis route-transition-authority surface, but
-it still does **not** mean the broader AITP architecture is finished.
+That closes the current bounded chain through the first three-lane real-topic
+natural-language dialogue proof across formal, toy-model, and
+first-principles routes plus fresh-topic `L2` hardening and first-use
+reliability passes, but it still does **not** mean the broader AITP
+architecture is finished.
 
 ## Current Focus
 
-- Active milestone: `v1.91` `Real Topic L0 To L2 End-To-End Validation`
-- Latest closed milestone: `v1.90` `Hypothesis Route Transition Authority Surface`
-- Next boundary: execute Phase `165`
+- Active milestone: `v2.9` `Promotion-Review Gate Closure`
+- Latest closed milestone: `v2.8` `Selected-Candidate Route Choice Closure`
+- Next boundary: materialize one explicit promotion-review gate from the chosen
+  route
 
-## Current Milestone: v1.91 Real Topic L0 To L2 End-To-End Validation
+## Current Milestone: v2.9 Promotion-Review Gate Closure
+
+**Goal:** make post-route continuation trustworthy enough that, once
+`l2_promotion_review` becomes the selected route on a fresh topic, the loop
+materializes one explicit promotion-review gate instead of stalling on the
+summary placeholder.
+
+**Target features:**
+- materialize one explicit promotion-review gate from the selected staged
+  candidate once `l2_promotion_review` becomes the selected route
+- keep public `next`, `status`, and dashboard surfaces aligned on that gate
+  instead of the summary placeholder
+- close with one replayable fresh-topic proof that the same topic advances from
+  promotion-review summary onto the explicit gate
+
+**Key context:**
+- `v2.8` closed selected-candidate route choice, so the same topic can already
+  reach `l2_promotion_review` honestly on the bounded baseline
+- a follow-up probe still showed that the loop cannot materialize the explicit
+  promotion-review gate once that route becomes selected
+- the next bottleneck is therefore promotion-review gate materialization, not
+  earlier consultation or route-choice closure work
+
+## Latest Closed Milestone: v2.8 Selected-Candidate Route Choice Closure
+
+**Goal:** make post-selection continuation trustworthy enough that, once a
+selected staged candidate becomes the selected route on a fresh topic, the loop
+derives one bounded deeper route choice instead of stalling on the
+candidate-summary placeholder.
+
+**Delivered features:**
+- the bounded loop now derives one first deeper route choice from the selected
+  staged candidate
+- that route choice now writes durable
+  `selected_candidate_route_choice.active.json|md`
+- public `next` / `status` now advance from selected-candidate summary onto
+  `l2_promotion_review`
+- one replayable fresh-topic proof now closes that post-selection route-choice
+  baseline
+
+**Key context:**
+- `v2.7` had already closed consultation-followup execution and candidate
+  selection
+- `v2.8` closed the remaining route-choice gap without pretending that the
+  selected promotion-review route itself was already executable
+
+## Previous Closed Milestone: v2.7 Consultation-Followup Selection Closure
+
+**Goal:** make post-review consultation trustworthy enough that, once
+`consultation_followup` becomes the selected route on a fresh topic, the loop
+can execute that consultation, write a durable selection artifact, and advance
+to one selected topic-local staged candidate instead of stalling on generic
+consult language.
+
+**Delivered features:**
+- the bounded loop now executes one topic-local `consult-l2` step once the
+  consultation-followup route is surfaced and the operator continues again
+- that consultation step now writes durable consultation and selection artifacts
+- queue materialization and public `next` / `status` now advance onto one
+  selected topic-local staged candidate
+- one replayable fresh-topic proof now closes that consultation-followup
+  selection baseline
+
+**Key context:**
+- `v2.6` had already closed the first post-review consultation surface
+- `v2.7` closed the remaining consultation-followup execution and
+  candidate-selection gap without pretending that route choice after selection
+  was already solved
+
+## Previous Closed Milestone: v2.6 Staged-L2 Post-Review Advancement
+
+**Goal:** make post-review continuation trustworthy enough that, once staged-`L2`
+review is already visible on a fresh topic, a later benign `continue`
+advances to one bounded topic-local staged-memory consultation step instead of
+stalling on the same review summary forever.
+
+**Delivered features:**
+- queue materialization now advances beyond static staged-L2 review once a
+  later `continue` decision arrives
+- public `next`, `status`, and dashboard surfaces now align on the bounded
+  post-review consultation step
+- one replayable fresh-topic proof now shows the same topic advancing beyond
+  staged-L2 review into that bounded consultation route
+
+**Key context:**
+- `v2.5` had already closed staged-L2 reentry posture coherence
+- `v2.6` closed the remaining post-review route-advancement gap without
+  pretending that consultation-followup execution or candidate selection were
+  already solved
+
+## Previous Closed Milestone: v2.5 Staged-L2 Review Reentry Coherence
+
+**Goal:** make staged-`L2` review reentry trustworthy enough that, after the
+first fresh-topic L1->L2 follow-through lands, benign `continue` steering no
+longer leaves the topic in a misleading human-control posture and public
+surfaces stay focused on the review workflow itself.
+
+**Delivered features:**
+- benign `continue_recorded` steering no longer promotes the topic into false
+  blocking human-control posture
+- public `next`, `status`, and dashboard surfaces stay aligned on staged-L2
+  review under that benign reentry steering
+- one replayable fresh-topic proof now shows the same topic can reenter from
+  staged-L2 review under non-blocking `continue` steering
+
+**Key context:**
+- `v2.4` had already closed the first fresh-topic L1->L2 follow-through and
+  advanced onto staged-L2 review
+- `v2.5` closed the remaining same-topic reentry posture gap without
+  pretending that later post-review advancement was already solved
+
+## Previous Closed Milestone: v2.4 First L1 To L2 Follow-Through Coherence
+
+**Goal:** make the first post-registration L1->L2 follow-through trustworthy
+enough that a fresh topic can execute one bounded `literature_intake_stage`,
+stop repeating it once it lands, and advance onto staged-`L2` review instead
+of looping forever on the same action.
+
+**Delivered features:**
+- literature-intake candidate sets now persist a stable completion identity so
+  the same fresh-topic stage no longer requeues forever
+- post-follow-through route surfaces now advance onto staged-`L2` review and
+  keep the literature-focused context envelope active
+- one isolated fresh-topic proof now shows `register -> stage -> staged-L2
+  review`, and `consult_l2(include_staging=True)` returns the topic-local
+  staged row
+- one durable replay packet now records that bounded baseline under `.planning/`
+
+**Key context:**
+- `v2.3` closed post-registration route selection, but not the first L1->L2
+  follow-through after that route became available
+- `v2.4` closed that first fresh-topic follow-through baseline without
+  pretending that later reentry and continuation surfaces were already solved
+
+## Previous Closed Milestone: v2.3 Post-Registration Route Coherence
+
+**Goal:** make the first post-registration transition trustworthy enough that,
+once a first source lands, runtime state and next-action surfaces move onto the
+right bounded follow-up step instead of repeating the old L0 source handoff.
+
+**Delivered features:**
+- runtime `topic_state` / `layer_status` source fields now refresh after first
+  registration instead of carrying stale zero-source state
+- post-registration route selection now moves off the raw source-registration
+  handoff text onto the next bounded research step
+- one replayable fresh first-use proof package now shows that
+  post-registration transition mechanically
+
+**Key context:**
+- `v2.2` closed fresh-topic entry and first-source registration reliability
+- `v2.3` closed the remaining immediate post-registration planner coherence
+  gap without pretending that the first L1->L2 follow-through was already
+  solved
+
+## Previous Closed Milestone: v2.2 Fresh-Topic First-Use Reliability
+
+**Goal:** make fresh-topic public entry reliable enough that a real new topic
+can be opened from natural language, register its first source on Windows
+without path failure, and surface honest `L0` status immediately after
+first-use actions.
+
+**Delivered features:**
+- explicit fresh-topic natural-language requests now allocate new topics
+  instead of reopening stale current-topic memory
+- first-source registration now uses Windows-safe short source-directory slugs
+- runtime/status surfaces now refresh immediately after first-source
+  registration
+- one replayable first-use proof package now shows the route mechanically
+
+**Key context:**
+- `v2.1` had already closed the bounded fresh-topic `L2` hardening slice
+- `v2.2` closed the remaining entry and registration reliability blockers
+  without pretending that post-registration route selection or broader
+  scientific widening were already solved
+
+## Previous Closed Milestone: v2.1 L2 Real-Topic Relevance Hardening
+
+**Goal:** make fresh real-topic `L2` staging and consultation trustworthy
+enough that new literature-intake topics surface the right local knowledge
+with correct provenance instead of noisy or irrelevant hits.
+
+**Delivered features:**
+- suppression of obvious staging noise such as generic notation tokens and weak
+  `unspecified_method` rows
+- preservation of true per-entry source provenance across fresh-topic
+  multi-paper staging
+- topic-local staged rows can now outrank unrelated canonical carryover on the
+  primary consultation surface for the bounded fresh-topic case
+- one replayable multi-paper real-topic proof package now shows the hardening
+  slice mechanically
+
+**Key context:**
+- `v2.0` had already shown the three closed lanes can be entered through real
+  dialogue, but a fresh measurement-induced topic exposed `L2` quality gaps on
+  the literature fast path
+- `v2.1` closes those bounded `L2` gaps without pretending the broader
+  first-use or scientific-widening problems are already solved
+
+## Previous Closed Milestone: v2.0 Three-Lane Real-Topic Natural-Language E2E
+
+**Goal:** prove that the public AITP front door can steer all three closed
+research directions through real natural-language dialogue without hidden seed
+artifacts or authority drift.
+
+**Delivered features:**
+- one real natural-language dialogue proof for the formal-theory baseline
+- one real natural-language dialogue proof for the toy-model baseline
+- one real natural-language dialogue proof for the first-principles /
+  code-method baseline
+- one cross-lane comparative report of where the front door is truly ready and
+  where bounded blockers remain
+
+**Key context:**
+- `v1.97` closed the first trustworthy formal-theory positive-L2 baseline
+- `v1.98` closed the bounded HS toy-model positive-L2 baseline
+- `v1.99` closed the bounded `LibRPA QSGW` first-principles / code-method
+  positive-L2 baseline
+- `v2.0` closes the first honest real-dialogue proof across all three
+  user-requested research directions
+- the next frontier is not another baseline closure; it is deciding which
+  widening blocker to attack next
+
+## Previous Closed Milestone: v1.99 LibRPA QSGW Positive L0 To L2 Closure
+
+**Goal:** carry one bounded `LibRPA QSGW` first-principles / code-method
+result from the public AITP front door into authoritative canonical `L2`, then
+turn the three requested research directions into an explicit convergence
+baseline.
+
+**Target features:**
+- one fresh `first_principles` topic is narrowed to one bounded positive
+  `LibRPA QSGW` target with explicit codebase/workflow anchors
+- one benchmark, convergence, or code-method trust contract proves that target
+  is honest enough for promotion
+- one authoritative positive `LibRPA QSGW` unit lands in canonical `L2`
+- replay receipts and routing notes make the formal, toy-model, and
+  first-principles baselines ready for broader real-topic natural-language
+  tests
+
+**Key context:**
+- `v1.97` closed the first trustworthy formal-theory positive-L2 baseline
+- `v1.98` closed the bounded HS toy-model positive-L2 baseline and its honest
+  coexistence with the shipped HS negative-result route
+- `v1.99` closed the remaining bounded `LibRPA QSGW`
+  first-principles / code-method positive-L2 lane
+
+## Previous Closed Milestone: v1.98 Toy Model Positive L0 To L2 Closure
+
+**Goal:** carry one bounded positive `HS model` toy-model result from the
+public AITP front door into authoritative canonical `L2`, then prove it can
+coexist honestly with the already-shipped HS negative-result route.
+
+**Target features:**
+- one bounded positive `HS model` target is chosen honestly and kept distinct
+  from the already-proven negative OTOC mismatch route
+- one convergence / benchmark contract proves that target is numerically or
+  theoretically trustworthy enough for promotion
+- one authoritative positive toy-model unit lands in canonical `L2`
+- compiled L2 and `consult-l2` expose that positive unit while keeping the
+  existing HS negative-result route explicit
+
+**Phase-level status:** all three roadmap phases are complete and the milestone
+is archived.
+
+**Key context:**
+- `v1.97` closed the first trustworthy formal-theory positive-L2 baseline
+- `v1.98` closed the bounded HS toy-model positive-L2 baseline and its honest
+  coexistence with the shipped HS negative-result route
+- `v1.99` should close the remaining `LibRPA QSGW`
+  first-principles / code-method lane before broad three-lane real-topic
+  natural-language testing
+
+## Previous Closed Milestone: v1.97 First Positive L0 To L2 Closure
+
+**Goal:** land one fresh positive authoritative unit in canonical `L2` through
+the public AITP route, then make the surrounding L2 surfaces trustworthy enough
+to serve as the baseline for later multi-mode closure.
+
+**Delivered features:**
+- one fresh `formal_derivation` topic now reaches authoritative canonical `L2`
+  instead of stopping at `L3`
+- compiled L2 and consultation surfaces expose the same promoted unit and
+  authority state
+- one replayable acceptance lane now proves the full positive route
+  mechanically
+- explicit carry-over blockers are now written for `toy_model` and
+  `first_principles`
+
+**Explicitly deferred from this milestone:**
+- one positive `HS model` toy-model lane still needs a bounded positive target
+  and convergence/benchmark contract before authoritative `L2` promotion
+- one positive `LibRPA QSGW` first-principles lane still needs a durable
+  `first_principles -> code_method` mapping and bounded positive target
+- the next widening milestone should start from the now-closed formal-theory L2
+  baseline instead of reopening the Jones lane
+
+## Previous Closed Milestone: v1.96 Real Topic Promotion E2E Proof
+
+**Goal:** prove the public front door and repaired promotion route on real
+topics, including one honest negative-result lane.
+
+**Delivered features:**
+- three fresh public-front-door topics now have durable bootstrap receipts
+  across `formal_derivation`, `toy_model`, and `first_principles`
+- one HS-model failure now lands durably as `negative_result` staging and
+  compiles as `contradiction_watch`
+- all four proof lanes now have receipts, runbooks, and a cross-lane
+  postmortem
+
+**Explicitly deferred from this milestone:**
+- one full positive `L0 -> L2` promotion proof
+- positive promotion receipt parity across runtime/read-path surfaces
+- `first_principles -> code_method` mapping on a real codebase-backed lane
+- toy-model convergence or benchmark acceptance beyond bootstrap
+
+## Previous Closed Milestone: v1.95 L2 Promotion Pipeline Closure
+
+**Goal:** Close the L4→L2 promotion pipeline gap so E2E research runs that
+already validate at `L4` can actually land their results in canonical `L2`
+knowledge.
+
+**Target features:**
+- extend canonical schema so `negative_result` and runtime proof artifacts have
+  a real promotion path
+- wire promotion support modules to load runtime schema context and bridge
+  runtime proof artifacts into canonical `L2` units
+- make the next E2E run easier to operate through bounded status, hello, and
+  next-action guidance improvements
+
+**Key context:**
+- two Jones E2E runs already reached `L4`; the blocker is promotion
+  engineering, not scientific validation
+- root causes are missing canonical enum coverage, missing formal runtime proof
+  schemas, and missing bridge wiring in promotion helpers
+- keep this milestone bounded to pipeline closure and minimal operator
+  ergonomics rather than reopening already-shipped analytical surfaces
+
+## Previous Closed Milestone: v1.94 L4 Analytical Cross-Check Surface
+
+**Goal:** Close the broader post-`v1.47` analytical-validation remainder by
+making bounded analytical checks explicit, durable, and visible on the runtime
+read path.
+
+**Target features:**
+- analytical check rows for limiting-case, dimensional, symmetry,
+  self-consistency, and source-cross-reference validation
+- richer analytical review context including source anchors and regime or
+  assumption basis
+- analytical cross-check parity across runtime-facing read surfaces
+- one bounded analytical proof lane
+
+**Key context:**
+- `v1.47` already shipped analytical review as a first-class production mode
+- `v1.93` made contradiction visibility explicit, which naturally raises the bar
+  for what analytical validation should surface next
+- this milestone stays focused on bounded analytical cross-check visibility, not
+  on symbolic algebra or automatic route mutation
+
+## Previous Closed Milestone: v1.93 L1 Contradiction Adjudication Surface
+
+**Goal:** Close the broader post-`v1.70` contradiction-adjudication remainder
+by making incompatible source claims explicit inside `L1` intake and exposing
+that contradiction surface on the runtime read path.
+
+**Delivered features:**
+- richer contradiction rows with bounded comparison basis and side-specific
+  summaries
+- contradiction parity across `status`, `runtime_protocol`, dashboard, and `L1`
+  vault source-intake
+- one dedicated bounded contradiction-aware proof lane
+
+**Explicitly deferred from this milestone:**
+- full scientific adjudication of which source is correct
+- automatic queue-level contradiction rerouting
+- broader analytical validation beyond contradiction visibility
+
+## Previous Closed Milestone: v1.92 Public Front Door Source Handoff
+
+**Goal:** Close the next post-`v1.91` usability gap by turning the honest
+public-front-door return to `L0` into one concrete source-acquisition handoff
+and making the default arXiv registration path contentful enough to be useful
+immediately.
+
+**Delivered features:**
+- one concrete `L0` source-acquisition next step after a fresh public
+  `bootstrap`
+- matching `status`, `runtime_protocol`, and `replay-topic` source-handoff
+  surfaces
+- contentful-by-default arXiv registration with explicit `--metadata-only`
+  opt-out
+- one bounded fresh-topic proof of
+  `bootstrap -> concrete source handoff -> source registration`
+
+**Explicitly deferred from this milestone:**
+- broader `L0` discovery/provider expansion beyond the shipped arXiv-first
+  entry surfaces
+- automatic source acquisition or any fake progress when a topic still lacks
+  sources
+- broader HCI, recovery, and collaboration backlog items outside this bounded
+  milestone
+
+## Previous Closed Milestone: v1.91 Real Topic L0 To L2 End-To-End Validation
 
 **Goal:** Close the next post-`v1.90` maturity gap by proving whether the
 current AITP implementation is genuinely useful on a real topic from an
@@ -93,7 +515,8 @@ initial idea through one honest bounded research outcome.
 
 Current phase status inside `v1.91`:
 
-- Phase `165` is now planned and ready for execution
+- Phases `165` through `165.6` are now implemented, audited, and ready for
+  archive
 
 **Explicitly deferred from this milestone:**
 - multi-user feedback collection beyond the first primary operator run
@@ -101,8 +524,10 @@ Current phase status inside `v1.91`:
   real-topic run
 - whole-topic statement-compilation or formalization claims before the real
   run says they are needed
+- more concrete `L0` source-acquisition guidance after public bootstrap
+- broader proof-engineering memory distillation beyond the first Jones seed
 
-## Latest Closed Milestone: v1.90 Hypothesis Route Transition Authority Surface
+## Previous Closed Milestone: v1.90 Hypothesis Route Transition Authority Surface
 
 **Goal:** Close the next post-`v1.89` research-control gap by turning
 transition commitment into one explicit authority surface instead of leaving
@@ -590,6 +1015,7 @@ already-shipped surfaces.
 - `.planning/milestones/v1.88-MILESTONE-AUDIT.md`
 - `.planning/milestones/v1.89-MILESTONE-AUDIT.md`
 - `.planning/milestones/v1.90-MILESTONE-AUDIT.md`
+- `.planning/milestones/v1.91-MILESTONE-AUDIT.md`
 
 ## Latest Integrated Regression Evidence
 
@@ -732,13 +1158,28 @@ already-shipped surfaces.
   - `python -m unittest discover -s research/knowledge-hub/tests -v`
   - result: `367 tests passed`
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition:**
+1. move newly validated scope into milestone history
+2. record fresh decisions or constraints that change later planning
+3. surface any new deferred scope explicitly instead of hiding it in chat
+
+**After each milestone:**
+1. promote the next bounded milestone into `Current Milestone`
+2. refresh active focus and latest-closed context
+3. keep the maturity ladder and honesty boundary aligned with real shipped state
+
 ## Immediate Reality Check
 
 This does **not** mean AITP is finished.
 
-It means `v1.91` is now the active real-topic end-to-end validation milestone
-and the next step is Phase `165`, not inventing another local protocol surface
-before the current implementation is tested on a real idea.
+It means `v1.97` is archived on a stronger positive-L2 baseline and the next
+bounded milestone can widen honestly to the deferred `HS model` and `LibRPA
+QSGW` lanes instead of re-litigating whether AITP already has a trustworthy
+positive canonical-L2 path.
 
 ---
-*Last updated: 2026-04-12 after closing v1.90 and opening v1.91*
+*Last updated: 2026-04-14 after starting milestone v2.9*

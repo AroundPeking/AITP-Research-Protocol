@@ -28,6 +28,16 @@ def _dedupe_strings(values: list[str]) -> list[str]:
     return ordered
 
 
+def _empty_l1_concept_graph() -> dict[str, Any]:
+    return {
+        "nodes": [],
+        "edges": [],
+        "hyperedges": [],
+        "communities": [],
+        "god_nodes": [],
+    }
+
+
 def empty_l1_source_intake() -> dict[str, Any]:
     return {
         "source_count": 0,
@@ -38,6 +48,7 @@ def empty_l1_source_intake() -> dict[str, Any]:
         "notation_rows": [],
         "contradiction_candidates": [],
         "notation_tension_candidates": [],
+        "concept_graph": _empty_l1_concept_graph(),
     }
 
 
@@ -212,7 +223,7 @@ def _normalize_contradiction_candidates(rows: Any) -> list[dict[str, str]]:
     if not isinstance(rows, list):
         return []
     normalized: list[dict[str, str]] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, str, str, str]] = set()
     for row in rows:
         if not isinstance(row, dict):
             continue
@@ -221,7 +232,24 @@ def _normalize_contradiction_candidates(rows: Any) -> list[dict[str, str]]:
         detail = str(row.get("detail") or "").strip()
         if not source_id or not against_source_id or not detail:
             continue
-        key = (source_id.lower(), against_source_id.lower(), detail.lower())
+        comparison_basis = str(row.get("comparison_basis") or "").strip() or "assumption_rows"
+        source_basis_type = str(row.get("source_basis_type") or "").strip() or "assumption"
+        source_basis_summary = str(row.get("source_basis_summary") or "").strip() or detail
+        against_basis_type = str(row.get("against_basis_type") or "").strip() or "assumption"
+        against_basis_summary = str(row.get("against_basis_summary") or "").strip() or detail
+        if comparison_basis == "regime_rows":
+            source_basis_type = "regime"
+            against_basis_type = "regime"
+        elif comparison_basis == "assumption_rows":
+            source_basis_type = "assumption"
+            against_basis_type = "assumption"
+        key = (
+            source_id.lower(),
+            against_source_id.lower(),
+            detail.lower(),
+            source_basis_summary.lower(),
+            against_basis_summary.lower(),
+        )
         if key in seen:
             continue
         seen.add(key)
@@ -237,6 +265,14 @@ def _normalize_contradiction_candidates(rows: Any) -> list[dict[str, str]]:
                 "against_source_type": str(row.get("against_source_type") or "").strip(),
                 "against_reading_depth": str(row.get("against_reading_depth") or "").strip() or "skim",
                 "detail": detail,
+                "comparison_basis": comparison_basis,
+                "source_basis_type": source_basis_type,
+                "source_basis_summary": source_basis_summary,
+                "source_evidence_excerpt": str(row.get("source_evidence_excerpt") or "").strip() or source_basis_summary,
+                "against_basis_type": against_basis_type,
+                "against_basis_summary": against_basis_summary,
+                "against_evidence_excerpt": str(row.get("against_evidence_excerpt") or "").strip()
+                or against_basis_summary,
             }
         )
     return normalized
@@ -279,6 +315,167 @@ def _normalize_notation_tension_candidates(rows: Any) -> list[dict[str, str]]:
     return normalized
 
 
+def _normalize_concept_graph_nodes(rows: Any) -> list[dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        node_id = str(row.get("node_id") or "").strip()
+        label = str(row.get("label") or "").strip()
+        node_type = str(row.get("node_type") or "").strip()
+        if not source_id or not node_id or not label or not node_type:
+            continue
+        key = (source_id.lower(), node_id.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "source_title": str(row.get("source_title") or "").strip(),
+                "source_type": str(row.get("source_type") or "").strip(),
+                "node_id": node_id,
+                "label": label,
+                "node_type": node_type,
+                "confidence_tier": str(row.get("confidence_tier") or "EXTRACTED").strip(),
+                "confidence_score": float(row.get("confidence_score") or 0.0),
+            }
+        )
+    return normalized
+
+
+def _normalize_concept_graph_edges(rows: Any) -> list[dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        edge_id = str(row.get("edge_id") or "").strip()
+        relation = str(row.get("relation") or "").strip()
+        from_id = str(row.get("from_id") or "").strip()
+        to_id = str(row.get("to_id") or "").strip()
+        if not source_id or not edge_id or not relation or not from_id or not to_id:
+            continue
+        key = (source_id.lower(), edge_id.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "edge_id": edge_id,
+                "from_id": from_id,
+                "relation": relation,
+                "to_id": to_id,
+            }
+        )
+    return normalized
+
+
+def _normalize_concept_graph_hyperedges(rows: Any) -> list[dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        hyperedge_id = str(row.get("hyperedge_id") or "").strip()
+        relation = str(row.get("relation") or "").strip()
+        node_ids = _dedupe_strings([str(item).strip() for item in (row.get("node_ids") or []) if str(item).strip()])
+        if not source_id or not hyperedge_id or not relation or len(node_ids) < 2:
+            continue
+        key = (source_id.lower(), hyperedge_id.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "hyperedge_id": hyperedge_id,
+                "relation": relation,
+                "node_ids": node_ids,
+            }
+        )
+    return normalized
+
+
+def _normalize_concept_graph_communities(rows: Any) -> list[dict[str, Any]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        community_id = str(row.get("community_id") or "").strip()
+        label = str(row.get("label") or "").strip()
+        node_ids = _dedupe_strings([str(item).strip() for item in (row.get("node_ids") or []) if str(item).strip()])
+        if not source_id or not community_id or not label or not node_ids:
+            continue
+        key = (source_id.lower(), community_id.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "community_id": community_id,
+                "label": label,
+                "node_ids": node_ids,
+            }
+        )
+    return normalized
+
+
+def _normalize_concept_graph_god_nodes(rows: Any) -> list[dict[str, str]]:
+    if not isinstance(rows, list):
+        return []
+    normalized: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_id = str(row.get("source_id") or "").strip()
+        node_id = str(row.get("node_id") or "").strip()
+        label = str(row.get("label") or "").strip()
+        if not source_id or not node_id or not label:
+            continue
+        key = (source_id.lower(), node_id.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(
+            {
+                "source_id": source_id,
+                "node_id": node_id,
+                "label": label,
+            }
+        )
+    return normalized
+
+
+def _normalize_concept_graph(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return _empty_l1_concept_graph()
+    return {
+        "nodes": _normalize_concept_graph_nodes(payload.get("nodes")),
+        "edges": _normalize_concept_graph_edges(payload.get("edges")),
+        "hyperedges": _normalize_concept_graph_hyperedges(payload.get("hyperedges")),
+        "communities": _normalize_concept_graph_communities(payload.get("communities")),
+        "god_nodes": _normalize_concept_graph_god_nodes(payload.get("god_nodes")),
+    }
+
+
 def normalize_l1_source_intake(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         return empty_l1_source_intake()
@@ -291,6 +488,7 @@ def normalize_l1_source_intake(payload: Any) -> dict[str, Any]:
         "notation_rows": _normalize_notation_rows(payload.get("notation_rows")),
         "contradiction_candidates": _normalize_contradiction_candidates(payload.get("contradiction_candidates")),
         "notation_tension_candidates": _normalize_notation_tension_candidates(payload.get("notation_tension_candidates")),
+        "concept_graph": _normalize_concept_graph(payload.get("concept_graph")),
     }
     if normalized["source_count"] <= 0:
         source_keys = {
@@ -302,10 +500,9 @@ def normalize_l1_source_intake(payload: Any) -> dict[str, Any]:
     return normalized
 
 
-def coalesce_l1_source_intake(existing: Any, default: dict[str, Any]) -> dict[str, Any]:
-    normalized_existing = normalize_l1_source_intake(existing)
-    if any(
-        normalized_existing[key]
+def _has_l1_source_intake_content(payload: dict[str, Any]) -> bool:
+    return any(
+        payload[key]
         for key in (
             "assumption_rows",
             "regime_rows",
@@ -315,13 +512,27 @@ def coalesce_l1_source_intake(existing: Any, default: dict[str, Any]) -> dict[st
             "contradiction_candidates",
             "notation_tension_candidates",
         )
-    ):
+    ) or any(
+        len((payload.get("concept_graph") or {}).get(key) or [])
+        for key in ("nodes", "edges", "hyperedges", "communities", "god_nodes")
+    )
+
+
+def coalesce_l1_source_intake(existing: Any, default: dict[str, Any]) -> dict[str, Any]:
+    normalized_existing = normalize_l1_source_intake(existing)
+    normalized_default = normalize_l1_source_intake(default)
+    if _has_l1_source_intake_content(normalized_default):
+        return normalized_default
+    if _has_l1_source_intake_content(normalized_existing):
         return normalized_existing
-    return normalize_l1_source_intake(default)
+    return normalized_default
 
 
 def _summary_excerpt(row: dict[str, Any]) -> str:
-    return re.sub(r"\s+", " ", str(row.get("summary") or "").strip())[:220]
+    summary = str(row.get("summary") or row.get("summary_text") or "").strip()
+    if not summary:
+        summary = str(row.get("source_title") or "").strip()
+    return re.sub(r"\s+", " ", summary)[:220]
 
 
 def derive_l1_conflict_intake(source_rows: list[dict[str, Any]], l1_source_intake: dict[str, Any]) -> dict[str, Any]:
@@ -342,7 +553,7 @@ def derive_l1_conflict_intake(source_rows: list[dict[str, Any]], l1_source_intak
             regimes_by_source.setdefault(source_id, []).append(str(row.get("regime") or "").strip())
 
     notation_rows: list[dict[str, str]] = []
-    contradiction_candidates: list[dict[str, str]] = []
+    contradiction_candidates_by_key: dict[tuple[str, str, str], dict[str, str]] = {}
     notation_tension_candidates: list[dict[str, str]] = []
     processed_rows: list[dict[str, Any]] = []
     processed_by_source: dict[str, dict[str, Any]] = {}
@@ -377,20 +588,36 @@ def derive_l1_conflict_intake(source_rows: list[dict[str, Any]], l1_source_intak
         ):
             against_source_id = str(candidate.get("against_source_id") or "").strip()
             against_row = processed_by_source.get(against_source_id, {})
-            contradiction_candidates.append(
-                {
-                    "kind": str(candidate.get("kind") or "").strip() or "assumption_conflict",
-                    "source_id": source_id,
-                    "source_title": source_title,
-                    "source_type": source_type,
-                    "reading_depth": reading_depth,
-                    "against_source_id": against_source_id,
-                    "against_source_title": str(against_row.get("source_title") or "").strip(),
-                    "against_source_type": str(against_row.get("source_type") or "").strip(),
-                    "against_reading_depth": str(against_row.get("reading_depth") or "").strip() or "skim",
-                    "detail": str(candidate.get("detail") or "").strip(),
-                }
+            contradiction_row = {
+                "kind": str(candidate.get("kind") or "").strip() or "assumption_conflict",
+                "source_id": source_id,
+                "source_title": source_title,
+                "source_type": source_type,
+                "reading_depth": reading_depth,
+                "against_source_id": against_source_id,
+                "against_source_title": str(against_row.get("source_title") or "").strip(),
+                "against_source_type": str(against_row.get("source_type") or "").strip(),
+                "against_reading_depth": str(against_row.get("reading_depth") or "").strip() or "skim",
+                "detail": str(candidate.get("detail") or "").strip(),
+                "comparison_basis": str(candidate.get("comparison_basis") or "").strip() or "assumption_rows",
+                "source_basis_type": str(candidate.get("source_basis_type") or "").strip() or "assumption",
+                "source_basis_summary": str(candidate.get("source_basis_summary") or "").strip(),
+                "source_evidence_excerpt": excerpt,
+                "against_basis_type": str(candidate.get("against_basis_type") or "").strip() or "assumption",
+                "against_basis_summary": str(candidate.get("against_basis_summary") or "").strip(),
+                "against_evidence_excerpt": _summary_excerpt(against_row),
+            }
+            contradiction_key = (
+                source_id,
+                against_source_id,
+                str(contradiction_row.get("detail") or "").strip(),
             )
+            existing_row = contradiction_candidates_by_key.get(contradiction_key)
+            if existing_row is None or (
+                contradiction_row["comparison_basis"] == "regime_rows"
+                and existing_row.get("comparison_basis") != "regime_rows"
+            ):
+                contradiction_candidates_by_key[contradiction_key] = contradiction_row
 
         for tension in detect_notation_tension_candidates(
             existing_rows=processed_rows,
@@ -418,6 +645,7 @@ def derive_l1_conflict_intake(source_rows: list[dict[str, Any]], l1_source_intak
             "source_id": source_id,
             "source_title": source_title,
             "source_type": source_type,
+            "summary_text": str(row.get("summary") or "").strip(),
             "reading_depth": reading_depth,
             "assumptions": assumptions_by_source.get(source_id, []),
             "regimes": regimes_by_source.get(source_id, []),
@@ -428,7 +656,9 @@ def derive_l1_conflict_intake(source_rows: list[dict[str, Any]], l1_source_intak
 
     return {
         "notation_rows": _normalize_notation_rows(notation_rows),
-        "contradiction_candidates": _normalize_contradiction_candidates(contradiction_candidates),
+        "contradiction_candidates": _normalize_contradiction_candidates(
+            list(contradiction_candidates_by_key.values())
+        ),
         "notation_tension_candidates": _normalize_notation_tension_candidates(notation_tension_candidates),
     }
 
@@ -525,6 +755,14 @@ def l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
                 labels.append(f"{source_id}={method_family}/{specificity_tier}")
         if labels:
             lines.append(f"Source-backed method specificity: {', '.join(labels)}")
+    concept_graph = l1_source_intake.get("concept_graph") or {}
+    node_count = len(concept_graph.get("nodes") or [])
+    edge_count = len(concept_graph.get("edges") or [])
+    if node_count or edge_count:
+        lines.append(f"Source concept graph: nodes={node_count} edges={edge_count}")
+    god_nodes = [str(row.get("label") or "").strip() for row in (concept_graph.get("god_nodes") or []) if str(row.get("label") or "").strip()]
+    if god_nodes:
+        lines.append(f"Graph foundations: {', '.join(god_nodes[:4])}")
     return lines
 
 
@@ -544,6 +782,36 @@ def l1_assumption_depth_summary_lines(l1_source_intake: dict[str, Any]) -> list[
     notation_tension_count = len(l1_source_intake.get("notation_tension_candidates") or [])
     if notation_tension_count:
         lines.append(f"Open notation-tension candidates=`{notation_tension_count}`")
+    concept_graph = l1_source_intake.get("concept_graph") or {}
+    if any(len(concept_graph.get(key) or []) for key in ("nodes", "edges", "communities", "god_nodes")):
+        lines.append(
+            "Concept-graph rows="
+            f"`{len(concept_graph.get('nodes') or [])}` nodes / "
+            f"`{len(concept_graph.get('edges') or [])}` edges / "
+            f"`{len(concept_graph.get('communities') or [])}` communities / "
+            f"`{len(concept_graph.get('god_nodes') or [])}` god-nodes"
+        )
+    return lines
+
+
+def l1_concept_graph_summary_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    concept_graph = l1_source_intake.get("concept_graph") or {}
+    lines: list[str] = []
+    node_count = len(concept_graph.get("nodes") or [])
+    edge_count = len(concept_graph.get("edges") or [])
+    hyperedge_count = len(concept_graph.get("hyperedges") or [])
+    community_count = len(concept_graph.get("communities") or [])
+    god_nodes = concept_graph.get("god_nodes") or []
+    if any((node_count, edge_count, hyperedge_count, community_count, len(god_nodes))):
+        lines.append(
+            f"nodes=`{node_count}` edges=`{edge_count}` hyperedges=`{hyperedge_count}` communities=`{community_count}` god-nodes=`{len(god_nodes)}`"
+        )
+    for row in god_nodes[:4]:
+        label = str(row.get("label") or "").strip()
+        node_id = str(row.get("node_id") or "").strip()
+        source_id = str(row.get("source_id") or "").strip()
+        if label and node_id:
+            lines.append(f"`{source_id or '(unknown source)'}` foundation `{label}` ({node_id})")
     return lines
 
 
@@ -571,10 +839,20 @@ def l1_contradiction_summary_lines(l1_source_intake: dict[str, Any]) -> list[str
         against_source_id = str(row.get("against_source_id") or "").strip()
         reading_depth = str(row.get("reading_depth") or "").strip() or "skim"
         against_reading_depth = str(row.get("against_reading_depth") or "").strip() or "skim"
+        comparison_basis = str(row.get("comparison_basis") or "").strip() or "assumption_rows"
+        source_basis_summary = str(row.get("source_basis_summary") or "").strip()
+        against_basis_summary = str(row.get("against_basis_summary") or "").strip()
         if detail and source_id and against_source_id:
-            lines.append(
-                f"{detail} (`{source_id}`[{reading_depth}] vs `{against_source_id}`[{against_reading_depth}])"
+            line = (
+                f"{detail} (`{source_id}`[{reading_depth}] vs `{against_source_id}`[{against_reading_depth}]) "
+                f"basis=`{comparison_basis}`"
             )
+            if source_basis_summary or against_basis_summary:
+                line += (
+                    f"; current=`{source_basis_summary or '(missing)'}`"
+                    f"; compared=`{against_basis_summary or '(missing)'}`"
+                )
+            lines.append(line)
     return lines
 
 

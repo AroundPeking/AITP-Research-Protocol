@@ -1,0 +1,432 @@
+{
+  "status": "success",
+  "topic_slug": "librpa-qsgw-deterministic-reduction-consistency-core",
+  "run_id": "2026-04-14-035313-bootstrap",
+  "work_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86",
+  "kernel_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub",
+  "target_contract": {
+    "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\librpa_qsgw_target_contract.json",
+    "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\librpa_qsgw_target_contract.md",
+    "payload": {
+      "contract_kind": "librpa_qsgw_positive_target",
+      "status": "chosen",
+      "topic_slug": "librpa-qsgw-deterministic-reduction-consistency-core",
+      "run_id": "2026-04-14-035313-bootstrap",
+      "research_mode": "first_principles",
+      "source_of_truth": {
+        "codebase_root": "D:\\BaiduSyncdisk\\Theoretical-Physics\\LibRPA-develop",
+        "wrapper_root": "D:\\BaiduSyncdisk\\repos\\oh-my-LibRPA",
+        "validator_path": "D:\\BaiduSyncdisk\\Theoretical-Physics\\automation\\validators\\qsgw_validator.py"
+      },
+      "target_candidate": {
+        "candidate_id": "candidate:librpa-qsgw-deterministic-reduction-consistency-core",
+        "candidate_type": "claim_card",
+        "title": "LibRPA QSGW Deterministic-Reduction Thread-Consistency Core",
+        "summary": "Bounded claim-card candidate: on the H2O/really_tight iter=10 reference case, the deterministic-reduction guard yields an identical homo_lumo_vs_iterations trajectory for OMP_NUM_THREADS=1 and OMP_NUM_THREADS=32. This is a bounded positive code-method consistency result, not a full QSGW convergence claim."
+      },
+      "workflow_anchor": {
+        "reference_case": "H2O/really_tight iter=10",
+        "positive_evidence": "deterministic reduction yields identical OMP=1 and OMP=32 trajectories",
+        "engineering_report_path": "D:\\BaiduSyncdisk\\Theoretical-Physics\\obsidian-markdown\\04 \u5e73\u65f6\u7684\u8bb0\u5f55\\LibRPA\\2026-02-27 LibRPA QSGW \u5355\u7ebf\u7a0b-\u591a\u7ebf\u7a0b\u4e0d\u4e00\u81f4\u5b9a\u4f4d\u4e0e\u4fee\u590d\u6d4b\u8bd5\u62a5\u544a.md",
+        "consistency_report_path": "D:\\BaiduSyncdisk\\Theoretical-Physics\\obsidian-markdown\\04 \u5e73\u65f6\u7684\u8bb0\u5f55\\LibRPA\\2026-02-27 QSGW OMP\u7ebf\u7a0b\u6570\u4e00\u81f4\u6027\uff08LibRI\u786e\u5b9a\u6027\u5f52\u7ea6\uff09.md"
+      },
+      "trust_contract": {
+        "evidence_basis": [
+          "LibRPA codebase anchor note",
+          "QSGW deterministic-reduction engineering report",
+          "OMP=1/32 consistency report for H2O/really_tight iter=10",
+          "qsgw_validator reference criterion"
+        ],
+        "rules": [
+          "Treat only the deterministic-reduction thread-consistency core as the positive target.",
+          "Require real codebase anchors plus real workflow evidence from the H2O/really_tight iter=10 reference case.",
+          "Do not reinterpret mixing-only scans as full QSGW convergence evidence.",
+          "Do not claim broad multi-system or whole-stack LibRPA QSGW closure from this contract."
+        ],
+        "consistency_criterion": "Under deterministic reduction, the H2O/really_tight iter=10 homo_lumo_vs_iterations trajectory is identical for OMP=1 and OMP=32.",
+        "validator_command": "python automation/validators/qsgw_validator.py --gap-delta-max 0.001 --gap-delta-window 10 --require-converged"
+      },
+      "known_open_gaps": [
+        "mixing=0.05 at iter=60 fails the 1e-3 eV gap-delta convergence gate",
+        "mixing=0.02 with history=2 at iter=120 also fails the 1e-3 eV gate",
+        "hamiltonian-cut stabilizing knobs remain to be bounded separately before broader convergence claims"
+      ],
+      "excluded_claims": [
+        "LibRPA QSGW is already fully converged in general",
+        "mixing-only scans already prove 1e-3 eV convergence for the bounded reference case",
+        "the whole LibRPA codebase is already ingested into authoritative L2 by this phase",
+        "the bounded deterministic-reduction consistency core closes every first-principles lane"
+      ],
+      "source_refs": [
+        "local_note:librpa-qsgw-codebase-anchor",
+        "local_note:librpa-qsgw-workflow-anchor",
+        "local_note:2026-02-27-librpa-qsgw",
+        "local_note:2026-02-27-qsgw-omp-libri"
+      ],
+      "updated_at": "2026-04-14T03:53:15+08:00",
+      "updated_by": "librpa-qsgw-positive-l2-acceptance"
+    }
+  },
+  "promotion": {
+    "request": {
+      "topic_slug": "librpa-qsgw-deterministic-reduction-consistency-core",
+      "run_id": "2026-04-14-035313-bootstrap",
+      "candidate_id": "candidate:librpa-qsgw-deterministic-reduction-consistency-core",
+      "candidate_type": "claim_card",
+      "title": "LibRPA QSGW Deterministic-Reduction Thread-Consistency Core",
+      "summary": "Bounded claim-card candidate: on the H2O/really_tight iter=10 reference case, the deterministic-reduction guard yields an identical homo_lumo_vs_iterations trajectory for OMP_NUM_THREADS=1 and OMP_NUM_THREADS=32. This is a bounded positive code-method consistency result, not a full QSGW convergence claim.",
+      "route": "L3->L4->L2",
+      "status": "pending_human_approval",
+      "intended_l2_targets": [
+        "claim_card:librpa-qsgw-deterministic-reduction-consistency-core"
+      ],
+      "backend_id": "backend:theoretical-physics-knowledge-network",
+      "target_backend_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\tpkn-librpa-qsgw-positive",
+      "review_mode": "human",
+      "canonical_layer": "L2",
+      "coverage_status": "not_audited",
+      "consensus_status": "not_requested",
+      "regression_gate_status": "not_audited",
+      "topic_completion_status": "regression-stable",
+      "source_layer": "L4",
+      "requested_destination_layer": "L2",
+      "resolved_destination_layer": null,
+      "approval_change_kind": "pending_review",
+      "human_modifications": [],
+      "supporting_regression_question_ids": [],
+      "supporting_oracle_ids": [],
+      "supporting_regression_run_ids": [
+        "run:QSGW_iter10_detred_guardtry_20260227_024539_t1",
+        "run:QSGW_iter10_detred_guardtry_20260227_024539_t32"
+      ],
+      "runtime_schema_types": [
+        "statement-compilation-packet",
+        "proof-repair-plan",
+        "lean-ready-packet"
+      ],
+      "runtime_schema_paths": {
+        "statement-compilation-packet": "research/knowledge-hub/schemas/statement-compilation-packet.schema.json",
+        "proof-repair-plan": "research/knowledge-hub/schemas/proof-repair-plan.schema.json",
+        "lean-ready-packet": "research/knowledge-hub/schemas/lean-ready-packet.schema.json"
+      },
+      "runtime_artifact_paths": {
+        "statement-compilation-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+        "proof-repair-plan": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json",
+        "lean-ready-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/lean-bridge/candidate-librpa-qsgw-d-e271f61b/lean_ready_packet.json"
+      },
+      "runtime_schema_context": {
+        "all_valid": true,
+        "artifact_types": [
+          "statement-compilation-packet",
+          "proof-repair-plan",
+          "lean-ready-packet"
+        ],
+        "schema_paths": {
+          "statement-compilation-packet": "research/knowledge-hub/schemas/statement-compilation-packet.schema.json",
+          "proof-repair-plan": "research/knowledge-hub/schemas/proof-repair-plan.schema.json",
+          "lean-ready-packet": "research/knowledge-hub/schemas/lean-ready-packet.schema.json"
+        },
+        "artifact_paths": {
+          "statement-compilation-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+          "proof-repair-plan": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json",
+          "lean-ready-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/lean-bridge/candidate-librpa-qsgw-d-e271f61b/lean_ready_packet.json"
+        },
+        "artifacts": [
+          {
+            "artifact_type": "statement-compilation-packet",
+            "artifact_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+            "schema_path": "research/knowledge-hub/schemas/statement-compilation-packet.schema.json",
+            "is_valid": true,
+            "validation_error": "",
+            "translated_unit": {
+              "unit_type": "theorem_card",
+              "title": "LibRPA QSGW Deterministic-Reduction Thread-Consistency Core",
+              "summary": "Bounded conjecture compilation packet with 1 declaration(s) and 2 proof hole(s).",
+              "payload": {
+                "primary_statement_kind": "conjecture",
+                "primary_identifier": "AITP.LibrpaQsgwDeterministicReductionConsistencyCore.librpa_qsgw_deterministic_reduction_thread_consistency_core",
+                "declaration_count": 1,
+                "proof_hole_count": 2
+              }
+            }
+          },
+          {
+            "artifact_type": "proof-repair-plan",
+            "artifact_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json",
+            "schema_path": "research/knowledge-hub/schemas/proof-repair-plan.schema.json",
+            "is_valid": true,
+            "validation_error": "",
+            "translated_unit": {
+              "unit_type": "negative_result",
+              "title": "Proof repair debt: candidate:librpa-qsgw-deterministic-reduction-consistency-core",
+              "summary": "2 bounded proof hole(s) remain before proof-grade promotion can continue.",
+              "payload": {
+                "status": "needs_repair",
+                "proof_hole_count": 2,
+                "compilation_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json"
+              }
+            }
+          },
+          {
+            "artifact_type": "lean-ready-packet",
+            "artifact_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/lean-bridge/candidate-librpa-qsgw-d-e271f61b/lean_ready_packet.json",
+            "schema_path": "research/knowledge-hub/schemas/lean-ready-packet.schema.json",
+            "is_valid": true,
+            "validation_error": "",
+            "translated_unit": {
+              "unit_type": "proof_fragment",
+              "title": "Lean-ready fragment: librpa_qsgw_deterministic_reduction_thread_consistency_core",
+              "summary": "Bounded claim-card candidate: on the H2O/really_tight iter=10 reference case, the deterministic-reduction guard yields an identical homo_lumo_vs_iterations trajectory for OMP_NUM_THREADS=1 and OMP_NUM_THREADS=32. This is a bounded positive code-method consistency result, not a full QSGW convergence claim.",
+              "payload": {
+                "declaration_kind": "theorem",
+                "namespace": "AITP.LibrpaQsgwDeterministicReductionConsistencyCore",
+                "proof_obligation_count": 2,
+                "statement_compilation_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+                "proof_repair_plan_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json"
+              }
+            }
+          }
+        ]
+      },
+      "promotion_blockers": [],
+      "split_required": false,
+      "cited_recovery_required": false,
+      "followup_gap_ids": [],
+      "merge_outcome": "pending",
+      "requested_by": "librpa-qsgw-positive-l2-acceptance",
+      "requested_at": "2026-04-14T03:53:15+08:00",
+      "approved_by": null,
+      "approved_at": null,
+      "rejected_by": null,
+      "rejected_at": null,
+      "promoted_by": null,
+      "promoted_at": null,
+      "promoted_units": [],
+      "notes": "Promote the bounded LibRPA QSGW deterministic-reduction consistency core claim card into authoritative canonical L2.",
+      "promotion_gate_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.json",
+      "promotion_gate_note_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.md",
+      "promotion_gate_log_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\validation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\runs\\2026-04-14-035313-bootstrap\\promotion_gate_log.jsonl"
+    },
+    "approve": {
+      "topic_slug": "librpa-qsgw-deterministic-reduction-consistency-core",
+      "run_id": "2026-04-14-035313-bootstrap",
+      "candidate_id": "candidate:librpa-qsgw-deterministic-reduction-consistency-core",
+      "candidate_type": "claim_card",
+      "title": "LibRPA QSGW Deterministic-Reduction Thread-Consistency Core",
+      "summary": "Bounded claim-card candidate: on the H2O/really_tight iter=10 reference case, the deterministic-reduction guard yields an identical homo_lumo_vs_iterations trajectory for OMP_NUM_THREADS=1 and OMP_NUM_THREADS=32. This is a bounded positive code-method consistency result, not a full QSGW convergence claim.",
+      "route": "L3->L4->L2",
+      "status": "approved",
+      "intended_l2_targets": [
+        "claim_card:librpa-qsgw-deterministic-reduction-consistency-core"
+      ],
+      "backend_id": "backend:theoretical-physics-knowledge-network",
+      "target_backend_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\tpkn-librpa-qsgw-positive",
+      "review_mode": "human",
+      "canonical_layer": "L2",
+      "coverage_status": "not_audited",
+      "consensus_status": "not_requested",
+      "regression_gate_status": "not_audited",
+      "topic_completion_status": "regression-stable",
+      "source_layer": "L4",
+      "requested_destination_layer": "L2",
+      "resolved_destination_layer": "L2",
+      "approval_change_kind": "approved_as_submitted",
+      "human_modifications": [],
+      "supporting_regression_question_ids": [],
+      "supporting_oracle_ids": [],
+      "supporting_regression_run_ids": [
+        "run:QSGW_iter10_detred_guardtry_20260227_024539_t1",
+        "run:QSGW_iter10_detred_guardtry_20260227_024539_t32"
+      ],
+      "runtime_schema_types": [
+        "statement-compilation-packet",
+        "proof-repair-plan",
+        "lean-ready-packet"
+      ],
+      "runtime_schema_paths": {
+        "statement-compilation-packet": "research/knowledge-hub/schemas/statement-compilation-packet.schema.json",
+        "proof-repair-plan": "research/knowledge-hub/schemas/proof-repair-plan.schema.json",
+        "lean-ready-packet": "research/knowledge-hub/schemas/lean-ready-packet.schema.json"
+      },
+      "runtime_artifact_paths": {
+        "statement-compilation-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+        "proof-repair-plan": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json",
+        "lean-ready-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/lean-bridge/candidate-librpa-qsgw-d-e271f61b/lean_ready_packet.json"
+      },
+      "runtime_schema_context": {
+        "all_valid": true,
+        "artifact_types": [
+          "statement-compilation-packet",
+          "proof-repair-plan",
+          "lean-ready-packet"
+        ],
+        "schema_paths": {
+          "statement-compilation-packet": "research/knowledge-hub/schemas/statement-compilation-packet.schema.json",
+          "proof-repair-plan": "research/knowledge-hub/schemas/proof-repair-plan.schema.json",
+          "lean-ready-packet": "research/knowledge-hub/schemas/lean-ready-packet.schema.json"
+        },
+        "artifact_paths": {
+          "statement-compilation-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+          "proof-repair-plan": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json",
+          "lean-ready-packet": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/lean-bridge/candidate-librpa-qsgw-d-e271f61b/lean_ready_packet.json"
+        },
+        "artifacts": [
+          {
+            "artifact_type": "statement-compilation-packet",
+            "artifact_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+            "schema_path": "research/knowledge-hub/schemas/statement-compilation-packet.schema.json",
+            "is_valid": true,
+            "validation_error": "",
+            "translated_unit": {
+              "unit_type": "theorem_card",
+              "title": "LibRPA QSGW Deterministic-Reduction Thread-Consistency Core",
+              "summary": "Bounded conjecture compilation packet with 1 declaration(s) and 2 proof hole(s).",
+              "payload": {
+                "primary_statement_kind": "conjecture",
+                "primary_identifier": "AITP.LibrpaQsgwDeterministicReductionConsistencyCore.librpa_qsgw_deterministic_reduction_thread_consistency_core",
+                "declaration_count": 1,
+                "proof_hole_count": 2
+              }
+            }
+          },
+          {
+            "artifact_type": "proof-repair-plan",
+            "artifact_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json",
+            "schema_path": "research/knowledge-hub/schemas/proof-repair-plan.schema.json",
+            "is_valid": true,
+            "validation_error": "",
+            "translated_unit": {
+              "unit_type": "negative_result",
+              "title": "Proof repair debt: candidate:librpa-qsgw-deterministic-reduction-consistency-core",
+              "summary": "2 bounded proof hole(s) remain before proof-grade promotion can continue.",
+              "payload": {
+                "status": "needs_repair",
+                "proof_hole_count": 2,
+                "compilation_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json"
+              }
+            }
+          },
+          {
+            "artifact_type": "lean-ready-packet",
+            "artifact_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/lean-bridge/candidate-librpa-qsgw-d-e271f61b/lean_ready_packet.json",
+            "schema_path": "research/knowledge-hub/schemas/lean-ready-packet.schema.json",
+            "is_valid": true,
+            "validation_error": "",
+            "translated_unit": {
+              "unit_type": "proof_fragment",
+              "title": "Lean-ready fragment: librpa_qsgw_deterministic_reduction_thread_consistency_core",
+              "summary": "Bounded claim-card candidate: on the H2O/really_tight iter=10 reference case, the deterministic-reduction guard yields an identical homo_lumo_vs_iterations trajectory for OMP_NUM_THREADS=1 and OMP_NUM_THREADS=32. This is a bounded positive code-method consistency result, not a full QSGW convergence claim.",
+              "payload": {
+                "declaration_kind": "theorem",
+                "namespace": "AITP.LibrpaQsgwDeterministicReductionConsistencyCore",
+                "proof_obligation_count": 2,
+                "statement_compilation_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/statement_compilation.json",
+                "proof_repair_plan_path": "validation/topics/librpa-qsgw-deterministic-reduction-consistency-core/runs/2026-04-14-035313-bootstrap/statement-compilation/candidate-librpa-qsgw-d-e271f61b/proof_repair_plan.json"
+              }
+            }
+          }
+        ]
+      },
+      "promotion_blockers": [],
+      "split_required": false,
+      "cited_recovery_required": false,
+      "followup_gap_ids": [],
+      "merge_outcome": "pending",
+      "requested_by": "librpa-qsgw-positive-l2-acceptance",
+      "requested_at": "2026-04-14T03:53:15+08:00",
+      "approved_by": "librpa-qsgw-positive-l2-acceptance",
+      "approved_at": "2026-04-14T03:53:15+08:00",
+      "rejected_by": null,
+      "rejected_at": null,
+      "promoted_by": null,
+      "promoted_at": null,
+      "promoted_units": [],
+      "notes": "Human-reviewed promotion: bounded deterministic-reduction consistency core only; broader convergence and whole-stack claims remain excluded.",
+      "promotion_gate_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.json",
+      "promotion_gate_note_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.md",
+      "promotion_gate_log_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\validation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\runs\\2026-04-14-035313-bootstrap\\promotion_gate_log.jsonl"
+    },
+    "promote": {
+      "topic_slug": "librpa-qsgw-deterministic-reduction-consistency-core",
+      "run_id": "2026-04-14-035313-bootstrap",
+      "candidate_id": "candidate:librpa-qsgw-deterministic-reduction-consistency-core",
+      "backend_id": "backend:theoretical-physics-knowledge-network",
+      "backend_card_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\backends\\theoretical-physics-knowledge-network.json",
+      "target_backend_root": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\tpkn-librpa-qsgw-positive",
+      "target_unit_id": "claim:librpa-qsgw-deterministic-reduction-consistency-core",
+      "target_unit_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\tpkn-librpa-qsgw-positive\\units\\claims\\librpa-qsgw-deterministic-reduction-consistency-core.json",
+      "source_manifest_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\tpkn-librpa-qsgw-positive\\sources\\librpa-qsgw-codebase-anchor\\manifest.json",
+      "source_manifest_created": true,
+      "promotion_decision_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\validation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\runs\\2026-04-14-035313-bootstrap\\promotion_decisions.jsonl",
+      "promotion_gate_log_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\validation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\runs\\2026-04-14-035313-bootstrap\\promotion_gate_log.jsonl",
+      "merge_report_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\validation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\runs\\2026-04-14-035313-bootstrap\\theory-packets\\candidate-librpa-qsgw-d-e271f61b\\merge_report.json",
+      "merge_outcome": "created_new",
+      "canonical_mirror_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\claim-cards\\claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json",
+      "canonical_mirror_unit_id": "claim:librpa-qsgw-deterministic-reduction-consistency-core",
+      "canonical_mirror_unit_type": "claim_card",
+      "tpkn_check": {
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "scripts/kb.py",
+          "check"
+        ],
+        "stdout": "",
+        "stderr": "",
+        "scoped_paths": [
+          "units\\claims\\librpa-qsgw-deterministic-reduction-consistency-core.json",
+          "sources\\librpa-qsgw-codebase-anchor\\manifest.json"
+        ]
+      },
+      "tpkn_build": {
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "scripts/kb.py",
+          "build"
+        ],
+        "stdout": "",
+        "stderr": "",
+        "scoped_paths": [
+          "units\\claims\\librpa-qsgw-deterministic-reduction-consistency-core.json",
+          "sources\\librpa-qsgw-codebase-anchor\\manifest.json"
+        ]
+      },
+      "consultation": {
+        "consultation_request_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\consultation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\calls\\consult-tpkn-promotion-candidate-librpa-qsgw-de-9f221955\\request.json",
+        "consultation_result_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\consultation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\calls\\consult-tpkn-promotion-candidate-librpa-qsgw-de-9f221955\\result.json",
+        "consultation_application_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\consultation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\calls\\consult-tpkn-promotion-candidate-librpa-qsgw-de-9f221955\\application.json",
+        "consultation_index_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\consultation\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\consultation_index.jsonl"
+      },
+      "promotion_gate_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.json",
+      "promotion_gate_note_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.md"
+    },
+    "canonical_mirror_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\claim-cards\\claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json",
+    "target_unit_id": "claim:librpa-qsgw-deterministic-reduction-consistency-core"
+  },
+  "repo_local_l2": {
+    "workspace_memory_map": {
+      "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.json",
+      "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_memory_map.md"
+    },
+    "workspace_graph_report": {
+      "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.json",
+      "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_graph_report.md"
+    },
+    "workspace_knowledge_report": {
+      "json_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json",
+      "markdown_path": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.md"
+    },
+    "consultation": {
+      "query_text": "LibRPA QSGW deterministic reduction thread consistency core",
+      "retrieval_profile": "l4_adjudication",
+      "ids": [
+        "claim:librpa-qsgw-deterministic-reduction-consistency-core"
+      ]
+    }
+  },
+  "artifacts": {
+    "candidate_ledger": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\feedback\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\runs\\2026-04-14-035313-bootstrap\\candidate_ledger.jsonl",
+    "promotion_gate": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\runtime\\topics\\librpa-qsgw-deterministic-reduction-consistency-core\\promotion_gate.json",
+    "canonical_mirror": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\claim-cards\\claim_card--librpa-qsgw-deterministic-reduction-consistency-core.json",
+    "workspace_knowledge_report": "C:\\Users\\samur\\AppData\\Local\\Temp\\lqpl2-kou68_86\\knowledge-hub\\canonical\\compiled\\workspace_knowledge_report.json"
+  }
+}
