@@ -34,6 +34,7 @@ READ_ONLY_PROFILE_TOOLS = {
     "aitp_list_pending_decisions",
     "aitp_list_tool_manifest",
     "aitp_get_popup",
+    "aitp_get_topic_popup",
 }
 
 WRITE_PROFILE_TOOLS = {
@@ -53,6 +54,7 @@ WRITE_PROFILE_TOOLS = {
     "aitp_resolve_pending_decision",
     "aitp_resolve_operator_checkpoint",
     "aitp_resolve_popup",
+    "aitp_resolve_popup_choice",
     "aitp_prepare_lean_bridge",
     "aitp_request_promotion",
     "aitp_approve_promotion",

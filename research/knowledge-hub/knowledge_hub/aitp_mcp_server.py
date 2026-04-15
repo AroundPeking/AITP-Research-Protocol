@@ -862,6 +862,28 @@ def aitp_resolve_popup(
         return _err(str(exc))
 
 
+@aitp_tool(access="read")
+def aitp_get_topic_popup(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
+    """Alias for aitp_get_popup."""
+    return aitp_get_popup(topic_slug=topic_slug, updated_by=updated_by)
+
+
+@aitp_tool(access="write")
+def aitp_resolve_popup_choice(
+    topic_slug: str,
+    choice: int,
+    comment: str | None = None,
+    updated_by: str = "human",
+) -> str:
+    """Alias for aitp_resolve_popup."""
+    return aitp_resolve_popup(
+        topic_slug=topic_slug,
+        choice_index=choice,
+        comment=comment,
+        resolved_by=updated_by,
+    )
+
+
 @aitp_tool(access="write")
 def aitp_run_topic_loop(
     topic_slug: str | None = None,
