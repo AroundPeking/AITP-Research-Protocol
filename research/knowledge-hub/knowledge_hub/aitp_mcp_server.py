@@ -38,8 +38,11 @@ def aitp_tool(*, access: str) -> Callable[[Callable[..., str]], Callable[..., st
 
 
 def _sanitize_tool_schema(schema: dict[str, Any] | list[Any] | Any) -> dict[str, Any] | list[Any] | Any:
-    """Remove fields unsupported by Zhipu GLM API (anyOf, oneOf, title, default, etc.)."""
+    """Sanitize JSON schema for Zhipu GLM API compatibility."""
     if isinstance(schema, dict):
+        # Zhipu does not support 'integer'; use 'number' instead.
+        if schema.get("type") == "integer":
+            schema["type"] = "number"
         for key in list(schema.keys()):
             if key in ("anyOf", "oneOf", "allOf", "title", "$defs", "default"):
                 if key in ("anyOf", "oneOf", "allOf"):
