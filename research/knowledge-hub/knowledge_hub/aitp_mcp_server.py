@@ -37,6 +37,26 @@ def aitp_tool(*, access: str) -> Callable[[Callable[..., str]], Callable[..., st
     return decorator
 
 
+def _sanitize_tool_schema(schema: dict[str, Any] | list[Any] | Any) -> dict[str, Any] | list[Any] | Any:
+    """Remove fields unsupported by Zhipu GLM API (anyOf, oneOf, title, default, etc.)."""
+    if isinstance(schema, dict):
+        for key in list(schema.keys()):
+            if key in ("anyOf", "oneOf", "allOf", "title", "$defs", "default"):
+                if key in ("anyOf", "oneOf", "allOf"):
+                    branches = schema[key]
+                    if isinstance(branches, list):
+                        non_null = [b for b in branches if b != {"type": "null"}]
+                        if non_null and isinstance(non_null[0], dict):
+                            schema.update(non_null[0])
+                del schema[key]
+            else:
+                schema[key] = _sanitize_tool_schema(schema[key])
+        return schema
+    elif isinstance(schema, list):
+        return [_sanitize_tool_schema(item) for item in schema]
+    return schema
+
+
 def build_mcp_server(profile: str | None = None) -> FastMCP:
     resolved_profile = normalize_mcp_profile(profile)
     server = FastMCP(
@@ -47,6 +67,9 @@ def build_mcp_server(profile: str | None = None) -> FastMCP:
         access = AITP_MCP_TOOL_ACCESS[func.__name__]
         if tool_allowed_in_profile(func.__name__, access, resolved_profile):
             server.add_tool(func)
+    # Strip unsupported JSON-schema fields for GLM-5.1 compatibility
+    for tool in server._tool_manager._tools.values():
+        tool.parameters = _sanitize_tool_schema(tool.parameters)
     return server
 
 
