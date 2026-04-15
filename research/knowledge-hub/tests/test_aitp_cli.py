@@ -1892,6 +1892,55 @@ class AITPCLITests(unittest.TestCase):
         self.assertIn("# Demo Dashboard", full_output)
         self.assertIn("Full dashboard body.", full_output)
 
+    def test_main_blocks_work_when_popup_gate_is_active(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {
+                "needs_popup": True,
+                "markdown": "# Active human gate\n\nChoose a route before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "work", "--topic-slug", "demo-topic", "--question", "Continue the topic"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn("# Active human gate", output)
+        self.assertIn("Resolve with: aitp popup --topic-slug demo-topic --choice <index>", output)
+        mock_service.work_topic.assert_not_called()
+
+    def test_main_blocks_verify_with_popup_gate_in_json_mode(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {
+                "needs_popup": True,
+                "popup_kind": "operator_checkpoint",
+                "markdown": "# Active human gate\n\nChoose a route before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "verify", "--topic-slug", "demo-topic", "--mode", "proof", "--json"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn('"needs_popup": true', output.lower())
+        self.assertIn('"popup_kind": "operator_checkpoint"', output)
+        mock_service.prepare_verification.assert_not_called()
+
     def test_main_dispatches_hello(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()

@@ -389,15 +389,35 @@ def claude_mcp_status(service: Any, *, workspace_root: Path | None = None) -> di
 
 
 def codex_skill_status(*, repo_root: Path) -> dict[str, Any]:
+    receipt_path = Path.home() / ".codex" / "aitp_bootstrap_receipt.json"
+    receipt_exists = receipt_path.exists()
+    receipt_parse_ok = False
+    receipt_matches_expected = False
+    if receipt_exists:
+        try:
+            receipt_payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt_parse_ok = isinstance(receipt_payload, dict)
+        except json.JSONDecodeError:
+            receipt_payload = {}
+        if isinstance(receipt_payload, dict):
+            receipt_matches_expected = (
+                str(receipt_payload.get("receipt_kind") or "").strip() == "codex_bootstrap_receipt"
+                and str(receipt_payload.get("entrypoint") or "").strip() == "aitp-codex"
+                and str(receipt_payload.get("bootstrap_mode") or "").strip() == "aitp_codex_entrypoint"
+            )
     using_path = Path.home() / ".agents" / "skills" / "using-aitp" / "SKILL.md"
     runtime_path = Path.home() / ".agents" / "skills" / "aitp-runtime" / "SKILL.md"
     return {
         "using_skill_path": str(using_path),
         "runtime_skill_path": str(runtime_path),
+        "bootstrap_receipt_path": str(receipt_path),
         "using_skill_present": using_path.exists(),
         "runtime_skill_present": runtime_path.exists(),
         "using_skill_matches_canonical": _text_matches_canonical(using_path, repo_root, "skills/using-aitp/SKILL.md"),
         "runtime_skill_matches_canonical": _text_matches_canonical(runtime_path, repo_root, "skills/aitp-runtime/SKILL.md"),
+        "bootstrap_receipt_present": receipt_exists,
+        "bootstrap_receipt_parse_ok": receipt_parse_ok,
+        "bootstrap_receipt_matches_expected": receipt_matches_expected,
     }
 
 

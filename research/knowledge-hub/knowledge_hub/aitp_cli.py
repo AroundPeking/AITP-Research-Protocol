@@ -42,6 +42,28 @@ def _emit_text(text: str) -> None:
     print(str(text or "").rstrip())
 
 
+def _emit_topic_popup_gate(
+    service: AITPService,
+    *,
+    topic_slug: str | None,
+    updated_by: str,
+    as_json: bool,
+    blocking: bool = False,
+) -> int | None:
+    normalized_topic_slug = str(topic_slug or "").strip()
+    if not normalized_topic_slug:
+        return None
+    popup_payload = service.topic_popup(topic_slug=normalized_topic_slug, updated_by=updated_by)
+    if not popup_payload.get("needs_popup"):
+        return None
+    if as_json:
+        _emit(popup_payload, True)
+    else:
+        _emit_text(str(popup_payload.get("markdown") or ""))
+        print(f"\nResolve with: aitp popup --topic-slug {normalized_topic_slug} --choice <index>")
+    return 2 if blocking else 0
+
+
 def _read_relative_human_surface(service: AITPService, relative_path: str) -> str | None:
     target = str(relative_path or "").strip()
     if not target:
@@ -1060,11 +1082,14 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
             _emit_text(render_topic_status_payload(payload, tier="verbose"))
         else:
             # Check for popup gate before showing plain status
-            popup_payload = service.topic_popup(topic_slug=args.topic_slug, updated_by=args.updated_by)
-            if popup_payload.get("needs_popup") and not args.json:
-                _emit_text(str(popup_payload.get("markdown") or ""))
-                print(f"\nResolve with: aitp popup --topic-slug {args.topic_slug} --choice <index>")
-            else:
+            popup_exit = _emit_topic_popup_gate(
+                service,
+                topic_slug=args.topic_slug,
+                updated_by=args.updated_by,
+                as_json=args.json,
+                blocking=False,
+            )
+            if popup_exit is None:
                 _emit_text(render_topic_status_payload(payload))
         return 0
 
@@ -1125,15 +1150,27 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
             _emit(payload, True)
         else:
             # If a human gate is blocking, show the popup instead of the next action
-            popup_payload = service.topic_popup(topic_slug=args.topic_slug, updated_by=args.updated_by)
-            if popup_payload.get("needs_popup"):
-                _emit_text(str(popup_payload.get("markdown") or ""))
-                print(f"\nResolve with: aitp popup --topic-slug {args.topic_slug} --choice <index>")
-            else:
+            popup_exit = _emit_topic_popup_gate(
+                service,
+                topic_slug=args.topic_slug,
+                updated_by=args.updated_by,
+                as_json=args.json,
+                blocking=False,
+            )
+            if popup_exit is None:
                 _emit_text(render_topic_next_payload(payload))
         return 0
 
     if args.command == "work":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.work_topic(
             topic=args.topic,
             topic_slug=args.topic_slug,
@@ -1154,6 +1191,15 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "verify":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.prepare_verification(
             topic_slug=args.topic_slug,
             mode=args.mode,
@@ -1163,6 +1209,15 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "complete-topic":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.assess_topic_completion(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
@@ -1172,6 +1227,15 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "reintegrate-followup":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.reintegrate_followup_subtopic(
             topic_slug=args.topic_slug,
             child_topic_slug=args.child_topic_slug,
@@ -1182,6 +1246,15 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "update-followup-return":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.update_followup_return_packet(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
@@ -1196,6 +1269,15 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "lean-bridge":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.prepare_lean_bridge(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
@@ -1206,6 +1288,15 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "statement-compilation":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
         payload = service.prepare_statement_compilation(
             topic_slug=args.topic_slug,
             run_id=args.run_id,

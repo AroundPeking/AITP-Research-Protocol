@@ -6157,6 +6157,75 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("opencode_plugin_surface_missing", payload["issues"])
         self.assertFalse(payload["runtime_convergence"]["front_door_runtimes_converged"])
 
+    def test_doctor_runtime_support_matrix_reports_missing_codex_bootstrap_receipt(self) -> None:
+        codex_status = {
+            "using_skill_path": "C:\\Users\\demo\\.agents\\skills\\using-aitp\\SKILL.md",
+            "runtime_skill_path": "C:\\Users\\demo\\.agents\\skills\\aitp-runtime\\SKILL.md",
+            "using_skill_present": True,
+            "runtime_skill_present": True,
+            "using_skill_matches_canonical": True,
+            "runtime_skill_matches_canonical": True,
+            "bootstrap_receipt_path": "C:\\Users\\demo\\.codex\\aitp_bootstrap_receipt.json",
+            "bootstrap_receipt_present": False,
+            "bootstrap_receipt_parse_ok": False,
+            "bootstrap_receipt_matches_expected": False,
+        }
+        claude_status = {
+            "using_skill_path": "C:\\Users\\demo\\.claude\\skills\\using-aitp\\SKILL.md",
+            "runtime_skill_path": "C:\\Users\\demo\\.claude\\skills\\aitp-runtime\\SKILL.md",
+            "session_start_hook_path": "C:\\Users\\demo\\.claude\\hooks\\session-start",
+            "session_start_python_hook_path": "C:\\Users\\demo\\.claude\\hooks\\session-start.py",
+            "hook_wrapper_path": "C:\\Users\\demo\\.claude\\hooks\\run-hook.cmd",
+            "hooks_manifest_path": "C:\\Users\\demo\\.claude\\hooks\\hooks.json",
+            "settings_path": "C:\\Users\\demo\\.claude\\settings.json",
+            "using_skill": True,
+            "runtime_skill": True,
+            "session_start_hook": True,
+            "session_start_python_hook": True,
+            "hook_wrapper": True,
+            "hooks_manifest": True,
+            "settings": True,
+            "using_skill_matches_canonical": True,
+            "runtime_skill_matches_canonical": True,
+            "session_start_hook_matches_canonical": True,
+            "session_start_python_hook_matches_canonical": True,
+            "hook_wrapper_matches_canonical": True,
+            "hooks_manifest_matches_canonical": True,
+            "settings_has_expected_session_start_command": True,
+        }
+        with patch.object(
+            self.service,
+            "_pip_show_package",
+            return_value={
+                "version": "0.4.1",
+                "editable project location": str(self.service._canonical_package_root()),
+            },
+        ):
+            with patch.object(self.service, "_codex_skill_status", return_value=codex_status):
+                with patch.object(self.service, "_claude_hook_status", return_value=claude_status):
+                    with patch.object(self.service, "_claude_mcp_status", return_value=self._make_claude_mcp_status()):
+                        with patch.object(
+                            self.service,
+                            "_opencode_plugin_status",
+                            return_value=self._make_opencode_status(),
+                        ):
+                            with patch.object(self.service, "_workspace_legacy_entrypoints", return_value=[]):
+                                with patch.object(self.service, "_claude_legacy_command_paths", return_value=[]):
+                                    with patch(
+                                        "knowledge_hub.aitp_service.shutil.which",
+                                        side_effect=lambda name: {
+                                            "aitp": "C:\\temp\\aitp.exe",
+                                            "codex": "C:\\temp\\codex.exe",
+                                        }.get(name, ""),
+                                    ):
+                                        payload = self.service.ensure_cli_installed(workspace_root=str(self.root))
+
+        codex_row = payload["runtime_support_matrix"]["runtimes"]["codex"]
+        self.assertEqual(codex_row["status"], "partial")
+        self.assertIn("bootstrap_receipt_missing", codex_row["issues"])
+        self.assertEqual(codex_row["remediation"]["status"], "required")
+        self.assertFalse(payload["runtime_convergence"]["front_door_runtimes_converged"])
+
     def test_doctor_runtime_support_matrix_reports_stale_claude_surfaces(self) -> None:
         codex_status = {
             "using_skill_path": "C:\\Users\\demo\\.agents\\skills\\using-aitp\\SKILL.md",
