@@ -626,10 +626,12 @@ class AITPServiceTests(unittest.TestCase):
         self,
         topic_slug: str = "demo-topic",
         *,
+        service: AITPService | None = None,
         must_read_paths: list[str] | None = None,
         generation: str = "2026-04-16T10:00:00+08:00",
     ) -> dict[str, object]:
-        runtime_root = self._runtime_root(topic_slug)
+        target_service = service or self.service
+        runtime_root = target_service._runtime_root(topic_slug)
         runtime_root.mkdir(parents=True, exist_ok=True)
         session_note_path = runtime_root / "session_start.generated.md"
         runtime_protocol_note_path = runtime_root / "runtime_protocol.generated.md"
@@ -660,7 +662,7 @@ class AITPServiceTests(unittest.TestCase):
             },
             "must_read_now": must_read_rows,
         }
-        session_paths = self.service._session_start_paths(topic_slug)
+        session_paths = target_service._session_start_paths(topic_slug)
         session_paths["json"].write_text(
             json.dumps(payload, ensure_ascii=True, indent=2) + "\n",
             encoding="utf-8",
@@ -671,13 +673,16 @@ class AITPServiceTests(unittest.TestCase):
         self,
         topic_slug: str = "demo-topic",
         *,
+        service: AITPService | None = None,
         must_read_paths: list[str] | None = None,
     ) -> dict[str, object]:
+        target_service = service or self.service
         self._materialize_required_read_session(
             topic_slug=topic_slug,
+            service=target_service,
             must_read_paths=must_read_paths,
         )
-        return self.service.acknowledge_required_reads(
+        return target_service.acknowledge_required_reads(
             topic_slug=topic_slug,
             all_current=True,
             updated_by="test",
@@ -8549,6 +8554,62 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["gate_kind"], "must_read_ack")
         self.assertFalse(self.service._lean_bridge_export_check_paths("demo-topic")["json"].exists())
 
+    def test_update_followup_return_packet_returns_required_read_gate_before_mutating_when_startup_contract_is_missing(self) -> None:
+        service = _FollowupStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        runtime_root = service._runtime_root("child-topic")
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "child-topic",
+                    "latest_run_id": "2026-03-13-followup",
+                    "resume_stage": "L1",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = service.update_followup_return_packet(
+            topic_slug="child-topic",
+            return_status="recovered_units",
+            updated_by="test",
+        )
+
+        self.assertTrue(payload["blocked"])
+        self.assertEqual(payload["gate_kind"], "startup_contract_missing")
+        self.assertFalse(service._followup_return_packet_path("child-topic").exists())
+
+    def test_reintegrate_followup_subtopic_returns_required_read_gate_before_mutating_when_startup_contract_is_missing(self) -> None:
+        service = _FollowupStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        runtime_root = service._runtime_root("demo-topic")
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        (runtime_root / "topic_state.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "latest_run_id": "2026-03-13-demo",
+                    "resume_stage": "L3",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = service.reintegrate_followup_subtopic(
+            topic_slug="demo-topic",
+            child_topic_slug="child-topic",
+            updated_by="test",
+        )
+
+        self.assertTrue(payload["blocked"])
+        self.assertEqual(payload["gate_kind"], "startup_contract_missing")
+        self.assertFalse((service._runtime_root("demo-topic") / "followup_reintegration.jsonl").exists())
+
     def test_start_chat_session_allocates_fresh_slug_for_explicit_new_topic_collision(self) -> None:
         existing_slug = "jones-von-neumann-algebras"
         existing_runtime_root = self._runtime_root(existing_slug)
@@ -10248,6 +10309,8 @@ class AITPServiceTests(unittest.TestCase):
             for line in (self._runtime_root("demo-topic") / "followup_subtopics.jsonl").read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+        self._ack_current_required_reads(topic_slug="demo-topic", service=service)
+        self._ack_current_required_reads(topic_slug=child_topic_slug, service=service)
         service.update_followup_return_packet(
             topic_slug=child_topic_slug,
             return_status="recovered_units",
@@ -10310,6 +10373,8 @@ class AITPServiceTests(unittest.TestCase):
         )
         spawned = service.spawn_followup_subtopics(topic_slug="demo-topic", updated_by="aitp-cli")
         child_topic_slug = spawned["spawned_subtopics"][0]["child_topic_slug"]
+        self._ack_current_required_reads(topic_slug="demo-topic", service=service)
+        self._ack_current_required_reads(topic_slug=child_topic_slug, service=service)
         service.update_followup_return_packet(
             topic_slug=child_topic_slug,
             return_status="returned_with_gap",
@@ -10368,6 +10433,7 @@ class AITPServiceTests(unittest.TestCase):
         )
         spawned = service.spawn_followup_subtopics(topic_slug="demo-topic", updated_by="aitp-cli")
         child_topic_slug = spawned["spawned_subtopics"][0]["child_topic_slug"]
+        self._ack_current_required_reads(topic_slug=child_topic_slug, service=service)
 
         payload = service.update_followup_return_packet(
             topic_slug=child_topic_slug,

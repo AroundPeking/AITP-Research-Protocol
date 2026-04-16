@@ -8699,6 +8699,12 @@ class AITPService:
         updated_by: str = "aitp-cli",
         refresh_runtime_bundle: bool = True,
     ) -> dict[str, Any]:
+        gate = self.require_topic_ready_for_deeper_execution(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+        )
+        if gate is not None:
+            return gate
         return update_followup_return_packet(
             self,
             topic_slug=topic_slug,
@@ -8720,6 +8726,12 @@ class AITPService:
         run_id: str | None = None,
         updated_by: str = "aitp-cli",
     ) -> dict[str, Any]:
+        gate = self.require_topic_ready_for_deeper_execution(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+        )
+        if gate is not None:
+            return gate
         return reintegrate_followup_subtopic(
             self,
             topic_slug=topic_slug,
