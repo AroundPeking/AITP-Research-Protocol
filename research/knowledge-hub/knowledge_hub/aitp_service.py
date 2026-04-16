@@ -205,6 +205,7 @@ from .lean_bridge_support import materialize_lean_bridge
 from .statement_compilation_support import materialize_statement_compilation
 from .h_plane_support import h_plane_audit as perform_h_plane_audit
 from .popup_support import (
+    build_ask_user_question_payload,
     build_popup_payload,
     detect_popup_trigger,
     render_popup_markdown,
@@ -5938,6 +5939,7 @@ class AITPService:
                 "# Claude Code MCP setup",
                 "",
                 f"Claude Code should expose an `{server_name}` MCP server so AITP runtime actions are available as native structured tools.",
+                "The `aitp-mcp` server also accepts `--kernel-root`, `--repo-root`, and `--mcp-profile` when you need an isolated test or non-default runtime root.",
                 "",
                 "Expected config path:",
                 "",
@@ -9617,6 +9619,7 @@ class AITPService:
             pending_decision_points=interaction.get("pending_decision_points") or [],
             h_plane_payload=h_plane_payload,
         )
+        ask_user_question = build_ask_user_question_payload(popup, trigger)
         return {
             "topic_slug": topic_slug,
             "needs_popup": trigger["needs_popup"],
@@ -9625,6 +9628,7 @@ class AITPService:
             "trigger": trigger,
             "markdown": render_popup_markdown(popup),
             "h_plane_audit_path": h_plane_payload.get("audit_path"),
+            "ask_user_question": ask_user_question,
         }
 
     def resolve_popup_choice(

@@ -378,6 +378,79 @@ def render_popup_markdown(popup: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def build_ask_user_question_payload(
+    popup: dict[str, Any],
+    trigger: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Convert a popup payload into Claude Code AskUserQuestion-compatible format.
+
+    Returns a dict matching the AskUserQuestion tool's ``questions`` parameter,
+    or ``None`` if the popup has no choices (nothing to ask).
+    """
+    popup_kind = str(popup.get("popup_kind") or "none").strip()
+    if popup_kind == "none":
+        return None
+
+    choices = list(popup.get("choices") or [])
+    if not choices:
+        return None
+
+    # Build the question text from popup message + subtitle
+    message = str(popup.get("message") or "").strip()
+    subtitle = str(popup.get("subtitle") or "").strip()
+    question_parts = []
+    if message:
+        question_parts.append(message)
+    if subtitle:
+        question_parts.append(subtitle)
+    question_text = "\n".join(question_parts) if question_parts else "AITP requires your input."
+
+    # Truncate header to <= 12 chars for AskUserQuestion
+    raw_title = str(popup.get("title") or "AITP").strip()
+    # Remove emoji prefixes for header
+    import re
+    header = re.sub(r"^[\U0001F300-\U0001F9FF\s]+", "", raw_title).strip()
+    header = header[:12] if header else "AITP Gate"
+
+    # Filter out "inspect" choices — those are navigation, not real decisions
+    # The agent can handle inspect by reading the referenced path separately
+    decision_choices = [c for c in choices if str(c.get("resolve_command") or "") != "inspect"]
+
+    if not decision_choices:
+        return None
+
+    options = []
+    for choice in decision_choices:
+        label = str(choice.get("label") or f"Option {choice.get('index')}")
+        description = str(choice.get("description") or "").strip()
+        options.append({
+            "label": label,
+            "description": description,
+        })
+
+    return {
+        "questions": [
+            {
+                "question": question_text,
+                "header": header,
+                "options": options,
+                "multiSelect": False,
+            }
+        ],
+        "choice_index_map": {
+            # Map from 0-based AskUserQuestion option index to popup choice index
+            str(i): int(c.get("index") or (i + 1))
+            for i, c in enumerate(decision_choices)
+        },
+        "inspect_path": next(
+            (str(c.get("resolve_args", {}).get("path") or "")
+             for c in choices
+             if str(c.get("resolve_command") or "") == "inspect"),
+            "",
+        ),
+    }
+
+
 def _wrap_text(text: str, width: int) -> list[str]:
     """Simple word-wrap for box content."""
     words = text.split()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import traceback
@@ -878,7 +879,17 @@ def aitp_auto_promote_candidate(
 
 @aitp_tool(access="read")
 def aitp_get_popup(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
-    """Get the active human-interaction popup for a topic, if any."""
+    """Get the active human-interaction popup for a topic, if any.
+
+    When ``ask_user_question`` is present in the result, the agent MUST present
+    the popup via the AskUserQuestion tool (Claude Code's native interactive
+    prompt) instead of rendering the markdown box.  Use the ``questions`` array
+    directly as the ``questions`` parameter of AskUserQuestion.  After the user
+    responds, map the selected 0-based option index through
+    ``choice_index_map`` to obtain the ``choice_index`` for
+    ``aitp_resolve_popup``.  If ``inspect_path`` is non-empty, the agent should
+    offer to read that file when the user wants details.
+    """
     try:
         result = service.topic_popup(topic_slug=topic_slug, updated_by=updated_by)
         return _ok(**result)
@@ -985,7 +996,29 @@ def aitp_install_agent_wrapper(
 mcp = build_mcp_server(ACTIVE_MCP_PROFILE)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="AITP MCP server")
+    parser.add_argument("--kernel-root")
+    parser.add_argument("--repo-root")
+    parser.add_argument("--mcp-profile")
+    return parser
+
+
+def _service_from_args(args: argparse.Namespace) -> AITPService:
+    kwargs: dict[str, Any] = {}
+    if args.kernel_root:
+        kwargs["kernel_root"] = Path(args.kernel_root).expanduser()
+    if args.repo_root:
+        kwargs["repo_root"] = Path(args.repo_root).expanduser()
+    return AITPService(**kwargs)
+
+
+def main(argv: list[str] | None = None) -> None:
+    global service, ACTIVE_MCP_PROFILE, mcp
+    args = build_parser().parse_args(argv)
+    service = _service_from_args(args)
+    ACTIVE_MCP_PROFILE = normalize_mcp_profile(args.mcp_profile or os.environ.get("AITP_MCP_PROFILE"))
+    mcp = build_mcp_server(ACTIVE_MCP_PROFILE)
     mcp.run()
 
 
