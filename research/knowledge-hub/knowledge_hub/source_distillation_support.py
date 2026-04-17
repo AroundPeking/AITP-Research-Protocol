@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .l1_source_intake_support import evidence_sentence_ids_for_text
+from .mode_registry import normalize_runtime_mode
 from .source_intelligence import detect_assumptions, detect_regimes, infer_method_specificity, infer_reading_depth_label
 
 _FORMAL_SOURCE_TYPES = {"paper", "thesis", "article", "local_note", "book", "lecture", "derivation"}
@@ -20,7 +21,6 @@ _SUMMARY_NOVELTY_KEYWORDS = (
     "closure",
     "variational",
 )
-_PROGRESSIVE_RUNTIME_MODES = {"discussion", "explore", "verify", "promote"}
 _DEEPXIV_HEAD_SECTION_LIMIT = 3
 _DEEPXIV_VERIFY_RELEVANT_SECTION_LIMIT = 3
 _DEEPXIV_RELEVANT_SECTION_KEYWORDS = (
@@ -28,7 +28,6 @@ _DEEPXIV_RELEVANT_SECTION_KEYWORDS = (
     "conclusion",
     "definition",
     "derivation",
-    "discussion",
     "equation",
     "method",
     "model",
@@ -175,10 +174,7 @@ def _dedupe_rows(rows: list[dict[str, Any]], *, key_fields: tuple[str, ...]) -> 
 
 
 def _normalize_runtime_mode(runtime_mode: str | None) -> str:
-    normalized = str(runtime_mode or "").strip().lower()
-    if normalized in _PROGRESSIVE_RUNTIME_MODES:
-        return normalized
-    return "discussion"
+    return normalize_runtime_mode(runtime_mode)
 
 
 def _dedupe_text_parts(parts: list[str]) -> list[str]:
@@ -240,14 +236,13 @@ def _select_progressive_sections(
     runtime_mode: str,
 ) -> list[dict[str, Any]]:
     normalized_mode = _normalize_runtime_mode(runtime_mode)
-    if normalized_mode == "discussion":
-        return []
-    if normalized_mode == "promote":
+    if normalized_mode == "implement":
         return list(sections)
 
-    selected = list(sections[:_DEEPXIV_HEAD_SECTION_LIMIT])
     if normalized_mode == "explore":
-        return selected
+        return []
+
+    selected = list(sections[:_DEEPXIV_HEAD_SECTION_LIMIT])
 
     seen_keys = {
         (str(section.get("name") or "").strip().lower(), int(section.get("idx", 0)))
@@ -296,10 +291,20 @@ def _resolve_progressive_reading_content(
 
     selected_sections = _select_progressive_sections(sections, runtime_mode=normalized_mode)
     selected_section_lines = [_format_deepxiv_section(section) for section in selected_sections]
+    if normalized_mode == "explore":
+        preview_parts = [deepxiv_tldr]
+        if not deepxiv_tldr:
+            preview_parts.extend(
+                _format_deepxiv_section(section)
+                for section in sections[:_DEEPXIV_HEAD_SECTION_LIMIT]
+            )
+        preview_content = "\n".join(_dedupe_text_parts(preview_parts))
+        return preview_content, preview_content
+
     preview_content = "\n".join(_dedupe_text_parts([deepxiv_tldr, *selected_section_lines]))
 
     analysis_parts = [deepxiv_tldr, *selected_section_lines]
-    if normalized_mode == "promote":
+    if normalized_mode == "implement":
         analysis_parts.extend(
             [
                 _resolve_preview_content(
@@ -473,11 +478,9 @@ def _reading_depth_signal(
     deepxiv_sections = _normalize_deepxiv_sections(provenance)
     if deepxiv_tldr or deepxiv_sections:
         normalized_mode = _normalize_runtime_mode(runtime_mode)
-        if normalized_mode == "discussion":
-            return "abstract_only", "deepxiv_brief"
         if normalized_mode == "explore":
             return "skim", "deepxiv_head"
-        if normalized_mode == "verify":
+        if normalized_mode == "learn":
             return "skim", "deepxiv_sections"
         return "full_read", "deepxiv_full"
 

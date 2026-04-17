@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .l2_graph import CANONICAL_DIR_BY_TYPE, _index_row_from_payload
 from .l2_staging import load_staging_entries, materialize_workspace_staging_manifest
 
 
@@ -89,6 +90,10 @@ def _knowledge_report_path(kernel_root: Path) -> Path:
 
 def _knowledge_report_markdown_path(kernel_root: Path) -> Path:
     return _compiled_root(kernel_root) / "workspace_knowledge_report.md"
+
+
+def _paired_backend_drift_report_path(kernel_root: Path, suffix: str) -> Path:
+    return _compiled_root(kernel_root) / f"l2_paired_backend_drift_report.{suffix}"
 
 
 def _topic_corpus_baseline_path(kernel_root: Path, topic_slug: str, suffix: str) -> Path:
@@ -1303,6 +1308,269 @@ def materialize_workspace_knowledge_report(kernel_root: Path) -> dict[str, Any]:
             "derived_navigation_index": graph_report["navigation_index_path"],
             "workspace_staging_manifest": staging_manifest["markdown_path"],
         },
+    }
+
+
+def _canonical_payload_rows(kernel_root: Path) -> dict[str, dict[str, Any]]:
+    canonical_root = _canonical_root(kernel_root)
+    allowed_unit_types = _allowed_unit_types(canonical_root)
+    rows: dict[str, dict[str, Any]] = {}
+    for unit_type, directory in sorted(CANONICAL_DIR_BY_TYPE.items()):
+        unit_dir = canonical_root / directory
+        if not unit_dir.exists():
+            continue
+        for path in sorted(unit_dir.glob("*.json")):
+            payload = read_json(path)
+            if not isinstance(payload, dict):
+                continue
+            unit_id = str(payload.get("id") or "").strip()
+            payload_unit_type = str(payload.get("unit_type") or "").strip()
+            if not unit_id or not payload_unit_type:
+                continue
+            if allowed_unit_types and payload_unit_type not in allowed_unit_types:
+                continue
+            rows[unit_id] = {
+                "payload": payload,
+                "path": path,
+                "relative_path": relative_to_root(path, kernel_root),
+            }
+    return rows
+
+
+def _field_diff(expected: dict[str, Any], actual: dict[str, Any], fields: list[str]) -> dict[str, dict[str, Any]]:
+    diffs: dict[str, dict[str, Any]] = {}
+    for field in fields:
+        if expected.get(field) != actual.get(field):
+            diffs[field] = {
+                "canonical": expected.get(field),
+                "index": actual.get(field),
+            }
+    return diffs
+
+
+def build_l2_paired_backend_drift_report(kernel_root: Path) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    canonical_root = _canonical_root(kernel_root)
+    canonical_rows = _canonical_payload_rows(kernel_root)
+    index_rows = read_jsonl(canonical_root / "index.jsonl")
+    edge_rows = read_jsonl(canonical_root / "edges.jsonl")
+    index_by_id = {str(row.get("id") or row.get("unit_id") or "").strip(): row for row in index_rows}
+    indexed_ids = {row_id for row_id in index_by_id if row_id}
+    canonical_ids = set(canonical_rows)
+
+    compared_fields = [
+        "unit_type",
+        "title",
+        "summary",
+        "tags",
+        "assumptions",
+        "regime",
+        "scope",
+        "dependencies",
+        "related_units",
+        "applicable_topics",
+        "failed_topics",
+        "path",
+        "search_terms",
+    ]
+    blocking_fields = {
+        "unit_type",
+        "title",
+        "summary",
+        "assumptions",
+        "regime",
+        "scope",
+        "dependencies",
+        "related_units",
+        "applicable_topics",
+        "failed_topics",
+        "path",
+    }
+
+    missing_from_index: list[dict[str, Any]] = []
+    stale_index_rows: list[dict[str, Any]] = []
+    blocking_mismatches: list[dict[str, Any]] = []
+    non_blocking_mismatches: list[dict[str, Any]] = []
+
+    for unit_id, row in sorted(canonical_rows.items()):
+        payload = dict(row["payload"])
+        path = Path(row["path"])
+        expected_index_row = _index_row_from_payload(payload, path=path, kernel_root=kernel_root)
+        existing_index_row = index_by_id.get(unit_id)
+        if existing_index_row is None:
+            missing_from_index.append(
+                {
+                    "unit_id": unit_id,
+                    "path": row["relative_path"],
+                    "title": str(payload.get("title") or ""),
+                }
+            )
+            continue
+        diffs = _field_diff(expected_index_row, existing_index_row, compared_fields)
+        if diffs:
+            mismatch = {
+                "unit_id": unit_id,
+                "path": row["relative_path"],
+                "field_diffs": diffs,
+            }
+            stale_index_rows.append(mismatch)
+            if any(field in blocking_fields for field in diffs):
+                blocking_mismatches.append(mismatch)
+            else:
+                non_blocking_mismatches.append(mismatch)
+
+    missing_canonical_rows = [
+        {
+            "unit_id": unit_id,
+            "path": str(index_by_id[unit_id].get("path") or ""),
+            "title": str(index_by_id[unit_id].get("title") or ""),
+        }
+        for unit_id in sorted(indexed_ids - canonical_ids)
+    ]
+
+    orphan_edges: list[dict[str, Any]] = []
+    for edge in edge_rows:
+        from_id = str(edge.get("from_id") or edge.get("source") or "").strip()
+        to_id = str(edge.get("to_id") or edge.get("target") or "").strip()
+        missing_endpoints = [endpoint for endpoint in [from_id, to_id] if endpoint and endpoint not in canonical_ids]
+        if missing_endpoints:
+            orphan_edges.append(
+                {
+                    "edge_id": str(edge.get("edge_id") or ""),
+                    "from_id": from_id,
+                    "to_id": to_id,
+                    "relation": str(edge.get("relation") or edge.get("edge_type") or edge.get("kind") or edge.get("type") or ""),
+                    "missing_endpoints": missing_endpoints,
+                }
+            )
+
+    unresolved_references: list[dict[str, Any]] = []
+    for unit_id, row in sorted(canonical_rows.items()):
+        payload = dict(row["payload"])
+        for field_name in ("dependencies", "related_units"):
+            missing_targets = [
+                str(item).strip()
+                for item in (payload.get(field_name) or [])
+                if str(item).strip() and str(item).strip() not in canonical_ids
+            ]
+            if missing_targets:
+                unresolved_references.append(
+                    {
+                        "unit_id": unit_id,
+                        "path": row["relative_path"],
+                        "field": field_name,
+                        "missing_targets": missing_targets,
+                    }
+                )
+
+    drift_detected = any(
+        [
+            missing_from_index,
+            missing_canonical_rows,
+            stale_index_rows,
+            orphan_edges,
+            unresolved_references,
+        ]
+    )
+    return {
+        "kind": "l2_paired_backend_drift_report",
+        "generated_at": now_iso(),
+        "source_contract_path": "canonical/L2_PAIRED_BACKEND_MAINTENANCE_PROTOCOL.md",
+        "drift_status": "drift_detected" if drift_detected else "aligned",
+        "summary": {
+            "canonical_unit_count": len(canonical_rows),
+            "indexed_unit_count": len(index_rows),
+            "edge_count": len(edge_rows),
+            "missing_from_index_count": len(missing_from_index),
+            "missing_canonical_row_count": len(missing_canonical_rows),
+            "stale_index_row_count": len(stale_index_rows),
+            "blocking_mismatch_count": len(blocking_mismatches),
+            "non_blocking_mismatch_count": len(non_blocking_mismatches),
+            "orphan_edge_count": len(orphan_edges),
+            "unresolved_reference_count": len(unresolved_references),
+        },
+        "missing_from_index": missing_from_index,
+        "missing_canonical_rows": missing_canonical_rows,
+        "stale_index_rows": stale_index_rows,
+        "blocking_mismatches": blocking_mismatches,
+        "non_blocking_mismatches": non_blocking_mismatches,
+        "orphan_edges": orphan_edges,
+        "unresolved_references": unresolved_references,
+        "recommendation": (
+            "Rebuild index surfaces only after reviewing the reported mismatches; "
+            "do not treat file-format regeneration as a substitute for resolving semantic drift."
+        ),
+    }
+
+
+def render_l2_paired_backend_drift_report_markdown(payload: dict[str, Any]) -> str:
+    summary = payload.get("summary") or {}
+    lines = [
+        "# L2 Paired Backend Drift Report",
+        "",
+        f"- Generated at: `{payload.get('generated_at') or '(missing)'}`",
+        f"- Source contract: `{payload.get('source_contract_path') or '(missing)'}`",
+        f"- Drift status: `{payload.get('drift_status') or '(missing)'}`",
+        f"- Canonical units: `{summary.get('canonical_unit_count', 0)}`",
+        f"- Indexed units: `{summary.get('indexed_unit_count', 0)}`",
+        f"- Edges: `{summary.get('edge_count', 0)}`",
+        f"- Missing from index: `{summary.get('missing_from_index_count', 0)}`",
+        f"- Missing canonical rows: `{summary.get('missing_canonical_row_count', 0)}`",
+        f"- Stale index rows: `{summary.get('stale_index_row_count', 0)}`",
+        f"- Orphan edges: `{summary.get('orphan_edge_count', 0)}`",
+        f"- Unresolved references: `{summary.get('unresolved_reference_count', 0)}`",
+        "",
+        "## Recommendation",
+        "",
+        str(payload.get("recommendation") or "(none)"),
+        "",
+        "## Missing From Index",
+        "",
+    ]
+    missing_from_index = payload.get("missing_from_index") or []
+    if not missing_from_index:
+        lines.append("- `(none)`")
+    for row in missing_from_index:
+        lines.append(f"- `{row.get('unit_id')}` `{row.get('path')}`")
+    lines.extend(["", "## Stale Index Rows", ""])
+    stale_index_rows = payload.get("stale_index_rows") or []
+    if not stale_index_rows:
+        lines.append("- `(none)`")
+    for row in stale_index_rows:
+        lines.append(
+            f"- `{row.get('unit_id')}` fields=`{', '.join(sorted((row.get('field_diffs') or {}).keys())) or '(none)'}` path=`{row.get('path')}`"
+        )
+    lines.extend(["", "## Orphan Edges", ""])
+    orphan_edges = payload.get("orphan_edges") or []
+    if not orphan_edges:
+        lines.append("- `(none)`")
+    for row in orphan_edges:
+        lines.append(
+            f"- `{row.get('edge_id')}` `{row.get('from_id')}` -[{row.get('relation')}]-> `{row.get('to_id')}` missing=`{', '.join(row.get('missing_endpoints') or [])}`"
+        )
+    lines.extend(["", "## Unresolved References", ""])
+    unresolved_references = payload.get("unresolved_references") or []
+    if not unresolved_references:
+        lines.append("- `(none)`")
+    for row in unresolved_references:
+        lines.append(
+            f"- `{row.get('unit_id')}` field=`{row.get('field')}` missing=`{', '.join(row.get('missing_targets') or [])}`"
+        )
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def materialize_l2_paired_backend_drift_report(kernel_root: Path) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    payload = build_l2_paired_backend_drift_report(kernel_root)
+    json_path = _paired_backend_drift_report_path(kernel_root, "json")
+    markdown_path = _paired_backend_drift_report_path(kernel_root, "md")
+    write_json(json_path, payload)
+    write_text(markdown_path, render_l2_paired_backend_drift_report_markdown(payload))
+    return {
+        "payload": payload,
+        "json_path": str(json_path),
+        "markdown_path": str(markdown_path),
     }
 
 

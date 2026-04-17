@@ -32,6 +32,13 @@ from .cli_l1_graph_handler import dispatch_l1_graph_command, register_l1_graph_c
 from .cli_l2_graph_handler import dispatch_l2_graph_command, register_l2_graph_commands
 from .cli_l2_compiler_handler import dispatch_l2_compiler_command, register_l2_compiler_commands
 from .cli_source_catalog_handler import dispatch_source_catalog_command, register_source_catalog_commands
+from .mode_registry import normalize_runtime_mode
+
+
+LEARN_SUBMODE_TO_VERIFICATION_MODE = {
+    "derivation": "proof",
+    "numerical": "numeric",
+}
 
 
 def _emit(payload: dict[str, Any], as_json: bool) -> None:
@@ -441,7 +448,16 @@ def build_parser() -> argparse.ArgumentParser:
     work.add_argument("--load-profile", choices=["auto", "light", "full"], default="auto")
     work.add_argument("--json", action="store_true")
 
-    verify = subparsers.add_parser("verify", help="Prepare a validation contract for a bounded verification mode")
+    learn = subparsers.add_parser(
+        "learn",
+        help="Prepare a learn-mode validation contract for derivation or numerical study",
+    )
+    learn.add_argument("--topic-slug", required=True)
+    learn.add_argument("--submode", choices=["derivation", "numerical"], required=True)
+    learn.add_argument("--updated-by", default="aitp-cli")
+    learn.add_argument("--json", action="store_true")
+
+    verify = subparsers.add_parser("verify", help="Deprecated: use 'learn --submode derivation' instead")
     verify.add_argument("--topic-slug", required=True)
     verify.add_argument("--mode", choices=["proof", "comparison", "numeric", "analytical", "topic-completion"], required=True)
     verify.add_argument("--updated-by", default="aitp-cli")
@@ -451,7 +467,15 @@ def build_parser() -> argparse.ArgumentParser:
     complete_topic.add_argument("--topic-slug", required=True)
     complete_topic.add_argument("--run-id")
     complete_topic.add_argument("--updated-by", default="aitp-cli")
+    complete_topic.add_argument("--skip-preflight", action="store_true", help="Skip mechanical preflight and go straight to full assessment")
     complete_topic.add_argument("--json", action="store_true")
+
+    completion_preflight = subparsers.add_parser(
+        "completion-preflight",
+        help="Run zero-cost mechanical preflight checks before expensive topic-completion assessment",
+    )
+    completion_preflight.add_argument("--topic-slug", required=True)
+    completion_preflight.add_argument("--run-id")
 
     reintegrate_followup = subparsers.add_parser(
         "reintegrate-followup",
@@ -675,7 +699,25 @@ def build_parser() -> argparse.ArgumentParser:
     reject_promotion.add_argument("--notes")
     reject_promotion.add_argument("--json", action="store_true")
 
-    promote = subparsers.add_parser("promote", help="Promote an approved candidate into the configured Layer 2 backend")
+    implement = subparsers.add_parser(
+        "implement",
+        help="Run the implement-mode promotion operation for an approved candidate",
+    )
+    implement.add_argument("--topic-slug", required=True)
+    implement.add_argument("--candidate-id", required=True)
+    implement.add_argument("--run-id")
+    implement.add_argument("--backend-id")
+    implement.add_argument("--target-backend-root")
+    implement.add_argument("--domain")
+    implement.add_argument("--subdomain")
+    implement.add_argument("--source-id")
+    implement.add_argument("--source-section")
+    implement.add_argument("--source-section-title")
+    implement.add_argument("--updated-by", default="aitp-cli")
+    implement.add_argument("--notes")
+    implement.add_argument("--json", action="store_true")
+
+    promote = subparsers.add_parser("promote", help="Deprecated: use 'implement' instead")
     promote.add_argument("--topic-slug", required=True)
     promote.add_argument("--candidate-id", required=True)
     promote.add_argument("--run-id")
@@ -1249,7 +1291,7 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
             return 0 if exit_state.get("overall_status") == "pass" else 1
         return 0
 
-    if args.command == "verify":
+    if args.command in {"verify", "learn"} and normalize_runtime_mode(args.command) == "learn":
         popup_exit = _emit_topic_popup_gate(
             service,
             topic_slug=args.topic_slug,
@@ -1268,9 +1310,12 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         )
         if required_read_exit is not None:
             return required_read_exit
+        verification_mode = str(getattr(args, "mode", "")).strip()
+        if args.command == "learn":
+            verification_mode = LEARN_SUBMODE_TO_VERIFICATION_MODE[str(args.submode).strip()]
         payload = service.prepare_verification(
             topic_slug=args.topic_slug,
-            mode=args.mode,
+            mode=verification_mode,
             updated_by=args.updated_by,
         )
         _emit(payload, args.json)
@@ -1300,8 +1345,17 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
             topic_slug=args.topic_slug,
             run_id=args.run_id,
             updated_by=args.updated_by,
+            skip_preflight=args.skip_preflight,
         )
         _emit(payload, args.json)
+        return 0
+
+    if args.command == "completion-preflight":
+        payload = service.mechanical_completion_preflight(
+            topic_slug=args.topic_slug,
+            run_id=args.run_id,
+        )
+        _emit(payload, as_json=True)
         return 0
 
     if args.command == "reintegrate-followup":
@@ -1583,7 +1637,7 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         _emit(payload, args.json)
         return 0
 
-    if args.command == "promote":
+    if args.command in {"promote", "implement"} and normalize_runtime_mode(args.command) == "implement":
         payload = service.promote_candidate(
             topic_slug=args.topic_slug,
             candidate_id=args.candidate_id,

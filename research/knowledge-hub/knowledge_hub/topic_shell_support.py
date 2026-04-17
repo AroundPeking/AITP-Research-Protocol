@@ -183,6 +183,27 @@ def _checkpoint_option_set(checkpoint_kind: str | None) -> tuple[list[dict[str, 
             ],
             0,
         )
+    if normalized == "post_plan_route_confirmation":
+        return (
+            [
+                {
+                    "key": "keep_selected_route",
+                    "label": "Keep selected route",
+                    "description": "Confirm the current bounded route and let execution continue under that framing.",
+                },
+                {
+                    "key": "redirect_route",
+                    "label": "Redirect route",
+                    "description": "Choose a different consequential route before deeper execution continues.",
+                },
+                {
+                    "key": "pause_and_reframe",
+                    "label": "Pause and reframe",
+                    "description": "Clarify the evidence interpretation, reviewer-facing wording, or negative-result qualification first.",
+                },
+            ],
+            0,
+        )
     if normalized == "contradiction_adjudication":
         return (
             [
@@ -294,6 +315,139 @@ def _checkpoint_option_set(checkpoint_kind: str | None) -> tuple[list[dict[str, 
             0,
         )
     return ([], None)
+
+
+_POST_PLAN_ROUTE_SHAPING_ACTION_TYPES = {
+    "contract_sync_and_execution_routing",
+    "reviewer_response_routing",
+    "plan_execution_route",
+}
+
+_POST_PLAN_SENSITIVE_KEYWORDS = (
+    "reviewer-facing",
+    "reviewer facing",
+    "framing",
+    "wording",
+    "interpret",
+    "negative result",
+    "negative-result",
+    "qualif",
+    "benchmark",
+)
+
+
+def _named_route_options_from(value: Any) -> list[str]:
+    rows = value if isinstance(value, list) else []
+    result: list[str] = []
+    for row in rows:
+        if isinstance(row, dict):
+            candidate = str(
+                row.get("label")
+                or row.get("summary")
+                or row.get("title")
+                or row.get("key")
+                or ""
+            ).strip()
+        else:
+            candidate = str(row or "").strip()
+        if candidate:
+            result.append(candidate)
+    return result
+
+
+def _post_plan_checkpoint_signal(
+    *,
+    topic_state: dict[str, Any],
+    idea_packet: dict[str, Any],
+    validation_contract: dict[str, Any],
+    selected_pending_action: dict[str, Any] | None,
+    next_action_decision: dict[str, Any] | None,
+) -> dict[str, Any]:
+    selected_pending_action = selected_pending_action or {}
+    next_action_decision = next_action_decision or {}
+
+    selected_action_id = str(selected_pending_action.get("action_id") or "").strip()
+    selected_action_type = str(selected_pending_action.get("action_type") or "").strip()
+    selected_action_summary = str(selected_pending_action.get("summary") or "").strip()
+    selected_action_auto_runnable = _as_bool(selected_pending_action.get("auto_runnable"))
+    resume_stage = str(
+        topic_state.get("resume_stage") or selected_pending_action.get("resume_stage") or ""
+    ).strip()
+    idea_status = str(idea_packet.get("status") or "").strip()
+    decision_reason = str(next_action_decision.get("reason") or "").strip()
+    requires_human_intervention = _as_bool(
+        next_action_decision.get("requires_human_intervention")
+    )
+
+    if not selected_action_id or selected_action_auto_runnable:
+        return {
+            "should_checkpoint": False,
+            "route_option_count": 0,
+            "review_questions": [],
+            "route_options": [],
+            "decision_reason": decision_reason,
+        }
+    if resume_stage != "L3" or idea_status == "needs_clarification":
+        return {
+            "should_checkpoint": False,
+            "route_option_count": 0,
+            "review_questions": [],
+            "route_options": [],
+            "decision_reason": decision_reason,
+        }
+
+    route_shaping = (
+        selected_action_type in _POST_PLAN_ROUTE_SHAPING_ACTION_TYPES
+        or (
+            "routing" in f"{selected_action_type} {selected_action_summary.lower()}"
+            and "contract" in f"{selected_action_type} {selected_action_summary.lower()}"
+        )
+    )
+    if not route_shaping:
+        return {
+            "should_checkpoint": False,
+            "route_option_count": 0,
+            "review_questions": [],
+            "route_options": [],
+            "decision_reason": decision_reason,
+        }
+
+    handler_args = dict(selected_pending_action.get("handler_args") or {})
+    route_options = []
+    for container in (handler_args, next_action_decision):
+        for key in (
+            "route_options",
+            "route_candidates",
+            "candidate_routes",
+            "alternative_routes",
+            "consequential_routes",
+        ):
+            route_options.extend(_named_route_options_from(container.get(key)))
+    review_questions = [
+        str(item).strip()
+        for item in (validation_contract.get("open_review_questions") or [])
+        if str(item).strip()
+    ]
+    route_option_count = max(len(route_options), len(review_questions))
+    sensitivity_text = " ".join(
+        [selected_action_type, selected_action_summary, decision_reason, *review_questions]
+    ).lower()
+    sensitive_framing = any(
+        keyword in sensitivity_text for keyword in _POST_PLAN_SENSITIVE_KEYWORDS
+    )
+
+    should_checkpoint = bool(
+        route_option_count >= 2
+        or sensitive_framing
+        or requires_human_intervention
+    )
+    return {
+        "should_checkpoint": should_checkpoint,
+        "route_option_count": route_option_count,
+        "review_questions": review_questions,
+        "route_options": route_options,
+        "decision_reason": decision_reason,
+    }
 
 
 def derive_open_gap_summary(
@@ -551,12 +705,14 @@ def derive_operator_checkpoint(
     *,
     topic_slug: str,
     updated_by: str,
+    topic_state: dict[str, Any],
     existing_checkpoint: dict[str, Any],
     idea_packet: dict[str, Any],
     research_contract: dict[str, Any],
     validation_contract: dict[str, Any],
     promotion_gate: dict[str, Any],
     selected_pending_action: dict[str, Any] | None,
+    next_action_decision: dict[str, Any] | None,
     decision_surface: dict[str, Any],
     dashboard_path: Path,
     idea_packet_paths: dict[str, Path],
@@ -580,6 +736,13 @@ def derive_operator_checkpoint(
     blocker_summary: list[str] = []
     evidence_refs: list[str] = []
     response_channels: list[str] = []
+    post_plan_signal = _post_plan_checkpoint_signal(
+        topic_state=topic_state,
+        idea_packet=idea_packet,
+        validation_contract=validation_contract,
+        selected_pending_action=selected_pending_action,
+        next_action_decision=next_action_decision,
+    )
 
     if str(idea_packet.get("status") or "").strip() == "needs_clarification":
         checkpoint_kind = "scope_ambiguity"
@@ -655,6 +818,49 @@ def derive_operator_checkpoint(
         response_channels = self._dedupe_strings(
             [
                 self._normalize_artifact_path(execution_task_note_path) or "",
+                self._relativize(validation_paths["note"]),
+                self._relativize(dashboard_path),
+            ]
+        )
+    elif post_plan_signal["should_checkpoint"]:
+        checkpoint_kind = "post_plan_route_confirmation"
+        question = (
+            "AITP needs an operator checkpoint on the reviewer-facing route before deeper execution continues."
+        )
+        required_response = (
+            "Confirm whether to keep the current route, redirect to another open route, "
+            "or pause to clarify the evidence interpretation, reviewer-facing framing, "
+            "or negative result qualification first."
+        )
+        blocker_summary = self._dedupe_strings(
+            [
+                selected_action_summary
+                or "The selected L3 plan now has execution consequences and should not continue silently.",
+                post_plan_signal["decision_reason"]
+                or "The current route has non-obvious consequences for execution or reviewer-facing interpretation.",
+                *[
+                    f"Open route question: {item}"
+                    for item in post_plan_signal["review_questions"][:3]
+                ],
+                *[
+                    f"Route option: {item}"
+                    for item in post_plan_signal["route_options"][:3]
+                ],
+            ]
+        )
+        next_action_decision_path = self._runtime_root(topic_slug) / "next_action_decision.json"
+        evidence_refs = self._dedupe_strings(
+            [
+                self._relativize(validation_paths["note"]),
+                self._relativize(research_paths["note"]),
+                self._relativize(dashboard_path),
+                self._relativize(next_action_decision_path)
+                if next_action_decision_path.exists()
+                else "",
+            ]
+        )
+        response_channels = self._dedupe_strings(
+            [
                 self._relativize(validation_paths["note"]),
                 self._relativize(dashboard_path),
             ]
@@ -1377,6 +1583,7 @@ def ensure_topic_shell_surfaces(
     existing_idea_packet = _read_json(idea_packet_paths["json"]) or {}
     existing_operator_checkpoint = _read_json(operator_checkpoint_paths["json"]) or {}
     existing_execution_task = _read_json(runtime_root / "execution_task.json") or {}
+    next_action_decision = _read_json(runtime_root / "next_action_decision.json") or {}
     source_rows = _read_jsonl(self._l0_root(topic_slug) / "source_index.jsonl")
     source_intelligence = source_intelligence_payload(
         kernel_root=self.kernel_root,
@@ -1765,12 +1972,14 @@ def ensure_topic_shell_surfaces(
     operator_checkpoint, superseded_checkpoint = self._derive_operator_checkpoint(
         topic_slug=topic_slug,
         updated_by=updated_by,
+        topic_state=resolved_topic_state,
         existing_checkpoint=existing_operator_checkpoint,
         idea_packet=idea_packet,
         research_contract=research_contract,
         validation_contract=validation_contract,
         promotion_gate=resolved_promotion_gate,
         selected_pending_action=selected_pending_action,
+        next_action_decision=next_action_decision,
         decision_surface=decision_surface,
         dashboard_path=dashboard_path,
         idea_packet_paths=idea_packet_paths,

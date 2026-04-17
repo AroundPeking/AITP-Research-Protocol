@@ -341,15 +341,15 @@ class TopicStartRegressionTests(unittest.TestCase):
                 }
             ],
             "demo-topic",
-            runtime_mode="discussion",
+            runtime_mode="explore",
         )
 
         self.assertIn("bounded closure remains valid", distilled["distilled_initial_idea"])
         self.assertNotIn("zero temperature", distilled["distilled_initial_idea"])
         self.assertNotIn("strong coupling", distilled["distilled_initial_idea"])
         l1_source_intake = distilled["distilled_l1_source_intake"]
-        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["reading_depth"], "abstract_only")
-        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["basis"], "deepxiv_brief")
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["reading_depth"], "skim")
+        self.assertEqual(l1_source_intake["reading_depth_rows"][0]["basis"], "deepxiv_head")
         self.assertIn("weak coupling", json.dumps(l1_source_intake["regime_rows"]))
         self.assertNotIn("zero temperature", json.dumps(l1_source_intake["regime_rows"]))
         self.assertNotIn("strong coupling", json.dumps(l1_source_intake["regime_rows"]))
@@ -389,7 +389,7 @@ class TopicStartRegressionTests(unittest.TestCase):
                 }
             ],
             "demo-topic",
-            runtime_mode="verify",
+            runtime_mode="learn",
         )
 
         self.assertIn("[Results]", distilled["distilled_initial_idea"])

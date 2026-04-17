@@ -120,10 +120,9 @@
     "runtime_mode": {
       "type": "string",
       "enum": [
-        "discussion",
         "explore",
-        "verify",
-        "promote"
+        "learn",
+        "implement"
       ]
     },
     "active_submode": {
@@ -133,7 +132,7 @@
       ],
       "enum": [
         "literature",
-        "iterative_verify",
+        "derivation",
         null
       ]
     },
@@ -159,10 +158,9 @@
         "mode": {
           "type": "string",
           "enum": [
-            "discussion",
             "explore",
-            "verify",
-            "promote"
+            "learn",
+            "implement"
           ]
         },
         "active_submode": {
@@ -172,7 +170,7 @@
           ],
           "enum": [
             "literature",
-            "iterative_verify",
+            "derivation",
             null
           ]
         },
@@ -534,16 +532,15 @@
           "enum": [
             "await_human_checkpoint",
             "continuous_bounded_loop",
-            "continuous_iterative_verify"
+            "continuous_derivation_loop"
           ]
         },
         "runtime_mode": {
           "type": "string",
           "enum": [
-            "discussion",
             "explore",
-            "verify",
-            "promote"
+            "learn",
+            "implement"
           ]
         },
         "active_submode": {
@@ -553,7 +550,7 @@
           ],
           "enum": [
             "literature",
-            "iterative_verify",
+            "derivation",
             null
           ]
         },
@@ -4347,8 +4344,8 @@
           "enum": [
             "bootstrapped",
             "exploring",
-            "verifying",
-            "promoting",
+            "learning",
+            "implementing",
             "completed"
           ]
         },
@@ -4457,8 +4454,8 @@
             "enum": [
               "bootstrapped",
               "exploring",
-              "verifying",
-              "promoting",
+              "learning",
+              "implementing",
               "completed"
             ]
           }
@@ -4471,8 +4468,8 @@
       "required": [
         "bootstrapped",
         "exploring",
-        "verifying",
-        "promoting",
+        "learning",
+        "implementing",
         "completed"
       ],
       "properties": {
@@ -4482,10 +4479,10 @@
         "exploring": {
           "$ref": "#/$defs/protocol_manifest_state"
         },
-        "verifying": {
+        "learning": {
           "$ref": "#/$defs/protocol_manifest_state"
         },
-        "promoting": {
+        "implementing": {
           "$ref": "#/$defs/protocol_manifest_state"
         },
         "completed": {

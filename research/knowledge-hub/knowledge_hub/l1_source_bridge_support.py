@@ -46,6 +46,8 @@ def _append_anchor(
     basis_summary: str = "",
     comparison_basis: str = "",
     direction: str = "",
+    confidence_tier: str = "",
+    source_locator: str = "",
 ) -> None:
     normalized_summary = str(summary or "").strip()
     normalized_excerpt = str(evidence_excerpt or "").strip()
@@ -79,6 +81,8 @@ def _append_anchor(
             "basis_summary": normalized_basis_summary,
             "comparison_basis": str(comparison_basis or "").strip(),
             "direction": str(direction or "").strip(),
+            "confidence_tier": str(confidence_tier or "").strip(),
+            "source_locator": str(source_locator or "").strip(),
         }
     )
     anchor_counts[str(anchor_kind or "").strip() or "anchor"] = int(
@@ -165,6 +169,8 @@ def build_l1_source_anchor_index(
             reading_depth=str(row.get("reading_depth") or "").strip(),
             evidence_excerpt=str(row.get("evidence_excerpt") or "").strip(),
             evidence_sentence_ids=list(row.get("evidence_sentence_ids") or []),
+            confidence_tier=str(row.get("confidence_tier") or "").strip(),
+            source_locator=str(row.get("source_locator") or "").strip(),
         )
     for row in l1_source_intake.get("regime_rows") or []:
         if not isinstance(row, dict):
@@ -176,6 +182,21 @@ def build_l1_source_anchor_index(
             reading_depth=str(row.get("reading_depth") or "").strip(),
             evidence_excerpt=str(row.get("evidence_excerpt") or "").strip(),
             evidence_sentence_ids=list(row.get("evidence_sentence_ids") or []),
+            source_locator=str(row.get("source_locator") or "").strip(),
+        )
+    for row in l1_source_intake.get("reading_depth_rows") or []:
+        if not isinstance(row, dict):
+            continue
+        summary = str(row.get("reading_depth_state") or row.get("reading_depth") or "").strip()
+        if not summary:
+            continue
+        _append_anchor(
+            _ensure_entry(str(row.get("source_id") or "").strip()),
+            anchor_kind="reading_depth",
+            summary=summary,
+            reading_depth=str(row.get("reading_depth") or "").strip(),
+            evidence_excerpt=str(row.get("basis") or "").strip(),
+            basis_summary=", ".join(row.get("covered_sections") or []),
         )
     for row in l1_source_intake.get("method_specificity_rows") or []:
         if not isinstance(row, dict):
@@ -202,6 +223,7 @@ def build_l1_source_anchor_index(
             reading_depth=str(row.get("reading_depth") or "").strip(),
             evidence_excerpt=str(row.get("evidence_excerpt") or "").strip(),
             evidence_sentence_ids=list(row.get("evidence_sentence_ids") or []),
+            source_locator=str(row.get("source_locator") or "").strip(),
         )
     for row in l1_source_intake.get("contradiction_candidates") or []:
         if not isinstance(row, dict):
@@ -230,6 +252,84 @@ def build_l1_source_anchor_index(
             paired_source_id=str(row.get("source_id") or "").strip(),
             basis_summary=str(row.get("against_basis_summary") or "").strip(),
             comparison_basis=comparison_basis,
+            direction="against",
+        )
+    for row in l1_source_intake.get("regime_overlap_rows") or []:
+        if not isinstance(row, dict):
+            continue
+        overlap_summary = str(row.get("detail") or row.get("overlap_status") or "").strip()
+        if not overlap_summary:
+            continue
+        _append_anchor(
+            _ensure_entry(str(row.get("source_id") or "").strip()),
+            anchor_kind="regime_overlap",
+            summary=overlap_summary,
+            reading_depth=str(row.get("reading_depth") or "").strip(),
+            paired_source_id=str(row.get("against_source_id") or "").strip(),
+            basis_summary=", ".join(row.get("conflicting_axes") or row.get("compatible_axes") or []),
+            comparison_basis="regime_overlap_rows",
+            direction="source",
+        )
+        _append_anchor(
+            _ensure_entry(str(row.get("against_source_id") or "").strip()),
+            anchor_kind="regime_overlap",
+            summary=overlap_summary,
+            reading_depth=str(row.get("against_reading_depth") or "").strip(),
+            paired_source_id=str(row.get("source_id") or "").strip(),
+            basis_summary=", ".join(row.get("conflicting_axes") or row.get("compatible_axes") or []),
+            comparison_basis="regime_overlap_rows",
+            direction="against",
+        )
+    for row in l1_source_intake.get("notation_alignment_rows") or []:
+        if not isinstance(row, dict):
+            continue
+        summary = str(row.get("detail") or "").strip()
+        if not summary:
+            continue
+        _append_anchor(
+            _ensure_entry(str(row.get("source_id") or "").strip()),
+            anchor_kind="notation_alignment",
+            summary=summary,
+            reading_depth=str(row.get("reading_depth") or "").strip(),
+            paired_source_id=str(row.get("against_source_id") or "").strip(),
+            basis_summary=str(row.get("meaning") or "").strip(),
+            comparison_basis="notation_alignment_rows",
+            direction="source",
+        )
+        _append_anchor(
+            _ensure_entry(str(row.get("against_source_id") or "").strip()),
+            anchor_kind="notation_alignment",
+            summary=summary,
+            reading_depth=str(row.get("against_reading_depth") or "").strip(),
+            paired_source_id=str(row.get("source_id") or "").strip(),
+            basis_summary=str(row.get("meaning") or "").strip(),
+            comparison_basis="notation_alignment_rows",
+            direction="against",
+        )
+    for row in l1_source_intake.get("notation_tension_rows") or []:
+        if not isinstance(row, dict):
+            continue
+        summary = str(row.get("detail") or "").strip()
+        if not summary:
+            continue
+        _append_anchor(
+            _ensure_entry(str(row.get("source_id") or "").strip()),
+            anchor_kind="notation_tension",
+            summary=summary,
+            reading_depth=str(row.get("reading_depth") or "").strip(),
+            paired_source_id=str(row.get("against_source_id") or "").strip(),
+            basis_summary=str(row.get("symbol") or "").strip(),
+            comparison_basis="notation_tension_rows",
+            direction="source",
+        )
+        _append_anchor(
+            _ensure_entry(str(row.get("against_source_id") or "").strip()),
+            anchor_kind="notation_tension",
+            summary=summary,
+            reading_depth=str(row.get("against_reading_depth") or "").strip(),
+            paired_source_id=str(row.get("source_id") or "").strip(),
+            basis_summary=str(row.get("symbol") or "").strip(),
+            comparison_basis="notation_tension_rows",
             direction="against",
         )
 
@@ -335,6 +435,10 @@ def render_l1_source_bridge_markdown(
             lines.append(anchor_line)
             if anchor.get("basis_summary"):
                 lines.append(f"  basis: {anchor.get('basis_summary')}")
+            if anchor.get("confidence_tier"):
+                lines.append(f"  confidence: {anchor.get('confidence_tier')}")
+            if anchor.get("source_locator"):
+                lines.append(f"  locator: {anchor.get('source_locator')}")
             if anchor.get("evidence_excerpt"):
                 lines.append(f"  evidence: {anchor.get('evidence_excerpt')}")
             if anchor.get("evidence_sentence_ids"):

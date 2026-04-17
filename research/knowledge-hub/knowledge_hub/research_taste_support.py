@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
+
 
 TASTE_KINDS = (
     "route_taste",
@@ -18,7 +19,7 @@ def _now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def _dedupe_strings(values: list[str]) -> list[str]:
+def _dedupe_strings(values: Iterable[Any]) -> list[str]:
     deduped: list[str] = []
     seen: set[str] = set()
     for value in values:
@@ -31,7 +32,11 @@ def _dedupe_strings(values: list[str]) -> list[str]:
 
 def _default_slugify(value: Any) -> str:
     text = str(value or "").strip().lower()
-    tokens = [token for token in "".join(ch if ch.isalnum() else "-" for ch in text).split("-") if token]
+    tokens = [
+        token
+        for token in "".join(ch if ch.isalnum() else "-" for ch in text).split("-")
+        if token
+    ]
     return "-".join(tokens) or "research-taste"
 
 
@@ -48,13 +53,18 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if line:
-            rows.append(json.loads(line))
+            payload = json.loads(line)
+            if isinstance(payload, dict):
+                rows.append(payload)
     return rows
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _write_text(path: Path, text: str) -> None:
@@ -124,7 +134,10 @@ def build_research_taste_payload(
     }
     route_taste_summaries = _dedupe_strings(
         [str(row.get("summary") or "").strip() for row in grouped["route_taste"]]
-        + [str(row.get("summary") or "").strip() for row in collaborator_preference_rows]
+        + [
+            str(row.get("summary") or "").strip()
+            for row in collaborator_preference_rows
+        ]
     )
     elegance_summaries = _dedupe_strings(
         [str(row.get("summary") or "").strip() for row in grouped["elegance"]]
@@ -141,7 +154,11 @@ def build_research_taste_payload(
     )
     preferred_tags = _dedupe_strings(
         [tag for row in taste_rows for tag in (row.get("tags") or [])]
-        + [tag for row in collaborator_preference_rows for tag in (row.get("tags") or [])]
+        + [
+            tag
+            for row in collaborator_preference_rows
+            for tag in (row.get("tags") or [])
+        ]
     )
     surprise = (research_judgment or {}).get("surprise") or {}
     explicit_surprise_rows = grouped["surprise_handling"]
@@ -180,11 +197,7 @@ def build_research_taste_payload(
     )
     status = (
         "available"
-        if (
-            taste_rows
-            or collaborator_preference_rows
-            or surprise_status == "active"
-        )
+        if (taste_rows or collaborator_preference_rows or surprise_status == "active")
         else "absent"
     )
     summary_parts: list[str] = []
@@ -231,6 +244,177 @@ def build_research_taste_payload(
     }
 
 
+def _topic_taste_payload(
+    runtime_root: Path,
+    *,
+    topic_slug: str,
+    updated_by: str,
+    research_judgment: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    loaded = load_research_taste(
+        runtime_root,
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+    )
+    if loaded is not None:
+        return loaded
+    taste_rows = [
+        row
+        for row in _read_jsonl(research_taste_paths(runtime_root)["entries"])
+        if str(row.get("topic_slug") or "").strip() == topic_slug
+    ]
+    return build_research_taste_payload(
+        topic_slug=topic_slug,
+        taste_rows=taste_rows,
+        collaborator_preference_rows=[],
+        research_judgment=research_judgment,
+        updated_by=updated_by,
+    )
+
+
+def _score_approach(
+    taste_payload: dict[str, Any],
+    approach: dict[str, Any],
+) -> dict[str, Any]:
+    tags = _dedupe_strings(approach.get("tags") or [])
+    formalisms = _dedupe_strings(approach.get("formalisms") or [])
+    style = str(approach.get("style") or "").strip().lower()
+    summary = str(approach.get("summary") or "").strip()
+    score = 0
+    reasons: list[str] = []
+    preferred_tags = set(taste_payload.get("preferred_tags") or [])
+    formalism_preferences = set(taste_payload.get("formalism_preferences") or [])
+    if preferred_tags & set(tags):
+        score += 2 * len(preferred_tags & set(tags))
+        reasons.append(
+            f"Matches preferred tags: {', '.join(sorted(preferred_tags & set(tags)))}"
+        )
+    if formalism_preferences & set(formalisms):
+        score += 3 * len(formalism_preferences & set(formalisms))
+        reasons.append(
+            "Matches preferred formalisms: "
+            + ", ".join(sorted(formalism_preferences & set(formalisms)))
+        )
+    route_summaries = " ".join(taste_payload.get("route_taste_summaries") or []).lower()
+    intuition_summaries = " ".join(taste_payload.get("intuition_summaries") or []).lower()
+    elegance_summaries = " ".join(taste_payload.get("elegance_summaries") or []).lower()
+    if summary and summary.lower() in route_summaries:
+        score += 2
+        reasons.append("Aligns with an existing route-taste summary.")
+    if style and style in intuition_summaries:
+        score += 1
+        reasons.append(f"Supports intuition preference: {style}")
+    if style and style in elegance_summaries:
+        score += 1
+        reasons.append(f"Supports elegance preference: {style}")
+    if taste_payload.get("surprise_handling", {}).get("status") == "active" and "surprise" in tags:
+        score += 1
+        reasons.append("Compatible with active surprise-handling taste.")
+    return {
+        "approach_id": str(
+            approach.get("approach_id") or approach.get("direction_id") or ""
+        ).strip()
+        or f"approach-{len(tags)}-{len(formalisms)}",
+        "summary": summary or "(missing)",
+        "score": score,
+        "reasons": reasons or ["No strong taste match was detected."],
+        "tags": tags,
+        "formalisms": formalisms,
+        "style": style or None,
+    }
+
+
+def assess_taste(
+    runtime_root: Path,
+    *,
+    topic_slug: str,
+    updated_by: str = "aitp-service",
+    approaches: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    taste_payload = _topic_taste_payload(
+        runtime_root,
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+    )
+    ranked_approaches = [
+        _score_approach(taste_payload, approach)
+        for approach in (approaches or [])
+    ]
+    ranked_approaches.sort(key=lambda item: (-int(item.get("score") or 0), item.get("approach_id") or ""))
+    return {
+        "topic_slug": topic_slug,
+        "taste_profile": taste_payload,
+        "ranked_approaches": ranked_approaches,
+        "summary": (
+            taste_payload.get("summary")
+            or "No research taste or physical-intuition surface is currently recorded for this topic."
+        ),
+    }
+
+
+def suggest_research_direction(
+    runtime_root: Path,
+    *,
+    topic_slug: str,
+    candidate_directions: list[dict[str, Any]],
+    updated_by: str = "aitp-service",
+) -> dict[str, Any]:
+    assessment = assess_taste(
+        runtime_root,
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        approaches=candidate_directions,
+    )
+    ranked = assessment.get("ranked_approaches") or []
+    suggestion = ranked[0] if ranked else {}
+    return {
+        "topic_slug": topic_slug,
+        "suggested_direction": suggestion,
+        "alternatives": ranked[1:],
+        "summary": (
+            f"Suggested direction: {suggestion.get('summary') or '(none)'}"
+            if suggestion
+            else "No candidate directions were supplied."
+        ),
+    }
+
+
+def compare_approaches(
+    runtime_root: Path,
+    *,
+    topic_slug: str,
+    approaches: list[dict[str, Any]],
+    updated_by: str = "aitp-service",
+) -> dict[str, Any]:
+    assessment = assess_taste(
+        runtime_root,
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        approaches=approaches,
+    )
+    ranked = assessment.get("ranked_approaches") or []
+    comparisons: list[dict[str, Any]] = []
+    for index, row in enumerate(ranked):
+        comparisons.append(
+            {
+                "rank": index + 1,
+                "approach_id": row.get("approach_id"),
+                "summary": row.get("summary"),
+                "score": row.get("score"),
+                "reasons": row.get("reasons") or [],
+            }
+        )
+    return {
+        "topic_slug": topic_slug,
+        "comparisons": comparisons,
+        "summary": (
+            f"Top-ranked approach: {comparisons[0]['summary']}"
+            if comparisons
+            else "No approaches were supplied for comparison."
+        ),
+    }
+
+
 def render_research_taste_markdown(payload: dict[str, Any]) -> str:
     surprise = payload.get("surprise_handling") or {}
     lines = [
@@ -242,8 +426,14 @@ def render_research_taste_markdown(payload: dict[str, Any]) -> str:
         f"- Route-taste count: `{payload.get('route_taste_count') or 0}`",
         f"- Elegance signal count: `{payload.get('elegance_signal_count') or 0}`",
         f"- Intuition signal count: `{payload.get('intuition_signal_count') or 0}`",
-        f"- Formalism preferences: `{', '.join(payload.get('formalism_preferences') or []) or '(none)'}`",
-        f"- Preferred tags: `{', '.join(payload.get('preferred_tags') or []) or '(none)'}`",
+        (
+            f"- Formalism preferences: "
+            f"`{', '.join(payload.get('formalism_preferences') or []) or '(none)'}`"
+        ),
+        (
+            f"- Preferred tags: "
+            f"`{', '.join(payload.get('preferred_tags') or []) or '(none)'}`"
+        ),
         "",
         payload.get("summary") or "(missing)",
         "",
@@ -264,8 +454,14 @@ def render_research_taste_markdown(payload: dict[str, Any]) -> str:
             "## Surprise handling",
             "",
             f"- Status: `{surprise.get('status') or '(missing)'}`",
-            f"- Entry ids: `{', '.join(surprise.get('entry_ids') or []) or '(none)'}`",
-            f"- Evidence refs: `{', '.join(surprise.get('evidence_refs') or []) or '(none)'}`",
+            (
+                f"- Entry ids: "
+                f"`{', '.join(surprise.get('entry_ids') or []) or '(none)'}`"
+            ),
+            (
+                f"- Evidence refs: "
+                f"`{', '.join(surprise.get('evidence_refs') or []) or '(none)'}`"
+            ),
             "",
             surprise.get("latest_summary") or "(missing)",
             "",
@@ -279,7 +475,10 @@ def dashboard_research_taste_lines(research_taste: dict[str, Any]) -> list[str]:
         "## Research taste",
         "",
         f"- Status: `{research_taste.get('status') or '(missing)'}`",
-        f"- Formalisms: `{', '.join(research_taste.get('formalism_preferences') or []) or '(none)'}`",
+        (
+            f"- Formalisms: "
+            f"`{', '.join(research_taste.get('formalism_preferences') or []) or '(none)'}`"
+        ),
         f"- Intuition signals: `{research_taste.get('intuition_signal_count') or 0}`",
         f"- Note path: `{research_taste.get('note_path') or '(missing)'}`",
         "",
@@ -288,14 +487,20 @@ def dashboard_research_taste_lines(research_taste: dict[str, Any]) -> list[str]:
     ]
 
 
-def append_research_taste_markdown(lines: list[str], research_taste: dict[str, Any]) -> None:
+def append_research_taste_markdown(
+    lines: list[str],
+    research_taste: dict[str, Any],
+) -> None:
     lines.extend(
         [
             "## Research taste",
             "",
             f"- Status: `{research_taste.get('status') or '(missing)'}`",
             f"- Taste entry count: `{research_taste.get('taste_entry_count') or 0}`",
-            f"- Formalisms: `{', '.join(research_taste.get('formalism_preferences') or []) or '(none)'}`",
+            (
+                f"- Formalisms: "
+                f"`{', '.join(research_taste.get('formalism_preferences') or []) or '(none)'}`"
+            ),
             f"- Intuition signals: `{research_taste.get('intuition_signal_count') or 0}`",
             f"- Note path: `{research_taste.get('note_path') or '(missing)'}`",
             "",
@@ -353,7 +558,10 @@ def normalize_research_taste_for_bundle(
 ) -> dict[str, Any]:
     research_taste = dict(shell_surfaces.get("research_taste") or {})
     if not research_taste:
-        research_taste = empty_research_taste(topic_slug=topic_slug, updated_by=updated_by)
+        research_taste = empty_research_taste(
+            topic_slug=topic_slug,
+            updated_by=updated_by,
+        )
     paths = research_taste_paths(runtime_root)
     if not str(research_taste.get("path") or "").strip():
         research_taste["path"] = self._relativize(paths["json"])
@@ -364,7 +572,9 @@ def normalize_research_taste_for_bundle(
     return research_taste
 
 
-def research_taste_must_read_entry(research_taste: dict[str, Any]) -> dict[str, str] | None:
+def research_taste_must_read_entry(
+    research_taste: dict[str, Any],
+) -> dict[str, str] | None:
     if str(research_taste.get("status") or "") != "available":
         return None
     note_path = str(research_taste.get("note_path") or "").strip()
@@ -372,7 +582,10 @@ def research_taste_must_read_entry(research_taste: dict[str, Any]) -> dict[str, 
         return None
     return {
         "path": note_path,
-        "reason": "Topic-scoped research taste is available. Read it before flattening physical intuition, elegance criteria, or preferred formalisms into generic routing.",
+        "reason": (
+            "Topic-scoped research taste is available. Read it before flattening "
+            "physical intuition, elegance criteria, or preferred formalisms into generic routing."
+        ),
     }
 
 
@@ -422,7 +635,9 @@ def append_research_taste_entry(
         "details": details,
         "formalisms": _dedupe_strings([str(item) for item in (formalisms or [])]),
         "tags": _dedupe_strings([str(item) for item in (tags or [])]),
-        "related_artifacts": _dedupe_strings([str(item) for item in (related_artifacts or [])]),
+        "related_artifacts": _dedupe_strings(
+            [str(item) for item in (related_artifacts or [])]
+        ),
         "updated_by": updated_by,
     }
     rows = _read_jsonl(paths["entries"])

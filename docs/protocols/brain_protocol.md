@@ -29,8 +29,12 @@ The Brain owns:
 Every topic follows the same lifecycle:
 
 ```
-bootstrap -> loop -> status -> verify -> promote -> complete
+bootstrap -> loop -> status -> complete
 ```
+
+Validation and promotion are loop-triggered operations, not standalone modes.
+See `mode_envelope_protocol.md` for the canonical mode definitions and the
+legacy 4-mode mapping.
 
 ### bootstrap
 
@@ -39,7 +43,7 @@ bootstrap -> loop -> status -> verify -> promote -> complete
 - Create the topic shell: research question contract, topic state, operator
   console, control note, runtime bundle.
 - Register L0 sources if provided.
-- Determine initial mode (discussion by default).
+- Determine initial mode (`explore` by default).
 
 Clarification rules:
 - Currently implemented as a one-shot model: `needs_clarification` or
@@ -52,8 +56,9 @@ Clarification rules:
 
 ### loop
 
-The loop stage is driven by the mode envelope (see `mode_envelope_protocol.md`).
-The Brain dispatches to L layers based on the current mode:
+The loop stage is driven by the mode envelope (see
+`mode_envelope_protocol.md`). That protocol is the only source of mode
+definitions; the bullets below describe Brain dispatch consequences only.
 
 **When mode = explore:**
 - Dispatch to L0 (source discovery), L1 (reading notes), L3-I (idea recording).
@@ -91,16 +96,15 @@ General loop rules:
 - The Brain produces: topic dashboard, promotion readiness report, gap map,
   unfinished work index, pending decisions.
 
-### verify
+### loop-triggered operations
 
-- When the mode is `verify`, the Brain enters L4 validation.
+- Validation is triggered inside `learn` or `implement` when the selected
+  action enters L4 adjudication.
 - L4 results return through L3-R (never directly to L2).
 - Validation may trigger follow-up sub-topics for missing gaps.
-
-### promote
-
-- When candidates pass validation, the Brain enters the promotion pipeline.
-- The 4-stage counting state machine governs advancement.
+- Promotion is an operation triggered after successful validation; it is not a
+  separate mode.
+- The 4-stage counting state machine governs promotion advancement.
 - Stage 4 (promoted) always requires human approval.
 
 ### complete

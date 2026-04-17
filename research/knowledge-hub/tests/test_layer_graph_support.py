@@ -61,8 +61,8 @@ class LayerGraphSupportTests(unittest.TestCase):
                 "last_evidence_kind": "result_manifest",
             },
             runtime_mode_payload={
-                "runtime_mode": "verify",
-                "active_submode": "iterative_verify",
+                "runtime_mode": "learn",
+                "active_submode": "derivation",
                 "transition_posture": {
                     "transition_kind": "boundary_hold",
                     "transition_reason": "Validation returned a bounded result that must be integrated before distillation.",
@@ -93,7 +93,7 @@ class LayerGraphSupportTests(unittest.TestCase):
                 "last_evidence_kind": "validation_review_bundle",
             },
             runtime_mode_payload={
-                "runtime_mode": "promote",
+                "runtime_mode": "implement",
                 "active_submode": None,
                 "transition_posture": {
                     "transition_kind": "forward_transition",

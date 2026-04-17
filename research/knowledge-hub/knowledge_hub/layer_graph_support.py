@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .mode_registry import has_promote_signals, is_promote_operation, normalize_runtime_mode
+
 _NODE_SPECS: dict[str, dict[str, str]] = {
     "L0": {
         "macro_layer": "L0",
@@ -250,7 +252,7 @@ def _infer_current_node_id(
     if current_macro_layer != "L3":
         return current_macro_layer
 
-    runtime_mode = str(runtime_mode_payload.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(runtime_mode_payload.get("runtime_mode"))
     transition = runtime_mode_payload.get("transition_posture") or {}
     last_materialized_stage = str(
         topic_state.get("last_materialized_stage")
@@ -259,9 +261,19 @@ def _infer_current_node_id(
     ).strip()
     promotion_status = str(promotion_readiness.get("status") or "").strip().lower().replace("-", "_")
     validation_status = str(validation_review_bundle.get("status") or "").strip().lower().replace("-", "_")
+    next_action_type = str(
+        runtime_focus.get("next_action_type")
+        or runtime_mode_payload.get("selected_action_type")
+        or ""
+    ).strip()
     last_evidence_kind = str(runtime_focus.get("last_evidence_kind") or "").strip()
     next_action_summary = str(runtime_focus.get("next_action_summary") or "").strip()
     transition_reason = str(transition.get("transition_reason") or "").strip()
+    transition_triggers = {
+        str(item).strip()
+        for item in (transition.get("triggered_by") or [])
+        if str(item).strip()
+    }
 
     signal_text = _joined_signal_text(
         next_action_summary,
@@ -270,9 +282,14 @@ def _infer_current_node_id(
         validation_status,
         last_evidence_kind,
     )
+    promote_signal_active = (
+        is_promote_operation(next_action_type)
+        or has_promote_signals(action_type=next_action_type, triggers=transition_triggers)
+        or "promotion_intent" in transition_triggers
+    )
 
     if (
-        runtime_mode == "promote"
+        (runtime_mode == "implement" and promote_signal_active)
         or promotion_status in _PROMOTION_STATUSES
         or "writeback" in signal_text
         or "promot" in signal_text

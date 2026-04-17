@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .mode_registry import normalize_runtime_mode
+
 
 def _now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -202,16 +204,16 @@ def _resolve_loop_auto_step_budget(
     bundle_path = Path(preview_protocol["runtime_protocol_path"])
     bundle = json.loads(bundle_path.read_text(encoding="utf-8")) if bundle_path.exists() else {}
     human_posture = bundle.get("human_interaction_posture") or {}
-    runtime_mode = str(bundle.get("runtime_mode") or "")
+    runtime_mode = normalize_runtime_mode(bundle.get("runtime_mode"))
     active_submode = str(bundle.get("active_submode") or "")
 
     applied_max_auto_steps = requested_max_auto_steps
     auto_step_budget_reason = "requested_budget"
     if bool(human_posture.get("requires_human_input_now")):
         auto_step_budget_reason = "human_checkpoint_active"
-    elif runtime_mode == "verify" and active_submode == "iterative_verify":
+    elif runtime_mode == "learn" and active_submode == "derivation":
         applied_max_auto_steps = max(requested_max_auto_steps, 16)
-        auto_step_budget_reason = "iterative_verify_auto_extension"
+        auto_step_budget_reason = "derivation_auto_extension"
 
     return {
         "requested_max_auto_steps": requested_max_auto_steps,

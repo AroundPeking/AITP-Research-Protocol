@@ -6,7 +6,11 @@ from typing import Any
 from .research_judgment_support import (
     derive_research_judgment,
     empty_research_judgment,
+    evaluate_judgment_accuracy,
+    get_judgment_history,
+    record_judgment,
     render_research_judgment_markdown,
+    research_judgment_history_path,
 )
 
 
@@ -17,14 +21,115 @@ def research_judgment_paths(runtime_root: Path) -> dict[str, Path]:
     }
 
 
+def execute_judgment_check(
+    runtime_root: Path,
+    *,
+    topic_slug: str,
+    judgment_kind: str,
+    summary: str,
+    updated_by: str = "aitp-service",
+    run_id: str | None = None,
+    predicted_outcome: str | None = None,
+    actual_outcome: str | None = None,
+    selected_action_id: str | None = None,
+    selected_action_summary: str | None = None,
+    evidence_refs: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
+    normalized_predicted = str(predicted_outcome or "").strip()
+    normalized_actual = str(actual_outcome or "").strip()
+    passed = bool(normalized_predicted and normalized_actual and normalized_predicted == normalized_actual)
+    stuckness_flag = normalized_actual.lower() in {"stuck", "rollback", "repeat"}
+    surprise_flag = normalized_actual.lower() in {"surprise", "unexpected"}
+    momentum_signal = "advance" if passed else ("stalled" if stuckness_flag else "")
+    history_path, row = record_judgment(
+        runtime_root,
+        topic_slug=topic_slug,
+        judgment_kind=judgment_kind,
+        summary=summary,
+        updated_by=updated_by,
+        run_id=run_id,
+        predicted_outcome=normalized_predicted,
+        actual_outcome=normalized_actual,
+        selected_action_id=selected_action_id,
+        selected_action_summary=selected_action_summary,
+        momentum_signal=momentum_signal,
+        stuckness_flag=stuckness_flag,
+        surprise_flag=surprise_flag,
+        evidence_refs=evidence_refs,
+        tags=tags,
+    )
+    accuracy = evaluate_judgment_accuracy(runtime_root, topic_slug=topic_slug)
+    return {
+        "topic_slug": topic_slug,
+        "passed": passed,
+        "judgment_history_path": str(history_path),
+        "judgment_entry": row,
+        "accuracy": accuracy,
+        "summary": (
+            f"Judgment check {'passed' if passed else 'did not pass'}: "
+            f"{row.get('summary') or '(missing)'}"
+        ),
+    }
+
+
+def compile_judgment_report(
+    runtime_root: Path,
+    *,
+    topic_slug: str,
+    updated_by: str = "aitp-service",
+    limit: int = 10,
+) -> dict[str, Any]:
+    history = get_judgment_history(runtime_root, topic_slug=topic_slug, limit=limit)
+    accuracy = evaluate_judgment_accuracy(runtime_root, topic_slug=topic_slug)
+    lines = [
+        "# Research judgment report",
+        "",
+        f"- Topic slug: `{topic_slug}`",
+        f"- Updated by: `{updated_by}`",
+        f"- History path: `{research_judgment_history_path(runtime_root)}`",
+        "",
+        accuracy.get("summary") or "No resolved judgment accuracy data is currently available.",
+        "",
+        "## Recent judgments",
+        "",
+    ]
+    for row in history.get("judgments") or []:
+        lines.append(
+            f"- `{row.get('recorded_at') or '(missing)'}` "
+            f"`{row.get('judgment_kind') or 'general'}` "
+            f"accuracy=`{row.get('accuracy_status') or 'pending'}` "
+            f"summary={row.get('summary') or '(missing)'}"
+        )
+    if not history.get("judgments"):
+        lines.append("- `(none)`")
+    markdown = "\n".join(lines) + "\n"
+    return {
+        "topic_slug": topic_slug,
+        "judgment_history": history,
+        "accuracy": accuracy,
+        "markdown": markdown,
+        "history_path": str(research_judgment_history_path(runtime_root)),
+    }
+
+
 def dashboard_research_judgment_lines(research_judgment: dict[str, Any]) -> list[str]:
     return [
         "## Research judgment",
         "",
         f"- Status: `{research_judgment.get('status') or '(missing)'}`",
-        f"- Momentum: `{((research_judgment.get('momentum') or {}).get('status') or '(missing)')}`",
-        f"- Stuckness: `{((research_judgment.get('stuckness') or {}).get('status') or '(missing)')}`",
-        f"- Surprise: `{((research_judgment.get('surprise') or {}).get('status') or '(missing)')}`",
+        (
+            f"- Momentum: "
+            f"`{((research_judgment.get('momentum') or {}).get('status') or '(missing)')}`"
+        ),
+        (
+            f"- Stuckness: "
+            f"`{((research_judgment.get('stuckness') or {}).get('status') or '(missing)')}`"
+        ),
+        (
+            f"- Surprise: "
+            f"`{((research_judgment.get('surprise') or {}).get('status') or '(missing)')}`"
+        ),
         f"- Note path: `{research_judgment.get('note_path') or '(missing)'}`",
         "",
         f"{research_judgment.get('summary') or '(missing)'}",
@@ -32,15 +137,27 @@ def dashboard_research_judgment_lines(research_judgment: dict[str, Any]) -> list
     ]
 
 
-def append_research_judgment_markdown(lines: list[str], research_judgment: dict[str, Any]) -> None:
+def append_research_judgment_markdown(
+    lines: list[str],
+    research_judgment: dict[str, Any],
+) -> None:
     lines.extend(
         [
             "## Research judgment",
             "",
             f"- Status: `{research_judgment.get('status') or '(missing)'}`",
-            f"- Momentum: `{((research_judgment.get('momentum') or {}).get('status') or '(missing)')}`",
-            f"- Stuckness: `{((research_judgment.get('stuckness') or {}).get('status') or '(missing)')}`",
-            f"- Surprise: `{((research_judgment.get('surprise') or {}).get('status') or '(missing)')}`",
+            (
+                f"- Momentum: "
+                f"`{((research_judgment.get('momentum') or {}).get('status') or '(missing)')}`"
+            ),
+            (
+                f"- Stuckness: "
+                f"`{((research_judgment.get('stuckness') or {}).get('status') or '(missing)')}`"
+            ),
+            (
+                f"- Surprise: "
+                f"`{((research_judgment.get('surprise') or {}).get('status') or '(missing)')}`"
+            ),
             f"- Note path: `{research_judgment.get('note_path') or '(missing)'}`",
             "",
             f"{research_judgment.get('summary') or '(missing)'}",
@@ -74,7 +191,9 @@ def normalize_research_judgment_for_bundle(
     return research_judgment
 
 
-def research_judgment_must_read_entry(research_judgment: dict[str, Any]) -> dict[str, str] | None:
+def research_judgment_must_read_entry(
+    research_judgment: dict[str, Any],
+) -> dict[str, str] | None:
     if str(research_judgment.get("status") or "") != "signals_active":
         return None
     note_path = str(research_judgment.get("note_path") or "").strip()
@@ -82,7 +201,10 @@ def research_judgment_must_read_entry(research_judgment: dict[str, Any]) -> dict
         return None
     return {
         "path": note_path,
-        "reason": "Active research-judgment signals are recorded for this topic. Read them before trusting the bounded route at face value.",
+        "reason": (
+            "Active research-judgment signals are recorded for this topic. "
+            "Read them before trusting the bounded route at face value."
+        ),
     }
 
 

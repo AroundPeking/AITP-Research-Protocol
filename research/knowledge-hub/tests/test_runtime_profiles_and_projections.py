@@ -805,7 +805,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         )
         self.assertEqual(bundle["control_plane"]["h_plane"]["checkpoint_status"], "answered")
         self.assertEqual(bundle["mode_envelope"]["minimum_mandatory_context"][0]["path"], "topics/demo-topic/runtime/topic_dashboard.md")
-        self.assertIn("L3 -> L0", bundle["mode_envelope"]["allowed_backedges"])
+        self.assertEqual(bundle["mode_envelope"]["allowed_backedges"], [])
         self.assertEqual(bundle["transition_posture"]["transition_kind"], "boundary_hold")
         self.assertEqual(len(bundle["must_read_now"]), 3)
         self.assertEqual(bundle["must_read_now"][0]["path"], "topics/demo-topic/runtime/topic_dashboard.md")
@@ -1410,7 +1410,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
         manifest = bundle["protocol_manifest"]
         self.assertEqual(manifest["overall_status"], "fail")
-        self.assertEqual(manifest["declared_state"], "verifying")
+        self.assertEqual(manifest["declared_state"], "learning")
         self.assertIn("topics/demo-topic/runtime/validation_contract.active.md", manifest["missing_paths"])
         self.assertTrue(manifest["note_path"].endswith("protocol_manifest.active.md"))
         self.assertIn(manifest["note_path"], self._must_read_paths(bundle))
@@ -1418,7 +1418,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         self.assertTrue((self.kernel_root / manifest["note_path"]).exists())
         note_text = Path(self.kernel_root / manifest["note_path"]).read_text(encoding="utf-8")
         self.assertIn("validation_contract.active.md", note_text)
-        self.assertIn("verifying", note_text)
+        self.assertIn("learning", note_text)
 
         schema = json.loads(
             (self.kernel_root / "runtime" / "schemas" / "progressive-disclosure-runtime-bundle.schema.json").read_text(
@@ -1465,7 +1465,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         must_read_paths = self._must_read_paths(bundle)
         deferred_paths = self._deferred_paths(bundle)
 
-        self.assertEqual(bundle["runtime_mode"], "discussion")
+        self.assertEqual(bundle["runtime_mode"], "explore")
         self.assertIn("topics/demo-topic/runtime/idea_packet.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/topic_dashboard.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/research_question.contract.md", must_read_paths)
@@ -1541,7 +1541,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         must_read_paths = self._must_read_paths(bundle)
         deferred_paths = self._deferred_paths(bundle)
 
-        self.assertEqual(bundle["runtime_mode"], "verify")
+        self.assertEqual(bundle["runtime_mode"], "learn")
         self.assertIn("topics/demo-topic/runtime/validation_review_bundle.active.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/validation_contract.active.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/selected_validation_route.md", must_read_paths)
@@ -1715,7 +1715,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
         must_read_paths = self._must_read_paths(bundle)
 
-        self.assertEqual(bundle["runtime_mode"], "verify")
+        self.assertEqual(bundle["runtime_mode"], "learn")
         self.assertIn("topics/demo-topic/runtime/statement_compilation.active.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/lean_bridge.active.md", must_read_paths)
 
@@ -1774,7 +1774,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
         must_read_paths = self._must_read_paths(bundle)
 
-        self.assertEqual(bundle["runtime_mode"], "verify")
+        self.assertEqual(bundle["runtime_mode"], "learn")
         self.assertIn("topics/demo-topic/runtime/statement_compilation.active.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/lean_bridge.active.md", must_read_paths)
         self.assertIn(
@@ -1829,7 +1829,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         must_read_paths = self._must_read_paths(bundle)
         deferred_paths = self._deferred_paths(bundle)
 
-        self.assertEqual(bundle["runtime_mode"], "promote")
+        self.assertEqual(bundle["runtime_mode"], "implement")
         self.assertIn("topics/demo-topic/runtime/promotion_readiness.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/promotion_gate.md", must_read_paths)
         self.assertIn("topics/demo-topic/runtime/topic_completion.md", must_read_paths)
@@ -1913,7 +1913,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
         bundle = json.loads(Path(result["runtime_protocol_path"]).read_text(encoding="utf-8"))
         must_read_paths = self._must_read_paths(bundle)
 
-        self.assertEqual(bundle["runtime_mode"], "promote")
+        self.assertEqual(bundle["runtime_mode"], "implement")
         self.assertIn("topics/demo-topic/runtime/promotion_gate.md", must_read_paths)
         self.assertIn(
             "topics/demo-topic/runtime/selected_candidate_route_choice.active.md",
@@ -2124,12 +2124,12 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
                 }
             ],
         )
-        self.assertEqual(verify_contract["runtime_mode"], "verify")
-        self.assertEqual(verify_contract["active_submode"], "iterative_verify")
+        self.assertEqual(verify_contract["runtime_mode"], "learn")
+        self.assertEqual(verify_contract["active_submode"], "numerical")
         self.assertEqual(verify_contract["transition_posture"]["transition_kind"], "boundary_hold")
 
         promote_contract = build_runtime_mode_contract(
-            resume_stage="L4",
+            resume_stage="L3",
             load_profile="full",
             idea_packet_status="approved_for_execution",
             operator_checkpoint_status="cancelled",
@@ -2146,7 +2146,7 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
                 }
             ],
         )
-        self.assertEqual(promote_contract["runtime_mode"], "promote")
+        self.assertEqual(promote_contract["runtime_mode"], "implement")
         self.assertIsNone(promote_contract["active_submode"])
         self.assertEqual(promote_contract["transition_posture"]["transition_kind"], "forward_transition")
 
@@ -2166,11 +2166,11 @@ class RuntimeProfileProjectionTests(unittest.TestCase):
             },
         ]
 
-        filtered = filter_escalation_triggers_for_mode(runtime_mode="promote", escalation_triggers=rows)
+        filtered = filter_escalation_triggers_for_mode(runtime_mode="learn", escalation_triggers=rows)
         filtered_by_name = {row["trigger"]: row for row in filtered}
 
-        self.assertTrue(filtered_by_name["promotion_intent"]["active"])
-        self.assertFalse(filtered_by_name["verification_route_selection"]["active"])
+        self.assertFalse(filtered_by_name["promotion_intent"]["active"])
+        self.assertTrue(filtered_by_name["verification_route_selection"]["active"])
 
     def test_topic_status_exposes_primary_runtime_surface_roles(self) -> None:
         shell_surfaces = self._shell_surfaces()

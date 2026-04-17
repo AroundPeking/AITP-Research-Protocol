@@ -42,7 +42,8 @@ conformance checking).
 ## 1. Brain Protocol (85% coverage) — UPDATED
 
 ### Protocol accurately describes
-- B2 lifecycle: bootstrap, loop, status, promote, complete
+- B2 lifecycle: bootstrap, loop, status, complete, with validation and
+  promotion handled as loop-triggered operations
 - B3 multi-topic management: topic_index, active_topics, scheduler
 - B3 dependencies: blocked status
 - B4 session chronicle: all 8 required sections
@@ -77,8 +78,13 @@ conformance checking).
 ## 3. Mode Envelope Protocol (35-40% coverage) — UPDATED
 
 ### Fixes applied to protocol
-- Fixed foreground_layers to match code: discussion (L0,L1,L3), explore (L0,L1,L2,L3), verify (L2,L3,L4), promote (L2,L3)
-- Added ME3: Submodes (iterative_verify, literature)
+- Migrated the mode system from legacy 4-mode terminology to the canonical
+  3-mode protocol (`explore`, `learn`, `implement`)
+- Added explicit legacy mapping: `discussion -> explore`, `verify -> learn`,
+  and `promote` becomes an operation inside `learn` or `implement`
+- Fixed foreground layers to match the 3-mode protocol: `explore` (L0, L1,
+  L3), `learn` (L0, L1, L3, L4), `implement` (L3, L4)
+- Added ME3: Mode-specific submodes aligned with the canonical 3-mode protocol
 - Added ME4: Context-Refocusing Engine
 - Fixed default mode: code defaults to "explore"
 - Added ME10: Implementation Status section

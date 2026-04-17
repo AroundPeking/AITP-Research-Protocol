@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from .mode_registry import (
+    PROMOTE_OPERATION_SIGNALS as _PROMOTE_ACTION_TYPES,
+    VERIFY_OPERATION_SIGNALS as _VERIFY_ACTION_TYPES,
+    VERIFY_TRIGGERS as _VERIFY_TRIGGERS,
+)
+
 _MODE_SPECS: dict[str, dict[str, Any]] = {
     "explore": {
         "local_task": "Discover literature, find ideas, record observations. Compare with L2 to assess novelty.",
@@ -47,21 +53,6 @@ _MODE_SPECS: dict[str, dict[str, Any]] = {
     },
 }
 
-_PROMOTE_ACTION_TYPES = {
-    "request_promotion",
-    "approve_promotion",
-    "promote_candidate",
-    "auto_promote_candidate",
-}
-_VERIFY_ACTION_TYPES = {
-    "select_validation_route",
-    "materialize_execution_task",
-    "dispatch_execution_task",
-    "ingest_execution_result",
-    "prepare_lean_bridge",
-    "review_proof_repair_plan",
-}
-_VERIFY_TRIGGERS = {"verification_route_selection", "proof_completion_review", "contradiction_detected"}
 _LITERATURE_SOURCE_TOKENS = ("literature", "paper", "source", "arxiv", "pdf")
 _LITERATURE_INTAKE_TOKENS = ("read", "extract", "intake", "note", "notes", "summar")
 _LITERATURE_KEEP_SUFFIXES = (
@@ -209,6 +200,8 @@ def _select_runtime_mode(
     active_triggers: set[str],
 ) -> str:
     lowered_summary = selected_action_summary.lower()
+    if selected_action_type in _PROMOTE_ACTION_TYPES or any(token in lowered_summary for token in ("promot", "writeback")):
+        return "implement"
     if (
         resume_stage == "L4"
         or selected_action_type in _VERIFY_ACTION_TYPES
@@ -216,8 +209,6 @@ def _select_runtime_mode(
         or any(token in lowered_summary for token in ("validation", "verification", "proof", "derivation", "selected route"))
     ):
         return "learn"
-    if selected_action_type in _PROMOTE_ACTION_TYPES or any(token in lowered_summary for token in ("promot", "writeback")):
-        return "implement"
     if idea_packet_status == "needs_clarification" or operator_checkpoint_status == "requested":
         return "explore"
     if any(token in lowered_summary for token in ("novel", "new idea", "conjecture", "hypothesis")):

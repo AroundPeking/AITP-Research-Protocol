@@ -2126,7 +2126,7 @@ class RuntimeScriptTests(unittest.TestCase):
         self._write_json(
             "topics/demo-topic/runtime/runtime_protocol.generated.json",
             {
-                "runtime_mode": "promote",
+                "runtime_mode": "implement",
                 "transition_posture": {
                     "transition_kind": "forward_transition",
                     "triggered_by": ["promotion_intent"],
@@ -2200,7 +2200,7 @@ class RuntimeScriptTests(unittest.TestCase):
         self._write_json(
             "topics/demo-topic/runtime/runtime_protocol.generated.json",
             {
-                "runtime_mode": "promote",
+                "runtime_mode": "implement",
                 "transition_posture": {
                     "transition_kind": "forward_transition",
                     "triggered_by": ["promotion_intent"],
@@ -2232,7 +2232,7 @@ class RuntimeScriptTests(unittest.TestCase):
         self._write_json(
             "topics/demo-topic/runtime/runtime_protocol.generated.json",
             {
-                "runtime_mode": "verify",
+                "runtime_mode": "learn",
                 "transition_posture": {
                     "transition_kind": "boundary_hold",
                     "triggered_by": ["verification_route_selection"],
@@ -2279,7 +2279,7 @@ class RuntimeScriptTests(unittest.TestCase):
         self._write_json(
             "topics/demo-topic/runtime/runtime_protocol.generated.json",
             {
-                "runtime_mode": "verify",
+                "runtime_mode": "learn",
                 "transition_posture": {
                     "transition_kind": "boundary_hold",
                     "triggered_by": ["verification_route_selection"],
@@ -2855,7 +2855,7 @@ class RuntimeScriptTests(unittest.TestCase):
         (topic_runtime_root / "runtime_protocol.generated.json").write_text(
             json.dumps(
                 {
-                    "runtime_mode": "promote",
+                    "runtime_mode": "implement",
                     "transition_posture": {
                         "transition_kind": "forward_transition",
                         "triggered_by": ["promotion_intent"],

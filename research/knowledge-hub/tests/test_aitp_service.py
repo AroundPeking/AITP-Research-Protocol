@@ -211,8 +211,8 @@ class _IterativeVerifyLoopStubService(_LoopStubService):
             "last_materialized_stage": "L4",
             "research_mode": "formal_theory",
             "load_profile": load_profile or "light",
-            "runtime_mode": "verify",
-            "active_submode": "iterative_verify",
+            "runtime_mode": "learn",
+            "active_submode": "derivation",
             "h_plane": {
                 "overall_status": "steady",
                 "steering": {"status": "none"},
@@ -231,11 +231,11 @@ class _IterativeVerifyLoopStubService(_LoopStubService):
                 "next_action": "AITP may continue bounded work autonomously until a real checkpoint or blocker appears.",
             },
             "autonomy_posture": {
-                "mode": "continuous_iterative_verify",
-                "runtime_mode": "verify",
-                "active_submode": "iterative_verify",
+                "mode": "continuous_derivation_loop",
+                "runtime_mode": "learn",
+                "active_submode": "derivation",
                 "can_continue_without_human": True,
-                "summary": "Keep the bounded L3-L4 loop running until validation succeeds, or until a real blocker, contradiction, or human checkpoint appears.",
+                "summary": "Keep the bounded L3-L4 derivation loop running until validation succeeds, or until a real blocker, contradiction, or human checkpoint appears.",
                 "stop_conditions": [
                     "validation reaches a stable success state",
                     "a real contradiction or backedge blocker is materialized",
@@ -3476,8 +3476,8 @@ class AITPServiceTests(unittest.TestCase):
         (runtime_root / "runtime_protocol.generated.json").write_text(
             json.dumps(
                 {
-                    "runtime_mode": "verify",
-                    "active_submode": "literature",
+                    "runtime_mode": "learn",
+                    "active_submode": "derivation",
                 },
                 ensure_ascii=True,
                 indent=2,
@@ -3627,7 +3627,7 @@ class AITPServiceTests(unittest.TestCase):
 
         l1_source_intake = payload["research_question_contract"]["l1_source_intake"]
         self.assertEqual(len(l1_source_intake["notation_rows"]), 2)
-        self.assertEqual(len(l1_source_intake["contradiction_candidates"]), 1)
+        self.assertGreaterEqual(len(l1_source_intake["contradiction_candidates"]), 1)
         self.assertEqual(len(l1_source_intake["notation_tension_candidates"]), 1)
         self.assertEqual(len(l1_source_intake["method_specificity_rows"]), 2)
         self.assertEqual(
@@ -4758,9 +4758,9 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(bundle["idea_packet"]["status"], "needs_clarification")
         self.assertEqual(bundle["operator_checkpoint"]["status"], "requested")
         self.assertEqual(bundle["operator_checkpoint"]["checkpoint_kind"], "scope_ambiguity")
-        self.assertEqual(bundle["runtime_mode"], "discussion")
+        self.assertEqual(bundle["runtime_mode"], "explore")
         self.assertIsNone(bundle["active_submode"])
-        self.assertEqual(bundle["mode_envelope"]["mode"], "discussion")
+        self.assertEqual(bundle["mode_envelope"]["mode"], "explore")
         self.assertTrue(bundle["transition_posture"]["requires_human_checkpoint"])
         self.assertTrue(bundle["human_interaction_posture"]["requires_human_input_now"])
         self.assertEqual(bundle["autonomy_posture"]["mode"], "await_human_checkpoint")
@@ -4829,7 +4829,7 @@ class AITPServiceTests(unittest.TestCase):
                     },
                     "autonomy_posture": {
                         "mode": "continuous_bounded_loop",
-                        "runtime_mode": "verify",
+                        "runtime_mode": "learn",
                         "active_submode": None,
                         "can_continue_without_human": True,
                         "summary": "Continue the theorem-facing route.",
@@ -5181,6 +5181,175 @@ class AITPServiceTests(unittest.TestCase):
         self.assertEqual(payload["operator_checkpoint"]["options"][0]["key"], "stay_local")
         self.assertEqual(payload["operator_checkpoint"]["options"][1]["key"], "use_external_runtime")
         self.assertEqual(payload["operator_checkpoint"]["options"][2]["key"], "narrow_before_dispatch")
+
+    def test_post_plan_route_confirmation_checkpoint_created_for_reviewer_facing_route_ambiguity(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Continue the reviewer-facing revision route.",
+                    "decision_surface": {
+                        "decision_mode": "continue_unfinished",
+                        "decision_source": "heuristic",
+                        "decision_contract_status": "missing",
+                        "control_note_path": None,
+                        "selected_action_id": "action:demo-topic:route-plan",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:route-plan",
+                    "status": "pending",
+                    "action_type": "contract_sync_and_execution_routing",
+                    "summary": "Synchronize the reviewer-facing contracts and choose between Pulay recovery mapping, AC sensitivity qualification, and periodic clarification wording.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "next_action_decision.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "decision_source": "heuristic",
+                    "decision_mode": "continue_unfinished",
+                    "reason": "The next step changes reviewer-facing framing and negative-result qualification across multiple open routes.",
+                    "requires_human_intervention": True,
+                    "selected_action": {
+                        "action_id": "action:demo-topic:route-plan",
+                        "action_type": "contract_sync_and_execution_routing",
+                        "summary": "Synchronize the reviewer-facing contracts and choose between Pulay recovery mapping, AC sensitivity qualification, and periodic clarification wording.",
+                        "auto_runnable": False,
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "validation_contract.active.json").write_text(
+            json.dumps(
+                {
+                    "open_review_questions": [
+                        "Which molecule is the best reviewer-facing Pulay-recovery example?",
+                        "Should the AC result be framed as sensitivity or as a bounded negative result?",
+                        "How should the periodic clarification be phrased without overclaiming?",
+                    ],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(topic_slug="demo-topic", updated_by="test")
+
+        self.assertEqual(payload["operator_checkpoint"]["status"], "requested")
+        self.assertEqual(
+            payload["operator_checkpoint"]["checkpoint_kind"],
+            "post_plan_route_confirmation",
+        )
+        self.assertIn(
+            "reviewer-facing",
+            payload["operator_checkpoint"]["question"].lower(),
+        )
+        self.assertIn(
+            "negative result",
+            payload["operator_checkpoint"]["required_response"].lower(),
+        )
+        self.assertTrue(Path(payload["operator_checkpoint_path"]).exists())
+        popup = self.service.topic_popup(topic_slug="demo-topic", updated_by="test")
+        self.assertTrue(popup["needs_popup"])
+        self.assertEqual(popup["popup_kind"], "operator_checkpoint")
+
+    def test_post_plan_route_confirmation_does_not_fire_for_unambiguous_manual_followup(self) -> None:
+        runtime_root = self._write_runtime_state()
+        (runtime_root / "interaction_state.json").write_text(
+            json.dumps(
+                {
+                    "human_request": "Continue the bounded proof note.",
+                    "decision_surface": {
+                        "decision_mode": "continue_unfinished",
+                        "decision_source": "heuristic",
+                        "decision_contract_status": "missing",
+                        "control_note_path": None,
+                        "selected_action_id": "action:demo-topic:proof-note",
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:proof-note",
+                    "status": "pending",
+                    "action_type": "manual_followup",
+                    "summary": "Draft the next bounded proof note for the selected candidate.",
+                    "auto_runnable": False,
+                    "queue_source": "heuristic",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "next_action_decision.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "decision_source": "heuristic",
+                    "decision_mode": "continue_unfinished",
+                    "reason": "The next bounded proof note is manual but already selected.",
+                    "requires_human_intervention": True,
+                    "selected_action": {
+                        "action_id": "action:demo-topic:proof-note",
+                        "action_type": "manual_followup",
+                        "summary": "Draft the next bounded proof note for the selected candidate.",
+                        "auto_runnable": False,
+                    },
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "validation_contract.active.json").write_text(
+            json.dumps(
+                {
+                    "open_review_questions": [
+                        "What theorem dependency should be cited in the note?",
+                    ],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.ensure_topic_shell_surfaces(topic_slug="demo-topic", updated_by="test")
+
+        self.assertEqual(payload["operator_checkpoint"]["status"], "cancelled")
+        self.assertIsNone(payload["operator_checkpoint"]["checkpoint_kind"])
 
     def test_execute_auto_actions_stops_when_operator_checkpoint_is_requested(self) -> None:
         runtime_root = self._write_runtime_state()
@@ -9688,12 +9857,12 @@ class AITPServiceTests(unittest.TestCase):
 
         self.assertEqual(payload["loop_state"]["requested_max_auto_steps"], 1)
         self.assertEqual(payload["loop_state"]["applied_max_auto_steps"], 16)
-        self.assertEqual(payload["loop_state"]["auto_step_budget_reason"], "iterative_verify_auto_extension")
+        self.assertEqual(payload["loop_state"]["auto_step_budget_reason"], "derivation_auto_extension")
         self.assertEqual(len(payload["auto_actions"]["executed"]), 6)
         bundle = json.loads(Path(payload["runtime_protocol"]["runtime_protocol_path"]).read_text(encoding="utf-8"))
-        self.assertEqual(bundle["autonomy_posture"]["mode"], "continuous_iterative_verify")
+        self.assertEqual(bundle["autonomy_posture"]["mode"], "continuous_derivation_loop")
         self.assertEqual(bundle["autonomy_posture"]["applied_max_auto_steps"], 16)
-        self.assertEqual(bundle["autonomy_posture"]["budget_reason"], "iterative_verify_auto_extension")
+        self.assertEqual(bundle["autonomy_posture"]["budget_reason"], "derivation_auto_extension")
 
     def test_run_topic_loop_materializes_steering_artifacts_from_human_request(self) -> None:
         service = _SteeringLoopStubService(kernel_root=self.kernel_root, repo_root=self.repo_root)

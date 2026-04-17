@@ -9,6 +9,7 @@ Scope: Complete the protocol architecture, align with implementation, fill gaps,
 ## Phase A: Protocol Completion
 
 ### A1. Protocol-Implementation Alignment Audit
+- [x] Alignment audit completed and recorded in `docs/AUDIT_REPORT_ALIGNMENT.md`
 - [x] brain_protocol.md vs frontdoor_support.py + topic_loop_support.py + control_plane_support.py (~85% coverage)
 - [x] action_queue_protocol.md vs orchestrate_topic.py + decide_next_action.py (~55-60% coverage)
 - [x] closed_loop_protocol.md vs closed_loop_v1.py (~55-60% coverage)
@@ -26,20 +27,22 @@ Scope: Complete the protocol architecture, align with implementation, fill gaps,
 **Protocol updates completed**: all 12 protocols updated to match implementation
 
 ### A2. Legacy Protocol Cleanup
+- [x] Refresh mode cross-references so `mode_envelope_protocol.md` is the unique mode-definition source
 - [ ] Add redirect/consolidation notices to merged legacy protocols
 - [ ] Verify cross-references from SPEC S14 are accurate
 - [ ] Update LAYER_MAP.md if needed
 
 ### A3. Formal Theory Protocols (keep as-is, verify completeness)
-- [ ] PROOF_OBLIGATION_PROTOCOL.md
-- [ ] SEMI_FORMAL_THEORY_PROTOCOL.md
-- [ ] SECTION_FORMALIZATION_PROTOCOL.md
-- [ ] FORMAL_THEORY_AUTOMATION_WORKFLOW.md
-- [ ] FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md
+- [x] PROOF_OBLIGATION_PROTOCOL.md
+- [x] SEMI_FORMAL_THEORY_PROTOCOL.md
+- [x] SECTION_FORMALIZATION_PROTOCOL.md
+- [x] FORMAL_THEORY_AUTOMATION_WORKFLOW.md
+- [x] FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md
 
 ## Phase B: Missing Implementation
 
 ### B1. Uncovered Functionality (from earlier audit)
+- [ ] Mode refactoring (3-mode alignment) — remove legacy 4-mode names from runtime profiles, trigger tables, and acceptance surfaces
 - [ ] Strategy/collaborator memory — cross-topic failure pattern extraction
 - [ ] Research scratchpad — lightweight exploration without full topic lifecycle
 - [ ] Topic dependency DAG — multi-topic scheduling with blocking
@@ -58,8 +61,8 @@ Scope: Complete the protocol architecture, align with implementation, fill gaps,
 ## Phase C: Testing
 
 ### C1. Existing Acceptance Tests
-- [ ] Run 71 acceptance test scripts, categorize pass/fail
-- [ ] Fix failures
+- [x] Current test baseline recorded: 757 pass, 15 fail
+- [ ] Fix remaining 15 failures
 - [ ] Update tests that test old protocol behavior
 
 ### C2. New Protocol Conformance Tests
@@ -79,8 +82,9 @@ Scope: Complete the protocol architecture, align with implementation, fill gaps,
 
 1. A1 (alignment audit) — understand the real gaps
 2. A3 (formal theory check) — quick verification, likely minimal changes
-3. B3 (fix protocol-implementation mismatches) — either update protocol or file implementation tickets
-4. A2 (legacy cleanup) — mechanical, can do in parallel
-5. B1 + B2 (missing implementation) — the heavy lifting
-6. C1 (existing tests) — establish baseline
-7. C2 + C3 (new tests) — validate new work
+3. A2 (legacy cleanup) — keep `mode_envelope_protocol.md` as the unique mode-definition source
+4. Mode refactoring (3-mode alignment) — rename runtime surfaces to canonical `explore` / `learn` / `implement`
+5. B3 (fix protocol-implementation mismatches) — either update protocol or file implementation tickets
+6. B1 + B2 (missing implementation) — the heavy lifting
+7. C1 (existing tests) — establish and then improve the 757 pass / 15 fail baseline
+8. C2 + C3 (new tests) — validate new work

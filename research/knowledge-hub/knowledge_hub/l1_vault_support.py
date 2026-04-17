@@ -10,7 +10,12 @@ from .l1_source_bridge_support import (
     render_l1_source_bridge_markdown,
 )
 from .obsidian_graph_export import materialize_obsidian_concept_graph_export
-from .l1_source_intake_support import l1_contradiction_summary_lines
+from .l1_source_intake_support import (
+    l1_contradiction_summary_lines,
+    l1_notation_alignment_lines,
+    l1_notation_tension_lines,
+    l1_regime_overlap_lines,
+)
 from .topic_truth_root_support import compatibility_projection_path, layer_root
 
 
@@ -301,6 +306,12 @@ def _render_source_intake_markdown(
             lines.append(
                 f"- `{row.get('source_id') or '(missing)'}` [{row.get('reading_depth') or 'skim'}]: {row.get('assumption') or '(missing)'}"
             )
+            if row.get("confidence_tier"):
+                lines.append(f"  confidence=`{row.get('confidence_tier')}`")
+            if row.get("applicable_regime"):
+                lines.append(f"  regime=`{row.get('applicable_regime')}`")
+            if row.get("source_locator"):
+                lines.append(f"  locator=`{row.get('source_locator')}`")
             if row.get("evidence_sentence_ids"):
                 lines.append(f"  sentence ids=`{', '.join(row.get('evidence_sentence_ids') or [])}`")
         else:
@@ -311,6 +322,14 @@ def _render_source_intake_markdown(
             lines.append(
                 f"- `{row.get('source_id') or '(missing)'}` [{row.get('reading_depth') or 'skim'}]: {row.get('regime') or '(missing)'}"
             )
+            if row.get("regime_axis") or row.get("regime_value"):
+                lines.append(
+                    f"  axis=`{row.get('regime_axis') or '(missing)'}` value=`{row.get('regime_value') or '(missing)'}`"
+                )
+            if row.get("boundary_summary"):
+                lines.append(f"  boundary=`{row.get('boundary_summary')}`")
+            if row.get("source_locator"):
+                lines.append(f"  locator=`{row.get('source_locator')}`")
             if row.get("evidence_sentence_ids"):
                 lines.append(f"  sentence ids=`{', '.join(row.get('evidence_sentence_ids') or [])}`")
         else:
@@ -319,8 +338,13 @@ def _render_source_intake_markdown(
     for row in l1_source_intake.get("reading_depth_rows") or ["(none)"]:
         if isinstance(row, dict):
             lines.append(
-                f"- `{row.get('source_id') or '(missing)'}` => `{row.get('reading_depth') or 'skim'}` basis=`{row.get('basis') or 'summary_only'}`"
+                f"- `{row.get('source_id') or '(missing)'}` => `{row.get('reading_depth_state') or row.get('reading_depth') or 'skim'}` "
+                f"(legacy=`{row.get('reading_depth') or 'skim'}` basis=`{row.get('basis') or 'summary_only'}`)"
             )
+            if row.get("covered_sections"):
+                lines.append(f"  sections=`{', '.join(row.get('covered_sections') or [])}`")
+            if row.get("transition_history"):
+                lines.append(f"  transitions=`{len(row.get('transition_history') or [])}`")
         else:
             lines.append(f"- {row}")
     lines.extend(["", "## Method specificity", ""])
@@ -335,6 +359,15 @@ def _render_source_intake_markdown(
             lines.append(f"- {row}")
     lines.extend(["", "## Contradictions", ""])
     for row in l1_contradiction_summary_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
+    lines.extend(["", "## Regime overlap", ""])
+    for row in l1_regime_overlap_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
+    lines.extend(["", "## Notation alignments", ""])
+    for row in l1_notation_alignment_lines(l1_source_intake) or ["(none)"]:
+        lines.append(f"- {row}")
+    lines.extend(["", "## Notation tensions", ""])
+    for row in l1_notation_tension_lines(l1_source_intake) or ["(none)"]:
         lines.append(f"- {row}")
     lines.extend(["", "## Concept graph", ""])
     concept_graph = l1_source_intake.get("concept_graph") or {}

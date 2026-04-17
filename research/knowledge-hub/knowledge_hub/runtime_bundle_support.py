@@ -36,6 +36,7 @@ from .loop_detection_support import materialize_loop_detection
 from .protocol_manifest import materialize_protocol_manifest, protocol_manifest_must_read_entry
 from .topic_truth_root_support import compatibility_projection_path
 from .validation_review_service import analytical_cross_check_markdown_lines
+from .mode_registry import normalize_runtime_mode
 
 
 def _human_interaction_posture_from_bundle(runtime_bundle: dict[str, Any]) -> dict[str, Any]:
@@ -93,7 +94,7 @@ def _autonomy_posture_from_bundle(
     budget_reason: str | None = None,
 ) -> dict[str, Any]:
     human_posture = _human_interaction_posture_from_bundle(runtime_bundle)
-    runtime_mode = str(runtime_bundle.get("runtime_mode") or "explore")
+    runtime_mode = normalize_runtime_mode(runtime_bundle.get("runtime_mode"))
     active_submode = str(runtime_bundle.get("active_submode") or "").strip() or None
 
     if human_posture["requires_human_input_now"]:
@@ -117,10 +118,10 @@ def _autonomy_posture_from_bundle(
             "a real blocker or backedge is materialized",
             "a human checkpoint becomes active",
         ]
-    elif runtime_mode == "verify" and active_submode == "iterative_verify":
-        mode = "continuous_iterative_verify"
+    elif runtime_mode == "learn" and active_submode == "derivation":
+        mode = "continuous_derivation_loop"
         summary = (
-            "Keep the bounded L3-L4 loop running until validation succeeds, or until a real blocker, contradiction, or "
+            "Keep the bounded L3-L4 derivation loop running until validation succeeds, or until a real blocker, contradiction, or "
             "human checkpoint appears."
         )
         stop_conditions = [

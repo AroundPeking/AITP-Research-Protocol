@@ -14,6 +14,7 @@ from .source_intelligence import (
     extract_neighbor_terms,
     extract_reference_ids,
 )
+from .l1_deep_reading_support import reading_depth_state_from_row
 
 
 def _dedupe_strings(values: list[str]) -> list[str]:
@@ -787,6 +788,7 @@ def source_intelligence_payload(*, kernel_root: Path, topic_slug: str, source_ro
 
 
 def l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Render compact L1 context lines for runtime notes and contracts."""
     lines: list[str] = []
     if l1_source_intake.get("assumption_rows"):
         assumptions = _dedupe_strings(
@@ -807,7 +809,9 @@ def l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
         depth_summary = []
         for row in l1_source_intake["reading_depth_rows"][:4]:
             source_id = str(row.get("source_id") or "").strip()
-            reading_depth = str(row.get("reading_depth") or "").strip()
+            reading_depth = str(row.get("reading_depth_state") or "").strip() or str(
+                row.get("reading_depth") or ""
+            ).strip()
             if source_id and reading_depth:
                 depth_summary.append(f"{source_id}={reading_depth}")
         if depth_summary:
@@ -830,10 +834,15 @@ def l1_context_lines(l1_source_intake: dict[str, Any]) -> list[str]:
     god_nodes = [str(row.get("label") or "").strip() for row in (concept_graph.get("god_nodes") or []) if str(row.get("label") or "").strip()]
     if god_nodes:
         lines.append(f"Graph foundations: {', '.join(god_nodes[:4])}")
+    if l1_source_intake.get("regime_overlap_rows"):
+        lines.append(f"Regime-overlap checks: {len(l1_source_intake.get('regime_overlap_rows') or [])}")
+    if l1_source_intake.get("notation_alignment_rows"):
+        lines.append(f"Notation alignments: {len(l1_source_intake.get('notation_alignment_rows') or [])}")
     return lines
 
 
 def l1_assumption_depth_summary_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Summarize the main L1 intake counters for human-readable runtime surfaces."""
     lines: list[str] = []
     source_count = int(l1_source_intake.get("source_count") or 0)
     assumption_count = len(l1_source_intake.get("assumption_rows") or [])
@@ -849,6 +858,12 @@ def l1_assumption_depth_summary_lines(l1_source_intake: dict[str, Any]) -> list[
     notation_tension_count = len(l1_source_intake.get("notation_tension_candidates") or [])
     if notation_tension_count:
         lines.append(f"Open notation-tension candidates=`{notation_tension_count}`")
+    if l1_source_intake.get("notation_alignment_rows"):
+        lines.append(f"Notation-alignment rows=`{len(l1_source_intake.get('notation_alignment_rows') or [])}`")
+    if l1_source_intake.get("regime_overlap_rows"):
+        lines.append(f"Regime-overlap rows=`{len(l1_source_intake.get('regime_overlap_rows') or [])}`")
+    if l1_source_intake.get("notation_tension_rows"):
+        lines.append(f"Notation-tension rows=`{len(l1_source_intake.get('notation_tension_rows') or [])}`")
     concept_graph = l1_source_intake.get("concept_graph") or {}
     if any(len(concept_graph.get(key) or []) for key in ("nodes", "edges", "communities", "god_nodes")):
         lines.append(
@@ -862,6 +877,7 @@ def l1_assumption_depth_summary_lines(l1_source_intake: dict[str, Any]) -> list[
 
 
 def l1_concept_graph_summary_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Summarize the concept-graph slice of the L1 intake payload."""
     concept_graph = l1_source_intake.get("concept_graph") or {}
     lines: list[str] = []
     node_count = len(concept_graph.get("nodes") or [])
@@ -883,15 +899,16 @@ def l1_concept_graph_summary_lines(l1_source_intake: dict[str, Any]) -> list[str
 
 
 def l1_reading_depth_limit_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Explain which sources still have shallow reading-depth limitations."""
     lines: list[str] = []
     partial_depth_rows = [
         row
         for row in l1_source_intake.get("reading_depth_rows") or []
-        if str(row.get("reading_depth") or "").strip() != "full_read"
+        if (str(row.get("reading_depth_state") or "").strip() or reading_depth_state_from_row(row)) != "full"
     ]
     for row in partial_depth_rows[:4]:
         source_id = str(row.get("source_id") or "").strip()
-        reading_depth = str(row.get("reading_depth") or "").strip()
+        reading_depth = str(row.get("reading_depth_state") or "").strip() or str(row.get("reading_depth") or "").strip()
         basis = str(row.get("basis") or "").strip() or "summary_only"
         if source_id and reading_depth:
             lines.append(f"`{source_id}` remains `{reading_depth}` (basis=`{basis}`)")
@@ -899,6 +916,7 @@ def l1_reading_depth_limit_lines(l1_source_intake: dict[str, Any]) -> list[str]:
 
 
 def l1_contradiction_summary_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Summarize contradiction rows in a compact pairwise form."""
     lines: list[str] = []
     for row in l1_source_intake.get("contradiction_candidates") or []:
         detail = str(row.get("detail") or "").strip()
@@ -914,6 +932,9 @@ def l1_contradiction_summary_lines(l1_source_intake: dict[str, Any]) -> list[str
                 f"{detail} (`{source_id}`[{reading_depth}] vs `{against_source_id}`[{against_reading_depth}]) "
                 f"basis=`{comparison_basis}`"
             )
+            overlap_status = str(row.get("overlap_status") or "").strip()
+            if overlap_status:
+                line += f" overlap=`{overlap_status}`"
             if source_basis_summary or against_basis_summary:
                 line += (
                     f"; current=`{source_basis_summary or '(missing)'}`"
@@ -923,8 +944,50 @@ def l1_contradiction_summary_lines(l1_source_intake: dict[str, Any]) -> list[str
     return lines
 
 
-def l1_notation_tension_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+def l1_regime_overlap_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Summarize pairwise regime-overlap rows for runtime and vault notes."""
     lines: list[str] = []
+    for row in l1_source_intake.get("regime_overlap_rows") or []:
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        overlap_status = str(row.get("overlap_status") or "").strip()
+        detail = str(row.get("detail") or "").strip()
+        if source_id and against_source_id and overlap_status:
+            lines.append(
+                f"`{source_id}` vs `{against_source_id}` => `{overlap_status}` ({detail or 'no detail'})"
+            )
+    return lines
+
+
+def l1_notation_alignment_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Summarize cross-source notation alignments for the same concept."""
+    lines: list[str] = []
+    for row in l1_source_intake.get("notation_alignment_rows") or []:
+        meaning = str(row.get("meaning") or "").strip()
+        source_symbol = str(row.get("source_symbol") or "").strip()
+        against_symbol = str(row.get("against_symbol") or "").strip()
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        if meaning and source_symbol and against_symbol and source_id and against_source_id:
+            lines.append(
+                f"`{source_symbol}` vs `{against_symbol}` align for `{meaning}` (`{source_id}` vs `{against_source_id}`)"
+            )
+    return lines
+
+
+def l1_notation_tension_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Summarize notation tensions, preferring richer tension rows when present."""
+    lines: list[str] = []
+    for row in l1_source_intake.get("notation_tension_rows") or []:
+        symbol = str(row.get("symbol") or "").strip()
+        source_meaning = str(row.get("source_meaning") or "").strip()
+        against_meaning = str(row.get("against_meaning") or "").strip()
+        source_id = str(row.get("source_id") or "").strip()
+        against_source_id = str(row.get("against_source_id") or "").strip()
+        if symbol and source_meaning and against_meaning and source_id and against_source_id:
+            lines.append(
+                f"`{symbol}` shifts from `{source_meaning}` to `{against_meaning}` (`{source_id}` vs `{against_source_id}`)"
+            )
     for row in l1_source_intake.get("notation_tension_candidates") or []:
         meaning = str(row.get("meaning") or "").strip()
         existing_symbol = str(row.get("existing_symbol") or "").strip()
@@ -939,17 +1002,24 @@ def l1_notation_tension_lines(l1_source_intake: dict[str, Any]) -> list[str]:
 
 
 def l1_interpretation_focus_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Render bounded interpretation guidance derived from L1 depth and regimes."""
     lines: list[str] = []
     regimes = [str(row.get("regime") or "").strip() for row in l1_source_intake.get("regime_rows") or []]
     regimes = [item for item in regimes if item]
     if regimes:
         lines.append(f"Keep interpretation bounded to the recorded source regimes: {', '.join(regimes[:4])}.")
-    if any(str(row.get("reading_depth") or "").strip() != "full_read" for row in l1_source_intake.get("reading_depth_rows") or []):
+    if any(
+        (str(row.get("reading_depth_state") or "").strip() or reading_depth_state_from_row(row)) != "full"
+        for row in l1_source_intake.get("reading_depth_rows") or []
+    ):
         lines.append("Do not over-interpret claims that are currently backed only by abstract-only or skim-level reading depth.")
+    if any(str(row.get("overlap_status") or "").strip() == "disjoint" for row in l1_source_intake.get("regime_overlap_rows") or []):
+        lines.append("Do not merge claims across sources whose recorded regimes are explicitly disjoint.")
     return lines
 
 
 def l1_open_ambiguity_lines(l1_source_intake: dict[str, Any]) -> list[str]:
+    """Render the open ambiguities that should remain visible after L1 intake."""
     lines: list[str] = []
     reading_depth_limits = l1_reading_depth_limit_lines(l1_source_intake)
     if reading_depth_limits:
@@ -967,6 +1037,11 @@ def l1_open_ambiguity_lines(l1_source_intake: dict[str, Any]) -> list[str]:
         ]
         if labels:
             lines.append(f"Method-specificity limits still apply for: {', '.join(labels)}")
+    for item in l1_regime_overlap_lines(l1_source_intake):
+        if "=> `disjoint`" in item:
+            lines.append(f"Regime overlap warning: {item}")
+    for item in l1_notation_alignment_lines(l1_source_intake):
+        lines.append(f"Notation alignment: {item}")
     for item in l1_contradiction_summary_lines(l1_source_intake):
         lines.append(f"Contradiction candidate: {item}")
     for item in l1_notation_tension_lines(l1_source_intake):

@@ -26,8 +26,9 @@ trusted knowledge.
 - Tolerance and error budgets.
 
 **Coverage:** Partially implemented. Numerical validation occurs when the
-topic enters verify mode with computational candidates, but there is no
-dedicated numerical validation framework.
+topic enters `learn` mode with computational candidates (per
+`mode_envelope_protocol.md`), but there is no dedicated numerical validation
+framework.
 
 ### Analytical Validation
 - Limiting cases (do formulas reduce correctly in special limits?).

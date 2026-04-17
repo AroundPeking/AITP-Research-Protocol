@@ -4,7 +4,14 @@ from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
+import sys
 from typing import Any, Callable
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from knowledge_hub.mode_registry import normalize_runtime_mode
 
 
 def _truth_runtime_root(knowledge_root: Path, topic_slug: str) -> Path:
@@ -66,7 +73,8 @@ def load_selected_candidate_route_choice(
 def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) -> list[str]:
     if not runtime_contract:
         return []
-    runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
     active_submode = str(runtime_contract.get("active_submode") or "").strip()
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
@@ -79,7 +87,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
         return ["skill_discovery"]
     if transition_kind == "backedge_transition" and "non_trivial_consultation" in triggered_by:
         return ["consultation_followup"]
-    if runtime_mode == "promote" or "promotion_intent" in triggered_by:
+    if runtime_mode == "implement" or "promotion_intent" in triggered_by:
         return [
             "l2_promotion_review",
             "request_promotion",
@@ -87,7 +95,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
             "promote_candidate",
             "auto_promote_candidate",
         ]
-    if runtime_mode == "verify" or "verification_route_selection" in triggered_by:
+    if runtime_mode == "learn" or "verification_route_selection" in triggered_by:
         return [
             "select_validation_route",
             "materialize_execution_task",
@@ -1104,7 +1112,9 @@ def should_advance_past_staged_l2_review(
     topic_slug: str,
     runtime_contract: dict | None,
 ) -> bool:
-    if runtime_contract and str(runtime_contract.get("runtime_mode") or "").strip() not in {"", "explore"}:
+    raw_runtime_mode = str((runtime_contract or {}).get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
+    if runtime_contract and runtime_mode not in {"", "explore"}:
         return False
     latest_staged = latest_topic_local_staged_entry_updated_at(
         knowledge_root=knowledge_root,
@@ -1158,7 +1168,8 @@ def queue_shaping_policy_from_contract_artifacts(
     if not runtime_contract:
         return default_policy, None
 
-    runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
     requires_human_checkpoint = bool(transition_posture.get("requires_human_checkpoint"))
@@ -1172,7 +1183,7 @@ def queue_shaping_policy_from_contract_artifacts(
             _queue_shaping_block_policy(),
             "Runtime transition posture requires a human checkpoint before deeper queue expansion.",
         )
-    if runtime_mode == "promote" or "promotion_intent" in triggered_by:
+    if runtime_mode == "implement" or "promotion_intent" in triggered_by:
         return (
             _queue_shaping_block_policy(),
             "Promotion routing suppresses runtime-appended queue expansion in favor of explicit promotion handling.",
@@ -1295,7 +1306,9 @@ def maybe_append_literature_intake_stage_action(
 ) -> None:
     if not runtime_contract or not queue_shaping_policy["allow_runtime_append"]:
         return
-    if str(runtime_contract.get("runtime_mode") or "").strip() != "explore":
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
+    if runtime_mode != "explore":
         return
     active_submode = str(runtime_contract.get("active_submode") or "").strip()
     source_count = int(topic_state.get("source_count") or 0)

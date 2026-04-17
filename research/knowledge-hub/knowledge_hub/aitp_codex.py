@@ -253,6 +253,40 @@ def build_codex_prompt(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def build_popup_gate_blocking_payload(
+    *,
+    result: dict[str, Any],
+    popup_payload: dict[str, Any],
+) -> dict[str, Any]:
+    ask_user_question = popup_payload.get("ask_user_question")
+    interaction_payload_kind = "ask_user_question" if ask_user_question else "popup"
+    interaction_payload = ask_user_question or popup_payload.get("popup") or {}
+    return {
+        "status": "blocked",
+        "blocked": True,
+        "continue_allowed": False,
+        "block_reason": "popup_gate_active",
+        "topic_slug": result.get("topic_slug"),
+        "run_id": result.get("run_id"),
+        "routing": result.get("routing"),
+        "loop_state_path": result.get("loop_state_path"),
+        "session_start_contract_path": result.get("session_start_contract_path"),
+        "session_start_note_path": result.get("session_start_note_path"),
+        "bootstrap_receipt_path": result.get("bootstrap_receipt_path"),
+        "popup_kind": popup_payload.get("popup_kind"),
+        "interaction_payload_kind": interaction_payload_kind,
+        "interaction_payload": interaction_payload,
+        "popup_gate": popup_payload,
+        "next_step": {
+            "kind": "await_human_input",
+            "summary": "Resolve the active AITP popup gate before deeper Codex continuation.",
+            "resolve_hint": (
+                f"aitp popup --topic-slug {result.get('topic_slug') or '(missing)'} --choice <index>"
+            ),
+        },
+    }
+
+
 def invoke_codex(
     *,
     prompt: str,
@@ -318,6 +352,17 @@ def main() -> int:
         updated_by=args.updated_by,
     )
     result["bootstrap_receipt_path"] = str(receipt_path)
+    popup_payload = service.topic_popup(
+        topic_slug=payload["topic_slug"],
+        updated_by=args.updated_by,
+    )
+    if popup_payload.get("needs_popup"):
+        blocking_payload = build_popup_gate_blocking_payload(
+            result=result,
+            popup_payload=popup_payload,
+        )
+        _emit(blocking_payload, True)
+        return 2
     if args.dry_run:
         _emit(result, args.json)
         return 0

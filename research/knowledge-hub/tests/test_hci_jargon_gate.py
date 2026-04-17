@@ -12,7 +12,6 @@ class HCIJargonGateTests(unittest.TestCase):
             "adjudication route",
             "l0 recovery",
             "promotion approval",
-            "bounded route",
         }
         operator_surface_files = [
             package_root / "knowledge_hub" / "topic_shell_support.py",

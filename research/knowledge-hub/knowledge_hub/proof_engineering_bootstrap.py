@@ -170,6 +170,176 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def _normalize_goal_text(goal: str) -> str:
+    return " ".join(str(goal or "").strip().split())
+
+
+def suggest_tactics(
+    goal: str,
+    *,
+    assistant: str = "lean4",
+    context: dict[str, Any] | None = None,
+    available_lemmas: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    normalized_goal = _normalize_goal_text(goal)
+    if not normalized_goal:
+        raise ValueError("goal must not be empty")
+
+    lowered_goal = normalized_goal.lower()
+    suggestions: list[dict[str, Any]] = []
+
+    def add_suggestion(tactic: str, reason: str, *, confidence: float = 0.6) -> None:
+        if any(str(row.get("tactic") or "") == tactic for row in suggestions):
+            return
+        suggestions.append(
+            {
+                "assistant": assistant,
+                "tactic": tactic,
+                "reason": reason,
+                "confidence": confidence,
+            }
+        )
+
+    if " iff " in f" {lowered_goal} ":
+        add_suggestion("constructor", "An iff goal usually splits into two directional implications.", confidence=0.82)
+    if any(token in lowered_goal for token in ("exists", "there exists")):
+        add_suggestion("refine Exists.intro ?_", "Existential goals often benefit from choosing the witness first.", confidence=0.79)
+        add_suggestion("use ?_", "Lean `use` is a compact entrypoint for existential witnesses.", confidence=0.74)
+    if any(token in lowered_goal for token in ("=", " equality ", "equal")):
+        add_suggestion("rw [...]", "Equality goals often simplify after targeted rewriting.", confidence=0.7)
+        add_suggestion("simp", "Try simplification before deeper tactic search on equality-like goals.", confidence=0.66)
+        add_suggestion("calc", "A `calc` block can expose the intermediate equalities explicitly.", confidence=0.68)
+    if any(token in lowered_goal for token in ("submodule", "range", "codrestrict")):
+        add_suggestion(
+            "refine LinearMap.codRestrict ?_ ?_",
+            "Range/submodule goals often need codRestrict packaging before the final subtype map.",
+            confidence=0.84,
+        )
+    if any(token in lowered_goal for token in ("kernel", "ker ")):
+        add_suggestion(
+            "have hker := ...",
+            "Kernel goals are often easier after isolating the bridge lemma in a named `have`.",
+            confidence=0.72,
+        )
+    if any(token in lowered_goal for token in ("forall", "for all")):
+        add_suggestion("intro", "Universal goals usually begin by introducing the quantified variable.", confidence=0.83)
+    if any(token in lowered_goal for token in ("+", "-", "*", "/")):
+        add_suggestion("ring_nf", "Normalize algebraic expressions before debugging a harder proof state.", confidence=0.64)
+
+    for lemma in available_lemmas or []:
+        cleaned = str(lemma or "").strip()
+        if cleaned:
+            add_suggestion(
+                f"rw [{cleaned}]",
+                f"Available lemma `{cleaned}` may rewrite the goal into a more tractable form.",
+                confidence=0.58,
+            )
+
+    for seed in JONES_STRATEGY_MEMORY_SEEDS:
+        seed_text = " ".join(
+            [
+                str(seed.get("summary") or ""),
+                str((seed.get("input_context") or {}).get("surface") or ""),
+                " ".join(seed.get("reuse_conditions") or []),
+            ]
+        ).lower()
+        overlap = [
+            token
+            for token in ("range", "submodule", "codrestrict", "kernel", "subtraction", "goal", "shape")
+            if token in lowered_goal and token in seed_text
+        ]
+        if not overlap:
+            continue
+        add_suggestion(
+            "have h_strategy := ...",
+            f"Recent proof-engineering memory matches this goal surface ({', '.join(overlap)}). Externalize the bridge step explicitly before deeper search.",
+            confidence=float(seed.get("confidence") or 0.6),
+        )
+
+    if not suggestions:
+        add_suggestion("simp?", "No specialized tactic matched; start with simplification or local theorem search.", confidence=0.5)
+        add_suggestion("aesop?", "Fallback search may expose the next missing hypothesis or lemma.", confidence=0.45)
+
+    return suggestions
+
+
+def bootstrap_proof_attempt(
+    goal: str,
+    *,
+    assistant: str = "lean4",
+    context: dict[str, Any] | None = None,
+    available_lemmas: list[str] | None = None,
+    updated_by: str = "aitp-cli",
+) -> dict[str, Any]:
+    normalized_goal = _normalize_goal_text(goal)
+    if not normalized_goal:
+        raise ValueError("goal must not be empty")
+    timestamp = now_iso()
+    proof_attempt_id = f"proof_attempt:{normalized_goal.lower().replace(' ', '-')[:48].strip('-') or 'goal'}"
+    tactic_suggestions = suggest_tactics(
+        normalized_goal,
+        assistant=assistant,
+        context=context,
+        available_lemmas=available_lemmas,
+    )
+    return {
+        "attempt_version": 1,
+        "proof_attempt_id": proof_attempt_id,
+        "assistant": assistant,
+        "goal": normalized_goal,
+        "status": "bootstrapped",
+        "context": dict(context or {}),
+        "available_lemmas": [str(item or "").strip() for item in (available_lemmas or []) if str(item or "").strip()],
+        "suggested_tactics": tactic_suggestions,
+        "tactic_count": len(tactic_suggestions),
+        "bootstrapped_at": timestamp,
+        "updated_at": timestamp,
+        "updated_by": updated_by,
+    }
+
+
+def check_proof_status(
+    proof_attempt: dict[str, Any],
+    *,
+    transcript: list[dict[str, Any]] | None = None,
+    open_goal_count: int | None = None,
+    hard_error: str | None = None,
+) -> dict[str, Any]:
+    transcript_rows = [dict(row) for row in (transcript or [])]
+    last_step = transcript_rows[-1] if transcript_rows else {}
+    last_step_status = str(last_step.get("status") or "").strip().lower()
+    attempt_status = str(proof_attempt.get("status") or "bootstrapped").strip().lower()
+
+    if str(hard_error or "").strip():
+        status = "blocked"
+        summary = "Proof attempt is blocked by an explicit error."
+        next_steps = ["Inspect the failing tactic state and replace the brittle step with a named intermediate lemma."]
+    elif open_goal_count == 0 or last_step_status in {"solved", "complete", "closed"}:
+        status = "solved"
+        summary = "Proof attempt closed all visible goals."
+        next_steps = []
+    elif transcript_rows or attempt_status in {"running", "in_progress"}:
+        status = "in_progress"
+        summary = "Proof attempt has started but still leaves open goals."
+        next_steps = ["Keep the next tactic local and expose the missing bridge lemma or rewrite explicitly."]
+    else:
+        status = "not_started"
+        summary = "Proof attempt has been bootstrapped but no proof transcript is recorded yet."
+        next_steps = ["Start with one of the suggested tactics and record the resulting proof state."]
+
+    return {
+        "proof_attempt_id": str(proof_attempt.get("proof_attempt_id") or ""),
+        "assistant": str(proof_attempt.get("assistant") or ""),
+        "status": status,
+        "summary": summary,
+        "open_goal_count": open_goal_count,
+        "hard_error": str(hard_error or "").strip() or None,
+        "last_step_status": last_step_status or None,
+        "next_steps": next_steps,
+        "updated_at": now_iso(),
+    }
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None

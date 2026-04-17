@@ -55,7 +55,8 @@ Inputs:
 - route decision from select_route,
 - source material (L0 sources, L1 analysis, L3 candidates),
 - previous results,
-- validation plan if entering verify mode.
+- validation plan if entering `learn` mode or an `implement` action that
+  triggers L4 validation (per `mode_envelope_protocol.md`).
 
 Process:
 1. Translate route decision into a concrete action.

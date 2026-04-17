@@ -9,6 +9,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from .l2_consultation_support import build_progressive_retrieval_payload, topic_locality_for_hit
+
 
 CANONICAL_DIR_BY_TYPE = {
     "atomic_note": "atomic-notes",
@@ -111,9 +113,11 @@ def _normalize_staging_hit_for_primary(
     *,
     score: float,
     matched_terms: list[str],
+    topic_locality: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     unit_type = str(row.get("candidate_unit_type") or row.get("entry_kind") or "l2_unit")
     entry_id = str(row.get("entry_id") or "")
+    locality = dict(topic_locality or {})
     return {
         "id": entry_id,
         "unit_id": entry_id,
@@ -127,6 +131,8 @@ def _normalize_staging_hit_for_primary(
         "authority_level": "non_authoritative_staging",
         "score": round(score, 3),
         "matched_terms": matched_terms,
+        "topic_locality": str(locality.get("topic_locality") or "global"),
+        "topic_locality_reasons": list(locality.get("topic_locality_reasons") or []),
     }
 
 
@@ -209,6 +215,45 @@ def _base_unit(
         "dependencies": dependencies,
         "related_units": related_units,
         "payload": payload,
+    }
+
+
+def _search_terms_from_payload(payload: dict[str, Any]) -> str:
+    return " ".join(
+        [
+            str(payload.get("title") or ""),
+            str(payload.get("summary") or ""),
+            " ".join(str(item) for item in (payload.get("tags") or []) if str(item).strip()),
+            " ".join(str(item) for item in (payload.get("assumptions") or []) if str(item).strip()),
+        ]
+    )
+
+
+def _index_row_from_payload(payload: dict[str, Any], *, path: Path, kernel_root: Path) -> dict[str, Any]:
+    return {
+        "unit_id": payload["id"],
+        "id": payload["id"],
+        "unit_type": payload["unit_type"],
+        "title": payload["title"],
+        "summary": payload["summary"],
+        "tags": list(payload.get("tags") or []),
+        "assumptions": list(payload.get("assumptions") or []),
+        "regime": payload.get("regime") or {},
+        "scope": payload.get("scope") or {},
+        "dependencies": list(payload.get("dependencies") or []),
+        "origin_topic_refs": list(payload.get("origin_topic_refs") or []),
+        "origin_run_refs": list(payload.get("origin_run_refs") or []),
+        "validation_receipts": list(payload.get("validation_receipts") or []),
+        "reuse_receipts": list(payload.get("reuse_receipts") or []),
+        "related_consultation_refs": list(payload.get("related_consultation_refs") or []),
+        "applicable_topics": list(payload.get("applicable_topics") or []),
+        "failed_topics": list(payload.get("failed_topics") or []),
+        "regime_notes": list(payload.get("regime_notes") or []),
+        "related_units": list(payload.get("related_units") or []),
+        "warning_tags": list((payload.get("payload") or {}).get("warning_tags") or []),
+        "validation_tags": list((payload.get("payload") or {}).get("validation_axes") or []),
+        "path": _relative(path, kernel_root),
+        "search_terms": _search_terms_from_payload(payload),
     }
 
 
@@ -405,40 +450,7 @@ def materialize_canonical_index(kernel_root: Path) -> dict[str, Any]:
             payload = read_json(path)
             if payload is None:
                 continue
-            rows.append(
-                {
-                    "unit_id": payload["id"],
-                    "id": payload["id"],
-                    "unit_type": payload["unit_type"],
-                    "title": payload["title"],
-                    "summary": payload["summary"],
-                    "tags": list(payload.get("tags") or []),
-                    "assumptions": list(payload.get("assumptions") or []),
-                    "regime": payload.get("regime") or {},
-                    "scope": payload.get("scope") or {},
-                    "dependencies": list(payload.get("dependencies") or []),
-                    "origin_topic_refs": list(payload.get("origin_topic_refs") or []),
-                    "origin_run_refs": list(payload.get("origin_run_refs") or []),
-                    "validation_receipts": list(payload.get("validation_receipts") or []),
-                    "reuse_receipts": list(payload.get("reuse_receipts") or []),
-                    "related_consultation_refs": list(payload.get("related_consultation_refs") or []),
-                    "applicable_topics": list(payload.get("applicable_topics") or []),
-                    "failed_topics": list(payload.get("failed_topics") or []),
-                    "regime_notes": list(payload.get("regime_notes") or []),
-                    "related_units": list(payload.get("related_units") or []),
-                    "warning_tags": list((payload.get("payload") or {}).get("warning_tags") or []),
-                    "validation_tags": list((payload.get("payload") or {}).get("validation_axes") or []),
-                    "path": _relative(path, kernel_root),
-                    "search_terms": " ".join(
-                        [
-                            payload.get("title") or "",
-                            payload.get("summary") or "",
-                            " ".join(payload.get("tags") or []),
-                            " ".join(payload.get("assumptions") or []),
-                        ]
-                    ),
-                }
-            )
+            rows.append(_index_row_from_payload(payload, path=path, kernel_root=kernel_root))
     rows.sort(key=lambda row: str(row["id"]))
     write_jsonl(canonical_root / "index.jsonl", rows)
     return {"index_path": str(canonical_root / "index.jsonl"), "row_count": len(rows)}
@@ -574,6 +586,7 @@ def consult_canonical_l2(
     max_primary_hits: int | None = None,
     include_staging: bool = False,
     topic_slug: str | None = None,
+    detail_unit_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     canonical_root = kernel_root / "canonical"
     index_path = canonical_root / "index.jsonl"
@@ -607,14 +620,17 @@ def consult_canonical_l2(
         )
         if not overlap and query_phrase not in searchable.lower():
             continue
+        locality = topic_locality_for_hit(row, topic_slug=resolved_topic_slug)
         scored.append(
             {
                 **row,
                 "trust_surface": "canonical",
-                "score": round(score, 3),
+                "score": round(score + float(locality.get("topic_locality_score") or 0.0), 3),
                 "matched_terms": overlap,
+                "topic_locality": str(locality.get("topic_locality") or "global"),
+                "topic_locality_reasons": list(locality.get("topic_locality_reasons") or []),
             }
-    )
+        )
     scored.sort(key=lambda row: (-float(row["score"]), str(row["id"])))
     primary_hits = scored[:limit]
     traversal_primary_ids = {str(row["id"]) for row in primary_hits}
@@ -683,6 +699,7 @@ def consult_canonical_l2(
                 "traversal_depth": len(path),
                 "path_relations": [step["relation"] for step in path],
                 "path_node_ids": _path_node_ids(path),
+                **topic_locality_for_hit(row_by_id[target_id], topic_slug=resolved_topic_slug),
             }
         )
         traversal_paths.append(
@@ -713,11 +730,14 @@ def consult_canonical_l2(
             )
             if not overlap and query_phrase not in searchable.lower():
                 continue
+            locality = topic_locality_for_hit(row, topic_slug=resolved_topic_slug)
             staged_row = {
                 **row,
                 "trust_surface": str(row.get("trust_surface") or "staging"),
-                "score": round(score, 3),
+                "score": round(score + float(locality.get("topic_locality_score") or 0.0), 3),
                 "matched_terms": overlap,
+                "topic_locality": str(locality.get("topic_locality") or "global"),
+                "topic_locality_reasons": list(locality.get("topic_locality_reasons") or []),
             }
             staged_hits.append(staged_row)
             if resolved_topic_slug and str(row.get("topic_slug") or "").strip() == resolved_topic_slug:
@@ -726,6 +746,7 @@ def consult_canonical_l2(
                         row,
                         score=score + 4.0,
                         matched_terms=overlap,
+                        topic_locality=locality,
                     )
                 )
 
@@ -739,6 +760,13 @@ def consult_canonical_l2(
         for row in primary_hits
         if str(row.get("id") or "") in row_by_id
     }
+
+    progressive_retrieval = build_progressive_retrieval_payload(
+        kernel_root,
+        primary_hits=primary_hits,
+        expanded_hits=expanded_hits,
+        detail_unit_ids=detail_unit_ids,
+    )
 
     return {
         "query_text": query_text,
@@ -756,6 +784,7 @@ def consult_canonical_l2(
             "max_depth_reached": max((row["path_depth"] for row in traversal_paths), default=0),
             "edge_types_used": expanded_edge_types,
         },
+        "progressive_retrieval": progressive_retrieval,
         "index_count": len(index_rows),
         "edge_count": len(edge_rows),
     }

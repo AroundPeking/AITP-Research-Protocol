@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ ALLOWED_ANALYTICAL_CHECK_KINDS = {
     "symmetry",
     "self_consistency",
     "source_cross_reference",
+    "derivation_step",
 }
 ALLOWED_ANALYTICAL_CHECK_STATUSES = {
     "passed",
@@ -20,6 +22,32 @@ ALLOWED_ANALYTICAL_CHECK_STATUSES = {
     "needs_followup",
 }
 ALLOWED_READING_DEPTHS = {"skim", "targeted", "deep"}
+ALLOWED_REVIEW_ITEM_STATUSES = {
+    "queued",
+    "in_progress",
+    "pass",
+    "partial",
+    "fail",
+    "inconclusive",
+    "blocked",
+    "skipped",
+}
+ALLOWED_REVIEW_ITEM_PRIORITIES = {"high", "medium", "low"}
+ALLOWED_STEP_RIGOR = {"heuristic", "rigorous", "mixed", "unspecified"}
+_ANALYTICAL_KIND_ALIASES = {
+    "dimensional_analysis": "dimensional_consistency",
+    "source_consistency": "source_cross_reference",
+    "derivation_check": "derivation_step",
+}
+_REVIEW_ITEM_STATUS_ALIASES = {
+    "pending": "queued",
+    "open": "queued",
+    "passed": "pass",
+    "failed": "fail",
+    "needs_followup": "partial",
+    "not_run": "queued",
+}
+_REVIEW_PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -47,6 +75,194 @@ def _dedupe_strings(values: Any) -> list[str]:
     return normalized
 
 
+def _slugify(text: str) -> str:
+    lowered = re.sub(r"[^a-z0-9]+", "-", str(text or "").lower())
+    lowered = re.sub(r"-+", "-", lowered).strip("-")
+    return lowered or "review-item"
+
+
+def _canonical_analytical_kind(kind: str | None) -> str:
+    normalized = str(kind or "").strip().lower()
+    normalized = _ANALYTICAL_KIND_ALIASES.get(normalized, normalized)
+    if normalized not in ALLOWED_ANALYTICAL_CHECK_KINDS:
+        raise ValueError(
+            "analytical check kind must be one of: "
+            + ", ".join(sorted(ALLOWED_ANALYTICAL_CHECK_KINDS))
+        )
+    return normalized
+
+
+def _normalize_review_item_status(status: str | None) -> str:
+    normalized = str(status or "").strip().lower() or "queued"
+    normalized = _REVIEW_ITEM_STATUS_ALIASES.get(normalized, normalized)
+    if normalized not in ALLOWED_REVIEW_ITEM_STATUSES:
+        raise ValueError(
+            "review item status must be one of: "
+            + ", ".join(sorted(ALLOWED_REVIEW_ITEM_STATUSES))
+        )
+    return normalized
+
+
+def _normalize_review_priority(priority: str | None) -> str:
+    normalized = str(priority or "").strip().lower() or "medium"
+    if normalized not in ALLOWED_REVIEW_ITEM_PRIORITIES:
+        raise ValueError(
+            "priority must be one of: "
+            + ", ".join(sorted(ALLOWED_REVIEW_ITEM_PRIORITIES))
+        )
+    return normalized
+
+
+def _normalize_step_rigor(step_rigor: str | None) -> str:
+    normalized = str(step_rigor or "").strip().lower() or "unspecified"
+    if normalized not in ALLOWED_STEP_RIGOR:
+        raise ValueError(
+            "step_rigor must be one of: " + ", ".join(sorted(ALLOWED_STEP_RIGOR))
+        )
+    return normalized
+
+
+def _normalize_confidence(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    confidence = float(value)
+    if confidence < 0:
+        return 0.0
+    if confidence > 1:
+        return 1.0
+    return confidence
+
+
+def create_review_item(
+    *,
+    kind: str,
+    label: str,
+    prompt: str | None = None,
+    status: str = "queued",
+    priority: str = "medium",
+    source_anchors: list[str] | None = None,
+    assumption_refs: list[str] | None = None,
+    regime_note: str | None = None,
+    reading_depth: str | None = None,
+    notes: str | None = None,
+    evidence: list[str] | None = None,
+    confidence: float | None = None,
+    next_steps: list[str] | None = None,
+    step_rigor: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    item_id: str | None = None,
+) -> dict[str, Any]:
+    normalized_kind = _canonical_analytical_kind(kind)
+    normalized_label = str(label or "").strip()
+    if not normalized_label:
+        raise ValueError("review item label must not be empty")
+    timestamp = _now_iso()
+    return {
+        "item_id": str(item_id or f"review_item:{_slugify(f'{normalized_kind}-{normalized_label}')}")
+        .strip(),
+        "kind": normalized_kind,
+        "label": normalized_label,
+        "prompt": str(prompt or "").strip() or normalized_label,
+        "status": _normalize_review_item_status(status),
+        "priority": _normalize_review_priority(priority),
+        "source_anchors": _dedupe_strings(source_anchors),
+        "assumption_refs": _dedupe_strings(assumption_refs),
+        "regime_note": str(regime_note or "").strip(),
+        "reading_depth": _normalize_reading_depth(reading_depth),
+        "notes": str(notes or "").strip(),
+        "evidence": _dedupe_strings(evidence),
+        "confidence": _normalize_confidence(confidence),
+        "next_steps": _dedupe_strings(next_steps),
+        "step_rigor": _normalize_step_rigor(step_rigor),
+        "metadata": dict(metadata or {}),
+        "updated_at": timestamp,
+    }
+
+
+def update_review_status(
+    review_item: dict[str, Any],
+    *,
+    status: str,
+    notes: str | None = None,
+    evidence: list[str] | None = None,
+    confidence: float | None = None,
+    next_steps: list[str] | None = None,
+    step_rigor: str | None = None,
+) -> dict[str, Any]:
+    updated = dict(review_item)
+    updated["status"] = _normalize_review_item_status(status)
+    if notes is not None:
+        updated["notes"] = str(notes or "").strip()
+    if evidence is not None:
+        updated["evidence"] = _dedupe_strings(evidence)
+    if confidence is not None:
+        updated["confidence"] = _normalize_confidence(confidence)
+    if next_steps is not None:
+        updated["next_steps"] = _dedupe_strings(next_steps)
+    if step_rigor is not None:
+        updated["step_rigor"] = _normalize_step_rigor(step_rigor)
+    updated["updated_at"] = _now_iso()
+    return updated
+
+
+def get_review_agenda(
+    review_items: list[dict[str, Any]] | None,
+    *,
+    include_completed: bool = False,
+) -> dict[str, Any]:
+    normalized_items = []
+    for row in review_items or []:
+        normalized = create_review_item(
+            kind=str(row.get("kind") or ""),
+            label=str(row.get("label") or ""),
+            prompt=row.get("prompt"),
+            status=str(row.get("status") or "queued"),
+            priority=str(row.get("priority") or "medium"),
+            source_anchors=row.get("source_anchors"),
+            assumption_refs=row.get("assumption_refs"),
+            regime_note=row.get("regime_note"),
+            reading_depth=row.get("reading_depth"),
+            notes=row.get("notes"),
+            evidence=row.get("evidence"),
+            confidence=row.get("confidence"),
+            next_steps=row.get("next_steps"),
+            step_rigor=row.get("step_rigor"),
+            metadata=row.get("metadata"),
+            item_id=row.get("item_id"),
+        )
+        normalized_items.append(normalized)
+    completed_statuses = {"pass", "skipped"}
+    agenda_items = (
+        normalized_items
+        if include_completed
+        else [row for row in normalized_items if row["status"] not in completed_statuses]
+    )
+    agenda_items.sort(
+        key=lambda row: (
+            _REVIEW_PRIORITY_ORDER.get(str(row.get("priority") or "medium"), 1),
+            str(row.get("kind") or ""),
+            str(row.get("label") or ""),
+        )
+    )
+    status_counts: dict[str, int] = {}
+    for row in normalized_items:
+        current_status = str(row.get("status") or "queued")
+        status_counts[current_status] = status_counts.get(current_status, 0) + 1
+    return {
+        "agenda_kind": "analytical_review_agenda",
+        "item_count": len(normalized_items),
+        "open_item_count": sum(
+            1 for row in normalized_items if row["status"] not in completed_statuses
+        ),
+        "completed_item_count": sum(
+            1 for row in normalized_items if row["status"] in completed_statuses
+        ),
+        "status_counts": status_counts,
+        "items": agenda_items,
+        "updated_at": _now_iso(),
+    }
+
+
 def _normalize_checks(
     checks: list[dict[str, Any]] | None,
     *,
@@ -57,17 +273,12 @@ def _normalize_checks(
 ) -> list[dict[str, Any]]:
     normalized: list[dict[str, Any]] = []
     for row in checks or []:
-        kind = str(row.get("kind") or "").strip()
+        kind = _canonical_analytical_kind(row.get("kind"))
         label = str(row.get("label") or "").strip()
         status = str(row.get("status") or "").strip().lower()
         notes = str(row.get("notes") or "").strip()
         if not kind or not label or not status:
             raise ValueError("analytical checks must include kind, label, and status")
-        if kind not in ALLOWED_ANALYTICAL_CHECK_KINDS:
-            raise ValueError(
-                "analytical check kind must be one of: "
-                + ", ".join(sorted(ALLOWED_ANALYTICAL_CHECK_KINDS))
-            )
         if status not in ALLOWED_ANALYTICAL_CHECK_STATUSES:
             raise ValueError(
                 "analytical check status must be one of: "
@@ -87,6 +298,10 @@ def _normalize_checks(
                 "reading_depth": _normalize_reading_depth(
                     str(row.get("reading_depth") or "").strip() or default_reading_depth
                 ),
+                "evidence": _dedupe_strings(row.get("evidence")),
+                "confidence": _normalize_confidence(row.get("confidence")),
+                "next_steps": _dedupe_strings(row.get("next_steps")),
+                "step_rigor": _normalize_step_rigor(row.get("step_rigor")),
             }
         )
     return normalized

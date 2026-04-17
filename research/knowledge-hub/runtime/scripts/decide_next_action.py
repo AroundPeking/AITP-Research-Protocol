@@ -6,8 +6,15 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from knowledge_hub.mode_registry import normalize_runtime_mode
 
 UNFINISHED_WORK_FILENAME = "unfinished_work.json"
 UNFINISHED_WORK_NOTE_FILENAME = "unfinished_work.md"
@@ -484,7 +491,8 @@ def load_runtime_contract(topic_runtime_root: Path) -> dict | None:
 def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) -> list[str]:
     if not runtime_contract:
         return []
-    runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
     active_submode = str(runtime_contract.get("active_submode") or "").strip()
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
@@ -497,7 +505,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
         return ["skill_discovery"]
     if transition_kind == "backedge_transition" and "non_trivial_consultation" in triggered_by:
         return ["consultation_followup"]
-    if runtime_mode == "promote" or "promotion_intent" in triggered_by:
+    if runtime_mode == "implement" or "promotion_intent" in triggered_by:
         return [
             "l2_promotion_review",
             "request_promotion",
@@ -505,7 +513,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
             "promote_candidate",
             "auto_promote_candidate",
         ]
-    if runtime_mode == "verify" or "verification_route_selection" in triggered_by:
+    if runtime_mode == "learn" or "verification_route_selection" in triggered_by:
         return [
             "select_validation_route",
             "materialize_execution_task",
