@@ -71,6 +71,21 @@
     "hybrid": "exploratory_general"
   },
 
+  "research_mode_to_validation_mode": {
+    "formal_derivation": "formal",
+    "toy_model": "numerical",
+    "first_principles": "numerical",
+    "theory_synthesis": "analytical",
+    "exploratory_general": "hybrid"
+  },
+
+  "research_mode_to_lane": {
+    "formal_derivation": "formal_theory",
+    "first_principles": "first_principles",
+    "theory_synthesis": "theory_synthesis",
+    "toy_model": "toy_numeric"
+  },
+
   "lane_for_modes": [
     {
       "when_template_mode": "formal_theory",
