@@ -73,6 +73,56 @@ TOPIC_COMPLETION_FILENAME = "topic_completion.json"
 LEAN_BRIDGE_ACTIVE_FILENAME = "lean_bridge.active.json"
 
 
+def _synthesize_fallback_summary(
+    topic_slug: str,
+    topic_state: dict,
+    knowledge_root: Path,
+    fallback_kind: str,
+) -> str:
+    rc_path = knowledge_root / "topics" / topic_slug / "runtime" / "research_question.contract.json"
+    rc = load_json(rc_path) or {}
+    question = str(rc.get("question") or "").strip()
+    source_index_path = knowledge_root / "topics" / topic_slug / "L0" / "source_index.jsonl"
+    source_rows = read_jsonl(source_index_path) or []
+    has_sources = bool(source_rows)
+    has_question = bool(question)
+    has_run = bool(topic_state.get("latest_run_id") or topic_state.get("resume_stage"))
+
+    if not has_question and not has_sources and not has_run:
+        return f"Initialize the research workspace for topic `{topic_slug}`."
+
+    stop = {"the", "a", "an", "is", "are", "was", "were", "be", "to", "of", "in", "for", "on", "with", "at", "by", "from", "that", "this", "and", "or", "but", "not", "if", "it", "its", "do", "does", "did", "will", "would", "could", "should", "may", "might", "shall", "can", "have", "has", "had", "been", "being"}
+    words = [w for w in question.split() if w.lower().strip(".,;:!?") not in stop] if question else [topic_slug]
+    phrase = " ".join(words[:6]) if words else topic_slug
+
+    if fallback_kind == "post_promotion":
+        if has_question:
+            return (
+                f"Confirm the promoted reusable outcome for the bounded question on "
+                f"{phrase} before opening another bounded route."
+            )
+        return "Confirm the promoted Layer 2 outcome before opening another bounded route."
+
+    if fallback_kind == "l1_vault":
+        if has_question:
+            return (
+                f"Review the L2 staging manifest and compiled source basis for the bounded question on "
+                f"{phrase} before continuing interpretation."
+            )
+        return "Review the L2 staging manifest and compiled source basis before continuing."
+
+    if has_question and has_sources:
+        return (
+            f"Recover the source basis interpretation for the bounded question on "
+            f"{phrase} before continuing execution."
+        )
+    if has_question:
+        return f"Bootstrap the research workflow for the bounded question on {phrase} before continuing."
+    if has_sources:
+        return f"Register the source basis for `{topic_slug}` and formulate the bounded research question."
+    return f"Resume the research workflow for `{topic_slug}`."
+
+
 def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -1437,9 +1487,11 @@ def materialize_action_queue(
                                     "resume_stage": "L4",
                                     "status": "pending",
                                     "action_type": "inspect_resume_state",
-                                    "summary": (
-                                        "Inspect the promoted Layer 2 writeback artifacts and current topic-completion "
-                                        "surface before opening another bounded route."
+                                    "summary": _synthesize_fallback_summary(
+                                        topic_state["topic_slug"],
+                                        topic_state,
+                                        knowledge_root,
+                                        "post_promotion",
                                     ),
                                     "auto_runnable": False,
                                     "handler": None,
@@ -1524,12 +1576,12 @@ def materialize_action_queue(
                 }
             )
             return queue, queue_meta
-        fallback_summary = "Inspect the compiled L1 vault before continuing."
-        if topic_has_staged_entries(
-            knowledge_root=knowledge_root,
-            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
-        ):
-            fallback_summary = "Inspect the current L2 staging manifest before continuing."
+        fallback_summary = _synthesize_fallback_summary(
+            topic_state["topic_slug"],
+            topic_state,
+            knowledge_root,
+            "l1_vault",
+        )
         queue.append(
             {
                 "action_id": f"action:{topic_state['topic_slug']}:inspect-l1-vault",
@@ -1554,7 +1606,12 @@ def materialize_action_queue(
                 "resume_stage": topic_state["resume_stage"],
                 "status": "pending",
                 "action_type": "inspect_resume_state",
-                "summary": "No explicit pending actions were found; inspect the runtime resume state.",
+                "summary": _synthesize_fallback_summary(
+                    topic_state["topic_slug"],
+                    topic_state,
+                    knowledge_root,
+                    "empty_queue",
+                ),
                 "auto_runnable": False,
                 "handler": None,
                 "handler_args": {},

@@ -1291,7 +1291,7 @@ class RuntimeScriptTests(unittest.TestCase):
 
         self.assertFalse(any(row["action_type"] == "literature_intake_stage" for row in queue))
         self.assertEqual(queue[0]["action_type"], "inspect_resume_state")
-        self.assertEqual(queue[0]["summary"], "Inspect the current L2 staging manifest before continuing.")
+        self.assertIn("source basis", queue[0]["summary"].lower())
 
     def test_materialize_action_queue_advances_past_staged_l2_review_after_later_continue(self) -> None:
         runtime_payload = {

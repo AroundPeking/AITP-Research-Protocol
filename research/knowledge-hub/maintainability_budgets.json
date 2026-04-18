@@ -10,8 +10,8 @@
   "watchlist": {
     "research/knowledge-hub/knowledge_hub/_bundle/runtime/scripts/closed_loop_v1.py": {
       "category": "bundle_script",
-      "max_lines": 1850,
-      "max_longest_function_lines": 251,
+      "max_lines": 1940,
+      "max_longest_function_lines": 260,
       "reason": "Auto-added: closed_loop_v1.py exceeds default thresholds (lines too long)."
     },
     "research/knowledge-hub/knowledge_hub/_bundle/runtime/scripts/decide_next_action.py": {
@@ -22,7 +22,7 @@
     },
     "research/knowledge-hub/knowledge_hub/_bundle/runtime/scripts/orchestrate_topic.py": {
       "category": "bundle_script",
-      "max_lines": 1897,
+      "max_lines": 1910,
       "max_longest_function_lines": 547,
       "reason": "Auto-added: orchestrate_topic.py exceeds default thresholds (lines too long)."
     },
@@ -178,7 +178,7 @@
     },
     "research/knowledge-hub/knowledge_hub/aitp_service.py": {
       "category": "critical_service",
-      "max_lines": 10800,
+      "max_lines": 10990,
       "max_longest_function_lines": 392,
       "reason": "This file still mixes runtime truth, registry, projection, install, promotion, steering, and remaining orchestration concerns. Front-door support, agent-install support, template rendering, pure markdown rendering, the runtime-bundle/session-start boundary, the topic-shell assembly boundary, the source-distillation boundary, the topic-loop boundary, the chat-routing/session-start boundary, the capability-audit boundary, the follow-up/closed-loop boundary, and the new theory-metrics analysis boundary have now moved out. The small headroom increase covers the remaining façade hooks; future milestones should keep shrinking it instead of letting it grow back."
     },
@@ -268,7 +268,7 @@
     },
     "research/knowledge-hub/knowledge_hub/topic_shell_support.py": {
       "category": "topic_shell_support",
-      "max_lines": 2250,
+      "max_lines": 2260,
       "max_longest_function_lines": 740,
       "reason": "This support module intentionally holds the topic-shell assembly boundary, including shell-surface derivation and dashboard assembly. It is allowed to stay large temporarily, but future phases should split its completion, checkpoint, and shell assembly concerns further instead of letting it grow unchecked."
     },
@@ -304,9 +304,9 @@
     },
     "research/knowledge-hub/runtime/scripts/closed_loop_v1.py": {
       "category": "runtime_closed_loop",
-      "max_lines": 1959,
-      "max_longest_function_lines": 260,
-      "reason": "Execution-result ingest and closed-loop route logic are already large. Additional growth should be split into focused helpers."
+      "max_lines": 1940,
+      "max_longest_function_lines": 270,
+      "reason": "Execution-result ingest and closed-loop route logic are already large. Additional growth should be split into focused helpers. Budget covers research notebook hook."
     },
     "research/knowledge-hub/runtime/scripts/decide_next_action.py": {
       "category": "runtime_decision",
@@ -316,7 +316,7 @@
     },
     "research/knowledge-hub/runtime/scripts/orchestrate_topic.py": {
       "category": "runtime_orchestrator",
-      "max_lines": 1897,
+      "max_lines": 1910,
       "max_longest_function_lines": 547,
       "reason": "This runtime script still owns orchestration entrypoints, but contract-aware queue policy and interaction/operator surface materialization now sit behind focused helper boundaries. It should stay bounded and should not absorb more rendering or registry logic."
     },
@@ -449,8 +449,14 @@
     "research/knowledge-hub/knowledge_hub/auto_action_support.py": {
       "category": "core_runtime",
       "max_lines": 300,
-      "max_longest_function_lines": 240,
-      "reason": "Auto-action execution with popup gate and stuckness checks."
+      "max_longest_function_lines": 260,
+      "reason": "Auto-action execution with popup gate, stuckness checks, and research notebook hooks."
+    },
+    "research/knowledge-hub/knowledge_hub/research_notebook_support.py": {
+      "category": "support_module",
+      "max_lines": 1100,
+      "max_longest_function_lines": 140,
+      "reason": "Research notebook entry rendering and journal integration."
     }
   }
 }

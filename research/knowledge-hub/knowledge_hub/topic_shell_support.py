@@ -46,6 +46,12 @@ from .l2_reuse_context_support import materialize_reuse_contexts
 from .capability_plane_support import materialize_execution_resource_context
 from .validation_review_service import analytical_cross_check_markdown_lines
 from .topic_truth_root_support import compatibility_projection_path
+from .lane_contract_defaults import (
+    detect_lane,
+    lane_deliverables,
+    lane_observables,
+    lane_target_claims,
+)
 from .iteration_journal_support import materialize_iteration_journal
 def _newer_projection_target(path: Path) -> Path:
     compatibility_path = compatibility_projection_path(path)
@@ -1387,6 +1393,14 @@ def compute_topic_completion_payload(
             or _as_bool(row.get("cited_recovery_required"))
         ):
             blocked_candidate_ids.append(candidate_id)
+        runtime_blockers = self._candidate_runtime_blockers(
+            topic_slug,
+            run_id or str(row.get("run_id") or "").strip(),
+            row,
+        )
+        if runtime_blockers and candidate_id and candidate_id not in blocked_candidate_ids:
+            blocked_candidate_ids.append(candidate_id)
+        blockers.extend(runtime_blockers)
         for blocker in row.get("promotion_blockers") or []:
             text = str(blocker).strip()
             if text:
@@ -1640,15 +1654,6 @@ def ensure_topic_shell_surfaces(
         ]
         + l1_context_lines(distilled_l1_source_intake)
     )
-    target_claim_defaults = self._dedupe_strings(
-        [str(row.get("candidate_id") or "").strip() for row in candidate_rows if str(row.get("candidate_id") or "").strip()]
-        or [str((selected_pending_action or {}).get("action_id") or "").strip()]
-    )
-    deliverable_defaults = [
-        "Persist the active research question, validation route, and bounded next action as durable runtime artifacts.",
-        "Write derivation/proof or execution evidence into the appropriate AITP layer before claiming completion.",
-        "Produce Layer-appropriate outputs that can later be promoted into durable L2 knowledge when justified.",
-    ]
     acceptance_defaults = [
         "The question, scope, deliverables, and acceptance checks remain synchronized with the runtime state.",
         "Missing definitions, cited derivations, or prior-work comparisons trigger a durable return to L0 instead of a prose-only bridge.",
@@ -1672,6 +1677,27 @@ def ensure_topic_shell_surfaces(
             source_rows=source_rows,
             l1_source_intake=l1_source_intake,
         )
+    )
+    _lane = detect_lane(
+        template_mode=template_mode,
+        research_mode=research_mode,
+        topic_content_hints={
+            "question": active_question,
+            "scope": existing_research.get("scope") or [],
+            "source_basis_refs": self._research_source_basis_refs(topic_slug=topic_slug, source_rows=source_rows),
+            "l1_source_intake": l1_source_intake,
+        },
+    )
+    _lane_topic_ctx = {"question": active_question, "scope": existing_research.get("scope") or []}
+    target_claim_defaults = lane_target_claims(
+        lane=_lane,
+        topic_context=_lane_topic_ctx,
+        candidate_rows=candidate_rows,
+        selected_action=selected_pending_action,
+    )
+    deliverable_defaults = lane_deliverables(
+        lane=_lane,
+        topic_context=_lane_topic_ctx,
     )
     previous_graph_analysis = _read_json(graph_analysis_artifact_paths["json"]) or {}
     graph_analysis = build_graph_analysis_surface(
@@ -1759,10 +1785,7 @@ def ensure_topic_shell_surfaces(
         ),
         "observables": self._coalesce_list(
             existing_research.get("observables"),
-            [
-                "Declared candidate ids, bounded claims, and validation outcomes.",
-                "Promotion readiness, gap honesty, and whether the topic must return to L0.",
-            ],
+            lane_observables(lane=_lane, topic_context=_lane_topic_ctx),
         ),
         "target_claims": self._coalesce_list(existing_research.get("target_claims"), target_claim_defaults),
         "deliverables": self._coalesce_list(existing_research.get("deliverables"), deliverable_defaults),
