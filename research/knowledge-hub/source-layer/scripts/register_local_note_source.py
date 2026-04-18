@@ -196,6 +196,7 @@ def register_local_note_source(
     note_path: Path,
     title: str | None = None,
     registered_by: str = "codex",
+    source_type: str = "local_note",
     backend_id: str | None = None,
     backend_root: str | None = None,
     backend_artifact_kind: str | None = None,
@@ -217,8 +218,8 @@ def register_local_note_source(
         backend_card_path=backend_card_path,
     )
 
-    source_slug = f"local-note-{slugify(resolved_title)}"
-    source_id = f"local_note:{slugify(resolved_title)}"
+    source_slug = f"{source_type}-{slugify(resolved_title)}"
+    source_id = f"{source_type}:{slugify(resolved_title)}"
 
     layer0_topic_root = knowledge_root / "topics" / topic_slug / "L0"
     layer0_source_root = layer0_topic_root / "sources" / source_slug
@@ -226,7 +227,7 @@ def register_local_note_source(
 
     preview = note_path.read_text(encoding="utf-8", errors="replace")
     provenance = {
-        "origin": "local note",
+        "origin": source_type,
         "absolute_path": str(note_path),
     }
     locator = {
@@ -247,7 +248,7 @@ def register_local_note_source(
 
     payload = {
         "source_id": source_id,
-        "source_type": "local_note",
+        "source_type": source_type,
         "title": resolved_title,
         "topic_slug": topic_slug,
         "provenance": provenance,

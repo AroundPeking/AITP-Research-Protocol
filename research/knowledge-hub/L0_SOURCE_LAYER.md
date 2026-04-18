@@ -32,7 +32,37 @@ The system should at least support:
 - transcript
 - conversation
 - local note
+- book
+- lecture
+- code_repo
 - dataset or table later if needed
+
+### 2a. Source families
+
+Source types are grouped into four families for lane-aware distillation:
+
+**Paper family** (`paper`, `pdf`):
+Published or pre-published research papers. The primary acquisition path is
+arXiv-first (see §5a). Example: Hedin (1965) "New Method for Calculating the
+One-Particle Green's Function" registered via `register_arxiv_source.py`.
+
+**Book / lecture family** (`book`, `lecture`, `transcript`, `video`):
+Textbooks, monographs, recorded lectures, and their transcripts. These sources
+are especially important for `formal_derivation` and `first_principles` lanes
+where foundational definitions and systematic exposition matter. Example:
+Jones, "V. F. R. Jones on Subfactors and Knot Theory" (lecture notes).
+
+**Code repository family** (`code_repo`):
+Versioned source code that implements or benchmarks a physical model. Relevant
+to `toy_model` and `first_principles` lanes where numerical validation is
+explicitly scoped. Example: a GitHub repository implementing exact
+diagonalization for the TFIM model.
+
+**Local note family** (`local_note`, `conversation`, `url`, `web_page`):
+Operator-authored notes, chat transcripts, and web references. These are
+project-specific artifacts that may carry strong local context but weaker
+public provenance. Example: a local research log entry recording a manual
+derivation check.
 
 ## 3. Current operational status
 

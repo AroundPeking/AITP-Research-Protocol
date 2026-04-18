@@ -30,7 +30,10 @@
         "video",
         "transcript",
         "conversation",
-        "local_note"
+        "local_note",
+        "book",
+        "lecture",
+        "code_repo"
       ]
     },
     "title": {

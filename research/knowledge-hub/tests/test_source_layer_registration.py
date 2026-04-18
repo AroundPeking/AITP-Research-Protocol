@@ -98,6 +98,45 @@ class SourceLayerRegistrationTests(unittest.TestCase):
         self.assertIn("## Backend bridge", layer0_snapshot)
         self.assertIn("Backend bridge:", intake_snapshot)
 
+    def test_register_book_source(self) -> None:
+        book_path = self.backend_root / "notes" / "jones-subfactors-notes.md"
+        book_path.parent.mkdir(parents=True, exist_ok=True)
+        book_path.write_text(
+            "# Subfactors and Knots\n\nChapter 4 covers the finite-dimensional backbone.\n",
+            encoding="utf-8",
+        )
+        result = self.module.register_local_note_source(
+            knowledge_root=self.knowledge_root,
+            topic_slug="demo-topic",
+            note_path=book_path,
+            title="V. F. R. Jones — Subfactors and Knots",
+            registered_by="unit-test",
+            source_type="book",
+        )
+        layer0_source = json.loads(result["layer0_source_json"].read_text(encoding="utf-8"))
+        self.assertEqual(layer0_source["source_type"], "book")
+        self.assertTrue(layer0_source["source_id"].startswith("book:"))
+        self.assertIn("Subfactors", layer0_source["title"])
+
+    def test_register_code_repo_source(self) -> None:
+        readme_path = self.backend_root / "repos" / "tfim-ed" / "README.md"
+        readme_path.parent.mkdir(parents=True, exist_ok=True)
+        readme_path.write_text(
+            "# TFIM Exact Diagonalization\n\nA tiny Python implementation.\n",
+            encoding="utf-8",
+        )
+        result = self.module.register_local_note_source(
+            knowledge_root=self.knowledge_root,
+            topic_slug="demo-topic",
+            note_path=readme_path,
+            title="TFIM Exact Diagonalization Code",
+            registered_by="unit-test",
+            source_type="code_repo",
+        )
+        layer0_source = json.loads(result["layer0_source_json"].read_text(encoding="utf-8"))
+        self.assertEqual(layer0_source["source_type"], "code_repo")
+        self.assertTrue(layer0_source["source_id"].startswith("code_repo:"))
+
 
 if __name__ == "__main__":
     unittest.main()
