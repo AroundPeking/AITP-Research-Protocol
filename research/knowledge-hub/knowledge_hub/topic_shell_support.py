@@ -53,6 +53,7 @@ from .lane_contract_defaults import (
     lane_target_claims,
 )
 from .iteration_journal_support import materialize_iteration_journal
+from .research_report_support import materialize_research_report
 def _newer_projection_target(path: Path) -> Path:
     compatibility_path = compatibility_projection_path(path)
     if compatibility_path is None or not compatibility_path.exists():
@@ -2139,6 +2140,12 @@ def ensure_topic_shell_surfaces(
         plan_reuse_context=plan_reuse_context,
         execution_resource_context=execution_resource_context,
     )
+    research_report = materialize_research_report(
+        self,
+        topic_slug=topic_slug,
+        run_id=latest_run_id or None,
+        updated_by=updated_by,
+    )
     return {
         "research_question_contract_path": str(research_paths["json"]),
         "research_question_contract_note_path": str(research_paths["note"]),
@@ -2216,6 +2223,8 @@ def ensure_topic_shell_surfaces(
         )
         if latest_run_id
         else "",
+        "research_report_path": str(self._research_report_paths(topic_slug)["json"]),
+        "research_report_note_path": str(self._research_report_paths(topic_slug)["note"]),
         "research_question_contract": research_contract,
         "l1_vault": l1_vault["payload"],
         "source_intelligence": source_intelligence_surface,
@@ -2249,4 +2258,5 @@ def ensure_topic_shell_surfaces(
         "topic_completion": topic_completion,
         "lean_bridge": lean_bridge,
         "iteration_journal": iteration_journal,
+        "research_report": research_report,
     }

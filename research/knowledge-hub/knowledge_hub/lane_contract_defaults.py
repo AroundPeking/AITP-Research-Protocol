@@ -21,10 +21,80 @@ from typing import Any
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "lane_and_mode_signals.json"
 
+_DEFAULT_CONFIG: dict[str, Any] = {
+    "lane_signals": {
+        "toy_model": {
+            "markers": ["ising", "lattice", "toy model", "finite-size", "hamiltonian", "small system", "benchmark"],
+        },
+        "first_principles": {
+            "markers": ["dft", "gw", "qmc", "basis set", "convergence", "abacus", "fhi-aims", "first-principles"],
+        },
+    },
+    "lane_contract_defaults": {
+        "formal_derivation": {
+            "observables": [
+                "Bounded theorem or derivation target under the current notation and closure assumptions.",
+                "Proof obligations, dependency closure, and comparison against nearby formal or source-grounded routes.",
+            ],
+            "deliverables": [
+                "Produce a bounded derivation or proof packet with explicit assumptions, caveats, and source anchors.",
+                "Record what is established, what remains open, and which stronger claims are intentionally not made.",
+            ],
+            "target_claims_template": "Bounded formal target: {question}",
+        },
+        "toy_model": {
+            "observables": [
+                "Model-family observable, finite-size or parameter-regime behavior, and benchmark comparison surface.",
+                "Toy-model route boundaries and where qualitative intuition stops being quantitative evidence.",
+            ],
+            "deliverables": [
+                "Produce a bounded toy-model claim plus one explicit benchmark or limiting-case check.",
+                "State which larger-system or first-principles conclusions are not yet justified.",
+            ],
+            "target_claims_template": "Bounded toy-model claim: {question}",
+        },
+        "first_principles": {
+            "observables": [
+                "Method-family observable, convergence target, and bounded executable validation route.",
+                "Workflow-specific caveats such as basis, grid, or reduction settings that still affect trust.",
+            ],
+            "deliverables": [
+                "Produce one bounded method or workflow claim with explicit convergence or benchmark support.",
+                "Keep non-claims about whole-stack maturity or transferability explicit.",
+            ],
+            "target_claims_template": "Bounded method claim: {question}",
+        },
+    },
+    "known_research_modes": ["formal_derivation", "exploratory_general", "implementation_validation"],
+    "mode_aliases": {},
+    "lane_for_modes": [
+        {"lane": "formal_theory", "when_template_mode": "formal_theory", "when_research_mode": "formal_derivation"},
+        {"lane": "code_method", "when_template_mode": "code_method", "when_research_mode": "exploratory_general"},
+    ],
+    "template_mode_to_research_mode": {
+        "formal_theory": "formal_derivation",
+        "code_method": "exploratory_general",
+    },
+    "research_mode_to_template_mode": {
+        "formal_derivation": "formal_theory",
+        "exploratory_general": "code_method",
+        "implementation_validation": "code_method",
+    },
+    "return_to_l0_outcomes": ["return_to_l0", "mismatch_requires_l0", "source_gap", "insufficient_basis"],
+    "valid_strategy_types": [
+        "verification_guardrail",
+        "failure_pattern",
+        "proof_engineering",
+        "api_workaround",
+    ],
+}
+
 
 @lru_cache(maxsize=1)
 def _load_config() -> dict:
-    return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    if _CONFIG_PATH.exists():
+        return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    return dict(_DEFAULT_CONFIG)
 
 
 def _lane_signals(lane_key: str) -> set[str]:
