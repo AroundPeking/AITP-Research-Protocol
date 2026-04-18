@@ -1978,6 +1978,8 @@ class AITPService:
 
     def _candidate_requires_detailed_derivation(self, candidate_row: dict[str, Any]) -> bool:
         candidate_type = str(candidate_row.get("candidate_type") or "").strip()
+        if candidate_type == "topic_skill_projection":
+            return False
         if candidate_type in {"derivation_object", "derivation_step", "proof_fragment", "theorem_card"}:
             return True
         if str(candidate_row.get("formal_theory_role") or "").strip():
@@ -2141,6 +2143,8 @@ class AITPService:
 
     def _candidate_requires_theory_packet(self, candidate_row: dict[str, Any]) -> bool:
         candidate_type = str(candidate_row.get("candidate_type") or "").strip()
+        if candidate_type == "topic_skill_projection":
+            return False
         if candidate_type in {"theorem_card", "proof_fragment"}:
             return True
         if str(candidate_row.get("formal_theory_role") or "").strip():

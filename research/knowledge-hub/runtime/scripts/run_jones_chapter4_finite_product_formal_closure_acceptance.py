@@ -624,6 +624,63 @@ def main() -> int:
         / CANDIDATE_SLUG
         / "coverage_ledger.json"
     )
+    derivation_record = service.record_l3_derivation(
+        topic_slug=args.topic_slug,
+        run_id=args.run_id,
+        title="Jones Chapter 4 finite-product theorem-packet derivation spine",
+        body=(
+            "We keep the bounded Chapter 4 theorem packet in L3 as an explicit derivation spine rather than treating the ready "
+            "formal review as self-justifying.\n\n"
+            "The route starts from the finite block decomposition and the block-projection centralizer characterization, then "
+            "passes through the within-block compression/decomposition statements that isolate the block-fiber full-operator or "
+            "type-I pieces.\n\n"
+            "The theorem packet remains deliberately narrower than the stronger algebra-level product theorem: it preserves the "
+            "finite-dimensional linear-product identification, the centralizer subalgebra equality, and the finrank audit, while "
+            "keeping later Lane A/B/C and whole-chapter classification work explicitly outside the current claim."
+        ),
+        derivation_kind="candidate_derivation",
+        epistemic_status="ai_provisional_reasoning",
+        status="in_progress",
+        source_refs=[
+            f"{PRIMARY_SOURCE_ID}::{PRIMARY_SOURCE_SECTION}",
+            *list(ORIGIN_SOURCE_IDS),
+        ],
+        assumptions=[
+            "Stay within the bounded finite-dimensional Chapter 4 theorem packet.",
+            "Do not collapse the bounded linear-product packet into the stronger algebra-level product theorem.",
+            "Treat the Lean-facing theorem packet as validated support, not as a license to skip the derivation spine.",
+        ],
+        provenance_note=(
+            "This L3 note is an AI-authored provisional derivation spine reconstructed from the bounded Jones Chapter 4 source anchors "
+            "and the ready theory packet. It preserves the reasoning route explicitly, but it is not truth by itself."
+        ),
+        updated_by=args.updated_by,
+        derivation_id=CANDIDATE_ID,
+    )
+    comparison_receipt = service.record_l2_derivation_comparison(
+        topic_slug=args.topic_slug,
+        run_id=args.run_id,
+        candidate_id=CANDIDATE_ID,
+        title="Jones Chapter 4 theorem-packet comparison against nearby L2 finite-dimensional routes",
+        comparison_summary=(
+            "Compared the bounded finite-product block-centralizer theorem packet against the nearby finite-dimensional type-I "
+            "and block-projection-centralizer routes already present in L2. The current candidate matches the theorem-facing "
+            "finite-dimensional packet boundary and reuses those nearby routes as support, but it still stops short of the stronger "
+            "subalgebra-level AlgEquiv product theorem and the wider Chapter 4 classification route."
+        ),
+        compared_unit_ids=[
+            "definition:finite-dimensional-type-i-factor",
+            "theorem:finite-dimensional-full-operator-von-neumann-algebra-has-scalar-commutant",
+            "theorem:finite-dimensional-block-projection-centralizer-has-off-block-vanishing-characterization",
+        ],
+        comparison_scope="bounded finite-dimensional Jones Chapter 4 theorem packet",
+        outcome="partial_match",
+        limitations=[
+            "The current packet does not claim the stronger subalgebra-level AlgEquiv product theorem.",
+            "The current route remains finite-dimensional and does not close the full Chapter 4 type-I classification or later Lane A/B/C follow-up routes.",
+        ],
+        updated_by=args.updated_by,
+    )
     strategy_memory = service.record_strategy_memory(
         topic_slug=args.topic_slug,
         run_id=args.run_id,
@@ -816,6 +873,8 @@ def main() -> int:
 
     for path in (
         candidate_ledger_path,
+        Path(derivation_record["derivation_path"]),
+        Path(comparison_receipt["comparison_path"]),
         Path(strategy_memory["strategy_memory_path"]),
         topic_completion_path,
         lean_bridge_path,
@@ -936,6 +995,8 @@ def main() -> int:
             "topic_skill_projection": str(projection_path),
             "topic_skill_projection_note": str(projection_note_path),
             "strategy_memory": str(strategy_memory["strategy_memory_path"]),
+            "derivation_record": str(derivation_record["derivation_path"]),
+            "comparison_receipt": str(comparison_receipt["comparison_path"]),
             "lean_ready_packet": str(lean_packet_root / "lean_ready_packet.json"),
             "proof_obligations": str(lean_packet_root / "proof_obligations.json"),
             "proof_state": str(lean_packet_root / "proof_state.json"),
