@@ -326,13 +326,16 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
         assert "Recover the bounded derivation and benchmark route." in tex
         assert r"\section{Setup, Notation, And Regime}" in tex
         assert "Use Euclidean-signature notation unless a source explicitly says otherwise." in tex
-        assert r"\section{Working Ideas, Hypotheses, And Candidate Routes}" in tex
+        assert r"\section{Working Ideas, Hypotheses, And Candidate Routes}" not in tex
         assert "A source-grounded derivation candidate for the response coefficient." in tex
         assert "Does the reconstructed derivation agree with the benchmark regime?" in tex
         assert r"\section{Iterative L3-L4 Research Record}" in tex
         assert "Check whether the reconstructed response coefficient survives the benchmark normalization bridge." in tex
+        assert "Guiding candidate routes in this run" in tex
         assert "The benchmark comparison agrees with the derivation backbone" in tex
         assert "Recover the omitted normalization factor from the cited benchmark note" in tex
+        assert "Derivation notes accumulated in this run" in tex
+        assert "Comparison receipts accumulated in this run" in tex
         assert r"\section{Consolidated Derivation And Validation Status}" in tex
         assert "Response-coefficient reconstruction from source A" in tex
         assert "paper-a" in tex
@@ -438,6 +441,8 @@ def test_notebook_prefers_research_report_surface_when_present() -> None:
 
         tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
 
+        assert r"\section{Working Ideas, Hypotheses, And Candidate Routes}" not in tex
+        assert "Check the normalization bridge." in tex
         assert r"\section{Current Claims And Stable Results}" in tex
         assert "The bounded derivation backbone survives the benchmark comparison." in tex
         assert "One normalization factor remains unresolved." in tex

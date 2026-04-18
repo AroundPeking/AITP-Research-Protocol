@@ -367,41 +367,22 @@ def _render_setup_section(l3_root: Path) -> list[str]:
     return lines
 
 
-def _render_working_ideas_section(run_records: list[dict[str, Any]], l3_root: Path) -> list[str]:
-    topic_paths = _topic_paths(l3_root)
-    research_report = _read_json(topic_paths["research_report"]) or {}
-    idea_packet = _read_json(topic_paths["idea_packet"]) or {}
-    candidate_routes = list(research_report.get("candidate_routes") or [])
-    candidate_rows = [
-        (record["run_id"], row)
-        for record in run_records
-        for row in (record.get("candidate_rows") or [])
-    ] if not candidate_routes else []
-    if not candidate_rows and not candidate_routes and not idea_packet:
+def _candidate_route_rows_for_run(record: dict[str, Any], research_report: dict[str, Any]) -> list[dict[str, Any]]:
+    candidate_rows = _dict_list(record.get("candidate_rows"))
+    if candidate_rows:
+        return candidate_rows
+    report_run_id = _summarize_scalar(research_report.get("run_id"))
+    run_id = _summarize_scalar(record.get("run_id"))
+    if report_run_id and run_id and report_run_id != run_id:
         return []
+    return _dict_list(research_report.get("candidate_routes"))
 
-    lines = ["\\section{Working Ideas, Hypotheses, And Candidate Routes}", ""]
-    novelty_target = _summarize_scalar(idea_packet.get("novelty_target"))
-    if novelty_target:
-        lines.append("\\subsection*{Why This Route Might Matter}")
-        lines.extend(_render_plain_paragraph(novelty_target))
 
-    first_validation_route = _summarize_scalar(idea_packet.get("first_validation_route"))
-    if first_validation_route:
-        lines.append("\\subsection*{First Planned Test Route}")
-        lines.extend(_render_plain_paragraph(first_validation_route))
-
-    evidence_bar = _summarize_scalar(idea_packet.get("initial_evidence_bar"))
-    if evidence_bar:
-        lines.append("\\subsection*{Evidence Bar}")
-        lines.extend(_render_plain_paragraph(evidence_bar))
-
-    iterable = candidate_routes or [
-        {"run_id": run_id, **row}
-        for run_id, row in candidate_rows
-    ]
-    for row in iterable:
-        run_id = _summarize_scalar(row.get("run_id"))
+def _render_candidate_route_boxes(run_id: str, rows: list[dict[str, Any]]) -> list[str]:
+    if not rows:
+        return []
+    lines = ["\\subsubsection*{Guiding candidate routes in this run}", ""]
+    for row in rows:
         title = _summarize_scalar(row.get("title") or row.get("candidate_id") or "Candidate route")
         body: list[str] = []
         summary = _summarize_scalar(row.get("summary"))
@@ -413,7 +394,7 @@ def _render_working_ideas_section(run_records: list[dict[str, Any]], l3_root: Pa
             body.extend(_render_plain_paragraph(question))
         assumptions = _string_list(row.get("assumptions"))
         if assumptions:
-            body.append("{\\small\\bfseries\\color{ink} Hypotheses for this route}\\par")
+            body.append("{\\small\\bfseries\\color{ink} Explicit assumptions for this route}\\par")
             body.append("\\begin{itemize}")
             for item in assumptions:
                 body.append(f"  \\item {_esc_latex_body(item)}")
@@ -428,6 +409,99 @@ def _render_working_ideas_section(run_records: list[dict[str, Any]], l3_root: Pa
                     ("Status", _summarize_scalar(row.get("status"))),
                     ("Planned Validation", _summarize_scalar(row.get("validation_route") or row.get("proposed_validation_route"))),
                     ("Intended L2 Target", _summarize_scalar(row.get("intended_l2_targets"))),
+                ],
+                body=body,
+            )
+        )
+    return lines
+
+
+def _render_derivation_boxes_for_run(run_id: str, rows: list[dict[str, Any]]) -> list[str]:
+    if not rows:
+        return []
+    lines = ["\\subsubsection*{Derivation notes accumulated in this run}", ""]
+    for row in rows:
+        title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Derivation note")
+        body: list[str] = []
+        body.extend(_render_body_paragraphs(_summarize_scalar(row.get("body"))))
+
+        provenance_note = _summarize_scalar(row.get("provenance_note"))
+        if provenance_note:
+            body.append("{\\small\\bfseries\\color{ink} Provenance note}\\par")
+            body.extend(_render_plain_paragraph(provenance_note))
+
+        assumptions = _string_list(row.get("assumptions"))
+        if assumptions:
+            body.append("{\\small\\bfseries\\color{ink} Assumptions held fixed}\\par")
+            body.append("\\begin{itemize}")
+            for item in assumptions:
+                body.append(f"  \\item {_esc_latex_body(item)}")
+            body.append("\\end{itemize}")
+            body.append("")
+
+        source_refs = _string_list(row.get("source_refs"))
+        if source_refs:
+            body.append("{\\small\\bfseries\\color{ink} Source references used in this derivation}\\par")
+            body.append("\\begin{itemize}")
+            for item in source_refs:
+                body.append(f"  \\item {_esc_latex_body(item)}")
+            body.append("\\end{itemize}")
+            body.append("")
+
+        lines.extend(
+            _render_named_box(
+                title,
+                [
+                    ("Run", run_id),
+                    ("Derivation ID", _summarize_scalar(row.get("derivation_id"))),
+                    ("Kind", _summarize_scalar(row.get("derivation_kind"))),
+                    ("Status", _summarize_scalar(row.get("status"))),
+                ],
+                body=body,
+            )
+        )
+    return lines
+
+
+def _render_comparison_boxes_for_run(run_id: str, rows: list[dict[str, Any]]) -> list[str]:
+    if not rows:
+        return []
+    lines = ["\\subsubsection*{Comparison receipts accumulated in this run}", ""]
+    for row in rows:
+        title = _summarize_scalar(row.get("title") or row.get("comparison_id") or "Comparison receipt")
+        body: list[str] = []
+
+        summary = _summarize_scalar(row.get("comparison_summary"))
+        if summary:
+            body.extend(_render_plain_paragraph(summary))
+
+        limitations = _string_list(row.get("limitations"))
+        if limitations:
+            body.append("{\\small\\bfseries\\color{ink} Explicit limitations kept open}\\par")
+            body.append("\\begin{itemize}")
+            for item in limitations:
+                body.append(f"  \\item {_esc_latex_body(item)}")
+            body.append("\\end{itemize}")
+            body.append("")
+
+        compared_unit_ids = _string_list(row.get("compared_unit_ids"))
+        if compared_unit_ids:
+            body.append("{\\small\\bfseries\\color{ink} Reused comparison targets}\\par")
+            body.append("\\begin{itemize}")
+            for item in compared_unit_ids:
+                body.append(f"  \\item {_esc_latex_body(item)}")
+            body.append("\\end{itemize}")
+            body.append("")
+
+        lines.extend(
+            _render_named_box(
+                title,
+                [
+                    ("Run", run_id),
+                    ("Comparison ID", _summarize_scalar(row.get("comparison_id"))),
+                    ("Candidate Ref", _summarize_scalar(row.get("candidate_ref_id"))),
+                    ("Scope", _summarize_scalar(row.get("comparison_scope"))),
+                    ("Outcome", _summarize_scalar(row.get("outcome"))),
                 ],
                 body=body,
             )
@@ -604,6 +678,7 @@ def _render_run_iteration_section(l3_root: Path, run_records: list[dict[str, Any
         )
     )
     if report_rounds:
+        report_run_id = _summarize_scalar(research_report.get("run_id") or "report round")
         lines.extend(
             _render_named_box(
                 "Skill-guided round summary",
@@ -611,6 +686,12 @@ def _render_run_iteration_section(l3_root: Path, run_records: list[dict[str, Any
                 body=_render_plain_paragraph(
                     "This round summary comes from the report-facing runtime surface and is intended to preserve the scientific sequence of question, test, result, and understanding change."
                 ),
+            )
+        )
+        lines.extend(
+            _render_candidate_route_boxes(
+                report_run_id,
+                _dict_list(research_report.get("candidate_routes")),
             )
         )
         for round_row in report_rounds:
@@ -657,6 +738,18 @@ def _render_run_iteration_section(l3_root: Path, run_records: list[dict[str, Any
                     body=body,
                 )
             )
+        lines.extend(
+            _render_derivation_boxes_for_run(
+                report_run_id,
+                _dict_list(research_report.get("current_derivation_spine")),
+            )
+        )
+        lines.extend(
+            _render_comparison_boxes_for_run(
+                report_run_id,
+                _dict_list(research_report.get("comparison_receipts")),
+            )
+        )
         return lines
 
     for record in run_records:
@@ -671,6 +764,12 @@ def _render_run_iteration_section(l3_root: Path, run_records: list[dict[str, Any
                     ("Latest Conclusion", _summarize_scalar(journal.get("latest_conclusion_status"))),
                     ("Staging", _summarize_scalar(journal.get("latest_staging_decision"))),
                 ]
+            )
+        )
+        lines.extend(
+            _render_candidate_route_boxes(
+                _summarize_scalar(record.get("run_id")),
+                _candidate_route_rows_for_run(record, research_report),
             )
         )
         iteration_rows = record.get("iteration_rows") or []
@@ -691,6 +790,18 @@ def _render_run_iteration_section(l3_root: Path, run_records: list[dict[str, Any
                     ),
                 )
             )
+        lines.extend(
+            _render_derivation_boxes_for_run(
+                _summarize_scalar(record.get("run_id")),
+                _dict_list(record.get("derivation_rows")),
+            )
+        )
+        lines.extend(
+            _render_comparison_boxes_for_run(
+                _summarize_scalar(record.get("run_id")),
+                _dict_list(record.get("comparison_rows")),
+            )
+        )
     return lines
 
 
@@ -950,7 +1061,6 @@ def _render_topic_archive_sections(l3_root: Path) -> list[str]:
     for block in (
         _render_research_framing_section(l3_root),
         _render_setup_section(l3_root),
-        _render_working_ideas_section(run_records, l3_root),
         _render_run_iteration_section(l3_root, run_records),
         _render_current_claims_section(l3_root, run_records),
         _render_consolidated_derivation_section(run_records),
@@ -1339,7 +1449,6 @@ def _rebuild_latex(l3_root: Path, paths: dict[str, Path]) -> None:
     for block in (
         _render_research_framing_section(l3_root),
         _render_setup_section(l3_root),
-        _render_working_ideas_section(run_records, l3_root),
         _render_run_iteration_section(l3_root, run_records),
         _render_current_claims_section(l3_root, run_records),
         _render_consolidated_derivation_section(run_records),
