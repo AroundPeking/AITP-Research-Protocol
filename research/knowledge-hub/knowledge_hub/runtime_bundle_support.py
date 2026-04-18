@@ -922,6 +922,11 @@ def materialize_runtime_protocol_bundle(
         iteration_journal["path"] = self._relativize(Path(shell_surfaces["iteration_journal_path"]))
     if shell_surfaces.get("iteration_journal_note_path"):
         iteration_journal["note_path"] = self._relativize(Path(shell_surfaces["iteration_journal_note_path"]))
+    research_report = dict(shell_surfaces.get("research_report") or {})
+    if shell_surfaces.get("research_report_path"):
+        research_report["path"] = self._relativize(Path(shell_surfaces["research_report_path"]))
+    if shell_surfaces.get("research_report_note_path"):
+        research_report["note_path"] = self._relativize(Path(shell_surfaces["research_report_note_path"]))
     idea_reuse_context = _normalize_reuse_context(
         shell_surfaces.get("idea_reuse_context"),
         topic_slug=topic_slug,
@@ -1331,6 +1336,13 @@ def materialize_runtime_protocol_bundle(
                     "reason": "Run-local L3-L4 iteration journal for the active research round. Read this to review plan, return, and synthesis continuity across iterations.",
                 }
             )
+        if str(research_report.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(research_report.get("note_path")),
+                    "reason": "Physicist-style report surface for the topic. Use this before composing human-facing explanations or notebook prose from raw ledgers.",
+                }
+            )
         if str(idea_packet.get("status") or "").strip() == "needs_clarification":
             must_read_now.insert(
                 0,
@@ -1448,6 +1460,13 @@ def materialize_runtime_protocol_bundle(
                 {
                     "path": str(iteration_journal.get("note_path")),
                     "reason": "Run-local L3-L4 iteration journal for the active research round. Read this before stitching together execution and synthesis manually.",
+                }
+            )
+        if str(research_report.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(research_report.get("note_path")),
+                    "reason": "Topic-scale report surface with current claims, derivation spine, and open-problem boundaries.",
                 }
             )
         must_read_now.append(
@@ -2348,6 +2367,7 @@ def materialize_runtime_protocol_bundle(
         "promotion_readiness": promotion_readiness,
         "validation_review_bundle": validation_review_bundle,
         "iteration_journal": iteration_journal,
+        "research_report": research_report,
         "idea_reuse_context": idea_reuse_context,
         "plan_reuse_context": plan_reuse_context,
         "execution_resource_context": execution_resource_context,

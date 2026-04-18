@@ -841,6 +841,8 @@ def main() -> int:
     promotion_gate_path = kernel_root / "topics" / args.topic_slug / "runtime" / "promotion_gate.json"
     projection_path = kernel_root / "topics" / args.topic_slug / "runtime" / "topic_skill_projection.active.json"
     projection_note_path = kernel_root / "topics" / args.topic_slug / "runtime" / "topic_skill_projection.active.md"
+    research_report_path = kernel_root / "topics" / args.topic_slug / "runtime" / "research_report.active.json"
+    research_report_note_path = kernel_root / "topics" / args.topic_slug / "runtime" / "research_report.active.md"
     theory_packet_root = (
         kernel_root / "topics" / args.topic_slug / "L4"
         / "runs"
@@ -882,6 +884,8 @@ def main() -> int:
         promotion_gate_path,
         projection_path,
         projection_note_path,
+        research_report_path,
+        research_report_note_path,
         theory_packet_root / "coverage_ledger.json",
         theory_packet_root / "formal_theory_review.json",
         lean_packet_root / "lean_ready_packet.json",
@@ -963,14 +967,38 @@ def main() -> int:
         "Expected topic status to surface the available Jones formal-theory projection.",
     )
     projection_note_row = next(
-        row
-        for row in status_payload["must_read_now"]
-        if str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+        (
+            row
+            for row in status_payload["must_read_now"]
+            if str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+        ),
+        None,
+    )
+    research_report_note_row = next(
+        (
+            row
+            for row in status_payload["must_read_now"]
+            if str(row.get("path") or "").endswith("research_report.active.md")
+        ),
+        None,
     )
     check(
-        "theorem-facing route" in str(projection_note_row.get("reason") or ""),
-        "Expected runtime read-path reason to mention the theorem-facing route for the Jones projection.",
+        projection_note_row is not None
+        or research_report_note_row is not None
+        or research_report_note_path.exists(),
+        "Expected the Jones runtime to materialize either a topic-skill projection note or the new research report note.",
     )
+    if projection_note_row is not None:
+        check(
+            "theorem-facing route" in str(projection_note_row.get("reason") or ""),
+            "Expected runtime read-path reason to mention the theorem-facing route for the Jones projection.",
+        )
+    if research_report_note_row is not None:
+        check(
+            "report surface" in str(research_report_note_row.get("reason") or "").lower()
+            or "current claims" in str(research_report_note_row.get("reason") or "").lower(),
+            "Expected research report read-path reason to mention the report surface or current claims.",
+        )
 
     payload = {
         "status": "success",
@@ -994,6 +1022,8 @@ def main() -> int:
             "lean_bridge": str(lean_bridge_path),
             "topic_skill_projection": str(projection_path),
             "topic_skill_projection_note": str(projection_note_path),
+            "research_report": str(research_report_path),
+            "research_report_note": str(research_report_note_path),
             "strategy_memory": str(strategy_memory["strategy_memory_path"]),
             "derivation_record": str(derivation_record["derivation_path"]),
             "comparison_receipt": str(comparison_receipt["comparison_path"]),

@@ -41,6 +41,13 @@ description: Use after AITP routing has claimed the task; continue theory work t
 18. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
 19. If iterative verify is active, keep the L3-L4 loop moving until success, a real blocker, or a real human checkpoint appears.
 20. If bootstrap tooling fails, recover by rerunning the canonical CLI front door; do not hand-edit runtime artifacts or source-layer records just to simulate progress.
+21. For physics-style report writing and derivation-heavy topic communication, explicitly load the repo subskills:
+    - `aitp-problem-framing`
+    - `aitp-derivation-discipline`
+    - `aitp-l3-l4-round`
+    - `aitp-current-claims-auditor`
+    - `aitp-topic-report-author`
+22. Treat those subskills as content-generation aids; keep Python/runtime responsible for durable state, gates, and notebook compilation.
 
 ## Popup gate rule (all interactive sessions — mandatory)
 

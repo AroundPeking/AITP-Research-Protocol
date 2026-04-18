@@ -61,9 +61,11 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
         l3_root = topic_root / "L3"
         runtime_root = topic_root / "runtime"
         run_root = l3_root / "runs" / "run-001"
+        iteration_root = run_root / "iterations" / "iteration-002"
         l3_root.mkdir(parents=True, exist_ok=True)
         runtime_root.mkdir(parents=True, exist_ok=True)
         run_root.mkdir(parents=True, exist_ok=True)
+        iteration_root.mkdir(parents=True, exist_ok=True)
 
         (runtime_root / "research_question.contract.json").write_text(
             json.dumps(
@@ -250,6 +252,63 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
             ),
             encoding="utf-8",
         )
+        (iteration_root / "plan.contract.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "run_id": "run-001",
+                    "iteration_id": "iteration-002",
+                    "selected_action_summary": "Check whether the reconstructed response coefficient survives the benchmark normalization bridge.",
+                    "verification_focus": "Bounded benchmark comparison",
+                    "pass_conditions": [
+                        "Keep the normalization bridge explicit.",
+                        "Do not collapse k and sigma_xy before the comparison receipt is written.",
+                    ],
+                    "failure_signals": [
+                        "A hidden factor appears in the benchmark convention.",
+                    ],
+                    "planned_outputs": [
+                        "Updated derivation note",
+                        "Comparison receipt",
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (iteration_root / "l4_return.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "run_id": "run-001",
+                    "iteration_id": "iteration-002",
+                    "status": "returned",
+                    "returned_result_status": "partial",
+                    "returned_result_summary": "The benchmark comparison agrees with the derivation backbone, but still leaves one normalization factor explicit rather than closed.",
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (iteration_root / "l3_synthesis.json").write_text(
+            json.dumps(
+                {
+                    "topic_slug": "demo-topic",
+                    "run_id": "run-001",
+                    "iteration_id": "iteration-002",
+                    "status": "summarized",
+                    "conclusion_status": "continue_iteration",
+                    "staging_decision": "defer",
+                    "synthesis_summary": "The bounded route is still useful, but the normalization caveat stays explicit and blocks any stronger claim.",
+                    "next_step_summary": "Recover the omitted normalization factor from the cited benchmark note before widening the claim.",
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
         notebook.append_notebook_entry(
             l3_root,
@@ -263,25 +322,123 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
 
         tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
 
-        assert r"\section{Research Framing}" in tex
+        assert r"\section{Research Question And Background}" in tex
         assert "Recover the bounded derivation and benchmark route." in tex
-        assert r"\section{Source Provenance Map}" in tex
-        assert "Lecture Notes A" in tex
-        assert "Paper A uses k while Paper B uses sigma\\_xy" in tex
-        assert r"\section{Derivation Notebook}" in tex
+        assert r"\section{Setup, Notation, And Regime}" in tex
+        assert "Use Euclidean-signature notation unless a source explicitly says otherwise." in tex
+        assert r"\section{Working Ideas, Hypotheses, And Candidate Routes}" in tex
+        assert "A source-grounded derivation candidate for the response coefficient." in tex
+        assert "Does the reconstructed derivation agree with the benchmark regime?" in tex
+        assert r"\section{Iterative L3-L4 Research Record}" in tex
+        assert "Check whether the reconstructed response coefficient survives the benchmark normalization bridge." in tex
+        assert "The benchmark comparison agrees with the derivation backbone" in tex
+        assert "Recover the omitted normalization factor from the cited benchmark note" in tex
+        assert r"\section{Consolidated Derivation And Validation Status}" in tex
         assert "Response-coefficient reconstruction from source A" in tex
         assert "paper-a" in tex
         assert "This derivation is reconstructed in L3 from the cited source" in tex
-        assert r"\section{L2 Comparison Receipts}" in tex
         assert "Benchmark-facing derivation comparison" in tex
         assert "Normalization differs by a convention-dependent factor" in tex
-        assert r"\section{Run And Iteration Record}" in tex
-        assert "run-001" in tex
-        assert "iteration-002" in tex
+        assert r"\section{Current Conclusion And Open Problems}" in tex
+        assert "The sign convention for the response coefficient remains unresolved." in tex
+        assert r"\section{Source Provenance And Reading Map}" in tex
+        assert "Lecture Notes A" in tex
+        assert "Paper A uses k while Paper B uses sigma\\_xy" in tex
         assert r"\section{Candidate Catalog}" in tex
         assert "candidate:demo-bound" in tex
         assert r"\section{Strategy And Failure Memory}" in tex
         assert "Check notation alignment before comparing benchmark formulas." in tex
-        assert r"\section{Open Problems And Deferred Fragments}" in tex
-        assert "Recover the missing intermediate derivation step" in tex
         assert r"\section{Chronological Entry Log}" in tex
+
+
+def test_notebook_prefers_research_report_surface_when_present() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        topic_root = Path(td) / "topics" / "demo-topic"
+        l3_root = topic_root / "L3"
+        runtime_root = topic_root / "runtime"
+        l3_root.mkdir(parents=True, exist_ok=True)
+        runtime_root.mkdir(parents=True, exist_ok=True)
+
+        (runtime_root / "research_report.active.json").write_text(
+            json.dumps(
+                {
+                    "status": "available",
+                    "topic_slug": "demo-topic",
+                    "run_id": "run-001",
+                    "problem": {
+                        "question": "Can the bounded route survive the benchmark comparison without hiding the normalization caveat?",
+                        "literature_position": "Primary source basis: Lecture Notes A, Benchmark Note B",
+                    },
+                    "physical_motivation": "Make the normalization caveat explicit instead of polishing it away.",
+                    "setup": {
+                        "scope": ["Keep the bounded route explicit."],
+                        "assumptions": ["Weak coupling."],
+                        "notation": ["Use source convention first."],
+                        "deliverables": ["One bounded derivation note."],
+                    },
+                    "candidate_routes": [
+                        {
+                            "title": "Bounded route",
+                            "summary": "A bounded route to the response coefficient.",
+                            "question": "Does the benchmark note preserve the same coefficient?",
+                            "status": "ready_for_validation",
+                            "validation_route": "benchmark_review",
+                            "assumptions": ["Weak coupling."],
+                        }
+                    ],
+                    "iteration_rounds": [
+                        {
+                            "iteration_id": "iteration-001",
+                            "round_question": "Check the normalization bridge.",
+                            "pass_conditions": ["Keep factor bookkeeping explicit."],
+                            "failure_signals": ["A hidden factor appears."],
+                            "returned_result_summary": "The main backbone survives, but one factor remains unresolved.",
+                            "understanding_delta": "The caveat is real, not cosmetic.",
+                            "next_step_summary": "Recover the omitted factor before promotion.",
+                            "conclusion_status": "continue_iteration",
+                            "staging_decision": "defer",
+                        }
+                    ],
+                    "current_claims": [
+                        {
+                            "claim": "The bounded derivation backbone survives the benchmark comparison.",
+                            "status": "validated_partial",
+                            "support": "L3 derivation, L2 comparison receipt",
+                            "limitation": "One normalization factor remains unresolved.",
+                            "next_action": "Recover the omitted factor before promotion.",
+                        }
+                    ],
+                    "current_derivation_spine": [],
+                    "failed_routes": [],
+                    "comparison_receipts": [],
+                    "current_conclusion": "The route is usable but still caveated.",
+                    "open_problems": ["Recover the omitted normalization factor."],
+                    "recommended_skills": [
+                        {
+                            "skill_name": "aitp-topic-report-author",
+                            "path": "skills/aitp-topic-report-author/SKILL.md",
+                            "purpose": "Assemble the topic into a physicist-readable report.",
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        notebook.append_notebook_entry(
+            l3_root,
+            kind="candidate_update",
+            title="Seed entry",
+            body="Seed notebook rebuild.",
+            status="ready_for_validation",
+            run_id="run-001",
+        )
+
+        tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
+
+        assert r"\section{Current Claims And Stable Results}" in tex
+        assert "The bounded derivation backbone survives the benchmark comparison." in tex
+        assert "One normalization factor remains unresolved." in tex
+        assert "Can the bounded route survive the benchmark comparison" in tex

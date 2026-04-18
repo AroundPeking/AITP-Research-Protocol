@@ -303,10 +303,35 @@ from .bundle_support import (
 
 _PROMOTION_GATE_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "promotion_gate_policy.json"
 
+_DEFAULT_PROMOTION_GATE_CONFIG: dict[str, Any] = {
+    "derivation_required": {
+        "exempt_types": ["topic_skill_projection"],
+        "required_types": ["derivation_object", "derivation_step", "proof_fragment", "theorem_card"],
+        "requires_on_field_set": ["formal_theory_role", "statement_graph_role"],
+        "route_signal_tokens": ["derivation", "proof", "formal"],
+    },
+    "theory_packet_required": {
+        "exempt_types": ["topic_skill_projection"],
+        "required_types": ["theorem_card", "proof_fragment"],
+        "requires_on_field_set": ["formal_theory_role", "statement_graph_role"],
+        "route_signal_tokens": ["theorem", "proof", "formal"],
+    },
+    "detail_thresholds": {
+        "derivation_min_length": 120,
+        "derivation_latex_markers": ["$$", "\\begin{align", "\\["],
+        "derivation_paragraph_separator": "\n\n",
+        "derivation_min_period_count": 3,
+        "comparison_min_length": 80,
+        "comparison_min_period_count": 1,
+    },
+}
+
 
 @lru_cache(maxsize=1)
 def _load_promotion_gate_config() -> dict:
-    return json.loads(_PROMOTION_GATE_CONFIG_PATH.read_text(encoding="utf-8"))
+    if _PROMOTION_GATE_CONFIG_PATH.exists():
+        return json.loads(_PROMOTION_GATE_CONFIG_PATH.read_text(encoding="utf-8"))
+    return dict(_DEFAULT_PROMOTION_GATE_CONFIG)
 
 
 def _looks_like_repo_root(path: Path) -> bool:

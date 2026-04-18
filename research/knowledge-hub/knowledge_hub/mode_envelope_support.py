@@ -14,10 +14,63 @@ from .mode_registry import is_valid_transition, normalize_runtime_mode as _norma
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "mode_envelope_data.json"
 
+_DEFAULT_CONFIG: dict[str, Any] = {
+    "mode_specs": {
+        "explore": {
+            "local_task": "Clarify the bounded research question and source basis before deeper commitment.",
+            "foreground_layers": ["L0", "L1", "L3-I"],
+            "required_writeback": [],
+            "allowed_backedges": ["L0", "human_checkpoint"],
+            "forbidden_shortcuts": ["Do not treat exploration as validation or promotion."],
+            "human_checkpoint_policy": "route_change_only",
+            "entry_conditions": ["A bounded question or source basis is still being clarified."],
+            "exit_conditions": ["Exit once the topic has a usable idea, source basis, or explicit blocker."],
+        },
+        "learn": {
+            "local_task": "Run the bounded L3-A <-> L4 verification loop for the active topic route.",
+            "foreground_layers": ["L3", "L4"],
+            "required_writeback": [],
+            "allowed_backedges": ["L0", "L2", "human_checkpoint"],
+            "forbidden_shortcuts": ["Do not treat style confidence as validation."],
+            "human_checkpoint_policy": "when_route_changes",
+            "entry_conditions": ["The topic already has a bounded question or source basis worth checking."],
+            "exit_conditions": ["Exit once the verification loop yields a result, blocker, or writeback candidate."],
+        },
+        "implement": {
+            "local_task": "Advance a bounded writeback or reusable-result route without skipping trust gates.",
+            "foreground_layers": ["L3", "L4", "L2"],
+            "required_writeback": [],
+            "allowed_backedges": ["L0", "L3", "human_checkpoint"],
+            "forbidden_shortcuts": ["Do not bypass L3-R when moving toward L2."],
+            "human_checkpoint_policy": "promotion_boundary",
+            "entry_conditions": ["A bounded route is mature enough to consider writeback or stable result packaging."],
+            "exit_conditions": ["Exit once the writeback decision is resolved or the route demotes back to learn mode."],
+        },
+    },
+    "literature_source_tokens": ["paper", "source", "lecture", "chapter", "literature", "reference"],
+    "literature_intake_tokens": ["read", "intake", "recover", "register", "distill"],
+    "literature_keep_suffixes": ["research_question.contract.md", "topic_dashboard.md"],
+    "literature_defer_rules": [],
+    "literature_submode_spec": {
+        "local_task": "Recover and distill the bounded literature basis before broader synthesis.",
+        "required_writeback": [],
+        "entry_conditions": ["The current route is still source-intake heavy."],
+        "exit_conditions": ["Exit once the source basis is explicit enough to support bounded L3 work."],
+    },
+    "mode_escalation_triggers": {
+        "explore": ["direction_ambiguity", "resource_risk_limit_choice"],
+        "learn": ["non_trivial_consultation", "contradiction_detected", "verification_route_selection"],
+        "implement": ["promotion_intent", "decision_override_present"],
+    },
+    "writeback_artifact_map": {},
+}
+
 
 @lru_cache(maxsize=1)
 def _load_config() -> dict:
-    return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    if _CONFIG_PATH.exists():
+        return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    return dict(_DEFAULT_CONFIG)
 
 
 def _mode_specs() -> dict[str, dict[str, Any]]:

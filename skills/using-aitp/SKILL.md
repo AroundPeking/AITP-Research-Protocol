@@ -64,6 +64,12 @@ description: Use when a request might be theoretical-physics research, topic con
 9. After AITP routing is materialized, load `aitp-runtime` and follow `runtime_protocol.generated.md`.
 10. report the current human-control posture in plain language before deeper work.
 11. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
+12. When the topic is entering report-writing, derivation restoration, or round-by-round scientific narration, load the relevant repo skills:
+   - `aitp-problem-framing`
+   - `aitp-derivation-discipline`
+   - `aitp-l3-l4-round`
+   - `aitp-current-claims-auditor`
+   - `aitp-topic-report-author`
 
 ## Popup gate protocol (mandatory before every topic action)
 
