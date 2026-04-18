@@ -67,27 +67,22 @@ description: Use when a request might be theoretical-physics research, topic con
 
 ## Popup gate protocol (mandatory before every topic action)
 
-1. Immediately after resolving the current topic, call `aitp_get_topic_popup(topic_slug=<current>)`.
-2. If the returned `kind` is `"none"`, continue normally.
-3. If `kind` is not `"none"`, a human-blocking gate is active. **Stop all other work.**
-4. Present the popup using the best native UI available in the current environment:
-   - **Claude Code**: Call the built-in `AskUserQuestion` tool with:
-     - `question`: the popup `title` + a newline + the `summary`
-     - `options`: an array mapping each popup `options` entry to `{label: <option label>, description: <option description>}`
-     - `multi_select`: false
-     - Append a final fallback option `{label: "Defer / View details", description: "Pause and let me read more before deciding"}` if useful.
-   - **OpenCode**: Call the built-in `question` tool with an equivalent structured payload (question text + options list). If the native `question` tool is unavailable, fall back to rendering the options as a numbered Markdown list and reading the reply.
-   - **Other environments (fallback)**: Render the popup as natural-language text:
-     - State the `title` and `summary` in plain language.
-     - List the `options` (usually 2–4), explaining the trade-off of each route.
-     - Ask the user to pick one option.
-5. Once the user chooses, map the selected option back to its 0-based index in the original `popup.options` array, then call `aitp_resolve_popup_choice(topic_slug=<current>, choice=<that index>, comment="<brief rationale>")`.
-6. If the user declines to choose, defers, or picks the defer option, treat that as a pause and do not proceed past the gate.
-7. Only after `kind == "none"` (or a successful resolution returns a clear next step) should you continue with `status`, `next`, or deeper AITP work.
-8. This applies at:
+1. Immediately after resolving the current topic, call `aitp_get_popup(topic_slug=<current>)`.
+2. If the returned `needs_popup` is `false`, continue normally.
+3. If `needs_popup` is `true`, a human-blocking gate is active. **Stop all other work.**
+4. **Present the popup using the pre-built `ask_user_question` field from the response.** The `aitp_get_popup` response contains an `ask_user_question` object that is already formatted for direct use:
+   - **Claude Code**: Call the built-in `AskUserQuestion` tool with the `ask_user_question.questions` array as the `questions` parameter. Use `ask_user_question.choice_index_map` to translate the 0-based response back to the popup's `choice_index` for `aitp_resolve_popup`.
+   - **OpenCode**: Call the built-in `question` tool with the same `questions` payload. Map the response through `choice_index_map` identically.
+   - **Fallback (no structured question tool)**: Render the popup as a numbered list from `popup.choices`, ask the user to reply with a number, then map to `choice_index` via `choice_index_map`.
+5. If `ask_user_question.inspect_path` is non-empty and the user asks for details, read that file and re-present the popup.
+6. Once the user chooses, call `aitp_resolve_popup_choice(topic_slug=<current>, choice_index=<mapped index>, comment="<brief rationale>")`.
+7. If the user declines to choose or defers, do NOT proceed past the gate. Wait for an explicit choice.
+8. Only after `needs_popup` is `false` (or a successful resolution clears the gate) should you continue with `loop`, `resume`, or deeper AITP work.
+9. This check is mandatory at:
    - The very start of every topic-bound interaction.
-   - After any `aitp loop`, `aitp next`, or `aitp status` return.
+   - After every `aitp_run_topic_loop`, `aitp_resume_topic`, or `aitp_bootstrap_topic` call.
    - Whenever the user says anything that might advance or alter topic state.
+10. **Hard rule**: You MUST NOT skip this check. You MUST NOT silently continue past a popup. You MUST NOT answer the research question instead of presenting the popup. A popup means AITP requires a human decision before any further work.
 
 ## Allowed exception
 
