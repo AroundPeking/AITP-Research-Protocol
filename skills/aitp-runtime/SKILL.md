@@ -49,7 +49,9 @@ When the AITP runtime hits a human gate (promotion approval, operator checkpoint
 1. **Before every loop/resume/bootstrap call**, call `aitp_get_popup` for the target `topic_slug`.
 2. If `needs_popup` is `true`:
    - STOP. Do not call `aitp_run_topic_loop`, `aitp_bootstrap_topic`, or `aitp_resume_topic` yet.
-   - Use the pre-built `ask_user_question` field from the response. In Claude Code, pass `ask_user_question.questions` directly to the `AskUserQuestion` tool. Map the 0-based response back via `ask_user_question.choice_index_map`.
+   - Use the pre-built `ask_user_question` field from the response.
+     - **Claude Code**: Pass `ask_user_question.questions` directly to the `AskUserQuestion` tool. Map the 0-based response back via `ask_user_question.choice_index_map`.
+     - **Kimi Code CLI**: Pass `ask_user_question.questions` to the `AskUserQuestion` tool. Map the 0-based response back via `ask_user_question.choice_index_map`.
    - If `ask_user_question.inspect_path` is non-empty and the user wants details, read that file and re-present the popup.
    - When the user chooses, call `aitp_resolve_popup` with the mapped `choice_index`.
 3. **After every loop/resume/bootstrap call**, call `aitp_get_popup` again. The loop may have materialized a new gate.

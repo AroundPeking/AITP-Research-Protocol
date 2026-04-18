@@ -73,6 +73,7 @@ description: Use when a request might be theoretical-physics research, topic con
 4. **Present the popup using the pre-built `ask_user_question` field from the response.** The `aitp_get_popup` response contains an `ask_user_question` object that is already formatted for direct use:
    - **Claude Code**: Call the built-in `AskUserQuestion` tool with the `ask_user_question.questions` array as the `questions` parameter. Use `ask_user_question.choice_index_map` to translate the 0-based response back to the popup's `choice_index` for `aitp_resolve_popup`.
    - **OpenCode**: Call the built-in `question` tool with the same `questions` payload. Map the response through `choice_index_map` identically.
+   - **Kimi Code CLI**: Call the built-in `AskUserQuestion` tool with the `ask_user_question.questions` array. Map the 0-based response back via `ask_user_question.choice_index_map` to the popup's `choice_index` for `aitp_resolve_popup`.
    - **Fallback (no structured question tool)**: Render the popup as a numbered list from `popup.choices`, ask the user to reply with a number, then map to `choice_index` via `choice_index_map`.
 5. If `ask_user_question.inspect_path` is non-empty and the user asks for details, read that file and re-present the popup.
 6. Once the user chooses, call `aitp_resolve_popup_choice(topic_slug=<current>, choice_index=<mapped index>, comment="<brief rationale>")`.
