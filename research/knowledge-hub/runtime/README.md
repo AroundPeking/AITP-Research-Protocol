@@ -55,6 +55,10 @@ hiding those rules inside handler code.
   - primary machine-readable `L4` review bundle for the active topic/run before specialist review files are inspected
 - `topics/<topic_slug>/runtime/validation_review_bundle.active.md`
   - primary human-readable `L4` review bundle
+- `topics/<topic_slug>/runtime/research_report.active.json`
+  - machine-readable physicist-facing topic report surface carrying physical target, convention ledger, round-development rows, main derivation spine, current best statements, excluded routes, and open obligations
+- `topics/<topic_slug>/runtime/research_report.active.md`
+  - primary human-readable topic report summary in physics-first reading order
 - `topics/<topic_slug>/runtime/research_judgment.active.json`
   - machine-readable momentum / stuckness / surprise judgment surface for the active bounded route
 - `topics/<topic_slug>/runtime/research_judgment.active.md`
@@ -105,7 +109,7 @@ hiding those rules inside handler code.
 - `topics/<topic_slug>/L3/runs/<run_id>/l2_comparison_receipts.md`
   - human-readable comparison note index for the run
 - `topics/<topic_slug>/L3/research_notebook.tex`
-  - rebuilt XeLaTeX notebook source compiling runtime framing, L1 provenance, L3 derivations, comparison receipts, run history, and appendix log
+  - rebuilt XeLaTeX notebook source compiling a physics-first main text plus archival appendices over runtime framing, convention ledgers, L1 provenance, L3 derivations, comparison receipts, excluded routes, run history, and chronology
 - `topics/<topic_slug>/L3/research_notebook.pdf`
   - compiled human-facing research notebook when `xelatex` is available
 - `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/plan.contract.json`
@@ -223,6 +227,17 @@ Promotion-readiness rule of thumb for derivation-heavy work:
 - `scripts/sync_topic_state_support.py`
   - focused resume-stage inference, evidence-return explainability, and resume-note rendering support for `sync_topic_state.py`
 
+Notebook-facing honesty rule:
+
+- each bounded round should declare its scientific `round_type`,
+- each round should expose the obligation blocks it closed and the ones still
+  missing,
+- protocol metadata should remain visible but secondary to the physical
+  narrative,
+- missing convention bridges, source anchors, derivation detail, or benchmark
+  setup should affect claim readiness and unfinished work rather than being
+  smoothed away in prose.
+
 ## Surface role map
 
 Treat runtime surfaces by role, not by filename age.
@@ -230,6 +245,7 @@ Treat runtime surfaces by role, not by filename age.
 | Role | Surfaces | Meaning |
 |------|----------|---------|
 | Primary runtime truth | `topic_synopsis.json`, `topic_dashboard.md` | The main machine/human answer pair for current-topic runtime status |
+| Physicist-facing report truth | `research_report.active.json`, `research_report.active.md` | The topic's scientific reading order over physical target, convention ledger, round development, current statements, excluded routes, and open obligations |
 | Primary review truth | `validation_review_bundle.active.json`, `validation_review_bundle.active.md` | The main `L4` review entry pair before opening deeper review-support surfaces |
 | Judgment truth | `research_judgment.active.json`, `research_judgment.active.md` | The bounded momentum / stuckness / surprise pair that keeps decision surfaces reviewable |
 | Continuity truth | `collaborator_profile.active.json|md`, `research_trajectory.active.json|md`, `mode_learning.active.json|md` | Restart-facing collaborator continuity surfaces derived from durable runtime memory |

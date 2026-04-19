@@ -12,6 +12,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from acceptance_reference_support import locate_reference_topic_root
+
 
 SCRIPT_PATH = Path(__file__).resolve()
 KERNEL_ROOT = SCRIPT_PATH.parents[2]
@@ -77,14 +79,22 @@ def main() -> int:
     runtime_schemas_root = package_root / "runtime" / "schemas"
     if runtime_schemas_root.exists():
         shutil.copytree(runtime_schemas_root, kernel_root / "runtime" / "schemas", dirs_exist_ok=True)
-    reference_topic_root = package_root / "topics" / "jones-von-neumann-algebras" / "L0"
+    reference_topic_root = locate_reference_topic_root(
+        package_root=package_root,
+        repo_root=repo_root,
+        topic_slug="jones-von-neumann-algebras",
+    )
     shutil.copytree(
         reference_topic_root,
         kernel_root / "topics" / "jones-von-neumann-algebras" / "L0",
         dirs_exist_ok=True,
     )
 
-    reference_topic_root = package_root / "topics" / "jones-von-neumann-algebras" / "L0"
+    reference_topic_root = locate_reference_topic_root(
+        package_root=package_root,
+        repo_root=repo_root,
+        topic_slug="jones-von-neumann-algebras",
+    )
     shutil.copytree(
         reference_topic_root,
         kernel_root / "topics" / "jones-von-neumann-algebras" / "L0",

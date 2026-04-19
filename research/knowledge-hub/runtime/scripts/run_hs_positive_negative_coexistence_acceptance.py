@@ -20,10 +20,17 @@ if str(KERNEL_ROOT) not in sys.path:
     sys.path.insert(0, str(KERNEL_ROOT))
 
 from knowledge_hub.aitp_service import AITPService  # noqa: E402
+from knowledge_hub.l2_staging import stage_negative_result_entry  # noqa: E402
 
 
 POSITIVE_UNIT_ID = "claim:hs-like-chaos-window-finite-size-core"
 NEGATIVE_ENTRY_ID = "staging:hs-model-otoc-lyapunov-exponent-regime-mismatch"
+NEGATIVE_TITLE = "HS model OTOC Lyapunov exponent regime mismatch"
+NEGATIVE_SUMMARY = (
+    "The exact HS alpha=2 comparator remains a regime-mismatch warning: the "
+    "OTOC Lyapunov-exponent signal does not support including alpha=2 inside "
+    "the robust HS-like finite-size chaos window."
+)
 COEXISTENCE_QUERY = (
     "HS-like finite-size chaos window robust core OTOC Lyapunov exponent regime mismatch"
 )
@@ -94,6 +101,13 @@ def main() -> int:
     )
 
     service = AITPService(kernel_root=kernel_root, repo_root=repo_root)
+    negative_payload = stage_negative_result_entry(
+        kernel_root,
+        title=NEGATIVE_TITLE,
+        summary=NEGATIVE_SUMMARY,
+        failure_kind="regime_mismatch",
+        staged_by=args.updated_by,
+    )
     compile_map_payload = service.compile_l2_workspace_map()
     compile_graph_payload = service.compile_l2_graph_report()
     compile_report_payload = service.compile_l2_knowledge_report()
@@ -194,6 +208,8 @@ def main() -> int:
         "negative_result": {
             "entry_id": NEGATIVE_ENTRY_ID,
             "entry_json_path": str(negative_entry_path),
+            "entry_markdown_path": negative_payload["entry_markdown_path"],
+            "staging_manifest_json_path": negative_payload["manifest_json_path"],
         },
         "knowledge_report": {
             "json_path": str(report_json_path),

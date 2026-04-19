@@ -89,6 +89,18 @@ For numerical or execution-backed work, keep checking:
 - comparison against declared baselines,
 - whether the executed observable is really the observable the topic asked for.
 
+Notebook-facing rule:
+
+- every bounded round must record what scientific obligation it was trying to
+  close,
+- derivation rounds must expose a real reasoning spine rather than summary-only
+  prose,
+- source-restoration rounds must expose source anchors and L3 completion notes,
+- numerical or benchmark rounds must expose plan, setup, observables, result
+  interpretation, and next action,
+- synthesis rounds must name both the strongest surviving statements and the
+  routes that were excluded.
+
 ## 5. Verification evidence rule
 
 A validated computational or execution-backed claim should not exist without at
@@ -107,6 +119,8 @@ For proof-heavy work, completion should also stay capped when:
   detailed reasoning spine.
 - the theorem/proof packet still lacks a derivation graph or a ready
   `formal_theory_review.json`.
+- a current notebook/report statement depends on a round whose required
+  notebook-facing obligations are still missing.
 
 ## 6. Forbidden proxies
 
@@ -139,6 +153,10 @@ If an L2 comparison receipt says the route only partially matches, reveals a
 normalization mismatch, or exposes a missing cited step, that is a real gap
 signal. The correct move is to keep the limitation visible, narrow the claim,
 or return to `L0`; not to smooth the issue away in polished prose.
+
+If a round is missing a notebook-facing obligation block that matters for claim
+use, the system should also write that missing block into durable unfinished
+work instead of leaving it implicit in prose.
 
 That is why `GAP_RECOVERY_PROTOCOL.md` and follow-up subtopics are part of the
 kernel rather than a local convention.
