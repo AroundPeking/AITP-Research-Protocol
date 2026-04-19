@@ -177,8 +177,11 @@ Expected fields:
 - local step reference,
 - source file or citation,
 - page / section / equation anchor,
+- formula-level anchor when the restoration depends on a specific displayed
+  formula,
 - what the source says,
-- whether L3 completed omitted steps.
+- whether L3 completed omitted steps,
+- whether the step remains fully auditable or still has missing fields.
 
 ### 3.3 `failure_route_note`
 
@@ -323,11 +326,20 @@ Each derivation step should make clear:
 - why it is justified,
 - whether the step is source-given or L3-completed,
 - which assumptions it depends on,
+- which formula-level anchor supports it when the route is source-based,
+- whether the step still has missing audit fields,
 - which gaps remain open.
 
 Warnings, assumptions, caveats, and failure notes may use framed environments;
 the main derivation itself should remain easy to read as a mathematical
 argument.
+
+For long topics, the notebook may keep:
+
+- a main narrative spine that preserves the opening and most recent rounds,
+- supplementary appendix sections for intermediate round archives,
+- supplementary derivation files and excluded-route archives grouped by route
+  or derivation kind.
 
 ---
 

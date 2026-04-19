@@ -2161,6 +2161,16 @@ class AITPService:
             blockers.append(
                 f"{candidate_id}: derivation record is present but lacks a sufficiently detailed derivation body."
             )
+        step_audit = latest.get("derivation_step_audit") or {}
+        if not bool(step_audit.get("has_full_auditable_spine")):
+            blockers.append(
+                f"{candidate_id}: derivation record is missing an auditable stepwise derivation spine."
+            )
+        if str(latest.get("derivation_kind") or "").strip() == "source_reconstruction":
+            if not latest.get("source_anchor_table"):
+                blockers.append(
+                    f"{candidate_id}: source restoration derivation is missing a formula-level source anchor table."
+                )
         if not str(latest.get("provenance_note") or "").strip():
             blockers.append(
                 f"{candidate_id}: derivation record is missing an explicit provenance note stating its AI-authored provisional status."

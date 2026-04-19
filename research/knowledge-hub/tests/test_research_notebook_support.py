@@ -220,7 +220,10 @@ def test_topic_notebook_prefers_physicist_reading_order_and_stepwise_derivation(
                                     "label": "Step 1",
                                     "equation": "$$k = \\frac{1}{2\\pi} \\int_{\\mathcal{B}} F$$",
                                     "justification": "Source equation.",
+                                    "equality_reason": "Direct transcription of the cited source equation.",
                                     "source_anchor": "Lecture Notes A §2 eq.(4)",
+                                    "formula_anchor": "lecture-a#eq:4",
+                                    "step_origin": "source_statement",
                                     "is_l3_completion": False,
                                     "assumption_dependencies": ["Weak-coupling regime"],
                                 },
@@ -228,10 +231,30 @@ def test_topic_notebook_prefers_physicist_reading_order_and_stepwise_derivation(
                                     "label": "Step 2",
                                     "equation": "$$\\sigma_{xy} = k + \\delta$$",
                                     "justification": "Benchmark bridge note.",
+                                    "equality_reason": "This bridge step is reconstructed from the benchmark convention.",
                                     "source_anchor": "Benchmark Note B §3",
+                                    "formula_anchor": "benchmark-b#eq:transport-3",
+                                    "step_origin": "l3_completion",
                                     "is_l3_completion": True,
                                     "assumption_dependencies": ["Weak-coupling regime", "Translation invariance"],
                                     "open_gap_note": "The normalization bridge is still incomplete.",
+                                },
+                            ],
+                            "target_source_location": "Lecture Notes A §2 eq.(4)",
+                            "source_anchor_table": [
+                                {
+                                    "step_label": "Step 1",
+                                    "source_anchor": "Lecture Notes A §2 eq.(4)",
+                                    "formula_anchor": "lecture-a#eq:4",
+                                    "step_origin": "source_statement",
+                                    "anchor_notes": "",
+                                },
+                                {
+                                    "step_label": "Step 2",
+                                    "source_anchor": "Benchmark Note B §3",
+                                    "formula_anchor": "benchmark-b#eq:transport-3",
+                                    "step_origin": "l3_completion",
+                                    "anchor_notes": "",
                                 },
                             ],
                         }
@@ -304,6 +327,8 @@ def test_topic_notebook_prefers_physicist_reading_order_and_stepwise_derivation(
         assert r"\section{Main Derivation Spine}" in tex
         assert "Step 1" in tex
         assert "Source equation." in tex
+        assert "Formula anchor." in tex
+        assert "lecture-a\\#eq:4" in tex
         assert "The source omits the bridge from k to sigma\\_xy." in tex
         assert "L3 restores the omitted bridge as a separate bounded step" in tex
         assert r"\section{Current Best Statements}" in tex
@@ -321,6 +346,123 @@ def test_topic_notebook_prefers_physicist_reading_order_and_stepwise_derivation(
         assert r"\section{Iterative L3-L4 Research Record}" not in tex
         assert r"\section{Current Claims And Stable Results}" not in tex
         assert r"\section{Consolidated Derivation And Validation Status}" not in tex
+
+
+def test_long_topic_notebook_moves_intermediate_rounds_and_derivations_into_appendix_archives() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        topic_root = Path(td) / "topics" / "demo-topic"
+        l3_root = topic_root / "L3"
+        runtime_root = topic_root / "runtime"
+        l3_root.mkdir(parents=True, exist_ok=True)
+        runtime_root.mkdir(parents=True, exist_ok=True)
+
+        round_rows = []
+        derivation_rows = []
+        for index in range(1, 7):
+            round_rows.append(
+                {
+                    "iteration_id": f"iteration-{index:03d}",
+                    "round_type": "derivation_round",
+                    "round_question": f"Round question {index}",
+                    "plan_summary": f"Plan summary {index}",
+                    "returned_result_summary": f"Result summary {index}",
+                    "understanding_delta": f"Understanding delta {index}",
+                    "next_step_summary": f"Next step {index}",
+                    "claim_readiness": "qualified",
+                    "missing_blocks": [],
+                    "hard_blocking_gaps": [],
+                    "qualified_gaps": [],
+                    "eligible_for_current_claims": True,
+                }
+            )
+        for index in range(1, 6):
+            derivation_rows.append(
+                {
+                    "derivation_id": f"derivation:demo-{index}",
+                    "title": f"Supplementary derivation {index}",
+                    "derivation_kind": "source_reconstruction" if index % 2 else "analysis_derivation",
+                    "status": "in_progress",
+                    "source_statement": f"Source statement {index}",
+                    "l3_restoration_notes": f"Reconstruction note {index}",
+                    "target_source_location": f"paper-a#eq:{index}",
+                    "source_anchor_table": [
+                        {
+                            "step_label": "Step 1",
+                            "source_anchor": f"paper-a §{index}",
+                            "formula_anchor": f"paper-a#eq:{index}",
+                            "step_origin": "source_statement",
+                            "anchor_notes": "",
+                        }
+                    ],
+                    "derivation_steps": [
+                        {
+                            "label": "Step 1",
+                            "equation": f"k_{index} = F_{index}",
+                            "justification": "Source equation.",
+                            "equality_reason": "Directly quoted from the source.",
+                            "source_anchor": f"paper-a §{index}",
+                            "formula_anchor": f"paper-a#eq:{index}",
+                            "step_origin": "source_statement",
+                            "is_l3_completion": False,
+                            "assumption_dependencies": ["Weak-coupling regime"],
+                        }
+                    ],
+                }
+            )
+
+        (runtime_root / "research_report.active.json").write_text(
+            json.dumps(
+                {
+                    "status": "available",
+                    "topic_slug": "demo-topic",
+                    "run_id": "run-001",
+                    "problem": {"question": "Can the topic stay readable as it grows long?"},
+                    "physical_target": "Long-topic notebook readability",
+                    "physical_motivation": "Keep the main narrative readable while preserving the full archive.",
+                    "setup": {"scope": ["Long topic"], "assumptions": ["Preserve all records"], "notation": []},
+                    "convention_ledger": [],
+                    "round_development": round_rows,
+                    "main_derivation_spine": derivation_rows,
+                    "current_best_statements": [],
+                    "active_routes_not_yet_claim_worthy": [],
+                    "excluded_routes": [
+                        {
+                            "title": f"Excluded route {index}",
+                            "why_plausible": f"Why plausible {index}",
+                            "exact_failure_point": f"Failure {index}",
+                            "lesson": f"Lesson {index}",
+                            "revive_conditions": [f"Revive {index}"],
+                        }
+                        for index in range(1, 5)
+                    ],
+                    "open_obligations": [],
+                    "open_problems": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        notebook.append_notebook_entry(
+            l3_root,
+            kind="candidate_update",
+            title="Seed entry",
+            body="Seed notebook rebuild.",
+            status="ready_for_validation",
+            run_id="run-001",
+        )
+
+        tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
+
+        assert "intermediate round(s) are moved to the appendix archive" in tex
+        assert "supplementary derivation file(s) are moved to the appendix" in tex
+        assert r"\section{Extended Round Archive}" in tex
+        assert r"\section{Supplementary Derivation Files}" in tex
+        assert r"\section{Supplementary Excluded Routes}" in tex
+        assert "Round question 2" in tex
+        assert "Supplementary derivation 2" in tex
+        assert "Excluded route 4" in tex
 
 
 def test_notebook_surfaces_blocked_routes_without_promoting_them_to_current_best_statements() -> None:
