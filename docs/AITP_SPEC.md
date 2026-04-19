@@ -1,12 +1,17 @@
-# AITP Specification
+# AITP Specification v2
 
 Status: authoritative specification, subordinate to CHARTER.md.
-Last updated: 2026-04-17.
+Last updated: 2026-04-19.
+Version: 2.0 (brain-driven, skill-first, markdown-only).
 
 This document is the single specification that bridges the Charter to the
 protocol tree. Every sub-protocol must be consistent with this SPEC.
 If a conflict arises, Charter overrides SPEC, SPEC overrides sub-protocols,
 sub-protocols override implementation.
+
+**v2 changes from v1:** Brain replaces all Python orchestration with a minimal
+MCP server (~300 lines) + skill-driven workflow. All storage is Markdown with
+YAML frontmatter — no JSON, no JSONL, no paired backend. See S4, S10, S12.
 
 ---
 
@@ -45,8 +50,8 @@ Protocol requirements for Phase 1:
 - full L0-L5 layer pipeline,
 - explicit human checkpoints at L2 promotion and direction changes,
 - durable topic state across sessions,
-- paired backend (human-readable + typed store),
-- adapter support for multiple agent platforms.
+- markdown-only storage (YAML frontmatter for structured data),
+- skill-driven workflow with minimal Python.
 
 ### Phase 2 — Learning Collaborator
 
@@ -102,11 +107,13 @@ L4 validation when the protocol says they are required.
 
 | Plane | Name | Purpose |
 |-------|------|---------|
-| B | Brain | Global orchestrator: routing, cross-topic memory, human gates |
+| B | Brain | MCP server providing tools + skill injection + hooks |
 | H | Human | Checkpoints, steering, approval, override at any layer |
 
-The Brain plane is NOT a content layer. It does not store knowledge. It routes,
-coordinates, and manages the lifecycle of topics across the content layers.
+The Brain plane is NOT a content layer. It does not store knowledge. It provides
+tools for the agent to read/write topic state, and injects skills that enforce
+the AITP workflow. Brain is a thin MCP server (~300 lines Python), not an
+orchestration engine.
 
 The Human plane does not replace protocol discipline. Human approval is a gate,
 not a substitute for validation.
@@ -132,10 +139,8 @@ not a substitute for validation.
 **L2 — Canonical Knowledge**
 - Reusable typed knowledge objects (concepts, definitions, theorems,
   derivations, methods, equations, notation, warnings, bridges).
-- Typed edges for semantic and workflow relations.
+- Stored as Markdown files with YAML frontmatter.
 - Deterministic projections: indexes and portal.
-- Graph traversal, wiki compilation, cross-topic retrieval.
-- Paired backend: human-readable Markdown + typed JSON/JSONL store.
 - Requires explicit promotion gate. No automatic writes.
 
 **L3 — Candidate Workspace**
@@ -148,14 +153,10 @@ not a substitute for validation.
 - L3-A: candidate formation — formal claims with evidence and assumptions.
 - L3 is the unified detailed-derivation home, including source reconstructions
   and novel candidate derivations.
-- Derivation-heavy candidates become promotion-ready only after they carry a
-  detailed L3 derivation record plus an explicit L2 comparison receipt; formal
-  theorem/proof candidates also need theory-packet proof surfaces.
 - L3-R: interpret L4 results, decide routing.
 - L3-D: prepare material for promotion.
 - Conjectures, source reconstructions, failed attempts, candidate derivations, anomalies,
   negative results.
-- Scratch mode for quick speculative work.
 - Material here may become reusable IF it passes L4 and L2 promotion.
 
 **L4 — Validation & Adjudication**
@@ -177,20 +178,19 @@ not a substitute for validation.
 
 ## S4. Brain Plane (B)
 
-The Brain is the global orchestrator that the AI agent permanently resides in.
-It manages the lifecycle of topics, routes decisions, and maintains cross-session
-continuity.
+The Brain is a minimal MCP server that the AI agent calls at key workflow
+points. It does NOT orchestrate. It provides tools and injects skills.
 
-### Brain Responsibilities
+### Brain Design Principles
 
-1. **Topic lifecycle** — bootstrap, loop, status, verify, promote, complete.
-2. **Cross-topic routing** — schedule, prioritize, detect dependencies between
-   topics.
-3. **Human interaction gates** — popups, decision points, checkpoints.
-4. **Session continuity** — session chronicle, resume state, trajectory memory.
-5. **Collaborator memory** — research taste, preferred formalisms, patterns.
-6. **Control plane** — pause, redirect, scope changes, innovation direction.
-7. **Mode and posture** — select runtime mode, enforce mode envelopes.
+1. **Tools, not orchestration.** The Brain provides ~10 MCP tools. The agent
+   decides when to call them. The Brain does not run loops, queues, or
+   state machines.
+2. **Skills, not code.** Workflow logic (what to do at each layer, how to
+   validate, when to promote) lives in Markdown skills that the agent reads.
+   The Brain does not encode this in Python.
+3. **Hooks for continuity.** SessionStart, Compact, and Stop hooks ensure the
+   agent re-enters the correct workflow after context resets.
 
 ### Brain Architecture
 
@@ -205,30 +205,32 @@ Human Researcher
 +-----------------------------------------------------+
                |
 +--------------v----------------------------------------+
-|              Brain Plane (B)                           |
+|              Brain MCP Server (~300 lines Python)      |
 |                                                       |
-|  Topic Lifecycle Manager                              |
-|  +-- bootstrap -> mode-driven loop -> complete        |
-|  +-- multi-topic parallel, pause/resume               |
-|  +-- bounded auto-steps                               |
+|  Tools:                                               |
+|  +-- aitp_get_status: read topic state.md frontmatter |
+|  +-- aitp_update_status: update topic state           |
+|  +-- aitp_register_source: create L0 source .md       |
+|  +-- aitp_list_sources: list L0/sources/*.md          |
+|  +-- aitp_record_derivation: append to L3 derivations |
+|  +-- aitp_submit_candidate: create L3 candidate .md   |
+|  +-- aitp_request_promotion: update candidate status  |
+|  +-- aitp_get_popup: check for blockers               |
+|  +-- aitp_resolve_popup: record human choice          |
+|  +-- aitp_get_skill_context: which skill to inject    |
 |                                                       |
-|  Mode Workflow (built-in research process)            |
-|  +-- explore:  L0 -> L1 -> L3-I (discover & record)  |
-|  +-- learn:    L0-L1 -> L3-A <-> L4 (verify known)   |
-|  +-- implement: L3-I -> L3-P -> L3-A <-> L4 (new)    |
-|  +-- mode transitions drive topic progression         |
+|  Skills (Markdown):                                   |
+|  +-- skill-explore.md: how to discover & register     |
+|  +-- skill-intake.md: how to analyze sources           |
+|  +-- skill-derive.md: how to record derivations        |
+|  +-- skill-validate.md: how to validate candidates     |
+|  +-- skill-promote.md: when/how to promote to L2       |
+|  +-- skill-continuous.md: how to resume after break    |
 |                                                       |
-|  Action Router                                        |
-|  +-- select_route -> materialize_task                 |
-|  +-- ingest_result -> await_external_result           |
-|  +-- heuristic + control-note + contract modes        |
-|                                                       |
-|  Memory                                               |
-|  +-- collaborator profile                             |
-|  +-- strategy memory (helpful/harmful patterns)       |
-|  +-- research trajectory (cross-session arc)          |
-|  +-- mode learning                                    |
-|  +-- deferred candidate buffer                        |
+|  Hooks:                                               |
+|  +-- SessionStart: inject skill based on status        |
+|  +-- Compact: re-inject skill after context loss       |
+|  +-- Stop: save progress to state.md                   |
 +--------------+----------------------------------------+
                |
         +------+------+------+------+------+
@@ -237,7 +239,24 @@ Human Researcher
       +--+  +--+  +--+  +--+  +-----+ +-----+
       |L0|  |L1|  |L3|  |L4|  | L2  | | L5  |
       +--+  +--+  +--+  +--+  +-----+ +-----+
+      (all Markdown with YAML frontmatter)
 ```
+
+### Skill Injection
+
+The Brain injects skills based on `state.md` frontmatter:
+
+| Status | Injected Skill | Agent Does |
+|--------|---------------|------------|
+| `new` | skill-explore | Search literature, register sources |
+| `sources_registered` | skill-intake | Analyze each source in depth |
+| `intake_done` | skill-derive | Perform derivations, form candidates |
+| `candidate_ready` | skill-validate | Validate candidates against evidence |
+| `validated` | skill-promote | Submit for L2 promotion |
+| `any` (after break) | skill-continuous | Resume from where left off |
+
+The agent reads the injected skill and follows it. The Brain does not enforce
+compliance — the skill IS the protocol surface for that layer.
 
 ### Brain Protocol Reference
 
@@ -288,16 +307,11 @@ discover ideas, verify understanding, create new results.
 `learn` (verified knowledge) or `implement` (novel results) when candidates
 pass validation and are ready for human approval.
 
-Each mode carries an envelope with:
-- `foreground_layers` — which layers the agent works in.
-- `allowed_backedges` — which backward transitions are permitted.
-- `required_writeback` — what must be written before exiting the mode.
-- `forbidden_shortcuts` — transitions that are never allowed in this mode.
-- `human_checkpoint_policy` — when human approval is required.
-- `entry_conditions` — what must be true to enter this mode.
-- `exit_conditions` — what must be true to leave this mode.
+Mode transitions are enforced by skills, not by Python code. The skill for the
+current mode defines when transition is appropriate and what writeback is
+required.
 
-Mode transitions are not arbitrary. The valid transition graph is:
+Valid transition graph:
 
 ```
 explore -> learn -> implement -> explore
@@ -307,102 +321,66 @@ explore -> learn -> implement -> explore
        (backward transitions)
 ```
 
-Valid forward transitions:
-- `explore -> learn` (idea discovered, ready to study deeply)
-- `learn -> implement` (understanding sufficient, ready to pursue new work)
-- `implement -> explore` (new questions emerged from results)
-
-Valid backward transitions (require explicit reason and writeback):
-- `learn -> explore` (need more source material)
-- `implement -> learn` (implementation revealed knowledge gap)
-- `implement -> explore` (results suggest different direction)
-
 ### Mode Protocol Reference
 
 See: `docs/protocols/mode_envelope_protocol.md`
 
-## S7. Closed-Loop State Machine
+## S7. Skill-Driven Workflow
 
-Within each topic loop, the Brain executes a bounded closed-loop cycle:
+In v2, the closed-loop state machine (v1) is replaced by a skill-driven
+workflow. The agent reads the appropriate skill and follows it.
+
+### Workflow Cycle
 
 ```
-select_route -> materialize_task -> ingest_result -> dispatch_execution_task -> await_external_result
-      ^                                                                              |
-      |                                                                              v
-      +------------------------------------------------------------------------------+
+1. SessionStart / Compact hook fires
+2. Hook calls aitp_get_skill_context(topic_slug)
+3. Brain returns which skill to inject
+4. Agent reads the skill
+5. Agent executes the skill's instructions
+6. Agent calls MCP tools to record results
+7. Agent updates topic state via aitp_update_status
+8. If session ends: Stop hook saves progress
+9. Next session resumes from step 1
 ```
 
-### select_route
-- Load runtime contract for mode-based action preferences.
-- Load any frozen decision contracts.
-- Load topic state, research question, control note.
-- Determine which mode, layer, and action type.
-- Check for pending decisions, popups, or human gates.
-- Output: a route decision with mode, layer, action, and rationale.
+### Skill Responsibilities
 
-Routing modes: `heuristic`, `control_note`, `declared_contract`, `decision_contract`.
+Each skill defines:
+- **What to do** at this workflow stage
+- **Which MCP tools to call** and when
+- **What artifacts to produce** (Markdown files)
+- **When to transition** to the next stage
+- **What writeback is required** before transitioning
 
-### materialize_task
-- Translate the route decision into a concrete action.
-- Resolve research mode profile (research_mode, executor_kind, reasoning_profile).
-- Prepare inputs (source material, previous results, context).
-- Set up validation plan if entering verify mode.
-- Output: a materialized task ready for execution.
+### What Skills Replace
 
-### ingest_result
-- Receive the result of the task (from agent execution or external backend).
-- Classify: `success` / `partial` / `failed`, with optional `contradiction_detected` flag.
-- Determine routing decision: `keep` / `revise` / `discard` / `defer`.
-- Route gaps to gap writeback system and gap recovery.
-- Output: classified result with routing decision.
-
-### dispatch_execution_task
-- Dispatch the materialized task to the execution target.
-- Record dispatch state.
-
-### await_external_result
-- If the task requires external execution (numerical, symbolic, remote),
-  suspend and await the result.
-- Track timeout, failure, and re-entry conditions.
-- Output: external result or timeout/failure classification.
-
-### Loop Constraints
-
-- Each cycle must produce at least one durable artifact.
-- The loop may not run indefinitely without a human checkpoint.
-- Stuckness detection triggers escalation, not silent retry.
-- The loop respects the current mode envelope.
-
-### Closed-Loop Protocol Reference
-
-See: `docs/protocols/closed_loop_protocol.md`
+| v1 Component | v2 Replacement |
+|-------------|----------------|
+| orchestrate_topic.py | skill-explore / skill-derive |
+| decide_next_action.py | skill-continuous reads state.md |
+| closed_loop_v1.py | skill-validate + skill-derive |
+| advance_closed_loop.py | skill-continuous |
+| action_queue_protocol.md | skill step-by-step instructions |
+| runtime bundle (generated JSON) | injected skill (Markdown) |
 
 ## S8. Promotion Pipeline
 
-L2 promotion follows a three-step flow (current implementation) with a
-four-stage counting state machine as the aspirational target.
+L2 promotion follows a skill-driven flow:
 
-### Current: Three-Step Flow
+1. Agent determines candidate is ready (skill-validate criteria met).
+2. Agent calls `aitp_request_promotion(topic_slug, candidate_id)`.
+3. Brain updates `candidate.md` frontmatter: `status: pending_approval`.
+4. Agent asks human for approval (popup gate).
+5. On approval: agent calls `aitp_update_status` to set `status: promoted`.
+6. Agent writes the knowledge to L2 as a new `.md` file.
 
-| Step | Status | Description |
-|------|--------|-------------|
-| 1 | `pending_human_approval` | Candidate is staged and awaiting review |
-| 2 | `approved` | Gate has been approved (human or auto) |
-| 3 | `promoted` | Content written to L2 or L2_auto |
+### Promotion Trace
 
-### Aspirational: Four-Stage Counting Model
-
-| Stage | Name | Threshold | Description |
-|-------|------|-----------|-------------|
-| 1 | `candidate` | 0 | Fresh candidate in L3 |
-| 2 | `validated` | 2 | Passed L4 validation at least twice |
-| 3 | `promotion_ready` | 3 | Validated + integration complete + human not objected |
-| 4 | `promoted` | 4 | Human explicitly approved L2 write |
-
-Auto-promotion: when all criteria are met and the topic's trust boundary
-permits it, content may be auto-promoted to the `L2_auto` canonical layer
-(distinguished from human-reviewed L2 by `review_mode: "ai_auto"`).
-Human-reviewed L2 promotion always requires explicit human approval.
+Every promotion must leave a trace in the candidate file's frontmatter:
+- validation results that supported the promotion,
+- human approval record,
+- resulting L2 file path.
 
 ### Promotion Protocol Reference
 
@@ -416,50 +394,60 @@ Topics may spawn child sub-topics and may park deferred candidates.
 
 - A parent topic may spawn a child when the research question splits,
   a gap requires separate investigation, or an external consultation is needed.
-- The child carries a return packet: what it must deliver back to the parent.
-- On completion, the child's results are reintegrated into the parent.
+- Each child is a separate topic directory with its own `state.md`.
+- On completion, the child's results are noted in the parent's state.
 
 ### Deferred Candidate Buffer
 
-- Candidates that are not yet actionable may be parked with reactivation
-  conditions:
-  - `source_ids_any` — reactivate when any of these sources appear.
-  - `text_contains_any` — reactivate when topic text matches.
-  - `child_topics_any` — reactivate when any child topic completes.
+- Candidates that are not yet actionable may be parked in `L3/deferred.md`
+  with reactivation conditions.
 - Deferred candidates are not forgotten. They remain inspectable.
 
 ### Followup Protocol Reference
 
 See: `docs/protocols/followup_lifecycle.md`
 
-## S10. Paired Backend Design
+## S10. Markdown-Only Storage
 
-AITP maintains a paired backend: human-readable and machine-readable surfaces
-for the same knowledge.
+AITP v2 stores all data as Markdown files with YAML frontmatter. There is no
+JSON, no JSONL, no paired backend. One file serves both human readability and
+structured data access.
 
-### Human-Readable Backend (Brain Side)
+### Format
 
-- Markdown-first: research questions, operator consoles, dashboards,
-  control notes, innovation directions, session chronicles, gap maps,
-  promotion readiness reports.
-- The human researcher should be able to read one Markdown-first journal.
-- No JSON scraping required for human review.
+Every data file follows this structure:
 
-### Typed Backend (Knowledge Network / open-physics-kb)
+```markdown
+---
+key1: value1
+key2: value2
+created_at: 2026-04-19T10:00:00
+---
 
-- JSON/JSONL canonical store: units, edges, queues, regressions, sources.
-- Deterministic projections: indexes, portal.
-- Typed retrieval for agents and scripts.
-- The typed backend is the machine-facing authority for reusable knowledge.
+# Title
 
-### Compatibility Rule
+Human-readable content here.
+```
 
-- Markdown and JSON are companions, not duplicates.
-- Markdown carries narrative and judgment.
-- JSON carries stable ids, statuses, triggers, and replay pointers.
-- Do not duplicate full narratives in both formats.
-- When they conflict on a machine-actionable field, JSON wins.
-- When they conflict on a human judgment field, Markdown wins.
+- **YAML frontmatter** holds structured/queryable data (what was JSON).
+- **Markdown body** holds human-readable content (narrative, notes, derivations).
+- The MCP server reads frontmatter with a simple YAML parser (~10 lines).
+- The agent can read the full file naturally.
+
+### Collections
+
+For list-type data (sources, candidates, derivations), use one of:
+- **One file per item** in a directory (e.g., `L0/sources/hs-1988.md`).
+- **Single file with sections** for append-only logs (e.g., `L3/derivations.md`).
+
+### Why No JSON
+
+- The paired backend (JSON + MD for the same data) doubled IO and maintenance.
+- AI agents parse Markdown as naturally as JSON.
+- YAML frontmatter is queryable and typed.
+- Humans can read and edit everything with any text editor.
+- Eliminates 60% of the v1 Python codebase (paired backend, compatibility
+  projections, JSONL parsing, etc.).
 
 ## S11. Control Axes
 
@@ -472,37 +460,34 @@ The Brain uses six control axes to determine runtime behavior:
 | `layer` | Where the work happens | L0, L1, L2, L3, L4, L5 |
 | `L3_subplane` | L3 sub-plane if relevant | ideation, planning, analysis, result_integration, distillation |
 | `lane` | Research domain | formal_theory, model_numeric, code_and_materials |
-| `task_type` | Research intent (redundant with mode in practice) | open_exploration, conjecture_attempt, target_driven |
+| `task_type` | Research intent | open_exploration, conjecture_attempt, target_driven |
 
 Only `runtime_mode` and `transition_posture` are core drivers. The rest are
 auxiliary context that shapes behavior within the current mode.
 
 ## S12. Adapter Interface
 
-Agent platforms (Claude Code, Codex, OpenClaw, OpenCode, others) execute AITP
-through adapters. Domain-specific physics capabilities (GW workflows, DFT
-codes, etc.) plug in through domain skills. Both are protocol executors, not
-protocol definers (Charter Article 10).
-
-### Adapter Categories
-
-1. **Platform adapters** — connect AITP to agent platforms (Claude Code, Codex).
-2. **Domain skills** — connect AITP to domain-specific physics capabilities
-   (e.g., oh-my-LibRPA for ABACUS+LibRPA workflows). Domain skills provide
-   domain knowledge, contract schemas, and plan templates through structured
-   manifest files, not through API calls.
+Agent platforms execute AITP through adapters. In v2, adapters are thin:
+they load skills, configure hooks, and connect to the MCP server.
 
 ### Adapter Obligations
 
-1. **Skill loading** — load the `using-aitp` skill at session start.
-2. **Front-door routing** — route user requests through AITP's front-door
-   before free-form processing.
-3. **Artifact production** — leave required AITP artifacts on disk.
-4. **Popup handling** — present popups to the human and return choices.
-5. **Conformance** — a run claims to be AITP work only if it passes the
-   declared conformance checks (Charter Article 9).
-6. **No charter redefinition** — adapters may add convenience, but may not
-   weaken evidence, artifact, or promotion discipline.
+1. **Connect to Brain MCP** — configure the MCP server endpoint.
+2. **Load skills at session start** — inject the skill returned by
+   `aitp_get_skill_context`.
+3. **Configure hooks** — SessionStart, Compact, Stop.
+4. **Handle popups** — present blocker questions to the human.
+5. **Produce artifacts** — every AITP session must leave Markdown artifacts.
+6. **Respect the Charter** — may not weaken evidence, artifact, or promotion
+   discipline.
+
+### Adapter Categories
+
+1. **Platform adapters** — connect AITP to agent platforms (Claude Code, Codex,
+   OpenCode, etc.).
+2. **Domain skills** — connect AITP to domain-specific physics capabilities
+   (e.g., GW workflows, DFT codes). Domain skills are Markdown files with
+   domain-specific templates and validation criteria.
 
 ### Adapter Protocol Reference
 
@@ -513,10 +498,10 @@ See: `docs/protocols/adapter_interface.md`
 ### Conformance
 
 A conformant run means the agent followed the Charter and protocol surface.
-It does not guarantee the science is correct (design principle 10).
+It does not guarantee the science is correct.
 
-Conformance checks include:
-- required artifacts exist and are well-formed,
+Conformance checks (enforced by skills, not Python):
+- required artifacts exist and are well-formed Markdown,
 - promotion gates were respected,
 - evidence levels were not silently merged,
 - uncertainty markers were preserved,
@@ -538,92 +523,37 @@ All sub-protocols are organized into three domains:
 
 | Protocol | File | Purpose |
 |----------|------|---------|
-| Brain protocol | `docs/protocols/brain_protocol.md` | Topic lifecycle, cross-topic routing, memory, control plane |
-| Action queue | `docs/protocols/action_queue_protocol.md` | Next-action decision, queue shaping, auto-progression |
-| Followup lifecycle | `docs/protocols/followup_lifecycle.md` | Sub-topic spawning, deferred candidates, reintegration |
+| Brain protocol | `docs/protocols/brain_protocol.md` | MCP tools, skill injection, hooks |
 
 ### Point Domain — Layer-Specific Protocols
 
 | Protocol | File | Purpose |
 |----------|------|---------|
-| L0 source layer | `research/knowledge-hub/L0_SOURCE_LAYER.md` | Source registration, fidelity grading, citation graphs |
-| L1 intake protocol | `docs/protocols/L1_intake_protocol.md` | Assumption extraction, vault protocol, reading depth |
-| L2 backend interface | `docs/protocols/L2_backend_interface.md` | Typed store contract, promotion policy, paired backend |
-| L3 execution protocol | `docs/protocols/L3_execution_protocol.md` | Ideation, planning, candidate formation, sub-planes |
-| L4 validation protocol | `docs/protocols/L4_validation_protocol.md` | Validation types, trust audit, L4 -> L3-R rule |
+| L1 intake protocol | `docs/protocols/L1_intake_protocol.md` | Assumption extraction, reading depth |
+| L2 backend interface | `docs/protocols/L2_backend_interface.md` | Canonical knowledge, promotion |
+| L3 execution protocol | `docs/protocols/L3_execution_protocol.md` | Ideation, planning, candidate formation |
+| L4 validation protocol | `docs/protocols/L4_validation_protocol.md` | Validation types, trust audit |
 | L5 writing protocol | `docs/protocols/L5_writing_protocol.md` | Paper writing, publication artifacts |
-| Closed-loop | `docs/protocols/closed_loop_protocol.md` | Select-route / materialize / ingest / await cycle |
-| Promotion pipeline | `docs/protocols/promotion_pipeline.md` | 3-step flow (aspirational 4-stage model) |
+| Promotion pipeline | `docs/protocols/promotion_pipeline.md` | Promotion flow and gates |
 
 ### Interaction Domain — Cross-Cutting Protocols
 
 | Protocol | File | Purpose |
 |----------|------|---------|
-| Human interaction | `docs/protocols/H_human_interaction.md` | Checkpoints, steering, approval, override, clarification |
-| Mode envelope | `docs/protocols/mode_envelope_protocol.md` | 3 modes, envelopes, transitions |
-| Adapter interface | `docs/protocols/adapter_interface.md` | Platform adapter + domain skill obligations |
+| Human interaction | `docs/protocols/H_human_interaction.md` | Checkpoints, steering, approval |
+| Mode envelope | `docs/protocols/mode_envelope_protocol.md` | 3 modes, transitions |
+| Adapter interface | `docs/protocols/adapter_interface.md` | Platform adapter obligations |
 
-### Legacy Protocol Map
+### Skills — Workflow Instructions
 
-The following existing protocols remain authoritative within their scope
-unless explicitly superseded by a new domain protocol:
-
-| Existing Protocol | Status | New Home |
-|-------------------|--------|----------|
-| `AUTONOMY_AND_OPERATOR_MODEL.md` | Active | Merged into brain_protocol |
-| `COMMUNICATION_CONTRACT.md` | Active | Merged into H_human_interaction |
-| `CLARIFICATION_PROTOCOL.md` | Active | Merged into H_human_interaction |
-| `DECISION_POINT_PROTOCOL.md` | Active | Merged into H_human_interaction |
-| `DECISION_TRACE_PROTOCOL.md` | Active | Merged into action_queue_protocol |
-| `ROUTING_POLICY.md` | Active | Merged into closed_loop_protocol |
-| `RESEARCH_EXECUTION_GUARDRAILS.md` | Active | Merged into closed_loop_protocol |
-| `PROGRESSIVE_DISCLOSURE_PROTOCOL.md` | Active | Merged into brain_protocol |
-| `SESSION_CHRONICLE_PROTOCOL.md` | Active | Merged into brain_protocol |
-| `TOPIC_COMPLETION_PROTOCOL.md` | Active | Merged into brain_protocol |
-| `TOPIC_REPLAY_PROTOCOL.md` | Active | Merged into brain_protocol |
-| `GAP_RECOVERY_PROTOCOL.md` | Active | Referenced from closed_loop_protocol |
-| `PROOF_OBLIGATION_PROTOCOL.md` | Active | Stays as-is (formal theory) |
-| `SEMI_FORMAL_THEORY_PROTOCOL.md` | Active | Stays as-is (formal theory) |
-| `SECTION_FORMALIZATION_PROTOCOL.md` | Active | Stays as-is (formal theory) |
-| `FORMAL_THEORY_AUTOMATION_WORKFLOW.md` | Active | Stays as-is (formal theory) |
-| `FORMAL_THEORY_UPSTREAM_REFERENCE_PROTOCOL.md` | Active | Stays as-is (formal theory) |
-| `FAMILY_FUSION_PROTOCOL.md` | Active | Stays as-is (L2 canonical) |
-| `VERIFICATION_BRIDGE_PROTOCOL.md` | Active | Merged into L4_validation_protocol |
-| `L2_CONSULTATION_PROTOCOL.md` | Active | Referenced from L2_backend_interface |
-| `L5_PUBLICATION_FACTORY_PROTOCOL.md` | Active | Stays as-is (publication layer) |
-| `AGENT_CONFORMANCE_PROTOCOL.md` | Active | Merged into adapter_interface |
-| `INDEXING_RULES.md` | Active | Referenced from L2_backend_interface |
-| `LIGHTWEIGHT_RUNTIME_PROFILE.md` | Active | Referenced from brain_protocol |
-| `MODE_AND_LAYER_OPERATING_MODEL.md` | Active | Merged into mode_envelope_protocol |
-| `intake/L1_VAULT_PROTOCOL.md` | Active | Referenced from L1_intake_protocol |
-| `intake/ARXIV_FIRST_SOURCE_INTAKE.md` | Active | Referenced from L0_SOURCE_LAYER |
-| `canonical/PROMOTION_POLICY.md` | Active | Referenced from promotion_pipeline |
-| `canonical/L2_COMPILER_PROTOCOL.md` | Active | Referenced from L2_backend_interface |
-| `canonical/L2_STAGING_PROTOCOL.md` | Active | Referenced from L2_backend_interface |
-| `canonical/LAYER_MAP.md` | Active | Referenced from L2_backend_interface |
-| `canonical/LAYER2_OBJECT_FAMILIES.md` | Active | Referenced from L2_backend_interface |
-| `canonical/L2_BACKEND_BRIDGE.md` | Active | Referenced from L2_backend_interface |
-| `canonical/L2_MVP_CONTRACT.md` | Active | Referenced from L2_backend_interface |
-| `canonical/L2_PAIRED_BACKEND_MAINTENANCE_PROTOCOL.md` | Active | Referenced from L2_backend_interface |
-| `feedback/CANDIDATE.md` | Active | Referenced from L3_execution_protocol |
-| `feedback/SPLIT_PROTOCOL.md` | Active | Referenced from L3_execution_protocol |
-| `feedback/STRATEGY_MEMORY_TEMPLATE.md` | Active | Referenced from brain_protocol |
-| `validation/BASELINE_REPRODUCTION_AND_UNDERSTANDING_GATES.md` | Active | Referenced from L4_validation_protocol |
-| `validation/EXECUTION_PROTOCOL.md` | Active | Merged into L4_validation_protocol |
-| `runtime/TOPIC_TRUTH_ROOT_CONTRACT.md` | Active | Referenced from brain_protocol |
-| `runtime/CONTROL_NOTE_CONTRACT.md` | Active | Referenced from H_human_interaction |
-| `runtime/INNOVATION_DIRECTION_TEMPLATE.md` | Active | Referenced from H_human_interaction |
-| `runtime/DECLARATIVE_RUNTIME_CONTRACTS.md` | Active | Referenced from action_queue_protocol |
-| `runtime/DEFERRED_RUNTIME_CONTRACTS.md` | Active | Referenced from followup_lifecycle |
-| `AITP_THOUGHT_PROTOCOL.md` (docs/) | Active | Stays as-is (agent reasoning) |
-| `AITP_INTELLIGENCE_PRESERVATION_PRINCIPLES.md` (docs/) | Active | Stays as-is (agent discipline) |
-| `AITP_ONTOLOGY_AND_MODE_COMPLETENESS.md` (docs/) | Active | Superseded by mode_envelope_protocol |
-| `AITP_TRANSITION_AND_BACKEDGE_PROTOCOL.md` (docs/) | Active | Superseded by mode_envelope_protocol |
-| `AITP_L3_L4_ITERATIVE_VERIFY_LOOP_PROTOCOL.md` (docs/) | Active | Superseded by closed_loop_protocol |
-| `AITP_UNIFIED_RESEARCH_ARCHITECTURE.md` (docs/) | Active | Superseded by this SPEC |
-| `AITP_WORKFLOW_SHELL_AND_PROTOCOL_KERNEL.md` (docs/) | Active | Superseded by this SPEC |
-| `AITP_MODE_ENVELOPE_PROTOCOL.md` (docs/) | Active | Superseded by mode_envelope_protocol |
-| `V142_ARCHITECTURE_VISION.md` (docs/) | Reference | Kept as historical reference |
+| Skill | File | Purpose |
+|-------|------|---------|
+| skill-explore | `skills/skill-explore.md` | How to discover literature, register sources |
+| skill-intake | `skills/skill-intake.md` | How to analyze sources in depth |
+| skill-derive | `skills/skill-derive.md` | How to record derivations, form candidates |
+| skill-validate | `skills/skill-validate.md` | How to validate candidates |
+| skill-promote | `skills/skill-promote.md` | When and how to promote to L2 |
+| skill-continuous | `skills/skill-continuous.md` | How to resume after session break |
 
 ## S15. Execution Surface Provenance
 
@@ -632,10 +562,8 @@ or note set must record the execution host and why it was chosen.
 
 - Local Windows host: AI orchestration, human-facing curation, lightweight
   smoke tests.
-- Remote hosts (`el`, `fish`, etc.): default AITP execution surface for
-  model-side numerical checks and script-driven validation.
-- LibRPA hosts (`kx`, `hr`, etc.): LibRPA builds, regressions, performance
-  tests.
+- Remote hosts: default AITP execution surface for model-side numerical checks
+  and script-driven validation.
 
 Host choice is part of trust provenance, not incidental commentary.
 
@@ -647,11 +575,11 @@ Every Charter article is enforced by specific protocol surfaces:
 |-----------------|-------------|
 | Art. 1 — Truth over fluency | Evidence discipline (S1), mode envelopes (S6) |
 | Art. 2 — Evidence hierarchy | L0 fidelity grading, L1 assumption extraction |
-| Art. 3 — Layered state | Layer model (S3), paired backend (S10) |
+| Art. 3 — Layered state | Layer model (S3), markdown storage (S10) |
 | Art. 4 — Contracts over hidden state | Artifact discipline (S1), conformance (S13) |
 | Art. 5 — Earned promotion | Promotion pipeline (S8), L2 gate |
 | Art. 6 — Conditional tool trust | Trust gates (S13), capability audit |
-| Art. 7 — Uncertainty survives | Gap recovery, stuckness detection, deferred candidates |
+| Art. 7 — Uncertainty survives | Gap recovery, deferred candidates |
 | Art. 8 — Human checkpoints | H plane (S5), popup gate protocol |
 | Art. 9 — Enforceable conformance | Conformance checks (S13), adapter obligations (S12) |
 | Art. 10 — Adapters don't redefine | Adapter interface (S12), charter-first rule |
@@ -659,49 +587,86 @@ Every Charter article is enforced by specific protocol surfaces:
 ## S17. Filesystem Convention
 
 ```
-AITP-Research-Protocol/
+aitp-v2/
 ├── docs/
-│   ├── CHARTER.md                          # Highest authority
-│   ├── AITP_SPEC.md                        # This document
-│   ├── design-principles.md                # Design principles
-│   ├── architecture.md                     # Architecture overview
-│   ├── PROJECT_INDEX.md                    # Navigation map
-│   ├── protocols/                          # NEW: unified protocol home
-│   │   ├── brain_protocol.md               # B plane orchestrator
-│   │   ├── action_queue_protocol.md        # Next-action decision
-│   │   ├── followup_lifecycle.md           # Sub-topics, deferred buffer
-│   │   ├── L1_intake_protocol.md           # L1 layer
-│   │   ├── L2_backend_interface.md         # L2 typed store contract
-│   │   ├── L3_execution_protocol.md        # L3 candidate workspace
-│   │   ├── L4_validation_protocol.md       # L4 validation surface
-│   │   ├── L5_writing_protocol.md          # L5 writing & publication
-│   │   ├── closed_loop_protocol.md         # Closed-loop state machine
-│   │   ├── promotion_pipeline.md           # 4-stage promotion
-│   │   ├── H_human_interaction.md          # H plane gates
-│   │   ├── mode_envelope_protocol.md       # 3-mode envelopes
-│   │   └── adapter_interface.md            # Platform adapter obligations
-│   └── ...                                 # Existing docs preserved
-├── research/knowledge-hub/                 # Runtime + implementation
-│   ├── knowledge_hub/                      # Python package (aitp-kernel)
-│   ├── source-layer/                       # L0
-│   ├── intake/                             # L1
-│   ├── canonical/                          # L2
-│   ├── feedback/                           # L3
-│   ├── validation/                         # L4
-│   ├── runtime/                            # Brain runtime
-│   └── topics/                             # Topic instances
-├── contracts/                              # Human-readable contracts
-├── schemas/                                # Machine-readable schemas
-├── skills/                                 # Agent skills
-├── adapters/                               # Platform adapters
-└── scripts/                                # Runtime scripts
+│   ├── CHARTER.md                     # Highest authority
+│   ├── AITP_SPEC.md                   # This document
+│   ├── design-principles.md           # Design principles
+│   └── protocols/                     # Protocol documents
+│       ├── brain_protocol.md          # B plane: MCP tools, skills, hooks
+│       ├── L1_intake_protocol.md      # L1 layer
+│       ├── L2_backend_interface.md    # L2 canonical knowledge
+│       ├── L3_execution_protocol.md   # L3 candidate workspace
+│       ├── L4_validation_protocol.md  # L4 validation surface
+│       ├── L5_writing_protocol.md     # L5 writing & publication
+│       ├── promotion_pipeline.md      # Promotion flow and gates
+│       ├── H_human_interaction.md     # H plane gates
+│       ├── mode_envelope_protocol.md  # 3-mode envelopes
+│       └── adapter_interface.md       # Platform adapter obligations
+├── brain/
+│   └── mcp_server.py                  # Minimal MCP server (~300 lines)
+├── skills/
+│   ├── skill-explore.md               # Explore mode instructions
+│   ├── skill-intake.md                # L1 analysis instructions
+│   ├── skill-derive.md                # Derivation workflow instructions
+│   ├── skill-validate.md              # Validation instructions
+│   ├── skill-promote.md               # Promotion instructions
+│   └── skill-continuous.md            # Session resume instructions
+├── hooks/
+│   ├── session_start.py               # Inject skill at session start
+│   ├── compact.py                     # Re-inject skill after compaction
+│   └── stop.py                        # Save progress at session end
+├── adapters/                          # Platform-specific configs
+├── schemas/                           # Markdown format examples
+└── topics/                            # Topic instances (runtime)
+    └── <topic-slug>/
+        ├── state.md                   # Topic state (frontmatter: status, mode, etc.)
+        ├── L0/
+        │   └── sources/
+        │       ├── hs-1988.md         # Per-source file
+        │       └── yang-1993.md
+        ├── L1/
+        │   └── intake/
+        │       ├── hs-1988.md         # Per-source intake notes
+        │       └── yang-1993.md
+        ├── L2/
+        │   └── canonical/
+        │       ├── def-spin-operator.md   # Promoted knowledge units
+        │       └── thm-hs-integrable.md
+        ├── L3/
+        │   ├── derivations.md         # All derivation records (append)
+        │   ├── candidates/
+        │   │   └── level-spacing.md   # Per-candidate file
+        │   └── deferred.md            # Deferred candidates
+        ├── L4/
+        │   └── reviews/
+        │       └── level-spacing.md   # Per-candidate validation record
+        └── runtime/
+            └── control_note.md        # Human directives
 ```
 
-Legacy protocol files in `research/knowledge-hub/` and `docs/` remain in place
-until their content is formally merged into the new `docs/protocols/` files.
-At that point the legacy file should contain a redirect pointer:
+All files are Markdown. No JSON. No JSONL. No paired backend.
+
+### Topic state.md Format
 
 ```markdown
-This protocol has been consolidated into `docs/protocols/<new_name>.md`.
-This file is kept for backward compatibility only.
+---
+topic_slug: hs-chaos-window
+title: Haldane-Shastry Chaos Window
+status: intake_done
+mode: learn
+layer: L3
+created_at: 2026-04-19T10:00:00
+updated_at: 2026-04-19T15:30:00
+sources_count: 3
+candidates_count: 1
+---
+
+# HS Chaos Window
+
+## Research Question
+What is the nature of the chaotic window in the Haldane-Shastry model?
+
+## Current Focus
+Analyzing level spacing distributions from numerical data.
 ```
