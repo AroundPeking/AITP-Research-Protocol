@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .mode_registry import declared_state_for_mode, normalize_runtime_mode
+
 
 _BOOTSTRAPPED_ARTIFACTS = [
     "topic_state_json",
@@ -16,43 +18,47 @@ _BOOTSTRAPPED_ARTIFACTS = [
 
 _EXPLORING_ARTIFACTS = [
     *_BOOTSTRAPPED_ARTIFACTS,
-    "validation_contract_json",
-    "validation_contract_note",
-    "validation_review_bundle_json",
-    "validation_review_bundle_note",
     "idea_packet_json",
     "idea_packet_note",
     "operator_checkpoint_json",
     "operator_checkpoint_note",
-    "promotion_readiness_note",
-    "topic_completion_json",
-    "topic_completion_note",
 ]
 
-_VERIFYING_ARTIFACTS = [
+_LEARNING_ARTIFACTS = [
     *_BOOTSTRAPPED_ARTIFACTS,
     "validation_contract_json",
     "validation_contract_note",
     "validation_review_bundle_json",
     "validation_review_bundle_note",
-    "promotion_readiness_note",
     "topic_completion_json",
     "topic_completion_note",
 ]
 
-_PROMOTING_ARTIFACTS = [
-    *_VERIFYING_ARTIFACTS,
-    "promotion_gate_json",
-    "promotion_gate_note",
+_IMPLEMENTING_ARTIFACTS = [
+    *_BOOTSTRAPPED_ARTIFACTS,
+    "idea_packet_json",
+    "idea_packet_note",
+    "validation_review_bundle_json",
+    "validation_review_bundle_note",
+    "topic_completion_json",
+    "topic_completion_note",
 ]
 
 _COMPLETED_ARTIFACTS = [
     *_BOOTSTRAPPED_ARTIFACTS,
     "topic_completion_json",
     "topic_completion_note",
+]
+
+_PROMOTION_OPERATION_ARTIFACTS = [
+    "promotion_readiness_note",
     "promotion_gate_json",
     "promotion_gate_note",
 ]
+
+_PROMOTION_GATE_ACTIVE_STATUSES = frozenset(
+    {"requested", "approved", "pending_human_approval", "rejected", "promoted"}
+)
 
 _ARTIFACT_LABELS = {
     "topic_state_json": "Topic state",
@@ -102,19 +108,22 @@ _STATE_REQUIREMENTS = {
         "artifact_ids": _BOOTSTRAPPED_ARTIFACTS,
     },
     "exploring": {
-        "summary": "The topic is in bounded exploration and must expose execution plus validation-contract surfaces.",
+        "summary": "The topic is in bounded exploration and must expose ideation plus operator-checkpoint surfaces.",
         "artifact_ids": _EXPLORING_ARTIFACTS,
     },
-    "verifying": {
-        "summary": "The topic claims verification mode and must expose explicit validation and review surfaces.",
-        "artifact_ids": _VERIFYING_ARTIFACTS,
+    "learning": {
+        "summary": "The topic is studying or verifying a bounded route and must expose validation and review surfaces.",
+        "artifact_ids": _LEARNING_ARTIFACTS,
     },
-    "promoting": {
-        "summary": "The topic is at the promotion boundary and must expose writeback gate surfaces explicitly.",
-        "artifact_ids": _PROMOTING_ARTIFACTS,
+    "implementing": {
+        "summary": (
+            "The topic is executing a novel route and must expose idea, review, and completion surfaces. "
+            "Promotion gate artifacts are added only when a promotion operation is active."
+        ),
+        "artifact_ids": _IMPLEMENTING_ARTIFACTS,
     },
     "completed": {
-        "summary": "The topic claims a promoted or completed outcome and must preserve completion plus promotion records.",
+        "summary": "The topic claims a completed outcome and must preserve the completion record plus any completed promotion gate.",
         "artifact_ids": _COMPLETED_ARTIFACTS,
     },
 }
@@ -189,6 +198,23 @@ def _artifact_states(artifact_id: str) -> list[str]:
     return states
 
 
+def _active_artifact_ids(
+    *,
+    declared_state: str,
+    promotion_gate: dict[str, Any],
+    topic_completion: dict[str, Any],
+) -> list[str]:
+    artifact_ids = list(_STATE_REQUIREMENTS[declared_state]["artifact_ids"])
+    gate_status = str(promotion_gate.get("status") or "").strip().lower()
+    completion_status = str(topic_completion.get("status") or "").strip().lower()
+
+    if declared_state in {"learning", "implementing"} and gate_status in _PROMOTION_GATE_ACTIVE_STATUSES:
+        artifact_ids.extend(_PROMOTION_OPERATION_ARTIFACTS)
+    if declared_state == "completed" and (gate_status == "promoted" or completion_status == "promoted"):
+        artifact_ids.extend(["promotion_gate_json", "promotion_gate_note"])
+    return _dedupe_strings(artifact_ids)
+
+
 def _derive_declared_state(
     *,
     topic_state: dict[str, Any],
@@ -196,16 +222,28 @@ def _derive_declared_state(
     promotion_gate: dict[str, Any],
     topic_completion: dict[str, Any],
 ) -> tuple[str, str]:
-    gate_status = str(promotion_gate.get("status") or "").strip()
-    completion_status = str(topic_completion.get("status") or "").strip()
-    normalized_mode = str(runtime_mode or "").strip()
+    gate_status = str(promotion_gate.get("status") or "").strip().lower()
+    completion_status = str(topic_completion.get("status") or "").strip().lower()
+    raw_mode = str(runtime_mode or "").strip()
+    normalized_mode = normalize_runtime_mode(raw_mode) if raw_mode else ""
 
     if completion_status in {"promoted", "completed"} or gate_status == "promoted":
-        return "completed", "Topic completion or promotion gate already claims a promoted/completed outcome."
-    if gate_status in {"requested", "approved", "pending_human_approval"} or normalized_mode == "promote":
-        return "promoting", "Promotion gate or runtime mode places the topic at the L2 writeback boundary."
-    if normalized_mode == "verify":
-        return "verifying", "Runtime mode claims the topic is in verification."
+        return "completed", "Topic completion or promotion gate already claims a completed outcome."
+    if normalized_mode:
+        declared_state = declared_state_for_mode(normalized_mode)
+        if raw_mode and raw_mode.lower() != normalized_mode:
+            return (
+                declared_state,
+                f"Legacy runtime mode `{raw_mode}` maps to `{normalized_mode}`, so the manifest declares `{declared_state}`.",
+            )
+        if gate_status in _PROMOTION_GATE_ACTIVE_STATUSES:
+            return (
+                declared_state,
+                f"Runtime mode `{normalized_mode}` remains active while promotion is handled as an in-mode operation.",
+            )
+        return declared_state, f"Runtime mode `{normalized_mode}` declares the topic is in `{declared_state}`."
+    if gate_status in _PROMOTION_GATE_ACTIVE_STATUSES:
+        return "learning", "A promotion gate is active, but promotion is treated as an operation rather than a separate manifest state."
     if topic_state:
         return "exploring", "Runtime state exists and no promotion/completion boundary is currently active."
     return "bootstrapped", "Only the minimal runtime state is available."
@@ -287,7 +325,11 @@ def materialize_protocol_manifest(
         topic_completion=topic_completion,
     )
     artifact_paths = _artifact_paths(service, topic_slug=topic_slug, shell_surfaces=shell_surfaces)
-    active_artifact_ids = list(_STATE_REQUIREMENTS[declared_state]["artifact_ids"])
+    active_artifact_ids = _active_artifact_ids(
+        declared_state=declared_state,
+        promotion_gate=promotion_gate,
+        topic_completion=topic_completion,
+    )
     active_requirements: list[dict[str, Any]] = []
     missing_artifact_ids: list[str] = []
     missing_paths: list[str] = []

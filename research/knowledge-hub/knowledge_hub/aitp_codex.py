@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,45 @@ def _emit(payload: dict[str, Any], as_json: bool) -> None:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _now_iso() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def codex_bootstrap_receipt_path() -> Path:
+    return Path.home() / ".codex" / "aitp_bootstrap_receipt.json"
+
+
+def write_codex_bootstrap_receipt(
+    *,
+    payload: dict[str, Any],
+    repo_root: str,
+    kernel_root: str,
+    updated_by: str,
+) -> Path:
+    receipt_path = codex_bootstrap_receipt_path()
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_payload = {
+        "receipt_kind": "codex_bootstrap_receipt",
+        "protocol_version": 1,
+        "entrypoint": "aitp-codex",
+        "bootstrap_mode": "aitp_codex_entrypoint",
+        "topic_slug": str(payload.get("topic_slug") or "").strip(),
+        "run_id": str(payload.get("run_id") or "").strip(),
+        "routing_route": str(((payload.get("routing") or {}).get("route")) or "").strip(),
+        "session_start_contract_path": str(payload.get("session_start_contract_path") or "").strip(),
+        "session_start_note_path": str(payload.get("session_start_note_path") or "").strip(),
+        "repo_root": str(repo_root or "").strip(),
+        "kernel_root": str(kernel_root or "").strip(),
+        "updated_at": _now_iso(),
+        "updated_by": str(updated_by or "aitp-codex").strip() or "aitp-codex",
+    }
+    receipt_path.write_text(
+        json.dumps(receipt_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return receipt_path
 
 
 def _trim_steering_fragment(value: str) -> str:
@@ -213,6 +253,40 @@ def build_codex_prompt(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def build_popup_gate_blocking_payload(
+    *,
+    result: dict[str, Any],
+    popup_payload: dict[str, Any],
+) -> dict[str, Any]:
+    ask_user_question = popup_payload.get("ask_user_question")
+    interaction_payload_kind = "ask_user_question" if ask_user_question else "popup"
+    interaction_payload = ask_user_question or popup_payload.get("popup") or {}
+    return {
+        "status": "blocked",
+        "blocked": True,
+        "continue_allowed": False,
+        "block_reason": "popup_gate_active",
+        "topic_slug": result.get("topic_slug"),
+        "run_id": result.get("run_id"),
+        "routing": result.get("routing"),
+        "loop_state_path": result.get("loop_state_path"),
+        "session_start_contract_path": result.get("session_start_contract_path"),
+        "session_start_note_path": result.get("session_start_note_path"),
+        "bootstrap_receipt_path": result.get("bootstrap_receipt_path"),
+        "popup_kind": popup_payload.get("popup_kind"),
+        "interaction_payload_kind": interaction_payload_kind,
+        "interaction_payload": interaction_payload,
+        "popup_gate": popup_payload,
+        "next_step": {
+            "kind": "await_human_input",
+            "summary": "Resolve the active AITP popup gate before deeper Codex continuation.",
+            "resolve_hint": (
+                f"aitp popup --topic-slug {result.get('topic_slug') or '(missing)'} --choice <index>"
+            ),
+        },
+    }
+
+
 def invoke_codex(
     *,
     prompt: str,
@@ -235,7 +309,7 @@ def invoke_codex(
     env = os.environ.copy()
     env.setdefault("AITP_KERNEL_ROOT", kernel_root)
     env.setdefault("AITP_REPO_ROOT", repo_root)
-    completed = subprocess.run(command, check=False, env=env)
+    completed = subprocess.run(command, check=False, env=env, stdin=subprocess.DEVNULL)
     return completed.returncode
 
 
@@ -271,6 +345,24 @@ def main() -> int:
         "trust_report_path": payload["trust_audit"]["trust_report_path"] if payload.get("trust_audit") else None,
         "prompt": prompt,
     }
+    receipt_path = write_codex_bootstrap_receipt(
+        payload=result,
+        repo_root=str(service.repo_root),
+        kernel_root=str(service.kernel_root),
+        updated_by=args.updated_by,
+    )
+    result["bootstrap_receipt_path"] = str(receipt_path)
+    popup_payload = service.topic_popup(
+        topic_slug=payload["topic_slug"],
+        updated_by=args.updated_by,
+    )
+    if popup_payload.get("needs_popup"):
+        blocking_payload = build_popup_gate_blocking_payload(
+            result=result,
+            popup_payload=popup_payload,
+        )
+        _emit(blocking_payload, True)
+        return 2
     if args.dry_run:
         _emit(result, args.json)
         return 0

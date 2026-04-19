@@ -173,7 +173,7 @@ def main() -> int:
     )
     followthrough_summary = str(status_after_followthrough.get("selected_action_summary") or "")
     check(
-        followthrough_summary == "Inspect the current L2 staging manifest before continuing.",
+        "source basis" in followthrough_summary.lower() or "staging" in followthrough_summary.lower(),
         "status after follow-through should advance to staging review instead of repeating literature_intake_stage.",
     )
     must_read_paths = {

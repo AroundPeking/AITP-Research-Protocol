@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .runtime_schema_promotion_bridge import collect_runtime_schema_context
+from .topic_truth_root_support import compatibility_projection_path
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -15,8 +16,13 @@ def _read_json(path: Path) -> dict[str, Any] | None:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _now_iso() -> str:
@@ -73,6 +79,16 @@ def _validate_auto_promotion(
     if not self._backend_supports_candidate_type(card_payload, str(candidate.get("candidate_type") or "")):
         raise ValueError(
             f"Backend {resolved_backend_id} does not declare support for candidate type {candidate.get('candidate_type')}"
+        )
+    runtime_blockers = self._candidate_runtime_blockers(
+        str(candidate.get("topic_slug") or ""),
+        str(candidate.get("run_id") or ""),
+        candidate,
+    )
+    if runtime_blockers:
+        raise PermissionError(
+            "Auto promotion is blocked until the candidate satisfies the required L3 derivation, L2 comparison, and theory-packet surfaces: "
+            + "; ".join(runtime_blockers)
         )
 
     runtime_policy = self._load_runtime_policy().get("auto_promotion_policy") or {}

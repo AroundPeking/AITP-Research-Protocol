@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.9
 milestone_name: Promotion-Review Gate Closure
 status: milestone_active
-stopped_at: "All v2.9 phases executed; milestone audit / archive next"
-last_updated: "2026-04-14T09:21:35+08:00"
+stopped_at: "All v2.9 phases executed; milestone audit / archive next, then v3.0 3-mode runtime alignment prep"
+last_updated: "2026-04-17T12:00:00+08:00"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -47,6 +47,24 @@ bounded gap.
   choice note as supporting evidence
 - Phase `183.2` closed the milestone with one replayable sixth-continue proof
 - immediate next step: audit / archive milestone `v2.9`
+
+## Prepared Next Milestone
+
+Prepared milestone: `v3.0` `3-Mode Runtime Alignment`
+
+Goal: align runtime code, acceptance surfaces, and planning language from the
+legacy 4-mode vocabulary to the canonical 3-mode protocol
+(`explore` / `learn` / `implement`).
+
+Planned phases:
+- `165.2` (updated planning refresh) — restate the historical mode-envelope +
+  literature work in canonical 3-mode terms
+- `184.2` `3-Mode Runtime Refactoring Alignment` — rename runtime profiles,
+  escalation tables, and acceptance surfaces to match
+  `research/knowledge-hub/knowledge_hub/mode_registry.py`
+
+Execution note: start this bounded v3.0 alignment slice immediately after the
+`v2.9` audit / archive, before resuming the broader v3.0 E2E completion work.
 
 ## Accumulated Context
 
@@ -149,7 +167,7 @@ cross-cutting).
   route-choice baseline: once `l2_promotion_review` becomes the selected route,
   the loop must materialize one explicit promotion-review gate instead of
   stalling on the summary
-- `v2.8` now promotes the next bounded gap from the repaired `v2.7`
-  selection baseline: once a selected staged candidate becomes the selected
-  route, the loop must derive one bounded deeper route choice instead of
-  stalling on the candidate summary
+- `v3.0` now adds a bounded 3-mode runtime alignment slice: refresh Phase
+  `165.2` in canonical vocabulary, then execute Phase `184.2`
+  `3-Mode Runtime Refactoring Alignment` so runtime code matches the protocol's
+  `explore` / `learn` / `implement` model before broader v3.0 E2E work

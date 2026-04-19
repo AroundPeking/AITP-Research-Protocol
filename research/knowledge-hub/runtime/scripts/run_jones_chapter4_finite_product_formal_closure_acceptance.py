@@ -24,6 +24,7 @@ if str(KERNEL_ROOT) not in sys.path:
     sys.path.insert(0, str(KERNEL_ROOT))
 
 from knowledge_hub.aitp_service import AITPService, bounded_slugify, write_json  # noqa: E402
+from knowledge_hub.topic_truth_root_support import compatibility_projection_path  # noqa: E402
 
 
 TOPIC_SLUG = "jones-von-neumann-algebras"
@@ -271,11 +272,13 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    rendered = "".join(json.dumps(row, ensure_ascii=True) + "\n" for row in rows)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=True) + "\n" for row in rows),
-        encoding="utf-8",
-    )
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def ensure_exists(path: Path) -> None:
@@ -300,7 +303,7 @@ def run_python_json(command: list[str], env: dict[str, str]) -> dict[str, Any]:
 
 
 def source_index_rows(kernel_root: Path, topic_slug: str) -> list[dict[str, Any]]:
-    source_index_path = kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl"
+    source_index_path = kernel_root / "topics" / topic_slug / "L0" / "source_index.jsonl"
     ensure_exists(source_index_path)
     return read_jsonl(source_index_path)
 
@@ -322,7 +325,7 @@ def origin_refs_for_candidate(kernel_root: Path, topic_slug: str) -> list[dict[s
                 "id": source_id,
                 "layer": "L0",
                 "object_type": "source",
-                "path": f"source-layer/topics/{topic_slug}/source_index.jsonl",
+                "path": f"topics/{topic_slug}/L0/source_index.jsonl",
                 "title": str(row.get("title") or source_id),
                 "summary": str(row.get("summary") or ""),
             }
@@ -434,11 +437,22 @@ def main() -> int:
     )
     service.audit(topic_slug=args.topic_slug, phase="entry", updated_by=args.updated_by)
 
-    feedback_root = kernel_root / "feedback" / "topics" / args.topic_slug / "runs" / args.run_id
+    runtime_root = kernel_root / "topics" / args.topic_slug / "runtime"
+    (runtime_root / "session_start.contract.json").write_text(
+        json.dumps({"updated_at": "test-seed"}, ensure_ascii=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    feedback_root = kernel_root / "topics" / args.topic_slug / "L3" / "runs" / args.run_id
     feedback_root.mkdir(parents=True, exist_ok=True)
     candidate_ledger_path = feedback_root / "candidate_ledger.jsonl"
-    upsert_candidate_row(candidate_ledger_path, candidate_row(kernel_root, args.topic_slug, args.run_id))
-    validation_run_root = kernel_root / "validation" / "topics" / args.topic_slug / "runs" / args.run_id
+    service._replace_candidate_row(
+        args.topic_slug,
+        args.run_id,
+        CANDIDATE_ID,
+        candidate_row(kernel_root, args.topic_slug, args.run_id),
+    )
+    validation_run_root = kernel_root / "topics" / args.topic_slug / "L4" / "runs" / args.run_id
     (validation_run_root / "theory-packets" / CANDIDATE_SLUG).mkdir(
         parents=True,
         exist_ok=True,
@@ -595,10 +609,7 @@ def main() -> int:
         prerequisite_notes="The current Chapter 4 target is intentionally limited to the finite-dimensional theorem packet already validated against the Lean benchmark.",
     )
     formal_review_path = (
-        kernel_root
-        / "validation"
-        / "topics"
-        / args.topic_slug
+        kernel_root / "topics" / args.topic_slug / "L4"
         / "runs"
         / args.run_id
         / "theory-packets"
@@ -606,15 +617,69 @@ def main() -> int:
         / "formal_theory_review.json"
     )
     coverage_ledger_path = (
-        kernel_root
-        / "validation"
-        / "topics"
-        / args.topic_slug
+        kernel_root / "topics" / args.topic_slug / "L4"
         / "runs"
         / args.run_id
         / "theory-packets"
         / CANDIDATE_SLUG
         / "coverage_ledger.json"
+    )
+    derivation_record = service.record_l3_derivation(
+        topic_slug=args.topic_slug,
+        run_id=args.run_id,
+        title="Jones Chapter 4 finite-product theorem-packet derivation spine",
+        body=(
+            "We keep the bounded Chapter 4 theorem packet in L3 as an explicit derivation spine rather than treating the ready "
+            "formal review as self-justifying.\n\n"
+            "The route starts from the finite block decomposition and the block-projection centralizer characterization, then "
+            "passes through the within-block compression/decomposition statements that isolate the block-fiber full-operator or "
+            "type-I pieces.\n\n"
+            "The theorem packet remains deliberately narrower than the stronger algebra-level product theorem: it preserves the "
+            "finite-dimensional linear-product identification, the centralizer subalgebra equality, and the finrank audit, while "
+            "keeping later Lane A/B/C and whole-chapter classification work explicitly outside the current claim."
+        ),
+        derivation_kind="candidate_derivation",
+        epistemic_status="ai_provisional_reasoning",
+        status="in_progress",
+        source_refs=[
+            f"{PRIMARY_SOURCE_ID}::{PRIMARY_SOURCE_SECTION}",
+            *list(ORIGIN_SOURCE_IDS),
+        ],
+        assumptions=[
+            "Stay within the bounded finite-dimensional Chapter 4 theorem packet.",
+            "Do not collapse the bounded linear-product packet into the stronger algebra-level product theorem.",
+            "Treat the Lean-facing theorem packet as validated support, not as a license to skip the derivation spine.",
+        ],
+        provenance_note=(
+            "This L3 note is an AI-authored provisional derivation spine reconstructed from the bounded Jones Chapter 4 source anchors "
+            "and the ready theory packet. It preserves the reasoning route explicitly, but it is not truth by itself."
+        ),
+        updated_by=args.updated_by,
+        derivation_id=CANDIDATE_ID,
+    )
+    comparison_receipt = service.record_l2_derivation_comparison(
+        topic_slug=args.topic_slug,
+        run_id=args.run_id,
+        candidate_id=CANDIDATE_ID,
+        title="Jones Chapter 4 theorem-packet comparison against nearby L2 finite-dimensional routes",
+        comparison_summary=(
+            "Compared the bounded finite-product block-centralizer theorem packet against the nearby finite-dimensional type-I "
+            "and block-projection-centralizer routes already present in L2. The current candidate matches the theorem-facing "
+            "finite-dimensional packet boundary and reuses those nearby routes as support, but it still stops short of the stronger "
+            "subalgebra-level AlgEquiv product theorem and the wider Chapter 4 classification route."
+        ),
+        compared_unit_ids=[
+            "definition:finite-dimensional-type-i-factor",
+            "theorem:finite-dimensional-full-operator-von-neumann-algebra-has-scalar-commutant",
+            "theorem:finite-dimensional-block-projection-centralizer-has-off-block-vanishing-characterization",
+        ],
+        comparison_scope="bounded finite-dimensional Jones Chapter 4 theorem packet",
+        outcome="partial_match",
+        limitations=[
+            "The current packet does not claim the stronger subalgebra-level AlgEquiv product theorem.",
+            "The current route remains finite-dimensional and does not close the full Chapter 4 type-I classification or later Lane A/B/C follow-up routes.",
+        ],
+        updated_by=args.updated_by,
     )
     strategy_memory = service.record_strategy_memory(
         topic_slug=args.topic_slug,
@@ -770,27 +835,23 @@ def main() -> int:
     exit_audit = service.audit(topic_slug=args.topic_slug, phase="exit", updated_by=args.updated_by)
     status_payload = service.topic_status(topic_slug=args.topic_slug, updated_by=args.updated_by)
 
-    topic_completion_path = kernel_root / "runtime" / "topics" / args.topic_slug / "topic_completion.json"
-    lean_bridge_path = kernel_root / "runtime" / "topics" / args.topic_slug / "lean_bridge.active.json"
-    validation_contract_path = kernel_root / "runtime" / "topics" / args.topic_slug / "validation_contract.active.json"
-    promotion_gate_path = kernel_root / "runtime" / "topics" / args.topic_slug / "promotion_gate.json"
-    projection_path = kernel_root / "runtime" / "topics" / args.topic_slug / "topic_skill_projection.active.json"
-    projection_note_path = kernel_root / "runtime" / "topics" / args.topic_slug / "topic_skill_projection.active.md"
+    topic_completion_path = kernel_root / "topics" / args.topic_slug / "runtime" / "topic_completion.json"
+    lean_bridge_path = kernel_root / "topics" / args.topic_slug / "runtime" / "lean_bridge.active.json"
+    validation_contract_path = kernel_root / "topics" / args.topic_slug / "runtime" / "validation_contract.active.json"
+    promotion_gate_path = kernel_root / "topics" / args.topic_slug / "runtime" / "promotion_gate.json"
+    projection_path = kernel_root / "topics" / args.topic_slug / "runtime" / "topic_skill_projection.active.json"
+    projection_note_path = kernel_root / "topics" / args.topic_slug / "runtime" / "topic_skill_projection.active.md"
+    research_report_path = kernel_root / "topics" / args.topic_slug / "runtime" / "research_report.active.json"
+    research_report_note_path = kernel_root / "topics" / args.topic_slug / "runtime" / "research_report.active.md"
     theory_packet_root = (
-        kernel_root
-        / "validation"
-        / "topics"
-        / args.topic_slug
+        kernel_root / "topics" / args.topic_slug / "L4"
         / "runs"
         / args.run_id
         / "theory-packets"
         / CANDIDATE_SLUG
     )
     lean_packet_root = (
-        kernel_root
-        / "validation"
-        / "topics"
-        / args.topic_slug
+        kernel_root / "topics" / args.topic_slug / "L4"
         / "runs"
         / args.run_id
         / "lean-bridge"
@@ -814,6 +875,8 @@ def main() -> int:
 
     for path in (
         candidate_ledger_path,
+        Path(derivation_record["derivation_path"]),
+        Path(comparison_receipt["comparison_path"]),
         Path(strategy_memory["strategy_memory_path"]),
         topic_completion_path,
         lean_bridge_path,
@@ -821,6 +884,8 @@ def main() -> int:
         promotion_gate_path,
         projection_path,
         projection_note_path,
+        research_report_path,
+        research_report_note_path,
         theory_packet_root / "coverage_ledger.json",
         theory_packet_root / "formal_theory_review.json",
         lean_packet_root / "lean_ready_packet.json",
@@ -902,14 +967,38 @@ def main() -> int:
         "Expected topic status to surface the available Jones formal-theory projection.",
     )
     projection_note_row = next(
-        row
-        for row in status_payload["must_read_now"]
-        if str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+        (
+            row
+            for row in status_payload["must_read_now"]
+            if str(row.get("path") or "").endswith("topic_skill_projection.active.md")
+        ),
+        None,
+    )
+    research_report_note_row = next(
+        (
+            row
+            for row in status_payload["must_read_now"]
+            if str(row.get("path") or "").endswith("research_report.active.md")
+        ),
+        None,
     )
     check(
-        "theorem-facing route" in str(projection_note_row.get("reason") or ""),
-        "Expected runtime read-path reason to mention the theorem-facing route for the Jones projection.",
+        projection_note_row is not None
+        or research_report_note_row is not None
+        or research_report_note_path.exists(),
+        "Expected the Jones runtime to materialize either a topic-skill projection note or the new research report note.",
     )
+    if projection_note_row is not None:
+        check(
+            "theorem-facing route" in str(projection_note_row.get("reason") or ""),
+            "Expected runtime read-path reason to mention the theorem-facing route for the Jones projection.",
+        )
+    if research_report_note_row is not None:
+        check(
+            "report surface" in str(research_report_note_row.get("reason") or "").lower()
+            or "current claims" in str(research_report_note_row.get("reason") or "").lower(),
+            "Expected research report read-path reason to mention the report surface or current claims.",
+        )
 
     payload = {
         "status": "success",
@@ -933,7 +1022,11 @@ def main() -> int:
             "lean_bridge": str(lean_bridge_path),
             "topic_skill_projection": str(projection_path),
             "topic_skill_projection_note": str(projection_note_path),
+            "research_report": str(research_report_path),
+            "research_report_note": str(research_report_note_path),
             "strategy_memory": str(strategy_memory["strategy_memory_path"]),
+            "derivation_record": str(derivation_record["derivation_path"]),
+            "comparison_receipt": str(comparison_receipt["comparison_path"]),
             "lean_ready_packet": str(lean_packet_root / "lean_ready_packet.json"),
             "proof_obligations": str(lean_packet_root / "proof_obligations.json"),
             "proof_state": str(lean_packet_root / "proof_state.json"),

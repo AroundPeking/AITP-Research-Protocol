@@ -31,6 +31,8 @@ from orchestrator_contract_support import (
     load_post_promotion_blocker_route_choice,
     load_post_promotion_followup,
     load_selected_candidate_promotion_gate,
+    post_promotion_formalization_followup_action,
+    post_promotion_proof_repair_review_action,
     load_selected_candidate_route_choice,
     append_literature_followup_actions,
     append_runtime_helper_actions,
@@ -71,6 +73,56 @@ TOPIC_COMPLETION_FILENAME = "topic_completion.json"
 LEAN_BRIDGE_ACTIVE_FILENAME = "lean_bridge.active.json"
 
 
+def _synthesize_fallback_summary(
+    topic_slug: str,
+    topic_state: dict,
+    knowledge_root: Path,
+    fallback_kind: str,
+) -> str:
+    rc_path = knowledge_root / "topics" / topic_slug / "runtime" / "research_question.contract.json"
+    rc = load_json(rc_path) or {}
+    question = str(rc.get("question") or "").strip()
+    source_index_path = knowledge_root / "topics" / topic_slug / "L0" / "source_index.jsonl"
+    source_rows = read_jsonl(source_index_path) or []
+    has_sources = bool(source_rows)
+    has_question = bool(question)
+    has_run = bool(topic_state.get("latest_run_id") or topic_state.get("resume_stage"))
+
+    if not has_question and not has_sources and not has_run:
+        return f"Initialize the research workspace for topic `{topic_slug}`."
+
+    stop = {"the", "a", "an", "is", "are", "was", "were", "be", "to", "of", "in", "for", "on", "with", "at", "by", "from", "that", "this", "and", "or", "but", "not", "if", "it", "its", "do", "does", "did", "will", "would", "could", "should", "may", "might", "shall", "can", "have", "has", "had", "been", "being"}
+    words = [w for w in question.split() if w.lower().strip(".,;:!?") not in stop] if question else [topic_slug]
+    phrase = " ".join(words[:6]) if words else topic_slug
+
+    if fallback_kind == "post_promotion":
+        if has_question:
+            return (
+                f"Confirm the promoted reusable outcome for the bounded question on "
+                f"{phrase} before opening another bounded route."
+            )
+        return "Confirm the promoted Layer 2 outcome before opening another bounded route."
+
+    if fallback_kind == "l1_vault":
+        if has_question:
+            return (
+                f"Review the L2 staging manifest and compiled source basis for the bounded question on "
+                f"{phrase} before continuing interpretation."
+            )
+        return "Review the L2 staging manifest and compiled source basis before continuing."
+
+    if has_question and has_sources:
+        return (
+            f"Recover the source basis interpretation for the bounded question on "
+            f"{phrase} before continuing execution."
+        )
+    if has_question:
+        return f"Bootstrap the research workflow for the bounded question on {phrase} before continuing."
+    if has_sources:
+        return f"Register the source basis for `{topic_slug}` and formulate the bounded research question."
+    return f"Resume the research workflow for `{topic_slug}`."
+
+
 def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -83,27 +135,82 @@ def slugify(text: str) -> str:
 
 
 def write_json(path: Path, payload: dict) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def write_jsonl(path: Path, rows: list[dict]) -> None:
+    rendered = "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(text, encoding="utf-8")
+
+
+def compatibility_projection_path(path: Path) -> Path | None:
+    resolved = path.expanduser().resolve()
+    parts = resolved.parts
+    if "runtime" in parts and "topics" in parts:
+        runtime_index = parts.index("runtime")
+        if runtime_index + 2 < len(parts) and parts[runtime_index + 1] == "topics":
+            kernel_root = Path(parts[0]).joinpath(*parts[1:runtime_index])
+            topic_slug = parts[runtime_index + 2]
+            remainder = parts[runtime_index + 3 :]
+            return kernel_root / "topics" / topic_slug / "runtime" / Path(*remainder)
+    if "feedback" in parts and "topics" in parts:
+        feedback_index = parts.index("feedback")
+        if feedback_index + 2 < len(parts) and parts[feedback_index + 1] == "topics":
+            kernel_root = Path(parts[0]).joinpath(*parts[1:feedback_index])
+            topic_slug = parts[feedback_index + 2]
+            remainder = parts[feedback_index + 3 :]
+            return kernel_root / "topics" / topic_slug / "L3" / Path(*remainder)
+    if "validation" in parts and "topics" in parts:
+        validation_index = parts.index("validation")
+        if validation_index + 2 < len(parts) and parts[validation_index + 1] == "topics":
+            kernel_root = Path(parts[0]).joinpath(*parts[1:validation_index])
+            topic_slug = parts[validation_index + 2]
+            remainder = parts[validation_index + 3 :]
+            return kernel_root / "topics" / topic_slug / "L4" / Path(*remainder)
+    if "topics" in parts:
+        topics_index = parts.index("topics")
+        if topics_index + 3 < len(parts):
+            kernel_root = Path(parts[0]).joinpath(*parts[1:topics_index])
+            topic_slug = parts[topics_index + 1]
+            surface = parts[topics_index + 2]
+            remainder = parts[topics_index + 3 :]
+            if surface == "runtime":
+                return kernel_root / "runtime" / "topics" / topic_slug / Path(*remainder)
+            if surface == "L3":
+                return kernel_root / "feedback" / "topics" / topic_slug / Path(*remainder)
+            if surface == "L4":
+                return kernel_root / "validation" / "topics" / topic_slug / Path(*remainder)
+    return None
 
 
 def load_json(path: Path) -> dict | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return None
+        target = compatibility_path
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 def python_command() -> list[str]:
@@ -124,10 +231,14 @@ def python_command() -> list[str]:
 
 
 def read_jsonl(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return []
+        target = compatibility_path
     rows: list[dict] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    for raw_line in target.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if line:
             rows.append(json.loads(line))
@@ -157,7 +268,7 @@ def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | N
     created_at = now_iso()
     title = str(topic_title or "").strip() or topic_slug.replace("-", " ").title()
 
-    layer0_topic = knowledge_root / "source-layer" / "topics" / topic_slug / "topic.json"
+    layer0_topic = knowledge_root / "topics" / topic_slug / "L0" / "topic.json"
     if not layer0_topic.exists():
         write_json(
             layer0_topic,
@@ -169,7 +280,7 @@ def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | N
             },
         )
 
-    intake_topic = knowledge_root / "intake" / "topics" / topic_slug / "topic.json"
+    intake_topic = knowledge_root / "topics" / topic_slug / "L1" / "topic.json"
     if not intake_topic.exists():
         write_json(
             intake_topic,
@@ -181,7 +292,7 @@ def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | N
             },
         )
 
-    intake_status = knowledge_root / "intake" / "topics" / topic_slug / "status.json"
+    intake_status = knowledge_root / "topics" / topic_slug / "L1" / "status.json"
     if not intake_status.exists():
         write_json(
             intake_status,
@@ -189,7 +300,7 @@ def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | N
         )
 
     if statement:
-        latest_run_root = knowledge_root / "feedback" / "topics" / topic_slug / "runs"
+        latest_run_root = knowledge_root / "topics" / topic_slug / "L3" / "runs"
         run_id = datetime.now().astimezone().strftime("%Y-%m-%d-%H%M%S-bootstrap")
         run_root = latest_run_root / run_id
         if not run_root.exists():
@@ -212,7 +323,57 @@ def ensure_topic_shell(knowledge_root: Path, topic_slug: str, statement: str | N
             )
 
 
-def classify_action(summary: str) -> tuple[str, bool]:
+def _load_recorded_action_classification(
+    classification_contract_path: Path | str | None,
+) -> str | None:
+    if not classification_contract_path:
+        return None
+    path = Path(classification_contract_path)
+    if not path.exists():
+        return None
+    rows: list[dict] = []
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if line:
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    action_rows = [r for r in rows if r.get("classification_type") == "action_type"]
+    if action_rows:
+        return action_rows[-1].get("value")
+    return None
+
+
+def classify_action(
+    summary: str,
+    *,
+    pre_classified_type: str | None = None,
+    classification_contract_path: str | None = None,
+) -> tuple[str, bool]:
+    if pre_classified_type:
+        auto_types = {
+            "apply_candidate_split_contract",
+            "reactivate_deferred_candidate",
+            "spawn_followup_subtopics",
+            "assess_topic_completion",
+            "prepare_lean_bridge",
+            "auto_promote_candidate",
+        }
+        return pre_classified_type, pre_classified_type in auto_types
+
+    recorded = _load_recorded_action_classification(classification_contract_path)
+    if recorded:
+        auto_types = {
+            "apply_candidate_split_contract",
+            "reactivate_deferred_candidate",
+            "spawn_followup_subtopics",
+            "assess_topic_completion",
+            "prepare_lean_bridge",
+            "auto_promote_candidate",
+        }
+        return recorded, recorded in auto_types
+
     lowered = summary.lower()
     if "baseline" in lowered or "reproduc" in lowered:
         return "baseline_reproduction", False
@@ -254,7 +415,7 @@ def completed_literature_followups(knowledge_root: Path, topic_slug: str, run_id
     if not run_id:
         return set()
     receipts_path = (
-        knowledge_root / "validation" / "topics" / topic_slug / "runs" / run_id / "literature_followup_receipts.jsonl"
+        knowledge_root / "topics" / topic_slug / "L4" / "runs" / run_id / "literature_followup_receipts.jsonl"
     )
     completed: set[tuple[str, str]] = set()
     for row in read_jsonl(receipts_path):
@@ -382,7 +543,7 @@ def auto_promotion_actions(knowledge_root: Path, topic_state: dict, queue_meta: 
     if not run_id:
         return []
     candidate_rows = read_jsonl(
-        knowledge_root / "feedback" / "topics" / topic_state["topic_slug"] / "runs" / run_id / "candidate_ledger.jsonl"
+        knowledge_root / "topics" / topic_state["topic_slug"] / "L3" / "runs" / run_id / "candidate_ledger.jsonl"
     )
     allowed_statuses = {
         str(value).strip()
@@ -394,7 +555,7 @@ def auto_promotion_actions(knowledge_root: Path, topic_state: dict, queue_meta: 
         for value in (policy.get("theory_formal_candidate_types") or [])
         if str(value).strip()
     }
-    promotion_gate = load_json(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / "promotion_gate.json") or {}
+    promotion_gate = load_json(knowledge_root / "topics" / topic_state["topic_slug"] / "runtime" / "promotion_gate.json") or {}
     actions: list[dict] = []
     for row in candidate_rows:
         candidate_id = str(row.get("candidate_id") or "").strip()
@@ -415,9 +576,9 @@ def auto_promotion_actions(knowledge_root: Path, topic_state: dict, queue_meta: 
             continue
         packet_root = (
             knowledge_root
-            / "validation"
             / "topics"
             / topic_state["topic_slug"]
+            / "L4"
             / "runs"
             / run_id
             / "theory-packets"
@@ -477,9 +638,9 @@ def followup_subtopic_actions(knowledge_root: Path, topic_state: dict, queue_met
     if not run_id:
         return []
     receipts_path = (
-        knowledge_root / "validation" / "topics" / topic_state["topic_slug"] / "runs" / run_id / "literature_followup_receipts.jsonl"
+        knowledge_root / "topics" / topic_state["topic_slug"] / "L4" / "runs" / run_id / "literature_followup_receipts.jsonl"
     )
-    existing_rows = read_jsonl(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / FOLLOWUP_SUBTOPICS_FILENAME)
+    existing_rows = read_jsonl(knowledge_root / "topics" / topic_state["topic_slug"] / "runtime" / FOLLOWUP_SUBTOPICS_FILENAME)
     existing_keys = {
         (str(row.get("query") or ""), str(row.get("arxiv_id") or ""))
         for row in existing_rows
@@ -554,7 +715,7 @@ def followup_reintegration_actions(knowledge_root: Path, topic_state: dict, queu
         if str(value).strip()
     }
     actions: list[dict] = []
-    for row in read_jsonl(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / FOLLOWUP_SUBTOPICS_FILENAME):
+    for row in read_jsonl(knowledge_root / "topics" / topic_state["topic_slug"] / "runtime" / FOLLOWUP_SUBTOPICS_FILENAME):
         child_topic_slug = str(row.get("child_topic_slug") or "").strip()
         if not child_topic_slug:
             continue
@@ -610,14 +771,14 @@ def topic_completion_actions(knowledge_root: Path, topic_state: dict, queue_meta
         return []
     topic_slug = topic_state["topic_slug"]
     candidate_rows = read_jsonl(
-        knowledge_root / "feedback" / "topics" / topic_slug / "runs" / run_id / "candidate_ledger.jsonl"
+        knowledge_root / "topics" / topic_slug / "L3" / "runs" / run_id / "candidate_ledger.jsonl"
     )
-    followup_rows = read_jsonl(knowledge_root / "runtime" / "topics" / topic_slug / FOLLOWUP_SUBTOPICS_FILENAME)
-    promotion_gate = load_json(knowledge_root / "runtime" / "topics" / topic_slug / "promotion_gate.json") or {}
+    followup_rows = read_jsonl(knowledge_root / "topics" / topic_slug / "runtime" / FOLLOWUP_SUBTOPICS_FILENAME)
+    promotion_gate = load_json(knowledge_root / "topics" / topic_slug / "runtime" / "promotion_gate.json") or {}
     gate_status = str(promotion_gate.get("status") or "").strip()
     if not candidate_rows and not followup_rows and gate_status != "promoted":
         return []
-    completion_payload = load_json(knowledge_root / "runtime" / "topics" / topic_slug / TOPIC_COMPLETION_FILENAME) or {}
+    completion_payload = load_json(knowledge_root / "topics" / topic_slug / "runtime" / TOPIC_COMPLETION_FILENAME) or {}
     candidate_count_value = completion_payload.get("candidate_count")
     followup_count_value = completion_payload.get("followup_subtopic_count")
     candidate_count_matches = (
@@ -653,7 +814,7 @@ def topic_completion_actions(knowledge_root: Path, topic_state: dict, queue_meta
 
 def prune_obsolete_actions(knowledge_root: Path, topic_state: dict, queue: list[dict]) -> list[dict]:
     topic_slug = topic_state["topic_slug"]
-    runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    runtime_root = knowledge_root / "topics" / topic_slug / "runtime"
     promotion_gate = load_json(runtime_root / "promotion_gate.json") or {}
     gate_status = str(promotion_gate.get("status") or "").strip()
     completion_payload = load_json(runtime_root / TOPIC_COMPLETION_FILENAME) or {}
@@ -715,7 +876,7 @@ def lean_bridge_actions(knowledge_root: Path, topic_state: dict, queue_meta: dic
         if str(value).strip()
     }
     candidate_rows = read_jsonl(
-        knowledge_root / "feedback" / "topics" / topic_slug / "runs" / run_id / "candidate_ledger.jsonl"
+        knowledge_root / "topics" / topic_slug / "L3" / "runs" / run_id / "candidate_ledger.jsonl"
     )
     target_candidates = []
     for row in candidate_rows:
@@ -728,7 +889,7 @@ def lean_bridge_actions(knowledge_root: Path, topic_state: dict, queue_meta: dic
         target_candidates.append(candidate_id)
     if not target_candidates:
         return []
-    active_payload = load_json(knowledge_root / "runtime" / "topics" / topic_slug / LEAN_BRIDGE_ACTIVE_FILENAME) or {}
+    active_payload = load_json(knowledge_root / "topics" / topic_slug / "runtime" / LEAN_BRIDGE_ACTIVE_FILENAME) or {}
     packet_candidate_ids = {
         str(row.get("candidate_id") or "").strip()
         for row in (active_payload.get("packets") or [])
@@ -765,9 +926,9 @@ def deferred_reactivation_actions(knowledge_root: Path, topic_state: dict, queue
     if not run_id:
         return []
     deferred_buffer = load_json(
-        knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / DEFERRED_BUFFER_FILENAME
+        knowledge_root / "topics" / topic_state["topic_slug"] / "runtime" / DEFERRED_BUFFER_FILENAME
     ) or {}
-    source_rows = read_jsonl(knowledge_root / "source-layer" / "topics" / topic_state["topic_slug"] / "source_index.jsonl")
+    source_rows = read_jsonl(knowledge_root / "topics" / topic_state["topic_slug"] / "L0" / "source_index.jsonl")
     source_ids = {
         str(row.get("source_id") or "").strip()
         for row in source_rows
@@ -785,7 +946,7 @@ def deferred_reactivation_actions(knowledge_root: Path, topic_state: dict, queue
     ).lower()
     child_topics = {
         str(row.get("child_topic_slug") or "").strip()
-        for row in read_jsonl(knowledge_root / "runtime" / "topics" / topic_state["topic_slug"] / FOLLOWUP_SUBTOPICS_FILENAME)
+        for row in read_jsonl(knowledge_root / "topics" / topic_state["topic_slug"] / "runtime" / FOLLOWUP_SUBTOPICS_FILENAME)
         if str(row.get("child_topic_slug") or "").strip()
     }
     actions: list[dict] = []
@@ -833,7 +994,11 @@ def load_declared_action_contract(topic_state: dict, knowledge_root: Path) -> di
     }
 
 
-def declared_actions_from_contract(topic_state: dict, declared_contract: dict | None) -> tuple[list[dict], dict]:
+def declared_actions_from_contract(
+    topic_state: dict,
+    declared_contract: dict | None,
+    knowledge_root: Path | None = None,
+) -> tuple[list[dict], dict]:
     if declared_contract is None:
         return [], {
             "queue_source": "heuristic",
@@ -863,7 +1028,12 @@ def declared_actions_from_contract(topic_state: dict, declared_contract: dict | 
         if not summary:
             continue
         action_type = str(row.get("action_type") or "").strip()
-        derived_action_type, derived_auto_runnable = classify_action(summary)
+        derived_action_type, derived_auto_runnable = classify_action(
+            summary,
+            classification_contract_path=str(
+                knowledge_root / "topics" / topic_state["topic_slug"] / "runtime" / "classification_contract.jsonl"
+            ) if knowledge_root else None,
+        )
         if not action_type:
             action_type = derived_action_type
         auto_runnable = row.get("auto_runnable")
@@ -999,7 +1169,7 @@ def materialize_action_queue(
         operator_checkpoint,
     )
     declared_contract = load_declared_action_contract(topic_state, knowledge_root)
-    queue, queue_meta = declared_actions_from_contract(topic_state, declared_contract)
+    queue, queue_meta = declared_actions_from_contract(topic_state, declared_contract, knowledge_root=knowledge_root)
     queue_meta = enrich_queue_meta(
         queue_meta,
         topic_slug=topic_state["topic_slug"],
@@ -1202,9 +1372,9 @@ def materialize_action_queue(
                         candidate_rows = (
                             read_jsonl(
                                 knowledge_root
-                                / "feedback"
                                 / "topics"
                                 / topic_state["topic_slug"]
+                                / "L3"
                                 / "runs"
                                 / run_id
                                 / "candidate_ledger.jsonl"
@@ -1214,16 +1384,16 @@ def materialize_action_queue(
                         )
                         followup_rows = read_jsonl(
                             knowledge_root
-                            / "runtime"
                             / "topics"
                             / topic_state["topic_slug"]
+                            / "runtime"
                             / FOLLOWUP_SUBTOPICS_FILENAME
                         )
                         completion_payload = load_json(
                             knowledge_root
-                            / "runtime"
                             / "topics"
                             / topic_state["topic_slug"]
+                            / "runtime"
                             / TOPIC_COMPLETION_FILENAME
                         ) or {}
                         candidate_count_value = completion_payload.get("candidate_count")
@@ -1349,6 +1519,26 @@ def materialize_action_queue(
                                 }
                             )
                         else:
+                            proof_repair_review = post_promotion_proof_repair_review_action(
+                                load_json=load_json,
+                                knowledge_root=knowledge_root,
+                                topic_slug=topic_state["topic_slug"],
+                                topic_state=topic_state,
+                                queue_meta=queue_meta,
+                            )
+                            if proof_repair_review is not None:
+                                queue.append(proof_repair_review)
+                                return queue, queue_meta
+                            post_promotion_followup = post_promotion_formalization_followup_action(
+                                load_json=load_json,
+                                knowledge_root=knowledge_root,
+                                topic_slug=topic_state["topic_slug"],
+                                topic_state=topic_state,
+                                queue_meta=queue_meta,
+                            )
+                            if post_promotion_followup is not None:
+                                queue.append(post_promotion_followup)
+                                return queue, queue_meta
                             queue.append(
                                 {
                                     "action_id": f"action:{topic_state['topic_slug']}:post-promotion-inspect",
@@ -1356,9 +1546,11 @@ def materialize_action_queue(
                                     "resume_stage": "L4",
                                     "status": "pending",
                                     "action_type": "inspect_resume_state",
-                                    "summary": (
-                                        "Inspect the promoted Layer 2 writeback artifacts and current topic-completion "
-                                        "surface before opening another bounded route."
+                                    "summary": _synthesize_fallback_summary(
+                                        topic_state["topic_slug"],
+                                        topic_state,
+                                        knowledge_root,
+                                        "post_promotion",
                                     ),
                                     "auto_runnable": False,
                                     "handler": None,
@@ -1443,12 +1635,12 @@ def materialize_action_queue(
                 }
             )
             return queue, queue_meta
-        fallback_summary = "Inspect the compiled L1 vault before continuing."
-        if topic_has_staged_entries(
-            knowledge_root=knowledge_root,
-            topic_slug=str(topic_state.get("topic_slug") or "").strip(),
-        ):
-            fallback_summary = "Inspect the current L2 staging manifest before continuing."
+        fallback_summary = _synthesize_fallback_summary(
+            topic_state["topic_slug"],
+            topic_state,
+            knowledge_root,
+            "l1_vault",
+        )
         queue.append(
             {
                 "action_id": f"action:{topic_state['topic_slug']}:inspect-l1-vault",
@@ -1473,7 +1665,12 @@ def materialize_action_queue(
                 "resume_stage": topic_state["resume_stage"],
                 "status": "pending",
                 "action_type": "inspect_resume_state",
-                "summary": "No explicit pending actions were found; inspect the runtime resume state.",
+                "summary": _synthesize_fallback_summary(
+                    topic_state["topic_slug"],
+                    topic_state,
+                    knowledge_root,
+                    "empty_queue",
+                ),
                 "auto_runnable": False,
                 "handler": None,
                 "handler_args": {},
@@ -1524,6 +1721,8 @@ def build_agent_brief(topic_state: dict, queue: list[dict], interaction_state: d
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--knowledge-root")
+    parser.add_argument("--repo-root")
     parser.add_argument("--topic-slug")
     parser.add_argument("--topic")
     parser.add_argument("--statement")
@@ -1544,8 +1743,16 @@ def main() -> int:
     if not topic_slug:
         raise SystemExit("Provide --topic-slug or --topic.")
 
-    knowledge_root = Path(__file__).resolve().parents[2]
-    research_root = knowledge_root.parent
+    knowledge_root = (
+        Path(args.knowledge_root).expanduser().resolve()
+        if args.knowledge_root
+        else Path(__file__).resolve().parents[2]
+    )
+    research_root = (
+        Path(args.repo_root).expanduser().resolve() / "research"
+        if args.repo_root
+        else knowledge_root.parent
+    )
     ensure_topic_shell(knowledge_root, topic_slug, args.statement, args.topic)
 
     register_arxiv = knowledge_root / "source-layer" / "scripts" / "register_arxiv_source.py"
@@ -1577,6 +1784,7 @@ def main() -> int:
                 "--download-source",
             ],
             check=True,
+            stdin=subprocess.DEVNULL,
         )
 
     for local_note_path in args.local_note_path:
@@ -1592,6 +1800,7 @@ def main() -> int:
                 args.updated_by,
             ],
             check=True,
+            stdin=subprocess.DEVNULL,
         )
 
     sync_cmd = [
@@ -1608,9 +1817,9 @@ def main() -> int:
         sync_cmd.extend(["--control-note", args.control_note])
     if args.research_mode:
         sync_cmd.extend(["--research-mode", args.research_mode])
-    subprocess.run(sync_cmd, check=True)
+    subprocess.run(sync_cmd, check=True, stdin=subprocess.DEVNULL)
 
-    topic_runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    topic_runtime_root = knowledge_root / "topics" / topic_slug / "runtime"
     topic_state = load_json(topic_runtime_root / "topic_state.json")
     if topic_state is None:
         raise SystemExit(f"Runtime state missing for topic {topic_slug}")
@@ -1626,7 +1835,7 @@ def main() -> int:
         ]
         for query in args.skill_query:
             skill_cmd.extend(["--query", query])
-        subprocess.run(skill_cmd, check=True)
+        subprocess.run(skill_cmd, check=True, stdin=subprocess.DEVNULL)
 
     action_queue, queue_meta = materialize_action_queue(
         topic_state,
@@ -1706,8 +1915,9 @@ def main() -> int:
             args.updated_by,
         ],
         check=True,
+        stdin=subprocess.DEVNULL,
     )
-    subprocess.run(sync_cmd, check=True)
+    subprocess.run(sync_cmd, check=True, stdin=subprocess.DEVNULL)
     topic_state = load_json(topic_runtime_root / "topic_state.json")
     if topic_state is None:
         raise SystemExit(f"Runtime state missing for topic {topic_slug} after decision refresh")
@@ -1735,6 +1945,7 @@ def main() -> int:
             args.updated_by,
         ],
         check=True,
+        stdin=subprocess.DEVNULL,
     )
 
     print(f"Orchestrated topic {topic_slug}")

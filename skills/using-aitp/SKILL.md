@@ -62,8 +62,35 @@ description: Use when a request might be theoretical-physics research, topic con
    - `research_question.contract.json`
    - `control_note.md`
 9. After AITP routing is materialized, load `aitp-runtime` and follow `runtime_protocol.generated.md`.
+10. Before the first `aitp-runtime` step, ensure research mode and load profile are recorded by loading `aitp-research-classifier` and `aitp-load-profile-resolver` skills and calling `aitp_record_classification` for each classification.
 10. report the current human-control posture in plain language before deeper work.
 11. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
+12. When the topic is entering report-writing, derivation restoration, or round-by-round scientific narration, load the relevant repo skills:
+   - `aitp-problem-framing`
+   - `aitp-derivation-discipline`
+   - `aitp-l3-l4-round`
+   - `aitp-current-claims-auditor`
+   - `aitp-topic-report-author`
+
+## Popup gate protocol (mandatory before every topic action)
+
+1. Immediately after resolving the current topic, call `aitp_get_popup(topic_slug=<current>)`.
+2. If the returned `needs_popup` is `false`, continue normally.
+3. If `needs_popup` is `true`, a human-blocking gate is active. **Stop all other work.**
+4. **Present the popup using the pre-built `ask_user_question` field from the response.** The `aitp_get_popup` response contains an `ask_user_question` object that is already formatted for direct use:
+   - **Claude Code**: Call the built-in `AskUserQuestion` tool with the `ask_user_question.questions` array as the `questions` parameter. Use `ask_user_question.choice_index_map` to translate the 0-based response back to the popup's `choice_index` for `aitp_resolve_popup`.
+   - **OpenCode**: Call the built-in `question` tool with the same `questions` payload. Map the response through `choice_index_map` identically.
+   - **Kimi Code CLI**: Call the built-in `AskUserQuestion` tool with the `ask_user_question.questions` array. Map the 0-based response back via `ask_user_question.choice_index_map` to the popup's `choice_index` for `aitp_resolve_popup`.
+   - **Fallback (no structured question tool)**: Render the popup as a numbered list from `popup.choices`, ask the user to reply with a number, then map to `choice_index` via `choice_index_map`.
+5. If `ask_user_question.inspect_path` is non-empty and the user asks for details, read that file and re-present the popup.
+6. Once the user chooses, call `aitp_resolve_popup_choice(topic_slug=<current>, choice_index=<mapped index>, comment="<brief rationale>")`.
+7. If the user declines to choose or defers, do NOT proceed past the gate. Wait for an explicit choice.
+8. Only after `needs_popup` is `false` (or a successful resolution clears the gate) should you continue with `loop`, `resume`, or deeper AITP work.
+9. This check is mandatory at:
+   - The very start of every topic-bound interaction.
+   - After every `aitp_run_topic_loop`, `aitp_resume_topic`, or `aitp_bootstrap_topic` call.
+   - Whenever the user says anything that might advance or alter topic state.
+10. **Hard rule**: You MUST NOT skip this check. You MUST NOT silently continue past a popup. You MUST NOT answer the research question instead of presenting the popup. A popup means AITP requires a human decision before any further work.
 
 ## Allowed exception
 

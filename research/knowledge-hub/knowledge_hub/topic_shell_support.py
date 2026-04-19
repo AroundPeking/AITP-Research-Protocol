@@ -42,18 +42,43 @@ from .graph_analysis_tools import (
     render_graph_analysis_markdown,
     write_graph_analysis_history,
 )
+from .l2_reuse_context_support import materialize_reuse_contexts
+from .capability_plane_support import materialize_execution_resource_context
 from .validation_review_service import analytical_cross_check_markdown_lines
-def _read_json(path: Path) -> dict[str, Any] | None:
+from .topic_truth_root_support import compatibility_projection_path
+from .lane_contract_defaults import (
+    detect_lane,
+    lane_deliverables,
+    lane_observables,
+    lane_target_claims,
+)
+from .iteration_journal_support import materialize_iteration_journal
+from .research_report_support import materialize_research_report
+def _newer_projection_target(path: Path) -> Path:
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is None or not compatibility_path.exists():
+        return path
     if not path.exists():
+        return compatibility_path
+    try:
+        if compatibility_path.stat().st_mtime > path.stat().st_mtime:
+            return compatibility_path
+    except OSError:
+        return path
+    return path
+def _read_json(path: Path) -> dict[str, Any] | None:
+    target = _newer_projection_target(path)
+    if not target.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
+    target = _newer_projection_target(path)
+    if not target.exists():
         return []
     rows: list[dict[str, Any]] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    for raw_line in target.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if line:
             rows.append(json.loads(line))
@@ -61,13 +86,22 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(text, encoding="utf-8")
 
 
 def _now_iso() -> str:
@@ -89,6 +123,338 @@ def _as_bool(value: Any) -> bool:
     if isinstance(value, (int, float)):
         return bool(value)
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _checkpoint_option_set(checkpoint_kind: str | None) -> tuple[list[dict[str, str]], int | None]:
+    normalized = str(checkpoint_kind or "").strip()
+    if normalized == "scope_ambiguity":
+        return (
+            [
+                {
+                    "key": "clarify_now",
+                    "label": "Clarify now",
+                    "description": "Fill the missing topic-intent fields before deeper execution continues.",
+                },
+                {
+                    "key": "continue_with_deferred_fields",
+                    "label": "Continue with deferred fields",
+                    "description": "Proceed honestly with clarification deferred and visible in the topic state.",
+                },
+                {
+                    "key": "branch_new_topic",
+                    "label": "Branch new topic",
+                    "description": "Split the current vague direction into a separate topic branch first.",
+                },
+            ],
+            0,
+        )
+    if normalized == "promotion_approval":
+        return (
+            [
+                {
+                    "key": "approve_for_l2",
+                    "label": "Approve for L2",
+                    "description": "Allow reusable-knowledge writeback to proceed.",
+                },
+                {
+                    "key": "reject_for_now",
+                    "label": "Reject for now",
+                    "description": "Keep the candidate out of L2 until the trust boundary is stronger.",
+                },
+                {
+                    "key": "narrow_before_writeback",
+                    "label": "Narrow before writeback",
+                    "description": "Reduce scope and tighten the candidate before promotion is reconsidered.",
+                },
+            ],
+            2,
+        )
+    if normalized == "execution_lane_confirmation":
+        return (
+            [
+                {
+                    "key": "stay_local",
+                    "label": "Stay local",
+                    "description": "Keep the next execution step in the current local lane.",
+                },
+                {
+                    "key": "use_external_runtime",
+                    "label": "Use external runtime",
+                    "description": "Dispatch the next execution step to the planned external runtime or server lane.",
+                },
+                {
+                    "key": "narrow_before_dispatch",
+                    "label": "Narrow before dispatch",
+                    "description": "Reduce cost or scope before any execution lane is confirmed.",
+                },
+            ],
+            0,
+        )
+    if normalized == "post_plan_route_confirmation":
+        return (
+            [
+                {
+                    "key": "keep_selected_route",
+                    "label": "Keep selected route",
+                    "description": "Confirm the current bounded route and let execution continue under that framing.",
+                },
+                {
+                    "key": "redirect_route",
+                    "label": "Redirect route",
+                    "description": "Choose a different consequential route before deeper execution continues.",
+                },
+                {
+                    "key": "pause_and_reframe",
+                    "label": "Pause and reframe",
+                    "description": "Clarify the evidence interpretation, reviewer-facing wording, or negative-result qualification first.",
+                },
+            ],
+            0,
+        )
+    if normalized == "contradiction_adjudication":
+        return (
+            [
+                {
+                    "key": "split_regimes",
+                    "label": "Split regimes",
+                    "description": "Treat the conflict as a regime split rather than one flattened result.",
+                },
+                {
+                    "key": "downgrade_claim",
+                    "label": "Downgrade claim",
+                    "description": "Keep the route but weaken the current candidate claim.",
+                },
+                {
+                    "key": "return_to_L0",
+                    "label": "Return to L0",
+                    "description": "Go back to source recovery before further interpretation.",
+                },
+            ],
+            0,
+        )
+    if normalized == "benchmark_or_validation_route_choice":
+        return (
+            [
+                {
+                    "key": "benchmark_first",
+                    "label": "Benchmark first",
+                    "description": "Use the smallest honest benchmark route before deeper execution.",
+                },
+                {
+                    "key": "execution_backed_validation",
+                    "label": "Execution-backed validation",
+                    "description": "Advance directly into the prepared execution-backed validation lane.",
+                },
+                {
+                    "key": "pause_and_clarify_route",
+                    "label": "Clarify route",
+                    "description": "Pause and refine the validation route before choosing one lane.",
+                },
+            ],
+            0,
+        )
+    if normalized == "resource_risk_limit_choice":
+        return (
+            [
+                {
+                    "key": "keep_small_and_safe",
+                    "label": "Keep small and safe",
+                    "description": "Stay within the smallest cost and risk envelope.",
+                },
+                {
+                    "key": "allow_broader_budget",
+                    "label": "Allow broader budget",
+                    "description": "Permit a larger execution budget or system-size envelope.",
+                },
+                {
+                    "key": "pause_until_limit_defined",
+                    "label": "Pause for limit",
+                    "description": "Do not expand until the budget or risk boundary is explicit.",
+                },
+            ],
+            0,
+        )
+    if normalized == "novelty_direction_choice":
+        return (
+            [
+                {
+                    "key": "keep_current_branch",
+                    "label": "Keep current branch",
+                    "description": "Continue with the current novelty direction.",
+                },
+                {
+                    "key": "redirect_novelty_target",
+                    "label": "Redirect novelty",
+                    "description": "Change the novelty target but keep the same topic branch.",
+                },
+                {
+                    "key": "branch_new_direction",
+                    "label": "Branch direction",
+                    "description": "Fork the new novelty direction into a separate branch.",
+                },
+            ],
+            0,
+        )
+    if normalized == "stop_continue_branch_redirect_decision":
+        return (
+            [
+                {
+                    "key": "continue",
+                    "label": "Continue",
+                    "description": "Keep the current topic moving on the active research path.",
+                },
+                {
+                    "key": "branch",
+                    "label": "Branch",
+                    "description": "Split the next route into a new topic branch.",
+                },
+                {
+                    "key": "redirect",
+                    "label": "Redirect",
+                    "description": "Change the active route inside the current topic.",
+                },
+                {
+                    "key": "stop",
+                    "label": "Stop",
+                    "description": "Pause or stop the topic until explicitly resumed.",
+                },
+            ],
+            0,
+        )
+    return ([], None)
+
+
+_POST_PLAN_ROUTE_SHAPING_ACTION_TYPES = {
+    "contract_sync_and_execution_routing",
+    "reviewer_response_routing",
+    "plan_execution_route",
+}
+
+_POST_PLAN_SENSITIVE_KEYWORDS = (
+    "reviewer-facing",
+    "reviewer facing",
+    "framing",
+    "wording",
+    "interpret",
+    "negative result",
+    "negative-result",
+    "qualif",
+    "benchmark",
+)
+
+
+def _named_route_options_from(value: Any) -> list[str]:
+    rows = value if isinstance(value, list) else []
+    result: list[str] = []
+    for row in rows:
+        if isinstance(row, dict):
+            candidate = str(
+                row.get("label")
+                or row.get("summary")
+                or row.get("title")
+                or row.get("key")
+                or ""
+            ).strip()
+        else:
+            candidate = str(row or "").strip()
+        if candidate:
+            result.append(candidate)
+    return result
+
+
+def _post_plan_checkpoint_signal(
+    *,
+    topic_state: dict[str, Any],
+    idea_packet: dict[str, Any],
+    validation_contract: dict[str, Any],
+    selected_pending_action: dict[str, Any] | None,
+    next_action_decision: dict[str, Any] | None,
+) -> dict[str, Any]:
+    selected_pending_action = selected_pending_action or {}
+    next_action_decision = next_action_decision or {}
+
+    selected_action_id = str(selected_pending_action.get("action_id") or "").strip()
+    selected_action_type = str(selected_pending_action.get("action_type") or "").strip()
+    selected_action_summary = str(selected_pending_action.get("summary") or "").strip()
+    selected_action_auto_runnable = _as_bool(selected_pending_action.get("auto_runnable"))
+    resume_stage = str(
+        topic_state.get("resume_stage") or selected_pending_action.get("resume_stage") or ""
+    ).strip()
+    idea_status = str(idea_packet.get("status") or "").strip()
+    decision_reason = str(next_action_decision.get("reason") or "").strip()
+    requires_human_intervention = _as_bool(
+        next_action_decision.get("requires_human_intervention")
+    )
+
+    if not selected_action_id or selected_action_auto_runnable:
+        return {
+            "should_checkpoint": False,
+            "route_option_count": 0,
+            "review_questions": [],
+            "route_options": [],
+            "decision_reason": decision_reason,
+        }
+    if resume_stage != "L3" or idea_status == "needs_clarification":
+        return {
+            "should_checkpoint": False,
+            "route_option_count": 0,
+            "review_questions": [],
+            "route_options": [],
+            "decision_reason": decision_reason,
+        }
+
+    route_shaping = (
+        selected_action_type in _POST_PLAN_ROUTE_SHAPING_ACTION_TYPES
+        or (
+            "routing" in f"{selected_action_type} {selected_action_summary.lower()}"
+            and "contract" in f"{selected_action_type} {selected_action_summary.lower()}"
+        )
+    )
+    if not route_shaping:
+        return {
+            "should_checkpoint": False,
+            "route_option_count": 0,
+            "review_questions": [],
+            "route_options": [],
+            "decision_reason": decision_reason,
+        }
+
+    handler_args = dict(selected_pending_action.get("handler_args") or {})
+    route_options = []
+    for container in (handler_args, next_action_decision):
+        for key in (
+            "route_options",
+            "route_candidates",
+            "candidate_routes",
+            "alternative_routes",
+            "consequential_routes",
+        ):
+            route_options.extend(_named_route_options_from(container.get(key)))
+    review_questions = [
+        str(item).strip()
+        for item in (validation_contract.get("open_review_questions") or [])
+        if str(item).strip()
+    ]
+    route_option_count = max(len(route_options), len(review_questions))
+    sensitivity_text = " ".join(
+        [selected_action_type, selected_action_summary, decision_reason, *review_questions]
+    ).lower()
+    sensitive_framing = any(
+        keyword in sensitivity_text for keyword in _POST_PLAN_SENSITIVE_KEYWORDS
+    )
+
+    should_checkpoint = bool(
+        route_option_count >= 2
+        or sensitive_framing
+        or requires_human_intervention
+    )
+    return {
+        "should_checkpoint": should_checkpoint,
+        "route_option_count": route_option_count,
+        "review_questions": review_questions,
+        "route_options": route_options,
+        "decision_reason": decision_reason,
+    }
 
 
 def derive_open_gap_summary(
@@ -188,7 +554,7 @@ def derive_idea_packet(
     validation_contract: dict[str, Any],
     selected_pending_action: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    source_rows = _read_jsonl(self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl")
+    source_rows = _read_jsonl(self._l0_root(topic_slug) / "source_index.jsonl")
     request_text = (
         str(human_request or "").strip()
         or str(interaction_state.get("human_request") or "").strip()
@@ -346,12 +712,14 @@ def derive_operator_checkpoint(
     *,
     topic_slug: str,
     updated_by: str,
+    topic_state: dict[str, Any],
     existing_checkpoint: dict[str, Any],
     idea_packet: dict[str, Any],
     research_contract: dict[str, Any],
     validation_contract: dict[str, Any],
     promotion_gate: dict[str, Any],
     selected_pending_action: dict[str, Any] | None,
+    next_action_decision: dict[str, Any] | None,
     decision_surface: dict[str, Any],
     dashboard_path: Path,
     idea_packet_paths: dict[str, Path],
@@ -375,6 +743,13 @@ def derive_operator_checkpoint(
     blocker_summary: list[str] = []
     evidence_refs: list[str] = []
     response_channels: list[str] = []
+    post_plan_signal = _post_plan_checkpoint_signal(
+        topic_state=topic_state,
+        idea_packet=idea_packet,
+        validation_contract=validation_contract,
+        selected_pending_action=selected_pending_action,
+        next_action_decision=next_action_decision,
+    )
 
     if str(idea_packet.get("status") or "").strip() == "needs_clarification":
         checkpoint_kind = "scope_ambiguity"
@@ -450,6 +825,49 @@ def derive_operator_checkpoint(
         response_channels = self._dedupe_strings(
             [
                 self._normalize_artifact_path(execution_task_note_path) or "",
+                self._relativize(validation_paths["note"]),
+                self._relativize(dashboard_path),
+            ]
+        )
+    elif post_plan_signal["should_checkpoint"]:
+        checkpoint_kind = "post_plan_route_confirmation"
+        question = (
+            "AITP needs an operator checkpoint on the reviewer-facing route before deeper execution continues."
+        )
+        required_response = (
+            "Confirm whether to keep the current route, redirect to another open route, "
+            "or pause to clarify the evidence interpretation, reviewer-facing framing, "
+            "or negative result qualification first."
+        )
+        blocker_summary = self._dedupe_strings(
+            [
+                selected_action_summary
+                or "The selected L3 plan now has execution consequences and should not continue silently.",
+                post_plan_signal["decision_reason"]
+                or "The current route has non-obvious consequences for execution or reviewer-facing interpretation.",
+                *[
+                    f"Open route question: {item}"
+                    for item in post_plan_signal["review_questions"][:3]
+                ],
+                *[
+                    f"Route option: {item}"
+                    for item in post_plan_signal["route_options"][:3]
+                ],
+            ]
+        )
+        next_action_decision_path = self._runtime_root(topic_slug) / "next_action_decision.json"
+        evidence_refs = self._dedupe_strings(
+            [
+                self._relativize(validation_paths["note"]),
+                self._relativize(research_paths["note"]),
+                self._relativize(dashboard_path),
+                self._relativize(next_action_decision_path)
+                if next_action_decision_path.exists()
+                else "",
+            ]
+        )
+        response_channels = self._dedupe_strings(
+            [
                 self._relativize(validation_paths["note"]),
                 self._relativize(dashboard_path),
             ]
@@ -556,6 +974,8 @@ def derive_operator_checkpoint(
         payload["response_channels"] = []
         payload["blocker_summary"] = []
         payload["evidence_refs"] = []
+        payload["options"] = []
+        payload["default_option_index"] = None
         payload["selected_action_id"] = selected_action_id or None
         payload["selected_action_summary"] = selected_action_summary or None
         payload["answer"] = payload.get("answer")
@@ -590,6 +1010,8 @@ def derive_operator_checkpoint(
         "response_channels": self._dedupe_strings(response_channels),
         "blocker_summary": self._dedupe_strings(blocker_summary),
         "evidence_refs": self._dedupe_strings(evidence_refs),
+        "options": _checkpoint_option_set(checkpoint_kind)[0],
+        "default_option_index": _checkpoint_option_set(checkpoint_kind)[1],
         "selected_action_id": selected_action_id or None,
         "selected_action_summary": selected_action_summary or None,
         "answer": None,
@@ -972,6 +1394,14 @@ def compute_topic_completion_payload(
             or _as_bool(row.get("cited_recovery_required"))
         ):
             blocked_candidate_ids.append(candidate_id)
+        runtime_blockers = self._candidate_runtime_blockers(
+            topic_slug,
+            run_id or str(row.get("run_id") or "").strip(),
+            row,
+        )
+        if runtime_blockers and candidate_id and candidate_id not in blocked_candidate_ids:
+            blocked_candidate_ids.append(candidate_id)
+        blockers.extend(runtime_blockers)
         for blocker in row.get("promotion_blockers") or []:
             text = str(blocker).strip()
             if text:
@@ -1126,24 +1556,21 @@ def ensure_topic_shell_surfaces(
         pending_actions=pending_actions,
         selected_pending_action=selected_pending_action,
     )
-    topic_completion = self.assess_topic_completion(
+    topic_completion = self._materialize_topic_completion_surface(
         topic_slug=topic_slug,
         run_id=latest_run_id or None,
         updated_by=updated_by,
-        refresh_runtime_bundle=False,
     )
     dependency_state = self._topic_dependency_state(topic_slug)
-    statement_compilation = self.prepare_statement_compilation(
+    statement_compilation = self._materialize_statement_compilation_surface(
         topic_slug=topic_slug,
         run_id=latest_run_id or None,
         updated_by=updated_by,
-        refresh_runtime_bundle=False,
     )
-    lean_bridge = self.prepare_lean_bridge(
+    lean_bridge = self._materialize_lean_bridge_surface(
         topic_slug=topic_slug,
         run_id=latest_run_id or None,
         updated_by=updated_by,
-        refresh_runtime_bundle=False,
     )
     followup_reintegration_paths = self._write_followup_reintegration_rows(
         topic_slug,
@@ -1171,7 +1598,8 @@ def ensure_topic_shell_surfaces(
     existing_idea_packet = _read_json(idea_packet_paths["json"]) or {}
     existing_operator_checkpoint = _read_json(operator_checkpoint_paths["json"]) or {}
     existing_execution_task = _read_json(runtime_root / "execution_task.json") or {}
-    source_rows = _read_jsonl(self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl")
+    next_action_decision = _read_json(runtime_root / "next_action_decision.json") or {}
+    source_rows = _read_jsonl(self._l0_root(topic_slug) / "source_index.jsonl")
     source_intelligence = source_intelligence_payload(
         kernel_root=self.kernel_root,
         topic_slug=topic_slug,
@@ -1227,15 +1655,6 @@ def ensure_topic_shell_surfaces(
         ]
         + l1_context_lines(distilled_l1_source_intake)
     )
-    target_claim_defaults = self._dedupe_strings(
-        [str(row.get("candidate_id") or "").strip() for row in candidate_rows if str(row.get("candidate_id") or "").strip()]
-        or [str((selected_pending_action or {}).get("action_id") or "").strip()]
-    )
-    deliverable_defaults = [
-        "Persist the active research question, validation route, and bounded next action as durable runtime artifacts.",
-        "Write derivation/proof or execution evidence into the appropriate AITP layer before claiming completion.",
-        "Produce Layer-appropriate outputs that can later be promoted into durable L2 knowledge when justified.",
-    ]
     acceptance_defaults = [
         "The question, scope, deliverables, and acceptance checks remain synchronized with the runtime state.",
         "Missing definitions, cited derivations, or prior-work comparisons trigger a durable return to L0 instead of a prose-only bridge.",
@@ -1259,6 +1678,27 @@ def ensure_topic_shell_surfaces(
             source_rows=source_rows,
             l1_source_intake=l1_source_intake,
         )
+    )
+    _lane = detect_lane(
+        template_mode=template_mode,
+        research_mode=research_mode,
+        topic_content_hints={
+            "question": active_question,
+            "scope": existing_research.get("scope") or [],
+            "source_basis_refs": self._research_source_basis_refs(topic_slug=topic_slug, source_rows=source_rows),
+            "l1_source_intake": l1_source_intake,
+        },
+    )
+    _lane_topic_ctx = {"question": active_question, "scope": existing_research.get("scope") or []}
+    target_claim_defaults = lane_target_claims(
+        lane=_lane,
+        topic_context=_lane_topic_ctx,
+        candidate_rows=candidate_rows,
+        selected_action=selected_pending_action,
+    )
+    deliverable_defaults = lane_deliverables(
+        lane=_lane,
+        topic_context=_lane_topic_ctx,
     )
     previous_graph_analysis = _read_json(graph_analysis_artifact_paths["json"]) or {}
     graph_analysis = build_graph_analysis_surface(
@@ -1346,10 +1786,7 @@ def ensure_topic_shell_surfaces(
         ),
         "observables": self._coalesce_list(
             existing_research.get("observables"),
-            [
-                "Declared candidate ids, bounded claims, and validation outcomes.",
-                "Promotion readiness, gap honesty, and whether the topic must return to L0.",
-            ],
+            lane_observables(lane=_lane, topic_context=_lane_topic_ctx),
         ),
         "target_claims": self._coalesce_list(existing_research.get("target_claims"), target_claim_defaults),
         "deliverables": self._coalesce_list(existing_research.get("deliverables"), deliverable_defaults),
@@ -1559,18 +1996,41 @@ def ensure_topic_shell_surfaces(
     operator_checkpoint, superseded_checkpoint = self._derive_operator_checkpoint(
         topic_slug=topic_slug,
         updated_by=updated_by,
+        topic_state=resolved_topic_state,
         existing_checkpoint=existing_operator_checkpoint,
         idea_packet=idea_packet,
         research_contract=research_contract,
         validation_contract=validation_contract,
         promotion_gate=resolved_promotion_gate,
         selected_pending_action=selected_pending_action,
+        next_action_decision=next_action_decision,
         decision_surface=decision_surface,
         dashboard_path=dashboard_path,
         idea_packet_paths=idea_packet_paths,
         research_paths=research_paths,
         validation_paths=validation_paths,
         execution_task=existing_execution_task,
+    )
+    reuse_contexts = materialize_reuse_contexts(
+        self,
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        selected_pending_action=selected_pending_action,
+        research_contract=research_contract,
+        validation_contract=validation_contract,
+        topic_skill_projection=topic_skill_projection_surface,
+        latest_run_id=latest_run_id or None,
+    )
+    idea_reuse_context = reuse_contexts["idea"]
+    plan_reuse_context = reuse_contexts["plan"]
+    execution_resource_context = materialize_execution_resource_context(
+        self,
+        topic_slug=topic_slug,
+        updated_by=updated_by,
+        selected_pending_action=selected_pending_action,
+        research_contract=research_contract,
+        validation_contract=validation_contract,
+        topic_skill_projection=topic_skill_projection_surface,
     )
 
     _write_json(research_paths["json"], research_contract)
@@ -1661,6 +2121,31 @@ def ensure_topic_shell_surfaces(
         lean_bridge=lean_bridge,
         dependency_state=dependency_state,
     )
+    iteration_journal = materialize_iteration_journal(
+        self,
+        topic_slug=topic_slug,
+        run_id=latest_run_id or None,
+        updated_by=updated_by,
+        topic_state=resolved_topic_state,
+        selected_pending_action=selected_pending_action,
+        research_contract=research_contract,
+        validation_contract=validation_contract,
+        validation_review_bundle={
+            **validation_review_bundle,
+            "path": validation_review_bundle_json_ref,
+            "note_path": validation_review_bundle_note_ref,
+        },
+        promotion_readiness=promotion_readiness,
+        idea_reuse_context=idea_reuse_context,
+        plan_reuse_context=plan_reuse_context,
+        execution_resource_context=execution_resource_context,
+    )
+    research_report = materialize_research_report(
+        self,
+        topic_slug=topic_slug,
+        run_id=latest_run_id or None,
+        updated_by=updated_by,
+    )
     return {
         "research_question_contract_path": str(research_paths["json"]),
         "research_question_contract_note_path": str(research_paths["note"]),
@@ -1671,8 +2156,10 @@ def ensure_topic_shell_surfaces(
         "l1_vault_wiki_home_path": str(l1_vault["wiki_home_path"]),
         "l1_vault_wiki_schema_path": str(l1_vault["wiki_schema_path"]),
         "l1_vault_wiki_source_intake_path": str(l1_vault["wiki_source_intake_path"]),
+        "l1_vault_wiki_source_bridge_path": str(l1_vault["wiki_source_bridge_path"]),
         "l1_vault_wiki_open_questions_path": str(l1_vault["wiki_open_questions_path"]),
         "l1_vault_wiki_runtime_bridge_path": str(l1_vault["wiki_runtime_bridge_path"]),
+        "l1_vault_output_source_anchor_index_path": str(l1_vault["source_anchor_index_path"]),
         "l1_vault_output_digest_path": str(l1_vault["output_digest_path"]),
         "l1_vault_output_digest_note_path": str(l1_vault["output_digest_note_path"]),
         "l1_vault_flowback_log_path": str(l1_vault["flowback_log_path"]),
@@ -1708,6 +2195,12 @@ def ensure_topic_shell_surfaces(
         "graph_analysis_history_path": str(graph_analysis_artifact_paths["history"]),
         "topic_skill_projection_path": str(topic_skill_projection_paths["json"]),
         "topic_skill_projection_note_path": str(topic_skill_projection_paths["note"]),
+        "idea_reuse_context_path": str(self._runtime_root(topic_slug) / "idea_reuse_context.json"),
+        "idea_reuse_context_note_path": str(self._runtime_root(topic_slug) / "idea_reuse_context.md"),
+        "plan_reuse_context_path": str(self._runtime_root(topic_slug) / "plan_reuse_context.json"),
+        "plan_reuse_context_note_path": str(self._runtime_root(topic_slug) / "plan_reuse_context.md"),
+        "execution_resource_context_path": str(self._runtime_root(topic_slug) / "execution_resource_context.json"),
+        "execution_resource_context_note_path": str(self._runtime_root(topic_slug) / "execution_resource_context.md"),
         "promotion_readiness_path": str(readiness_path),
         "gap_map_path": str(gap_map_path),
         "topic_completion_path": topic_completion["topic_completion_path"],
@@ -1720,6 +2213,18 @@ def ensure_topic_shell_surfaces(
         "followup_reintegration_note_path": followup_reintegration_paths["followup_reintegration_note_path"],
         "followup_gap_writeback_path": followup_gap_writeback_paths["followup_gap_writeback_path"],
         "followup_gap_writeback_note_path": followup_gap_writeback_paths["followup_gap_writeback_note_path"],
+        "iteration_journal_path": str(
+            self._feedback_run_root(topic_slug, latest_run_id) / "iteration_journal.json"
+        )
+        if latest_run_id
+        else "",
+        "iteration_journal_note_path": str(
+            self._feedback_run_root(topic_slug, latest_run_id) / "iteration_journal.md"
+        )
+        if latest_run_id
+        else "",
+        "research_report_path": str(self._research_report_paths(topic_slug)["json"]),
+        "research_report_note_path": str(self._research_report_paths(topic_slug)["note"]),
         "research_question_contract": research_contract,
         "l1_vault": l1_vault["payload"],
         "source_intelligence": source_intelligence_surface,
@@ -1747,6 +2252,11 @@ def ensure_topic_shell_surfaces(
         "statement_compilation": statement_compilation,
         "topic_skill_projection": topic_skill_projection_surface,
         "topic_skill_projection_candidate": topic_skill_projection_candidate,
+        "idea_reuse_context": idea_reuse_context,
+        "plan_reuse_context": plan_reuse_context,
+        "execution_resource_context": execution_resource_context,
         "topic_completion": topic_completion,
         "lean_bridge": lean_bridge,
+        "iteration_journal": iteration_journal,
+        "research_report": research_report,
     }

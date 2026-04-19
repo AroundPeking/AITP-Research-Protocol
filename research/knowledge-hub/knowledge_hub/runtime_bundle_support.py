@@ -14,7 +14,7 @@ from .l2_staging import materialize_workspace_staging_manifest
 from .mode_envelope_support import decision_override_read, dedupe_surface_entries, filter_escalation_triggers_for_mode, light_profile_primary_reads, refocus_context_for_runtime_mode, runtime_mode_markdown_lines, runtime_mode_payload_fragment
 from .paired_backend_support import build_runtime_backend_bridges
 from .research_trajectory_support import append_research_trajectory_markdown, normalize_research_trajectory_for_bundle, research_trajectory_must_read_entry
-from .mode_learning_support import append_mode_learning_markdown, normalize_mode_learning_for_bundle, mode_learning_must_read_entry
+from .mode_learning_support import append_mode_learning_markdown, get_last_recorded_mode, normalize_mode_learning_for_bundle, mode_learning_must_read_entry
 from .research_judgment_runtime_support import append_research_judgment_markdown, decision_surface_snapshot, normalize_research_judgment_for_bundle, research_judgment_must_read_entry
 from .research_taste_support import append_research_taste_markdown, normalize_research_taste_for_bundle, research_taste_must_read_entry
 from .scratchpad_support import append_scratchpad_markdown, normalize_scratchpad_for_bundle, scratchpad_must_read_entry
@@ -34,7 +34,9 @@ from .theory_context_injection import (
 )
 from .loop_detection_support import materialize_loop_detection
 from .protocol_manifest import materialize_protocol_manifest, protocol_manifest_must_read_entry
+from .topic_truth_root_support import compatibility_projection_path
 from .validation_review_service import analytical_cross_check_markdown_lines
+from .mode_registry import normalize_runtime_mode
 
 
 def _human_interaction_posture_from_bundle(runtime_bundle: dict[str, Any]) -> dict[str, Any]:
@@ -92,7 +94,7 @@ def _autonomy_posture_from_bundle(
     budget_reason: str | None = None,
 ) -> dict[str, Any]:
     human_posture = _human_interaction_posture_from_bundle(runtime_bundle)
-    runtime_mode = str(runtime_bundle.get("runtime_mode") or "explore")
+    runtime_mode = normalize_runtime_mode(runtime_bundle.get("runtime_mode"))
     active_submode = str(runtime_bundle.get("active_submode") or "").strip() or None
 
     if human_posture["requires_human_input_now"]:
@@ -116,10 +118,10 @@ def _autonomy_posture_from_bundle(
             "a real blocker or backedge is materialized",
             "a human checkpoint becomes active",
         ]
-    elif runtime_mode == "verify" and active_submode == "iterative_verify":
-        mode = "continuous_iterative_verify"
+    elif runtime_mode == "learn" and active_submode == "derivation":
+        mode = "continuous_derivation_loop"
         summary = (
-            "Keep the bounded L3-L4 loop running until validation succeeds, or until a real blocker, contradiction, or "
+            "Keep the bounded L3-L4 derivation loop running until validation succeeds, or until a real blocker, contradiction, or "
             "human checkpoint appears."
         )
         stop_conditions = [
@@ -150,26 +152,125 @@ def _autonomy_posture_from_bundle(
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return None
+        target = compatibility_path
+    return json.loads(target.read_text(encoding="utf-8"))
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return []
+        target = compatibility_path
     rows: list[dict[str, Any]] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    for raw_line in target.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if line:
             rows.append(json.loads(line))
     return rows
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(text, encoding="utf-8")
 def _now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def _default_reuse_context(*, topic_slug: str, context_name: str, read_depth: str) -> dict[str, Any]:
+    return {
+        "context_version": 1,
+        "context_name": context_name,
+        "topic_slug": topic_slug,
+        "read_depth": read_depth,
+        "status": "missing",
+        "query_text": "",
+        "canonical_hits": [],
+        "staged_hits": [],
+        "supporting_refs": [],
+        "path": f"runtime/topics/{topic_slug}/{context_name}.json",
+        "note_path": f"runtime/topics/{topic_slug}/{context_name}.md",
+    }
+
+
+def _normalize_reuse_context(
+    payload: dict[str, Any] | None,
+    *,
+    topic_slug: str,
+    context_name: str,
+    read_depth: str,
+) -> dict[str, Any]:
+    normalized = _default_reuse_context(
+        topic_slug=topic_slug,
+        context_name=context_name,
+        read_depth=read_depth,
+    )
+    normalized.update(dict(payload or {}))
+    normalized["context_name"] = context_name
+    normalized["topic_slug"] = topic_slug
+    normalized["read_depth"] = str(normalized.get("read_depth") or read_depth)
+    normalized["query_text"] = str(normalized.get("query_text") or "")
+    normalized["canonical_hits"] = list(normalized.get("canonical_hits") or [])
+    normalized["staged_hits"] = list(normalized.get("staged_hits") or [])
+    normalized["supporting_refs"] = [
+        str(item).strip()
+        for item in (normalized.get("supporting_refs") or [])
+        if str(item).strip()
+    ]
+    return normalized
+
+
+def _default_execution_resource_context(*, topic_slug: str) -> dict[str, Any]:
+    return {
+        "context_version": 1,
+        "context_name": "execution_resource_context",
+        "topic_slug": topic_slug,
+        "read_depth": "standard",
+        "status": "missing",
+        "query_text": "",
+        "recommended_server": {},
+        "recommended_environment": {},
+        "recommended_tool_ids": [],
+        "relevant_cards": [],
+        "path": f"runtime/topics/{topic_slug}/execution_resource_context.json",
+        "note_path": f"runtime/topics/{topic_slug}/execution_resource_context.md",
+    }
+
+
+def _normalize_execution_resource_context(
+    payload: dict[str, Any] | None,
+    *,
+    topic_slug: str,
+) -> dict[str, Any]:
+    normalized = _default_execution_resource_context(topic_slug=topic_slug)
+    normalized.update(dict(payload or {}))
+    normalized["context_name"] = "execution_resource_context"
+    normalized["topic_slug"] = topic_slug
+    normalized["read_depth"] = str(normalized.get("read_depth") or "standard")
+    normalized["query_text"] = str(normalized.get("query_text") or "")
+    normalized["recommended_server"] = dict(normalized.get("recommended_server") or {})
+    normalized["recommended_environment"] = dict(normalized.get("recommended_environment") or {})
+    normalized["recommended_tool_ids"] = [
+        str(item).strip()
+        for item in (normalized.get("recommended_tool_ids") or [])
+        if str(item).strip()
+    ]
+    normalized["relevant_cards"] = list(normalized.get("relevant_cards") or [])
+    return normalized
 def _slugify(text: str) -> str:
     lowered = text.lower()
     lowered = re.sub(r"[^a-z0-9]+", "-", lowered)
@@ -348,7 +449,7 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
         ["", *control_plane_markdown_lines(control_plane), "## Runtime truth model", ""]
         + [
             f"- Machine synopsis: `{topic_synopsis.get('path') or '(missing)'}`",
-            f"- Primary human render: `runtime/topics/{payload['topic_slug']}/topic_dashboard.md`",
+            f"- Primary human render: `topics/{payload['topic_slug']}/runtime/topic_dashboard.md`",
             f"- Focus state source: `{truth_sources.get('topic_state_path') or '(missing)'}`",
             f"- Research contract source: `{truth_sources.get('research_question_contract_path') or '(missing)'}`",
             f"- Next-action source: `{truth_sources.get('next_action_surface_path') or '(missing)'}`",
@@ -444,8 +545,8 @@ def runtime_protocol_markdown(payload: dict[str, Any]) -> str:
             "",
             "## Transition history",
             "",
-            f"- JSON path: `runtime/topics/{payload['topic_slug']}/transition_history.json`",
-            f"- Note path: `runtime/topics/{payload['topic_slug']}/transition_history.md`",
+            f"- JSON path: `topics/{payload['topic_slug']}/runtime/transition_history.json`",
+            f"- Note path: `topics/{payload['topic_slug']}/runtime/transition_history.md`",
             "- Inspect these surfaces when you need the bounded forward/backward layer path instead of only the current stage snapshot.",
             "",
             "## Open gap summary",
@@ -770,6 +871,7 @@ def materialize_runtime_protocol_bundle(
         explicit_load_profile=load_profile,
         human_request=human_request,
         topic_state=topic_state,
+        topic_slug=topic_slug,
     )
     topic_state = self._persist_load_profile_state(
         topic_slug=topic_slug,
@@ -816,6 +918,44 @@ def materialize_runtime_protocol_bundle(
     validation_review_bundle = dict(shell_surfaces["validation_review_bundle"])
     validation_review_bundle["path"] = self._relativize(Path(shell_surfaces["validation_review_bundle_path"]))
     validation_review_bundle["note_path"] = self._relativize(Path(shell_surfaces["validation_review_bundle_note_path"]))
+    iteration_journal = dict(shell_surfaces.get("iteration_journal") or {})
+    if shell_surfaces.get("iteration_journal_path"):
+        iteration_journal["path"] = self._relativize(Path(shell_surfaces["iteration_journal_path"]))
+    if shell_surfaces.get("iteration_journal_note_path"):
+        iteration_journal["note_path"] = self._relativize(Path(shell_surfaces["iteration_journal_note_path"]))
+    research_report = dict(shell_surfaces.get("research_report") or {})
+    if shell_surfaces.get("research_report_path"):
+        research_report["path"] = self._relativize(Path(shell_surfaces["research_report_path"]))
+    if shell_surfaces.get("research_report_note_path"):
+        research_report["note_path"] = self._relativize(Path(shell_surfaces["research_report_note_path"]))
+    idea_reuse_context = _normalize_reuse_context(
+        shell_surfaces.get("idea_reuse_context"),
+        topic_slug=topic_slug,
+        context_name="idea_reuse_context",
+        read_depth="quick",
+    )
+    if shell_surfaces.get("idea_reuse_context_path"):
+        idea_reuse_context["path"] = self._relativize(Path(shell_surfaces["idea_reuse_context_path"]))
+    if shell_surfaces.get("idea_reuse_context_note_path"):
+        idea_reuse_context["note_path"] = self._relativize(Path(shell_surfaces["idea_reuse_context_note_path"]))
+    plan_reuse_context = _normalize_reuse_context(
+        shell_surfaces.get("plan_reuse_context"),
+        topic_slug=topic_slug,
+        context_name="plan_reuse_context",
+        read_depth="standard",
+    )
+    if shell_surfaces.get("plan_reuse_context_path"):
+        plan_reuse_context["path"] = self._relativize(Path(shell_surfaces["plan_reuse_context_path"]))
+    if shell_surfaces.get("plan_reuse_context_note_path"):
+        plan_reuse_context["note_path"] = self._relativize(Path(shell_surfaces["plan_reuse_context_note_path"]))
+    execution_resource_context = _normalize_execution_resource_context(
+        shell_surfaces.get("execution_resource_context"),
+        topic_slug=topic_slug,
+    )
+    if shell_surfaces.get("execution_resource_context_path"):
+        execution_resource_context["path"] = self._relativize(Path(shell_surfaces["execution_resource_context_path"]))
+    if shell_surfaces.get("execution_resource_context_note_path"):
+        execution_resource_context["note_path"] = self._relativize(Path(shell_surfaces["execution_resource_context_note_path"]))
     source_intelligence = normalized_source_intelligence(
         topic_slug=topic_slug,
         shell_surfaces=shell_surfaces,
@@ -1170,6 +1310,40 @@ def materialize_runtime_protocol_bundle(
                     "reason": "Current graph-analysis summary for cross-source bridges, question seeds, and recent graph drift.",
                 }
             )
+        if (
+            str(idea_reuse_context.get("status") or "").strip() != "missing"
+            and str(idea_reuse_context.get("note_path") or "").strip()
+        ):
+            must_read_now.append(
+                {
+                    "path": str(idea_reuse_context.get("note_path")),
+                    "reason": "Quick L2 reuse context for idea shaping and novelty checks before broad rereading.",
+                }
+            )
+        if (
+            str(execution_resource_context.get("status") or "").strip() != "missing"
+            and str(execution_resource_context.get("note_path") or "").strip()
+        ):
+            must_read_now.append(
+                {
+                    "path": str(execution_resource_context.get("note_path")),
+                    "reason": "Current executable resources for the topic. Use explicit capability ids instead of free-form server or tool guesses.",
+                }
+            )
+        if str(iteration_journal.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(iteration_journal.get("note_path")),
+                    "reason": "Run-local L3-L4 iteration journal for the active research round. Read this to review plan, return, and synthesis continuity across iterations.",
+                }
+            )
+        if str(research_report.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(research_report.get("note_path")),
+                    "reason": "Physicist-style report surface for the topic. Use this before composing human-facing explanations or notebook prose from raw ledgers.",
+                }
+            )
         if str(idea_packet.get("status") or "").strip() == "needs_clarification":
             must_read_now.insert(
                 0,
@@ -1262,6 +1436,40 @@ def materialize_runtime_protocol_bundle(
                     "reason": "Current graph-analysis summary for cross-source bridges, question seeds, and recent graph drift.",
                 }
             )
+        if (
+            str(idea_reuse_context.get("status") or "").strip() != "missing"
+            and str(idea_reuse_context.get("note_path") or "").strip()
+        ):
+            must_read_now.append(
+                {
+                    "path": str(idea_reuse_context.get("note_path")),
+                    "reason": "Quick L2 reuse context for idea shaping and novelty checks before broad rereading.",
+                }
+            )
+        if (
+            str(execution_resource_context.get("status") or "").strip() != "missing"
+            and str(execution_resource_context.get("note_path") or "").strip()
+        ):
+            must_read_now.append(
+                {
+                    "path": str(execution_resource_context.get("note_path")),
+                    "reason": "Current executable resources for the topic. Use explicit capability ids instead of free-form server or tool guesses.",
+                }
+            )
+        if str(iteration_journal.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(iteration_journal.get("note_path")),
+                    "reason": "Run-local L3-L4 iteration journal for the active research round. Read this before stitching together execution and synthesis manually.",
+                }
+            )
+        if str(research_report.get("note_path") or "").strip():
+            must_read_now.append(
+                {
+                    "path": str(research_report.get("note_path")),
+                    "reason": "Topic-scale report surface with current claims, derivation spine, and open-problem boundaries.",
+                }
+            )
         must_read_now.append(
             {
                 "path": research_guardrails_note,
@@ -1340,7 +1548,7 @@ def materialize_runtime_protocol_bundle(
             0,
             {
                 "path": post_promotion_followup_note_path,
-                "reason": "Read the durable post-promotion followup before reopening another bounded route after Layer 2 writeback.",
+                "reason": "Read the durable post-promotion followup before reopening another research path after Layer 2 writeback.",
             },
         )
         must_read_paths.add(post_promotion_followup_note_path)
@@ -1385,6 +1593,62 @@ def materialize_runtime_protocol_bundle(
             },
         )
         must_read_paths.add(str(lean_bridge.get("path") or "").strip())
+    if str((selected_pending_action or {}).get("action_type") or "").strip() == "prepare_lean_bridge":
+        for candidate_path, reason in (
+            (
+                str((statement_compilation or {}).get("path") or "").strip(),
+                "Read the active statement-compilation packet summary before refreshing the post-promotion formalization lane.",
+            ),
+            (
+                str((lean_bridge or {}).get("path") or "").strip(),
+                "Read the active Lean-bridge packet summary and proof obligations before continuing formalization work.",
+            ),
+        ):
+            if candidate_path and candidate_path not in must_read_paths:
+                must_read_now.insert(
+                    0,
+                    {
+                        "path": candidate_path,
+                        "reason": reason,
+                    },
+                )
+                must_read_paths.add(candidate_path)
+    if str((selected_pending_action or {}).get("action_type") or "").strip() == "review_proof_repair_plan":
+        statement_packets = (statement_compilation or {}).get("packets") or []
+        repair_plan_note_path = str(
+            next(
+                (
+                    packet.get("repair_plan_note_path")
+                    for packet in statement_packets
+                    if str(packet.get("repair_plan_note_path") or "").strip()
+                ),
+                "",
+            )
+            or ""
+        ).strip()
+        for candidate_path, reason in (
+            (
+                str((statement_compilation or {}).get("path") or "").strip(),
+                "Read the active statement-compilation packet summary before reviewing proof-repair obligations.",
+            ),
+            (
+                str((lean_bridge or {}).get("path") or "").strip(),
+                "Read the active Lean-bridge packet summary before adjudicating the remaining proof obligations.",
+            ),
+            (
+                repair_plan_note_path,
+                "Read the current proof-repair plan before deciding how the promoted candidate should continue through formalization.",
+            ),
+        ):
+            if candidate_path and candidate_path not in must_read_paths:
+                must_read_now.insert(
+                    0,
+                    {
+                        "path": candidate_path,
+                        "reason": reason,
+                    },
+                )
+                must_read_paths.add(candidate_path)
     for candidate, trigger, reason in (
         (
             "interaction_state.json",
@@ -1542,6 +1806,26 @@ def materialize_runtime_protocol_bundle(
                 "path": str(topic_skill_projection.get("note_path")),
                 "trigger": "verification_route_selection",
                 "reason": self._topic_skill_projection_deferred_reason(topic_skill_projection),
+            }
+        )
+    l1_vault = active_research_contract.get("l1_vault") or {}
+    source_anchor_bridge_note_path = str(
+        next(
+            (
+                row.get("path")
+                for row in l1_vault.get("compatibility_refs") or []
+                if isinstance(row, dict) and str(row.get("kind") or "").strip() == "source_anchor_bridge_note"
+            ),
+            "",
+        )
+        or ""
+    ).strip()
+    if source_anchor_bridge_note_path and source_anchor_bridge_note_path not in must_read_paths:
+        may_defer_until_trigger.append(
+            {
+                "path": source_anchor_bridge_note_path,
+                "trigger": "verification_route_selection",
+                "reason": "Hydrate the sparse L1-to-L0 source bridge only when route selection or later verification needs the exact anchored source sentence and immutable source artifacts.",
             }
         )
     for path in theory_packet_reads:
@@ -1951,6 +2235,7 @@ def materialize_runtime_protocol_bundle(
         ]
     )
     editable_surfaces = dedupe_surface_entries(editable_surfaces)
+    last_recorded_mode = get_last_recorded_mode(runtime_root, topic_slug=topic_slug)
     runtime_mode_preview = runtime_mode_payload_fragment(
         resume_stage=runtime_focus.get("resume_stage") or topic_state.get("resume_stage"),
         load_profile=resolved_load_profile,
@@ -1962,6 +2247,8 @@ def materialize_runtime_protocol_bundle(
         may_defer_until_trigger=may_defer_until_trigger,
         escalation_triggers=escalation_triggers,
         human_request=human_request,
+        current_mode=last_recorded_mode,
+        topic_slug=topic_slug,
     )
     protocol_manifest = materialize_protocol_manifest(
         self,
@@ -1993,6 +2280,8 @@ def materialize_runtime_protocol_bundle(
         may_defer_until_trigger=may_defer_until_trigger,
         escalation_triggers=escalation_triggers,
         human_request=human_request,
+        current_mode=last_recorded_mode,
+        topic_slug=topic_slug,
     )
     staging_manifest = materialize_workspace_staging_manifest(self.kernel_root)
     refocused_context = refocus_context_for_runtime_mode(
@@ -2080,6 +2369,11 @@ def materialize_runtime_protocol_bundle(
         "operator_checkpoint": operator_checkpoint,
         "promotion_readiness": promotion_readiness,
         "validation_review_bundle": validation_review_bundle,
+        "iteration_journal": iteration_journal,
+        "research_report": research_report,
+        "idea_reuse_context": idea_reuse_context,
+        "plan_reuse_context": plan_reuse_context,
+        "execution_resource_context": execution_resource_context,
         "source_intelligence": source_intelligence,
         "graph_analysis": graph_analysis,
         "theory_context_injection": theory_context_injection,

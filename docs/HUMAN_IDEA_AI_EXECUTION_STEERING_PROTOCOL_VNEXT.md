@@ -96,6 +96,18 @@ Keep AITP-specific research state in the inner runtime:
 - promotion and consultation artifacts,
 - gap, follow-up, and reintegration surfaces.
 
+Topic-owned research state should converge on the topic-owned truth root:
+
+- `topics/<topic_slug>/...`
+
+Within that truth root, Markdown is the human authority for operator-facing
+state, steering, review, and continuation surfaces. JSON remains the machine-facing companion for structured runtime payloads, ledgers, schemas, and adapter/resolver inputs.
+
+For run-local `L3 -> L4 -> L3` iteration loops, one research `run` may contain
+multiple plan/execute/return/synthesis cycles. Human review should follow a
+Markdown-first journal and per-iteration Markdown records, while JSON remains a
+thin companion for status, paths, replay, and machine routing.
+
 ## 5) Required Workstreams
 
 ### 5.1 Research Intent Gate
@@ -113,8 +125,8 @@ Required behavior:
 
 Required artifacts:
 
-- `runtime/topics/<topic_slug>/idea_packet.json`
-- `runtime/topics/<topic_slug>/idea_packet.md`
+- `topics/<topic_slug>/runtime/idea_packet.json`
+- `topics/<topic_slug>/runtime/idea_packet.md`
 
 Minimum contents:
 
@@ -146,9 +158,9 @@ Required behavior:
 
 Required artifacts:
 
-- `runtime/topics/<topic_slug>/operator_checkpoint.active.json`
-- `runtime/topics/<topic_slug>/operator_checkpoint.active.md`
-- `runtime/topics/<topic_slug>/operator_checkpoints.jsonl`
+- `topics/<topic_slug>/runtime/operator_checkpoint.active.json`
+- `topics/<topic_slug>/runtime/operator_checkpoint.active.md`
+- `topics/<topic_slug>/runtime/operator_checkpoints.jsonl`
 
 Checkpoint kinds must at minimum include:
 
@@ -183,8 +195,8 @@ Required behavior:
 
 Required artifacts:
 
-- `runtime/topics/<topic_slug>/innovation_direction.md`
-- `runtime/topics/<topic_slug>/innovation_decisions.jsonl`
+- `topics/<topic_slug>/runtime/innovation_direction.md`
+- `topics/<topic_slug>/runtime/innovation_decisions.jsonl`
 - existing `control_note.*`
 
 Division of responsibility:
@@ -239,7 +251,7 @@ Required behavior:
 
 Required artifacts:
 
-- `feedback/topics/<topic_slug>/runs/<run_id>/strategy_memory.jsonl`
+- `topics/<topic_slug>/L3/runs/<run_id>/strategy_memory.jsonl`
 
 Minimum strategy types:
 
@@ -322,6 +334,36 @@ Acceptance:
 
 - a later session can ask "why did this topic end up here?" and the answer can
   be built from current runtime artifacts without reconstructing old chat.
+
+### 5.4.1 Run-local iteration continuity
+
+Objective: make one research run inspectable when `L3` and `L4` iterate more
+than once before a staging or promotion decision.
+
+Required behavior:
+
+- one `run` may include multiple `L3 plan -> L4 execution -> L3 synthesis`
+  cycles;
+- the human should be able to review that whole run without reverse
+  engineering multiple unrelated machine artifacts;
+- the review surface should not flatten all cycles into one blob.
+
+Preferred artifacts:
+
+- `topics/<topic_slug>/L3/runs/<run_id>/iteration_journal.md`
+- `topics/<topic_slug>/L3/runs/<run_id>/iteration_journal.json`
+- `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/plan.md`
+- `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/plan.contract.json`
+- `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/l4_return.md`
+- `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/l4_return.json`
+- `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/l3_synthesis.md`
+- `topics/<topic_slug>/L3/runs/<run_id>/iterations/<iteration_id>/l3_synthesis.json`
+
+Rule:
+
+- Markdown owns the review narrative.
+- JSON stores only thin machine contracts for status, artifact refs, replay,
+  and later automation.
 
 ### Phase 4: Strategy Memory
 

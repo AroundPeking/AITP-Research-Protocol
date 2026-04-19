@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import traceback
@@ -16,6 +17,7 @@ from .aitp_mcp_profiles import (
     tool_allowed_in_profile,
 )
 from .aitp_service import AITPService
+from .decision_point_handler import list_pending_decision_points, resolve_decision_point
 
 service = AITPService()
 ACTIVE_MCP_PROFILE = normalize_mcp_profile(os.environ.get("AITP_MCP_PROFILE"))
@@ -36,6 +38,47 @@ def aitp_tool(*, access: str) -> Callable[[Callable[..., str]], Callable[..., st
     return decorator
 
 
+def _sanitize_tool_schema(schema: dict[str, Any] | list[Any] | Any) -> dict[str, Any] | list[Any] | Any:
+    """Sanitize JSON schema for Zhipu GLM API compatibility."""
+    if isinstance(schema, dict):
+        # Resolve anyOf/oneOf/allOf first so hidden types are exposed.
+        for key in list(schema.keys()):
+            if key in ("anyOf", "oneOf", "allOf"):
+                branches = schema[key]
+                if isinstance(branches, list):
+                    non_null = [b for b in branches if b != {"type": "null"}]
+                    if non_null and isinstance(non_null[0], dict):
+                        schema.update(non_null[0])
+                del schema[key]
+        # Zhipu does not support 'integer'; use 'number' instead.
+        if schema.get("type") == "integer":
+            schema["type"] = "number"
+        # Zhipu does not support 'boolean'; use 'string' instead.
+        if schema.get("type") == "boolean":
+            schema["type"] = "string"
+        for key in list(schema.keys()):
+            if key in ("title", "$defs", "default", "description", "additionalProperties"):
+                del schema[key]
+            else:
+                schema[key] = _sanitize_tool_schema(schema[key])
+        # FastMCP drops properties whose names collide with JSON Schema keywords
+        # (e.g. 'title'). Re-insert them so required matches properties.
+        if "required" in schema and "properties" in schema:
+            for field in schema["required"]:
+                if field not in schema["properties"]:
+                    schema["properties"][field] = {"type": "string"}
+        # Simplify array items to plain string if they are complex objects,
+        # because Zhipu does not support nested object schemas inside array items.
+        if schema.get("type") == "array" and "items" in schema:
+            items = schema["items"]
+            if isinstance(items, dict) and items.get("type") not in ("string", "number"):
+                schema["items"] = {"type": "string"}
+        return schema
+    elif isinstance(schema, list):
+        return [_sanitize_tool_schema(item) for item in schema]
+    return schema
+
+
 def build_mcp_server(profile: str | None = None) -> FastMCP:
     resolved_profile = normalize_mcp_profile(profile)
     server = FastMCP(
@@ -46,6 +89,9 @@ def build_mcp_server(profile: str | None = None) -> FastMCP:
         access = AITP_MCP_TOOL_ACCESS[func.__name__]
         if tool_allowed_in_profile(func.__name__, access, resolved_profile):
             server.add_tool(func)
+    # Strip unsupported JSON-schema fields for GLM-5.1 compatibility
+    for tool in server._tool_manager._tools.values():
+        tool.parameters = _sanitize_tool_schema(tool.parameters)
     return server
 
 
@@ -224,6 +270,10 @@ def aitp_resume_topic(
 ) -> str:
     """Resume an existing AITP topic."""
     try:
+        if hasattr(service, "topic_required_read_gate"):
+            gate = service.topic_required_read_gate(topic_slug=topic_slug, updated_by=updated_by)
+            if isinstance(gate, dict) and (gate.get("blocked") or gate.get("needs_ack")):
+                return _ok(**gate)
         result = service.orchestrate(
             topic_slug=topic_slug,
             run_id=run_id,
@@ -242,6 +292,67 @@ def aitp_get_runtime_state(topic_slug: str) -> str:
     """Read the runtime topic_state.json for an AITP topic."""
     try:
         return _ok(topic_state=service.get_runtime_state(topic_slug))
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_get_topic_interaction(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
+    """Read the active human-interaction packet for a topic, including checkpoint options and pending decision points."""
+    try:
+        return _ok(**service.topic_interaction(topic_slug=topic_slug, updated_by=updated_by))
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_list_pending_decisions(topic_slug: str) -> str:
+    """List pending durable decision points for a topic."""
+    try:
+        return _ok(decision_points=list_pending_decision_points(topic_slug, kernel_root=service.kernel_root))
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_resolve_pending_decision(
+    topic_slug: str,
+    decision_id: str,
+    option: int,
+    comment: str | None = None,
+    resolved_by: str = "human",
+) -> str:
+    """Resolve one durable decision point for a topic."""
+    try:
+        payload = resolve_decision_point(
+            topic_slug,
+            decision_id,
+            option,
+            comment=comment,
+            resolved_by=resolved_by,
+            kernel_root=service.kernel_root,
+        )
+        return _ok(**payload)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_resolve_operator_checkpoint(
+    topic_slug: str,
+    option: int,
+    comment: str | None = None,
+    resolved_by: str = "human",
+) -> str:
+    """Resolve the active operator checkpoint for a topic after the human chooses an option."""
+    try:
+        payload = service.resolve_operator_checkpoint(
+            topic_slug=topic_slug,
+            option_index=option,
+            comment=comment,
+            resolved_by=resolved_by,
+        )
+        return _ok(**payload)
     except Exception as exc:  # noqa: BLE001
         return _err(str(exc))
 
@@ -601,6 +712,128 @@ def aitp_reintegrate_followup(
 
 
 @aitp_tool(access="write")
+def aitp_write_candidate(
+    topic_slug: str,
+    title: str,
+    claim_type: str,
+    summary: str,
+    evidence: str | None = None,
+    assumptions: list[str] | None = None,
+    origin_refs: list[dict] | None = None,
+    trust_level: str = "provisional",
+    status: str = "active",
+    candidate_id: str | None = None,
+    run_id: str | None = None,
+    sub_plane: str | None = None,
+    question: str | None = None,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Write or update a run-local L3 candidate so agents can record research findings through the protocol."""
+    try:
+        result = service.write_candidate(
+            topic_slug=topic_slug,
+            title=title,
+            claim_type=claim_type,
+            summary=summary,
+            evidence=evidence,
+            assumptions=assumptions or [],
+            origin_refs=origin_refs or [],
+            trust_level=trust_level,
+            status=status,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            sub_plane=sub_plane,
+            question=question,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_submit_l4_return(
+    topic_slug: str,
+    result_summary: str,
+    result_classification: str = "success",
+    artifact_paths: list[str] | None = None,
+    candidate_ids: list[str] | None = None,
+    numerical_evidence: dict | None = None,
+    contradiction_detected: bool = False,
+    notes: str | None = None,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Submit a returned L4 execution result so the closed-loop can ingest it through AITP surfaces."""
+    try:
+        result = service.submit_l4_return(
+            topic_slug=topic_slug,
+            result_summary=result_summary,
+            result_classification=result_classification,
+            artifact_paths=artifact_paths or [],
+            candidate_ids=candidate_ids or [],
+            numerical_evidence=numerical_evidence or {},
+            contradiction_detected=contradiction_detected,
+            notes=notes,
+            run_id=run_id,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_list_candidates(
+    topic_slug: str,
+    run_id: str | None = None,
+    status: str | None = None,
+    claim_type: str | None = None,
+    trust_level: str | None = None,
+    promotion_status: str | None = None,
+) -> str:
+    """List run-local L3 candidates with optional exact-match filters."""
+    try:
+        result = service.list_candidates(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            status=status,
+            claim_type=claim_type,
+            trust_level=trust_level,
+            promotion_status=promotion_status,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_register_artifact(
+    topic_slug: str,
+    artifact_path: str,
+    artifact_kind: str,
+    description: str,
+    linked_candidates: list[str] | None = None,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Register a code or data artifact as run-local evidence and optionally link it to candidates."""
+    try:
+        result = service.register_artifact(
+            topic_slug=topic_slug,
+            artifact_path=artifact_path,
+            artifact_kind=artifact_kind,
+            description=description,
+            linked_candidates=linked_candidates or [],
+            run_id=run_id,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
 def aitp_prepare_lean_bridge(
     topic_slug: str,
     run_id: str | None = None,
@@ -770,6 +1003,98 @@ def aitp_auto_promote_candidate(
         return _err(str(exc))
 
 
+@aitp_tool(access="read")
+def aitp_get_popup(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
+    """Get the active human-interaction popup for a topic, if any.
+
+    When ``ask_user_question`` is present in the result, the agent MUST present
+    the popup via the AskUserQuestion tool (Claude Code's native interactive
+    prompt) instead of rendering the markdown box.  Use the ``questions`` array
+    directly as the ``questions`` parameter of AskUserQuestion.  After the user
+    responds, map the selected 0-based option index through
+    ``choice_index_map`` to obtain the ``choice_index`` for
+    ``aitp_resolve_popup``.  If ``inspect_path`` is non-empty, the agent should
+    offer to read that file when the user wants details.
+    """
+    try:
+        result = service.topic_popup(topic_slug=topic_slug, updated_by=updated_by)
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_get_required_read_gate(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
+    """Get the current required-read gate for a topic, if any startup reads remain unacknowledged.""" 
+    try:
+        result = service.topic_required_read_gate(topic_slug=topic_slug, updated_by=updated_by)
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_ack_required_reads(
+    topic_slug: str,
+    paths: list[str] | None = None,
+    all_current: bool = False,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Acknowledge one or more required-read surfaces for the current topic startup generation."""
+    try:
+        result = service.acknowledge_required_reads(
+            topic_slug=topic_slug,
+            paths=paths or [],
+            all_current=all_current,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_resolve_popup(
+    topic_slug: str,
+    choice_index: int,
+    comment: str | None = None,
+    resolved_by: str = "human",
+) -> str:
+    """Resolve the active popup for a topic by choosing one of the presented options."""
+    try:
+        result = service.resolve_popup_choice(
+            topic_slug=topic_slug,
+            choice_index=choice_index,
+            comment=comment,
+            resolved_by=resolved_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_get_topic_popup(topic_slug: str, updated_by: str = "aitp-mcp") -> str:
+    """Alias for aitp_get_popup."""
+    return aitp_get_popup(topic_slug=topic_slug, updated_by=updated_by)
+
+
+@aitp_tool(access="write")
+def aitp_resolve_popup_choice(
+    topic_slug: str,
+    choice: int,
+    comment: str | None = None,
+    updated_by: str = "human",
+) -> str:
+    """Alias for aitp_resolve_popup."""
+    return aitp_resolve_popup(
+        topic_slug=topic_slug,
+        choice_index=choice,
+        comment=comment,
+        resolved_by=updated_by,
+    )
+
+
 @aitp_tool(access="write")
 def aitp_run_topic_loop(
     topic_slug: str | None = None,
@@ -784,6 +1109,10 @@ def aitp_run_topic_loop(
 ) -> str:
     """Run the safe AITP auto-continue loop, including capability and trust audits."""
     try:
+        if hasattr(service, "topic_required_read_gate"):
+            gate = service.topic_required_read_gate(topic_slug=topic_slug or "", updated_by=updated_by)
+            if isinstance(gate, dict) and (gate.get("blocked") or gate.get("needs_ack")):
+                return _ok(**gate)
         result = service.run_topic_loop(
             topic_slug=topic_slug,
             topic=topic,
@@ -824,10 +1153,75 @@ def aitp_install_agent_wrapper(
         return _err(str(exc))
 
 
+@aitp_tool(access="write")
+def aitp_record_classification(
+    topic_slug: str,
+    classification_type: str,
+    value: str,
+    rationale: str,
+    signals_used: list[str] | None = None,
+    source: str = "ai_reasoning",
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Record an AI classification decision into the durable classification contract."""
+    try:
+        record = service.record_classification(
+            topic_slug=topic_slug,
+            classification_type=classification_type,
+            value=value,
+            rationale=rationale,
+            signals_used=signals_used,
+            source=source,
+            updated_by=updated_by,
+        )
+        return _ok(recorded=record)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_read_classifications(
+    topic_slug: str,
+    classification_type: str | None = None,
+) -> str:
+    """Read classification records for a topic, optionally filtered by type."""
+    try:
+        rows = service._load_classifications(
+            topic_slug=topic_slug,
+            classification_type=classification_type,
+        )
+        latest = rows[-1] if rows else None
+        return _ok(classifications=rows, latest=latest, count=len(rows))
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
 mcp = build_mcp_server(ACTIVE_MCP_PROFILE)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="AITP MCP server")
+    parser.add_argument("--kernel-root")
+    parser.add_argument("--repo-root")
+    parser.add_argument("--mcp-profile")
+    return parser
+
+
+def _service_from_args(args: argparse.Namespace) -> AITPService:
+    kwargs: dict[str, Any] = {}
+    if args.kernel_root:
+        kwargs["kernel_root"] = Path(args.kernel_root).expanduser()
+    if args.repo_root:
+        kwargs["repo_root"] = Path(args.repo_root).expanduser()
+    return AITPService(**kwargs)
+
+
+def main(argv: list[str] | None = None) -> None:
+    global service, ACTIVE_MCP_PROFILE, mcp
+    args = build_parser().parse_args(argv)
+    service = _service_from_args(args)
+    ACTIVE_MCP_PROFILE = normalize_mcp_profile(args.mcp_profile or os.environ.get("AITP_MCP_PROFILE"))
+    mcp = build_mcp_server(ACTIVE_MCP_PROFILE)
     mcp.run()
 
 

@@ -462,6 +462,16 @@ class AITPCLITests(unittest.TestCase):
         self.assertEqual(list_args.command, "list-decisions")
         self.assertTrue(list_args.pending_only)
 
+        interaction_args = parser.parse_args(["interaction", "--topic-slug", "demo-topic", "--json"])
+        self.assertEqual(interaction_args.command, "interaction")
+        self.assertTrue(interaction_args.json)
+
+        resolve_checkpoint_args = parser.parse_args(
+            ["resolve-checkpoint", "--topic-slug", "demo-topic", "--option", "0"]
+        )
+        self.assertEqual(resolve_checkpoint_args.command, "resolve-checkpoint")
+        self.assertEqual(resolve_checkpoint_args.option, 0)
+
         trace_args = parser.parse_args(
             [
                 "trace-decision",
@@ -474,14 +484,14 @@ class AITPCLITests(unittest.TestCase):
                 "--rationale",
                 "It closes the exact benchmark gap first.",
                 "--input-refs",
-                '["runtime/topics/demo-topic/operator_console.md"]',
+                '["topics/demo-topic/runtime/operator_console.md"]',
                 "--output-refs",
-                '["runtime/topics/demo-topic/chronicles/chronicle__demo.md"]',
+                '["topics/demo-topic/runtime/chronicles/chronicle__demo.md"]',
             ]
         )
         self.assertEqual(trace_args.command, "trace-decision")
-        self.assertEqual(trace_args.input_refs[0], "runtime/topics/demo-topic/operator_console.md")
-        self.assertEqual(trace_args.output_refs[0], "runtime/topics/demo-topic/chronicles/chronicle__demo.md")
+        self.assertEqual(trace_args.input_refs[0], "topics/demo-topic/runtime/operator_console.md")
+        self.assertEqual(trace_args.output_refs[0], "topics/demo-topic/runtime/chronicles/chronicle__demo.md")
 
         chronicle_args = parser.parse_args(
             [
@@ -506,6 +516,8 @@ class AITPCLITests(unittest.TestCase):
     def test_main_dispatches_update_followup_return(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
+            mock_service.topic_required_read_gate.return_value = {"blocked": False, "needs_ack": False}
             mock_service.update_followup_return_packet.return_value = {"status": "success"}
             mock_factory.return_value = mock_service
             with patch.object(sys, "argv", [
@@ -870,7 +882,7 @@ class AITPCLITests(unittest.TestCase):
     def test_main_dispatches_import_bibtex_sources(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
-            mock_service.import_bibtex_sources.return_value = {"source_index_path": "source-layer/topics/demo-topic/source_index.jsonl"}
+            mock_service.import_bibtex_sources.return_value = {"source_index_path": "topics/demo-topic/L0/source_index.jsonl"}
             mock_factory.return_value = mock_service
             with patch.object(
                 sys,
@@ -1224,6 +1236,51 @@ class AITPCLITests(unittest.TestCase):
         mock_list.assert_called_once()
         mock_factory.assert_not_called()
 
+    def test_main_dispatches_interaction_through_service(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_interaction.return_value = {
+                "topic_slug": "demo-topic",
+                "primary_interaction": {"kind": "operator_checkpoint"},
+            }
+            mock_factory.return_value = mock_service
+            with patch.object(sys, "argv", ["aitp", "interaction", "--topic-slug", "demo-topic", "--json"]):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.topic_interaction.assert_called_once_with(topic_slug="demo-topic", updated_by="aitp-cli")
+
+    def test_main_dispatches_resolve_checkpoint_through_service(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.resolve_operator_checkpoint.return_value = {
+                "operator_checkpoint": {"status": "answered"},
+            }
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "resolve-checkpoint",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--option",
+                    "0",
+                    "--comment",
+                    "Focus on the theorem-facing route first.",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.resolve_operator_checkpoint.assert_called_once_with(
+            topic_slug="demo-topic",
+            option_index=0,
+            comment="Focus on the theorem-facing route first.",
+            resolved_by="human",
+        )
+
     def test_main_dispatches_trace_decision_without_service(self) -> None:
         with patch.object(aitp_cli, "record_decision_trace", return_value={"decision_trace": {"id": "dt:demo"}}) as mock_trace:
             with patch.object(aitp_cli, "_service_from_args") as mock_factory:
@@ -1481,6 +1538,8 @@ class AITPCLITests(unittest.TestCase):
     def test_main_dispatches_statement_compilation(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
+            mock_service.topic_required_read_gate.return_value = {"blocked": False, "needs_ack": False}
             mock_service.prepare_statement_compilation.return_value = {"status": "needs_repair"}
             mock_factory.return_value = mock_service
             with patch.object(
@@ -1743,11 +1802,79 @@ class AITPCLITests(unittest.TestCase):
         doctor_args = parser.parse_args(["doctor", "--workspace-root", "D:\\BaiduSyncdisk\\Theoretical-Physics"])
         self.assertEqual(doctor_args.command, "doctor")
         self.assertEqual(doctor_args.workspace_root, "D:\\BaiduSyncdisk\\Theoretical-Physics")
+        strict_doctor_args = parser.parse_args(["doctor", "--strict-l0l1"])
+        self.assertTrue(strict_doctor_args.strict_l0l1)
+        ack_read_args = parser.parse_args(["ack-read", "--topic-slug", "demo-topic", "--all-current"])
+        self.assertEqual(ack_read_args.command, "ack-read")
+        self.assertTrue(ack_read_args.all_current)
+
+    def test_doctor_strict_l0l1_returns_nonzero_when_codex_guardrails_are_not_hard_enough(self) -> None:
+        doctor_payload = {
+            "overall_status": "mixed_install",
+            "package": {"name": "aitp", "status": "canonical_editable_install", "version": "0.4.1"},
+            "layer_roots": {"L0": {"status": "present"}},
+            "protocol_contracts": {"layer_map": {"status": "present"}},
+            "runtime_convergence": {
+                "front_door_runtimes": ["codex", "claude_code", "opencode"],
+                "front_door_runtimes_converged": False,
+                "front_door_ready_runtimes": ["claude_code", "opencode"],
+                "front_door_non_ready_runtimes": ["codex"],
+            },
+            "runtime_support_matrix": {
+                "baseline_runtime": "codex",
+                "specialized_lanes": ["openclaw"],
+                "deep_execution_parity": {"baseline_runtime": "codex", "parity_targets": [], "runtimes": {}},
+                "runtimes": {
+                    "codex": {
+                        "display_name": "Codex",
+                        "status": "partial",
+                        "maturity_class": "baseline",
+                        "preferred_entry": "native `using-aitp` skill discovery",
+                        "issues": ["bootstrap_receipt_missing"],
+                        "surface_checks": {"bootstrap_receipt_present": False},
+                        "remediation": {
+                            "status": "required",
+                            "command": 'aitp-codex --dry-run "continue this topic"',
+                            "issue_hints": [],
+                        },
+                    }
+                },
+            },
+            "deep_execution_parity": {
+                "baseline_runtime": "codex",
+                "baseline_status": "front_door_blocked",
+                "parity_targets": [],
+                "parity_targets_converged": True,
+                "verified_targets": [],
+                "pending_targets": [],
+                "blocked_targets": [],
+            },
+            "full_convergence_repair": {"status": "recommended", "command": "aitp doctor --json"},
+            "strict_l0_l1": {
+                "status": "fail",
+                "blockers": ["codex_bootstrap_receipt_missing"],
+                "summary": "Codex can still bypass part of the intended L0-L1 AITP entry contract.",
+            },
+        }
+
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.ensure_cli_installed.return_value = doctor_payload
+            mock_factory.return_value = mock_service
+            stream = io.StringIO()
+            with patch.object(sys, "argv", ["aitp", "doctor", "--strict-l0l1"]):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn("Strict L0-L1 hardening: fail", output)
+        self.assertIn("codex_bootstrap_receipt_missing", output)
 
     def test_main_renders_compact_human_status_and_next_and_full_dashboard(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()
-            runtime_root = Path("D:/demo-kernel/runtime/topics/demo-topic")
+            runtime_root = Path("D:/demo-kernel/topics/demo-topic/runtime")
             status_payload = {
                 "topic_slug": "demo-topic",
                 "title": "Demo Topic",
@@ -1757,8 +1884,8 @@ class AITPCLITests(unittest.TestCase):
                 "next_action_hint": "Run 'aitp next --topic-slug demo-topic' to inspect the bounded action queue.",
                 "runtime_protocol_note_path": str(runtime_root / "runtime_protocol.generated.md"),
                 "must_read_now": [
-                    {"path": "runtime/topics/demo-topic/topic_dashboard.md"},
-                    {"path": "runtime/topics/demo-topic/research_question.contract.md"},
+                    {"path": "topics/demo-topic/runtime/topic_dashboard.md"},
+                    {"path": "topics/demo-topic/runtime/research_question.contract.md"},
                 ],
                 "open_gap_summary": {"status": "clear"},
                 "promotion_readiness": {"status": "not_requested"},
@@ -1767,22 +1894,23 @@ class AITPCLITests(unittest.TestCase):
                 "lean_bridge": {"status": "empty"},
                 "primary_runtime_surfaces": {
                     "primary": {
-                        "runtime_human": "runtime/topics/demo-topic/topic_dashboard.md",
+                        "runtime_human": "topics/demo-topic/runtime/topic_dashboard.md",
                     }
                 },
             }
             next_payload = {
                 "topic_slug": "demo-topic",
                 "selected_action_summary": "Inspect the graph export before continuing.",
-                "open_next": "runtime/topics/demo-topic/topic_dashboard.md",
+                "open_next": "topics/demo-topic/runtime/topic_dashboard.md",
                 "must_read_now": [
-                    {"path": "runtime/topics/demo-topic/topic_dashboard.md"},
-                    {"path": "runtime/topics/demo-topic/research_question.contract.md"},
+                    {"path": "topics/demo-topic/runtime/topic_dashboard.md"},
+                    {"path": "topics/demo-topic/runtime/research_question.contract.md"},
                 ],
                 "open_gap_summary": {"status": "clear"},
             }
             mock_service.topic_status.return_value = status_payload
             mock_service.topic_next.return_value = next_payload
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
             mock_service.kernel_root = Path("D:/demo-kernel")
             mock_factory.return_value = mock_service
 
@@ -1831,10 +1959,132 @@ class AITPCLITests(unittest.TestCase):
         self.assertIn("Topic completion: not_assessed", verbose_output)
         self.assertIn("AITP Next", next_output)
         self.assertIn("Do: Inspect the graph export before continuing.", next_output)
-        self.assertIn("Read now: runtime/topics/demo-topic/topic_dashboard.md", next_output)
+        self.assertIn("Read now: topics/demo-topic/runtime/topic_dashboard.md", next_output)
         self.assertIn("Machine view: aitp next --topic-slug demo-topic --json", next_output)
         self.assertIn("# Demo Dashboard", full_output)
         self.assertIn("Full dashboard body.", full_output)
+
+    def test_main_blocks_work_when_popup_gate_is_active(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {
+                "needs_popup": True,
+                "markdown": "# Active human gate\n\nChoose a route before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "work", "--topic-slug", "demo-topic", "--question", "Continue the topic"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn("# Active human gate", output)
+        self.assertIn("Resolve with: aitp popup --topic-slug demo-topic --choice <index>", output)
+        mock_service.work_topic.assert_not_called()
+
+    def test_main_blocks_work_when_required_reads_are_unacknowledged(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
+            mock_service.topic_required_read_gate.return_value = {
+                "blocked": False,
+                "needs_ack": True,
+                "markdown": "# Required reads\n\nAcknowledge the current startup reads before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "work", "--topic-slug", "demo-topic", "--question", "Continue the topic"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn("# Required reads", output)
+        self.assertIn("Resolve with: aitp ack-read --topic-slug demo-topic --all-current", output)
+        mock_service.work_topic.assert_not_called()
+
+    def test_main_blocks_work_when_startup_contract_is_missing(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {"needs_popup": False, "markdown": ""}
+            mock_service.topic_required_read_gate.return_value = {
+                "blocked": True,
+                "needs_ack": False,
+                "markdown": "# Startup contract missing\n\nMaterialize session-start before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "work", "--topic-slug", "demo-topic", "--question", "Continue the topic"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn("# Startup contract missing", output)
+        self.assertIn("Resolve with: aitp session-start --topic-slug demo-topic", output)
+        mock_service.work_topic.assert_not_called()
+
+    def test_main_blocks_verify_with_popup_gate_in_json_mode(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.topic_popup.return_value = {
+                "needs_popup": True,
+                "popup_kind": "operator_checkpoint",
+                "markdown": "# Active human gate\n\nChoose a route before continuing.",
+            }
+            mock_factory.return_value = mock_service
+
+            stream = io.StringIO()
+            with patch.object(
+                sys,
+                "argv",
+                ["aitp", "verify", "--topic-slug", "demo-topic", "--mode", "proof", "--json"],
+            ):
+                with redirect_stdout(stream):
+                    exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 2)
+        output = stream.getvalue()
+        self.assertIn('"needs_popup": true', output.lower())
+        self.assertIn('"popup_kind": "operator_checkpoint"', output)
+        mock_service.prepare_verification.assert_not_called()
+
+    def test_main_dispatches_ack_read(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.acknowledge_required_reads.return_value = {
+                "topic_slug": "demo-topic",
+                "acknowledged_count": 4,
+                "remaining_missing_count": 0,
+            }
+            mock_factory.return_value = mock_service
+
+            with patch.object(sys, "argv", ["aitp", "ack-read", "--topic-slug", "demo-topic", "--all-current"]):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.acknowledge_required_reads.assert_called_once_with(
+            topic_slug="demo-topic",
+            paths=[],
+            all_current=True,
+            updated_by="aitp-cli",
+        )
 
     def test_main_dispatches_hello(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:

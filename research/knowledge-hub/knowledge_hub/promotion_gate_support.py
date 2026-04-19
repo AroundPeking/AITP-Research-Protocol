@@ -8,19 +8,28 @@ from typing import Any
 from .l2_staging import load_staging_entries
 from .runtime_schema_promotion_bridge import collect_runtime_schema_context
 from .runtime_projection_handler import append_transition_history
+from .topic_truth_root_support import compatibility_projection_path
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return None
+        target = compatibility_path
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return []
+        target = compatibility_path
     rows: list[dict[str, Any]] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    for raw_line in target.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if line:
             rows.append(json.loads(line))
@@ -28,21 +37,32 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    rendered = "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(text, encoding="utf-8")
 
 
 def _now_iso() -> str:
@@ -364,6 +384,7 @@ def request_promotion(
         "title": str(candidate.get("title") or ""),
         "summary": str(candidate.get("summary") or ""),
         "route": route,
+        "promotion_stage": "candidate",
         "status": "pending_human_approval",
         "intended_l2_targets": self._dedupe_strings(list(candidate.get("intended_l2_targets") or [])),
         "backend_id": str(backend_id or ""),
@@ -449,6 +470,7 @@ def approve_promotion(
     if str(gate_payload.get("candidate_id") or "") != candidate_id:
         raise ValueError(f"Promotion gate candidate mismatch: expected {gate_payload.get('candidate_id')}, got {candidate_id}")
     gate_payload["status"] = "approved"
+    gate_payload["promotion_stage"] = "promotion_ready"
     gate_payload["approved_by"] = approved_by
     gate_payload["approved_at"] = _now_iso()
     gate_payload["resolved_destination_layer"] = str(gate_payload.get("canonical_layer") or "L2")
@@ -557,4 +579,56 @@ def reject_promotion(
         **gate_payload,
         **paths,
         "promotion_gate_log_path": log_path,
+    }
+
+
+PROMOTION_PIPELINE_STAGES = ("candidate", "validated", "promotion_ready", "promoted")
+
+
+def promotion_pipeline_metrics(
+    self,
+    *,
+    topic_slug: str,
+    updated_by: str = "aitp-service",
+) -> dict[str, Any]:
+    """Compute 4-stage aspirational promotion pipeline metrics for a topic.
+
+    Stages: candidate -> validated -> promotion_ready -> promoted.
+    """
+    gate_payload = load_promotion_gate(self, topic_slug) or {}
+    current_stage = str(gate_payload.get("promotion_stage") or "candidate").strip()
+    if current_stage not in PROMOTION_PIPELINE_STAGES:
+        current_stage = "candidate"
+
+    stage_index = PROMOTION_PIPELINE_STAGES.index(current_stage)
+
+    log_path_str = self._promotion_gate_log_path(topic_slug, gate_payload.get("run_id") or "")
+    log_path = Path(log_path_str) if log_path_str else self._runtime_root(topic_slug) / "promotion_gate_log.jsonl"
+    log_rows = _read_jsonl(log_path) if log_path.exists() else []
+
+    stage_counts: dict[str, int] = {stage: 0 for stage in PROMOTION_PIPELINE_STAGES}
+    for row in log_rows:
+        event = str(row.get("event") or "").strip()
+        if event == "requested":
+            stage_counts["candidate"] += 1
+        elif event == "approved":
+            stage_counts["promotion_ready"] += 1
+        elif event == "promoted":
+            stage_counts["promoted"] += 1
+        elif event == "rejected":
+            stage_counts["validated"] += 1
+
+    return {
+        "topic_slug": topic_slug,
+        "current_stage": current_stage,
+        "stage_index": stage_index,
+        "total_stages": len(PROMOTION_PIPELINE_STAGES),
+        "stage_counts": stage_counts,
+        "gate_status": str(gate_payload.get("status") or "not_requested"),
+        "candidate_id": str(gate_payload.get("candidate_id") or ""),
+        "candidate_type": str(gate_payload.get("candidate_type") or ""),
+        "summary": (
+            f"Promotion pipeline at stage {current_stage} "
+            f"({stage_index + 1}/{len(PROMOTION_PIPELINE_STAGES)})."
+        ),
     }

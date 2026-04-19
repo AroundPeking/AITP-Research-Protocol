@@ -6,21 +6,36 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .topic_truth_root_support import compatibility_projection_path
+
 
 def _read_json(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return None
+        target = compatibility_path
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(text, encoding="utf-8")
 
 
 def _now_iso() -> str:
@@ -31,6 +46,168 @@ def _slugify(text: str) -> str:
     lowered = re.sub(r"[^a-z0-9]+", "-", str(text or "").lower())
     lowered = re.sub(r"-+", "-", lowered).strip("-")
     return lowered or "statement"
+
+
+def _normalize_statement_text(statement: str) -> str:
+    normalized = str(statement or "").strip()
+    replacements = {
+        "∀": "for all ",
+        "∃": "there exists ",
+        "→": " -> ",
+        "⇒": " -> ",
+        "↔": " iff ",
+        "≤": " <= ",
+        "≥": " >= ",
+        "∈": " in ",
+        "≈": " ~= ",
+    }
+    for source, target in replacements.items():
+        normalized = normalized.replace(source, target)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def _statement_role_from_text(text: str) -> str:
+    lowered = str(text or "").lower()
+    if any(token in lowered for token in ("defined as", "definition", "denote", "let ")):
+        return "definition"
+    if any(token in lowered for token in ("assume", "suppose", "axiom")):
+        return "axiom"
+    return "theorem"
+
+
+def parse_informal_math(
+    statement: str,
+    *,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    normalized_statement = _normalize_statement_text(statement)
+    if not normalized_statement:
+        raise ValueError("statement must not be empty")
+
+    relation_patterns = (
+        (r"\bif and only if\b|\biff\b", "iff"),
+        (r"->|=>|\bimplies\b", "implies"),
+        (r"<=", "<="),
+        (r">=", ">="),
+        (r"~=", "~="),
+        (r"=", "="),
+        (r"<", "<"),
+        (r">", ">"),
+        (r"\bin\b", "in"),
+    )
+    quantifier_patterns = (
+        (r"\bfor all\b|\bforall\b", "forall"),
+        (r"\bthere exists\b|\bexists\b", "exists"),
+        (r"\bfor every\b", "forall"),
+    )
+    quantifiers = [
+        label
+        for pattern, label in quantifier_patterns
+        if re.search(pattern, normalized_statement, flags=re.IGNORECASE)
+    ]
+    relations = [
+        label
+        for pattern, label in relation_patterns
+        if re.search(pattern, normalized_statement, flags=re.IGNORECASE)
+    ]
+    clauses = [
+        clause.strip(" ,.;")
+        for clause in re.split(
+            r"\bif and only if\b|\biff\b|\bif\b|\bthen\b|\bwhere\b|->|=>",
+            normalized_statement,
+            flags=re.IGNORECASE,
+        )
+        if clause.strip(" ,.;")
+    ]
+    symbols = self_contained_symbols = []
+    for symbol in re.findall(r"[A-Za-z][A-Za-z0-9_']*", normalized_statement):
+        if symbol not in self_contained_symbols:
+            self_contained_symbols.append(symbol)
+    symbols = self_contained_symbols
+    return {
+        "parser_version": 1,
+        "input_statement": str(statement or "").strip(),
+        "normalized_statement": normalized_statement,
+        "statement_role": _statement_role_from_text(normalized_statement),
+        "quantifiers": quantifiers,
+        "relations": relations,
+        "symbols": symbols,
+        "clauses": clauses,
+        "clause_count": len(clauses),
+        "context": dict(context or {}),
+    }
+
+
+def to_formal_representation(
+    parsed_statement: dict[str, Any],
+    *,
+    namespace: str = "AITP.Generated",
+    declaration_name: str | None = None,
+) -> dict[str, Any]:
+    normalized_statement = str(parsed_statement.get("normalized_statement") or "").strip()
+    if not normalized_statement:
+        raise ValueError("parsed_statement must include normalized_statement")
+
+    statement_role = str(parsed_statement.get("statement_role") or "theorem").strip().lower()
+    statement_kind = "definition" if statement_role == "definition" else "axiom" if statement_role == "axiom" else "theorem"
+    declared_name = _slugify(declaration_name or normalized_statement).replace("-", "_")
+    if not re.match(r"^[A-Za-z_]", declared_name):
+        declared_name = f"decl_{declared_name}"
+    declaration_kind = "def" if statement_kind == "definition" else "axiom" if statement_kind == "axiom" else "theorem"
+    signature = _signature_for_kind(statement_kind)
+    if declaration_kind == "axiom":
+        skeleton_lines = [
+            f"axiom {declared_name} {signature}",
+            f"-- informal source: {normalized_statement}",
+        ]
+    elif declaration_kind == "def":
+        skeleton_lines = [
+            f"def {declared_name} {signature} := by",
+            f"  -- formalize definition from: {normalized_statement}",
+            "  sorry",
+        ]
+    else:
+        skeleton_lines = [
+            f"theorem {declared_name} {signature} := by",
+            f"  -- target statement: {normalized_statement}",
+            "  sorry",
+        ]
+    return {
+        "representation_version": 1,
+        "namespace": namespace,
+        "declaration_name": declared_name,
+        "statement_kind": statement_kind,
+        "declaration_kind": declaration_kind,
+        "signature": signature,
+        "formal_expression": normalized_statement,
+        "symbols": list(parsed_statement.get("symbols") or []),
+        "relations": list(parsed_statement.get("relations") or []),
+        "quantifiers": list(parsed_statement.get("quantifiers") or []),
+        "lean_skeleton_lines": skeleton_lines,
+    }
+
+
+def compile_statement(
+    statement: str,
+    *,
+    namespace: str = "AITP.Generated",
+    declaration_name: str | None = None,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    parsed = parse_informal_math(statement, context=context)
+    formal = to_formal_representation(
+        parsed,
+        namespace=namespace,
+        declaration_name=declaration_name,
+    )
+    return {
+        "compile_version": 1,
+        "status": "compiled",
+        "compiled_at": _now_iso(),
+        "parsed_statement": parsed,
+        "formal_representation": formal,
+    }
 
 
 def _statement_kind(candidate_type: str) -> str:

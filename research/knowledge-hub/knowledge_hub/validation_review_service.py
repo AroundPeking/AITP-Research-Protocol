@@ -1,7 +1,290 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
+
+from .mode_registry import DEFAULT_RUNTIME_MODE, VALID_RUNTIME_MODES, normalize_runtime_mode
+
+
+VALIDATION_REVIEW_VERDICTS = frozenset({"pass", "partial", "fail", "inconclusive"})
+_VERDICT_ALIASES = {
+    "passed": "pass",
+    "failed": "fail",
+    "blocked": "inconclusive",
+    "needs_followup": "partial",
+}
+_MODE_VALIDATION_POLICY: dict[str, dict[str, Any]] = {
+    "explore": {
+        "validation_opportunity": False,
+        "validation_required": False,
+        "validation_recommended": False,
+        "default_gate_status": "skipped",
+    },
+    "learn": {
+        "validation_opportunity": True,
+        "validation_required": False,
+        "validation_recommended": True,
+        "default_gate_status": "recommended",
+    },
+    "implement": {
+        "validation_opportunity": True,
+        "validation_required": True,
+        "validation_recommended": True,
+        "default_gate_status": "required",
+    },
+}
+_DEFAULT_VALIDATION_OPTIONS: tuple[dict[str, str], ...] = (
+    {
+        "family_key": "limiting_case",
+        "label": "Limiting-case check",
+        "summary": "Check weak/strong coupling and temperature limits against known behavior.",
+    },
+    {
+        "family_key": "dimensional_consistency",
+        "label": "Dimensional analysis",
+        "summary": "Check unit consistency, scaling, and dimensionless normalization.",
+    },
+    {
+        "family_key": "symmetry",
+        "label": "Symmetry check",
+        "summary": "Check translation, rotation, time-reversal, or gauge symmetry expectations.",
+    },
+    {
+        "family_key": "source_consistency",
+        "label": "Source-consistency check",
+        "summary": "Compare against trusted literature, benchmark values, or textbook limits.",
+    },
+    {
+        "family_key": "derivation_step",
+        "label": "Derivation-step check",
+        "summary": "Review each derivation step and mark whether it is heuristic or rigorous.",
+    },
+)
+
+
+def _now_iso() -> str:
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def _normalize_confidence(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    confidence = float(value)
+    if confidence < 0:
+        return 0.0
+    if confidence > 1:
+        return 1.0
+    return confidence
+
+
+def _normalized_verdict(value: Any) -> str:
+    verdict = str(value or "").strip().lower()
+    verdict = _VERDICT_ALIASES.get(verdict, verdict)
+    if verdict not in VALIDATION_REVIEW_VERDICTS:
+        raise ValueError(
+            "validation review verdict must be one of: "
+            + ", ".join(sorted(VALIDATION_REVIEW_VERDICTS))
+        )
+    return verdict
+
+
+def _validation_policy(runtime_mode: str | None) -> tuple[str, dict[str, Any]]:
+    canonical_mode = normalize_runtime_mode(runtime_mode or DEFAULT_RUNTIME_MODE)
+    if canonical_mode not in VALID_RUNTIME_MODES:
+        canonical_mode = DEFAULT_RUNTIME_MODE
+    return canonical_mode, dict(_MODE_VALIDATION_POLICY[canonical_mode])
+
+
+def _default_validation_options() -> list[dict[str, str]]:
+    return [dict(row) for row in _DEFAULT_VALIDATION_OPTIONS]
+
+
+def _summarize_submitted_reviews(submitted_reviews: list[dict[str, Any]]) -> dict[str, Any]:
+    counts = {verdict: 0 for verdict in VALIDATION_REVIEW_VERDICTS}
+    for row in submitted_reviews:
+        verdict = _normalized_verdict(row.get("verdict"))
+        counts[verdict] += 1
+    if not submitted_reviews:
+        aggregate_status = "not_started"
+    elif counts["fail"] > 0:
+        aggregate_status = "fail"
+    elif counts["partial"] > 0:
+        aggregate_status = "partial"
+    elif counts["inconclusive"] > 0 and counts["pass"] > 0:
+        aggregate_status = "partial"
+    elif counts["inconclusive"] > 0:
+        aggregate_status = "inconclusive"
+    else:
+        aggregate_status = "pass"
+    return {
+        "aggregate_status": aggregate_status,
+        "submitted_review_count": len(submitted_reviews),
+        "status_counts": counts,
+    }
+
+
+def check_validation_gate(
+    validation_review: dict[str, Any],
+    *,
+    runtime_mode: str | None = None,
+) -> dict[str, Any]:
+    canonical_mode, policy = _validation_policy(
+        runtime_mode or validation_review.get("runtime_mode") or DEFAULT_RUNTIME_MODE
+    )
+    review_summary = _summarize_submitted_reviews(
+        list(validation_review.get("submitted_reviews") or [])
+    )
+    aggregate_status = str(
+        validation_review.get("aggregate_status")
+        or review_summary.get("aggregate_status")
+        or "not_started"
+    ).strip()
+    gate_status = str(policy.get("default_gate_status") or "unknown")
+    gate_open = True
+    reason = "Validation posture has not been computed yet."
+
+    if canonical_mode == "explore":
+        gate_status = "skipped"
+        gate_open = True
+        reason = "Explore mode keeps validation optional and may defer it entirely."
+    elif canonical_mode == "learn":
+        if aggregate_status == "fail":
+            gate_status = "fail"
+            gate_open = False
+            reason = "Learn mode permits optional validation, but recorded failed reviews still block a validation gate."
+        elif aggregate_status == "pass":
+            gate_status = "pass"
+            gate_open = True
+            reason = "Learn mode review passed and the gate can remain open."
+        elif aggregate_status == "partial":
+            gate_status = "partial"
+            gate_open = True
+            reason = "Learn mode allows partial review closure while keeping next steps explicit."
+        elif aggregate_status == "inconclusive":
+            gate_status = "inconclusive"
+            gate_open = True
+            reason = "Learn mode can proceed with an inconclusive review, but follow-up validation is still recommended."
+        else:
+            gate_status = "recommended"
+            gate_open = True
+            reason = "Learn mode does not require validation, but review is recommended before stronger claims."
+    else:
+        if aggregate_status == "pass":
+            gate_status = "pass"
+            gate_open = True
+            reason = "Implement mode requires validation and the recorded review has passed."
+        elif aggregate_status == "partial":
+            gate_status = "partial"
+            gate_open = False
+            reason = "Implement mode requires a full validation pass; partial closure is not enough."
+        elif aggregate_status == "fail":
+            gate_status = "fail"
+            gate_open = False
+            reason = "Implement mode requires validation and the recorded review has failed."
+        elif aggregate_status == "inconclusive":
+            gate_status = "inconclusive"
+            gate_open = False
+            reason = "Implement mode requires validation and the recorded review is still inconclusive."
+        else:
+            gate_status = "required"
+            gate_open = False
+            reason = "Implement mode requires at least one completed validation review before the gate can open."
+
+    return {
+        "runtime_mode": canonical_mode,
+        "validation_opportunity": bool(policy["validation_opportunity"]),
+        "validation_required": bool(policy["validation_required"]),
+        "validation_recommended": bool(policy["validation_recommended"]),
+        "aggregate_status": aggregate_status,
+        "gate_status": gate_status,
+        "gate_open": gate_open,
+        "reason": reason,
+        "submitted_review_count": int(review_summary["submitted_review_count"]),
+        "status_counts": dict(review_summary["status_counts"]),
+    }
+
+
+def create_validation_review(
+    *,
+    topic_slug: str,
+    runtime_mode: str | None = None,
+    candidate_id: str | None = None,
+    review_items: list[dict[str, Any]] | None = None,
+    submitted_reviews: list[dict[str, Any]] | None = None,
+    candidate_validation_options: list[dict[str, Any]] | None = None,
+    metadata: dict[str, Any] | None = None,
+    now_iso: Callable[[], str] | None = None,
+) -> dict[str, Any]:
+    timestamp = (now_iso or _now_iso)()
+    canonical_mode, policy = _validation_policy(runtime_mode or DEFAULT_RUNTIME_MODE)
+    submitted_rows = [dict(row) for row in (submitted_reviews or [])]
+    summary = _summarize_submitted_reviews(submitted_rows)
+    payload = {
+        "review_kind": "validation_review",
+        "topic_slug": str(topic_slug or "").strip(),
+        "candidate_id": str(candidate_id or "").strip() or None,
+        "runtime_mode": canonical_mode,
+        "validation_opportunity": bool(policy["validation_opportunity"]),
+        "validation_required": bool(policy["validation_required"]),
+        "validation_recommended": bool(policy["validation_recommended"]),
+        "candidate_validation_options": [
+            dict(row)
+            for row in (
+                candidate_validation_options
+                if candidate_validation_options is not None
+                else _default_validation_options()
+            )
+        ],
+        "review_items": [dict(row) for row in (review_items or [])],
+        "submitted_reviews": submitted_rows,
+        "aggregate_status": str(summary["aggregate_status"]),
+        "metadata": dict(metadata or {}),
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+    payload["review_summary"] = {
+        "submitted_review_count": int(summary["submitted_review_count"]),
+        "status_counts": dict(summary["status_counts"]),
+    }
+    payload["validation_gate"] = check_validation_gate(payload, runtime_mode=canonical_mode)
+    return payload
+
+
+def submit_review(
+    validation_review: dict[str, Any],
+    *,
+    reviewer: str,
+    verdict: str,
+    evidence: list[str] | None = None,
+    confidence: float | None = None,
+    notes: str | None = None,
+    next_steps: list[str] | None = None,
+    now_iso: Callable[[], str] | None = None,
+) -> dict[str, Any]:
+    updated = dict(validation_review)
+    submitted_reviews = [dict(row) for row in (updated.get("submitted_reviews") or [])]
+    submitted_reviews.append(
+        {
+            "reviewer": str(reviewer or "").strip() or "unknown",
+            "verdict": _normalized_verdict(verdict),
+            "evidence": _string_list(evidence),
+            "confidence": _normalize_confidence(confidence),
+            "notes": str(notes or "").strip(),
+            "next_steps": _string_list(next_steps),
+            "submitted_at": (now_iso or _now_iso)(),
+        }
+    )
+    updated["submitted_reviews"] = submitted_reviews
+    summary = _summarize_submitted_reviews(submitted_reviews)
+    updated["aggregate_status"] = str(summary["aggregate_status"])
+    updated["review_summary"] = {
+        "submitted_review_count": int(summary["submitted_review_count"]),
+        "status_counts": dict(summary["status_counts"]),
+    }
+    updated["updated_at"] = (now_iso or _now_iso)()
+    updated["validation_gate"] = check_validation_gate(updated)
+    return updated
 
 
 def _string_list(values: Any) -> list[str]:
@@ -72,6 +355,58 @@ class ValidationReviewService:
         self._service = service
         self._read_json = read_json
         self._now_iso = now_iso
+
+    def create_validation_review(
+        self,
+        *,
+        topic_slug: str,
+        runtime_mode: str | None = None,
+        candidate_id: str | None = None,
+        review_items: list[dict[str, Any]] | None = None,
+        submitted_reviews: list[dict[str, Any]] | None = None,
+        candidate_validation_options: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return create_validation_review(
+            topic_slug=topic_slug,
+            runtime_mode=runtime_mode,
+            candidate_id=candidate_id,
+            review_items=review_items,
+            submitted_reviews=submitted_reviews,
+            candidate_validation_options=candidate_validation_options,
+            metadata=metadata,
+            now_iso=self._now_iso,
+        )
+
+    def submit_review(
+        self,
+        validation_review: dict[str, Any],
+        *,
+        reviewer: str,
+        verdict: str,
+        evidence: list[str] | None = None,
+        confidence: float | None = None,
+        notes: str | None = None,
+        next_steps: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return submit_review(
+            validation_review,
+            reviewer=reviewer,
+            verdict=verdict,
+            evidence=evidence,
+            confidence=confidence,
+            notes=notes,
+            next_steps=next_steps,
+            now_iso=self._now_iso,
+        )
+
+    def check_validation_gate(
+        self,
+        validation_review: dict[str, Any],
+        *,
+        runtime_mode: str | None = None,
+    ) -> dict[str, Any]:
+        return check_validation_gate(validation_review, runtime_mode=runtime_mode)
 
     def review_artifact_status(self, artifact_kind: str, payload: dict[str, Any]) -> str:
         if artifact_kind == "coverage_ledger":

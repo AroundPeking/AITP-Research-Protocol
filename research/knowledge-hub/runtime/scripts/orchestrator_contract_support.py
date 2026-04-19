@@ -4,7 +4,34 @@ from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
+import sys
 from typing import Any, Callable
+
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from knowledge_hub.mode_registry import normalize_runtime_mode
+
+
+def _truth_runtime_root(knowledge_root: Path, topic_slug: str) -> Path:
+    return knowledge_root / "topics" / topic_slug / "runtime"
+
+
+def _legacy_runtime_root(knowledge_root: Path, topic_slug: str) -> Path:
+    return knowledge_root / "runtime" / "topics" / topic_slug
+
+
+def _topic_runtime_path(knowledge_root: Path, topic_slug: str, filename: str) -> Path:
+    truth_path = _truth_runtime_root(knowledge_root, topic_slug) / filename
+    legacy_path = _legacy_runtime_root(knowledge_root, topic_slug) / filename
+    if truth_path.exists() or not legacy_path.exists():
+        return truth_path
+    return legacy_path
+
+
+def _truth_runtime_ref(topic_slug: str, filename: str) -> str:
+    return f"topics/{topic_slug}/runtime/{filename}"
 
 
 def load_runtime_contract(
@@ -13,7 +40,7 @@ def load_runtime_contract(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict | None:
-    return load_json(knowledge_root / "runtime" / "topics" / topic_slug / "runtime_protocol.generated.json")
+    return load_json(_topic_runtime_path(knowledge_root, topic_slug, "runtime_protocol.generated.json"))
 
 
 def load_operator_checkpoint(
@@ -22,7 +49,7 @@ def load_operator_checkpoint(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict | None:
-    return load_json(knowledge_root / "runtime" / "topics" / topic_slug / "operator_checkpoint.active.json")
+    return load_json(_topic_runtime_path(knowledge_root, topic_slug, "operator_checkpoint.active.json"))
 
 
 def load_consultation_followup_selection(
@@ -31,13 +58,7 @@ def load_consultation_followup_selection(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict | None:
-    return load_json(
-        knowledge_root
-        / "runtime"
-        / "topics"
-        / topic_slug
-        / "consultation_followup_selection.active.json"
-    )
+    return load_json(_topic_runtime_path(knowledge_root, topic_slug, "consultation_followup_selection.active.json"))
 
 
 def load_selected_candidate_route_choice(
@@ -46,19 +67,14 @@ def load_selected_candidate_route_choice(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict | None:
-    return load_json(
-        knowledge_root
-        / "runtime"
-        / "topics"
-        / topic_slug
-        / "selected_candidate_route_choice.active.json"
-    )
+    return load_json(_topic_runtime_path(knowledge_root, topic_slug, "selected_candidate_route_choice.active.json"))
 
 
 def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) -> list[str]:
     if not runtime_contract:
         return []
-    runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
     active_submode = str(runtime_contract.get("active_submode") or "").strip()
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
@@ -71,7 +87,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
         return ["skill_discovery"]
     if transition_kind == "backedge_transition" and "non_trivial_consultation" in triggered_by:
         return ["consultation_followup"]
-    if runtime_mode == "promote" or "promotion_intent" in triggered_by:
+    if runtime_mode == "implement" or "promotion_intent" in triggered_by:
         return [
             "l2_promotion_review",
             "request_promotion",
@@ -79,7 +95,7 @@ def preferred_action_types_from_runtime_contract(runtime_contract: dict | None) 
             "promote_candidate",
             "auto_promote_candidate",
         ]
-    if runtime_mode == "verify" or "verification_route_selection" in triggered_by:
+    if runtime_mode == "learn" or "verification_route_selection" in triggered_by:
         return [
             "select_validation_route",
             "materialize_execution_task",
@@ -193,7 +209,7 @@ def latest_continue_decision_updated_at(
     knowledge_root: Path,
     topic_slug: str,
 ) -> datetime | None:
-    decisions_path = knowledge_root / "runtime" / "topics" / topic_slug / "innovation_decisions.jsonl"
+    decisions_path = _topic_runtime_path(knowledge_root, topic_slug, "innovation_decisions.jsonl")
     if not decisions_path.exists():
         return None
     latest: datetime | None = None
@@ -223,7 +239,7 @@ def count_continue_decisions_after(
 ) -> int:
     if cutoff is None:
         return 0
-    decisions_path = knowledge_root / "runtime" / "topics" / topic_slug / "innovation_decisions.jsonl"
+    decisions_path = _topic_runtime_path(knowledge_root, topic_slug, "innovation_decisions.jsonl")
     if not decisions_path.exists():
         return 0
     count = 0
@@ -251,9 +267,7 @@ def consultation_followup_ready_for_auto_run(
     knowledge_root: Path,
     topic_slug: str,
 ) -> bool:
-    next_action_decision = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "next_action_decision.json"
-    )
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json"))
     if not next_action_decision:
         return False
     selected_action = next_action_decision.get("selected_action") or {}
@@ -284,9 +298,7 @@ def selected_candidate_route_choice_ready_for_materialization(
     )
     if not selection_payload or str(selection_payload.get("status") or "").strip() != "selected":
         return False
-    next_action_decision = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "next_action_decision.json"
-    )
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json"))
     if not next_action_decision:
         return False
     selected_action = next_action_decision.get("selected_action") or {}
@@ -309,7 +321,7 @@ def selected_candidate_route_choice_paths(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict[str, Path]:
-    runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    runtime_root = _truth_runtime_root(knowledge_root, topic_slug)
     return {
         "json": runtime_root / "selected_candidate_route_choice.active.json",
         "note": runtime_root / "selected_candidate_route_choice.active.md",
@@ -405,9 +417,7 @@ def load_selected_candidate_promotion_gate(
         or selection_payload.get("selected_candidate_id")
         or ""
     ).strip()
-    gate_payload = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "promotion_gate.json"
-    )
+    gate_payload = load_json(_topic_runtime_path(knowledge_root, topic_slug, "promotion_gate.json"))
     if not gate_payload:
         return None
     if selected_candidate_id and str(gate_payload.get("candidate_id") or "").strip() != selected_candidate_id:
@@ -436,9 +446,7 @@ def selected_candidate_promotion_gate_ready_for_materialization(
         topic_slug=topic_slug,
     ):
         return False
-    next_action_decision = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "next_action_decision.json"
-    )
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json"))
     if not next_action_decision:
         return False
     selected_action = next_action_decision.get("selected_action") or {}
@@ -461,7 +469,7 @@ def selected_candidate_promotion_gate_paths(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict[str, Path]:
-    runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    runtime_root = _truth_runtime_root(knowledge_root, topic_slug)
     return {
         "json": runtime_root / "promotion_gate.json",
         "note": runtime_root / "promotion_gate.md",
@@ -621,13 +629,7 @@ def load_post_promotion_followup(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict | None:
-    return load_json(
-        knowledge_root
-        / "runtime"
-        / "topics"
-        / topic_slug
-        / "post_promotion_followup.active.json"
-    )
+    return load_json(_topic_runtime_path(knowledge_root, topic_slug, "post_promotion_followup.active.json"))
 
 
 def post_promotion_followup_ready_for_materialization(
@@ -649,14 +651,10 @@ def post_promotion_followup_ready_for_materialization(
     ) or {}
     if str(promotion_gate.get("status") or "").strip() != "promoted":
         return False
-    completion_payload = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "topic_completion.json"
-    ) or {}
+    completion_payload = load_json(_topic_runtime_path(knowledge_root, topic_slug, "topic_completion.json")) or {}
     if str(completion_payload.get("status") or "").strip() != "promoted":
         return False
-    next_action_decision = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "next_action_decision.json"
-    ) or {}
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json")) or {}
     selected_action = next_action_decision.get("selected_action") or {}
     if str(selected_action.get("action_type") or "").strip() != "inspect_resume_state":
         return False
@@ -677,7 +675,7 @@ def post_promotion_followup_paths(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict[str, Path]:
-    runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    runtime_root = _truth_runtime_root(knowledge_root, topic_slug)
     return {
         "json": runtime_root / "post_promotion_followup.active.json",
         "note": runtime_root / "post_promotion_followup.active.md",
@@ -698,9 +696,7 @@ def derive_post_promotion_followup(
     ) or {}
     if str(promotion_gate.get("status") or "").strip() != "promoted":
         return None
-    completion_payload = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "topic_completion.json"
-    ) or {}
+    completion_payload = load_json(_topic_runtime_path(knowledge_root, topic_slug, "topic_completion.json")) or {}
     if str(completion_payload.get("status") or "").strip() != "promoted":
         return None
     blocked_checks = [
@@ -785,11 +781,7 @@ def load_post_promotion_blocker_route_choice(
     topic_slug: str,
 ) -> dict | None:
     return load_json(
-        knowledge_root
-        / "runtime"
-        / "topics"
-        / topic_slug
-        / "post_promotion_blocker_route_choice.active.json"
+        _topic_runtime_path(knowledge_root, topic_slug, "post_promotion_blocker_route_choice.active.json")
     )
 
 
@@ -805,9 +797,7 @@ def post_promotion_blocker_route_choice_ready_for_materialization(
         topic_slug=topic_slug,
     ):
         return False
-    next_action_decision = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "next_action_decision.json"
-    ) or {}
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json")) or {}
     selected_action = next_action_decision.get("selected_action") or {}
     if str(selected_action.get("action_type") or "").strip() != "review_topic_completion_blockers":
         return False
@@ -835,7 +825,7 @@ def post_promotion_blocker_route_choice_paths(
     knowledge_root: Path,
     topic_slug: str,
 ) -> dict[str, Path]:
-    runtime_root = knowledge_root / "runtime" / "topics" / topic_slug
+    runtime_root = _truth_runtime_root(knowledge_root, topic_slug)
     return {
         "json": runtime_root / "post_promotion_blocker_route_choice.active.json",
         "note": runtime_root / "post_promotion_blocker_route_choice.active.md",
@@ -849,15 +839,9 @@ def derive_post_promotion_blocker_route_choice(
     topic_slug: str,
     updated_by: str,
 ) -> dict | None:
-    completion_payload = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "topic_completion.json"
-    ) or {}
-    statement_compilation = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "statement_compilation.active.json"
-    ) or {}
-    lean_bridge = load_json(
-        knowledge_root / "runtime" / "topics" / topic_slug / "lean_bridge.active.json"
-    ) or {}
+    completion_payload = load_json(_topic_runtime_path(knowledge_root, topic_slug, "topic_completion.json")) or {}
+    statement_compilation = load_json(_topic_runtime_path(knowledge_root, topic_slug, "statement_compilation.active.json")) or {}
+    lean_bridge = load_json(_topic_runtime_path(knowledge_root, topic_slug, "lean_bridge.active.json")) or {}
     blocked_checks = [
         {
             "check": str(row.get("check") or "").strip(),
@@ -941,17 +925,196 @@ def render_post_promotion_blocker_route_choice_markdown(payload: dict[str, Any])
     return "\n".join(lines)
 
 
+def post_promotion_formalization_followup_action(
+    *,
+    load_json: Callable[[Path], dict | None],
+    knowledge_root: Path,
+    topic_slug: str,
+    topic_state: dict[str, Any],
+    queue_meta: dict[str, Any],
+) -> dict[str, Any] | None:
+    route_choice_payload = load_selected_candidate_route_choice(
+        load_json=load_json,
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+    )
+    if not route_choice_payload:
+        return None
+    if str(route_choice_payload.get("chosen_action_type") or "").strip() != "l2_promotion_review":
+        return None
+
+    promotion_gate = load_selected_candidate_promotion_gate(
+        load_json=load_json,
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+    ) or {}
+    if str(promotion_gate.get("status") or "").strip() != "promoted":
+        return None
+
+    run_id = str(topic_state.get("latest_run_id") or "").strip()
+    topic_completion = load_json(_topic_runtime_path(knowledge_root, topic_slug, "topic_completion.json")) or {}
+    if str(topic_completion.get("run_id") or "").strip() != run_id:
+        return None
+    if str(topic_completion.get("status") or "").strip() != "promoted":
+        return None
+
+    statement_compilation = load_json(_topic_runtime_path(knowledge_root, topic_slug, "statement_compilation.active.json")) or {}
+    lean_bridge = load_json(_topic_runtime_path(knowledge_root, topic_slug, "lean_bridge.active.json")) or {}
+    statement_status = str(statement_compilation.get("status") or "").strip()
+    lean_status = str(lean_bridge.get("status") or "").strip()
+    if statement_status in {"", "empty"} and lean_status in {"", "empty"}:
+        return None
+
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json")) or {}
+    selected_action = next_action_decision.get("selected_action") or {}
+    if str(selected_action.get("action_type") or "").strip() != "inspect_resume_state":
+        return None
+
+    cutoff = _parse_iso_timestamp(
+        str(promotion_gate.get("promoted_at") or topic_completion.get("updated_at") or "")
+    )
+    continue_count = count_continue_decisions_after(
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+        cutoff=cutoff,
+    )
+    if continue_count != 2:
+        return None
+
+    candidate_id = str(
+        promotion_gate.get("candidate_id")
+        or ((lean_bridge.get("packets") or [{}])[0].get("candidate_id") if (lean_bridge.get("packets") or []) else "")
+        or ((statement_compilation.get("packets") or [{}])[0].get("candidate_id") if (statement_compilation.get("packets") or []) else "")
+        or route_choice_payload.get("selected_candidate_id")
+        or ""
+    ).strip()
+    return {
+        "action_id": f"action:{topic_slug}:post-promotion-formalization",
+        "topic_slug": topic_slug,
+        "resume_stage": "L4",
+        "status": "pending",
+        "action_type": "prepare_lean_bridge",
+        "summary": (
+            "Refresh Lean bridge packets and proof-state sidecars for the promoted Layer 2 candidate "
+            "before the next bounded formalization step."
+        ),
+        "auto_runnable": True,
+        "handler": None,
+        "handler_args": {
+            "run_id": run_id,
+            "candidate_id": candidate_id or None,
+        },
+        "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+        "declared_contract_path": queue_meta.get("declared_contract_path"),
+    }
+
+
+def post_promotion_proof_repair_review_action(
+    *,
+    load_json: Callable[[Path], dict | None],
+    knowledge_root: Path,
+    topic_slug: str,
+    topic_state: dict[str, Any],
+    queue_meta: dict[str, Any],
+) -> dict[str, Any] | None:
+    route_choice_payload = load_selected_candidate_route_choice(
+        load_json=load_json,
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+    )
+    if not route_choice_payload:
+        return None
+    if str(route_choice_payload.get("chosen_action_type") or "").strip() != "l2_promotion_review":
+        return None
+
+    promotion_gate = load_selected_candidate_promotion_gate(
+        load_json=load_json,
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+    ) or {}
+    if str(promotion_gate.get("status") or "").strip() != "promoted":
+        return None
+
+    run_id = str(topic_state.get("latest_run_id") or "").strip()
+    topic_completion = load_json(_topic_runtime_path(knowledge_root, topic_slug, "topic_completion.json")) or {}
+    if str(topic_completion.get("run_id") or "").strip() != run_id:
+        return None
+    if str(topic_completion.get("status") or "").strip() != "promoted":
+        return None
+
+    statement_compilation = load_json(_topic_runtime_path(knowledge_root, topic_slug, "statement_compilation.active.json")) or {}
+    lean_bridge = load_json(_topic_runtime_path(knowledge_root, topic_slug, "lean_bridge.active.json")) or {}
+    statement_packets = statement_compilation.get("packets") or []
+    lean_packets = lean_bridge.get("packets") or []
+    statement_status = str(statement_compilation.get("status") or "").strip()
+    lean_status = str(lean_bridge.get("status") or "").strip()
+    has_statement_repair = statement_status == "needs_repair" or any(
+        str(packet.get("status") or "").strip() == "needs_repair"
+        or str(packet.get("repair_plan_note_path") or "").strip()
+        for packet in statement_packets
+    )
+    has_lean_refinement = lean_status == "needs_refinement" or any(
+        str(packet.get("status") or "").strip() == "needs_refinement"
+        or str(packet.get("packet_note_path") or "").strip()
+        for packet in lean_packets
+    )
+    if not has_statement_repair and not has_lean_refinement:
+        return None
+
+    next_action_decision = load_json(_topic_runtime_path(knowledge_root, topic_slug, "next_action_decision.json")) or {}
+    selected_action = next_action_decision.get("selected_action") or {}
+    selected_action_type = str(selected_action.get("action_type") or "").strip()
+    if selected_action_type not in {"", "inspect_resume_state", "prepare_lean_bridge"}:
+        return None
+
+    cutoff = _parse_iso_timestamp(
+        str(promotion_gate.get("promoted_at") or topic_completion.get("updated_at") or "")
+    )
+    continue_count = count_continue_decisions_after(
+        knowledge_root=knowledge_root,
+        topic_slug=topic_slug,
+        cutoff=cutoff,
+    )
+    if continue_count < 3:
+        return None
+
+    candidate_id = str(
+        promotion_gate.get("candidate_id")
+        or ((statement_packets[0] if statement_packets else {}).get("candidate_id") or "")
+        or ((lean_packets[0] if lean_packets else {}).get("candidate_id") or "")
+        or route_choice_payload.get("selected_candidate_id")
+        or ""
+    ).strip()
+    return {
+        "action_id": f"action:{topic_slug}:post-promotion-proof-repair-review",
+        "topic_slug": topic_slug,
+        "resume_stage": "L4",
+        "status": "pending",
+        "action_type": "review_proof_repair_plan",
+        "summary": (
+            "Review the proof-repair plan and Lean proof obligations for the promoted Layer 2 "
+            "candidate before deeper formalization continues."
+        ),
+        "auto_runnable": False,
+        "handler": None,
+        "handler_args": {
+            "run_id": run_id,
+            "candidate_id": candidate_id or None,
+        },
+        "queue_source": queue_meta.get("queue_source") or "runtime_appended",
+        "declared_contract_path": queue_meta.get("declared_contract_path"),
+    }
+
+
 def should_advance_past_staged_l2_review(
     *,
     knowledge_root: Path,
     topic_slug: str,
     runtime_contract: dict | None,
 ) -> bool:
-    if not runtime_contract:
-        return False
-    if str(runtime_contract.get("runtime_mode") or "").strip() != "explore":
-        return False
-    if str(runtime_contract.get("active_submode") or "").strip() != "literature":
+    raw_runtime_mode = str((runtime_contract or {}).get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
+    if runtime_contract and runtime_mode not in {"", "explore"}:
         return False
     latest_staged = latest_topic_local_staged_entry_updated_at(
         knowledge_root=knowledge_root,
@@ -1005,7 +1168,8 @@ def queue_shaping_policy_from_contract_artifacts(
     if not runtime_contract:
         return default_policy, None
 
-    runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
     transition_posture = runtime_contract.get("transition_posture") or {}
     transition_kind = str(transition_posture.get("transition_kind") or "").strip()
     requires_human_checkpoint = bool(transition_posture.get("requires_human_checkpoint"))
@@ -1019,7 +1183,7 @@ def queue_shaping_policy_from_contract_artifacts(
             _queue_shaping_block_policy(),
             "Runtime transition posture requires a human checkpoint before deeper queue expansion.",
         )
-    if runtime_mode == "promote" or "promotion_intent" in triggered_by:
+    if runtime_mode == "implement" or "promotion_intent" in triggered_by:
         return (
             _queue_shaping_block_policy(),
             "Promotion routing suppresses runtime-appended queue expansion in favor of explicit promotion handling.",
@@ -1052,12 +1216,12 @@ def enrich_queue_meta(
 ) -> dict[str, Any]:
     enriched = dict(queue_meta)
     enriched["runtime_contract_path"] = (
-        f"runtime/topics/{topic_slug}/runtime_protocol.generated.json"
+        _truth_runtime_ref(topic_slug, "runtime_protocol.generated.json")
         if runtime_contract is not None
         else None
     )
     enriched["operator_checkpoint_path"] = (
-        f"runtime/topics/{topic_slug}/operator_checkpoint.active.json"
+        _truth_runtime_ref(topic_slug, "operator_checkpoint.active.json")
         if operator_checkpoint is not None
         else None
     )
@@ -1142,12 +1306,28 @@ def maybe_append_literature_intake_stage_action(
 ) -> None:
     if not runtime_contract or not queue_shaping_policy["allow_runtime_append"]:
         return
-    if str(runtime_contract.get("runtime_mode") or "").strip() != "explore":
+    raw_runtime_mode = str(runtime_contract.get("runtime_mode") or "").strip()
+    runtime_mode = normalize_runtime_mode(raw_runtime_mode) if raw_runtime_mode else ""
+    if runtime_mode != "explore":
         return
-    if str(runtime_contract.get("active_submode") or "").strip() != "literature":
+    active_submode = str(runtime_contract.get("active_submode") or "").strip()
+    source_count = int(topic_state.get("source_count") or 0)
+    if active_submode != "literature" and source_count <= 0:
         return
     if any(str(row.get("action_type") or "").strip() == "literature_intake_stage" for row in queue):
         return
+    existing_queue_path = _topic_runtime_path(knowledge_root, str(topic_state.get("topic_slug") or "").strip(), "action_queue.jsonl")
+    if existing_queue_path.exists():
+        for line in existing_queue_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if str(row.get("action_type") or "").strip() == "literature_intake_stage" and str(row.get("status") or "").strip() == "failed":
+                return
     candidate_signature = compute_literature_intake_stage_signature(runtime_contract)
     if topic_has_matching_literature_stage(
         knowledge_root=knowledge_root,

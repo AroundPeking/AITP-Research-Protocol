@@ -10,25 +10,56 @@
 | I want to... | Start here | Then |
 |---|---|---|
 | Understand AITP in 5 minutes | [README.md](../README.md) | [QUICKSTART.md](QUICKSTART.md) → [USER_TOPIC_JOURNEY.md](USER_TOPIC_JOURNEY.md) |
+| Understand the protocol architecture | [CHARTER.md](CHARTER.md) | [AITP_SPEC.md](AITP_SPEC.md) → specific protocol below |
 | Contribute code to AITP itself | [AITP_GSD_WORKFLOW_CONTRACT.md](AITP_GSD_WORKFLOW_CONTRACT.md) | [architecture.md](architecture.md) → [research/knowledge-hub/LAYER_MAP.md](../research/knowledge-hub/LAYER_MAP.md) |
 | Do theoretical physics research with AITP | [using-aitp/SKILL.md](../skills/using-aitp/SKILL.md) | [aitp-runtime/SKILL.md](../skills/aitp-runtime/SKILL.md) → [USER_TOPIC_JOURNEY.md](USER_TOPIC_JOURNEY.md) |
-| Integrate AITP into my agent platform | [adapters/README.md](../adapters/README.md) | Pick your platform: [codex](../adapters/codex/SKILL.md) · [claude-code](../adapters/claude-code/SKILL.md) · [openclaw](../adapters/openclaw/SKILL.md) · [opencode](../adapters/opencode/SKILL.md) |
-| Understand the research protocol mechanics | [contracts/README.md](../contracts/README.md) | [schemas/README.md](../schemas/README.md) → [research/knowledge-hub/ROUTING_POLICY.md](../research/knowledge-hub/ROUTING_POLICY.md) |
-| Understand the runtime engine | [research/knowledge-hub/runtime/README.md](../research/knowledge-hub/runtime/README.md) | [research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md](../research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md) → [research/knowledge-hub/PROGRESSIVE_DISCLOSURE_PROTOCOL.md](../research/knowledge-hub/PROGRESSIVE_DISCLOSURE_PROTOCOL.md) |
+| Integrate AITP into my agent platform | [adapters/README.md](../adapters/README.md) | [protocols/adapter_interface.md](protocols/adapter_interface.md) → pick your platform |
+| Understand the research protocol mechanics | [AITP_SPEC.md](AITP_SPEC.md) | [contracts/README.md](../contracts/README.md) → [schemas/README.md](../schemas/README.md) |
+| Understand the runtime engine | [protocols/brain_protocol.md](protocols/brain_protocol.md) | [research/knowledge-hub/runtime/README.md](../research/knowledge-hub/runtime/README.md) |
+
+---
+
+## Protocol Architecture (Charter → SPEC → Protocols)
+
+```
+CHARTER.md (highest authority: 10 articles + three-phase vision)
+  └── AITP_SPEC.md (unified specification)
+        ├── Brain Domain (global orchestrator)
+        │     ├── brain_protocol.md
+        │     ├── action_queue_protocol.md
+        │     └── followup_lifecycle.md
+        ├── Point Domain (layer-specific)
+        │     ├── L0_SOURCE_LAYER.md (existing)
+        │     ├── L1_intake_protocol.md
+        │     ├── L2_backend_interface.md
+        │     ├── L3_execution_protocol.md
+        │     ├── L4_validation_protocol.md
+        │     ├── closed_loop_protocol.md
+        │     └── promotion_pipeline.md
+        └── Interaction Domain (cross-cutting)
+              ├── H_human_interaction.md
+              ├── mode_envelope_protocol.md
+              └── adapter_interface.md
+```
+
+All protocol files live under `docs/protocols/` (new) unless otherwise noted.
 
 ---
 
 ## Layer Architecture
 
-AITP organizes research into five layers. The default route is `L0 → L1 → L3 → L4 → L2`.
+AITP organizes research into five content layers plus two cross-cutting planes.
+The default route is `L0 → L1 → L3 → L4 → L2`.
 
 | Layer | Name | Purpose | Key doc | Key schema |
 |---|---|---|---|---|
+| **B** | Brain (orchestrator) | Topic lifecycle, routing, memory | [brain_protocol.md](protocols/brain_protocol.md) | — |
+| **H** | Human (interaction) | Checkpoints, steering, approval | [H_human_interaction.md](protocols/H_human_interaction.md) | [decision-point.schema.json](../schemas/decision-point.schema.json) |
 | **L0** | Source acquisition | Papers, notes, upstream refs | [L0_SOURCE_LAYER.md](../research/knowledge-hub/L0_SOURCE_LAYER.md) | [source-item.schema.json](../schemas/source-item.schema.json) |
-| **L1** | Provisional understanding | Analysis, derivation sketches | [research_question contract](../contracts/research-question.md) · [L1_VAULT_PROTOCOL.md](../research/knowledge-hub/intake/L1_VAULT_PROTOCOL.md) | [research-question.schema.json](../schemas/research-question.schema.json) |
-| **L2** | Trusted knowledge | Promoted, reusable results | [PROMOTION_POLICY.md](../research/knowledge-hub/canonical/PROMOTION_POLICY.md) · [L2_COMPILER_PROTOCOL.md](../research/knowledge-hub/canonical/L2_COMPILER_PROTOCOL.md) | [promotion-trace.schema.json](../schemas/promotion-trace.schema.json) |
-| **L3** | Candidate outputs | Exploratory, tentative | [CANDIDATE.md](../research/knowledge-hub/feedback/CANDIDATE.md) · [SPLIT_PROTOCOL.md](../research/knowledge-hub/feedback/SPLIT_PROTOCOL.md) | [candidate-claim.schema.json](../schemas/candidate-claim.schema.json) |
-| **L4** | Validation & trust audit | Checks, benchmarks, human decisions | [BASELINE_REPRODUCTION_AND_UNDERSTANDING_GATES.md](../research/knowledge-hub/validation/BASELINE_REPRODUCTION_AND_UNDERSTANDING_GATES.md) | [validation.schema.json](../schemas/validation.schema.json) |
+| **L1** | Provisional understanding | Source analysis, provenance, notation/contradiction intake | [L1_intake_protocol.md](protocols/L1_intake_protocol.md) | [research-question.schema.json](../schemas/research-question.schema.json) |
+| **L2** | Trusted knowledge | Promoted, reusable results | [L2_backend_interface.md](protocols/L2_backend_interface.md) | [promotion-trace.schema.json](../schemas/promotion-trace.schema.json) |
+| **L3** | Candidate outputs | Exploratory, tentative | [L3_execution_protocol.md](protocols/L3_execution_protocol.md) | [candidate-claim.schema.json](../schemas/candidate-claim.schema.json) |
+| **L4** | Validation & trust audit | Checks, benchmarks, human decisions | [L4_validation_protocol.md](protocols/L4_validation_protocol.md) | [validation.schema.json](../schemas/validation.schema.json) |
 
 See [LAYER_MAP.md](../research/knowledge-hub/LAYER_MAP.md) for the full filesystem layout per layer.
 
@@ -60,28 +91,34 @@ See [contracts/README.md](../contracts/README.md) and [schemas/README.md](../sch
 
 The runtime is the engine that materializes topic state, selects next actions, and coordinates sessions.
 
+Topic-owned truth is converging on `topics/<slug>/`, with runtime-facing state under `topics/<slug>/runtime/`.
+For operator-facing truth, Markdown is the human authority; JSON and JSONL stay machine-facing companions.
+Local research state belongs in the user kernel, typically `~/.aitp/kernel`;
+the git repo should stay code, protocol, and public docs.
+
 | Surface | File | Purpose | Audience |
 |---|---|---|---|
 | **Runtime overview** | [README.md](../research/knowledge-hub/runtime/README.md) | Full surface inventory, role map, rules | Agent |
-| **Topic state** | `topics/<slug>/topic_state.json` | Machine-readable snapshot: resume stage, layer status, promotion gate, pointers | Agent |
-| **Human console** | `topics/<slug>/operator_console.md` | Immediate execution contract: do now / do not / escalate | Human, Agent |
-| **Runtime bundle** | `topics/<slug>/runtime_protocol.generated.md` | Progressive disclosure bundle: synopsis, contracts, triggers, guardrails | Agent |
-| **Next action** | `topics/<slug>/next_action_decision.json` | Authoritative decision: what to do next and why | Agent |
-| **Topic dashboard** | `topics/<slug>/topic_dashboard.md` | Primary human render of current state | Human |
-| **Action queue** | `topics/<slug>/action_queue_contract.generated.json` | Ordered list of executable actions | Agent |
-| **Unfinished work** | `topics/<slug>/unfinished_work.json` | Index of incomplete actions | Agent |
-| **Pending decisions** | `topics/<slug>/pending_decisions.json` | Unresolved decision points | Agent, Human |
-| **Decision ledger** | `topics/<slug>/decision_ledger.jsonl` | Append-only decision history | Agent |
-| **Trajectory log** | `topics/<slug>/trajectory_log.jsonl` | Human-readable execution narrative | Human |
-| **Failure classification** | `topics/<slug>/failure_classification.json` | Classified failure types | Agent |
+| **Topic state** | `topics/<slug>/runtime/topic_state.json` | Machine-readable snapshot: resume stage, layer status, promotion gate, pointers | Agent |
+| **Human console** | `topics/<slug>/runtime/operator_console.md` | Immediate execution contract: do now / do not / escalate | Human, Agent |
+| **Runtime bundle** | `topics/<slug>/runtime/runtime_protocol.generated.md` | Progressive disclosure bundle: synopsis, contracts, triggers, guardrails | Agent |
+| **Next action** | `topics/<slug>/runtime/next_action_decision.json` | Authoritative decision: what to do next and why | Agent |
+| **Topic dashboard** | `topics/<slug>/runtime/topic_dashboard.md` | Primary human render of current state | Human |
+| **Action queue** | `topics/<slug>/runtime/action_queue_contract.generated.json` | Ordered list of executable actions | Agent |
+| **Unfinished work** | `topics/<slug>/runtime/unfinished_work.json` | Index of incomplete actions | Agent |
+| **Pending decisions** | `topics/<slug>/runtime/pending_decisions.json` | Unresolved decision points | Agent, Human |
+| **Decision ledger** | `topics/<slug>/runtime/decision_ledger.jsonl` | Append-only decision history | Agent |
+| **Trajectory log** | `topics/<slug>/runtime/trajectory_log.jsonl` | Human-readable execution narrative | Human |
+| **Failure classification** | `topics/<slug>/runtime/failure_classification.json` | Classified failure types | Agent |
 | **Topic index** | `topic_index.jsonl` | Registry of all topics | Agent |
 | **Active topics** | `active_topics.json` | Authoritative list of active topics | Agent |
-| **Current topic** | `current_topic.json` | Compatibility projection | Agent |
+| **Current topic** | `current_topic.json` | Local-only compatibility projection | Agent |
 
 ### Runtime Control Contracts
 
 | Contract | File | Purpose |
 |---|---|---|
+| Topic truth root | [TOPIC_TRUTH_ROOT_CONTRACT.md](../research/knowledge-hub/runtime/TOPIC_TRUTH_ROOT_CONTRACT.md) | Single-topic authoritative layout; Markdown-first human truth surfaces and compatibility projection rules |
 | Control note | [CONTROL_NOTE_CONTRACT.md](../research/knowledge-hub/runtime/CONTROL_NOTE_CONTRACT.md) | Human redirects, pauses, changes scope |
 | Innovation direction | [INNOVATION_DIRECTION_TEMPLATE.md](../research/knowledge-hub/runtime/INNOVATION_DIRECTION_TEMPLATE.md) | Operator changes novelty/scope/acceptance |
 | Declarative contracts | [DECLARATIVE_RUNTIME_CONTRACTS.md](../research/knowledge-hub/runtime/DECLARATIVE_RUNTIME_CONTRACTS.md) | Action queues authored explicitly, not inferred |
@@ -134,8 +171,13 @@ The Python package `aitp-kernel` provides all runtime services. Key modules:
 | `l1_vault_support.py` | L1 three-layer vault materialization |
 | `l2_compiler.py` | L2 knowledge graph compilation |
 | `l2_graph.py` | L2 knowledge graph queries |
+| `l2_reuse_context_support.py` | Progressive L3 reuse contexts over global L2 |
 | `l2_staging.py` | L2 staging before promotion |
 | `l2_hygiene.py` | L2 canonical store hygiene |
+| `l3_derivation_support.py` | Run-local L3 derivation ledger and notebook-entry projection |
+| `l3_comparison_support.py` | Run-local L2 comparison receipt ledger for derivation-heavy candidates |
+| `research_notebook_support.py` | XeLaTeX topic notebook compiler over runtime, provenance, derivation, and log surfaces |
+| `capability_plane_support.py` | Runtime capability plane for tools, servers, and environments |
 | `lean_bridge_support.py` | Lean 4 bridge for formal theory |
 | `statement_compilation_support.py` | Statement compilation before proof repair |
 | `validation_review_service.py` | L4 review bundle orchestration |
@@ -203,6 +245,7 @@ The Python package `aitp-kernel` provides all runtime services. Key modules:
 | [L2_STAGING_PROTOCOL.md](../research/knowledge-hub/canonical/L2_STAGING_PROTOCOL.md) | Staging before canonical promotion |
 | [L2_MVP_CONTRACT.md](../research/knowledge-hub/canonical/L2_MVP_CONTRACT.md) | MVP direction contracts |
 | [L2_PAIRED_BACKEND_MAINTENANCE_PROTOCOL.md](../research/knowledge-hub/canonical/L2_PAIRED_BACKEND_MAINTENANCE_PROTOCOL.md) | Paired backend maintenance |
+| `compiled/obsidian_l2/` | Fixed-folder Obsidian-friendly Markdown mirror over canonical L2 |
 
 ---
 

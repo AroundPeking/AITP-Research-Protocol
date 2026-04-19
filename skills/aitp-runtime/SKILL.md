@@ -15,7 +15,12 @@ description: Use after AITP routing has claimed the task; continue theory work t
 ## Workflow
 
 1. Resume or materialize runtime state through `aitp session-start`, `aitp loop`, `aitp resume`, or `aitp bootstrap` when needed.
-2. Read `runtime_protocol.generated.md`.
+2. **Classification step**: Before the first loop/resume call, load and apply the classification skills:
+   - Load `aitp-research-classifier` → reason about research mode → call `aitp_record_classification(topic_slug, "research_mode", ...)`.
+   - Load `aitp-load-profile-resolver` → reason about load profile → call `aitp_record_classification(topic_slug, "load_profile", ...)`.
+   - When the action queue is being materialized, load `aitp-action-classifier` → reason about action type → call `aitp_record_classification(topic_slug, "action_type", ...)`.
+   - When runtime mode is being selected, load `aitp-runtime-mode-selector` → reason about mode and submode → call `aitp_record_classification` for each.
+3. Read `runtime_protocol.generated.md`.
 3. Read the files listed under `Must read now`.
 4. Treat `session_start.generated.md` as a routing audit artifact when it exists; it is backend state, not a user ritual.
 5. Keep the lightweight runtime minimum current even when the full runtime bundle is not present:
@@ -41,6 +46,29 @@ description: Use after AITP routing has claimed the task; continue theory work t
 18. If no active checkpoint is present, continue bounded execution instead of asking ritual permission again.
 19. If iterative verify is active, keep the L3-L4 loop moving until success, a real blocker, or a real human checkpoint appears.
 20. If bootstrap tooling fails, recover by rerunning the canonical CLI front door; do not hand-edit runtime artifacts or source-layer records just to simulate progress.
+21. For physics-style report writing and derivation-heavy topic communication, explicitly load the repo subskills:
+    - `aitp-problem-framing`
+    - `aitp-derivation-discipline`
+    - `aitp-l3-l4-round`
+    - `aitp-current-claims-auditor`
+    - `aitp-topic-report-author`
+22. Treat those subskills as content-generation aids; keep Python/runtime responsible for durable state, gates, and notebook compilation.
+
+## Popup gate rule (all interactive sessions — mandatory)
+
+When the AITP runtime hits a human gate (promotion approval, operator checkpoint, decision point, or H-plane steering), you MUST surface it as an interactive popup. You MUST NOT silently continue past a gate.
+
+1. **Before every loop/resume/bootstrap call**, call `aitp_get_popup` for the target `topic_slug`.
+2. If `needs_popup` is `true`:
+   - STOP. Do not call `aitp_run_topic_loop`, `aitp_bootstrap_topic`, or `aitp_resume_topic` yet.
+   - Use the pre-built `ask_user_question` field from the response.
+     - **Claude Code**: Pass `ask_user_question.questions` directly to the `AskUserQuestion` tool. Map the 0-based response back via `ask_user_question.choice_index_map`.
+     - **Kimi Code CLI**: Pass `ask_user_question.questions` to the `AskUserQuestion` tool. Map the 0-based response back via `ask_user_question.choice_index_map`.
+   - If `ask_user_question.inspect_path` is non-empty and the user wants details, read that file and re-present the popup.
+   - When the user chooses, call `aitp_resolve_popup` with the mapped `choice_index`.
+3. **After every loop/resume/bootstrap call**, call `aitp_get_popup` again. The loop may have materialized a new gate.
+4. Only proceed with deeper execution once `needs_popup` is `false`.
+5. **Hard rule**: You MUST NOT skip the popup check. You MUST NOT answer the research question instead of presenting the popup. A popup means AITP requires a human decision before any further automated work.
 
 ## Conversation style rules
 

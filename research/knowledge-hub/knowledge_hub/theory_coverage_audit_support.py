@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .topic_truth_root_support import compatibility_projection_path
 from .tpkn_bridge import choose_source_row
 
 
@@ -21,8 +22,13 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    rendered = json.dumps(payload, ensure_ascii=True, indent=2) + "\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _now_iso() -> str:
@@ -413,7 +419,7 @@ def audit_theory_coverage(
         raise ValueError("missing-anchor-count and skeptic-major-gap-count must be non-negative")
 
     candidate = self._load_candidate(topic_slug, resolved_run_id, candidate_id)
-    source_rows = _read_jsonl(self.kernel_root / "source-layer" / "topics" / topic_slug / "source_index.jsonl")
+    source_rows = _read_jsonl(self.kernel_root / "topics" / topic_slug / "L0" / "source_index.jsonl")
     source_row = choose_source_row(source_rows=source_rows, candidate=candidate)
     source_id = str((source_row or {}).get("source_id") or "") or f"source:{_slugify(candidate_id)}"
     support_fields = _normalize_candidate_support_fields(

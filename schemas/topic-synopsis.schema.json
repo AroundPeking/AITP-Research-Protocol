@@ -120,6 +120,13 @@
               },
               "evidence_excerpt": {
                 "type": "string"
+              },
+              "evidence_sentence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
@@ -162,6 +169,13 @@
               },
               "evidence_excerpt": {
                 "type": "string"
+              },
+              "evidence_sentence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
@@ -251,6 +265,13 @@
               },
               "evidence_excerpt": {
                 "type": "string"
+              },
+              "evidence_sentence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
@@ -298,6 +319,13 @@
               },
               "evidence_excerpt": {
                 "type": "string"
+              },
+              "evidence_sentence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
@@ -387,6 +415,13 @@
                 "type": "string",
                 "minLength": 1
               },
+              "source_evidence_sentence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
               "against_basis_type": {
                 "type": "string",
                 "minLength": 1
@@ -398,6 +433,13 @@
               "against_evidence_excerpt": {
                 "type": "string",
                 "minLength": 1
+              },
+              "against_evidence_sentence_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
@@ -683,6 +725,56 @@
         "judgment_summary": {
           "type": "string",
           "minLength": 1
+        },
+        "l0_source_handoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "summary",
+            "primary_path",
+            "primary_when",
+            "alternate_entries"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "minLength": 1
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            },
+            "primary_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "primary_when": {
+              "type": "string",
+              "minLength": 1
+            },
+            "alternate_entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "when"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "when": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .l2_graph import CANONICAL_DIR_BY_TYPE, _index_row_from_payload
 from .l2_staging import load_staging_entries, materialize_workspace_staging_manifest
 
 
@@ -18,6 +19,14 @@ REUSE_FAMILY_ORDER = (
     ("validation_patterns", "validation_pattern"),
     ("bridges", "bridge"),
     ("topic_skill_projections", "topic_skill_projection"),
+)
+IGNORED_FOCUS_TAG_PREFIXES = (
+    "against:",
+    "literature-intake",
+    "method-family:",
+    "reading-depth:",
+    "source:",
+    "specificity:",
 )
 
 
@@ -71,12 +80,24 @@ def _derived_navigation_root(kernel_root: Path) -> Path:
     return _compiled_root(kernel_root) / "derived_navigation"
 
 
+def _obsidian_l2_root(kernel_root: Path) -> Path:
+    return _compiled_root(kernel_root) / "obsidian_l2"
+
+
 def _knowledge_report_path(kernel_root: Path) -> Path:
     return _compiled_root(kernel_root) / "workspace_knowledge_report.json"
 
 
 def _knowledge_report_markdown_path(kernel_root: Path) -> Path:
     return _compiled_root(kernel_root) / "workspace_knowledge_report.md"
+
+
+def _paired_backend_drift_report_path(kernel_root: Path, suffix: str) -> Path:
+    return _compiled_root(kernel_root) / f"l2_paired_backend_drift_report.{suffix}"
+
+
+def _topic_corpus_baseline_path(kernel_root: Path, topic_slug: str, suffix: str) -> Path:
+    return _compiled_root(kernel_root) / f"topic_l2_corpus_baseline--{_slugify(topic_slug)}.{suffix}"
 
 
 def _allowed_unit_types(canonical_root: Path) -> set[str]:
@@ -99,6 +120,14 @@ def _compact_unit_ref(payload: dict[str, Any], *, path: str) -> dict[str, Any]:
         "related_units": [str(item) for item in (payload.get("related_units") or []) if str(item).strip()],
         "tags": [str(item) for item in (payload.get("tags") or []) if str(item).strip()],
         "promotion_route": str(((payload.get("promotion") or {}).get("route")) or ""),
+        "origin_topic_refs": [str(item) for item in (payload.get("origin_topic_refs") or []) if str(item).strip()],
+        "origin_run_refs": [str(item) for item in (payload.get("origin_run_refs") or []) if str(item).strip()],
+        "validation_receipts": [str(item) for item in (payload.get("validation_receipts") or []) if str(item).strip()],
+        "reuse_receipts": [str(item) for item in (payload.get("reuse_receipts") or []) if str(item).strip()],
+        "related_consultation_refs": [str(item) for item in (payload.get("related_consultation_refs") or []) if str(item).strip()],
+        "applicable_topics": [str(item) for item in (payload.get("applicable_topics") or []) if str(item).strip()],
+        "failed_topics": [str(item) for item in (payload.get("failed_topics") or []) if str(item).strip()],
+        "regime_notes": [str(item) for item in (payload.get("regime_notes") or []) if str(item).strip()],
     }
 
 
@@ -231,14 +260,355 @@ def _navigation_page_name(unit_id: str, unit_type: str) -> str:
     return f"{unit_type}--{_slugify(suffix or unit_id)}.md"
 
 
+def _obsidian_page_name(unit_id: str, unit_type: str) -> str:
+    _, _, suffix = unit_id.partition(":")
+    return f"{unit_type}--{_slugify(suffix or unit_id)}.md"
+
+
 def _wiki_link(target: str, label: str) -> str:
     stem = target[:-3] if target.endswith(".md") else target
     return f"[[{stem}|{label}]]"
 
 
+def _family_dir_from_unit(unit: dict[str, Any]) -> str:
+    path = str(unit.get("path") or "")
+    parts = Path(path).parts
+    if len(parts) >= 2 and parts[0] == "canonical":
+        return parts[1]
+    unit_type = str(unit.get("unit_type") or "units")
+    return f"{unit_type}s"
+
+
+def _group_units_by_family(units: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for unit in units:
+        grouped.setdefault(_family_dir_from_unit(unit), []).append(unit)
+    return grouped
+
+
+def _topic_slugs_from_strings(values: list[str]) -> set[str]:
+    topic_slugs: set[str] = set()
+    for raw_value in values:
+        normalized = str(raw_value or "").strip()
+        if not normalized:
+            continue
+        if normalized.startswith("topics/"):
+            parts = normalized.split("/")
+            if len(parts) >= 2 and parts[1]:
+                topic_slugs.add(parts[1])
+        for match in re.finditer(r"(?:^|/)topics/([^/]+)", normalized):
+            topic_slug = str(match.group(1) or "").strip()
+            if topic_slug:
+                topic_slugs.add(topic_slug)
+    return topic_slugs
+
+
+def _topic_slugs_for_unit(unit: dict[str, Any]) -> list[str]:
+    topic_slugs = set()
+    topic_slugs.update(_topic_slugs_from_strings(list(unit.get("origin_topic_refs") or [])))
+    topic_slugs.update(_topic_slugs_from_strings(list(unit.get("origin_run_refs") or [])))
+    topic_slugs.update(_topic_slugs_from_strings(list(unit.get("validation_receipts") or [])))
+    topic_slugs.update(_topic_slugs_from_strings(list(unit.get("reuse_receipts") or [])))
+    topic_slugs.update({str(item).strip() for item in (unit.get("applicable_topics") or []) if str(item).strip()})
+    return sorted(topic_slugs)
+
+
 def _fingerprint_payload(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")
     return hashlib.sha1(raw).hexdigest()
+
+
+def _render_obsidian_l2_unit_markdown(unit: dict[str, Any]) -> str:
+    lines = [
+        f"# {unit.get('title') or unit.get('unit_id') or 'L2 Unit'}",
+        "",
+        f"- Unit id: `{unit.get('unit_id') or '(missing)'}`",
+        f"- Unit type: `{unit.get('unit_type') or '(missing)'}`",
+        f"- Authority level: `canonical`",
+        "",
+        "## What This Is",
+        "",
+        str(unit.get("summary") or "(missing)"),
+        "",
+        "## Why It Is Reusable",
+        "",
+        f"- Promotion route: `{unit.get('promotion_route') or '(missing)'}`",
+        f"- Maturity: `{unit.get('maturity') or '(missing)'}`",
+        "",
+        "## Origin",
+        "",
+    ]
+    for item in unit.get("origin_topic_refs") or []:
+        lines.append(f"- `{item}`")
+    for item in unit.get("origin_run_refs") or []:
+        lines.append(f"- `{item}`")
+    if not ((unit.get("origin_topic_refs") or []) or (unit.get("origin_run_refs") or [])):
+        lines.append("- `(none recorded)`")
+    lines.extend(["", "## Validated In Topics", ""])
+    for item in unit.get("validation_receipts") or []:
+        lines.append(f"- `{item}`")
+    if not (unit.get("validation_receipts") or []):
+        lines.append("- `(none recorded)`")
+    lines.extend(["", "## Reused In Topics", ""])
+    for item in unit.get("reuse_receipts") or []:
+        lines.append(f"- `{item}`")
+    if not (unit.get("reuse_receipts") or []):
+        lines.append("- `(none recorded)`")
+    lines.extend(["", "## Known Failure / Limits", ""])
+    for item in (unit.get("failed_topics") or []) + (unit.get("regime_notes") or []):
+        lines.append(f"- `{item}`")
+    if not ((unit.get("failed_topics") or []) or (unit.get("regime_notes") or [])):
+        lines.append("- `(none recorded)`")
+    lines.extend(
+        [
+            "",
+            "## Canonical Links",
+            "",
+            f"- Canonical JSON: `{unit.get('path') or '(missing)'}`",
+            "",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_obsidian_family_index_markdown(family_dir: str, units: list[dict[str, Any]]) -> str:
+    lines = [
+        f"# {family_dir}",
+        "",
+        "This family shelf is derived from canonical L2 and is non-authoritative.",
+        "",
+    ]
+    for unit in sorted(units, key=lambda row: (row["title"], row["unit_id"])):
+        page_name = _obsidian_page_name(str(unit.get("unit_id") or ""), str(unit.get("unit_type") or "unit"))
+        lines.append(
+            f"- {_wiki_link(page_name, str(unit.get('title') or unit.get('unit_id') or 'unit'))} - {unit.get('summary') or '(missing)'}"
+        )
+    if not units:
+        lines.append("- `(none)`")
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_obsidian_profile_markdown(profile_name: str, entrypoint: dict[str, Any]) -> str:
+    units = list(entrypoint.get("units") or [])
+
+    def _unit_link(unit: dict[str, Any]) -> str:
+        family_dir = _family_dir_from_unit(unit)
+        page_name = _obsidian_page_name(str(unit.get("unit_id") or ""), str(unit.get("unit_type") or "unit"))
+        return f"- {_wiki_link(f'families/{family_dir}/{page_name}', str(unit.get('title') or unit.get('unit_id') or 'unit'))} - {unit.get('summary') or '(missing)'}"
+
+    def _section(title: str, predicate) -> list[str]:  # type: ignore[no-untyped-def]
+        matched = [unit for unit in units if predicate(unit)]
+        lines = [f"## {title}", ""]
+        for unit in matched:
+            lines.append(_unit_link(unit))
+        if not matched:
+            lines.append("- `(none)`")
+        lines.append("")
+        return lines
+
+    lines = [
+        f"# {profile_name}",
+        "",
+        "This profile shelf is derived from canonical L2 and mirrors one bounded retrieval posture.",
+        "",
+        f"- Preferred unit types: `{', '.join(entrypoint.get('preferred_unit_types') or []) or '(none)'}`",
+        f"- Available count: `{entrypoint.get('available_count') or 0}`",
+        "",
+    ]
+    lines.extend(
+        _section(
+            "Core Hits",
+            lambda unit: str(unit.get("unit_type") or "") not in {"warning_note", "workflow", "topic_skill_projection"}
+            and not (unit.get("reuse_receipts") or []),
+        )
+    )
+    lines.extend(_section("Warnings", lambda unit: str(unit.get("unit_type") or "") == "warning_note"))
+    lines.extend(_section("Workflows", lambda unit: str(unit.get("unit_type") or "") == "workflow"))
+    lines.extend(
+        _section(
+            "Topic Skill Projections",
+            lambda unit: str(unit.get("unit_type") or "") == "topic_skill_projection",
+        )
+    )
+    lines.extend(_section("Recently Reused Units", lambda unit: bool(unit.get("reuse_receipts") or [])))
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_obsidian_topic_markdown(topic_slug: str, units: list[dict[str, Any]]) -> str:
+    def _matches(unit: dict[str, Any], section_kind: str) -> bool:
+        origin_matches = bool(
+            f"topics/{topic_slug}" in (unit.get("origin_topic_refs") or [])
+            or topic_slug in _topic_slugs_from_strings(list(unit.get("origin_run_refs") or []))
+        )
+        validated_matches = topic_slug in _topic_slugs_from_strings(list(unit.get("validation_receipts") or []))
+        reused_matches = topic_slug in _topic_slugs_from_strings(list(unit.get("reuse_receipts") or []))
+        failed_matches = topic_slug in [str(item).strip() for item in (unit.get("failed_topics") or []) if str(item).strip()]
+        applicable_matches = topic_slug in (unit.get("applicable_topics") or [])
+        if section_kind == "origin":
+            return origin_matches
+        if section_kind == "validated":
+            return validated_matches
+        if section_kind == "reused":
+            return reused_matches
+        if section_kind == "failed":
+            return failed_matches
+        return applicable_matches and not any([origin_matches, validated_matches, reused_matches, failed_matches])
+
+    def _render_unit(unit: dict[str, Any], *, include_validation: bool = False, include_reuse: bool = False, include_failed: bool = False) -> list[str]:
+        family_dir = _family_dir_from_unit(unit)
+        page_name = _obsidian_page_name(str(unit.get("unit_id") or ""), str(unit.get("unit_type") or "unit"))
+        lines = [
+            f"- {_wiki_link(f'families/{family_dir}/{page_name}', str(unit.get('title') or unit.get('unit_id') or 'unit'))}"
+        ]
+        if include_validation:
+            for receipt in unit.get("validation_receipts") or []:
+                if topic_slug in _topic_slugs_from_strings([str(receipt)]):
+                    lines.append(f"  - validation: `{receipt}`")
+        if include_reuse:
+            for receipt in unit.get("reuse_receipts") or []:
+                if topic_slug in _topic_slugs_from_strings([str(receipt)]):
+                    lines.append(f"  - reuse: `{receipt}`")
+        if include_failed:
+            for item in unit.get("failed_topics") or []:
+                if str(item).strip() == topic_slug:
+                    lines.append(f"  - failed-topic: `{item}`")
+            for item in unit.get("regime_notes") or []:
+                if topic_slug in _topic_slugs_from_strings([str(item)]) or topic_slug in str(item):
+                    lines.append(f"  - note: `{item}`")
+        return lines
+
+    lines = [
+        f"# {topic_slug}",
+        "",
+        "This topic shelf is derived from canonical L2 and groups reusable units that point back to the same topic evidence surface.",
+        "",
+        "## Origin Units",
+        "",
+    ]
+    origin_units = [unit for unit in sorted(units, key=lambda row: (row["title"], row["unit_id"])) if _matches(unit, "origin")]
+    for unit in origin_units:
+        lines.extend(_render_unit(unit))
+    if not origin_units:
+        lines.append("- `(none)`")
+    lines.extend(["", "## Validated In Topic", ""])
+    validated_units = [unit for unit in sorted(units, key=lambda row: (row["title"], row["unit_id"])) if _matches(unit, "validated")]
+    for unit in validated_units:
+        lines.extend(_render_unit(unit, include_validation=True))
+    if not validated_units:
+        lines.append("- `(none)`")
+    lines.extend(["", "## Reused In Topic", ""])
+    reused_units = [unit for unit in sorted(units, key=lambda row: (row["title"], row["unit_id"])) if _matches(unit, "reused")]
+    for unit in reused_units:
+        lines.extend(_render_unit(unit, include_reuse=True))
+    if not reused_units:
+        lines.append("- `(none)`")
+    lines.extend(["", "## Failed Or Limited In Topic", ""])
+    failed_units = [unit for unit in sorted(units, key=lambda row: (row["title"], row["unit_id"])) if _matches(unit, "failed")]
+    for unit in failed_units:
+        lines.extend(_render_unit(unit, include_failed=True))
+    if not failed_units:
+        lines.append("- `(none)`")
+    lines.extend(["", "## Other Linked Units", ""])
+    other_units = [unit for unit in sorted(units, key=lambda row: (row["title"], row["unit_id"])) if _matches(unit, "other")]
+    for unit in other_units:
+        lines.extend(_render_unit(unit))
+    if not other_units:
+        lines.append("- `(none)`")
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_obsidian_l2_index_markdown(
+    units: list[dict[str, Any]],
+    *,
+    consultation_entrypoints: dict[str, Any],
+) -> str:
+    grouped = _group_units_by_family(units)
+    topic_slugs = sorted({topic_slug for unit in units for topic_slug in _topic_slugs_for_unit(unit)})
+    lines = [
+        "# Obsidian L2 Index",
+        "",
+        "This mirror is derived from canonical L2 and is non-authoritative.",
+        "",
+    ]
+    lines.extend(["## Families", ""])
+    for family_dir in sorted(grouped):
+        lines.append(
+            f"- {_wiki_link(f'families/{family_dir}/index.md', family_dir)} (`{len(grouped[family_dir])}` units)"
+        )
+    if not grouped:
+        lines.append("- `(none)`")
+    lines.extend(["", "## Profile Shelves", ""])
+    for profile_name in sorted(consultation_entrypoints):
+        entrypoint = consultation_entrypoints.get(profile_name) or {}
+        lines.append(
+            f"- {_wiki_link(f'profiles/{profile_name}.md', profile_name)} (`{entrypoint.get('available_count') or 0}` available)"
+        )
+    if not consultation_entrypoints:
+        lines.append("- `(none)`")
+    lines.extend(["", "## Topic Shelves", ""])
+    for topic_slug in topic_slugs:
+        lines.append(f"- {_wiki_link(f'topics/{topic_slug}.md', topic_slug)}")
+    if not topic_slugs:
+        lines.append("- `(none)`")
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def materialize_obsidian_l2_mirror(kernel_root: Path, *, units: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    obsidian_root = _obsidian_l2_root(kernel_root)
+    resolved_units = list(units or load_canonical_units(kernel_root))
+    retrieval_profiles = read_json(_canonical_root(kernel_root) / "retrieval_profiles.json") or {}
+    consultation_entrypoints = _consultation_entrypoints(resolved_units, retrieval_profiles)
+    grouped_units = _group_units_by_family(resolved_units)
+    readme_path = obsidian_root / "README.md"
+    index_path = obsidian_root / "index.md"
+    write_text(
+        readme_path,
+        "# Obsidian L2 Mirror\n\nThis directory is a derived, non-authoritative Markdown mirror of canonical L2.\n\nBrowse through `families/`, `profiles/`, and `topics/` depending on whether you want ontology, retrieval posture, or topic-linked evidence.\n",
+    )
+    write_text(
+        index_path,
+        _render_obsidian_l2_index_markdown(
+            resolved_units,
+            consultation_entrypoints=consultation_entrypoints,
+        ),
+    )
+    page_count = 0
+    for family_dir, family_units in sorted(grouped_units.items()):
+        write_text(
+            obsidian_root / "families" / family_dir / "index.md",
+            _render_obsidian_family_index_markdown(family_dir, family_units),
+        )
+    for unit in resolved_units:
+        family_dir = _family_dir_from_unit(unit)
+        page_name = _obsidian_page_name(str(unit.get("unit_id") or ""), str(unit.get("unit_type") or "unit"))
+        page_path = obsidian_root / "families" / family_dir / page_name
+        write_text(page_path, _render_obsidian_l2_unit_markdown(unit))
+        page_count += 1
+    for profile_name, entrypoint in sorted(consultation_entrypoints.items()):
+        write_text(
+            obsidian_root / "profiles" / f"{profile_name}.md",
+            _render_obsidian_profile_markdown(profile_name, entrypoint),
+        )
+    topic_slugs = sorted({topic_slug for unit in resolved_units for topic_slug in _topic_slugs_for_unit(unit)})
+    for topic_slug in topic_slugs:
+        write_text(
+            obsidian_root / "topics" / f"{topic_slug}.md",
+            _render_obsidian_topic_markdown(
+                topic_slug,
+                [unit for unit in resolved_units if topic_slug in _topic_slugs_for_unit(unit)],
+            ),
+        )
+    return {
+        "root": str(obsidian_root),
+        "index_path": str(index_path),
+        "readme_path": str(readme_path),
+        "page_count": page_count,
+    }
 
 
 def _consultation_profiles_by_type(retrieval_profiles: dict[str, Any]) -> dict[str, list[str]]:
@@ -487,10 +857,22 @@ def materialize_workspace_memory_map(kernel_root: Path) -> dict[str, Any]:
     md_path = compiled_root / "workspace_memory_map.md"
     write_json(json_path, payload)
     write_text(md_path, render_workspace_memory_map_markdown(payload))
+    obsidian_mirror = materialize_obsidian_l2_mirror(
+        kernel_root,
+        units=[
+            unit
+            for group in payload.get("units_by_type") or []
+            for unit in (group.get("units") or [])
+        ],
+    )
     return {
         "payload": payload,
         "json_path": str(json_path),
         "markdown_path": str(md_path),
+        "obsidian_root": obsidian_mirror["root"],
+        "obsidian_index_path": obsidian_mirror["index_path"],
+        "obsidian_readme_path": obsidian_mirror["readme_path"],
+        "obsidian_page_count": obsidian_mirror["page_count"],
     }
 
 
@@ -926,4 +1308,717 @@ def materialize_workspace_knowledge_report(kernel_root: Path) -> dict[str, Any]:
             "derived_navigation_index": graph_report["navigation_index_path"],
             "workspace_staging_manifest": staging_manifest["markdown_path"],
         },
+    }
+
+
+def _canonical_payload_rows(kernel_root: Path) -> dict[str, dict[str, Any]]:
+    canonical_root = _canonical_root(kernel_root)
+    allowed_unit_types = _allowed_unit_types(canonical_root)
+    rows: dict[str, dict[str, Any]] = {}
+    for unit_type, directory in sorted(CANONICAL_DIR_BY_TYPE.items()):
+        unit_dir = canonical_root / directory
+        if not unit_dir.exists():
+            continue
+        for path in sorted(unit_dir.glob("*.json")):
+            payload = read_json(path)
+            if not isinstance(payload, dict):
+                continue
+            unit_id = str(payload.get("id") or "").strip()
+            payload_unit_type = str(payload.get("unit_type") or "").strip()
+            if not unit_id or not payload_unit_type:
+                continue
+            if allowed_unit_types and payload_unit_type not in allowed_unit_types:
+                continue
+            rows[unit_id] = {
+                "payload": payload,
+                "path": path,
+                "relative_path": relative_to_root(path, kernel_root),
+            }
+    return rows
+
+
+def _field_diff(expected: dict[str, Any], actual: dict[str, Any], fields: list[str]) -> dict[str, dict[str, Any]]:
+    diffs: dict[str, dict[str, Any]] = {}
+    for field in fields:
+        if expected.get(field) != actual.get(field):
+            diffs[field] = {
+                "canonical": expected.get(field),
+                "index": actual.get(field),
+            }
+    return diffs
+
+
+def build_l2_paired_backend_drift_report(kernel_root: Path) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    canonical_root = _canonical_root(kernel_root)
+    canonical_rows = _canonical_payload_rows(kernel_root)
+    index_rows = read_jsonl(canonical_root / "index.jsonl")
+    edge_rows = read_jsonl(canonical_root / "edges.jsonl")
+    index_by_id = {str(row.get("id") or row.get("unit_id") or "").strip(): row for row in index_rows}
+    indexed_ids = {row_id for row_id in index_by_id if row_id}
+    canonical_ids = set(canonical_rows)
+
+    compared_fields = [
+        "unit_type",
+        "title",
+        "summary",
+        "tags",
+        "assumptions",
+        "regime",
+        "scope",
+        "dependencies",
+        "related_units",
+        "applicable_topics",
+        "failed_topics",
+        "path",
+        "search_terms",
+    ]
+    blocking_fields = {
+        "unit_type",
+        "title",
+        "summary",
+        "assumptions",
+        "regime",
+        "scope",
+        "dependencies",
+        "related_units",
+        "applicable_topics",
+        "failed_topics",
+        "path",
+    }
+
+    missing_from_index: list[dict[str, Any]] = []
+    stale_index_rows: list[dict[str, Any]] = []
+    blocking_mismatches: list[dict[str, Any]] = []
+    non_blocking_mismatches: list[dict[str, Any]] = []
+
+    for unit_id, row in sorted(canonical_rows.items()):
+        payload = dict(row["payload"])
+        path = Path(row["path"])
+        expected_index_row = _index_row_from_payload(payload, path=path, kernel_root=kernel_root)
+        existing_index_row = index_by_id.get(unit_id)
+        if existing_index_row is None:
+            missing_from_index.append(
+                {
+                    "unit_id": unit_id,
+                    "path": row["relative_path"],
+                    "title": str(payload.get("title") or ""),
+                }
+            )
+            continue
+        diffs = _field_diff(expected_index_row, existing_index_row, compared_fields)
+        if diffs:
+            mismatch = {
+                "unit_id": unit_id,
+                "path": row["relative_path"],
+                "field_diffs": diffs,
+            }
+            stale_index_rows.append(mismatch)
+            if any(field in blocking_fields for field in diffs):
+                blocking_mismatches.append(mismatch)
+            else:
+                non_blocking_mismatches.append(mismatch)
+
+    missing_canonical_rows = [
+        {
+            "unit_id": unit_id,
+            "path": str(index_by_id[unit_id].get("path") or ""),
+            "title": str(index_by_id[unit_id].get("title") or ""),
+        }
+        for unit_id in sorted(indexed_ids - canonical_ids)
+    ]
+
+    orphan_edges: list[dict[str, Any]] = []
+    for edge in edge_rows:
+        from_id = str(edge.get("from_id") or edge.get("source") or "").strip()
+        to_id = str(edge.get("to_id") or edge.get("target") or "").strip()
+        missing_endpoints = [endpoint for endpoint in [from_id, to_id] if endpoint and endpoint not in canonical_ids]
+        if missing_endpoints:
+            orphan_edges.append(
+                {
+                    "edge_id": str(edge.get("edge_id") or ""),
+                    "from_id": from_id,
+                    "to_id": to_id,
+                    "relation": str(edge.get("relation") or edge.get("edge_type") or edge.get("kind") or edge.get("type") or ""),
+                    "missing_endpoints": missing_endpoints,
+                }
+            )
+
+    unresolved_references: list[dict[str, Any]] = []
+    for unit_id, row in sorted(canonical_rows.items()):
+        payload = dict(row["payload"])
+        for field_name in ("dependencies", "related_units"):
+            missing_targets = [
+                str(item).strip()
+                for item in (payload.get(field_name) or [])
+                if str(item).strip() and str(item).strip() not in canonical_ids
+            ]
+            if missing_targets:
+                unresolved_references.append(
+                    {
+                        "unit_id": unit_id,
+                        "path": row["relative_path"],
+                        "field": field_name,
+                        "missing_targets": missing_targets,
+                    }
+                )
+
+    drift_detected = any(
+        [
+            missing_from_index,
+            missing_canonical_rows,
+            stale_index_rows,
+            orphan_edges,
+            unresolved_references,
+        ]
+    )
+    return {
+        "kind": "l2_paired_backend_drift_report",
+        "generated_at": now_iso(),
+        "source_contract_path": "canonical/L2_PAIRED_BACKEND_MAINTENANCE_PROTOCOL.md",
+        "drift_status": "drift_detected" if drift_detected else "aligned",
+        "summary": {
+            "canonical_unit_count": len(canonical_rows),
+            "indexed_unit_count": len(index_rows),
+            "edge_count": len(edge_rows),
+            "missing_from_index_count": len(missing_from_index),
+            "missing_canonical_row_count": len(missing_canonical_rows),
+            "stale_index_row_count": len(stale_index_rows),
+            "blocking_mismatch_count": len(blocking_mismatches),
+            "non_blocking_mismatch_count": len(non_blocking_mismatches),
+            "orphan_edge_count": len(orphan_edges),
+            "unresolved_reference_count": len(unresolved_references),
+        },
+        "missing_from_index": missing_from_index,
+        "missing_canonical_rows": missing_canonical_rows,
+        "stale_index_rows": stale_index_rows,
+        "blocking_mismatches": blocking_mismatches,
+        "non_blocking_mismatches": non_blocking_mismatches,
+        "orphan_edges": orphan_edges,
+        "unresolved_references": unresolved_references,
+        "recommendation": (
+            "Rebuild index surfaces only after reviewing the reported mismatches; "
+            "do not treat file-format regeneration as a substitute for resolving semantic drift."
+        ),
+    }
+
+
+def render_l2_paired_backend_drift_report_markdown(payload: dict[str, Any]) -> str:
+    summary = payload.get("summary") or {}
+    lines = [
+        "# L2 Paired Backend Drift Report",
+        "",
+        f"- Generated at: `{payload.get('generated_at') or '(missing)'}`",
+        f"- Source contract: `{payload.get('source_contract_path') or '(missing)'}`",
+        f"- Drift status: `{payload.get('drift_status') or '(missing)'}`",
+        f"- Canonical units: `{summary.get('canonical_unit_count', 0)}`",
+        f"- Indexed units: `{summary.get('indexed_unit_count', 0)}`",
+        f"- Edges: `{summary.get('edge_count', 0)}`",
+        f"- Missing from index: `{summary.get('missing_from_index_count', 0)}`",
+        f"- Missing canonical rows: `{summary.get('missing_canonical_row_count', 0)}`",
+        f"- Stale index rows: `{summary.get('stale_index_row_count', 0)}`",
+        f"- Orphan edges: `{summary.get('orphan_edge_count', 0)}`",
+        f"- Unresolved references: `{summary.get('unresolved_reference_count', 0)}`",
+        "",
+        "## Recommendation",
+        "",
+        str(payload.get("recommendation") or "(none)"),
+        "",
+        "## Missing From Index",
+        "",
+    ]
+    missing_from_index = payload.get("missing_from_index") or []
+    if not missing_from_index:
+        lines.append("- `(none)`")
+    for row in missing_from_index:
+        lines.append(f"- `{row.get('unit_id')}` `{row.get('path')}`")
+    lines.extend(["", "## Stale Index Rows", ""])
+    stale_index_rows = payload.get("stale_index_rows") or []
+    if not stale_index_rows:
+        lines.append("- `(none)`")
+    for row in stale_index_rows:
+        lines.append(
+            f"- `{row.get('unit_id')}` fields=`{', '.join(sorted((row.get('field_diffs') or {}).keys())) or '(none)'}` path=`{row.get('path')}`"
+        )
+    lines.extend(["", "## Orphan Edges", ""])
+    orphan_edges = payload.get("orphan_edges") or []
+    if not orphan_edges:
+        lines.append("- `(none)`")
+    for row in orphan_edges:
+        lines.append(
+            f"- `{row.get('edge_id')}` `{row.get('from_id')}` -[{row.get('relation')}]-> `{row.get('to_id')}` missing=`{', '.join(row.get('missing_endpoints') or [])}`"
+        )
+    lines.extend(["", "## Unresolved References", ""])
+    unresolved_references = payload.get("unresolved_references") or []
+    if not unresolved_references:
+        lines.append("- `(none)`")
+    for row in unresolved_references:
+        lines.append(
+            f"- `{row.get('unit_id')}` field=`{row.get('field')}` missing=`{', '.join(row.get('missing_targets') or [])}`"
+        )
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def materialize_l2_paired_backend_drift_report(kernel_root: Path) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    payload = build_l2_paired_backend_drift_report(kernel_root)
+    json_path = _paired_backend_drift_report_path(kernel_root, "json")
+    markdown_path = _paired_backend_drift_report_path(kernel_root, "md")
+    write_json(json_path, payload)
+    write_text(markdown_path, render_l2_paired_backend_drift_report_markdown(payload))
+    return {
+        "payload": payload,
+        "json_path": str(json_path),
+        "markdown_path": str(markdown_path),
+    }
+
+
+def _normalize_path_string(value: Any) -> str:
+    return str(value or "").strip().replace("\\", "/")
+
+
+def _topic_source_anchors(kernel_root: Path, topic_slug: str) -> list[dict[str, Any]]:
+    source_root = kernel_root / "topics" / topic_slug / "L0" / "sources"
+    rows: list[dict[str, Any]] = []
+    if not source_root.exists():
+        return rows
+
+    for source_json_path in sorted(source_root.rglob("source.json")):
+        payload = read_json(source_json_path)
+        if not isinstance(payload, dict):
+            continue
+        source_id = str(payload.get("source_id") or "").strip()
+        title = str(payload.get("title") or "").strip()
+        if not source_id or not title:
+            continue
+        source_slug = str(source_json_path.parent.name or "").strip()
+        rows.append(
+            {
+                "source_id": source_id,
+                "source_slug": source_slug,
+                "title": title,
+                "summary": str(payload.get("summary") or "").strip(),
+                "source_type": str(payload.get("source_type") or "").strip(),
+                "path": relative_to_root(source_json_path, kernel_root),
+            }
+        )
+    return rows
+
+
+def _topic_source_anchor_maps(source_anchors: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    by_id: dict[str, str] = {}
+    by_slug: dict[str, str] = {}
+    by_path: dict[str, str] = {}
+    by_directory: dict[str, str] = {}
+
+    for row in source_anchors:
+        source_id = str(row.get("source_id") or "").strip()
+        source_slug = str(row.get("source_slug") or "").strip()
+        normalized_path = _normalize_path_string(row.get("path"))
+        if source_id:
+            by_id[source_id] = source_id
+        if source_slug:
+            by_slug[source_slug] = source_id
+        if normalized_path:
+            by_path[normalized_path] = source_id
+            by_directory[str(Path(normalized_path).parent).replace("\\", "/")] = source_id
+
+    return {
+        "by_id": by_id,
+        "by_slug": by_slug,
+        "by_path": by_path,
+        "by_directory": by_directory,
+    }
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        normalized = str(value or "").strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+    return ordered
+
+
+def _resolve_topic_entry_source_anchors(entry: dict[str, Any], source_maps: dict[str, dict[str, str]]) -> list[str]:
+    source_ids: list[str] = []
+
+    def _append(source_id: str) -> None:
+        normalized = str(source_id or "").strip()
+        if normalized:
+            source_ids.append(normalized)
+
+    for raw_path in entry.get("source_artifact_paths") or []:
+        normalized_path = _normalize_path_string(raw_path)
+        if not normalized_path:
+            continue
+        resolved = (source_maps.get("by_path") or {}).get(normalized_path)
+        if resolved:
+            _append(resolved)
+            continue
+        resolved = (source_maps.get("by_directory") or {}).get(str(Path(normalized_path).parent).replace("\\", "/"))
+        if resolved:
+            _append(resolved)
+
+    provenance = entry.get("provenance") or {}
+    provenance_source_id = str(provenance.get("source_id") or "").strip()
+    if provenance_source_id and provenance_source_id in (source_maps.get("by_id") or {}):
+        _append(provenance_source_id)
+    provenance_source_slug = str(provenance.get("source_slug") or "").strip()
+    if provenance_source_slug and provenance_source_slug in (source_maps.get("by_slug") or {}):
+        _append((source_maps.get("by_slug") or {})[provenance_source_slug])
+
+    for source_ref in entry.get("source_refs") or []:
+        normalized_ref = str(source_ref or "").strip()
+        if not normalized_ref:
+            continue
+        if normalized_ref in (source_maps.get("by_id") or {}):
+            _append(normalized_ref)
+            continue
+        normalized_ref_path = _normalize_path_string(normalized_ref)
+        if normalized_ref_path in (source_maps.get("by_path") or {}):
+            _append((source_maps.get("by_path") or {})[normalized_ref_path])
+            continue
+        normalized_directory = str(Path(normalized_ref_path).parent).replace("\\", "/")
+        if normalized_directory in (source_maps.get("by_directory") or {}):
+            _append((source_maps.get("by_directory") or {})[normalized_directory])
+
+    for tag in entry.get("tags") or []:
+        normalized_tag = str(tag or "").strip()
+        if normalized_tag.startswith("source:"):
+            source_slug = normalized_tag.split(":", 1)[1].strip()
+            resolved = (source_maps.get("by_slug") or {}).get(source_slug)
+            if resolved:
+                _append(resolved)
+
+    return _dedupe_preserve_order(source_ids)
+
+
+def _topic_focus_tags(entry: dict[str, Any]) -> list[str]:
+    tags: list[str] = []
+    for raw_tag in entry.get("tags") or []:
+        normalized = str(raw_tag or "").strip().lower()
+        if not normalized:
+            continue
+        if any(normalized.startswith(prefix) for prefix in IGNORED_FOCUS_TAG_PREFIXES):
+            continue
+        tags.append(normalized)
+    return _dedupe_preserve_order(tags)
+
+
+def _topic_entry_nodes(kernel_root: Path, topic_slug: str, source_anchors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    source_maps = _topic_source_anchor_maps(source_anchors)
+    nodes: list[dict[str, Any]] = []
+    for entry in load_staging_entries(kernel_root):
+        if str(entry.get("topic_slug") or "").strip() != topic_slug:
+            continue
+        source_anchor_ids = _resolve_topic_entry_source_anchors(entry, source_maps)
+        nodes.append(
+            {
+                "entry_id": str(entry.get("entry_id") or ""),
+                "entry_kind": str(entry.get("entry_kind") or ""),
+                "title": str(entry.get("title") or ""),
+                "summary": str(entry.get("summary") or ""),
+                "status": str(entry.get("status") or ""),
+                "path": str(entry.get("path") or ""),
+                "source_anchor_ids": source_anchor_ids,
+                "source_anchor_count": len(source_anchor_ids),
+                "focus_tags": _topic_focus_tags(entry),
+                "linked_unit_ids": [str(item).strip() for item in (entry.get("linked_unit_ids") or []) if str(item).strip()],
+                "contradicts_unit_ids": [str(item).strip() for item in (entry.get("contradicts_unit_ids") or []) if str(item).strip()],
+                "updated_at": str(entry.get("updated_at") or ""),
+            }
+        )
+    return sorted(nodes, key=lambda row: (row["entry_kind"], row["title"], row["entry_id"]))
+
+
+def _append_topic_edge(
+    edges: list[dict[str, Any]],
+    seen: set[tuple[str, str, str]],
+    *,
+    relation: str,
+    from_id: str,
+    to_id: str,
+    symmetric: bool = False,
+    notes: str = "",
+) -> None:
+    normalized_from = str(from_id or "").strip()
+    normalized_to = str(to_id or "").strip()
+    if not normalized_from or not normalized_to or normalized_from == normalized_to:
+        return
+    if symmetric:
+        normalized_from, normalized_to = sorted([normalized_from, normalized_to])
+    key = (relation, normalized_from, normalized_to)
+    if key in seen:
+        return
+    seen.add(key)
+    edges.append(
+        {
+            "relation": relation,
+            "from_id": normalized_from,
+            "to_id": normalized_to,
+            "notes": notes,
+        }
+    )
+
+
+def build_topic_l2_corpus_baseline(kernel_root: Path, *, topic_slug: str) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    source_anchors = _topic_source_anchors(kernel_root, topic_slug)
+    entry_nodes = _topic_entry_nodes(kernel_root, topic_slug, source_anchors)
+    entry_by_id = {row["entry_id"]: row for row in entry_nodes}
+    source_by_id = {row["source_id"]: row for row in source_anchors}
+
+    edges: list[dict[str, Any]] = []
+    seen_edges: set[tuple[str, str, str]] = set()
+
+    source_to_entries: dict[str, list[str]] = {}
+    tag_to_entries: dict[str, list[str]] = {}
+    for entry in entry_nodes:
+        entry_id = str(entry.get("entry_id") or "")
+        for source_id in entry.get("source_anchor_ids") or []:
+            if source_id not in source_by_id:
+                continue
+            source_to_entries.setdefault(source_id, []).append(entry_id)
+            _append_topic_edge(
+                edges,
+                seen_edges,
+                relation="supported_by_source",
+                from_id=entry_id,
+                to_id=source_id,
+                notes=f"Source anchor `{source_id}` supports this topic entry.",
+            )
+        for focus_tag in entry.get("focus_tags") or []:
+            tag_to_entries.setdefault(focus_tag, []).append(entry_id)
+        for linked_unit_id in entry.get("linked_unit_ids") or []:
+            if linked_unit_id in entry_by_id:
+                _append_topic_edge(
+                    edges,
+                    seen_edges,
+                    relation="linked_entry",
+                    from_id=entry_id,
+                    to_id=linked_unit_id,
+                    notes="Explicit topic-local staging link.",
+                )
+        for contradicts_unit_id in entry.get("contradicts_unit_ids") or []:
+            if contradicts_unit_id in entry_by_id:
+                _append_topic_edge(
+                    edges,
+                    seen_edges,
+                    relation="contradicts_entry",
+                    from_id=entry_id,
+                    to_id=contradicts_unit_id,
+                    notes="Explicit topic-local contradiction link.",
+                )
+
+    for source_id, entry_ids in sorted(source_to_entries.items()):
+        deduped_entry_ids = _dedupe_preserve_order(entry_ids)
+        for index, left_id in enumerate(deduped_entry_ids):
+            for right_id in deduped_entry_ids[index + 1 :]:
+                _append_topic_edge(
+                    edges,
+                    seen_edges,
+                    relation="shares_source_anchor",
+                    from_id=left_id,
+                    to_id=right_id,
+                    symmetric=True,
+                    notes=f"Both entries resolve to source anchor `{source_id}`.",
+                )
+
+    for focus_tag, entry_ids in sorted(tag_to_entries.items()):
+        deduped_entry_ids = _dedupe_preserve_order(entry_ids)
+        if len(deduped_entry_ids) < 2:
+            continue
+        for index, left_id in enumerate(deduped_entry_ids):
+            for right_id in deduped_entry_ids[index + 1 :]:
+                _append_topic_edge(
+                    edges,
+                    seen_edges,
+                    relation="shares_focus_tag",
+                    from_id=left_id,
+                    to_id=right_id,
+                    symmetric=True,
+                    notes=f"Both entries carry focus tag `{focus_tag}`.",
+                )
+
+    degree_by_entry: dict[str, int] = {row["entry_id"]: 0 for row in entry_nodes}
+    attached_entries_by_source: dict[str, set[str]] = {row["source_id"]: set() for row in source_anchors}
+    relation_clusters: dict[str, list[dict[str, Any]]] = {}
+    for edge in edges:
+        relation = str(edge.get("relation") or "unknown")
+        relation_clusters.setdefault(relation, []).append(edge)
+        from_id = str(edge.get("from_id") or "")
+        to_id = str(edge.get("to_id") or "")
+        if from_id in degree_by_entry:
+            degree_by_entry[from_id] += 1
+        if to_id in degree_by_entry:
+            degree_by_entry[to_id] += 1
+        if relation == "supported_by_source" and to_id in attached_entries_by_source:
+            attached_entries_by_source[to_id].add(from_id)
+
+    for row in entry_nodes:
+        row["degree"] = int(degree_by_entry.get(row["entry_id"], 0))
+
+    for row in source_anchors:
+        attached_entry_ids = sorted(attached_entries_by_source.get(row["source_id"], set()))
+        row["attached_entry_ids"] = attached_entry_ids
+        row["attached_entry_count"] = len(attached_entry_ids)
+
+    entry_hubs = sorted(
+        [
+            {
+                "entry_id": row["entry_id"],
+                "entry_kind": row["entry_kind"],
+                "title": row["title"],
+                "degree": row["degree"],
+                "source_anchor_count": row["source_anchor_count"],
+                "focus_tags": row["focus_tags"],
+                "path": row["path"],
+            }
+            for row in entry_nodes
+        ],
+        key=lambda row: (-int(row["degree"]), -int(row["source_anchor_count"]), row["entry_kind"], row["title"]),
+    )
+    isolated_entries = [
+        {
+            "entry_id": row["entry_id"],
+            "entry_kind": row["entry_kind"],
+            "title": row["title"],
+            "path": row["path"],
+        }
+        for row in entry_nodes
+        if int(row.get("degree") or 0) == 0
+    ]
+
+    entry_kind_counts: dict[str, int] = {}
+    for row in entry_nodes:
+        entry_kind = str(row.get("entry_kind") or "unknown")
+        entry_kind_counts[entry_kind] = entry_kind_counts.get(entry_kind, 0) + 1
+
+    relation_rows = [
+        {
+            "relation": relation,
+            "count": len(rows),
+            "example_edges": rows[:8],
+        }
+        for relation, rows in sorted(relation_clusters.items(), key=lambda item: (-len(item[1]), item[0]))
+    ]
+
+    return {
+        "kind": "topic_l2_corpus_baseline",
+        "compiler_version": 1,
+        "generated_at": now_iso(),
+        "source_contract_path": "canonical/L2_COMPILER_PROTOCOL.md",
+        "authority_rule": (
+            "This baseline is compiled and non-authoritative. Topic-local staging entries remain provisional; "
+            "registered source anchors are provenance support, not promoted L2 claims."
+        ),
+        "topic_slug": topic_slug,
+        "summary": {
+            "topic_entry_count": len(entry_nodes),
+            "entry_kind_counts": dict(sorted(entry_kind_counts.items())),
+            "source_anchor_count": len(source_anchors),
+            "source_backed_entry_count": sum(1 for row in entry_nodes if int(row.get("source_anchor_count") or 0) > 0),
+            "multi_source_entry_count": sum(1 for row in entry_nodes if int(row.get("source_anchor_count") or 0) > 1),
+            "derived_edge_count": len(edges),
+            "connected_entry_count": sum(1 for row in entry_nodes if int(row.get("degree") or 0) > 0),
+            "isolated_entry_count": len(isolated_entries),
+            "bridge_note_count": entry_kind_counts.get("bridge_note", 0),
+            "warning_note_count": entry_kind_counts.get("warning_note", 0),
+        },
+        "topic_entries": entry_nodes,
+        "source_anchors": sorted(source_anchors, key=lambda row: (-int(row["attached_entry_count"]), row["title"], row["source_id"])),
+        "relation_clusters": relation_rows,
+        "derived_edges": edges,
+        "entry_hubs": entry_hubs[:10],
+        "isolated_entries": isolated_entries,
+    }
+
+
+def render_topic_l2_corpus_baseline_markdown(payload: dict[str, Any]) -> str:
+    summary = payload.get("summary") or {}
+    lines = [
+        "# Topic L2 Corpus Baseline",
+        "",
+        f"- Topic slug: `{payload.get('topic_slug') or '(missing)'}`",
+        f"- Generated at: `{payload.get('generated_at') or '(missing)'}`",
+        f"- Authority rule: {payload.get('authority_rule') or '(missing)' }",
+        f"- Topic entries: `{summary.get('topic_entry_count', 0)}`",
+        f"- Source anchors: `{summary.get('source_anchor_count', 0)}`",
+        f"- Source-backed entries: `{summary.get('source_backed_entry_count', 0)}`",
+        f"- Multi-source entries: `{summary.get('multi_source_entry_count', 0)}`",
+        f"- Derived edges: `{summary.get('derived_edge_count', 0)}`",
+        f"- Connected entries: `{summary.get('connected_entry_count', 0)}`",
+        f"- Isolated entries: `{summary.get('isolated_entry_count', 0)}`",
+        f"- Bridge notes: `{summary.get('bridge_note_count', 0)}`",
+        f"- Warning notes: `{summary.get('warning_note_count', 0)}`",
+        "",
+        "## Entry Kinds",
+        "",
+    ]
+    entry_kind_counts = summary.get("entry_kind_counts") or {}
+    if entry_kind_counts:
+        for entry_kind, count in entry_kind_counts.items():
+            lines.append(f"- `{entry_kind}`: `{count}`")
+    else:
+        lines.append("- `(none)`")
+
+    lines.extend(["", "## Entry Hubs", ""])
+    entry_hubs = payload.get("entry_hubs") or []
+    if not entry_hubs:
+        lines.append("- `(none)`")
+    for row in entry_hubs:
+        lines.append(
+            f"- `{row.get('entry_id')}` {row.get('title')} "
+            f"(kind=`{row.get('entry_kind')}`, degree=`{row.get('degree', 0)}`, source_anchors=`{row.get('source_anchor_count', 0)}`)"
+        )
+
+    lines.extend(["", "## Relation Clusters", ""])
+    relation_clusters = payload.get("relation_clusters") or []
+    if not relation_clusters:
+        lines.append("- `(none)`")
+    for cluster in relation_clusters:
+        lines.append(f"### `{cluster.get('relation')}` (`{cluster.get('count', 0)}`)")
+        for edge in cluster.get("example_edges") or []:
+            lines.append(f"- `{edge.get('from_id')}` -> `{edge.get('to_id')}`")
+        lines.append("")
+
+    lines.extend(["## Source Anchors", ""])
+    source_anchors = payload.get("source_anchors") or []
+    if not source_anchors:
+        lines.append("- `(none)`")
+    for row in source_anchors:
+        lines.append(
+            f"- `{row.get('source_id')}` {row.get('title')} "
+            f"(attached_entries=`{row.get('attached_entry_count', 0)}`) `{row.get('path')}`"
+        )
+
+    lines.extend(["", "## Isolated Entries", ""])
+    isolated_entries = payload.get("isolated_entries") or []
+    if not isolated_entries:
+        lines.append("- `(none)`")
+    for row in isolated_entries:
+        lines.append(
+            f"- `{row.get('entry_id')}` {row.get('title')} "
+            f"(kind=`{row.get('entry_kind')}`) `{row.get('path')}`"
+        )
+    lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def materialize_topic_l2_corpus_baseline(kernel_root: Path, *, topic_slug: str) -> dict[str, Any]:
+    kernel_root = kernel_root.resolve()
+    payload = build_topic_l2_corpus_baseline(kernel_root, topic_slug=topic_slug)
+    json_path = _topic_corpus_baseline_path(kernel_root, topic_slug, "json")
+    markdown_path = _topic_corpus_baseline_path(kernel_root, topic_slug, "md")
+    write_json(json_path, payload)
+    write_text(markdown_path, render_topic_l2_corpus_baseline_markdown(payload))
+    return {
+        "payload": payload,
+        "json_path": str(json_path),
+        "markdown_path": str(markdown_path),
     }

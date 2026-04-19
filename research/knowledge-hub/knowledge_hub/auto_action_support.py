@@ -5,19 +5,30 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .topic_truth_root_support import compatibility_projection_path
+from .loop_detection_support import should_force_human_checkpoint
+from .popup_support import detect_popup_trigger
+from .mode_envelope_support import check_forbidden_shortcuts, check_layer_permission
+
 
 def _read_json(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    target = path
+    if not target.exists():
+        compatibility_path = compatibility_projection_path(path)
+        if compatibility_path is None or not compatibility_path.exists():
+            return None
+        target = compatibility_path
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    rendered = "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
+    path.write_text(rendered, encoding="utf-8")
+    compatibility_path = compatibility_projection_path(path)
+    if compatibility_path is not None and compatibility_path != path:
+        compatibility_path.parent.mkdir(parents=True, exist_ok=True)
+        compatibility_path.write_text(rendered, encoding="utf-8")
 
 
 def _now_iso() -> str:
@@ -43,6 +54,37 @@ def execute_auto_actions(
             "checkpoint_blocking": True,
             "checkpoint_kind": str(operator_checkpoint.get("checkpoint_kind") or ""),
             "checkpoint_note_path": str(operator_checkpoint.get("note_path") or ""),
+        }
+
+    stuckness = should_force_human_checkpoint(self, topic_slug, updated_by=updated_by)
+    if stuckness.get("force_human_checkpoint"):
+        remaining = sum(1 for row in queue_rows if row.get("status") == "pending")
+        return {
+            "queue_path": str(queue_path),
+            "executed": [],
+            "remaining_pending": remaining,
+            "stuckness_blocking": True,
+            "stuckness_reason": stuckness.get("reason") or "repeated_action_pattern",
+            "stuckness_recommendation": stuckness.get("recommendation") or "",
+        }
+
+    popup_check = detect_popup_trigger(
+        topic_slug=topic_slug,
+        promotion_gate=_read_json(self._promotion_gate_paths(topic_slug)["json"]),
+        operator_checkpoint=operator_checkpoint,
+        pending_decision_points=[],
+        h_plane_payload=None,
+    )
+    if popup_check.get("needs_popup"):
+        remaining = sum(1 for row in queue_rows if row.get("status") == "pending")
+        return {
+            "queue_path": str(queue_path),
+            "executed": [],
+            "remaining_pending": remaining,
+            "popup_blocking": True,
+            "popup_kind": popup_check.get("popup_kind") or "",
+            "popup_priority": popup_check.get("priority") or 0,
+            "popup_summary": popup_check.get("summary") or "",
         }
 
     runtime_protocol = self._materialize_runtime_protocol_bundle(
@@ -86,6 +128,18 @@ def execute_auto_actions(
             continue
         if transition_kind == "backedge_transition" and action_type not in allowed_backedge_auto_actions:
             continue
+        shortcut_check = check_forbidden_shortcuts(
+            runtime_mode=runtime_mode,
+            action_type=str(action_type or ""),
+            action_summary=str(row.get("summary") or ""),
+        )
+        if not shortcut_check.get("allowed"):
+            continue
+        explicit_layer = str((row.get("handler_args") or {}).get("layer") or "").strip()
+        if explicit_layer:
+            layer_check = check_layer_permission(runtime_mode=runtime_mode, target_layer=explicit_layer)
+            if not layer_check.get("allowed"):
+                continue
         started_at = _now_iso()
         result: dict[str, Any]
         try:
@@ -203,6 +257,22 @@ def execute_auto_actions(
         steps_used += 1
 
     _write_jsonl(queue_path, queue_rows)
+    for action in executed:
+        try:
+            from .research_notebook_support import append_notebook_entry
+            l3_root = self._l3_root(topic_slug)
+            append_notebook_entry(
+                l3_root,
+                kind="auto_action",
+                title=str(action.get("action_type") or "action"),
+                status=str(action.get("status") or ""),
+                details={
+                    "action_id": action.get("action_id"),
+                    "action_type": action.get("action_type"),
+                },
+            )
+        except Exception:
+            pass
     remaining = sum(1 for row in queue_rows if row.get("status") == "pending")
     if transition_kind == "backedge_transition" and not executed:
         return {

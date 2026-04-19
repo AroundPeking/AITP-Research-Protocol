@@ -143,7 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     knowledge_root = Path(__file__).resolve().parents[2]
-    validation_run_root = knowledge_root / "validation" / "topics" / args.topic_slug / "runs" / args.run_id
+    validation_run_root = knowledge_root / "topics" / args.topic_slug / "L4" / "runs" / args.run_id
     receipts_path = validation_run_root / "literature_followup_receipts.jsonl"
 
     for row in read_jsonl(receipts_path):
@@ -171,6 +171,7 @@ def main() -> int:
             check=False,
             capture_output=True,
             text=True,
+            stdin=subprocess.DEVNULL,
         )
         if completed.returncode == 0:
             registered_arxiv_ids.append(arxiv_id)

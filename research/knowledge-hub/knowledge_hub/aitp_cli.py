@@ -32,6 +32,13 @@ from .cli_l1_graph_handler import dispatch_l1_graph_command, register_l1_graph_c
 from .cli_l2_graph_handler import dispatch_l2_graph_command, register_l2_graph_commands
 from .cli_l2_compiler_handler import dispatch_l2_compiler_command, register_l2_compiler_commands
 from .cli_source_catalog_handler import dispatch_source_catalog_command, register_source_catalog_commands
+from .mode_registry import normalize_runtime_mode
+
+
+LEARN_SUBMODE_TO_VERIFICATION_MODE = {
+    "derivation": "proof",
+    "numerical": "numeric",
+}
 
 
 def _emit(payload: dict[str, Any], as_json: bool) -> None:
@@ -40,6 +47,60 @@ def _emit(payload: dict[str, Any], as_json: bool) -> None:
 
 def _emit_text(text: str) -> None:
     print(str(text or "").rstrip())
+
+
+def _emit_topic_popup_gate(
+    service: AITPService,
+    *,
+    topic_slug: str | None,
+    updated_by: str,
+    as_json: bool,
+    blocking: bool = False,
+) -> int | None:
+    normalized_topic_slug = str(topic_slug or "").strip()
+    if not normalized_topic_slug:
+        return None
+    popup_payload = service.topic_popup(topic_slug=normalized_topic_slug, updated_by=updated_by)
+    if not popup_payload.get("needs_popup"):
+        return None
+    if as_json:
+        _emit(popup_payload, True)
+    else:
+        _emit_text(str(popup_payload.get("markdown") or ""))
+        print(f"\nResolve with: aitp popup --topic-slug {normalized_topic_slug} --choice <index>")
+    return 2 if blocking else 0
+
+
+def _emit_required_read_gate(
+    service: AITPService,
+    *,
+    topic_slug: str | None,
+    updated_by: str,
+    as_json: bool,
+    blocking: bool = False,
+    operation: str | None = None,
+) -> int | None:
+    normalized_topic_slug = str(topic_slug or "").strip()
+    if not normalized_topic_slug:
+        return None
+    gate_payload = service.topic_required_read_gate(
+        topic_slug=normalized_topic_slug,
+        updated_by=updated_by,
+        operation=operation,
+    )
+    if not isinstance(gate_payload, dict):
+        return None
+    if not gate_payload.get("blocked") and not gate_payload.get("needs_ack"):
+        return None
+    if as_json:
+        _emit(gate_payload, True)
+    else:
+        _emit_text(str(gate_payload.get("markdown") or ""))
+        if gate_payload.get("blocked"):
+            print(f'\nResolve with: aitp session-start --topic-slug {normalized_topic_slug} "continue this topic"')
+        else:
+            print(f"\nResolve with: aitp ack-read --topic-slug {normalized_topic_slug} --all-current")
+    return 2 if blocking else 0
 
 
 def _read_relative_human_surface(service: AITPService, relative_path: str) -> str | None:
@@ -329,6 +390,37 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--full", action="store_true")
     status.add_argument("--json", action="store_true")
 
+    interaction = subparsers.add_parser("interaction", help="Show the active human-interaction packet for one topic")
+    interaction.add_argument("--topic-slug", required=True)
+    interaction.add_argument("--updated-by", default="aitp-cli")
+    interaction.add_argument("--json", action="store_true")
+
+    popup = subparsers.add_parser("popup", help="Show the active human-interaction popup for one topic")
+    popup.add_argument("--topic-slug", required=True)
+    popup.add_argument("--choice", type=int, help="Resolve the popup by choosing this option index")
+    popup.add_argument("--comment")
+    popup.add_argument("--resolved-by", default="human")
+    popup.add_argument("--updated-by", default="aitp-cli")
+    popup.add_argument("--json", action="store_true")
+
+    ack_read = subparsers.add_parser("ack-read", help="Acknowledge current required-read surfaces for one topic")
+    ack_read.add_argument("--topic-slug", required=True)
+    ack_read_group = ack_read.add_mutually_exclusive_group(required=True)
+    ack_read_group.add_argument("--all-current", action="store_true")
+    ack_read_group.add_argument("--path", action="append", default=[])
+    ack_read.add_argument("--updated-by", default="aitp-cli")
+    ack_read.add_argument("--json", action="store_true")
+
+    resolve_checkpoint = subparsers.add_parser(
+        "resolve-checkpoint",
+        help="Resolve the active operator checkpoint for one topic",
+    )
+    resolve_checkpoint.add_argument("--topic-slug", required=True)
+    resolve_checkpoint.add_argument("--option", required=True, type=int)
+    resolve_checkpoint.add_argument("--comment")
+    resolve_checkpoint.add_argument("--resolved-by", default="human")
+    resolve_checkpoint.add_argument("--json", action="store_true")
+
     layer_graph = subparsers.add_parser(
         "layer-graph",
         help="Materialize and inspect the iterative topic layer graph for the current topic",
@@ -356,7 +448,16 @@ def build_parser() -> argparse.ArgumentParser:
     work.add_argument("--load-profile", choices=["auto", "light", "full"], default="auto")
     work.add_argument("--json", action="store_true")
 
-    verify = subparsers.add_parser("verify", help="Prepare a validation contract for a bounded verification mode")
+    learn = subparsers.add_parser(
+        "learn",
+        help="Prepare a learn-mode validation contract for derivation or numerical study",
+    )
+    learn.add_argument("--topic-slug", required=True)
+    learn.add_argument("--submode", choices=["derivation", "numerical"], required=True)
+    learn.add_argument("--updated-by", default="aitp-cli")
+    learn.add_argument("--json", action="store_true")
+
+    verify = subparsers.add_parser("verify", help="Deprecated: use 'learn --submode derivation' instead")
     verify.add_argument("--topic-slug", required=True)
     verify.add_argument("--mode", choices=["proof", "comparison", "numeric", "analytical", "topic-completion"], required=True)
     verify.add_argument("--updated-by", default="aitp-cli")
@@ -366,7 +467,15 @@ def build_parser() -> argparse.ArgumentParser:
     complete_topic.add_argument("--topic-slug", required=True)
     complete_topic.add_argument("--run-id")
     complete_topic.add_argument("--updated-by", default="aitp-cli")
+    complete_topic.add_argument("--skip-preflight", action="store_true", help="Skip mechanical preflight and go straight to full assessment")
     complete_topic.add_argument("--json", action="store_true")
+
+    completion_preflight = subparsers.add_parser(
+        "completion-preflight",
+        help="Run zero-cost mechanical preflight checks before expensive topic-completion assessment",
+    )
+    completion_preflight.add_argument("--topic-slug", required=True)
+    completion_preflight.add_argument("--run-id")
 
     reintegrate_followup = subparsers.add_parser(
         "reintegrate-followup",
@@ -590,7 +699,25 @@ def build_parser() -> argparse.ArgumentParser:
     reject_promotion.add_argument("--notes")
     reject_promotion.add_argument("--json", action="store_true")
 
-    promote = subparsers.add_parser("promote", help="Promote an approved candidate into the configured Layer 2 backend")
+    implement = subparsers.add_parser(
+        "implement",
+        help="Run the implement-mode promotion operation for an approved candidate",
+    )
+    implement.add_argument("--topic-slug", required=True)
+    implement.add_argument("--candidate-id", required=True)
+    implement.add_argument("--run-id")
+    implement.add_argument("--backend-id")
+    implement.add_argument("--target-backend-root")
+    implement.add_argument("--domain")
+    implement.add_argument("--subdomain")
+    implement.add_argument("--source-id")
+    implement.add_argument("--source-section")
+    implement.add_argument("--source-section-title")
+    implement.add_argument("--updated-by", default="aitp-cli")
+    implement.add_argument("--notes")
+    implement.add_argument("--json", action="store_true")
+
+    promote = subparsers.add_parser("promote", help="Deprecated: use 'implement' instead")
     promote.add_argument("--topic-slug", required=True)
     promote.add_argument("--candidate-id", required=True)
     promote.add_argument("--run-id")
@@ -1036,7 +1163,66 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         elif args.verbose:
             _emit_text(render_topic_status_payload(payload, tier="verbose"))
         else:
-            _emit_text(render_topic_status_payload(payload))
+            # Check for popup gate before showing plain status
+            popup_exit = _emit_topic_popup_gate(
+                service,
+                topic_slug=args.topic_slug,
+                updated_by=args.updated_by,
+                as_json=args.json,
+                blocking=False,
+            )
+            if popup_exit is None:
+                _emit_text(render_topic_status_payload(payload))
+        return 0
+
+    if args.command == "interaction":
+        payload = service.topic_interaction(
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+        )
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "popup":
+        if args.choice is not None:
+            payload = service.resolve_popup_choice(
+                topic_slug=args.topic_slug,
+                choice_index=args.choice,
+                comment=args.comment,
+                resolved_by=args.resolved_by,
+            )
+            _emit(payload, args.json)
+            return 0
+        payload = service.topic_popup(
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+        )
+        if args.json:
+            _emit(payload, True)
+        else:
+            _emit_text(str(payload.get("markdown") or ""))
+            if payload.get("needs_popup"):
+                print(f"\nResolve with: aitp popup --topic-slug {args.topic_slug} --choice <index>")
+        return 0
+
+    if args.command == "ack-read":
+        payload = service.acknowledge_required_reads(
+            topic_slug=args.topic_slug,
+            paths=args.path,
+            all_current=args.all_current,
+            updated_by=args.updated_by,
+        )
+        _emit(payload, args.json)
+        return 0
+
+    if args.command == "resolve-checkpoint":
+        payload = service.resolve_operator_checkpoint(
+            topic_slug=args.topic_slug,
+            option_index=args.option,
+            comment=args.comment,
+            resolved_by=args.resolved_by,
+        )
+        _emit(payload, args.json)
         return 0
 
     if args.command == "layer-graph":
@@ -1055,10 +1241,37 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         if args.json:
             _emit(payload, True)
         else:
-            _emit_text(render_topic_next_payload(payload))
+            # If a human gate is blocking, show the popup instead of the next action
+            popup_exit = _emit_topic_popup_gate(
+                service,
+                topic_slug=args.topic_slug,
+                updated_by=args.updated_by,
+                as_json=args.json,
+                blocking=False,
+            )
+            if popup_exit is None:
+                _emit_text(render_topic_next_payload(payload))
         return 0
 
     if args.command == "work":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if required_read_exit is not None:
+            return required_read_exit
         payload = service.work_topic(
             topic=args.topic,
             topic_slug=args.topic_slug,
@@ -1078,25 +1291,92 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
             return 0 if exit_state.get("overall_status") == "pass" else 1
         return 0
 
-    if args.command == "verify":
+    if args.command in {"verify", "learn"} and normalize_runtime_mode(args.command) == "learn":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if required_read_exit is not None:
+            return required_read_exit
+        verification_mode = str(getattr(args, "mode", "")).strip()
+        if args.command == "learn":
+            verification_mode = LEARN_SUBMODE_TO_VERIFICATION_MODE[str(args.submode).strip()]
         payload = service.prepare_verification(
             topic_slug=args.topic_slug,
-            mode=args.mode,
+            mode=verification_mode,
             updated_by=args.updated_by,
         )
         _emit(payload, args.json)
         return 0
 
     if args.command == "complete-topic":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+            operation="complete-topic",
+        )
+        if required_read_exit is not None:
+            return required_read_exit
         payload = service.assess_topic_completion(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
             updated_by=args.updated_by,
+            skip_preflight=args.skip_preflight,
         )
         _emit(payload, args.json)
         return 0
 
+    if args.command == "completion-preflight":
+        payload = service.mechanical_completion_preflight(
+            topic_slug=args.topic_slug,
+            run_id=args.run_id,
+        )
+        _emit(payload, as_json=True)
+        return 0
+
     if args.command == "reintegrate-followup":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if required_read_exit is not None:
+            return required_read_exit
         payload = service.reintegrate_followup_subtopic(
             topic_slug=args.topic_slug,
             child_topic_slug=args.child_topic_slug,
@@ -1107,6 +1387,24 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "update-followup-return":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if required_read_exit is not None:
+            return required_read_exit
         payload = service.update_followup_return_packet(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
@@ -1121,6 +1419,24 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "lean-bridge":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if required_read_exit is not None:
+            return required_read_exit
         payload = service.prepare_lean_bridge(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
@@ -1131,6 +1447,24 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         return 0
 
     if args.command == "statement-compilation":
+        popup_exit = _emit_topic_popup_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if popup_exit is not None:
+            return popup_exit
+        required_read_exit = _emit_required_read_gate(
+            service,
+            topic_slug=args.topic_slug,
+            updated_by=args.updated_by,
+            as_json=args.json,
+            blocking=True,
+        )
+        if required_read_exit is not None:
+            return required_read_exit
         payload = service.prepare_statement_compilation(
             topic_slug=args.topic_slug,
             run_id=args.run_id,
@@ -1261,6 +1595,9 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
     frontdoor_payload = dispatch_frontdoor_command(args, service)
     if frontdoor_payload is not None:
         _emit(frontdoor_payload, args.json)
+        if args.command == "doctor" and getattr(args, "strict_l0l1", False):
+            strict_status = str((frontdoor_payload.get("strict_l0_l1") or {}).get("status") or "fail")
+            return 0 if strict_status == "pass" else 2
         return 0
 
     if args.command == "request-promotion":
@@ -1300,7 +1637,7 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
         _emit(payload, args.json)
         return 0
 
-    if args.command == "promote":
+    if args.command in {"promote", "implement"} and normalize_runtime_mode(args.command) == "implement":
         payload = service.promote_candidate(
             topic_slug=args.topic_slug,
             candidate_id=args.candidate_id,
