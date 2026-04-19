@@ -712,6 +712,128 @@ def aitp_reintegrate_followup(
 
 
 @aitp_tool(access="write")
+def aitp_write_candidate(
+    topic_slug: str,
+    title: str,
+    claim_type: str,
+    summary: str,
+    evidence: str | None = None,
+    assumptions: list[str] | None = None,
+    origin_refs: list[dict] | None = None,
+    trust_level: str = "provisional",
+    status: str = "active",
+    candidate_id: str | None = None,
+    run_id: str | None = None,
+    sub_plane: str | None = None,
+    question: str | None = None,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Write or update a run-local L3 candidate so agents can record research findings through the protocol."""
+    try:
+        result = service.write_candidate(
+            topic_slug=topic_slug,
+            title=title,
+            claim_type=claim_type,
+            summary=summary,
+            evidence=evidence,
+            assumptions=assumptions or [],
+            origin_refs=origin_refs or [],
+            trust_level=trust_level,
+            status=status,
+            candidate_id=candidate_id,
+            run_id=run_id,
+            sub_plane=sub_plane,
+            question=question,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_submit_l4_return(
+    topic_slug: str,
+    result_summary: str,
+    result_classification: str = "success",
+    artifact_paths: list[str] | None = None,
+    candidate_ids: list[str] | None = None,
+    numerical_evidence: dict | None = None,
+    contradiction_detected: bool = False,
+    notes: str | None = None,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Submit a returned L4 execution result so the closed-loop can ingest it through AITP surfaces."""
+    try:
+        result = service.submit_l4_return(
+            topic_slug=topic_slug,
+            result_summary=result_summary,
+            result_classification=result_classification,
+            artifact_paths=artifact_paths or [],
+            candidate_ids=candidate_ids or [],
+            numerical_evidence=numerical_evidence or {},
+            contradiction_detected=contradiction_detected,
+            notes=notes,
+            run_id=run_id,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="read")
+def aitp_list_candidates(
+    topic_slug: str,
+    run_id: str | None = None,
+    status: str | None = None,
+    claim_type: str | None = None,
+    trust_level: str | None = None,
+    promotion_status: str | None = None,
+) -> str:
+    """List run-local L3 candidates with optional exact-match filters."""
+    try:
+        result = service.list_candidates(
+            topic_slug=topic_slug,
+            run_id=run_id,
+            status=status,
+            claim_type=claim_type,
+            trust_level=trust_level,
+            promotion_status=promotion_status,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
+def aitp_register_artifact(
+    topic_slug: str,
+    artifact_path: str,
+    artifact_kind: str,
+    description: str,
+    linked_candidates: list[str] | None = None,
+    run_id: str | None = None,
+    updated_by: str = "aitp-mcp",
+) -> str:
+    """Register a code or data artifact as run-local evidence and optionally link it to candidates."""
+    try:
+        result = service.register_artifact(
+            topic_slug=topic_slug,
+            artifact_path=artifact_path,
+            artifact_kind=artifact_kind,
+            description=description,
+            linked_candidates=linked_candidates or [],
+            run_id=run_id,
+            updated_by=updated_by,
+        )
+        return _ok(**result)
+    except Exception as exc:  # noqa: BLE001
+        return _err(str(exc))
+
+
+@aitp_tool(access="write")
 def aitp_prepare_lean_bridge(
     topic_slug: str,
     run_id: str | None = None,

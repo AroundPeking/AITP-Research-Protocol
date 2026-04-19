@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from .decision_point_handler import (
     get_all_decision_points,
@@ -10682,6 +10683,491 @@ class AITPService:
             comment=comment,
             resolved_by=resolved_by,
         )
+
+    def write_candidate(
+        self,
+        *,
+        topic_slug: str,
+        title: str,
+        claim_type: str,
+        summary: str,
+        evidence: str | None = None,
+        assumptions: list[str] | None = None,
+        origin_refs: list[dict[str, Any]] | None = None,
+        trust_level: str = "provisional",
+        status: str = "active",
+        candidate_id: str | None = None,
+        run_id: str | None = None,
+        sub_plane: str | None = None,
+        question: str | None = None,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        normalized_title = str(title or "").strip()
+        normalized_summary = str(summary or "").strip()
+        normalized_claim_type = str(claim_type or "").strip().lower()
+        normalized_trust_level = str(trust_level or "provisional").strip().lower()
+        normalized_status = str(status or "active").strip() or "active"
+        normalized_sub_plane = str(sub_plane or "").strip()
+        normalized_question = str(question or "").strip()
+        normalized_evidence = str(evidence or "").strip()
+
+        if not normalized_title:
+            raise ValueError("title is required")
+        if not normalized_summary:
+            raise ValueError("summary is required")
+        if normalized_claim_type not in {
+            "numerical",
+            "analytical",
+            "literature",
+            "conjecture",
+        }:
+            raise ValueError(
+                "claim_type must be one of: numerical, analytical, literature, conjecture"
+            )
+        if normalized_trust_level not in {"provisional", "supported", "validated"}:
+            raise ValueError(
+                "trust_level must be one of: provisional, supported, validated"
+            )
+        if normalized_sub_plane and normalized_sub_plane not in {
+            "L3-I",
+            "L3-P",
+            "L3-A",
+            "L3-R",
+            "L3-D",
+        }:
+            raise ValueError("sub_plane must be one of: L3-I, L3-P, L3-A, L3-R, L3-D")
+
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        if not resolved_run_id:
+            raise FileNotFoundError(
+                f"Unable to resolve an L3 run for topic {topic_slug}"
+            )
+
+        normalized_candidate_id = str(candidate_id or "").strip() or f"cand-{uuid4().hex[:8]}"
+        existing_row: dict[str, Any] = {}
+        try:
+            existing_row = self._load_candidate(
+                topic_slug,
+                resolved_run_id,
+                normalized_candidate_id,
+            )
+        except FileNotFoundError:
+            existing_row = {}
+
+        stamp = now_iso()
+        row = dict(existing_row)
+        row.update(
+            {
+                "candidate_id": normalized_candidate_id,
+                "topic_slug": topic_slug,
+                "run_id": resolved_run_id,
+                "title": normalized_title,
+                "summary": normalized_summary,
+                "claim_type": normalized_claim_type,
+                "trust_level": normalized_trust_level,
+                "status": normalized_status,
+                "promotion_status": str(
+                    (existing_row or {}).get("promotion_status") or "not_promoted"
+                ).strip()
+                or "not_promoted",
+                "updated_at": stamp,
+                "updated_by": updated_by,
+            }
+        )
+        if evidence is not None or "evidence" not in row:
+            row["evidence"] = normalized_evidence
+        if assumptions is not None or "assumptions" not in row:
+            row["assumptions"] = [
+                str(item).strip()
+                for item in (assumptions or [])
+                if str(item).strip()
+            ]
+        if origin_refs is not None or "origin_refs" not in row:
+            row["origin_refs"] = [
+                dict(ref)
+                for ref in (origin_refs or [])
+                if isinstance(ref, dict)
+            ]
+        if sub_plane is not None or "sub_plane" not in row:
+            row["sub_plane"] = normalized_sub_plane
+        if question is not None or "question" not in row:
+            row["question"] = normalized_question
+        row["created_at"] = str((existing_row or {}).get("created_at") or stamp).strip() or stamp
+
+        self._replace_candidate_row(
+            topic_slug,
+            resolved_run_id,
+            normalized_candidate_id,
+            row,
+        )
+        ledger_path = self._candidate_ledger_path(topic_slug, resolved_run_id)
+        return {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "candidate_id": normalized_candidate_id,
+            "candidate_ledger_path": self._relativize(ledger_path),
+            "candidate": row,
+        }
+
+    def submit_l4_return(
+        self,
+        *,
+        topic_slug: str,
+        result_summary: str,
+        result_classification: str = "success",
+        artifact_paths: list[str] | None = None,
+        candidate_ids: list[str] | None = None,
+        numerical_evidence: dict[str, Any] | None = None,
+        contradiction_detected: bool = False,
+        notes: str | None = None,
+        run_id: str | None = None,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        normalized_summary = str(result_summary or "").strip()
+        normalized_classification = (
+            str(result_classification or "success").strip().lower()
+        )
+        if not normalized_summary:
+            raise ValueError("result_summary is required")
+        if normalized_classification not in {"success", "partial", "failed"}:
+            raise ValueError(
+                "result_classification must be one of: success, partial, failed"
+            )
+
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        if not resolved_run_id:
+            raise FileNotFoundError(
+                f"Unable to resolve an L4 run for topic {topic_slug}"
+            )
+
+        stamp = now_iso()
+        normalized_artifact_paths = self._dedupe_strings(
+            [
+                str(self._normalize_artifact_path(path) or "").strip()
+                for path in (artifact_paths or [])
+            ]
+        )
+        validated_candidates = self._dedupe_strings(candidate_ids or [])
+        result_payload = {
+            "result_id": f"result-{uuid4().hex[:8]}",
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "status": normalized_classification,
+            "classification": normalized_classification,
+            "summary": normalized_summary,
+            "result_summary": normalized_summary,
+            "artifact_paths": normalized_artifact_paths,
+            "validated_candidates": validated_candidates,
+            "numerical_evidence": dict(numerical_evidence or {}),
+            "contradiction_detected": bool(contradiction_detected),
+            "notes": str(notes or "").strip(),
+            "completed_at": stamp,
+            "updated_at": stamp,
+            "updated_by": updated_by,
+        }
+
+        result_path = (
+            self._validation_run_root(topic_slug, resolved_run_id)
+            / "returned_execution_result.json"
+        )
+        write_json(result_path, result_payload)
+
+        runtime_root = self._runtime_root(topic_slug)
+        topic_state_path = runtime_root / "topic_state.json"
+        topic_state = read_json(topic_state_path) or {"topic_slug": topic_slug}
+        topic_state["latest_run_id"] = resolved_run_id
+        topic_state["resume_stage"] = str(topic_state.get("resume_stage") or "L3")
+        topic_state["last_materialized_stage"] = "L4"
+        pointers = dict(topic_state.get("pointers") or {})
+        pointers["returned_execution_result_path"] = self._relativize(result_path)
+        topic_state["pointers"] = pointers
+        closed_loop = dict(topic_state.get("closed_loop") or {})
+        closed_loop["status"] = "revise" if contradiction_detected else "keep"
+        closed_loop["latest_decision"] = "revise" if contradiction_detected else "keep"
+        closed_loop["result_id"] = result_payload["result_id"]
+        topic_state["closed_loop"] = closed_loop
+        layer_status = dict(topic_state.get("layer_status") or {})
+        layer_status["L4"] = {
+            "status": "returned",
+            "classification": normalized_classification,
+            "contradiction_detected": bool(contradiction_detected),
+            "run_id": resolved_run_id,
+        }
+        topic_state["layer_status"] = layer_status
+        topic_state["updated_at"] = stamp
+        topic_state["updated_by"] = updated_by
+        write_json(topic_state_path, topic_state)
+
+        interaction_state_path = runtime_root / "interaction_state.json"
+        interaction_state = read_json(interaction_state_path) or {}
+        decision_surface = dict(interaction_state.get("decision_surface") or {})
+        decision_surface["contradiction_detected"] = bool(contradiction_detected)
+        decision_surface["latest_decision"] = (
+            "revise" if contradiction_detected else "keep"
+        )
+        decision_surface["routing_decision"] = (
+            "revise" if contradiction_detected else "keep"
+        )
+        interaction_state["decision_surface"] = decision_surface
+        interaction_state["latest_l4_return"] = {
+            "result_id": result_payload["result_id"],
+            "status": normalized_classification,
+            "result_path": self._relativize(result_path),
+        }
+        interaction_state["updated_at"] = stamp
+        interaction_state["updated_by"] = updated_by
+        write_json(interaction_state_path, interaction_state)
+
+        journal_path = self._feedback_run_root(topic_slug, resolved_run_id) / "iteration_journal.json"
+        journal_payload = read_json(journal_path) or {}
+        current_iteration_id = str(
+            journal_payload.get("current_iteration_id") or ""
+        ).strip()
+        if journal_payload:
+            if str(journal_payload.get("latest_conclusion_status") or "").strip() == "pending_l4_return":
+                journal_payload["latest_conclusion_status"] = "returned"
+            journal_payload["status"] = "returned"
+            for row in journal_payload.get("iterations") or []:
+                if (
+                    str(row.get("iteration_id") or "").strip() == current_iteration_id
+                    or str(row.get("conclusion_status") or "").strip()
+                    == "pending_l4_return"
+                ):
+                    row["conclusion_status"] = "returned"
+            journal_payload["updated_at"] = stamp
+            journal_payload["updated_by"] = updated_by
+            write_json(journal_path, journal_payload)
+
+        if current_iteration_id:
+            current_return_path = (
+                self._feedback_run_root(topic_slug, resolved_run_id)
+                / "iterations"
+                / current_iteration_id
+                / "l4_return.json"
+            )
+            current_return_payload = read_json(current_return_path) or {
+                "contract_version": 1,
+                "topic_slug": topic_slug,
+                "run_id": resolved_run_id,
+                "iteration_id": current_iteration_id,
+            }
+            current_return_payload.update(
+                {
+                    "status": "returned",
+                    "returned_execution_result_path": self._relativize(result_path),
+                    "returned_result_id": result_payload["result_id"],
+                    "returned_result_status": normalized_classification,
+                    "returned_result_summary": normalized_summary,
+                    "updated_at": stamp,
+                    "updated_by": updated_by,
+                }
+            )
+            write_json(current_return_path, current_return_payload)
+
+        body_parts = [normalized_summary]
+        if result_payload["notes"]:
+            body_parts.append(result_payload["notes"])
+        if contradiction_detected:
+            body_parts.append(
+                "Contradiction detected; route the result back to L3-A for revision."
+            )
+        self._append_notebook_entry(
+            topic_slug,
+            kind="l4_return",
+            title=f"L4 return {resolved_run_id}",
+            body="\n\n".join(part for part in body_parts if part).strip(),
+            status=normalized_classification,
+            run_id=resolved_run_id,
+            details={
+                "result_id": result_payload["result_id"],
+                "classification": normalized_classification,
+                "validated_candidates": validated_candidates,
+                "artifact_count": len(normalized_artifact_paths),
+                "contradiction_detected": bool(contradiction_detected),
+            },
+        )
+
+        return {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "returned_execution_result_path": self._relativize(result_path),
+            "iteration_journal_path": self._relativize(journal_path),
+            "result": result_payload,
+        }
+
+    def list_candidates(
+        self,
+        *,
+        topic_slug: str,
+        run_id: str | None = None,
+        status: str | None = None,
+        claim_type: str | None = None,
+        trust_level: str | None = None,
+        promotion_status: str | None = None,
+    ) -> dict[str, Any]:
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        rows = self._candidate_rows_for_run(topic_slug, resolved_run_id)
+        filtered = rows
+        if status is not None:
+            normalized_status = str(status or "").strip()
+            filtered = [
+                row for row in filtered if str(row.get("status") or "").strip() == normalized_status
+            ]
+        if claim_type is not None:
+            normalized_claim_type = str(claim_type or "").strip().lower()
+            filtered = [
+                row
+                for row in filtered
+                if str(row.get("claim_type") or "").strip().lower()
+                == normalized_claim_type
+            ]
+        if trust_level is not None:
+            normalized_trust_level = str(trust_level or "").strip().lower()
+            filtered = [
+                row
+                for row in filtered
+                if str(row.get("trust_level") or "").strip().lower()
+                == normalized_trust_level
+            ]
+        if promotion_status is not None:
+            normalized_promotion_status = str(promotion_status or "").strip()
+            filtered = [
+                row
+                for row in filtered
+                if str(row.get("promotion_status") or "").strip()
+                == normalized_promotion_status
+            ]
+        return {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "count": len(filtered),
+            "candidate_ledger_path": (
+                self._relativize(self._candidate_ledger_path(topic_slug, resolved_run_id))
+                if resolved_run_id
+                else None
+            ),
+            "candidates": filtered,
+        }
+
+    def register_artifact(
+        self,
+        *,
+        topic_slug: str,
+        artifact_path: str,
+        artifact_kind: str,
+        description: str,
+        linked_candidates: list[str] | None = None,
+        run_id: str | None = None,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        normalized_artifact_path = str(artifact_path or "").strip()
+        normalized_artifact_kind = str(artifact_kind or "").strip().lower()
+        normalized_description = str(description or "").strip()
+        if not normalized_artifact_path:
+            raise ValueError("artifact_path is required")
+        if not normalized_description:
+            raise ValueError("description is required")
+        if normalized_artifact_kind not in {
+            "plot",
+            "data",
+            "script",
+            "log",
+            "derivation",
+        }:
+            raise ValueError(
+                "artifact_kind must be one of: plot, data, script, log, derivation"
+            )
+
+        resolved_run_id = self._resolve_run_id(topic_slug, run_id)
+        if not resolved_run_id:
+            raise FileNotFoundError(
+                f"Unable to resolve an L3 run for topic {topic_slug}"
+            )
+
+        source_path = Path(normalized_artifact_path).expanduser()
+        if not source_path.is_absolute():
+            candidates = [
+                (self.repo_root / source_path).resolve(),
+                (self.kernel_root / source_path).resolve(),
+                (Path.cwd() / source_path).resolve(),
+            ]
+            source_path = next((path for path in candidates if path.exists()), candidates[0])
+        else:
+            source_path = source_path.resolve()
+        if not source_path.exists():
+            raise FileNotFoundError(f"Artifact not found: {normalized_artifact_path}")
+        if not source_path.is_file():
+            raise ValueError(f"Artifact path must be a file: {source_path}")
+
+        results_root = self._feedback_run_root(topic_slug, resolved_run_id) / "results"
+        destination_path = results_root / source_path.name
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        if destination_path.resolve() != source_path:
+            shutil.copy2(source_path, destination_path)
+
+        stamp = now_iso()
+        normalized_linked_candidates = self._dedupe_strings(linked_candidates or [])
+        artifact_row = {
+            "artifact_id": f"artifact-{uuid4().hex[:8]}",
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "artifact_kind": normalized_artifact_kind,
+            "artifact_path": self._relativize(destination_path),
+            "source_path": self._normalize_artifact_path(source_path),
+            "description": normalized_description,
+            "linked_candidates": normalized_linked_candidates,
+            "registered_at": stamp,
+            "updated_at": stamp,
+            "updated_by": updated_by,
+        }
+        registry_path = (
+            self._feedback_run_root(topic_slug, resolved_run_id)
+            / "artifact_registry.jsonl"
+        )
+        existing_rows = read_jsonl(registry_path)
+        existing_rows.append(artifact_row)
+        write_jsonl(registry_path, existing_rows)
+
+        updated_candidates: list[str] = []
+        if normalized_linked_candidates:
+            origin_ref = {
+                "path": artifact_row["artifact_path"],
+                "title": normalized_description,
+                "kind": normalized_artifact_kind,
+                "artifact_id": artifact_row["artifact_id"],
+            }
+            for candidate_ref in normalized_linked_candidates:
+                candidate_row = dict(
+                    self._load_candidate(topic_slug, resolved_run_id, candidate_ref)
+                )
+                origin_refs = [
+                    dict(ref)
+                    for ref in (candidate_row.get("origin_refs") or [])
+                    if isinstance(ref, dict)
+                ]
+                if not any(
+                    str(ref.get("path") or "").strip() == artifact_row["artifact_path"]
+                    for ref in origin_refs
+                ):
+                    origin_refs.append(origin_ref)
+                candidate_row["origin_refs"] = origin_refs
+                candidate_row["updated_at"] = stamp
+                candidate_row["updated_by"] = updated_by
+                self._replace_candidate_row(
+                    topic_slug,
+                    resolved_run_id,
+                    candidate_ref,
+                    candidate_row,
+                )
+                updated_candidates.append(candidate_ref)
+
+        return {
+            "topic_slug": topic_slug,
+            "run_id": resolved_run_id,
+            "artifact_registry_path": self._relativize(registry_path),
+            "artifact": artifact_row,
+            "updated_candidates": updated_candidates,
+        }
 
     def request_promotion(
         self,

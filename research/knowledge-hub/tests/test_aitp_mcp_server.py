@@ -18,6 +18,7 @@ def _bootstrap_path() -> None:
 _bootstrap_path()
 
 from knowledge_hub import aitp_mcp_server
+from knowledge_hub.aitp_service import AITPService
 
 
 def _parse(result: str) -> dict:
@@ -32,6 +33,7 @@ READ_ONLY_PROFILE_TOOLS = {
     "aitp_get_runtime_state",
     "aitp_get_topic_interaction",
     "aitp_get_required_read_gate",
+    "aitp_list_candidates",
     "aitp_list_pending_decisions",
     "aitp_list_tool_manifest",
     "aitp_get_popup",
@@ -67,6 +69,9 @@ WRITE_PROFILE_TOOLS = {
     "aitp_run_topic_loop",
     "aitp_install_agent_wrapper",
     "aitp_record_classification",
+    "aitp_register_artifact",
+    "aitp_submit_l4_return",
+    "aitp_write_candidate",
 }
 
 
@@ -156,6 +161,52 @@ class _AITPStubSuccess:
 
     def install_agent(self, **kwargs):  # noqa: ANN003
         return {"installed": [{"path": "/tmp/demo", "kind": "skill"}]}
+
+    def write_candidate(self, **kwargs):  # noqa: ANN003
+        candidate_id = kwargs.get("candidate_id") or "cand-demo"
+        run_id = kwargs.get("run_id") or "run-001"
+        return {
+            "candidate_id": candidate_id,
+            "run_id": run_id,
+            "candidate": {
+                "candidate_id": candidate_id,
+                "title": kwargs.get("title") or "Demo candidate",
+                "claim_type": kwargs.get("claim_type") or "numerical",
+            },
+        }
+
+    def submit_l4_return(self, **kwargs):  # noqa: ANN003
+        run_id = kwargs.get("run_id") or "run-001"
+        return {
+            "run_id": run_id,
+            "returned_execution_result_path": f"topics/{kwargs.get('topic_slug') or 'demo-topic'}/L4/runs/{run_id}/returned_execution_result.json",
+            "result": {
+                "status": kwargs.get("result_classification") or "success",
+                "summary": kwargs.get("result_summary") or "Demo return",
+            },
+        }
+
+    def list_candidates(self, **kwargs):  # noqa: ANN003
+        candidate_id = kwargs.get("candidate_id") or "cand-demo"
+        return {
+            "topic_slug": kwargs.get("topic_slug") or "demo-topic",
+            "run_id": kwargs.get("run_id") or "run-001",
+            "count": 1,
+            "candidates": [{"candidate_id": candidate_id, "claim_type": "numerical"}],
+        }
+
+    def register_artifact(self, **kwargs):  # noqa: ANN003
+        run_id = kwargs.get("run_id") or "run-001"
+        return {
+            "topic_slug": kwargs.get("topic_slug") or "demo-topic",
+            "run_id": run_id,
+            "artifact": {
+                "artifact_id": "artifact-demo",
+                "artifact_kind": kwargs.get("artifact_kind") or "plot",
+                "artifact_path": kwargs.get("artifact_path") or "results/demo.txt",
+            },
+            "artifact_registry_path": f"topics/{kwargs.get('topic_slug') or 'demo-topic'}/L3/runs/{run_id}/artifact_registry.jsonl",
+        }
 
     def topic_popup(self, *, topic_slug: str, updated_by: str = "aitp-mcp"):
         return {
@@ -256,6 +307,18 @@ class _AITPStubFailure:
 
     def install_agent(self, **kwargs):  # noqa: ANN003
         raise RuntimeError("install boom")
+
+    def write_candidate(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("write candidate boom")
+
+    def submit_l4_return(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("submit l4 return boom")
+
+    def list_candidates(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("list candidates boom")
+
+    def register_artifact(self, **kwargs):  # noqa: ANN003
+        raise RuntimeError("register artifact boom")
 
     def topic_popup(self, *, topic_slug: str, updated_by: str = "aitp-mcp"):
         raise RuntimeError("popup boom")
@@ -431,6 +494,29 @@ class AITPMCPServerTests(unittest.TestCase):
                     resolved_popup = _parse(aitp_mcp_server.aitp_resolve_popup("demo-topic", 1))
                     popup = _parse(aitp_mcp_server.aitp_get_popup("demo-topic"))
                     resolved_popup = _parse(aitp_mcp_server.aitp_resolve_popup("demo-topic", 1))
+                    write_candidate = _parse(
+                        aitp_mcp_server.aitp_write_candidate(
+                            "demo-topic",
+                            "Demo candidate",
+                            "numerical",
+                            "A bounded demo candidate.",
+                        )
+                    )
+                    list_candidates = _parse(aitp_mcp_server.aitp_list_candidates("demo-topic"))
+                    submit_l4_return = _parse(
+                        aitp_mcp_server.aitp_submit_l4_return(
+                            "demo-topic",
+                            "Benchmark completed successfully.",
+                        )
+                    )
+                    register_artifact = _parse(
+                        aitp_mcp_server.aitp_register_artifact(
+                            "demo-topic",
+                            "results/demo.txt",
+                            "plot",
+                            "Demo artifact",
+                        )
+                    )
                     loop = _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic"))
                     install = _parse(aitp_mcp_server.aitp_install_agent_wrapper("codex"))
 
@@ -474,6 +560,10 @@ class AITPMCPServerTests(unittest.TestCase):
         self.assertEqual(ack_read["status"], "success")
         self.assertEqual(ack_read["acknowledged_count"], 2)
         self.assertEqual(resolved_popup["status"], "resolved")
+        self.assertEqual(write_candidate["status"], "success")
+        self.assertEqual(list_candidates["status"], "success")
+        self.assertEqual(submit_l4_return["status"], "success")
+        self.assertEqual(register_artifact["status"], "success")
         self.assertEqual(loop["status"], "success")
         self.assertEqual(install["status"], "success")
 
@@ -533,6 +623,29 @@ class AITPMCPServerTests(unittest.TestCase):
                         _parse(aitp_mcp_server.aitp_get_required_read_gate("demo-topic")),
                         _parse(aitp_mcp_server.aitp_ack_required_reads("demo-topic", all_current=True)),
                         _parse(aitp_mcp_server.aitp_resolve_popup("demo-topic", 1)),
+                        _parse(
+                            aitp_mcp_server.aitp_write_candidate(
+                                "demo-topic",
+                                "Demo candidate",
+                                "numerical",
+                                "A bounded demo candidate.",
+                            )
+                        ),
+                        _parse(aitp_mcp_server.aitp_list_candidates("demo-topic")),
+                        _parse(
+                            aitp_mcp_server.aitp_submit_l4_return(
+                                "demo-topic",
+                                "Benchmark completed successfully.",
+                            )
+                        ),
+                        _parse(
+                            aitp_mcp_server.aitp_register_artifact(
+                                "demo-topic",
+                                "results/demo.txt",
+                                "plot",
+                                "Demo artifact",
+                            )
+                        ),
                         _parse(aitp_mcp_server.aitp_run_topic_loop(topic_slug="demo-topic")),
                         _parse(aitp_mcp_server.aitp_install_agent_wrapper("codex")),
                     ]
@@ -686,6 +799,358 @@ class AITPMCPServerTests(unittest.TestCase):
         self.assertEqual(payload["status"], "success")
         self.assertTrue(payload["needs_ack"])
         self.assertEqual(payload["gate_kind"], "must_read_ack")
+
+
+class AITPMCPServerBridgeIntegrationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tempdir.cleanup)
+        self.kernel_root = Path(self.tempdir.name) / "kernel"
+        (self.kernel_root / "runtime" / "scripts").mkdir(parents=True, exist_ok=True)
+        (self.kernel_root / "runtime" / "scripts" / "orchestrate_topic.py").write_text(
+            "#!/usr/bin/env python3\n",
+            encoding="utf-8",
+        )
+        self.repo_root = Path(__file__).resolve().parents[3]
+        self.service = AITPService(kernel_root=self.kernel_root, repo_root=self.repo_root)
+        self.topic_slug = "demo-topic"
+        self.run_id = "run-001"
+        self._service_patch = patch.object(aitp_mcp_server, "service", self.service)
+        self._service_patch.start()
+        self.addCleanup(self._service_patch.stop)
+        self._seed_topic()
+
+    def _write_json(self, path: Path, payload: dict) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+
+    def _read_json(self, path: Path) -> dict:
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def _read_jsonl(self, path: Path) -> list[dict]:
+        if not path.exists():
+            return []
+        rows: list[dict] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+        return rows
+
+    def _seed_topic(self) -> None:
+        runtime_root = self.service._runtime_root(self.topic_slug)
+        self._write_json(
+            runtime_root / "topic_state.json",
+            {
+                "topic_slug": self.topic_slug,
+                "latest_run_id": self.run_id,
+                "resume_stage": "L3",
+                "last_materialized_stage": "L3",
+                "research_mode": "implement",
+                "pointers": {},
+            },
+        )
+        self._write_json(
+            runtime_root / "interaction_state.json",
+            {
+                "human_request": "Inspect the returned bounded result and continue if needed.",
+                "decision_surface": {
+                    "decision_source": "heuristic",
+                    "selected_action_id": f"action:{self.topic_slug}:benchmark",
+                },
+            },
+        )
+        (runtime_root / "action_queue.jsonl").write_text(
+            json.dumps(
+                {
+                    "action_id": f"action:{self.topic_slug}:benchmark",
+                    "status": "pending",
+                    "action_type": "numerical_validation",
+                    "summary": "Run the bounded numerical benchmark and return the result.",
+                    "auto_runnable": False,
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        feedback_root = self.service._feedback_run_root(self.topic_slug, self.run_id)
+        validation_root = self.service._validation_run_root(self.topic_slug, self.run_id)
+        iteration_root = feedback_root / "iterations" / "iteration-001"
+        iteration_root.mkdir(parents=True, exist_ok=True)
+        validation_root.mkdir(parents=True, exist_ok=True)
+        self._write_json(
+            iteration_root / "l4_return.json",
+            {
+                "contract_version": 1,
+                "topic_slug": self.topic_slug,
+                "run_id": self.run_id,
+                "iteration_id": "iteration-001",
+                "status": "pending",
+                "execution_task_path": "",
+                "validation_review_bundle_path": "",
+                "returned_execution_result_path": "",
+                "returned_result_id": "",
+                "returned_result_status": "",
+                "returned_result_summary": "",
+                "updated_at": "2026-04-19T08:00:00+08:00",
+                "updated_by": "test",
+            },
+        )
+        self._write_json(
+            iteration_root / "l3_synthesis.json",
+            {
+                "contract_version": 1,
+                "topic_slug": self.topic_slug,
+                "run_id": self.run_id,
+                "iteration_id": "iteration-001",
+                "status": "pending",
+                "conclusion_status": "pending_l4_return",
+                "staging_decision": "none",
+                "promotion_readiness_status": "",
+                "returned_execution_result_path": "",
+                "validation_review_bundle_path": "",
+                "synthesis_summary": "Await the first durable L4 return before summarizing this iteration.",
+                "next_step_summary": "Do not stage or conclude the run yet. Wait for the returned execution artifact.",
+                "staging_entry": {},
+                "workspace_staging_manifest_path": "",
+                "workspace_staging_manifest_note_path": "",
+                "updated_at": "2026-04-19T08:00:00+08:00",
+                "updated_by": "test",
+            },
+        )
+        self._write_json(
+            feedback_root / "iteration_journal.json",
+            {
+                "contract_version": 1,
+                "topic_slug": self.topic_slug,
+                "run_id": self.run_id,
+                "status": "iterating",
+                "current_iteration_id": "iteration-001",
+                "iteration_ids": ["iteration-001"],
+                "latest_conclusion_status": "pending_l4_return",
+                "latest_staging_decision": "none",
+                "latest_staging_entry": {},
+                "workspace_staging_manifest_path": "",
+                "workspace_staging_manifest_note_path": "",
+                "iterations": [
+                    {
+                        "iteration_id": "iteration-001",
+                        "plan_note_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iterations/iteration-001/plan.md",
+                        "l4_return_note_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iterations/iteration-001/l4_return.md",
+                        "l3_synthesis_note_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iterations/iteration-001/l3_synthesis.md",
+                        "conclusion_status": "pending_l4_return",
+                        "staging_entry_id": "",
+                        "staging_entry_note_path": "",
+                    }
+                ],
+                "latest_paths": {
+                    "journal_note_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iteration_journal.md",
+                    "current_plan_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iterations/iteration-001/plan.contract.json",
+                    "current_return_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iterations/iteration-001/l4_return.json",
+                    "current_synthesis_path": f"topics/{self.topic_slug}/L3/runs/{self.run_id}/iterations/iteration-001/l3_synthesis.json",
+                },
+                "updated_at": "2026-04-19T08:00:00+08:00",
+                "updated_by": "test",
+            },
+        )
+
+    def test_aitp_write_candidate_persists_ledger_and_notebook_entry(self) -> None:
+        payload = _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Finite-size benchmark signal",
+                "numerical",
+                "Gap-ratio data is compatible with the bounded benchmark window.",
+                evidence="Exact diagonalization on the smallest system family.",
+                assumptions=["Finite-size drift stays within the bounded tolerance window."],
+                origin_refs=[{"path": f"topics/{self.topic_slug}/L0/source_index.jsonl", "title": "Seed source"}],
+                sub_plane="L3-A",
+            )
+        )
+
+        self.assertEqual(payload["status"], "success")
+        self.assertEqual(payload["run_id"], self.run_id)
+        self.assertTrue(payload["candidate_id"].startswith("cand-"))
+
+        rows = self._read_jsonl(self.service._candidate_ledger_path(self.topic_slug, self.run_id))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["claim_type"], "numerical")
+        self.assertEqual(rows[0]["promotion_status"], "not_promoted")
+
+        notebook_entries = self._read_jsonl(
+            self.service._l3_root(self.topic_slug) / "research_notebook_entries.jsonl"
+        )
+        self.assertEqual(notebook_entries[-1]["kind"], "candidate_update")
+        self.assertEqual(
+            notebook_entries[-1]["details"]["candidate_id"],
+            payload["candidate_id"],
+        )
+
+    def test_aitp_write_candidate_rejects_invalid_claim_type(self) -> None:
+        payload = _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Invalid claim",
+                "unsupported",
+                "This should fail validation.",
+            )
+        )
+
+        self.assertEqual(payload["status"], "error")
+        self.assertIn("claim_type", payload["error"])
+        self.assertEqual(
+            self._read_jsonl(self.service._candidate_ledger_path(self.topic_slug, self.run_id)),
+            [],
+        )
+
+    def test_aitp_write_candidate_overwrites_existing_candidate_id(self) -> None:
+        first = _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Bounded candidate",
+                "analytical",
+                "First draft of the bounded candidate.",
+                candidate_id="cand-fixed",
+                trust_level="provisional",
+            )
+        )
+        second = _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Bounded candidate",
+                "analytical",
+                "Updated draft with stronger analytical support.",
+                candidate_id="cand-fixed",
+                trust_level="validated",
+            )
+        )
+
+        self.assertEqual(first["status"], "success")
+        self.assertEqual(second["status"], "success")
+        rows = self._read_jsonl(self.service._candidate_ledger_path(self.topic_slug, self.run_id))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["candidate_id"], "cand-fixed")
+        self.assertEqual(rows[0]["summary"], "Updated draft with stronger analytical support.")
+        self.assertEqual(rows[0]["trust_level"], "validated")
+
+    def test_aitp_list_candidates_applies_filters(self) -> None:
+        _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Numerical signal",
+                "numerical",
+                "Provisional numerical signal.",
+            )
+        )
+        _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Literature route",
+                "literature",
+                "Validated literature-backed route.",
+                trust_level="validated",
+                status="archived",
+                candidate_id="cand-literature",
+            )
+        )
+
+        payload = _parse(
+            aitp_mcp_server.aitp_list_candidates(
+                self.topic_slug,
+                status="archived",
+                claim_type="literature",
+                trust_level="validated",
+            )
+        )
+
+        self.assertEqual(payload["status"], "success")
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["candidates"][0]["candidate_id"], "cand-literature")
+
+    def test_aitp_register_artifact_records_registry_and_links_candidate(self) -> None:
+        _parse(
+            aitp_mcp_server.aitp_write_candidate(
+                self.topic_slug,
+                "Linked candidate",
+                "numerical",
+                "Candidate waiting for artifact evidence.",
+                candidate_id="cand-linked",
+            )
+        )
+        artifact_source = self.kernel_root / "scratch" / "level-spacing.txt"
+        artifact_source.parent.mkdir(parents=True, exist_ok=True)
+        artifact_source.write_text("demo artifact\n", encoding="utf-8")
+
+        payload = _parse(
+            aitp_mcp_server.aitp_register_artifact(
+                self.topic_slug,
+                str(artifact_source),
+                "plot",
+                "Bounded level-spacing output",
+                linked_candidates=["cand-linked"],
+            )
+        )
+
+        self.assertEqual(payload["status"], "success")
+        registry_rows = self._read_jsonl(
+            self.service._feedback_run_root(self.topic_slug, self.run_id) / "artifact_registry.jsonl"
+        )
+        self.assertEqual(len(registry_rows), 1)
+        self.assertEqual(registry_rows[0]["artifact_kind"], "plot")
+
+        copied_artifact = self.kernel_root.joinpath(*payload["artifact"]["artifact_path"].split("/"))
+        self.assertTrue(copied_artifact.exists())
+
+        candidate_rows = self._read_jsonl(self.service._candidate_ledger_path(self.topic_slug, self.run_id))
+        linked_candidate = next(row for row in candidate_rows if row["candidate_id"] == "cand-linked")
+        self.assertTrue(any(ref.get("path") == payload["artifact"]["artifact_path"] for ref in linked_candidate["origin_refs"]))
+
+    def test_aitp_submit_l4_return_writes_result_updates_journal_and_flags_contradiction(self) -> None:
+        artifact_path = self.service._feedback_run_root(self.topic_slug, self.run_id) / "results" / "gap-ratio.txt"
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        artifact_path.write_text("0.53\n", encoding="utf-8")
+
+        payload = _parse(
+            aitp_mcp_server.aitp_submit_l4_return(
+                self.topic_slug,
+                "The bounded ED benchmark returned a partial signal and needs one more revision pass.",
+                result_classification="partial",
+                artifact_paths=[self.service._relativize(artifact_path)],
+                candidate_ids=["cand-linked"],
+                numerical_evidence={"gap_ratio_mean": 0.53, "system_sizes": [6, 8, 10]},
+                contradiction_detected=True,
+                notes="The largest system drifts away from the smaller-size trend.",
+            )
+        )
+
+        self.assertEqual(payload["status"], "success")
+
+        returned_result_path = self.service._validation_run_root(self.topic_slug, self.run_id) / "returned_execution_result.json"
+        self.assertTrue(returned_result_path.exists())
+        returned_result = self._read_json(returned_result_path)
+        self.assertEqual(returned_result["status"], "partial")
+        self.assertEqual(returned_result["classification"], "partial")
+        self.assertEqual(
+            returned_result["result_summary"],
+            "The bounded ED benchmark returned a partial signal and needs one more revision pass.",
+        )
+
+        journal_payload = self._read_json(
+            self.service._feedback_run_root(self.topic_slug, self.run_id) / "iteration_journal.json"
+        )
+        self.assertEqual(journal_payload["latest_conclusion_status"], "returned")
+        self.assertEqual(journal_payload["iterations"][0]["conclusion_status"], "returned")
+
+        notebook_entries = self._read_jsonl(
+            self.service._l3_root(self.topic_slug) / "research_notebook_entries.jsonl"
+        )
+        self.assertEqual(notebook_entries[-1]["kind"], "l4_return")
+
+        interaction_state = self._read_json(self.service._runtime_root(self.topic_slug) / "interaction_state.json")
+        self.assertTrue(interaction_state["decision_surface"]["contradiction_detected"])
+        self.assertEqual(interaction_state["decision_surface"]["latest_decision"], "revise")
 
     def test_resume_topic_returns_required_read_gate_before_orchestrate_when_reads_are_missing(self) -> None:
         class _GateStub:
