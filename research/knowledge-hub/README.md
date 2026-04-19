@@ -38,6 +38,13 @@ aitp doctor
 aitp --help
 ```
 
+Optional PaperQA-backed topic consultation is available on Python 3.11+:
+
+```bash
+python -m pip install "aitp-kernel[paperqa]"
+aitp consult-paperqa --topic-slug <topic_slug> --query-text "<question>" --llm anthropic/claude-3-5-sonnet-20240620
+```
+
 Maintainers can verify that a published-style wheel really installs and runs in
 an isolated environment with:
 
@@ -167,6 +174,7 @@ aitp replay-topic --topic-slug <topic_slug>
 aitp stage-l2-provisional --topic-slug <topic_slug> --entry-kind <kind> --title "<title>" --summary "<summary>"
 aitp seed-l2-direction --direction tfim-benchmark-first
 aitp consult-l2 --query-text "TFIM exact diagonalization benchmark workflow" --retrieval-profile l3_candidate_formation
+aitp consult-paperqa --topic-slug <topic_slug> --query-text "What do these topic papers say about the screening bottleneck?" --llm anthropic/claude-3-5-sonnet-20240620
 aitp compile-l2-map
 aitp compile-l2-graph-report
 aitp compile-l2-knowledge-report

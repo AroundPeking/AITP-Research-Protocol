@@ -6002,6 +6002,70 @@ class AITPServiceTests(unittest.TestCase):
         )
         self.assertTrue(projection_log.exists())
 
+    def test_consult_paperqa_collects_topic_sources_and_normalizes_payload(self) -> None:
+        topic_slug = "demo-topic"
+        local_note = self.root / "notes" / "paperqa-seed.md"
+        local_note.parent.mkdir(parents=True, exist_ok=True)
+        local_note.write_text("# Seed note\n", encoding="utf-8")
+        source_index_path = self._l0_root(topic_slug) / "source_index.jsonl"
+        source_index_path.parent.mkdir(parents=True, exist_ok=True)
+        source_index_path.write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {
+                            "source_id": "note:seed",
+                            "source_type": "note",
+                            "title": "Seed note",
+                            "locator": {"local_path": str(local_note)},
+                        },
+                        ensure_ascii=True,
+                    ),
+                    json.dumps(
+                        {
+                            "source_id": "paper:demo-1",
+                            "source_type": "paper",
+                            "title": "Dielectric learning for GW",
+                            "provenance": {"pdf_url": "https://arxiv.org/pdf/2305.02990.pdf"},
+                        },
+                        ensure_ascii=True,
+                    ),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        with patch(
+            "knowledge_hub.aitp_service.run_paperqa_consultation",
+            return_value={
+                "status": "ok",
+                "mode": "query",
+                "answer": "PaperQA answer",
+                "formatted_answer": "PaperQA answer",
+                "context_count": 2,
+            },
+        ) as mock_run:
+            payload = self.service.consult_paperqa(
+                topic_slug=topic_slug,
+                query_text="How should I accelerate screening?",
+                llm="anthropic/claude-3-5-sonnet-20240620",
+                max_sources=6,
+                updated_by="test-suite",
+            )
+
+        self.assertEqual(payload["topic_slug"], topic_slug)
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["source_count"], 2)
+        self.assertEqual(payload["source_index_path"], "topics/demo-topic/L0/source_index.jsonl")
+        mock_run.assert_called_once()
+        self.assertEqual(
+            mock_run.call_args.kwargs["llm"],
+            "anthropic/claude-3-5-sonnet-20240620",
+        )
+        self.assertEqual(mock_run.call_args.kwargs["summary_llm"], None)
+        self.assertEqual(len(mock_run.call_args.kwargs["resolved_sources"]), 2)
+
     def test_ensure_topic_shell_surfaces_materializes_progressive_reuse_contexts_and_execution_resources(self) -> None:
         self._prepare_l2_graph_kernel()
         self.service.seed_l2_direction(
@@ -13157,7 +13221,6 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("aitp-review", claude_payload["mcpServers"])
         self.assertNotIn("aitp", claude_payload["mcpServers"])
         self.assertEqual(claude_payload["mcpServers"]["aitp-review"]["env"]["AITP_MCP_PROFILE"], "review")
-
 
 
 

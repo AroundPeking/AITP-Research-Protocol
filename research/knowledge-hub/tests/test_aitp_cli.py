@@ -783,6 +783,44 @@ class AITPCLITests(unittest.TestCase):
             record_consultation=True,
         )
 
+    def test_main_dispatches_consult_paperqa(self) -> None:
+        with patch.object(aitp_cli, "_service_from_args") as mock_factory:
+            mock_service = MagicMock()
+            mock_service.consult_paperqa.return_value = {"status": "ok", "mode": "query"}
+            mock_factory.return_value = mock_service
+            with patch.object(
+                sys,
+                "argv",
+                [
+                    "aitp",
+                    "consult-paperqa",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--query-text",
+                    "How should I accelerate screening?",
+                    "--llm",
+                    "anthropic/claude-3-5-sonnet-20240620",
+                    "--summary-llm",
+                    "anthropic/claude-3-5-haiku-20241022",
+                    "--embedding",
+                    "st-multi-qa-MiniLM-L6-cos-v1",
+                    "--max-sources",
+                    "6",
+                ],
+            ):
+                exit_code = aitp_cli.main()
+
+        self.assertEqual(exit_code, 0)
+        mock_service.consult_paperqa.assert_called_once_with(
+            topic_slug="demo-topic",
+            query_text="How should I accelerate screening?",
+            llm="anthropic/claude-3-5-sonnet-20240620",
+            summary_llm="anthropic/claude-3-5-haiku-20241022",
+            embedding="st-multi-qa-MiniLM-L6-cos-v1",
+            max_sources=6,
+            updated_by="aitp-cli",
+        )
+
     def test_main_dispatches_compile_l2_map(self) -> None:
         with patch.object(aitp_cli, "_service_from_args") as mock_factory:
             mock_service = MagicMock()

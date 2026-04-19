@@ -31,6 +31,7 @@ from .topic_replay import materialize_topic_replay_bundle
 from .cli_l1_graph_handler import dispatch_l1_graph_command, register_l1_graph_commands
 from .cli_l2_graph_handler import dispatch_l2_graph_command, register_l2_graph_commands
 from .cli_l2_compiler_handler import dispatch_l2_compiler_command, register_l2_compiler_commands
+from .cli_paperqa_handler import dispatch_paperqa_command, register_paperqa_commands
 from .cli_source_catalog_handler import dispatch_source_catalog_command, register_source_catalog_commands
 from .mode_registry import normalize_runtime_mode
 
@@ -556,6 +557,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     register_l2_graph_commands(subparsers)
     register_l1_graph_commands(subparsers)
+    register_paperqa_commands(subparsers)
     register_source_catalog_commands(subparsers)
 
     focus_topic = subparsers.add_parser("focus-topic", help="Move registry focus to a specific topic")
@@ -1510,6 +1512,11 @@ def _main_with_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -
     l2_graph_payload = dispatch_l2_graph_command(args, service)
     if l2_graph_payload is not None:
         _emit(l2_graph_payload, args.json)
+        return 0
+
+    paperqa_payload = dispatch_paperqa_command(args, service)
+    if paperqa_payload is not None:
+        _emit(paperqa_payload, args.json)
         return 0
 
     source_catalog_payload = dispatch_source_catalog_command(args, service)

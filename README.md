@@ -76,6 +76,13 @@ aitp --version
 aitp doctor
 ```
 
+Optional PaperQA-backed topic consultation is available on Python 3.11+:
+
+```bash
+python -m pip install "aitp-kernel[paperqa]"
+aitp consult-paperqa --topic-slug <topic_slug> --query-text "<question>" --llm anthropic/claude-3-5-sonnet-20240620
+```
+
 Then install the platform adapter you use:
 
 ### Codex (recommended)
@@ -179,6 +186,7 @@ Useful follow-up reads:
 - `aitp compile-source-family --source-type paper`
 - `aitp export-source-bibtex --canonical-source-id <canonical_source_id>`
 - `aitp import-bibtex-sources --topic-slug <topic_slug> --bibtex-path <path-to-bib-file>`
+- `aitp consult-paperqa --topic-slug <topic_slug> --query-text "<question>" --llm anthropic/<model>`
 
 ### 3. Lightweight idea-first exploration
 

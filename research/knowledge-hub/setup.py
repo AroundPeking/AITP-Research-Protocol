@@ -48,6 +48,11 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*", "examples"]),
     python_requires=">=3.10",
     install_requires=REQUIREMENTS,
+    extras_require={
+        "paperqa": [
+            "paper-qa; python_version>='3.11'",
+        ],
+    },
     cmdclass={"build_py": BuildPyWithKernelBundle},
     entry_points={
         "console_scripts": [

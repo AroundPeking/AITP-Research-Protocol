@@ -34,6 +34,24 @@ The repo itself should stay project code, protocol, and public docs only.
 The runtime package currently declares `python_requires=">=3.10"` in
 `research/knowledge-hub/setup.py`.
 
+## Optional PaperQA integration
+
+AITP can expose a PaperQA-backed topic consultation path without making it a
+hard dependency of the kernel.
+
+If you want `aitp consult-paperqa`, use a Python 3.11+ environment and install:
+
+```bash
+python -m pip install "aitp-kernel[paperqa]"
+```
+
+Important boundary:
+
+- the core AITP kernel still supports Python 3.10+
+- the optional `paperqa` extra requires Python 3.11+
+- `consult-paperqa` also expects provider-prefixed LiteLLM model names such as
+  `anthropic/claude-3-5-sonnet-20240620`
+
 ## Contributor / local-dev install
 
 If you are changing this repository itself, keep the editable install lane:
@@ -41,6 +59,12 @@ If you are changing this repository itself, keep the editable install lane:
 ```bash
 python -m pip install -e research/knowledge-hub
 aitp doctor
+```
+
+If you also want the optional PaperQA integration in local development, use:
+
+```bash
+python -m pip install -e "research/knowledge-hub[paperqa]"
 ```
 
 That path is still the right one for runtime development, local patching, and

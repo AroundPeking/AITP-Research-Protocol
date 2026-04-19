@@ -85,6 +85,10 @@ from .l2_consultation_support import (
     build_l2_consultation_record,
     consultation_projection_path,
 )
+from .paperqa_support import (
+    collect_topic_paperqa_sources,
+    run_paperqa_consultation,
+)
 from .consultation_followup_support import (
     DEFAULT_CONSULTATION_RETRIEVAL_PROFILE,
     build_consultation_followup_selection_payload,
@@ -11684,6 +11688,50 @@ class AITPService:
         }
         write_json(result_path, result_payload)
         return {**payload, "consultation": consultation_paths}
+
+    def consult_paperqa(
+        self,
+        *,
+        topic_slug: str,
+        query_text: str,
+        llm: str | None = None,
+        summary_llm: str | None = None,
+        embedding: str | None = None,
+        max_sources: int = 8,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        source_payload = collect_topic_paperqa_sources(
+            self.kernel_root,
+            topic_slug,
+            max_sources=max_sources,
+        )
+        paperqa_payload = run_paperqa_consultation(
+            query_text=query_text,
+            resolved_sources=source_payload["resolved_sources"],
+            llm=llm,
+            summary_llm=summary_llm,
+            embedding=embedding,
+        )
+        normalized_sources: list[dict[str, Any]] = []
+        for row in source_payload["resolved_sources"]:
+            normalized = dict(row)
+            if normalized.get("kind") == "file":
+                normalized["input"] = self._relativize(Path(str(normalized["input"])))
+            normalized_sources.append(normalized)
+        return {
+            "topic_slug": topic_slug,
+            "query_text": query_text,
+            "updated_by": updated_by,
+            "source_count": len(source_payload["resolved_sources"]),
+            "source_index_path": (
+                self._relativize(source_payload["source_index_path"])
+                if Path(source_payload["source_index_path"]).exists()
+                else str(source_payload["source_index_path"])
+            ),
+            "resolved_sources": normalized_sources,
+            "source_diagnostics": source_payload["source_diagnostics"],
+            **paperqa_payload,
+        }
 
     def compile_l2_workspace_map(self) -> dict[str, Any]:
         return materialize_workspace_memory_map(self.kernel_root)
