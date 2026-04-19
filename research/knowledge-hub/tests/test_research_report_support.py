@@ -158,12 +158,35 @@ def test_materialize_research_report_builds_physicist_facing_sections_and_qualif
                 "assumptions": ["Weak coupling."],
                 "source_refs": ["Lecture Notes A §2 eq.(4)"],
                 "provenance_note": "AI provisional reasoning.",
+                "target_source_location": "Lecture Notes A §2 eq.(4)",
+                "source_anchor_table": [
+                    {
+                        "step_label": "Step 1",
+                        "source_anchor": "Lecture Notes A §2 eq.(4)",
+                        "formula_anchor": "lecture-a#eq:4",
+                        "step_origin": "source_statement",
+                        "equation_excerpt": "k = (1/2\\pi) \\int F",
+                    }
+                ],
+                "derivation_step_audit": {
+                    "step_count": 1,
+                    "auditable_step_count": 1,
+                    "source_anchored_step_count": 1,
+                    "formula_anchored_step_count": 1,
+                    "source_statement_step_count": 1,
+                    "l3_completion_step_count": 0,
+                    "missing_by_step": [],
+                    "has_full_auditable_spine": True,
+                },
                 "derivation_steps": [
                     {
                         "label": "Step 1",
                         "equation": "k = (1/2\\pi) \\int F",
                         "justification": "Source equation.",
+                        "equality_reason": "Directly quoted source formula.",
                         "source_anchor": "Lecture Notes A §2 eq.(4)",
+                        "formula_anchor": "lecture-a#eq:4",
+                        "step_origin": "source_statement",
                         "is_l3_completion": False,
                         "assumption_dependencies": ["Weak coupling."],
                     }
@@ -195,6 +218,8 @@ def test_materialize_research_report_builds_physicist_facing_sections_and_qualif
     assert payload["observables_or_decision_targets"] == ["Hall-response coefficient"]
     assert payload["current_dispute_or_bottleneck"] == "One normalization factor remains unresolved."
     assert payload["convention_ledger"]
+    assert payload["target_source_location"] == "Lecture Notes A §2 eq.(4)"
+    assert payload["source_anchor_table"][0]["formula_anchor"] == "lecture-a#eq:4"
     assert payload["round_development"][0]["round_type"] == "derivation_round"
     assert payload["round_development"][0]["claim_readiness"] == "qualified"
     assert payload["round_development"][0]["missing_blocks"] == []
@@ -286,5 +311,65 @@ def test_numerical_round_requires_observable_definition_but_not_derivation_spine
     assert any(
         item.get("missing_block") == "observable_definition"
         and item.get("recommended_round_type") == "numerical_or_benchmark_round"
+        for item in unfinished_payload["items"]
+    )
+
+
+def test_source_restoration_round_without_formula_anchor_table_is_blocked() -> None:
+    service, topic_slug, run_id, runtime_root = _build_service_fixture(
+        round_type="source_restoration_round",
+        derivation_rows=[
+            {
+                "derivation_id": "candidate:demo-bound",
+                "title": "Source reconstruction",
+                "body": "The source formula is recovered, but the formula-level anchor map is still incomplete.",
+                "derivation_kind": "source_reconstruction",
+                "status": "in_progress",
+                "assumptions": ["Weak coupling."],
+                "source_refs": ["Lecture Notes A §2 eq.(4)"],
+                "provenance_note": "AI provisional reasoning.",
+                "source_statement": "The source gives the curvature-side coefficient formula.",
+                "source_omissions": ["The source omits one intermediate bridge step."],
+                "l3_restoration_notes": "The bridge is reconstructed in L3.",
+                "derivation_steps": [
+                    {
+                        "label": "Step 1",
+                        "equation": "k = (1/2\\pi) \\int F",
+                        "justification": "Source equation.",
+                        "step_origin": "source_statement",
+                        "assumption_dependencies": ["Weak coupling."],
+                    }
+                ],
+                "derivation_step_audit": {
+                    "step_count": 1,
+                    "auditable_step_count": 1,
+                    "source_anchored_step_count": 0,
+                    "formula_anchored_step_count": 0,
+                    "source_statement_step_count": 1,
+                    "l3_completion_step_count": 0,
+                    "missing_by_step": [],
+                    "has_full_auditable_spine": True,
+                },
+                "source_anchor_table": [],
+                "target_source_location": "",
+            }
+        ],
+    )
+
+    payload = service.materialize_research_report(
+        topic_slug=topic_slug,
+        run_id=run_id,
+        updated_by="test",
+    )
+
+    round_row = payload["round_development"][0]
+    assert round_row["claim_readiness"] == "blocked"
+    assert "target_source_location" in round_row["missing_blocks"]
+    assert "source_anchor_table" in round_row["missing_blocks"]
+
+    unfinished_payload = json.loads((runtime_root / "unfinished_work.json").read_text(encoding="utf-8"))
+    assert any(
+        item.get("missing_block") == "source_anchor_table"
+        and item.get("blocks_claim_use") is True
         for item in unfinished_payload["items"]
     )

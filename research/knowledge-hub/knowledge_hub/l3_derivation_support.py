@@ -55,6 +55,131 @@ def _dict_list(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)]
 
 
+_AUDITABLE_STEP_REQUIRED_FIELDS = ("equation", "justification", "step_origin")
+_SOURCE_RESTORATION_REQUIRED_FIELDS = ("source_anchor", "formula_anchor")
+
+
+def _normalize_derivation_step(
+    step: dict[str, Any],
+    *,
+    derivation_kind: str,
+    index: int,
+) -> dict[str, Any]:
+    label = str(step.get("label") or f"Step {index}").strip() or f"Step {index}"
+    equation = str(step.get("equation") or "").strip()
+    justification = str(step.get("justification") or "").strip()
+    source_anchor = str(step.get("source_anchor") or "").strip()
+    formula_anchor = str(step.get("formula_anchor") or source_anchor or "").strip()
+    assumption_dependencies = _string_list(step.get("assumption_dependencies"))
+    explicit_origin = str(step.get("step_origin") or "").strip()
+    is_l3_completion = step.get("is_l3_completion")
+    if explicit_origin:
+        step_origin = explicit_origin
+    elif isinstance(is_l3_completion, bool):
+        step_origin = "l3_completion" if is_l3_completion else "source_statement"
+    else:
+        step_origin = ""
+    equality_reason = str(step.get("equality_reason") or justification).strip()
+    anchor_notes = str(step.get("anchor_notes") or "").strip()
+    open_gap_note = str(step.get("open_gap_note") or "").strip()
+
+    missing_fields: list[str] = []
+    for field in _AUDITABLE_STEP_REQUIRED_FIELDS:
+        if field == "equation" and not equation:
+            missing_fields.append(field)
+        elif field == "justification" and not justification:
+            missing_fields.append(field)
+        elif field == "step_origin" and not step_origin:
+            missing_fields.append(field)
+    if derivation_kind == "source_reconstruction":
+        for field in _SOURCE_RESTORATION_REQUIRED_FIELDS:
+            if field == "source_anchor" and not source_anchor:
+                missing_fields.append(field)
+            elif field == "formula_anchor" and not formula_anchor:
+                missing_fields.append(field)
+    if not assumption_dependencies:
+        missing_fields.append("assumption_dependencies")
+
+    normalized = {
+        "label": label,
+        "equation": equation,
+        "justification": justification,
+        "equality_reason": equality_reason,
+        "source_anchor": source_anchor,
+        "formula_anchor": formula_anchor,
+        "step_origin": step_origin,
+        "is_l3_completion": (
+            bool(is_l3_completion)
+            if isinstance(is_l3_completion, bool)
+            else step_origin == "l3_completion"
+        ),
+        "assumption_dependencies": assumption_dependencies,
+        "open_gap_note": open_gap_note,
+        "anchor_notes": anchor_notes,
+        "missing_fields": missing_fields,
+        "is_auditable": not missing_fields,
+    }
+    return normalized
+
+
+def _normalize_derivation_steps(
+    steps: list[dict[str, Any]],
+    *,
+    derivation_kind: str,
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for index, step in enumerate(steps, start=1):
+        normalized.append(
+            _normalize_derivation_step(
+                step,
+                derivation_kind=derivation_kind,
+                index=index,
+            )
+        )
+    return normalized
+
+
+def _build_source_anchor_table(steps: list[dict[str, Any]]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for step in steps:
+        source_anchor = str(step.get("source_anchor") or "").strip()
+        formula_anchor = str(step.get("formula_anchor") or "").strip()
+        if not source_anchor and not formula_anchor:
+            continue
+        rows.append(
+            {
+                "step_label": str(step.get("label") or "").strip(),
+                "source_anchor": source_anchor,
+                "formula_anchor": formula_anchor,
+                "step_origin": str(step.get("step_origin") or "").strip(),
+                "equation_excerpt": str(step.get("equation") or "").strip(),
+                "anchor_notes": str(step.get("anchor_notes") or "").strip(),
+            }
+        )
+    return rows
+
+
+def _build_derivation_step_audit(steps: list[dict[str, Any]]) -> dict[str, Any]:
+    missing_by_step = [
+        {
+            "step_label": str(step.get("label") or "").strip(),
+            "missing_fields": _string_list(step.get("missing_fields")),
+        }
+        for step in steps
+        if _string_list(step.get("missing_fields"))
+    ]
+    return {
+        "step_count": len(steps),
+        "auditable_step_count": sum(1 for step in steps if bool(step.get("is_auditable"))),
+        "source_anchored_step_count": sum(1 for step in steps if str(step.get("source_anchor") or "").strip()),
+        "formula_anchored_step_count": sum(1 for step in steps if str(step.get("formula_anchor") or "").strip()),
+        "source_statement_step_count": sum(1 for step in steps if str(step.get("step_origin") or "").strip() == "source_statement"),
+        "l3_completion_step_count": sum(1 for step in steps if str(step.get("step_origin") or "").strip() == "l3_completion"),
+        "missing_by_step": missing_by_step,
+        "has_full_auditable_spine": bool(steps) and not missing_by_step,
+    }
+
+
 def derivation_paths(run_root: Path) -> dict[str, Path]:
     return {
         "ledger": run_root / "derivation_records.jsonl",
@@ -133,6 +258,42 @@ def _render_derivation_markdown(rows: list[dict[str, Any]]) -> str:
                 meaning = str(item.get("meaning") or "").strip() or "(missing meaning)"
                 lines.append(f"- `{symbol}`: {meaning}")
             lines.append("")
+        source_anchor_table = _dict_list(row.get("source_anchor_table"))
+        if source_anchor_table:
+            lines.append("### Source anchor table")
+            lines.append("")
+            for item in source_anchor_table:
+                lines.append(
+                    "- "
+                    + " | ".join(
+                        part
+                        for part in (
+                            f"step={item.get('step_label') or '(missing)'}",
+                            f"source={item.get('source_anchor') or '(none)'}",
+                            f"formula={item.get('formula_anchor') or '(none)'}",
+                            f"origin={item.get('step_origin') or '(none)'}",
+                        )
+                        if part
+                    )
+                )
+            lines.append("")
+        step_audit = row.get("derivation_step_audit") or {}
+        if step_audit:
+            lines.append("### Step audit")
+            lines.append("")
+            lines.append(f"- Step count: `{step_audit.get('step_count', 0)}`")
+            lines.append(f"- Auditable steps: `{step_audit.get('auditable_step_count', 0)}`")
+            lines.append(f"- Source-anchored steps: `{step_audit.get('source_anchored_step_count', 0)}`")
+            lines.append(f"- Formula-anchored steps: `{step_audit.get('formula_anchored_step_count', 0)}`")
+            lines.append(
+                f"- Full auditable spine: `{'yes' if step_audit.get('has_full_auditable_spine') else 'no'}`"
+            )
+            for item in _dict_list(step_audit.get("missing_by_step")):
+                lines.append(
+                    f"- Missing fields for `{item.get('step_label') or '(missing)'}`: "
+                    f"{', '.join(_string_list(item.get('missing_fields'))) or '(none)'}"
+                )
+            lines.append("")
         derivation_steps = _dict_list(row.get("derivation_steps"))
         if derivation_steps:
             lines.append("### Stepwise derivation")
@@ -147,15 +308,27 @@ def _render_derivation_markdown(rows: list[dict[str, Any]]) -> str:
                 justification = str(step.get("justification") or "").strip()
                 if justification:
                     lines.append(f"- Justification: {justification}")
+                equality_reason = str(step.get("equality_reason") or "").strip()
+                if equality_reason:
+                    lines.append(f"- Equality reason: {equality_reason}")
                 source_anchor = str(step.get("source_anchor") or "").strip()
                 if source_anchor:
                     lines.append(f"- Source anchor: {source_anchor}")
+                formula_anchor = str(step.get("formula_anchor") or "").strip()
+                if formula_anchor:
+                    lines.append(f"- Formula anchor: {formula_anchor}")
+                step_origin = str(step.get("step_origin") or "").strip()
+                if step_origin:
+                    lines.append(f"- Step origin: {step_origin}")
                 is_l3_completion = step.get("is_l3_completion")
                 if isinstance(is_l3_completion, bool):
                     lines.append(f"- L3 completion: {'yes' if is_l3_completion else 'no'}")
                 assumption_dependencies = _string_list(step.get("assumption_dependencies"))
                 if assumption_dependencies:
                     lines.append(f"- Assumption dependencies: {', '.join(assumption_dependencies)}")
+                missing_fields = _string_list(step.get("missing_fields"))
+                if missing_fields:
+                    lines.append(f"- Missing audit fields: {', '.join(missing_fields)}")
                 open_gap_note = str(step.get("open_gap_note") or "").strip()
                 if open_gap_note:
                     lines.append(f"- Open gap: {open_gap_note}")
@@ -223,6 +396,18 @@ def record_l3_derivation_entry(
 ) -> dict[str, Any]:
     resolved_title = str(title or "").strip() or "Untitled derivation"
     resolved_id = str(derivation_id or "").strip() or f"derivation:{_slugify(resolved_title)}"
+    resolved_derivation_kind = str(derivation_kind or "analysis_derivation").strip()
+    normalized_steps = _normalize_derivation_steps(
+        _dict_list(derivation_steps or []),
+        derivation_kind=resolved_derivation_kind,
+    )
+    source_anchor_table = _build_source_anchor_table(normalized_steps)
+    derivation_step_audit = _build_derivation_step_audit(normalized_steps)
+    target_source_location = (
+        str(source_anchor_table[0].get("formula_anchor") or source_anchor_table[0].get("source_anchor") or "").strip()
+        if source_anchor_table
+        else ""
+    )
     row = {
         "timestamp": _now_iso(),
         "topic_slug": str(topic_slug or "").strip(),
@@ -230,12 +415,15 @@ def record_l3_derivation_entry(
         "derivation_id": resolved_id,
         "title": resolved_title,
         "body": str(body or "").strip(),
-        "derivation_kind": str(derivation_kind or "analysis_derivation").strip(),
+        "derivation_kind": resolved_derivation_kind,
         "epistemic_status": str(epistemic_status or "ai_provisional_reasoning").strip(),
         "status": str(status or "").strip(),
         "source_refs": _string_list(source_refs or []),
         "assumptions": _string_list(assumptions or []),
-        "derivation_steps": _dict_list(derivation_steps or []),
+        "derivation_steps": normalized_steps,
+        "derivation_step_audit": derivation_step_audit,
+        "source_anchor_table": source_anchor_table,
+        "target_source_location": target_source_location,
         "source_statement": str(source_statement or "").strip(),
         "source_omissions": _string_list(source_omissions or []),
         "l3_restoration_notes": str(l3_restoration_notes or "").strip(),
@@ -282,10 +470,13 @@ def record_l3_derivation_entry(
             run_id=str(run_id or "").strip(),
             details={
                 "derivation_id": resolved_id,
-                "derivation_kind": str(derivation_kind or "analysis_derivation").strip(),
+                "derivation_kind": resolved_derivation_kind,
                 "epistemic_status": str(epistemic_status or "ai_provisional_reasoning").strip(),
                 "source_refs": _string_list(source_refs or []),
-                "derivation_steps": _dict_list(derivation_steps or []),
+                "derivation_steps": normalized_steps,
+                "derivation_step_audit": derivation_step_audit,
+                "source_anchor_table": source_anchor_table,
+                "target_source_location": target_source_location,
                 "source_statement": str(source_statement or "").strip(),
                 "source_omissions": _string_list(source_omissions or []),
                 "l3_restoration_notes": str(l3_restoration_notes or "").strip(),

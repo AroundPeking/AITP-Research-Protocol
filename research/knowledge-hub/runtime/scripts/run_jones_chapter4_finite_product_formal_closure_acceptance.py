@@ -656,6 +656,44 @@ def main() -> int:
         ),
         updated_by=args.updated_by,
         derivation_id=CANDIDATE_ID,
+        derivation_steps=[
+            {
+                "label": "Step 1",
+                "equation": (
+                    "block-projection centralizer = direct linear product of the block-fiber full-operator pieces"
+                ),
+                "justification": "Use the bounded Chapter 4 block-projection centralizer packet as the starting theorem-facing decomposition.",
+                "equality_reason": "This is the finite-dimensional linear-product packet that the bounded route is explicitly allowed to quote.",
+                "step_origin": "l3_completion",
+                "assumption_dependencies": [
+                    "Stay within the bounded finite-dimensional Chapter 4 theorem packet.",
+                ],
+            },
+            {
+                "label": "Step 2",
+                "equation": (
+                    "centralizer subalgebra = within-block compression/decomposition object carried by the theorem packet"
+                ),
+                "justification": "Match the centralizer subalgebra identification against the bounded within-block compression route.",
+                "equality_reason": "The theorem packet keeps the centralizer-side equality explicit without widening to the stronger algebra-level product theorem.",
+                "step_origin": "l3_completion",
+                "assumption_dependencies": [
+                    "Do not collapse the bounded linear-product packet into the stronger algebra-level product theorem.",
+                ],
+            },
+            {
+                "label": "Step 3",
+                "equation": (
+                    "finrank(centralizer) = sum of block-fiber finite-dimensional contributions recorded by the packet"
+                ),
+                "justification": "Use the packet's finrank audit as the bounded closure check on the finite-dimensional route.",
+                "equality_reason": "The finrank audit closes the bounded packet while still leaving Lane A/B/C and full Chapter 4 classification work outside the claim.",
+                "step_origin": "l3_completion",
+                "assumption_dependencies": [
+                    "Treat the Lean-facing theorem packet as validated support, not as a license to skip the derivation spine.",
+                ],
+            },
+        ],
     )
     comparison_receipt = service.record_l2_derivation_comparison(
         topic_slug=args.topic_slug,
