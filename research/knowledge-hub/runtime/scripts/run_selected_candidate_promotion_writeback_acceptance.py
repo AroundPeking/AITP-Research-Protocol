@@ -8,6 +8,7 @@ import json
 import tempfile
 from pathlib import Path
 
+from acceptance_reference_support import create_minimal_tpkn_backend
 from run_first_run_topic_acceptance import KERNEL_ROOT, REPO_ROOT, TOPIC_SLUG
 from run_first_run_topic_acceptance import (
     assert_topic_is_fresh,
@@ -42,7 +43,9 @@ def main() -> int:
         ).resolve()
     )
     kernel_root = work_root / "kernel"
+    tpkn_root = work_root / "tpkn-selected-candidate-promotion"
     prepare_first_run_kernel(package_root, kernel_root)
+    create_minimal_tpkn_backend(tpkn_root)
     assert_topic_is_fresh(kernel_root, args.topic_slug)
 
     metadata_json = (
@@ -204,6 +207,8 @@ def main() -> int:
             args.topic_slug,
             "--candidate-id",
             candidate_id,
+            "--target-backend-root",
+            str(tpkn_root),
             "--json",
         ],
     )

@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from acceptance_reference_support import locate_reference_topic_dir, locate_reference_topic_root
+
 
 SCRIPT_PATH = Path(__file__).resolve()
 KERNEL_ROOT = SCRIPT_PATH.parents[2]
@@ -136,11 +138,17 @@ def clone_reference_sources(
 def load_reference_candidate(
     *,
     package_root: Path,
+    repo_root: Path,
     topic_slug: str,
     run_id: str,
     candidate_id: str,
 ) -> dict[str, Any]:
-    ledger_path = package_root / "topics" / topic_slug / "L3" / "runs" / run_id / "candidate_ledger.jsonl"
+    topic_root = locate_reference_topic_dir(
+        package_root=package_root,
+        repo_root=repo_root,
+        topic_slug=topic_slug,
+    )
+    ledger_path = topic_root / "L3" / "runs" / run_id / "candidate_ledger.jsonl"
     for row in read_jsonl(ledger_path):
         if str(row.get("candidate_id") or "").strip() == candidate_id:
             return row
@@ -221,7 +229,11 @@ def main() -> int:
     runtime_schemas_root = package_root / "runtime" / "schemas"
     if runtime_schemas_root.exists():
         shutil.copytree(runtime_schemas_root, kernel_root / "runtime" / "schemas", dirs_exist_ok=True)
-    reference_topic_root = package_root / "topics" / args.reference_topic_slug / "L0"
+    reference_topic_root = locate_reference_topic_root(
+        package_root=package_root,
+        repo_root=repo_root,
+        topic_slug=args.reference_topic_slug,
+    )
     shutil.copytree(
         reference_topic_root,
         kernel_root / "topics" / args.reference_topic_slug / "L0",
@@ -248,6 +260,7 @@ def main() -> int:
     )
     candidate = load_reference_candidate(
         package_root=package_root,
+        repo_root=repo_root,
         topic_slug=args.reference_topic_slug,
         run_id=args.reference_run_id,
         candidate_id=args.reference_candidate_id,

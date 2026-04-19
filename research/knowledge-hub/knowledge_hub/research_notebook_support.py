@@ -211,6 +211,387 @@ def _render_named_box(title: str, rows: list[tuple[str, str]], body: list[str] |
     return lines
 
 
+def _report_payload(l3_root: Path) -> dict[str, Any]:
+    return _read_json(_topic_paths(l3_root)["research_report"]) or {}
+
+
+def _has_physicist_report_surface(report: dict[str, Any]) -> bool:
+    return bool(
+        report.get("round_development")
+        or report.get("current_best_statements")
+        or report.get("convention_ledger")
+        or report.get("physical_target")
+    )
+
+
+def _render_table_block(
+    *,
+    headers: list[str],
+    rows: list[list[str]],
+    column_spec: str | None = None,
+) -> list[str]:
+    if not rows:
+        return []
+    spec = column_spec or ("@{}" + ">{\\raggedright\\arraybackslash}X" * len(headers) + "@{}")
+    lines = [
+        "\\begin{tcolorbox}[enhanced,breakable,colback=white,colframe=linecolor,boxrule=0.4pt,arc=1.0mm,left=1.1mm,right=1.1mm,top=0.9mm,bottom=0.9mm]",
+        f"\\begin{{tabularx}}{{\\linewidth}}{{{spec}}}",
+        "\\toprule",
+        " & ".join(f"\\textnormal{{{_esc(header)}}}" for header in headers) + r" \\",
+        "\\midrule",
+    ]
+    for row in rows:
+        lines.append(" & ".join(_esc_latex_body(cell).replace(" \\\\\n", r"\newline ") for cell in row) + r" \\")
+    lines.extend(
+        [
+            "\\bottomrule",
+            "\\end{tabularx}",
+            "\\end{tcolorbox}",
+            "",
+        ]
+    )
+    return lines
+
+
+def _render_problem_target_motivation_section(l3_root: Path) -> list[str]:
+    report = _report_payload(l3_root)
+    research_contract = _read_json(_topic_paths(l3_root)["research_contract"]) or {}
+    if not report and not research_contract:
+        return []
+
+    lines = ["\\section{Research Problem, Physical Target, And Motivation}", ""]
+    lines.extend(
+        _render_kv_box(
+            [
+                ("Topic", _topic_slug_from_l3(l3_root)),
+                ("Physical Target", _summarize_scalar(report.get("physical_target"))),
+                ("Observables / Decision Targets", _summarize_scalar(report.get("observables_or_decision_targets"))),
+                ("Current Dispute / Bottleneck", _summarize_scalar(report.get("current_dispute_or_bottleneck"))),
+            ]
+        )
+    )
+
+    question = _summarize_scalar((report.get("problem") or {}).get("question") or research_contract.get("question"))
+    if question:
+        lines.append("\\subsection*{Research Problem}")
+        lines.extend(_render_plain_paragraph(question))
+
+    motivation = _summarize_scalar(report.get("physical_motivation"))
+    if motivation:
+        lines.append("\\subsection*{Physical Motivation}")
+        lines.extend(_render_plain_paragraph(motivation))
+
+    literature_position = _summarize_scalar((report.get("problem") or {}).get("literature_position"))
+    if literature_position:
+        lines.append("\\subsection*{Literature Position}")
+        lines.extend(_render_plain_paragraph(literature_position))
+    return lines
+
+
+def _render_setup_regime_convention_section(l3_root: Path) -> list[str]:
+    report = _report_payload(l3_root)
+    research_contract = _read_json(_topic_paths(l3_root)["research_contract"]) or {}
+    setup = report.get("setup") or {}
+    convention_rows = _dict_list(report.get("convention_ledger"))
+    if not report and not research_contract:
+        return []
+
+    lines = ["\\section{Setup, Regime, And Convention Ledger}", ""]
+    scope_items = _string_list(setup.get("scope") or research_contract.get("scope"))
+    if scope_items:
+        lines.extend(_render_bullet_block("Scope", scope_items))
+    assumption_items = _string_list(setup.get("assumptions") or research_contract.get("assumptions"))
+    if assumption_items:
+        lines.extend(_render_bullet_block("Assumptions And Regime", assumption_items))
+    notation_items = _string_list(setup.get("notation") or research_contract.get("formalism_and_notation"))
+    if notation_items:
+        lines.extend(_render_bullet_block("Notation Locks", notation_items))
+
+    if convention_rows:
+        lines.append("\\subsection*{Convention Ledger}")
+        lines.append("")
+        lines.extend(
+            _render_table_block(
+                headers=["Symbol", "Meaning", "Normalization", "Source", "Bridge Status", "Notes"],
+                rows=[
+                    [
+                        _summarize_scalar(row.get("symbol")),
+                        _summarize_scalar(row.get("meaning")),
+                        _summarize_scalar(row.get("normalization")),
+                        _summarize_scalar(row.get("source")),
+                        _summarize_scalar(row.get("bridge_status")),
+                        _summarize_scalar(row.get("notes")),
+                    ]
+                    for row in convention_rows
+                ],
+            )
+        )
+    return lines
+
+
+def _render_round_development_section(l3_root: Path) -> list[str]:
+    report = _report_payload(l3_root)
+    round_rows = _dict_list(report.get("round_development") or report.get("iteration_rounds"))
+    if not round_rows:
+        return []
+
+    lines = ["\\section{Round-by-Round Research Development}", ""]
+    for index, row in enumerate(round_rows, start=1):
+        round_title = _summarize_scalar(row.get("round_question") or row.get("iteration_id") or f"Round {index}")
+        lines.append(f"\\subsection*{{Round {index}: {_esc(round_title)}}}")
+        lines.append("")
+        lines.extend(
+            _render_meta_badge_line(
+                [
+                    ("Scientific Mode", _summarize_scalar(row.get("round_type"))),
+                    ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
+                ]
+            )
+        )
+
+        plan_summary = _summarize_scalar(row.get("plan_summary"))
+        if plan_summary:
+            lines.append("\\subsubsection*{Working Route}")
+            lines.extend(_render_plain_paragraph(plan_summary))
+
+        result_summary = _summarize_scalar(row.get("returned_result_summary"))
+        if result_summary:
+            lines.append("\\subsubsection*{Result}")
+            lines.extend(_render_plain_paragraph(result_summary))
+
+        understanding_delta = _summarize_scalar(row.get("understanding_delta"))
+        if understanding_delta:
+            lines.append("\\subsubsection*{What This Round Changed}")
+            lines.extend(_render_plain_paragraph(understanding_delta))
+
+        missing_blocks = _string_list(row.get("missing_blocks"))
+        if missing_blocks:
+            lines.extend(_render_bullet_block("Unresolved Obligations", [f"Missing obligation block: {item}" for item in missing_blocks]))
+
+        qualified_gaps = _string_list(row.get("qualified_gaps"))
+        if qualified_gaps:
+            lines.extend(_render_bullet_block("Qualified Gaps", qualified_gaps))
+
+        next_step = _summarize_scalar(row.get("next_step_summary"))
+        if next_step:
+            lines.append("\\subsubsection*{Next Plan}")
+            lines.extend(_render_plain_paragraph(next_step))
+    return lines
+
+
+def _render_derivation_step_lines(step: dict[str, Any]) -> list[str]:
+    lines = [f"\\paragraph*{{{_esc(_summarize_scalar(step.get('label') or 'Step'))}}}"]
+    equation = _summarize_scalar(step.get("equation"))
+    if equation:
+        lines.extend(_render_plain_paragraph(equation))
+    justification = _summarize_scalar(step.get("justification"))
+    if justification:
+        lines.append(f"{{\\small\\bfseries Justification.}} {_esc_latex_body(justification)}")
+        lines.append("")
+    source_anchor = _summarize_scalar(step.get("source_anchor"))
+    if source_anchor:
+        lines.append(f"{{\\small\\bfseries Source anchor.}} {_esc_latex_body(source_anchor)}")
+        lines.append("")
+    if isinstance(step.get("is_l3_completion"), bool):
+        lines.append(
+            "{\\small\\bfseries Provenance of this step.} "
+            + (
+                "Reconstructed in L3 after checking the source context."
+                if step.get("is_l3_completion")
+                else "Directly stated in the cited source."
+            )
+        )
+        lines.append("")
+    assumption_dependencies = _string_list(step.get("assumption_dependencies"))
+    if assumption_dependencies:
+        lines.append(
+            "{\\small\\bfseries Assumption dependencies.} "
+            + _esc_latex_body(", ".join(assumption_dependencies))
+        )
+        lines.append("")
+    open_gap_note = _summarize_scalar(step.get("open_gap_note"))
+    if open_gap_note:
+        lines.append(f"{{\\small\\bfseries Open gap.}} {_esc_latex_body(open_gap_note)}")
+        lines.append("")
+    return lines
+
+
+def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[str, Any]]) -> list[str]:
+    report = _report_payload(l3_root)
+    rows = _dict_list(report.get("main_derivation_spine") or report.get("current_derivation_spine"))
+    if not rows:
+        rows = [
+            row
+            for record in run_records
+            for row in (record.get("derivation_rows") or [])
+            if _summarize_scalar(row.get("derivation_kind")) != "failed_attempt"
+        ]
+    if not rows:
+        return []
+
+    lines = ["\\section{Main Derivation Spine}", ""]
+    for row in rows:
+        title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Derivation")
+        lines.append(f"\\subsection*{{{_esc(title)}}}")
+        lines.append("")
+        lines.extend(
+            _render_meta_badge_line(
+                [
+                    ("Kind", _summarize_scalar(row.get("derivation_kind"))),
+                    ("Status", _summarize_scalar(row.get("status"))),
+                ]
+            )
+        )
+
+        source_statement = _summarize_scalar(row.get("source_statement"))
+        if source_statement:
+            lines.append("\\subsubsection*{Source Statement}")
+            lines.extend(_render_plain_paragraph(source_statement))
+
+        source_omissions = _string_list(row.get("source_omissions"))
+        if source_omissions:
+            lines.extend(_render_bullet_block("Source Omissions", source_omissions))
+
+        restoration_notes = _summarize_scalar(row.get("l3_restoration_notes"))
+        if restoration_notes:
+            lines.append("\\subsubsection*{Reconstruction Notes}")
+            lines.extend(_render_plain_paragraph(restoration_notes))
+
+        derivation_steps = _dict_list(row.get("derivation_steps"))
+        if derivation_steps:
+            lines.append("\\subsubsection*{Stepwise Derivation}")
+            lines.append("")
+            for step in derivation_steps:
+                lines.extend(_render_derivation_step_lines(step))
+        else:
+            lines.extend(_render_body_paragraphs(_summarize_scalar(row.get("body"))))
+
+        source_refs = _string_list(row.get("source_refs"))
+        if source_refs:
+            lines.extend(_render_bullet_block("Source References", source_refs))
+
+        provenance_note = _summarize_scalar(row.get("provenance_note"))
+        if provenance_note:
+            lines.extend(_render_named_box("Provenance Note", [], body=_render_plain_paragraph(provenance_note)))
+    return lines
+
+
+def _render_current_best_statements_section(l3_root: Path) -> list[str]:
+    report = _report_payload(l3_root)
+    statements = _dict_list(report.get("current_best_statements"))
+    active_routes = _dict_list(report.get("active_routes_not_yet_claim_worthy"))
+    if not statements and not active_routes:
+        return []
+
+    lines = ["\\section{Current Best Statements}", ""]
+    if not statements:
+        lines.extend(_render_plain_paragraph("No claim is currently stable enough to quote as a best statement."))
+    for row in statements:
+        lines.extend(
+            _render_named_box(
+                _summarize_scalar(row.get("statement") or "Statement"),
+                [
+                    ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
+                    ("Validity regime", _summarize_scalar(row.get("validity_regime"))),
+                    ("Depends on", _summarize_scalar(row.get("depends_on"))),
+                    ("Breaks if", _summarize_scalar(row.get("breaks_if"))),
+                    ("Still unclosed", _summarize_scalar(row.get("still_unclosed"))),
+                ],
+                body=_render_plain_paragraph(_summarize_scalar(row.get("next_action"))),
+            )
+        )
+    if active_routes:
+        lines.append("\\subsection*{Active But Not Yet Claim-Worthy Routes}")
+        lines.append("")
+        for row in active_routes:
+            lines.extend(
+                _render_named_box(
+                    _summarize_scalar(row.get("statement") or "Active route"),
+                    [
+                        ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
+                        ("Still unclosed", _summarize_scalar(row.get("still_unclosed"))),
+                    ],
+                    body=_render_plain_paragraph(_summarize_scalar(row.get("next_action"))),
+                )
+            )
+    return lines
+
+
+def _render_excluded_routes_section(l3_root: Path, run_records: list[dict[str, Any]]) -> list[str]:
+    report = _report_payload(l3_root)
+    rows = _dict_list(report.get("excluded_routes") or report.get("failed_routes"))
+    if not rows:
+        rows = [
+            row
+            for record in run_records
+            for row in (record.get("derivation_rows") or [])
+            if _summarize_scalar(row.get("derivation_kind")) == "failed_attempt"
+        ]
+    if not rows:
+        return []
+
+    lines = ["\\section{Excluded Routes And Lessons}", ""]
+    for row in rows:
+        title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Excluded route")
+        body: list[str] = []
+        why_plausible = _summarize_scalar(row.get("why_plausible"))
+        if why_plausible:
+            body.append("{\\small\\bfseries Why it looked plausible}\\par")
+            body.extend(_render_plain_paragraph(why_plausible))
+        exact_failure_point = _summarize_scalar(row.get("exact_failure_point"))
+        if exact_failure_point:
+            body.append("{\\small\\bfseries Exact failure point}\\par")
+            body.extend(_render_plain_paragraph(exact_failure_point))
+        lesson = _summarize_scalar(row.get("lesson"))
+        if lesson:
+            body.append("{\\small\\bfseries What this teaches us}\\par")
+            body.extend(_render_plain_paragraph(lesson))
+        revive_conditions = _string_list(row.get("revive_conditions"))
+        if revive_conditions:
+            body.extend(_render_bullet_block("Can this route revive?", revive_conditions))
+        lines.extend(_render_named_box(title, [], body=body))
+    return lines
+
+
+def _render_open_obligations_and_next_direction_section(l3_root: Path, run_records: list[dict[str, Any]]) -> list[str]:
+    report = _report_payload(l3_root)
+    obligations = _dict_list(report.get("open_obligations"))
+    if not obligations:
+        obligations = _dict_list((_read_json(_topic_paths(l3_root)["unfinished_work"]) or {}).get("items"))
+    conclusion = _summarize_scalar(report.get("current_conclusion"))
+    next_direction = ""
+    statements = _dict_list(report.get("current_best_statements"))
+    if statements:
+        next_direction = _summarize_scalar(statements[0].get("next_action"))
+    if not next_direction:
+        active_routes = _dict_list(report.get("active_routes_not_yet_claim_worthy"))
+        if active_routes:
+            next_direction = _summarize_scalar(active_routes[0].get("next_action"))
+    if not obligations and not conclusion and not next_direction:
+        return []
+
+    lines = ["\\section{Open Obligations And Next Research Direction}", ""]
+    if conclusion:
+        lines.append("\\subsection*{Current Conclusion}")
+        lines.extend(_render_plain_paragraph(conclusion))
+    if next_direction:
+        lines.append("\\subsection*{Next Research Direction}")
+        lines.extend(_render_plain_paragraph(next_direction))
+    if obligations:
+        lines.append("\\subsection*{Open Obligations}")
+        lines.append("")
+        obligation_items = []
+        for row in obligations:
+            summary = _summarize_scalar(row.get("summary") or row.get("title") or row.get("question"))
+            missing_block = _summarize_scalar(row.get("missing_block"))
+            if summary and missing_block:
+                obligation_items.append(f"{summary} [missing block: {missing_block}]")
+            elif summary:
+                obligation_items.append(summary)
+        lines.extend(_render_bullet_block("Outstanding Work", obligation_items))
+    return lines
+
+
 def _collect_iteration_rows(run_root: Path, journal_payload: dict[str, Any]) -> list[dict[str, Any]]:
     iterations_root = run_root / "iterations"
     if not iterations_root.exists():
@@ -1057,15 +1438,28 @@ def _render_open_problems_section(l3_root: Path, run_records: list[dict[str, Any
 
 def _render_topic_archive_sections(l3_root: Path) -> list[str]:
     run_records = _collect_run_records(l3_root)
+    report = _report_payload(l3_root)
     lines: list[str] = []
-    for block in (
-        _render_research_framing_section(l3_root),
-        _render_setup_section(l3_root),
-        _render_run_iteration_section(l3_root, run_records),
-        _render_current_claims_section(l3_root, run_records),
-        _render_consolidated_derivation_section(run_records),
-        _render_open_problems_section(l3_root, run_records),
-    ):
+    if _has_physicist_report_surface(report):
+        blocks = (
+            _render_problem_target_motivation_section(l3_root),
+            _render_setup_regime_convention_section(l3_root),
+            _render_round_development_section(l3_root),
+            _render_main_derivation_spine_section(l3_root, run_records),
+            _render_current_best_statements_section(l3_root),
+            _render_excluded_routes_section(l3_root, run_records),
+            _render_open_obligations_and_next_direction_section(l3_root, run_records),
+        )
+    else:
+        blocks = (
+            _render_research_framing_section(l3_root),
+            _render_setup_section(l3_root),
+            _render_run_iteration_section(l3_root, run_records),
+            _render_current_claims_section(l3_root, run_records),
+            _render_consolidated_derivation_section(run_records),
+            _render_open_problems_section(l3_root, run_records),
+        )
+    for block in blocks:
         if block:
             lines.extend(block)
     return lines
@@ -1196,8 +1590,8 @@ _PREAMBLE = r"""\documentclass[11pt,a4paper]{article}
 ]
 \small\color{ink}
 This notebook is rebuilt from the topic's durable research surfaces,
-including runtime contracts, L1 provenance surfaces, L3 derivation and run
-records, and the append-only event log used for audit replay.
+including the problem framing, source anchors, derivation records,
+comparison receipts, and the chronological archive needed for later audit.
 \end{tcolorbox}
 
 \vfill
@@ -1445,15 +1839,28 @@ def _rebuild_latex(l3_root: Path, paths: dict[str, Path]) -> None:
     preamble = preamble.replace("DATE_PLACEHOLDER", _esc(_now_iso()))
 
     run_records = _collect_run_records(l3_root)
+    report = _report_payload(l3_root)
     body_parts = []
-    for block in (
-        _render_research_framing_section(l3_root),
-        _render_setup_section(l3_root),
-        _render_run_iteration_section(l3_root, run_records),
-        _render_current_claims_section(l3_root, run_records),
-        _render_consolidated_derivation_section(run_records),
-        _render_open_problems_section(l3_root, run_records),
-    ):
+    if _has_physicist_report_surface(report):
+        blocks = (
+            _render_problem_target_motivation_section(l3_root),
+            _render_setup_regime_convention_section(l3_root),
+            _render_round_development_section(l3_root),
+            _render_main_derivation_spine_section(l3_root, run_records),
+            _render_current_best_statements_section(l3_root),
+            _render_excluded_routes_section(l3_root, run_records),
+            _render_open_obligations_and_next_direction_section(l3_root, run_records),
+        )
+    else:
+        blocks = (
+            _render_research_framing_section(l3_root),
+            _render_setup_section(l3_root),
+            _render_run_iteration_section(l3_root, run_records),
+            _render_current_claims_section(l3_root, run_records),
+            _render_consolidated_derivation_section(run_records),
+            _render_open_problems_section(l3_root, run_records),
+        )
+    for block in blocks:
         if block:
             body_parts.extend(block)
     appendix_sections: list[str] = []

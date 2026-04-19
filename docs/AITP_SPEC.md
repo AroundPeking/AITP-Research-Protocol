@@ -148,6 +148,12 @@ not a substitute for validation.
 - L3-A: candidate formation — formal claims with evidence and assumptions.
 - L3 is the unified detailed-derivation home, including source reconstructions
   and novel candidate derivations.
+- Notebook-facing L3 rounds must declare a scientific `round_type`, satisfy the
+  required obligation blocks for that round, and record missing obligations
+  honestly enough to block or qualify claim use when necessary.
+- Cross-round obligations such as convention ledgers, source-anchor tables, and
+  failure-route notes are triggered by content and must flow into unfinished
+  work when missing.
 - Derivation-heavy candidates become promotion-ready only after they carry a
   detailed L3 derivation record plus an explicit L2 comparison receipt; formal
   theorem/proof candidates also need theory-packet proof surfaces.
@@ -550,6 +556,7 @@ All sub-protocols are organized into three domains:
 | L1 intake protocol | `docs/protocols/L1_intake_protocol.md` | Assumption extraction, vault protocol, reading depth |
 | L2 backend interface | `docs/protocols/L2_backend_interface.md` | Typed store contract, promotion policy, paired backend |
 | L3 execution protocol | `docs/protocols/L3_execution_protocol.md` | Ideation, planning, candidate formation, sub-planes |
+| Topic notebook obligation protocol | `docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md` | Round types, obligation closure, claim-readiness, physicist-facing notebook ordering |
 | L4 validation protocol | `docs/protocols/L4_validation_protocol.md` | Validation types, trust audit, L4 -> L3-R rule |
 | L5 writing protocol | `docs/protocols/L5_writing_protocol.md` | Paper writing, publication artifacts |
 | Closed-loop | `docs/protocols/closed_loop_protocol.md` | Select-route / materialize / ingest / await cycle |
@@ -614,6 +621,7 @@ unless explicitly superseded by a new domain protocol:
 | `runtime/CONTROL_NOTE_CONTRACT.md` | Active | Referenced from H_human_interaction |
 | `runtime/INNOVATION_DIRECTION_TEMPLATE.md` | Active | Referenced from H_human_interaction |
 | `runtime/DECLARATIVE_RUNTIME_CONTRACTS.md` | Active | Referenced from action_queue_protocol |
+| `protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md` | Active | Referenced from L3_execution_protocol |
 | `runtime/DEFERRED_RUNTIME_CONTRACTS.md` | Active | Referenced from followup_lifecycle |
 | `AITP_THOUGHT_PROTOCOL.md` (docs/) | Active | Stays as-is (agent reasoning) |
 | `AITP_INTELLIGENCE_PRESERVATION_PRINCIPLES.md` (docs/) | Active | Stays as-is (agent discipline) |

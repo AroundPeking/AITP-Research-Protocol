@@ -55,66 +55,35 @@ def test_render_entry_uses_kind_box_metadata_badges_and_detail_table() -> None:
     assert "$$a^2+b^2=c^2$$" in rendered
 
 
-def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_sections() -> None:
+def test_topic_notebook_prefers_physicist_reading_order_and_stepwise_derivation() -> None:
     with tempfile.TemporaryDirectory() as td:
         topic_root = Path(td) / "topics" / "demo-topic"
         l3_root = topic_root / "L3"
         runtime_root = topic_root / "runtime"
         run_root = l3_root / "runs" / "run-001"
-        iteration_root = run_root / "iterations" / "iteration-002"
         l3_root.mkdir(parents=True, exist_ok=True)
         runtime_root.mkdir(parents=True, exist_ok=True)
         run_root.mkdir(parents=True, exist_ok=True)
-        iteration_root.mkdir(parents=True, exist_ok=True)
 
         (runtime_root / "research_question.contract.json").write_text(
             json.dumps(
                 {
                     "title": "Demo Topic",
                     "question": "Recover the bounded derivation and benchmark route.",
-                    "scope": [
-                        "Stay within the currently registered source set.",
-                        "Track notation and validation obligations explicitly.",
-                    ],
-                    "assumptions": [
-                        "Only persisted evidence counts.",
-                    ],
-                    "open_ambiguities": [
-                        "The sign convention for the response coefficient remains unresolved.",
-                    ],
+                    "scope": ["Stay within the currently registered source set."],
+                    "assumptions": ["Only persisted evidence counts."],
+                    "open_ambiguities": ["The sign convention for the response coefficient remains unresolved."],
                     "formalism_and_notation": [
-                        "Use Euclidean-signature notation unless a source explicitly says otherwise.",
-                    ],
-                    "deliverables": [
-                        "Produce a bounded candidate and one explicit validation route.",
+                        "Use Euclidean-signature notation unless a source explicitly says otherwise."
                     ],
                     "l1_source_intake": {
-                        "source_count": 2,
                         "reading_depth_rows": [
-                            {
-                                "source_title": "Lecture Notes A",
-                                "reading_depth": "full_read",
-                            },
-                            {
-                                "source_title": "Benchmark Paper B",
-                                "reading_depth": "skim",
-                            },
-                        ],
-                        "method_specificity_rows": [
-                            {
-                                "source_title": "Lecture Notes A",
-                                "method_family": "derivation",
-                                "specificity_tier": "high",
-                            }
+                            {"source_title": "Lecture Notes A", "reading_depth": "full_read"},
+                            {"source_title": "Benchmark Paper B", "reading_depth": "skim"},
                         ],
                         "notation_tension_candidates": [
                             {
                                 "summary": "Paper A uses k while Paper B uses sigma_xy for the same response coefficient."
-                            }
-                        ],
-                        "contradiction_candidates": [
-                            {
-                                "summary": "Benchmark ranges disagree outside the weak-coupling regime."
                             }
                         ],
                     },
@@ -132,26 +101,13 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
             ),
             encoding="utf-8",
         )
-        (runtime_root / "idea_packet.json").write_text(
-            json.dumps(
-                {
-                    "status": "approved_for_execution",
-                    "initial_idea": "Understand the literature derivation and turn it into a bounded executable question.",
-                    "novelty_target": "Clarify the derivation path and benchmark boundary.",
-                    "first_validation_route": "Bounded benchmark comparison",
-                    "initial_evidence_bar": "Persisted derivation notes plus one explicit validation artifact.",
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
         (runtime_root / "unfinished_work.json").write_text(
             json.dumps(
                 {
                     "items": [
                         {
                             "summary": "Recover the missing intermediate derivation step from the cited source.",
+                            "missing_block": "derivation_spine",
                             "status": "pending",
                         }
                     ]
@@ -159,49 +115,6 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
                 ensure_ascii=False,
                 indent=2,
             ),
-            encoding="utf-8",
-        )
-        (run_root / "derivation_records.jsonl").write_text(
-            json.dumps(
-                {
-                    "derivation_id": "derivation:demo-reconstruction",
-                    "title": "Response-coefficient reconstruction from source A",
-                    "derivation_kind": "source_reconstruction",
-                    "status": "in_progress",
-                    "body": "Starting from the source statement, we recover\n\n$$k = \\frac{1}{2\\pi} \\int F$$",
-                    "source_refs": [
-                        "paper-a §2 eq.(4)",
-                        "paper-b §3 benchmark discussion",
-                    ],
-                    "assumptions": ["Weak-coupling regime", "Translation invariance"],
-                    "provenance_note": "This derivation is reconstructed in L3 from the cited source, not copied as an authoritative result.",
-                },
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        (run_root / "l2_comparison_receipts.jsonl").write_text(
-            json.dumps(
-                {
-                    "comparison_id": "comparison:demo-benchmark-check",
-                    "candidate_ref_id": "candidate:demo-bound",
-                    "title": "Benchmark-facing derivation comparison",
-                    "comparison_summary": "The reconstructed route matches the nearby L2 derivation up to one normalization convention that remains explicit.",
-                    "compared_unit_ids": [
-                        "derivation:chern-benchmark-demo",
-                    ],
-                    "comparison_scope": "bounded benchmark route",
-                    "outcome": "partial_match",
-                    "limitations": [
-                        "Normalization differs by a convention-dependent factor pending explicit closure.",
-                    ],
-                },
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
-            + "\n",
             encoding="utf-8",
         )
         (run_root / "candidate_ledger.jsonl").write_text(
@@ -215,7 +128,6 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
                     "question": "Does the reconstructed derivation agree with the benchmark regime?",
                     "assumptions": ["Weak-coupling regime", "Translation invariance"],
                     "proposed_validation_route": "benchmark_review",
-                    "intended_l2_targets": ["derivation:demo-bound"],
                 },
                 ensure_ascii=False,
                 separators=(",", ":"),
@@ -237,131 +149,6 @@ def test_topic_notebook_compiles_runtime_l1_and_l3_surfaces_into_archive_section
             + "\n",
             encoding="utf-8",
         )
-        (run_root / "iteration_journal.json").write_text(
-            json.dumps(
-                {
-                    "run_id": "run-001",
-                    "status": "iterating",
-                    "current_iteration_id": "iteration-002",
-                    "iteration_ids": ["iteration-001", "iteration-002"],
-                    "latest_conclusion_status": "continue_iteration",
-                    "latest_staging_decision": "defer",
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        (iteration_root / "plan.contract.json").write_text(
-            json.dumps(
-                {
-                    "topic_slug": "demo-topic",
-                    "run_id": "run-001",
-                    "iteration_id": "iteration-002",
-                    "selected_action_summary": "Check whether the reconstructed response coefficient survives the benchmark normalization bridge.",
-                    "verification_focus": "Bounded benchmark comparison",
-                    "pass_conditions": [
-                        "Keep the normalization bridge explicit.",
-                        "Do not collapse k and sigma_xy before the comparison receipt is written.",
-                    ],
-                    "failure_signals": [
-                        "A hidden factor appears in the benchmark convention.",
-                    ],
-                    "planned_outputs": [
-                        "Updated derivation note",
-                        "Comparison receipt",
-                    ],
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        (iteration_root / "l4_return.json").write_text(
-            json.dumps(
-                {
-                    "topic_slug": "demo-topic",
-                    "run_id": "run-001",
-                    "iteration_id": "iteration-002",
-                    "status": "returned",
-                    "returned_result_status": "partial",
-                    "returned_result_summary": "The benchmark comparison agrees with the derivation backbone, but still leaves one normalization factor explicit rather than closed.",
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        (iteration_root / "l3_synthesis.json").write_text(
-            json.dumps(
-                {
-                    "topic_slug": "demo-topic",
-                    "run_id": "run-001",
-                    "iteration_id": "iteration-002",
-                    "status": "summarized",
-                    "conclusion_status": "continue_iteration",
-                    "staging_decision": "defer",
-                    "synthesis_summary": "The bounded route is still useful, but the normalization caveat stays explicit and blocks any stronger claim.",
-                    "next_step_summary": "Recover the omitted normalization factor from the cited benchmark note before widening the claim.",
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-
-        notebook.append_notebook_entry(
-            l3_root,
-            kind="candidate_update",
-            title="Bounded response derivation",
-            body="A first candidate has been recorded.",
-            status="ready_for_validation",
-            run_id="run-001",
-            details={"candidate_id": "candidate:demo-bound"},
-        )
-
-        tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
-
-        assert r"\section{Research Question And Background}" in tex
-        assert "Recover the bounded derivation and benchmark route." in tex
-        assert r"\section{Setup, Notation, And Regime}" in tex
-        assert "Use Euclidean-signature notation unless a source explicitly says otherwise." in tex
-        assert r"\section{Working Ideas, Hypotheses, And Candidate Routes}" not in tex
-        assert "A source-grounded derivation candidate for the response coefficient." in tex
-        assert "Does the reconstructed derivation agree with the benchmark regime?" in tex
-        assert r"\section{Iterative L3-L4 Research Record}" in tex
-        assert "Check whether the reconstructed response coefficient survives the benchmark normalization bridge." in tex
-        assert "Guiding candidate routes in this run" in tex
-        assert "The benchmark comparison agrees with the derivation backbone" in tex
-        assert "Recover the omitted normalization factor from the cited benchmark note" in tex
-        assert "Derivation notes accumulated in this run" in tex
-        assert "Comparison receipts accumulated in this run" in tex
-        assert r"\section{Consolidated Derivation And Validation Status}" in tex
-        assert "Response-coefficient reconstruction from source A" in tex
-        assert "paper-a" in tex
-        assert "This derivation is reconstructed in L3 from the cited source" in tex
-        assert "Benchmark-facing derivation comparison" in tex
-        assert "Normalization differs by a convention-dependent factor" in tex
-        assert r"\section{Current Conclusion And Open Problems}" in tex
-        assert "The sign convention for the response coefficient remains unresolved." in tex
-        assert r"\section{Source Provenance And Reading Map}" in tex
-        assert "Lecture Notes A" in tex
-        assert "Paper A uses k while Paper B uses sigma\\_xy" in tex
-        assert r"\section{Candidate Catalog}" in tex
-        assert "candidate:demo-bound" in tex
-        assert r"\section{Strategy And Failure Memory}" in tex
-        assert "Check notation alignment before comparing benchmark formulas." in tex
-        assert r"\section{Chronological Entry Log}" in tex
-
-
-def test_notebook_prefers_research_report_surface_when_present() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        topic_root = Path(td) / "topics" / "demo-topic"
-        l3_root = topic_root / "L3"
-        runtime_root = topic_root / "runtime"
-        l3_root.mkdir(parents=True, exist_ok=True)
-        runtime_root.mkdir(parents=True, exist_ok=True)
-
         (runtime_root / "research_report.active.json").write_text(
             json.dumps(
                 {
@@ -372,6 +159,9 @@ def test_notebook_prefers_research_report_surface_when_present() -> None:
                         "question": "Can the bounded route survive the benchmark comparison without hiding the normalization caveat?",
                         "literature_position": "Primary source basis: Lecture Notes A, Benchmark Note B",
                     },
+                    "physical_target": "Hall-response coefficient in the bounded weak-coupling regime",
+                    "observables_or_decision_targets": ["Hall-response coefficient"],
+                    "current_dispute_or_bottleneck": "One normalization factor remains unresolved.",
                     "physical_motivation": "Make the normalization caveat explicit instead of polishing it away.",
                     "setup": {
                         "scope": ["Keep the bounded route explicit."],
@@ -379,41 +169,101 @@ def test_notebook_prefers_research_report_surface_when_present() -> None:
                         "notation": ["Use source convention first."],
                         "deliverables": ["One bounded derivation note."],
                     },
-                    "candidate_routes": [
+                    "convention_ledger": [
                         {
-                            "title": "Bounded route",
-                            "summary": "A bounded route to the response coefficient.",
-                            "question": "Does the benchmark note preserve the same coefficient?",
-                            "status": "ready_for_validation",
-                            "validation_route": "benchmark_review",
-                            "assumptions": ["Weak coupling."],
-                        }
+                            "symbol": "k",
+                            "meaning": "source-side response coefficient",
+                            "normalization": "Lecture-note convention",
+                            "source": "Lecture Notes A §2 eq.(4)",
+                            "bridge_status": "open",
+                            "notes": "Not yet fully bridged to sigma_xy.",
+                        },
+                        {
+                            "symbol": "sigma_xy",
+                            "meaning": "benchmark transport coefficient",
+                            "normalization": "Benchmark transport convention",
+                            "source": "Benchmark Note B §3",
+                            "bridge_status": "open",
+                            "notes": "Needs explicit bridge from k.",
+                        },
                     ],
-                    "iteration_rounds": [
+                    "round_development": [
                         {
                             "iteration_id": "iteration-001",
+                            "round_type": "derivation_round",
                             "round_question": "Check the normalization bridge.",
-                            "pass_conditions": ["Keep factor bookkeeping explicit."],
-                            "failure_signals": ["A hidden factor appears."],
+                            "plan_summary": "Keep factor bookkeeping explicit before comparing against the benchmark note.",
                             "returned_result_summary": "The main backbone survives, but one factor remains unresolved.",
                             "understanding_delta": "The caveat is real, not cosmetic.",
                             "next_step_summary": "Recover the omitted factor before promotion.",
-                            "conclusion_status": "continue_iteration",
-                            "staging_decision": "defer",
+                            "claim_readiness": "qualified",
+                            "missing_blocks": [],
+                            "hard_blocking_gaps": [],
+                            "qualified_gaps": ["One normalization factor remains unresolved."],
+                            "eligible_for_current_claims": True,
                         }
                     ],
-                    "current_claims": [
+                    "main_derivation_spine": [
                         {
-                            "claim": "The bounded derivation backbone survives the benchmark comparison.",
-                            "status": "validated_partial",
-                            "support": "L3 derivation, L2 comparison receipt",
-                            "limitation": "One normalization factor remains unresolved.",
+                            "derivation_id": "candidate:demo-bound",
+                            "title": "Source reconstruction: Hall-response coefficient from Lecture Notes A",
+                            "derivation_kind": "source_reconstruction",
+                            "status": "in_progress",
+                            "source_statement": "The source gives the curvature-side coefficient formula.",
+                            "source_omissions": ["The source omits the bridge from k to sigma_xy."],
+                            "l3_restoration_notes": "L3 restores the omitted bridge as a separate bounded step instead of silently identifying the symbols.",
+                            "assumptions": ["Weak-coupling regime", "Translation invariance"],
+                            "source_refs": ["Lecture Notes A §2 eq.(4)", "Benchmark Note B §3"],
+                            "provenance_note": "This derivation is reconstructed in L3 from the cited source, not copied as an authoritative result.",
+                            "derivation_steps": [
+                                {
+                                    "label": "Step 1",
+                                    "equation": "$$k = \\frac{1}{2\\pi} \\int_{\\mathcal{B}} F$$",
+                                    "justification": "Source equation.",
+                                    "source_anchor": "Lecture Notes A §2 eq.(4)",
+                                    "is_l3_completion": False,
+                                    "assumption_dependencies": ["Weak-coupling regime"],
+                                },
+                                {
+                                    "label": "Step 2",
+                                    "equation": "$$\\sigma_{xy} = k + \\delta$$",
+                                    "justification": "Benchmark bridge note.",
+                                    "source_anchor": "Benchmark Note B §3",
+                                    "is_l3_completion": True,
+                                    "assumption_dependencies": ["Weak-coupling regime", "Translation invariance"],
+                                    "open_gap_note": "The normalization bridge is still incomplete.",
+                                },
+                            ],
+                        }
+                    ],
+                    "current_best_statements": [
+                        {
+                            "statement": "The bounded derivation backbone survives the benchmark comparison.",
+                            "validity_regime": "Weak-coupling regime with explicit normalization caveat.",
+                            "depends_on": ["L3 derivation", "L2 comparison receipt"],
+                            "breaks_if": "The transport convention inserts an additional factor.",
+                            "still_unclosed": ["One normalization factor remains unresolved."],
+                            "claim_readiness": "qualified",
                             "next_action": "Recover the omitted factor before promotion.",
                         }
                     ],
-                    "current_derivation_spine": [],
-                    "failed_routes": [],
-                    "comparison_receipts": [],
+                    "active_routes_not_yet_claim_worthy": [],
+                    "excluded_routes": [
+                        {
+                            "title": "Failed attempt: direct identification of k with sigma_xy",
+                            "why_plausible": "Both sources discuss the same observable and the shortcut made the story look cleaner.",
+                            "exact_failure_point": "The convention bridge was assumed rather than derived.",
+                            "lesson": "Do not identify the symbols before the normalization bridge is written explicitly.",
+                            "revive_conditions": ["A later source may prove the bridge under extra assumptions."],
+                        }
+                    ],
+                    "open_obligations": [
+                        {
+                            "summary": "Recover the omitted factor from the benchmark convention note.",
+                            "missing_block": "convention_ledger",
+                            "recommended_round_type": "derivation_round",
+                        }
+                    ],
                     "current_conclusion": "The route is usable but still caveated.",
                     "open_problems": ["Recover the omitted normalization factor."],
                     "recommended_skills": [
@@ -441,9 +291,108 @@ def test_notebook_prefers_research_report_surface_when_present() -> None:
 
         tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
 
-        assert r"\section{Working Ideas, Hypotheses, And Candidate Routes}" not in tex
-        assert "Check the normalization bridge." in tex
-        assert r"\section{Current Claims And Stable Results}" in tex
-        assert "The bounded derivation backbone survives the benchmark comparison." in tex
+        assert r"\section{Research Problem, Physical Target, And Motivation}" in tex
+        assert "Hall-response coefficient in the bounded weak-coupling regime" in tex
         assert "One normalization factor remains unresolved." in tex
-        assert "Can the bounded route survive the benchmark comparison" in tex
+        assert r"\section{Setup, Regime, And Convention Ledger}" in tex
+        assert "source-side response coefficient" in tex
+        assert "Benchmark transport convention" in tex
+        assert r"\section{Round-by-Round Research Development}" in tex
+        assert "Check the normalization bridge." in tex
+        assert "Keep factor bookkeeping explicit before comparing against the benchmark note." in tex
+        assert "Recover the omitted factor before promotion." in tex
+        assert r"\section{Main Derivation Spine}" in tex
+        assert "Step 1" in tex
+        assert "Source equation." in tex
+        assert "The source omits the bridge from k to sigma\\_xy." in tex
+        assert "L3 restores the omitted bridge as a separate bounded step" in tex
+        assert r"\section{Current Best Statements}" in tex
+        assert "Validity regime" in tex
+        assert "Breaks if" in tex
+        assert "Still unclosed" in tex
+        assert r"\section{Excluded Routes And Lessons}" in tex
+        assert "The convention bridge was assumed rather than derived." in tex
+        assert "Do not identify the symbols before the normalization bridge is written explicitly." in tex
+        assert r"\section{Open Obligations And Next Research Direction}" in tex
+        assert "Recover the omitted factor from the benchmark convention note." in tex
+        assert r"\section{Source Provenance And Reading Map}" in tex
+        assert "Lecture Notes A" in tex
+        assert r"\section{Chronological Entry Log}" in tex
+        assert r"\section{Iterative L3-L4 Research Record}" not in tex
+        assert r"\section{Current Claims And Stable Results}" not in tex
+        assert r"\section{Consolidated Derivation And Validation Status}" not in tex
+
+
+def test_notebook_surfaces_blocked_routes_without_promoting_them_to_current_best_statements() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        topic_root = Path(td) / "topics" / "demo-topic"
+        l3_root = topic_root / "L3"
+        runtime_root = topic_root / "runtime"
+        l3_root.mkdir(parents=True, exist_ok=True)
+        runtime_root.mkdir(parents=True, exist_ok=True)
+
+        (runtime_root / "research_report.active.json").write_text(
+            json.dumps(
+                {
+                    "status": "available",
+                    "topic_slug": "demo-topic",
+                    "run_id": "run-001",
+                    "problem": {"question": "Can the blocked route be repaired?"},
+                    "physical_target": "Blocked derivation route",
+                    "physical_motivation": "Expose what is still missing instead of pretending the route is ready.",
+                    "setup": {"scope": ["Keep the blocked route visible."], "assumptions": [], "notation": []},
+                    "convention_ledger": [],
+                    "round_development": [
+                        {
+                            "iteration_id": "iteration-001",
+                            "round_type": "derivation_round",
+                            "round_question": "Can the route be quoted yet?",
+                            "claim_readiness": "blocked",
+                            "missing_blocks": ["derivation_spine"],
+                            "hard_blocking_gaps": ["derivation_spine"],
+                            "qualified_gaps": [],
+                            "eligible_for_current_claims": False,
+                            "next_step_summary": "Write the missing stepwise derivation before quoting the route.",
+                        }
+                    ],
+                    "main_derivation_spine": [],
+                    "current_best_statements": [],
+                    "active_routes_not_yet_claim_worthy": [
+                        {
+                            "statement": "The route might still work, but it is not yet claim-worthy.",
+                            "claim_readiness": "blocked",
+                            "still_unclosed": ["Missing obligation block: derivation_spine"],
+                            "next_action": "Write the missing stepwise derivation before quoting the route.",
+                        }
+                    ],
+                    "excluded_routes": [],
+                    "open_obligations": [
+                        {
+                            "summary": "Write the missing stepwise derivation before quoting the route.",
+                            "missing_block": "derivation_spine",
+                            "recommended_round_type": "derivation_round",
+                        }
+                    ],
+                    "open_problems": ["Write the missing stepwise derivation before quoting the route."],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        notebook.append_notebook_entry(
+            l3_root,
+            kind="candidate_update",
+            title="Seed entry",
+            body="Seed notebook rebuild.",
+            status="ready_for_validation",
+            run_id="run-001",
+        )
+
+        tex = (l3_root / "research_notebook.tex").read_text(encoding="utf-8")
+
+        assert r"\section{Current Best Statements}" in tex
+        assert "No claim is currently stable enough to quote as a best statement." in tex
+        assert "Active But Not Yet Claim-Worthy Routes" in tex
+        assert "Missing obligation block: derivation\\_spine" in tex

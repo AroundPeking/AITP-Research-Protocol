@@ -1966,6 +1966,16 @@ class AITPService:
         updated_by: str = "human",
         derivation_id: str | None = None,
         replace_existing: bool = False,
+        derivation_steps: list[dict[str, Any]] | None = None,
+        source_statement: str = "",
+        source_omissions: list[str] | None = None,
+        l3_restoration_notes: str = "",
+        restoration_assumptions: list[str] | None = None,
+        notation_bindings: list[dict[str, Any]] | None = None,
+        why_plausible: str = "",
+        exact_failure_point: str = "",
+        lesson: str = "",
+        revive_conditions: list[str] | None = None,
     ) -> dict[str, Any]:
         run_root = self._feedback_run_root(topic_slug, run_id)
         run_root.mkdir(parents=True, exist_ok=True)
@@ -1984,6 +1994,16 @@ class AITPService:
             updated_by=updated_by,
             derivation_id=derivation_id,
             replace_existing=replace_existing,
+            derivation_steps=derivation_steps,
+            source_statement=source_statement,
+            source_omissions=source_omissions,
+            l3_restoration_notes=l3_restoration_notes,
+            restoration_assumptions=restoration_assumptions,
+            notation_bindings=notation_bindings,
+            why_plausible=why_plausible,
+            exact_failure_point=exact_failure_point,
+            lesson=lesson,
+            revive_conditions=revive_conditions,
         )
         return {
             "topic_slug": topic_slug,

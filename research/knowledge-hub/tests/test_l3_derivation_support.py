@@ -66,10 +66,117 @@ def test_record_l3_derivation_entry_writes_run_surface_and_notebook_event() -> N
         assert notebook_rows[0]["title"] == "Response reconstruction"
 
 
+def test_record_l3_derivation_entry_persists_stepwise_restoration_fields() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        topic_root = Path(td) / "topics" / "demo-topic"
+        run_root = topic_root / "L3" / "runs" / "run-001"
+        run_root.mkdir(parents=True, exist_ok=True)
+
+        record_l3_derivation_entry(
+            run_root=run_root,
+            topic_slug="demo-topic",
+            run_id="run-001",
+            title="Source restoration note",
+            body="Restore the omitted source-side bridge carefully.",
+            derivation_kind="source_reconstruction",
+            status="in_progress",
+            source_refs=["paper-a §2 eq.(4)"],
+            assumptions=["Weak-coupling regime"],
+            provenance_note="Reconstructed in L3 from the cited source.",
+            updated_by="test",
+            derivation_id="candidate:source-restoration",
+            derivation_steps=[
+                {
+                    "label": "Step 1",
+                    "equation": "k = (1/2\\pi) \\int F",
+                    "justification": "Source equation.",
+                    "source_anchor": "paper-a §2 eq.(4)",
+                    "is_l3_completion": False,
+                    "assumption_dependencies": ["Weak-coupling regime"],
+                },
+                {
+                    "label": "Step 2",
+                    "equation": "sigma_xy = k + \\delta",
+                    "justification": "Benchmark bridge note.",
+                    "source_anchor": "paper-b §3",
+                    "is_l3_completion": True,
+                    "assumption_dependencies": ["Weak-coupling regime"],
+                },
+            ],
+            source_statement="The source gives the curvature-side coefficient formula.",
+            source_omissions=["The source omits the bridge from k to sigma_xy."],
+            l3_restoration_notes="L3 restores the omitted bridge as a separate bounded step instead of silently identifying the symbols.",
+            restoration_assumptions=["Stay in the bounded two-dimensional regime."],
+            notation_bindings=[
+                {"symbol": "k", "meaning": "source-side coefficient"},
+                {"symbol": "sigma_xy", "meaning": "transport coefficient"},
+            ],
+        )
+
+        rows = [
+            json.loads(line)
+            for line in (run_root / "derivation_records.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+        assert rows[0]["derivation_steps"][0]["label"] == "Step 1"
+        assert rows[0]["source_statement"] == "The source gives the curvature-side coefficient formula."
+        assert rows[0]["source_omissions"] == ["The source omits the bridge from k to sigma_xy."]
+        assert rows[0]["l3_restoration_notes"].startswith("L3 restores")
+        assert rows[0]["restoration_assumptions"] == ["Stay in the bounded two-dimensional regime."]
+        assert rows[0]["notation_bindings"][0]["symbol"] == "k"
+
+        note_text = (run_root / "derivation_records.md").read_text(encoding="utf-8")
+        assert "Step 1" in note_text
+        assert "The source omits the bridge from k to sigma_xy." in note_text
+        assert "sigma_xy" in note_text
+
+
+def test_record_l3_derivation_entry_persists_failure_route_fields() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        topic_root = Path(td) / "topics" / "demo-topic"
+        run_root = topic_root / "L3" / "runs" / "run-001"
+        run_root.mkdir(parents=True, exist_ok=True)
+
+        record_l3_derivation_entry(
+            run_root=run_root,
+            topic_slug="demo-topic",
+            run_id="run-001",
+            title="Failed shortcut",
+            body="A direct identification of k with sigma_xy looked shorter but collapses the convention bridge too early.",
+            derivation_kind="failed_attempt",
+            status="blocked",
+            source_refs=["paper-b §3"],
+            assumptions=["Assume both papers use the same normalization."],
+            updated_by="test",
+            why_plausible="Both sources discuss the same Hall-response observable.",
+            exact_failure_point="The normalization bridge is not proven, only assumed.",
+            lesson="Do not identify the symbols before the bridge is restored explicitly.",
+            revive_conditions=["A later source may prove the bridge under extra assumptions."],
+        )
+
+        rows = [
+            json.loads(line)
+            for line in (run_root / "derivation_records.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+        assert rows[0]["why_plausible"].startswith("Both sources discuss")
+        assert rows[0]["exact_failure_point"].startswith("The normalization bridge")
+        assert rows[0]["lesson"].startswith("Do not identify")
+        assert rows[0]["revive_conditions"] == ["A later source may prove the bridge under extra assumptions."]
+
+        note_text = (run_root / "derivation_records.md").read_text(encoding="utf-8")
+        assert "Why this route looked plausible" in note_text
+        assert "Exact failure point" in note_text
+        assert "Revive conditions" in note_text
+
+
 def test_derivation_candidate_update_auto_mirrors_into_derivation_records() -> None:
     with tempfile.TemporaryDirectory() as td:
         kernel_root = Path(td)
         service = AITPService(kernel_root=kernel_root, repo_root=Path.cwd().resolve())
+        service.kernel_root = kernel_root.resolve()
 
         topic_slug = "demo-topic"
         run_id = "run-001"
@@ -137,6 +244,7 @@ def test_derivation_candidate_without_detailed_body_blocks_promotion_readiness_a
     with tempfile.TemporaryDirectory() as td:
         kernel_root = Path(td)
         service = AITPService(kernel_root=kernel_root, repo_root=Path.cwd().resolve())
+        service.kernel_root = kernel_root.resolve()
         candidate = _promotion_ready_derivation_candidate()
 
         readiness = service._derive_promotion_readiness(
@@ -163,6 +271,7 @@ def test_detailed_derivation_and_l2_comparison_unblock_promotion_readiness_and_c
     with tempfile.TemporaryDirectory() as td:
         kernel_root = Path(td)
         service = AITPService(kernel_root=kernel_root, repo_root=Path.cwd().resolve())
+        service.kernel_root = kernel_root.resolve()
         candidate = _promotion_ready_derivation_candidate()
 
         service.record_l3_derivation(
@@ -213,6 +322,7 @@ def test_detailed_derivation_still_blocked_without_l2_comparison_receipt() -> No
     with tempfile.TemporaryDirectory() as td:
         kernel_root = Path(td)
         service = AITPService(kernel_root=kernel_root, repo_root=Path.cwd().resolve())
+        service.kernel_root = kernel_root.resolve()
         candidate = _promotion_ready_derivation_candidate()
 
         service.record_l3_derivation(
@@ -253,6 +363,7 @@ def test_theorem_candidate_requires_theory_packet_surfaces_for_readiness() -> No
     with tempfile.TemporaryDirectory() as td:
         kernel_root = Path(td)
         service = AITPService(kernel_root=kernel_root, repo_root=Path.cwd().resolve())
+        service.kernel_root = kernel_root.resolve()
         candidate = {
             "candidate_id": "candidate:demo-theorem",
             "candidate_type": "theorem_card",

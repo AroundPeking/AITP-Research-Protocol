@@ -80,8 +80,10 @@ Journal rules:
 Preferred Markdown contents:
 
 - `plan.md`
+  - declared `round_type`,
   - research objective,
   - detailed plan,
+  - the obligation blocks the round intends to close,
   - exact server / runtime / script / parameter notes when relevant,
   - pass conditions, failure signals, and bounded stop rules.
 - `l4_return.md`
@@ -93,6 +95,8 @@ Preferred Markdown contents:
   - whether the result is accepted,
   - whether to continue another iteration,
   - whether to stage provisional outputs,
+  - which obligation blocks are still missing,
+  - whether the round is eligible to support a current statement,
   - why that decision is honest.
 
 Thin JSON rule:
@@ -101,6 +105,14 @@ Thin JSON rule:
   only machine-stable ids, statuses, artifact refs, replay inputs, and staging
   decisions.
 - They should not duplicate the full narrative already present in Markdown.
+- They may, however, carry thin obligation-closure fields such as:
+  - `round_type`
+  - `required_blocks`
+  - `present_blocks`
+  - `missing_blocks`
+  - `claim_readiness`
+  - `eligible_for_current_claims`
+  - `must_feed_unfinished_work`
 
 Minimal `iteration_journal.json` shape:
 
@@ -157,6 +169,12 @@ Rules:
   run; JSONL remains the thin machine-facing ledger.
 - Every derivation row should carry an explicit epistemic marker showing that
   the record is AI-authored provisional reasoning rather than truth by itself.
+- When the row is intended to support notebook-facing claim use, it should also
+  preserve enough structure to expose:
+  - stepwise derivation or restoration content,
+  - source-vs-L3 completion boundaries,
+  - assumption dependencies,
+  - open gaps that still block closure.
 
 ## 1.3 L3-to-L2 comparison receipt contract
 
@@ -191,6 +209,32 @@ Rules:
   contradiction, or an insufficient source basis, the honest route is to
   narrow the candidate or return to `L0` instead of pretending the derivation
   is already stable.
+
+## 1.3A Derived report and notebook surfaces
+
+Paths:
+
+- `topics/<topic_slug>/runtime/research_report.active.json`
+- `topics/<topic_slug>/runtime/research_report.active.md`
+- `topics/<topic_slug>/L3/research_notebook.tex`
+- `topics/<topic_slug>/L3/research_notebook.pdf`
+
+Purpose:
+
+- derive a physicist-facing view over topic progress without hiding protocol
+  truth,
+- present physical targets, regime, convention ledgers, round development,
+  main derivation spines, current best statements, excluded routes, and open
+  obligations in human-readable order,
+- keep appendices available for provenance, catalogs, and chronology.
+
+Rules:
+
+- a report/notebook statement may not be rendered as current best if its
+  supporting rounds remain `blocked`,
+- `qualified` routes may be shown only with explicit validity/caveat structure,
+- missing obligation blocks that matter for claim use should also be written
+  into unfinished work.
 
 ## 1.4 Theory-packet readiness gate for formal candidates
 
