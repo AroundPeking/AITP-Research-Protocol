@@ -33,6 +33,7 @@ CHARTER.md (highest authority: 10 articles + three-phase vision)
         │     ├── L1_intake_protocol.md
         │     ├── L2_backend_interface.md
         │     ├── L3_execution_protocol.md
+        │     ├── TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md
         │     ├── L4_validation_protocol.md
         │     ├── closed_loop_protocol.md
         │     └── promotion_pipeline.md
@@ -104,6 +105,7 @@ the git repo should stay code, protocol, and public docs.
 | **Runtime bundle** | `topics/<slug>/runtime/runtime_protocol.generated.md` | Progressive disclosure bundle: synopsis, contracts, triggers, guardrails | Agent |
 | **Next action** | `topics/<slug>/runtime/next_action_decision.json` | Authoritative decision: what to do next and why | Agent |
 | **Topic dashboard** | `topics/<slug>/runtime/topic_dashboard.md` | Primary human render of current state | Human |
+| **Research report** | `topics/<slug>/runtime/research_report.active.md` | Physicist-facing topic report with round development, current best statements, excluded routes, and open obligations | Human |
 | **Action queue** | `topics/<slug>/runtime/action_queue_contract.generated.json` | Ordered list of executable actions | Agent |
 | **Unfinished work** | `topics/<slug>/runtime/unfinished_work.json` | Index of incomplete actions | Agent |
 | **Pending decisions** | `topics/<slug>/runtime/pending_decisions.json` | Unresolved decision points | Agent, Human |
@@ -176,6 +178,7 @@ The Python package `aitp-kernel` provides all runtime services. Key modules:
 | `l2_hygiene.py` | L2 canonical store hygiene |
 | `l3_derivation_support.py` | Run-local L3 derivation ledger and notebook-entry projection |
 | `l3_comparison_support.py` | Run-local L2 comparison receipt ledger for derivation-heavy candidates |
+| `research_report_support.py` | Derived physicist-facing topic report surface with obligation closure, statement readiness, and notebook-facing ordering |
 | `research_notebook_support.py` | XeLaTeX topic notebook compiler over runtime, provenance, derivation, and log surfaces |
 | `capability_plane_support.py` | Runtime capability plane for tools, servers, and environments |
 | `lean_bridge_support.py` | Lean 4 bridge for formal theory |
@@ -253,6 +256,7 @@ The Python package `aitp-kernel` provides all runtime services. Key modules:
 
 | Protocol | File | When it matters |
 |---|---|---|
+| Topic notebook obligations | [TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md](protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md) | When a topic notebook/report must separate blocked, qualified, and stable scientific routes honestly |
 | Autonomy & operator model | [AUTONOMY_AND_OPERATOR_MODEL.md](../research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md) | Understanding human vs agent roles |
 | Communication contract | [COMMUNICATION_CONTRACT.md](../research/knowledge-hub/COMMUNICATION_CONTRACT.md) | How agent and human communicate |
 | Execution guardrails | [RESEARCH_EXECUTION_GUARDRAILS.md](../research/knowledge-hub/RESEARCH_EXECUTION_GUARDRAILS.md) | Bounded action packets, forbidden proxies |

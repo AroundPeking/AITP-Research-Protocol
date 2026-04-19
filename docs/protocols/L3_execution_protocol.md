@@ -154,6 +154,46 @@ Rules:
   recovery and to L2 for known-method or known-derivation comparison before
   treating the route as stable.
 
+## 3.4A. Notebook-Facing Obligation Closure
+
+L3's run and iteration artifacts should be strong enough to support a
+physicist-readable topic notebook, not just a replayable protocol archive.
+
+Each notebook-facing round should therefore declare:
+
+- one `round_type`,
+- the `required_blocks` for that round,
+- the blocks currently present,
+- the blocks still missing,
+- whether the round is eligible to support a current statement,
+- whether missing blocks must flow back into unfinished work.
+
+Allowed round types:
+
+- `derivation_round`
+- `source_restoration_round`
+- `numerical_or_benchmark_round`
+- `synthesis_round`
+
+The notebook-facing obligations are defined in:
+
+- `docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md`
+
+L3-specific consequences:
+
+- a derivation-heavy route without a usable derivation spine remains
+  `blocked` for claim use,
+- a source-restoration route without source anchors remains `blocked` for claim
+  use,
+- a numerical or benchmark route without setup, observables, or anomaly
+  analysis remains `blocked` for claim use,
+- a route with unresolved but explicit caveats may still be `qualified`, but it
+  may not be rendered as a stable statement.
+
+Convention or normalization reconciliation is not its own round type.
+Instead it is a cross-round obligation block that becomes mandatory whenever a
+round depends on notation or normalization bridges.
+
 ## 3.5. Scratch Mode
 
 L3 provides a scratch mode for quick speculative work:
@@ -205,6 +245,20 @@ The actual implementation now stores run-related information across:
 
 So the `L3/runs/` path structure is actively used for run-local research
 artifacts, while runtime surfaces still carry the cross-layer control state.
+
+For notebook/report use, these run records should support a human reading order
+that leads with:
+
+1. physical target,
+2. setup, regime, and convention ledger,
+3. round-by-round scientific development,
+4. main derivation spine,
+5. current best statements,
+6. excluded routes and lessons,
+7. open obligations and next direction.
+
+Protocol metadata such as run ids, iteration ids, and staging decisions should
+remain available but visually demoted relative to the physical narrative.
 
 ## 3.8. Layer Graph State Machine
 

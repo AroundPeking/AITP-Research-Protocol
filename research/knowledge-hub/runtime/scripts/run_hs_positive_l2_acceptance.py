@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from acceptance_reference_support import locate_reference_topic_dir
+
 
 SCRIPT_PATH = Path(__file__).resolve()
 KERNEL_ROOT = SCRIPT_PATH.parents[2]
@@ -193,9 +195,14 @@ if __name__ == "__main__":
     )
 
 
-def load_reference_candidate(package_root: Path) -> dict[str, Any]:
+def load_reference_candidate(package_root: Path, repo_root: Path) -> dict[str, Any]:
+    topic_root = locate_reference_topic_dir(
+        package_root=package_root,
+        repo_root=repo_root,
+        topic_slug=REFERENCE_TOPIC_SLUG,
+    )
     ledger_path = (
-        package_root / "topics" / REFERENCE_TOPIC_SLUG / "L3"
+        topic_root / "L3"
         / "runs"
         / REFERENCE_RUN_ID
         / "candidate_ledger.jsonl"
@@ -295,7 +302,7 @@ def main() -> int:
     tpkn_root = work_root / "tpkn-hs-positive"
     create_minimal_tpkn_backend(tpkn_root)
 
-    reference_candidate = load_reference_candidate(package_root)
+    reference_candidate = load_reference_candidate(package_root, repo_root)
     target_contract_path = Path(contract_payload["target_contract"]["json_path"])
     target_contract_note_path = Path(contract_payload["target_contract"]["markdown_path"])
     baseline_summary_path = Path(contract_payload["trust_gate"]["baseline_summary"])
