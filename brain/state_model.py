@@ -22,6 +22,7 @@ class StageSnapshot:
     missing_requirements: list[str] = field(default_factory=list)
     next_allowed_transition: str = ""
     skill: str = "skill-continuous"
+    l3_subplane: str = ""
 
 
 def topics_dir(topics_root: str | Path) -> Path:
@@ -207,4 +208,181 @@ def evaluate_l1_stage(
         gate_status="ready",
         next_allowed_transition="L3",
         skill="skill-frame",
+    )
+
+
+# ---------------------------------------------------------------------------
+# L3 subplanes
+# ---------------------------------------------------------------------------
+
+L3_SUBPLANES = ["ideation", "planning", "analysis", "result_integration", "distillation"]
+
+L3_ALLOWED_TRANSITIONS: dict[str, list[str]] = {
+    "ideation": ["planning"],
+    "planning": ["analysis", "ideation"],
+    "analysis": ["result_integration", "ideation", "planning"],
+    "result_integration": ["distillation", "analysis"],
+    "distillation": ["result_integration"],
+}
+
+L3_ARTIFACT_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
+    # (subplane, frontmatter, body)
+    "ideation": (
+        "ideation",
+        {
+            "artifact_kind": "l3_active_idea",
+            "subplane": "ideation",
+            "required_fields": ["idea_statement", "motivation"],
+            "idea_statement": "",
+            "motivation": "",
+        },
+        "# Active Idea\n\n## Idea Statement\n\n## Motivation\n\n"
+        "## Prior Work\n\n## Risk Assessment\n",
+    ),
+    "planning": (
+        "planning",
+        {
+            "artifact_kind": "l3_active_plan",
+            "subplane": "planning",
+            "required_fields": ["plan_statement", "derivation_route"],
+            "plan_statement": "",
+            "derivation_route": "",
+        },
+        "# Active Plan\n\n## Plan Statement\n\n## Derivation Route\n\n"
+        "## Expected Outcomes\n\n## Milestones\n",
+    ),
+    "analysis": (
+        "analysis",
+        {
+            "artifact_kind": "l3_active_analysis",
+            "subplane": "analysis",
+            "required_fields": ["analysis_statement", "method"],
+            "analysis_statement": "",
+            "method": "",
+        },
+        "# Active Analysis\n\n## Analysis Statement\n\n## Method\n\n"
+        "## Results So Far\n\n## Anomalies\n",
+    ),
+    "result_integration": (
+        "result_integration",
+        {
+            "artifact_kind": "l3_active_integration",
+            "subplane": "result_integration",
+            "required_fields": ["integration_statement", "findings"],
+            "integration_statement": "",
+            "findings": "",
+        },
+        "# Active Integration\n\n## Integration Statement\n\n## Findings\n\n"
+        "## Consistency Checks\n\n## Gaps Remaining\n",
+    ),
+    "distillation": (
+        "distillation",
+        {
+            "artifact_kind": "l3_active_distillation",
+            "subplane": "distillation",
+            "required_fields": ["distilled_claim", "evidence_summary"],
+            "distilled_claim": "",
+            "evidence_summary": "",
+        },
+        "# Active Distillation\n\n## Distilled Claim\n\n## Evidence Summary\n\n"
+        "## Confidence Level\n\n## Open Questions\n",
+    ),
+}
+
+L3_ACTIVE_ARTIFACT_NAMES: dict[str, str] = {
+    "ideation": "active_idea.md",
+    "planning": "active_plan.md",
+    "analysis": "active_analysis.md",
+    "result_integration": "active_integration.md",
+    "distillation": "active_distillation.md",
+}
+
+L3_SKILL_MAP: dict[str, str] = {
+    "ideation": "skill-l3-ideate",
+    "planning": "skill-l3-plan",
+    "analysis": "skill-l3-analyze",
+    "result_integration": "skill-l3-integrate",
+    "distillation": "skill-l3-distill",
+}
+
+L3_REQUIRED_HEADINGS: dict[str, list[str]] = {
+    "ideation": ["## Idea Statement", "## Motivation"],
+    "planning": ["## Plan Statement", "## Derivation Route"],
+    "analysis": ["## Analysis Statement", "## Method"],
+    "result_integration": ["## Integration Statement", "## Findings"],
+    "distillation": ["## Distilled Claim", "## Evidence Summary"],
+}
+
+
+def evaluate_l3_stage(
+    parse_md: Callable[[Path], tuple[dict[str, Any], str]],
+    topic_root_path: Path,
+    lane: str = "unspecified",
+) -> StageSnapshot:
+    """Evaluate L3 gate status by checking active subplane artifacts."""
+    state_fm, _ = parse_md(topic_root_path / "state.md")
+    current_subplane = str(state_fm.get("l3_subplane", "")).strip() or "ideation"
+
+    artifact_name = L3_ACTIVE_ARTIFACT_NAMES.get(current_subplane, "active_idea.md")
+    artifact_path = topic_root_path / "L3" / current_subplane / artifact_name
+    skill = L3_SKILL_MAP.get(current_subplane, "skill-l3-ideate")
+
+    template_info = L3_ARTIFACT_TEMPLATES.get(current_subplane)
+    if template_info is None:
+        return StageSnapshot(
+            stage="L3", posture="derive", lane=lane,
+            gate_status="blocked_missing_artifact",
+            required_artifact_path=str(artifact_path),
+            missing_requirements=[f"unknown subplane '{current_subplane}'"],
+            next_allowed_transition="", skill=skill,
+            l3_subplane=current_subplane,
+        )
+
+    _, template_fm, _ = template_info
+    required_fields = [f for f in template_fm.get("required_fields", [])
+                       if not current_subplane.startswith("_")]
+    required_headings = L3_REQUIRED_HEADINGS.get(current_subplane, [])
+
+    if not artifact_path.exists():
+        return StageSnapshot(
+            stage="L3", posture="derive", lane=lane,
+            gate_status="blocked_missing_artifact",
+            required_artifact_path=str(artifact_path),
+            missing_requirements=[artifact_name],
+            next_allowed_transition="",
+            skill=skill,
+            l3_subplane=current_subplane,
+        )
+
+    fm, body = parse_md(artifact_path)
+    missing = (
+        _missing_frontmatter_keys(fm, required_fields)
+        + _missing_required_headings(body, required_headings)
+    )
+    if missing:
+        return StageSnapshot(
+            stage="L3", posture="derive", lane=lane,
+            gate_status="blocked_missing_field",
+            required_artifact_path=str(artifact_path),
+            missing_requirements=missing,
+            next_allowed_transition="",
+            skill=skill,
+            l3_subplane=current_subplane,
+        )
+
+    # Current subplane is complete; check if this is the last one
+    if current_subplane == "distillation":
+        return StageSnapshot(
+            stage="L3", posture="derive", lane=lane,
+            gate_status="ready",
+            next_allowed_transition="L4",
+            skill=skill,
+            l3_subplane=current_subplane,
+        )
+    return StageSnapshot(
+        stage="L3", posture="derive", lane=lane,
+        gate_status="ready",
+        next_allowed_transition=",".join(L3_ALLOWED_TRANSITIONS.get(current_subplane, [])),
+        skill=skill,
+        l3_subplane=current_subplane,
     )

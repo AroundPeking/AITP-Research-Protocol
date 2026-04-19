@@ -28,15 +28,21 @@ def main():
     if not topic_slug:
         return
 
-    from brain.state_model import topics_dir, evaluate_l1_stage
+    from brain.state_model import topics_dir, evaluate_l1_stage, evaluate_l3_stage
     td = topics_dir(topics_root)
     root = Path(td) / topic_slug
     fm, _ = _parse_md(root / "state.md")
-    snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    stage = str(fm.get("stage", "L1"))
 
+    if stage == "L3":
+        snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    else:
+        snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+
+    subplane_info = f", subplane: {snapshot.l3_subplane}" if snapshot.l3_subplane else ""
     print(
         f"AITP: Context was compacted. Resuming topic '{topic_slug}' "
-        f"(stage: {snapshot.stage}, posture: {snapshot.posture}, gate: {snapshot.gate_status})."
+        f"(stage: {snapshot.stage}, posture: {snapshot.posture}, gate: {snapshot.gate_status}{subplane_info})."
     )
     if snapshot.required_artifact_path:
         print(f"AITP: Complete {snapshot.required_artifact_path} before advancing.")
