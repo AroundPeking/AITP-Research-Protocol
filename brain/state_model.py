@@ -386,3 +386,18 @@ def evaluate_l3_stage(
         skill=skill,
         l3_subplane=current_subplane,
     )
+
+
+# ---------------------------------------------------------------------------
+# L4 adjudication constants
+# ---------------------------------------------------------------------------
+
+L4_OUTCOMES = ["pass", "partial_pass", "fail", "contradiction", "stuck", "timeout"]
+
+PHYSICS_CHECK_FIELDS = [
+    "dimensional_consistency",
+    "symmetry_compatibility",
+    "limiting_case_check",
+    "conservation_check",
+    "correspondence_check",
+]

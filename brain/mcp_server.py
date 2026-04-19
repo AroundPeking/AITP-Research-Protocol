@@ -30,6 +30,8 @@ from brain.state_model import (
     L3_SKILL_MAP,
     L3_SUBPLANES,
     L3_ALLOWED_TRANSITIONS,
+    L4_OUTCOMES,
+    PHYSICS_CHECK_FIELDS,
 )
 
 mcp = FastMCP("aitp-brain")
@@ -353,6 +355,7 @@ def aitp_submit_candidate(
     fm = {
         "candidate_id": slug,
         "title": title,
+        "claim": claim,
         "status": "submitted",
         "mode": "candidate",
         "created_at": _now(),
@@ -440,8 +443,10 @@ def aitp_promote_candidate(
     topic_slug: str,
     candidate_id: str,
     comment: str = "",
+    trust_basis: str = "validated",
+    trust_scope: str = "bounded_reusable",
 ) -> str:
-    """Promote an approved candidate to L2. Only works after gate approval."""
+    """Promote an approved candidate to global L2 with conflict/version handling."""
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
     cand_path = root / "L3" / "candidates" / f"{slug}.md"
@@ -450,13 +455,49 @@ def aitp_promote_candidate(
     fm, body = _parse_md(cand_path)
     if fm.get("status") != "approved_for_promotion":
         return f"Candidate {slug} is not approved_for_promotion (status: {fm.get('status')}). Use aitp_request_promotion then aitp_resolve_promotion_gate first."
+
+    global_l2 = _global_l2_path(topics_root)
+    global_l2.mkdir(parents=True, exist_ok=True)
+    l2_path = global_l2 / f"{slug}.md"
+
+    new_claim = str(fm.get("claim", "")).strip()
+
+    if l2_path.exists():
+        existing_fm, _ = _parse_md(l2_path)
+        existing_claim = str(existing_fm.get("claim", "")).strip()
+        if existing_claim and existing_claim != new_claim and new_claim:
+            # Conflict: different claims for same unit
+            conflict_path = global_l2 / "conflicts" / f"{slug}.md"
+            conflict_path.parent.mkdir(parents=True, exist_ok=True)
+            _write_md(conflict_path, {
+                "kind": "conflict", "candidate_id": slug,
+                "existing_claim": existing_claim, "new_claim": new_claim,
+                "detected_at": _now(),
+            }, f"# Conflict: {slug}\n\nExisting: {existing_claim}\n\nNew: {new_claim}\n")
+            return f"Conflict detected for {slug}. Written to L2/conflicts/. Resolve before promoting."
+
+        # Same or compatible claim: version bump
+        existing_version = int(existing_fm.get("version", 1))
+        fm["version"] = existing_version + 1
+        fm["previous_version_promoted_at"] = existing_fm.get("promoted_at", "")
+
     fm["status"] = "promoted"
     fm["promoted_at"] = _now()
     fm["promotion_comment"] = comment
+    fm["trust_basis"] = trust_basis
+    fm["trust_scope"] = trust_scope
+    if "version" not in fm:
+        fm["version"] = 1
+
     _write_md(cand_path, fm, body)
-    l2_path = root / "L2" / "canonical" / f"{slug}.md"
     _write_md(l2_path, fm, body)
-    return f"Promoted {slug} to L2/canonical/."
+
+    # Also keep a topic-local copy for backwards compat
+    local_l2 = root / "L2" / "canonical" / f"{slug}.md"
+    _write_md(local_l2, fm, body)
+
+    _append_to_topic_log(root, f"promoted {slug} to global L2 (v{fm['version']})")
+    return f"Promoted {slug} to global L2 (v{fm['version']})."
 
 
 @mcp.tool()
@@ -699,6 +740,89 @@ def _escape_latex(text: str) -> str:
                      ("~", "\\textasciitilde{}"), ("^", "\\textasciicircum{}")]:
         text = text.replace(old, new)
     return text
+
+
+# ---------------------------------------------------------------------------
+# L4 physics adjudication
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def aitp_create_validation_contract(
+    topics_root: str,
+    topic_slug: str,
+    candidate_id: str,
+    mandatory_checks: list[str] | None = None,
+    validation_route: str = "",
+    failure_conditions: str = "",
+) -> str:
+    """Create an L4 validation contract for a candidate."""
+    root = _topic_root(topics_root, topic_slug)
+    slug = _slugify(candidate_id)
+    checks = mandatory_checks or ["dimensional_consistency"]
+    fm = {
+        "artifact_kind": "l4_validation_contract",
+        "stage": "L4",
+        "candidate_id": slug,
+        "validation_route": validation_route,
+        "mandatory_checks": checks,
+        "failure_conditions": failure_conditions,
+        "created_at": _now(),
+    }
+    body = (
+        f"# Validation Contract: {slug}\n\n"
+        f"## Validation Route\n{validation_route}\n\n"
+        f"## Mandatory Checks\n" + "\n".join(f"- {c}" for c in checks) + "\n\n"
+        f"## Failure Conditions\n{failure_conditions}\n"
+    )
+    (root / "L4").mkdir(parents=True, exist_ok=True)
+    _write_md(root / "L4" / "validation_contract.md", fm, body)
+    return f"Created validation contract for {slug} with {len(checks)} checks."
+
+
+@mcp.tool()
+def aitp_submit_l4_review(
+    topics_root: str,
+    topic_slug: str,
+    candidate_id: str,
+    outcome: str,
+    notes: str = "",
+    check_results: dict[str, str] | None = None,
+) -> str:
+    """Submit an L4 review with one of the six validation outcomes."""
+    if outcome not in L4_OUTCOMES:
+        return f"Invalid outcome '{outcome}'. Valid: {L4_OUTCOMES}"
+
+    root = _topic_root(topics_root, topic_slug)
+    slug = _slugify(candidate_id)
+    (root / "L4" / "reviews").mkdir(parents=True, exist_ok=True)
+    review_path = root / "L4" / "reviews" / f"{slug}.md"
+
+    fm = {
+        "artifact_kind": "l4_review",
+        "stage": "L4",
+        "candidate_id": slug,
+        "outcome": outcome,
+        "reviewed_at": _now(),
+    }
+    if check_results:
+        fm["check_results"] = check_results
+
+    body = (
+        f"# Review: {slug}\n\n"
+        f"## Outcome\n{outcome}\n\n"
+        f"## Notes\n{notes}\n\n"
+        f"## Check Results\n"
+    )
+    if check_results:
+        for check, result in check_results.items():
+            body += f"- {check}: {result}\n"
+    else:
+        body += "No individual check results recorded.\n"
+
+    _write_md(review_path, fm, body)
+    _append_to_topic_log(root, f"L4 review: {slug} -> {outcome}")
+    return f"L4 review submitted for {slug}: {outcome}."
 
 
 # ---------------------------------------------------------------------------
