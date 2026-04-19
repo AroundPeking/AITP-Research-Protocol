@@ -158,10 +158,22 @@ def _render_meta_badge_line(pairs: list[tuple[str, str]], *, status: str = "") -
     return ["\\noindent " + " \\hspace{0.45em} ".join(badges) + r"\par", ""]
 
 
-def _render_bullet_block(title: str, items: list[str]) -> list[str]:
+def _render_manuscript_meta_line(pairs: list[tuple[str, str]]) -> list[str]:
+    parts = []
+    for label, value in pairs:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        parts.append(f"\\textsc{{{_esc(label)}}}: {_esc_latex_body(text).replace(' \\\\\\n', ' ')}")
+    if not parts:
+        return []
+    return ["{\\small\\color{muted} " + " \\quad ".join(parts) + r"\par}", ""]
+
+
+def _render_bullet_block(title: str, items: list[str], *, heading_level: str = "subsection*") -> list[str]:
     if not items:
         return []
-    lines = [f"\\subsection*{{{_esc(title)}}}", "\\begin{itemize}"]
+    lines = [f"\\{heading_level}{{{_esc(title)}}}", "\\begin{itemize}"]
     for item in items:
         lines.append(f"  \\item {_esc_latex_body(item)}")
     lines.append("\\end{itemize}")
@@ -169,28 +181,30 @@ def _render_bullet_block(title: str, items: list[str]) -> list[str]:
     return lines
 
 
-def _render_kv_box(rows: list[tuple[str, str]]) -> list[str]:
+def _render_kv_box(rows: list[tuple[str, str]], *, boxed: bool = True) -> list[str]:
     filtered_rows = [(label, value) for label, value in rows if str(value or "").strip()]
     if not filtered_rows:
         return []
-    lines = [
-        "\\begin{tcolorbox}[enhanced,breakable,colback=white,colframe=linecolor,boxrule=0.4pt,arc=1.0mm,left=1.1mm,right=1.1mm,top=0.9mm,bottom=0.9mm]",
-        "\\begin{tabularx}{\\linewidth}{@{}>{\\raggedright\\arraybackslash\\ttfamily\\footnotesize\\color{muted}}p{0.28\\linewidth}>{\\raggedright\\arraybackslash}X@{}}",
-        "\\toprule",
-        "\\textnormal{Field} & \\textnormal{Value} \\\\",
-        "\\midrule",
-    ]
+    lines: list[str] = []
+    if boxed:
+        lines.append(
+            "\\begin{tcolorbox}[enhanced,breakable,colback=white,colframe=linecolor,boxrule=0.4pt,arc=1.0mm,left=1.1mm,right=1.1mm,top=0.9mm,bottom=0.9mm]"
+        )
+    lines.extend(
+        [
+            "\\begin{tabularx}{\\linewidth}{@{}>{\\raggedright\\arraybackslash\\ttfamily\\footnotesize\\color{muted}}p{0.28\\linewidth}>{\\raggedright\\arraybackslash}X@{}}",
+            "\\toprule",
+            "\\textnormal{Field} & \\textnormal{Value} \\\\",
+            "\\midrule",
+        ]
+    )
     for key, value in filtered_rows:
         cell = _esc_latex_body(value).replace(" \\\\\n", r"\newline ")
         lines.append(f"{_esc(key)} & {cell} \\\\")
-    lines.extend(
-        [
-            "\\bottomrule",
-            "\\end{tabularx}",
-            "\\end{tcolorbox}",
-            "",
-        ]
-    )
+    lines.extend(["\\bottomrule", "\\end{tabularx}"])
+    if boxed:
+        lines.append("\\end{tcolorbox}")
+    lines.append("")
     return lines
 
 
@@ -207,6 +221,14 @@ def _render_named_box(title: str, rows: list[tuple[str, str]], body: list[str] |
     if kv_lines:
         lines.extend(kv_lines)
     lines.append("\\end{tcolorbox}")
+    lines.append("")
+    return lines
+
+
+def _render_theorem_block(env_name: str, body: list[str]) -> list[str]:
+    lines = [f"\\begin{{{env_name}}}"]
+    lines.extend(body)
+    lines.append(f"\\end{{{env_name}}}")
     lines.append("")
     return lines
 
@@ -229,27 +251,30 @@ def _render_table_block(
     headers: list[str],
     rows: list[list[str]],
     column_spec: str | None = None,
+    boxed: bool = True,
 ) -> list[str]:
     if not rows:
         return []
     spec = column_spec or ("@{}" + ">{\\raggedright\\arraybackslash}X" * len(headers) + "@{}")
-    lines = [
-        "\\begin{tcolorbox}[enhanced,breakable,colback=white,colframe=linecolor,boxrule=0.4pt,arc=1.0mm,left=1.1mm,right=1.1mm,top=0.9mm,bottom=0.9mm]",
-        f"\\begin{{tabularx}}{{\\linewidth}}{{{spec}}}",
-        "\\toprule",
-        " & ".join(f"\\textnormal{{{_esc(header)}}}" for header in headers) + r" \\",
-        "\\midrule",
-    ]
-    for row in rows:
-        lines.append(" & ".join(_esc_latex_body(cell).replace(" \\\\\n", r"\newline ") for cell in row) + r" \\")
+    lines: list[str] = []
+    if boxed:
+        lines.append(
+            "\\begin{tcolorbox}[enhanced,breakable,colback=white,colframe=linecolor,boxrule=0.4pt,arc=1.0mm,left=1.1mm,right=1.1mm,top=0.9mm,bottom=0.9mm]"
+        )
     lines.extend(
         [
-            "\\bottomrule",
-            "\\end{tabularx}",
-            "\\end{tcolorbox}",
-            "",
+            f"\\begin{{tabularx}}{{\\linewidth}}{{{spec}}}",
+            "\\toprule",
+            " & ".join(f"\\textnormal{{{_esc(header)}}}" for header in headers) + r" \\",
+            "\\midrule",
         ]
     )
+    for row in rows:
+        lines.append(" & ".join(_esc_latex_body(cell).replace(" \\\\\n", r"\newline ") for cell in row) + r" \\")
+    lines.extend(["\\bottomrule", "\\end{tabularx}"])
+    if boxed:
+        lines.append("\\end{tcolorbox}")
+    lines.append("")
     return lines
 
 
@@ -267,7 +292,8 @@ def _render_problem_target_motivation_section(l3_root: Path) -> list[str]:
                 ("Physical Target", _summarize_scalar(report.get("physical_target"))),
                 ("Observables / Decision Targets", _summarize_scalar(report.get("observables_or_decision_targets"))),
                 ("Current Dispute / Bottleneck", _summarize_scalar(report.get("current_dispute_or_bottleneck"))),
-            ]
+            ],
+            boxed=False,
         )
     )
 
@@ -324,6 +350,7 @@ def _render_setup_regime_convention_section(l3_root: Path) -> list[str]:
                     ]
                     for row in convention_rows
                 ],
+                boxed=False,
             )
         )
     return lines
@@ -341,7 +368,7 @@ def _render_round_development_section(l3_root: Path) -> list[str]:
         lines.append(f"\\subsection*{{Round {index}: {_esc(round_title)}}}")
         lines.append("")
         lines.extend(
-            _render_meta_badge_line(
+            _render_manuscript_meta_line(
                 [
                     ("Scientific Mode", _summarize_scalar(row.get("round_type"))),
                     ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
@@ -366,11 +393,17 @@ def _render_round_development_section(l3_root: Path) -> list[str]:
 
         missing_blocks = _string_list(row.get("missing_blocks"))
         if missing_blocks:
-            lines.extend(_render_bullet_block("Unresolved Obligations", [f"Missing obligation block: {item}" for item in missing_blocks]))
+            lines.extend(
+                _render_bullet_block(
+                    "Unresolved Obligations",
+                    [f"Missing obligation block: {item}" for item in missing_blocks],
+                    heading_level="subsubsection*",
+                )
+            )
 
         qualified_gaps = _string_list(row.get("qualified_gaps"))
         if qualified_gaps:
-            lines.extend(_render_bullet_block("Qualified Gaps", qualified_gaps))
+            lines.extend(_render_bullet_block("Qualified Gaps", qualified_gaps, heading_level="subsubsection*"))
 
         next_step = _summarize_scalar(row.get("next_step_summary"))
         if next_step:
@@ -435,7 +468,7 @@ def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[
         lines.append(f"\\subsection*{{{_esc(title)}}}")
         lines.append("")
         lines.extend(
-            _render_meta_badge_line(
+            _render_manuscript_meta_line(
                 [
                     ("Kind", _summarize_scalar(row.get("derivation_kind"))),
                     ("Status", _summarize_scalar(row.get("status"))),
@@ -450,7 +483,7 @@ def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[
 
         source_omissions = _string_list(row.get("source_omissions"))
         if source_omissions:
-            lines.extend(_render_bullet_block("Source Omissions", source_omissions))
+            lines.extend(_render_bullet_block("Source Omissions", source_omissions, heading_level="subsubsection*"))
 
         restoration_notes = _summarize_scalar(row.get("l3_restoration_notes"))
         if restoration_notes:
@@ -468,11 +501,16 @@ def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[
 
         source_refs = _string_list(row.get("source_refs"))
         if source_refs:
-            lines.extend(_render_bullet_block("Source References", source_refs))
+            lines.extend(_render_bullet_block("Source References", source_refs, heading_level="subsubsection*"))
 
         provenance_note = _summarize_scalar(row.get("provenance_note"))
         if provenance_note:
-            lines.extend(_render_named_box("Provenance Note", [], body=_render_plain_paragraph(provenance_note)))
+            lines.extend(
+                _render_theorem_block(
+                    "notebookremark",
+                    [f"{{\\bfseries Provenance note.}} {_esc_latex_body(provenance_note)}", ""],
+                )
+            )
     return lines
 
 
@@ -488,32 +526,54 @@ def _render_current_best_statements_section(l3_root: Path) -> list[str]:
         lines.extend(_render_plain_paragraph("No claim is currently stable enough to quote as a best statement."))
     for row in statements:
         lines.extend(
-            _render_named_box(
-                _summarize_scalar(row.get("statement") or "Statement"),
+            _render_theorem_block(
+                "notebookstatement",
+                [
+                    _esc_latex_body(_summarize_scalar(row.get("statement") or "Statement")),
+                    "",
+                ],
+            )
+        )
+        lines.extend(
+            _render_manuscript_meta_line(
                 [
                     ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
                     ("Validity regime", _summarize_scalar(row.get("validity_regime"))),
                     ("Depends on", _summarize_scalar(row.get("depends_on"))),
                     ("Breaks if", _summarize_scalar(row.get("breaks_if"))),
                     ("Still unclosed", _summarize_scalar(row.get("still_unclosed"))),
-                ],
-                body=_render_plain_paragraph(_summarize_scalar(row.get("next_action"))),
+                ]
             )
         )
+        next_action = _summarize_scalar(row.get("next_action"))
+        if next_action:
+            lines.append(f"{{\\small\\bfseries Next move.}} {_esc_latex_body(next_action)}")
+            lines.append("")
     if active_routes:
         lines.append("\\subsection*{Active But Not Yet Claim-Worthy Routes}")
         lines.append("")
         for row in active_routes:
             lines.extend(
-                _render_named_box(
-                    _summarize_scalar(row.get("statement") or "Active route"),
+                _render_theorem_block(
+                    "notebookremark",
+                    [
+                        _esc_latex_body(_summarize_scalar(row.get("statement") or "Active route")),
+                        "",
+                    ],
+                )
+            )
+            lines.extend(
+                _render_manuscript_meta_line(
                     [
                         ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
                         ("Still unclosed", _summarize_scalar(row.get("still_unclosed"))),
-                    ],
-                    body=_render_plain_paragraph(_summarize_scalar(row.get("next_action"))),
+                    ]
                 )
             )
+            next_action = _summarize_scalar(row.get("next_action"))
+            if next_action:
+                lines.append(f"{{\\small\\bfseries Next move.}} {_esc_latex_body(next_action)}")
+                lines.append("")
     return lines
 
 
@@ -533,23 +593,23 @@ def _render_excluded_routes_section(l3_root: Path, run_records: list[dict[str, A
     lines = ["\\section{Excluded Routes And Lessons}", ""]
     for row in rows:
         title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Excluded route")
-        body: list[str] = []
+        lines.append(f"\\subsection*{{{_esc(title)}}}")
+        lines.append("")
         why_plausible = _summarize_scalar(row.get("why_plausible"))
         if why_plausible:
-            body.append("{\\small\\bfseries Why it looked plausible}\\par")
-            body.extend(_render_plain_paragraph(why_plausible))
+            lines.append("{\\small\\bfseries Why it looked plausible.} " + _esc_latex_body(why_plausible))
+            lines.append("")
         exact_failure_point = _summarize_scalar(row.get("exact_failure_point"))
         if exact_failure_point:
-            body.append("{\\small\\bfseries Exact failure point}\\par")
-            body.extend(_render_plain_paragraph(exact_failure_point))
+            lines.append("{\\small\\bfseries Exact failure point.} " + _esc_latex_body(exact_failure_point))
+            lines.append("")
         lesson = _summarize_scalar(row.get("lesson"))
         if lesson:
-            body.append("{\\small\\bfseries What this teaches us}\\par")
-            body.extend(_render_plain_paragraph(lesson))
+            lines.append("{\\small\\bfseries What this teaches us.} " + _esc_latex_body(lesson))
+            lines.append("")
         revive_conditions = _string_list(row.get("revive_conditions"))
         if revive_conditions:
-            body.extend(_render_bullet_block("Can this route revive?", revive_conditions))
-        lines.extend(_render_named_box(title, [], body=body))
+            lines.extend(_render_bullet_block("Can this route revive?", revive_conditions, heading_level="subsubsection*"))
     return lines
 
 
@@ -588,7 +648,7 @@ def _render_open_obligations_and_next_direction_section(l3_root: Path, run_recor
                 obligation_items.append(f"{summary} [missing block: {missing_block}]")
             elif summary:
                 obligation_items.append(summary)
-        lines.extend(_render_bullet_block("Outstanding Work", obligation_items))
+        lines.extend(_render_bullet_block("Outstanding Work", obligation_items, heading_level="subsubsection*"))
     return lines
 
 
@@ -1544,6 +1604,29 @@ _PREAMBLE = r"""\documentclass[11pt,a4paper]{article}
 \newcommand{\statusfail}[1]{\tcbox[on line,boxsep=0.6mm,left=1.4mm,right=1.4mm,top=0.45mm,bottom=0.45mm,
   colback=failback,colframe=failcolor,boxrule=0.45pt,arc=1.2mm]{\textcolor{failcolor}{\textsf{\scriptsize\bfseries Status: #1}}}}
 
+\newtheoremstyle{aitpstatement}
+  {0.9em}
+  {0.9em}
+  {\itshape}
+  {}
+  {\bfseries\color{ink}}
+  {.}
+  {0.5em}
+  {}
+\newtheoremstyle{aitpremark}
+  {0.8em}
+  {0.8em}
+  {}
+  {}
+  {\bfseries\color{ink}}
+  {.}
+  {0.5em}
+  {}
+\theoremstyle{aitpstatement}
+\newtheorem*{notebookstatement}{Current Statement}
+\theoremstyle{aitpremark}
+\newtheorem*{notebookremark}{Research Remark}
+
 \titleformat{\section}
   {\Large\bfseries\color{ink}}
   {}
@@ -1574,25 +1657,14 @@ _PREAMBLE = r"""\documentclass[11pt,a4paper]{article}
 {\Huge\bfseries\color{ink} AITP Research Notebook\par}
 \vspace{0.8em}
 {\Large\color{muted} Topic: TOPIC_SLUG_PLACEHOLDER\par}
-\vspace{1.8em}
-
-\begin{tcolorbox}[
-  enhanced,
-  width=0.92\textwidth,
-  colback=softfill,
-  colframe=linecolor,
-  boxrule=0.6pt,
-  arc=1.5mm,
-  left=2.5mm,
-  right=2.5mm,
-  top=2mm,
-  bottom=2mm
-]
-\small\color{ink}
-This notebook is rebuilt from the topic's durable research surfaces,
-including the problem framing, source anchors, derivation records,
-comparison receipts, and the chronological archive needed for later audit.
-\end{tcolorbox}
+\vspace{1.5em}
+{\color{linecolor}\rule{\textwidth}{0.7pt}\par}
+\vspace{1.2em}
+{\large\itshape\color{ink}
+A topic-scoped record of the physical problem, source reconstruction,
+derivation spine, validation rounds, and archived research chronology.\par}
+\vspace{1.2em}
+{\color{linecolor}\rule{\textwidth}{0.5pt}\par}
 
 \vfill
 {\large\color{ink} AITP Kernel\par}
