@@ -17,7 +17,7 @@ access to the AITP MCP tools.
 The protocol is a **stage machine** with orthogonal posture and lane:
 
 ```
-Stage:    L1 → L3 → L4 → L3 → L4 → ... → L2 → L5
+Stage:    L1 (includes L0 source registration) → L3 → L4 → L3 → L4 → ... → L2 → L5
 Posture:  read | frame | derive | verify | distill | write
 Lane:     formal_theory | toy_numeric | code_method
 ```
