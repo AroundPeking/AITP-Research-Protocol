@@ -821,13 +821,39 @@ def aitp_submit_l4_review(
     outcome: str,
     notes: str = "",
     check_results: dict[str, str] | None = None,
+    evidence_scripts: list[str] | None = None,
+    evidence_outputs: list[str] | None = None,
+    execution_environment: str = "",
 ) -> dict[str, Any]:
-    """Submit an L4 review with one of the six validation outcomes. Returns popup gate if not pass."""
+    """Submit an L4 review with one of the six validation outcomes. Returns popup gate if not pass.
+
+    For toy_numeric / code_method lanes, evidence_scripts and evidence_outputs are REQUIRED.
+    For formal_theory lane, they are optional (analytical checks suffice).
+    """
     if outcome not in L4_OUTCOMES:
         return {"message": f"Invalid outcome '{outcome}'. Valid: {L4_OUTCOMES}"}
 
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
+
+    # Lane-aware evidence requirement
+    state_fm, _ = _parse_md(root / "state.md")
+    lane = state_fm.get("lane", "")
+    needs_evidence = lane in ("toy_numeric", "code_method")
+
+    if needs_evidence and outcome == "pass":
+        if not evidence_scripts or not evidence_outputs:
+            return {
+                "message": (
+                    f"BLOCKED: Lane '{lane}' requires evidence_scripts and evidence_outputs "
+                    f"for L4 pass reviews. You must:\n"
+                    f"1. Write validation scripts and save them (e.g., L4/scripts/)\n"
+                    f"2. Execute them on the target machine specified in the plan\n"
+                    f"3. Record output paths (e.g., L4/outputs/)\n"
+                    f"4. Re-submit with evidence_scripts=[...] and evidence_outputs=[...]"
+                ),
+            }
+
     (root / "L4" / "reviews").mkdir(parents=True, exist_ok=True)
     review_path = root / "L4" / "reviews" / f"{slug}.md"
 
@@ -840,13 +866,25 @@ def aitp_submit_l4_review(
     }
     if check_results:
         fm["check_results"] = check_results
+    if evidence_scripts:
+        fm["evidence_scripts"] = evidence_scripts
+    if evidence_outputs:
+        fm["evidence_outputs"] = evidence_outputs
+    if execution_environment:
+        fm["execution_environment"] = execution_environment
 
     body = (
         f"# Review: {slug}\n\n"
         f"## Outcome\n{outcome}\n\n"
         f"## Notes\n{notes}\n\n"
-        f"## Check Results\n"
     )
+    if execution_environment:
+        body += f"## Execution Environment\n{execution_environment}\n\n"
+    if evidence_scripts:
+        body += "## Evidence Scripts\n" + "\n".join(f"- `{s}`" for s in evidence_scripts) + "\n\n"
+    if evidence_outputs:
+        body += "## Evidence Outputs\n" + "\n".join(f"- `{o}`" for o in evidence_outputs) + "\n\n"
+    body += "## Check Results\n"
     if check_results:
         for check, result in check_results.items():
             body += f"- {check}: {result}\n"
