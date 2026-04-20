@@ -210,11 +210,66 @@ def _default_round_type(round_row: dict[str, Any], derivation_rows: list[dict[st
 
 
 def _has_stepwise_derivation(derivation_rows: list[dict[str, Any]]) -> bool:
-    return any(_dict_list(row.get("derivation_steps")) for row in derivation_rows)
+    for row in derivation_rows:
+        audit = row.get("derivation_step_audit") or {}
+        if bool(audit.get("has_full_auditable_spine")):
+            return True
+        steps = _dict_list(row.get("derivation_steps"))
+        if steps and all(
+            str(step.get("equation") or "").strip()
+            and str(step.get("justification") or "").strip()
+            and str(step.get("step_origin") or "").strip()
+            for step in steps
+        ):
+            return True
+    return False
 
 
 def _has_source_anchors(derivation_rows: list[dict[str, Any]]) -> bool:
-    return any(_string_list(row.get("source_refs")) for row in derivation_rows)
+    return any(
+        _dict_list(row.get("source_anchor_table")) or _string_list(row.get("source_refs"))
+        for row in derivation_rows
+    )
+
+
+def _has_source_anchor_table(derivation_rows: list[dict[str, Any]]) -> bool:
+    return any(_dict_list(row.get("source_anchor_table")) for row in derivation_rows)
+
+
+def _source_anchor_table_rows(derivation_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for derivation_row in derivation_rows:
+        derivation_id = _as_text(derivation_row.get("derivation_id"))
+        title = _as_text(derivation_row.get("title") or derivation_id)
+        for anchor_row in _dict_list(derivation_row.get("source_anchor_table")):
+            rows.append(
+                {
+                    "derivation_id": derivation_id,
+                    "title": title,
+                    "step_label": _as_text(anchor_row.get("step_label")),
+                    "source_anchor": _as_text(anchor_row.get("source_anchor")),
+                    "formula_anchor": _as_text(anchor_row.get("formula_anchor")),
+                    "step_origin": _as_text(anchor_row.get("step_origin")),
+                    "equation_excerpt": _as_text(anchor_row.get("equation_excerpt")),
+                    "anchor_notes": _as_text(anchor_row.get("anchor_notes")),
+                }
+            )
+    return rows
+
+
+def _target_source_location(derivation_rows: list[dict[str, Any]]) -> str:
+    for row in derivation_rows:
+        target = _as_text(row.get("target_source_location"))
+        if target:
+            return target
+        for anchor_row in _dict_list(row.get("source_anchor_table")):
+            formula_anchor = _as_text(anchor_row.get("formula_anchor"))
+            if formula_anchor:
+                return formula_anchor
+            source_anchor = _as_text(anchor_row.get("source_anchor"))
+            if source_anchor:
+                return source_anchor
+    return ""
 
 
 def _build_convention_ledger(research_contract: dict[str, Any]) -> list[dict[str, str]]:
@@ -290,8 +345,9 @@ def _present_blocks_for_round(
     elif round_type == "source_restoration_round":
         if _as_text(round_row.get("round_question")):
             present.add("round_question")
-        if _has_source_anchors(derivation_rows):
+        if _target_source_location(derivation_rows):
             present.add("target_source_location")
+        if _has_source_anchor_table(derivation_rows):
             present.add("source_anchor_table")
         if any(_as_text(row.get("source_omissions")) for row in derivation_rows):
             present.add("source_omissions")
@@ -332,7 +388,7 @@ def _present_blocks_for_round(
 
     if convention_ledger:
         present.add("convention_ledger")
-    if _has_source_anchors(derivation_rows):
+    if _has_source_anchor_table(derivation_rows):
         present.add("source_anchor_table")
     if failed_routes:
         present.add("failure_route_note")
@@ -578,6 +634,26 @@ def _build_markdown(payload: dict[str, Any]) -> str:
             lines.append("- (none)")
         lines.append("")
 
+    lines.extend(["## Source Anchor Table", ""])
+    if payload.get("target_source_location"):
+        lines.append(f"- Target source location: {payload.get('target_source_location')}")
+    for row in payload.get("source_anchor_table") or []:
+        lines.append(
+            "- "
+            + " | ".join(
+                [
+                    f"derivation={row.get('title') or row.get('derivation_id') or '(missing)'}",
+                    f"step={row.get('step_label') or '(missing)'}",
+                    f"source={row.get('source_anchor') or '(none)'}",
+                    f"formula={row.get('formula_anchor') or '(none)'}",
+                    f"origin={row.get('step_origin') or '(none)'}",
+                ]
+            )
+        )
+    if not (payload.get("source_anchor_table") or []):
+        lines.append("- (none)")
+    lines.append("")
+
     lines.extend(["## Current Best Statements", ""])
     for row in payload.get("current_best_statements") or []:
         lines.append(f"### {row.get('statement') or '(missing)'}")
@@ -646,6 +722,8 @@ def materialize_research_report(
         research_contract=research_contract,
     )
     unfinished_work = _merge_unfinished_items(unfinished_work, round_rows=round_development)
+    source_anchor_table = _source_anchor_table_rows(derivation_rows)
+    target_source_location = _target_source_location(derivation_rows)
 
     source_titles = [
         _as_text(row.get("source_title") or row.get("source_id"))
@@ -707,6 +785,8 @@ def materialize_research_report(
             "deliverables": _string_list(research_contract.get("deliverables")),
         },
         "convention_ledger": convention_ledger,
+        "target_source_location": target_source_location,
+        "source_anchor_table": source_anchor_table,
         "candidate_routes": [
             {
                 "candidate_id": _as_text(row.get("candidate_id")),

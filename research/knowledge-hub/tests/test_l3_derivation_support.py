@@ -90,7 +90,10 @@ def test_record_l3_derivation_entry_persists_stepwise_restoration_fields() -> No
                     "label": "Step 1",
                     "equation": "k = (1/2\\pi) \\int F",
                     "justification": "Source equation.",
+                    "equality_reason": "Direct transcription of the cited source formula.",
                     "source_anchor": "paper-a §2 eq.(4)",
+                    "formula_anchor": "paper-a#eq:4",
+                    "step_origin": "source_statement",
                     "is_l3_completion": False,
                     "assumption_dependencies": ["Weak-coupling regime"],
                 },
@@ -99,8 +102,11 @@ def test_record_l3_derivation_entry_persists_stepwise_restoration_fields() -> No
                     "equation": "sigma_xy = k + \\delta",
                     "justification": "Benchmark bridge note.",
                     "source_anchor": "paper-b §3",
+                    "formula_anchor": "paper-b#eq:transport-3",
+                    "step_origin": "l3_completion",
                     "is_l3_completion": True,
                     "assumption_dependencies": ["Weak-coupling regime"],
+                    "anchor_notes": "The benchmark note suppresses the bridge derivation.",
                 },
             ],
             source_statement="The source gives the curvature-side coefficient formula.",
@@ -120,6 +126,11 @@ def test_record_l3_derivation_entry_persists_stepwise_restoration_fields() -> No
         ]
 
         assert rows[0]["derivation_steps"][0]["label"] == "Step 1"
+        assert rows[0]["derivation_steps"][0]["formula_anchor"] == "paper-a#eq:4"
+        assert rows[0]["derivation_steps"][0]["step_origin"] == "source_statement"
+        assert rows[0]["derivation_steps"][0]["is_auditable"] is True
+        assert rows[0]["source_anchor_table"][1]["formula_anchor"] == "paper-b#eq:transport-3"
+        assert rows[0]["derivation_step_audit"]["has_full_auditable_spine"] is True
         assert rows[0]["source_statement"] == "The source gives the curvature-side coefficient formula."
         assert rows[0]["source_omissions"] == ["The source omits the bridge from k to sigma_xy."]
         assert rows[0]["l3_restoration_notes"].startswith("L3 restores")
@@ -128,6 +139,8 @@ def test_record_l3_derivation_entry_persists_stepwise_restoration_fields() -> No
 
         note_text = (run_root / "derivation_records.md").read_text(encoding="utf-8")
         assert "Step 1" in note_text
+        assert "Formula anchor" in note_text
+        assert "Step audit" in note_text
         assert "The source omits the bridge from k to sigma_xy." in note_text
         assert "sigma_xy" in note_text
 
@@ -286,6 +299,28 @@ def test_detailed_derivation_and_l2_comparison_unblock_promotion_readiness_and_c
             assumptions=["Weak-coupling regime"],
             provenance_note="This is an AI-authored provisional derivation record, not truth by itself.",
             derivation_id="candidate:demo-derivation",
+            derivation_steps=[
+                {
+                    "label": "Step 1",
+                    "equation": "k = (1/2\\pi) \\int F",
+                    "justification": "Recovered source equation.",
+                    "equality_reason": "Directly transcribed from the source derivation.",
+                    "source_anchor": "source-layer/topics/demo-topic/source_index.jsonl#eq:source-core",
+                    "formula_anchor": "demo-source#eq:source-core",
+                    "step_origin": "source_statement",
+                    "assumption_dependencies": ["Weak-coupling regime"],
+                },
+                {
+                    "label": "Step 2",
+                    "equation": "sigma_xy = k + \\delta",
+                    "justification": "Bridge into the benchmark convention.",
+                    "equality_reason": "L3 restores the omitted convention-translation step.",
+                    "source_anchor": "source-layer/topics/demo-topic/source_index.jsonl#sec:benchmark-bridge",
+                    "formula_anchor": "demo-source#eq:benchmark-bridge",
+                    "step_origin": "l3_completion",
+                    "assumption_dependencies": ["Weak-coupling regime"],
+                },
+            ],
         )
         service.record_l2_derivation_comparison(
             topic_slug="demo-topic",
@@ -337,6 +372,28 @@ def test_detailed_derivation_still_blocked_without_l2_comparison_receipt() -> No
             assumptions=["Weak-coupling regime"],
             provenance_note="This is an AI-authored provisional derivation record, not truth by itself.",
             derivation_id="candidate:demo-derivation",
+            derivation_steps=[
+                {
+                    "label": "Step 1",
+                    "equation": "k = (1/2\\pi) \\int F",
+                    "justification": "Recovered source equation.",
+                    "equality_reason": "Directly transcribed from the source derivation.",
+                    "source_anchor": "source-layer/topics/demo-topic/source_index.jsonl#eq:source-core",
+                    "formula_anchor": "demo-source#eq:source-core",
+                    "step_origin": "source_statement",
+                    "assumption_dependencies": ["Weak-coupling regime"],
+                },
+                {
+                    "label": "Step 2",
+                    "equation": "sigma_xy = k + \\delta",
+                    "justification": "Bridge into the benchmark convention.",
+                    "equality_reason": "L3 restores the omitted convention-translation step.",
+                    "source_anchor": "source-layer/topics/demo-topic/source_index.jsonl#sec:benchmark-bridge",
+                    "formula_anchor": "demo-source#eq:benchmark-bridge",
+                    "step_origin": "l3_completion",
+                    "assumption_dependencies": ["Weak-coupling regime"],
+                },
+            ],
         )
 
         readiness = service._derive_promotion_readiness(
@@ -400,6 +457,16 @@ def test_theorem_candidate_requires_theory_packet_surfaces_for_readiness() -> No
             assumptions=["Bounded theorem scope"],
             provenance_note="This is an AI-authored provisional derivation record, not truth by itself.",
             derivation_id="candidate:demo-theorem",
+            derivation_steps=[
+                {
+                    "label": "Step 1",
+                    "equation": "A \\Rightarrow B",
+                    "justification": "Current bounded theorem-facing reduction.",
+                    "equality_reason": "This line records the formal target implication explicitly.",
+                    "step_origin": "l3_completion",
+                    "assumption_dependencies": ["Bounded theorem scope"],
+                }
+            ],
         )
         service.record_l2_derivation_comparison(
             topic_slug="demo-topic",

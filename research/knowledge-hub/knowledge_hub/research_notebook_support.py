@@ -60,6 +60,11 @@ def _topic_paths(l3_root: Path) -> dict[str, Path]:
     }
 
 
+_MAIN_TEXT_MAX_ROUNDS = 4
+_MAIN_TEXT_MAX_DERIVATIONS = 3
+_MAIN_TEXT_MAX_EXCLUDED_ROUTES = 3
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -110,6 +115,10 @@ def _summarize_scalar(value: Any) -> str:
     else:
         text = str(value or "").strip()
     return text
+
+
+def _humanize_identifier(text: str) -> str:
+    return str(text or "").replace("_", " ").replace("-", " ").strip().title()
 
 
 def _render_plain_paragraph(text: str) -> list[str]:
@@ -361,9 +370,20 @@ def _render_round_development_section(l3_root: Path) -> list[str]:
     round_rows = _dict_list(report.get("round_development") or report.get("iteration_rounds"))
     if not round_rows:
         return []
+    main_round_rows, overflow_round_rows = _split_main_text_rows(
+        round_rows,
+        max_main=_MAIN_TEXT_MAX_ROUNDS,
+    )
 
     lines = ["\\section{Round-by-Round Research Development}", ""]
-    for index, row in enumerate(round_rows, start=1):
+    if overflow_round_rows:
+        lines.extend(
+            _render_plain_paragraph(
+                f"The main text keeps the opening round and the most recent {len(main_round_rows) - 1} rounds in view. "
+                f"{len(overflow_round_rows)} intermediate round(s) are moved to the appendix archive so the central physical line stays readable."
+            )
+        )
+    for index, row in enumerate(main_round_rows, start=1):
         round_title = _summarize_scalar(row.get("round_question") or row.get("iteration_id") or f"Round {index}")
         lines.append(f"\\subsection*{{Round {index}: {_esc(round_title)}}}")
         lines.append("")
@@ -421,9 +441,21 @@ def _render_derivation_step_lines(step: dict[str, Any]) -> list[str]:
     if justification:
         lines.append(f"{{\\small\\bfseries Justification.}} {_esc_latex_body(justification)}")
         lines.append("")
+    equality_reason = _summarize_scalar(step.get("equality_reason"))
+    if equality_reason:
+        lines.append(f"{{\\small\\bfseries Equality reason.}} {_esc_latex_body(equality_reason)}")
+        lines.append("")
     source_anchor = _summarize_scalar(step.get("source_anchor"))
     if source_anchor:
         lines.append(f"{{\\small\\bfseries Source anchor.}} {_esc_latex_body(source_anchor)}")
+        lines.append("")
+    formula_anchor = _summarize_scalar(step.get("formula_anchor"))
+    if formula_anchor:
+        lines.append(f"{{\\small\\bfseries Formula anchor.}} {_esc_latex_body(formula_anchor)}")
+        lines.append("")
+    step_origin = _summarize_scalar(step.get("step_origin"))
+    if step_origin:
+        lines.append(f"{{\\small\\bfseries Step origin.}} {_esc_latex_body(step_origin)}")
         lines.append("")
     if isinstance(step.get("is_l3_completion"), bool):
         lines.append(
@@ -446,7 +478,46 @@ def _render_derivation_step_lines(step: dict[str, Any]) -> list[str]:
     if open_gap_note:
         lines.append(f"{{\\small\\bfseries Open gap.}} {_esc_latex_body(open_gap_note)}")
         lines.append("")
+    missing_fields = _string_list(step.get("missing_fields"))
+    if missing_fields:
+        lines.append(f"{{\\small\\bfseries Missing audit fields.}} {_esc_latex_body(', '.join(missing_fields))}")
+        lines.append("")
     return lines
+
+
+def _render_source_anchor_table_block(anchor_rows: list[dict[str, Any]], *, heading_level: str = "subsubsection*") -> list[str]:
+    if not anchor_rows:
+        return []
+    lines = [f"\\{heading_level}{{Source Anchor Map}}", ""]
+    lines.extend(
+        _render_table_block(
+            headers=["Step", "Source Anchor", "Formula Anchor", "Origin", "Notes"],
+            rows=[
+                [
+                    _summarize_scalar(row.get("step_label")),
+                    _summarize_scalar(row.get("source_anchor")),
+                    _summarize_scalar(row.get("formula_anchor")),
+                    _summarize_scalar(row.get("step_origin")),
+                    _summarize_scalar(row.get("anchor_notes")),
+                ]
+                for row in anchor_rows
+            ],
+            boxed=False,
+        )
+    )
+    return lines
+
+
+def _split_main_text_rows(rows: list[dict[str, Any]], *, max_main: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if len(rows) <= max_main:
+        return rows, []
+    if max_main <= 1:
+        return rows[-1:], rows[:-1]
+    head = rows[:1]
+    tail_count = max_main - 1
+    tail = rows[-tail_count:]
+    overflow = rows[1:-tail_count]
+    return head + tail, overflow
 
 
 def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[str, Any]]) -> list[str]:
@@ -461,9 +532,20 @@ def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[
         ]
     if not rows:
         return []
+    main_rows, overflow_rows = _split_main_text_rows(
+        rows,
+        max_main=_MAIN_TEXT_MAX_DERIVATIONS,
+    )
 
     lines = ["\\section{Main Derivation Spine}", ""]
-    for row in rows:
+    if overflow_rows:
+        lines.extend(
+            _render_plain_paragraph(
+                f"The main body keeps {len(main_rows)} derivation file(s) on the central research line. "
+                f"{len(overflow_rows)} supplementary derivation file(s) are moved to the appendix."
+            )
+        )
+    for row in main_rows:
         title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Derivation")
         lines.append(f"\\subsection*{{{_esc(title)}}}")
         lines.append("")
@@ -489,6 +571,18 @@ def _render_main_derivation_spine_section(l3_root: Path, run_records: list[dict[
         if restoration_notes:
             lines.append("\\subsubsection*{Reconstruction Notes}")
             lines.extend(_render_plain_paragraph(restoration_notes))
+
+        target_source_location = _summarize_scalar(row.get("target_source_location"))
+        if target_source_location:
+            lines.append(f"{{\\small\\bfseries Target source location.}} {_esc_latex_body(target_source_location)}")
+            lines.append("")
+
+        lines.extend(
+            _render_source_anchor_table_block(
+                _dict_list(row.get("source_anchor_table")),
+                heading_level="subsubsection*",
+            )
+        )
 
         derivation_steps = _dict_list(row.get("derivation_steps"))
         if derivation_steps:
@@ -589,9 +683,20 @@ def _render_excluded_routes_section(l3_root: Path, run_records: list[dict[str, A
         ]
     if not rows:
         return []
+    main_rows, overflow_rows = _split_main_text_rows(
+        rows,
+        max_main=_MAIN_TEXT_MAX_EXCLUDED_ROUTES,
+    )
 
     lines = ["\\section{Excluded Routes And Lessons}", ""]
-    for row in rows:
+    if overflow_rows:
+        lines.extend(
+            _render_plain_paragraph(
+                f"The main text keeps the most instructive {len(main_rows)} excluded route(s); "
+                f"{len(overflow_rows)} additional failure route(s) are preserved in the appendix."
+            )
+        )
+    for row in main_rows:
         title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Excluded route")
         lines.append(f"\\subsection*{{{_esc(title)}}}")
         lines.append("")
@@ -649,6 +754,158 @@ def _render_open_obligations_and_next_direction_section(l3_root: Path, run_recor
             elif summary:
                 obligation_items.append(summary)
         lines.extend(_render_bullet_block("Outstanding Work", obligation_items, heading_level="subsubsection*"))
+    return lines
+
+
+def _render_extended_round_archive_section(l3_root: Path) -> list[str]:
+    report = _report_payload(l3_root)
+    round_rows = _dict_list(report.get("round_development") or report.get("iteration_rounds"))
+    if not round_rows:
+        return []
+    _main_rows, overflow_rows = _split_main_text_rows(round_rows, max_main=_MAIN_TEXT_MAX_ROUNDS)
+    if not overflow_rows:
+        return []
+
+    lines = ["\\section{Extended Round Archive}", ""]
+    lines.extend(
+        _render_plain_paragraph(
+            "These intermediate rounds remain part of the durable research chronology, but they are moved out of the main line so the core physical story remains readable."
+        )
+    )
+    for row in overflow_rows:
+        round_title = _summarize_scalar(row.get("round_question") or row.get("iteration_id") or "Round")
+        lines.append(f"\\subsection*{{{_esc(round_title)}}}")
+        lines.append("")
+        lines.extend(
+            _render_manuscript_meta_line(
+                [
+                    ("Scientific Mode", _summarize_scalar(row.get("round_type"))),
+                    ("Statement Status", _summarize_scalar(row.get("claim_readiness"))),
+                ]
+            )
+        )
+        plan_summary = _summarize_scalar(row.get("plan_summary"))
+        if plan_summary:
+            lines.append("\\subsubsection*{Working Route}")
+            lines.extend(_render_plain_paragraph(plan_summary))
+        result_summary = _summarize_scalar(row.get("returned_result_summary"))
+        if result_summary:
+            lines.append("\\subsubsection*{Result}")
+            lines.extend(_render_plain_paragraph(result_summary))
+        understanding_delta = _summarize_scalar(row.get("understanding_delta"))
+        if understanding_delta:
+            lines.append("\\subsubsection*{What This Round Changed}")
+            lines.extend(_render_plain_paragraph(understanding_delta))
+        next_step = _summarize_scalar(row.get("next_step_summary"))
+        if next_step:
+            lines.append("\\subsubsection*{Next Plan}")
+            lines.extend(_render_plain_paragraph(next_step))
+    return lines
+
+
+def _render_supplementary_derivation_files_section(l3_root: Path, run_records: list[dict[str, Any]]) -> list[str]:
+    report = _report_payload(l3_root)
+    rows = _dict_list(report.get("main_derivation_spine") or report.get("current_derivation_spine"))
+    if not rows:
+        rows = [
+            row
+            for record in run_records
+            for row in (record.get("derivation_rows") or [])
+            if _summarize_scalar(row.get("derivation_kind")) != "failed_attempt"
+        ]
+    if not rows:
+        return []
+    _main_rows, overflow_rows = _split_main_text_rows(rows, max_main=_MAIN_TEXT_MAX_DERIVATIONS)
+    if not overflow_rows:
+        return []
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in overflow_rows:
+        bucket = _humanize_identifier(_summarize_scalar(row.get("derivation_kind")) or "supplementary_derivation")
+        grouped.setdefault(bucket, []).append(row)
+
+    lines = ["\\section{Supplementary Derivation Files}", ""]
+    lines.extend(
+        _render_plain_paragraph(
+            "These derivation files are preserved in the appendix because they support the topic, but they are not all required in the main narrative spine."
+        )
+    )
+    for bucket, bucket_rows in grouped.items():
+        lines.append(f"\\subsection*{{{_esc(bucket)}}}")
+        lines.append("")
+        for row in bucket_rows:
+            title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Derivation")
+            lines.append(f"\\subsubsection*{{{_esc(title)}}}")
+            lines.append("")
+            lines.extend(
+                _render_manuscript_meta_line(
+                    [
+                        ("Kind", _summarize_scalar(row.get("derivation_kind"))),
+                        ("Status", _summarize_scalar(row.get("status"))),
+                    ]
+                )
+            )
+            source_statement = _summarize_scalar(row.get("source_statement"))
+            if source_statement:
+                lines.append("\\paragraph*{Source Statement}")
+                lines.extend(_render_plain_paragraph(source_statement))
+            restoration_notes = _summarize_scalar(row.get("l3_restoration_notes"))
+            if restoration_notes:
+                lines.append("\\paragraph*{Reconstruction Notes}")
+                lines.extend(_render_plain_paragraph(restoration_notes))
+            lines.extend(
+                _render_source_anchor_table_block(
+                    _dict_list(row.get("source_anchor_table")),
+                    heading_level="paragraph*",
+                )
+            )
+            derivation_steps = _dict_list(row.get("derivation_steps"))
+            if derivation_steps:
+                lines.append("\\paragraph*{Stepwise Derivation}")
+                lines.append("")
+                for step in derivation_steps:
+                    lines.extend(_render_derivation_step_lines(step))
+            else:
+                lines.extend(_render_body_paragraphs(_summarize_scalar(row.get("body"))))
+    return lines
+
+
+def _render_supplementary_excluded_routes_section(l3_root: Path, run_records: list[dict[str, Any]]) -> list[str]:
+    report = _report_payload(l3_root)
+    rows = _dict_list(report.get("excluded_routes") or report.get("failed_routes"))
+    if not rows:
+        rows = [
+            row
+            for record in run_records
+            for row in (record.get("derivation_rows") or [])
+            if _summarize_scalar(row.get("derivation_kind")) == "failed_attempt"
+        ]
+    if not rows:
+        return []
+    _main_rows, overflow_rows = _split_main_text_rows(rows, max_main=_MAIN_TEXT_MAX_EXCLUDED_ROUTES)
+    if not overflow_rows:
+        return []
+
+    lines = ["\\section{Supplementary Excluded Routes}", ""]
+    for row in overflow_rows:
+        title = _summarize_scalar(row.get("title") or row.get("derivation_id") or "Excluded route")
+        lines.append(f"\\subsection*{{{_esc(title)}}}")
+        lines.append("")
+        why_plausible = _summarize_scalar(row.get("why_plausible"))
+        if why_plausible:
+            lines.append("{\\small\\bfseries Why it looked plausible.} " + _esc_latex_body(why_plausible))
+            lines.append("")
+        exact_failure_point = _summarize_scalar(row.get("exact_failure_point"))
+        if exact_failure_point:
+            lines.append("{\\small\\bfseries Exact failure point.} " + _esc_latex_body(exact_failure_point))
+            lines.append("")
+        lesson = _summarize_scalar(row.get("lesson"))
+        if lesson:
+            lines.append("{\\small\\bfseries What this teaches us.} " + _esc_latex_body(lesson))
+            lines.append("")
+        revive_conditions = _string_list(row.get("revive_conditions"))
+        if revive_conditions:
+            lines.extend(_render_bullet_block("Can this route revive?", revive_conditions, heading_level="subsubsection*"))
     return lines
 
 
@@ -1938,6 +2195,9 @@ def _rebuild_latex(l3_root: Path, paths: dict[str, Path]) -> None:
     appendix_sections: list[str] = []
     for block in (
         _render_source_provenance_section(l3_root),
+        _render_extended_round_archive_section(l3_root),
+        _render_supplementary_derivation_files_section(l3_root, run_records),
+        _render_supplementary_excluded_routes_section(l3_root, run_records),
         _render_candidate_catalog_section(run_records),
         _render_strategy_section(run_records),
     ):

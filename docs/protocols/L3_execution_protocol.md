@@ -136,6 +136,10 @@ Rules:
 - Every L3 derivation record is AI-authored provisional reasoning, not truth by
   itself. Its job is to preserve the reasoning spine, assumptions, and source
   anchors so later audit can check it honestly.
+- When a derivation is stepwise, each step should preserve not only the
+  equation and justification but also the step origin, formula-level source
+  anchor when relevant, assumption dependencies, and any still-missing audit
+  fields.
 - A derivation-heavy candidate is not promotion-ready merely because a detailed
   derivation row exists. It must also carry an explicit L2 comparison receipt
   naming the compared units, the comparison scope, the comparison outcome, and
