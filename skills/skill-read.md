@@ -6,6 +6,15 @@ trigger: posture == "read"
 
 # Read Posture
 
+## MANDATORY: AskUserQuestion rule
+
+When you need to ask the user ANY question (clarification, scope, direction, missing info), you MUST:
+1. Call `ToolSearch(query="select:AskUserQuestion", max_results=1)` to load the tool.
+2. Call `AskUserQuestion(questions=[{...}])` with your question and options.
+NEVER type questions or options as plain text. ALWAYS use the popup tool.
+
+---
+
 You are building the topic's source-grounded basis.
 
 ## Required artifacts

@@ -11,10 +11,17 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+# Ensure the parent directory is on sys.path so `brain` is importable
+# regardless of cwd when launched as an MCP stdio server.
+_REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from fastmcp import FastMCP
 
@@ -35,6 +42,27 @@ from brain.state_model import (
 )
 
 mcp = FastMCP("aitp-brain")
+
+
+class _GateResult(dict):
+    """Dict subclass that stringifies to its 'message' value.
+
+    Backwards-compatible: ``assertIn("foo", result)`` checks the message,
+    while ``result["popup_gate"]`` returns the popup dict.
+    """
+
+    def __str__(self) -> str:
+        return str(self.get("message", ""))
+
+    def __contains__(self, item) -> bool:
+        if isinstance(item, str):
+            if super().__contains__(item):
+                return True
+            return item in str(self)
+        return super().__contains__(item)
+
+    def lower(self) -> str:
+        return str(self).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +155,6 @@ def _infer_status(fm: dict[str, Any], topic_root: Path) -> str:
     src_dir = topic_root / "L0" / "sources"
     intake_dir = topic_root / "L1" / "intake"
     cand_dir = topic_root / "L3" / "candidates"
-    l2_dir = topic_root / "L2" / "canonical"
     if src_dir.is_dir() and list(src_dir.glob("*.md")):
         if intake_dir.is_dir() and list(intake_dir.glob("*.md")):
             if cand_dir.is_dir() and list(cand_dir.glob("*.md")):
@@ -143,6 +170,34 @@ def _infer_status(fm: dict[str, Any], topic_root: Path) -> str:
 
 
 @mcp.tool()
+def aitp_list_topics(topics_root: str) -> list[dict[str, Any]]:
+    """List all topics under topics_root with their stage, title, and question.
+
+    Use this BEFORE aitp_get_status when you need to discover which topic
+    matches the user's research request.
+    """
+    root = Path(topics_root)
+    if not root.is_dir():
+        return []
+    results = []
+    for d in sorted(root.iterdir()):
+        if not d.is_dir():
+            continue
+        state_file = d / "state.md"
+        if not state_file.exists():
+            continue
+        fm, body = _parse_md(state_file)
+        results.append({
+            "topic_slug": d.name,
+            "title": fm.get("title", d.name),
+            "stage": fm.get("stage", "unknown"),
+            "lane": fm.get("lane", ""),
+            "question": fm.get("question", ""),
+        })
+    return results
+
+
+@mcp.tool()
 def aitp_get_status(topics_root: str, topic_slug: str) -> dict[str, Any]:
     """Read topic state and return current status, stage, posture, and gate."""
     root = _topic_root(topics_root, topic_slug)
@@ -151,7 +206,7 @@ def aitp_get_status(topics_root: str, topic_slug: str) -> dict[str, Any]:
     snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
     src_dir = root / "L0" / "sources"
     cand_dir = root / "L3" / "candidates"
-    l2_dir = root / "L2" / "canonical"
+    global_l2 = _global_l2_path(topics_root)
     return {
         "topic_slug": topic_slug,
         "status": status,
@@ -166,7 +221,7 @@ def aitp_get_status(topics_root: str, topic_slug: str) -> dict[str, Any]:
         "missing_requirements": snapshot.missing_requirements,
         "sources_count": len(list(src_dir.glob("*.md"))) if src_dir.is_dir() else 0,
         "candidates_count": len(list(cand_dir.glob("*.md"))) if cand_dir.is_dir() else 0,
-        "l2_count": len(list(l2_dir.glob("*.md"))) if l2_dir.is_dir() else 0,
+        "l2_count": len(list(global_l2.glob("*.md"))) if global_l2.is_dir() else 0,
         "updated_at": fm.get("updated_at", ""),
     }
 
@@ -210,7 +265,7 @@ def aitp_bootstrap_topic(
         return f"Topic {safe_slug} already exists."
     root.mkdir(parents=True)
     for sub in [
-        "L0/sources", "L1/intake", "L2/canonical", "L3/candidates",
+        "L0/sources", "L1/intake", "L3/candidates",
         "L4/reviews", "L5_writing/figures", "L5_writing/tables", "runtime",
     ]:
         (root / sub).mkdir(parents=True)
@@ -225,7 +280,7 @@ def aitp_bootstrap_topic(
         "## Source Basis\n- L0/sources/\n- L1/source_basis.md\n\n"
         "## Research Notebook\n- L3/ subplane active artifacts\n\n"
         "## Validation\n- L4/reviews/\n\n"
-        "## Reusable Results\n- L2/canonical/\n\n"
+        "## Reusable Results\n- global L2/ (cross-topic)\n\n"
         "## Writing\n- L3/tex/flow_notebook.tex\n- L5_writing/\n"
     ))
     _write_md(root / "runtime" / "log.md", {
@@ -347,8 +402,8 @@ def aitp_submit_candidate(
     evidence: str = "",
     assumptions: str = "",
     validation_criteria: str = "",
-) -> str:
-    """Submit a candidate finding. Creates L3/candidates/<id>.md."""
+) -> dict[str, Any]:
+    """Submit a candidate finding. Creates L3/candidates/<id>.md. Returns popup gate for confirmation."""
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
     path = root / "L3" / "candidates" / f"{slug}.md"
@@ -369,7 +424,17 @@ def aitp_submit_candidate(
         f"## Validation Criteria\n{validation_criteria}\n"
     )
     _write_md(path, fm, body)
-    return f"Submitted candidate {slug}"
+    return _GateResult({
+        "message": f"Submitted candidate {slug}",
+        "popup_gate": {
+            "question": f"Submit candidate '{title}' ({slug}) for validation?",
+            "header": "Submit",
+            "options": [
+                {"label": "Submit", "description": "Proceed with submission and move to L4 validation."},
+                {"label": "Revise", "description": "Go back and refine the candidate before submitting."},
+            ],
+        },
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -390,21 +455,32 @@ def aitp_request_promotion(
     topics_root: str,
     topic_slug: str,
     candidate_id: str,
-) -> str:
-    """Move a validated candidate to pending_approval for human review."""
+) -> dict[str, Any]:
+    """Move a validated candidate to pending_approval for human review. Returns popup gate."""
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
     cand_path = root / "L3" / "candidates" / f"{slug}.md"
     if not cand_path.exists():
-        return f"Candidate {slug} not found."
+        return _GateResult({"message": f"Candidate {slug} not found."})
     fm, body = _parse_md(cand_path)
     current = fm.get("status", "")
     if current != "validated":
-        return f"Candidate {slug} status is '{current}', not 'validated'. Cannot request promotion."
+        return _GateResult({"message": f"Candidate {slug} status is '{current}', not 'validated'. Cannot request promotion."})
     fm["status"] = "pending_approval"
     fm["promotion_requested_at"] = _now()
     _write_md(cand_path, fm, body)
-    return f"Candidate {slug} moved to pending_approval. Awaiting human decision."
+    cand_title = fm.get("title", slug)
+    return _GateResult({
+        "message": f"Candidate {slug} moved to pending_approval. Awaiting human decision.",
+        "popup_gate": {
+            "question": f"Request promotion of '{cand_title}' ({slug}) to global knowledge base?",
+            "header": "Promote",
+            "options": [
+                {"label": "Approve promotion", "description": "Promote this candidate to the global L2 knowledge base."},
+                {"label": "Reject", "description": "Send back for further work. Provide a reason."},
+            ],
+        },
+    })
 
 
 @mcp.tool()
@@ -492,10 +568,6 @@ def aitp_promote_candidate(
     _write_md(cand_path, fm, body)
     _write_md(l2_path, fm, body)
 
-    # Also keep a topic-local copy for backwards compat
-    local_l2 = root / "L2" / "canonical" / f"{slug}.md"
-    _write_md(local_l2, fm, body)
-
     _append_to_topic_log(root, f"promoted {slug} to global L2 (v{fm['version']})")
     return f"Promoted {slug} to global L2 (v{fm['version']})."
 
@@ -531,6 +603,15 @@ def aitp_get_skill_context(topics_root: str, topic_slug: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+_AGENT_BEHAVIOR_REMINDER = (
+    "BEHAVIORAL RULE: When you need to ask the user ANY question "
+    "(clarification, direction choice, scope check), you MUST use the AskUserQuestion tool. "
+    "Steps: (1) Call ToolSearch(query='select:AskUserQuestion', max_results=1). "
+    "(2) Call AskUserQuestion(questions=[{...}]). "
+    "NEVER type questions as plain text. NEVER list options in markdown."
+)
+
+
 def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any]:
     """Return a stage/posture execution brief with gate status and missing requirements."""
     root = _topic_root(topics_root, topic_slug)
@@ -556,6 +637,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 else [f"advance from {snapshot.l3_subplane}"]
             ),
             "immediate_blocked_work": ["L4 validation", "L2 promotion"],
+            "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
 
     snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
@@ -576,6 +658,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             else ["prepare transition to L3"]
         ),
         "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
+        "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
     }
 
 
@@ -585,12 +668,12 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
 
 
 @mcp.tool()
-def aitp_advance_to_l3(topics_root: str, topic_slug: str) -> str:
-    """Transition a topic from L1 (ready) to L3, starting at ideation subplane."""
+def aitp_advance_to_l3(topics_root: str, topic_slug: str) -> dict[str, Any]:
+    """Transition a topic from L1 (ready) to L3, starting at ideation subplane. Returns popup gate."""
     root = _topic_root(topics_root, topic_slug)
     l1_snapshot = evaluate_l1_stage(_parse_md, root)
     if l1_snapshot.gate_status != "ready":
-        return f"L1 gate is not ready (status: {l1_snapshot.gate_status}). Fill missing artifacts first."
+        return _GateResult({"message": f"L1 gate is not ready (status: {l1_snapshot.gate_status}). Fill missing artifacts first."})
 
     state_path = root / "state.md"
     fm, body = _parse_md(state_path)
@@ -610,7 +693,17 @@ def aitp_advance_to_l3(topics_root: str, topic_slug: str) -> str:
             _write_md(artifact_path, template_fm, template_body)
 
     (root / "L3" / "tex").mkdir(parents=True, exist_ok=True)
-    return f"Advanced to L3 ideation. Create L3/ideation/active_idea.md to proceed."
+    return _GateResult({
+        "message": f"Advanced to L3 ideation. Create L3/ideation/active_idea.md to proceed.",
+        "popup_gate": {
+            "question": "L1 reading and framing complete. Start L3 derivation (ideation)?",
+            "header": "L1->L3",
+            "options": [
+                {"label": "Start derivation", "description": "Proceed to L3 ideation and begin generating candidate ideas."},
+                {"label": "Review L1 first", "description": "Go back and review L1 artifacts before advancing."},
+            ],
+        },
+    })
 
 
 @mcp.tool()
@@ -639,6 +732,40 @@ def aitp_advance_l3_subplane(
 
     skill = L3_SKILL_MAP.get(target_subplane, "skill-l3-ideate")
     return f"Advanced to L3/{target_subplane}. Follow {skill}."
+
+
+@mcp.tool()
+def aitp_retreat_to_l1(topics_root: str, topic_slug: str, reason: str = "") -> _GateResult:
+    """Retreat from L3 back to L1 for re-reading or re-framing. L3 work is preserved.
+
+    Use when analysis reveals insufficient sources, wrong framing, or missing assumptions.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    state_path = root / "state.md"
+    fm, body = _parse_md(state_path)
+    current_stage = fm.get("stage", "L1")
+    if current_stage != "L3":
+        return _GateResult({"message": f"Cannot retreat: topic is at {current_stage}, not L3."})
+
+    fm["stage"] = "L1"
+    fm["posture"] = "read"
+    fm["retreated_from_l3"] = True
+    fm["retreat_reason"] = reason
+    fm["updated_at"] = _now()
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, f"retreated from L3 to L1: {reason}")
+    return _GateResult({
+        "message": f"Retreated to L1. L3 artifacts preserved. Register more sources or revise framing.",
+        "popup_gate": {
+            "question": "Retreated to L1 for re-reading/framing. What do you need to do?",
+            "header": "L3→L1",
+            "options": [
+                {"label": "Register sources", "description": "Add new literature sources to L0 before re-framing."},
+                {"label": "Revise framing", "description": "Edit the research question or formal frame based on new insight."},
+                {"label": "Resume L3", "description": "Go back to L3 without changes (used register_source separately)."},
+            ],
+        },
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -788,10 +915,10 @@ def aitp_submit_l4_review(
     outcome: str,
     notes: str = "",
     check_results: dict[str, str] | None = None,
-) -> str:
-    """Submit an L4 review with one of the six validation outcomes."""
+) -> dict[str, Any]:
+    """Submit an L4 review with one of the six validation outcomes. Returns popup gate if not pass."""
     if outcome not in L4_OUTCOMES:
-        return f"Invalid outcome '{outcome}'. Valid: {L4_OUTCOMES}"
+        return {"message": f"Invalid outcome '{outcome}'. Valid: {L4_OUTCOMES}"}
 
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
@@ -822,7 +949,19 @@ def aitp_submit_l4_review(
 
     _write_md(review_path, fm, body)
     _append_to_topic_log(root, f"L4 review: {slug} -> {outcome}")
-    return f"L4 review submitted for {slug}: {outcome}."
+
+    result: dict[str, Any] = {"message": f"L4 review submitted for {slug}: {outcome}."}
+    if outcome != "pass":
+        result["popup_gate"] = {
+            "question": f"L4 review outcome was '{outcome}' (not pass). How to proceed?",
+            "header": "L4 Review",
+            "options": [
+                {"label": "Revise candidate", "description": "Return to L3 and revise the candidate based on review findings."},
+                {"label": "Re-validate", "description": "Re-run validation with adjusted criteria."},
+                {"label": "Abandon candidate", "description": "Discard this candidate and try a different approach."},
+            ],
+        }
+    return _GateResult(result)
 
 
 # ---------------------------------------------------------------------------
@@ -965,8 +1104,8 @@ def aitp_lint_knowledge(
                 "message": "Contradiction register has no blocking_contradictions value.",
             })
 
-    # Check L2 promoted units for regime and non-claims
-    l2_dir = root / "L2" / "canonical"
+    # Check global L2 promoted units for regime and non-claims
+    l2_dir = _global_l2_path(topics_root)
     if l2_dir.is_dir():
         for l2_path in sorted(l2_dir.glob("*.md")):
             l2_fm, l2_body = _parse_md(l2_path)
@@ -1057,39 +1196,36 @@ def aitp_writeback_query_result(
 # ---------------------------------------------------------------------------
 
 _L5_ARTIFACTS = {
-    "outline.md": (
+    "outline.md":
         "# Writing Outline\n\n## Title\n\n## Claims\n\n## Structure\n\n"
         "## Target Audience\n\n## Key Equations\n",
-    ),
-    "claim_evidence_map.md": (
+    "claim_evidence_map.md":
         "# Claim-Evidence Map\n\n## Claims\n\n## Evidence Links\n\n"
         "## Provenance Chain\n\n## Confidence Per Claim\n",
-    ),
-    "equation_provenance.md": (
+    "equation_provenance.md":
         "# Equation Provenance\n\n## Equations\n\n## Source Classification\n\n"
         "## Derivation Chain\n\n## Verification Status\n",
-    ),
-    "figure_provenance.md": (
+    "figure_provenance.md":
         "# Figure Provenance\n\n## Figures\n\n## Source Data\n\n"
         "## Reproducibility Notes\n",
-    ),
-    "limitations.md": (
+    "limitations.md":
         "# Limitations\n\n## Non-Claims\n\n## Unresolved Issues\n\n"
         "## Regime Boundaries\n\n## Negative Results\n",
-    ),
 }
 
 
 @mcp.tool()
-def aitp_advance_to_l5(topics_root: str, topic_slug: str) -> str:
-    """Transition from L4 to L5 writing. Requires flow_notebook.tex."""
+def aitp_advance_to_l5(topics_root: str, topic_slug: str) -> dict[str, Any]:
+    """Transition from L4 to L5 writing. Requires flow_notebook.tex. Returns popup gate."""
     root = _topic_root(topics_root, topic_slug)
     tex_path = root / "L3" / "tex" / "flow_notebook.tex"
     if not tex_path.exists():
-        return (
-            f"Blocked: flow_notebook.tex not found at {tex_path}. "
-            f"Run aitp_render_flow_notebook before advancing to L5."
-        )
+        return _GateResult({
+            "message": (
+                f"Blocked: flow_notebook.tex not found at {tex_path}. "
+                f"Run aitp_render_flow_notebook before advancing to L5."
+            ),
+        })
 
     state_path = root / "state.md"
     fm, body = _parse_md(state_path)
@@ -1111,7 +1247,17 @@ def aitp_advance_to_l5(topics_root: str, topic_slug: str) -> str:
             }, content)
 
     _append_to_topic_log(root, "advanced to L5 writing")
-    return f"Advanced to L5 writing. Fill provenance artifacts before drafting."
+    return _GateResult({
+        "message": f"Advanced to L5 writing. Fill provenance artifacts before drafting.",
+        "popup_gate": {
+            "question": "Validation passed. Start the L5 writing phase?",
+            "header": "L4->L5",
+            "options": [
+                {"label": "Start writing", "description": "Proceed to L5 writing. Fill provenance files and draft the paper."},
+                {"label": "Review first", "description": "Review the flow notebook and validation results before writing."},
+            ],
+        },
+    })
 
 
 # ---------------------------------------------------------------------------

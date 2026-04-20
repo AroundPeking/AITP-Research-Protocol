@@ -6,6 +6,15 @@ trigger: status == "candidate_ready"
 
 # Validate Mode
 
+## MANDATORY: AskUserQuestion rule
+
+When you need to ask the user ANY question (clarification, scope, direction, missing info), you MUST:
+1. Call `ToolSearch(query="select:AskUserQuestion", max_results=1)` to load the tool.
+2. Call `AskUserQuestion(questions=[{...}])` with your question and options.
+NEVER type questions or options as plain text. ALWAYS use the popup tool.
+
+---
+
 You are in **validate** mode. Your job: verify candidates against their declared
 validation criteria.
 
@@ -25,11 +34,25 @@ validation criteria.
    - Verify error budgets are within tolerance
    - Record results in a Python script or notebook
 
+   For numerical work, use the **Jupyter MCP server** tools:
+   - `jupyter-mcp-server__connect_to_jupyter` — connect to running Jupyter
+   - `jupyter-mcp-server__use_notebook` — open a notebook for the validation
+   - `jupyter-mcp-server__insert_execute_code_cell` — run Python code inline
+   - `jupyter-mcp-server__read_cell` — read output for results
+   - Save generated plots to `L4/reviews/figures/` for L5 inclusion
+
    ### Analytical Validation
    - Check limiting cases: do formulas reduce correctly?
    - Dimensional analysis: do equations have correct dimensions?
    - Symmetry checks: do results respect declared symmetries?
    - Self-consistency: are different parts of the derivation compatible?
+
+   For formal verification, use the **Lean MCP server** tools:
+   - `lean-lsp-mcp__lean_goal` — check proof state at a position
+   - `lean-lsp-mcp__lean_diagnostic_messages` — find errors in formalization
+   - `lean-lsp-mcp__lean_leansearch` — search mathlib for relevant lemmas
+   - `lean-lsp-mcp__lean_multi_attempt` — test tactics without editing
+   - `lean-lsp-mcp__lean_verify` — verify a theorem with axiom check
 
    ### Comparison Validation
    - Compare candidate against known L2 results

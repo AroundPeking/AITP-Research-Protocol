@@ -1,0 +1,208 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath,amssymb,physics}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\geometry{margin=2.5cm}
+\hypersetup{colorlinks=true,linkcolor=blue!60!black}
+
+\title{\textbf{Research Flow Notebook}\\[0.5em]
+\large Topic: \texttt{demo-topic} \quad Lane: \texttt{formal\_theory}}
+\author{AITP v2 Protocol}
+\date{2026-04-20}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This flow notebook archives the complete research trajectory for topic
+\texttt{demo-topic}, from question framing through derivation to
+validated claim. It serves as the mandatory pre-paper artifact required
+before L5 writing.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Research Question}
+% ============================================================
+
+\textbf{Bounded Question:} What quantity is bounded here?
+
+\medskip
+\noindent\textbf{Scope:} One model, one regime.
+
+\noindent\textbf{Target Quantities:} Gap and symmetry sector.
+
+\subsection{Non-Success Conditions}
+\begin{itemize}
+  \item No convergence in the numerical solution after $10^4$ iterations.
+  \item Dimensional analysis yields inconsistent units.
+\end{itemize}
+
+\subsection{Uncertainty Markers}
+\begin{itemize}
+  \item Sign convention ambiguity in the Green's function.
+  \item Unknown validity of perturbative expansion beyond second order.
+\end{itemize}
+
+% ============================================================
+\section{Conventions And Regime}
+% ============================================================
+
+\subsection{Notation Choices}
+\begin{tabular}{lll}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Source} \\
+\midrule
+$G(\mathbf{r}, \mathbf{r}')$ & Green's function & source-a \\
+$\Sigma$ & Self-energy & source-a \\
+$E_{\text{gap}}$ & Band gap & convention \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\noindent\textbf{Units:} Natural units ($\hbar = 1$).
+
+\noindent\textbf{Sign Convention:} $(-,+,+,+)$ metric signature.
+
+% ============================================================
+\section{Derivation Route}
+% ============================================================
+
+\subsection{Ideation}
+The core idea is to verify whether the AITP v2 protocol produces
+correct provenance chains from framing through validation.
+
+\textbf{Motivation:} Without a complete provenance chain, claims
+cannot be audited or reproduced.
+
+\subsection{Planning}
+\begin{enumerate}
+  \item Frame the research question with explicit scope boundaries.
+  \item Walk through all five L3 subplanes in sequence.
+  \item Validate the distilled claim against physics checks.
+  \item Render the flow notebook as the archive checkpoint.
+\end{enumerate}
+
+\textbf{Derivation Route:} Step-by-step verification of each protocol
+stage gate.
+
+\subsection{Analysis}
+Applied unit tests and manual inspection to verify:
+\begin{itemize}
+  \item Each L3 subplane artifact has required frontmatter fields.
+  \item Each subplane artifact contains required headings.
+  \item Transitions follow the allowed directed graph.
+\end{itemize}
+
+Key equation from analysis:
+\begin{equation}
+  \Sigma(\mathbf{r}, \mathbf{r}'; \omega)
+  = i \int \frac{d\omega'}{2\pi} \,
+    G(\mathbf{r}, \mathbf{r}'; \omega + \omega') \,
+    W(\mathbf{r}, \mathbf{r}'; \omega')
+\end{equation}
+
+\subsection{Result Integration}
+All stages connected properly. The provenance chain from L1 framing
+through L3 derivation to L4 validation is complete and consistent.
+
+\textbf{Findings:}
+\begin{itemize}
+  \item All 74 unit tests pass across 6 waves.
+  \item Flow notebook TeX renders correctly with all required sections.
+  \item Promotion to global L2 succeeds with correct trust classification.
+\end{itemize}
+
+\subsection{Distillation}
+\textbf{Distilled Claim:} The AITP v2 protocol produces correct
+provenance chains from question framing through validated claim
+promotion.
+
+\textbf{Evidence Summary:} Tests pass, flow TeX renders correctly,
+trust classification is $\text{basis} = \text{validated}$, $\text{scope}
+= \text{bounded\_reusable}$.
+
+% ============================================================
+\section{Validation And Checks}
+% ============================================================
+
+\subsection{Validation Contract}
+\begin{tabular}{ll}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Candidate ID & \texttt{cand-1} \\
+Mandatory checks & dimensional\_consistency, limiting\_case\_check \\
+\bottomrule
+\end{tabular}
+
+\subsection{Review: \texttt{cand-1}}
+\begin{tabular}{ll}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Outcome & \textcolor{green!60!black}{\textbf{pass}} \\
+Notes & All physics checks passed. \\
+Dimensional consistency & \textcolor{green!60!black}{\checkmark} \\
+Limiting case check & \textcolor{green!60!black}{\checkmark} \\
+\bottomrule
+\end{tabular}
+
+% ============================================================
+\section{Current Claim Boundary}
+% ============================================================
+
+\textbf{Claim:} The AITP v2 protocol produces correct provenance chains
+from question framing through validated claim promotion.
+
+\medskip
+\textbf{Trust Classification:}
+\begin{tabular}{ll}
+\toprule
+\textbf{Dimension} & \textbf{Value} \\
+\midrule
+Trust basis & validated \\
+Trust scope & bounded\_reusable \\
+Version & 1 \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Assumptions:}
+\begin{enumerate}
+  \item The topic follows the \texttt{formal\_theory} lane.
+  \item All L1 artifacts are filled before advancing to L3.
+  \item At least one candidate passes L4 review before promotion.
+\end{enumerate}
+
+% ============================================================
+\section{Failures And Open Problems}
+% ============================================================
+
+\subsection{Known Limitations}
+\begin{itemize}
+  \item The flow notebook currently embeds raw Markdown in TeX; a
+        proper renderer should convert headings to \LaTeX\ sections.
+  \item The \texttt{contradiction\_register} requires manual population;
+        it does not auto-detect contradictions from source analysis.
+\end{itemize}
+
+\subsection{Open Problems}
+\begin{itemize}
+  \item Extending the protocol to support multi-model comparison topics.
+  \item Integration with Lean 4 for formal verification of mathematical claims.
+  \item Automatic detection of scope creep during L3 derivation.
+\end{itemize}
+
+\subsection{Negative Results}
+\begin{itemize}
+  \item Attempting to skip subplanes (e.g., jumping from ideation to
+        distillation) is correctly blocked by the protocol gates.
+\end{itemize}
+
+\end{document}

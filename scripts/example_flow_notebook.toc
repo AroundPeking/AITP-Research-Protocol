@@ -1,0 +1,19 @@
+\contentsline {section}{\numberline {1}Research Question}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Non-Success Conditions}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Uncertainty Markers}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Conventions And Regime}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Notation Choices}{2}{subsection.2.1}%
+\contentsline {section}{\numberline {3}Derivation Route}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Ideation}{2}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Planning}{2}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Analysis}{3}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Result Integration}{3}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Distillation}{3}{subsection.3.5}%
+\contentsline {section}{\numberline {4}Validation And Checks}{3}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Validation Contract}{3}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Review: \texttt {cand-1}}{3}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Current Claim Boundary}{4}{section.5}%
+\contentsline {section}{\numberline {6}Failures And Open Problems}{4}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Known Limitations}{4}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Open Problems}{4}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Negative Results}{4}{subsection.6.3}%

@@ -275,6 +275,142 @@ topics/<topic_slug>/
 
 Global reusable memory remains outside the topic root in canonical `L2`.
 
+## Knowledge-Base Operating Model
+
+AITP should absorb the useful parts of an `LLM wiki` workflow, but reinterpret
+them for disciplined theoretical-physics research instead of generic note
+taking.
+
+### Three-layer knowledge-base model
+
+The right translation is:
+
+- `raw sources` -> `L0` plus immutable source-linked execution artifacts
+- `wiki` -> layered human-readable research surfaces across `L1`, `L3`, `L4`,
+  and `L2`
+- `schema` -> Charter, SPEC, protocols, artifact templates, and gate rules
+
+The key AITP rule is:
+
+- the system may use a wiki-like workflow,
+- but it may not collapse source-grounded, derived, validated, and promoted
+  content into one undifferentiated layer.
+
+### Theoretical-physicist interpretation
+
+A real theorist does not only want a bag of facts.
+They need a knowledge workspace that answers:
+
+- where did this equation or claim come from?
+- which conventions and regime does it assume?
+- what reconstruction or comparison produced it?
+- what objections or failed routes remain?
+- what is reusable across topics, and what is only locally provisional?
+
+So the AITP knowledge base should behave less like:
+
+- a general-purpose wiki of summaries
+
+and more like:
+
+- a layered research archive with source traces, derivation notebooks,
+  adjudication records, reusable memory, and writing outputs.
+
+### Core operations: ingest, query, lint
+
+AITP should expose three first-class knowledge-base operations:
+
+#### `ingest`
+
+Bring new material into the research system without pretending it is already
+understood.
+
+Typical `ingest` outputs:
+
+- `L0` source records,
+- `L1` source-basis updates,
+- new source anchors,
+- updated contradiction and notation registers.
+
+#### `query`
+
+Answer a bounded scientific question against the layered knowledge base.
+
+The result should be regime-aware and layer-aware:
+
+- source-grounded answers should cite `L0/L1`,
+- derivational answers should cite `L3`,
+- adjudication answers should cite `L4`,
+- reusable answers should cite `L2`.
+
+`query` must not silently upgrade weak material into stronger authority.
+
+#### `lint`
+
+Inspect the knowledge base for structural and scientific hygiene failures.
+
+Physics-relevant lint should include at least:
+
+- unresolved notation tensions,
+- contradiction records with no disposition,
+- derivation anchors missing later reconstruction links,
+- claims with missing regime statements,
+- promoted units with broken provenance chains,
+- stale reusable units contradicted by later evidence,
+- missing non-claims or limitations,
+- orphaned concepts/methods with no source or reuse links.
+
+### Navigation surfaces: `index` and `log`
+
+AITP should add two durable navigation surfaces at both topic and global
+levels:
+
+#### `index`
+
+A content-oriented navigation map that answers:
+
+- what concepts, methods, warnings, bridges, and claims exist?
+- how are they grouped by regime, topic family, or method family?
+- where should the human or agent read next?
+
+#### `log`
+
+A time-oriented evolution surface that answers:
+
+- what changed in this topic or knowledge base?
+- which question/answer/lint/promotion event caused the change?
+- what scientific understanding moved forward, stalled, or was revised?
+
+The index is for orientation.
+The log is for continuity and audit.
+
+### Query writeback rule
+
+Useful query results should be allowed to write back into the knowledge base,
+but only into the correct layer:
+
+- source-grounded clarification -> `L1`
+- derivation or route synthesis -> `L3`
+- adjudication summary -> `L4`
+- reusable promoted unit -> `L2` only after the normal gate
+
+This preserves the productive part of a wiki workflow without weakening AITP's
+epistemic discipline.
+
+### Knowledge-base health rule
+
+The knowledge base should be periodically linted the way a theorist would check
+a notebook shelf:
+
+- are the important things still findable?
+- are contradictions visible rather than buried?
+- are dead ends preserved as lessons?
+- are notation and regime assumptions explicit?
+- are reusable units actually reusable outside the original topic?
+
+This should become an explicit runtime and maintenance surface, not an informal
+hope.
+
 ## Stage Contracts
 
 ### `L1` Read-And-Frame Stage

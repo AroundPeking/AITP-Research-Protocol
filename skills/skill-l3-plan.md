@@ -6,6 +6,15 @@ trigger: l3_subplane == "planning"
 
 # L3 Planning
 
+## MANDATORY: AskUserQuestion rule
+
+When you need to ask the user ANY question (clarification, scope, direction, missing info), you MUST:
+1. Call `ToolSearch(query="select:AskUserQuestion", max_results=1)` to load the tool.
+2. Call `AskUserQuestion(questions=[{...}])` with your question and options.
+NEVER type questions or options as plain text. ALWAYS use the popup tool.
+
+---
+
 You are in the planning subplane of L3 derivation.
 
 ## Active artifact
