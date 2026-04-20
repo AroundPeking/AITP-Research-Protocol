@@ -8972,6 +8972,62 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("protocol-native route reuse", note_text)
         self.assertNotIn("blocked-topic", note_text)
 
+    def test_list_active_topics_publishes_control_plane_paths(self) -> None:
+        runtime_root = self.kernel_root / "runtime"
+        runtime_root.mkdir(parents=True, exist_ok=True)
+        self._write_runtime_state(topic_slug="demo-topic", run_id="run-001")
+        (self._runtime_root("demo-topic") / "pending_decisions.json").write_text(
+            json.dumps({"pending_count": 0, "items": []}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (self._runtime_root("demo-topic") / "unfinished_work.json").write_text(
+            json.dumps({"items": []}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (self._runtime_root("demo-topic") / "research_report.active.json").write_text(
+            json.dumps({"current_best_statements": []}, ensure_ascii=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (runtime_root / "active_topics.json").write_text(
+            json.dumps(
+                {
+                    "registry_version": 1,
+                    "focused_topic_slug": "demo-topic",
+                    "updated_at": "2026-04-20T10:00:00+08:00",
+                    "updated_by": "test",
+                    "source": "test",
+                    "topics": [
+                        {
+                            "topic_slug": "demo-topic",
+                            "status": "active",
+                            "operator_status": "ready",
+                            "priority": 0,
+                            "last_activity": "2026-04-20T10:00:00+08:00",
+                            "runtime_root": str(self._runtime_root("demo-topic")),
+                            "lane": "code_method",
+                            "focus_state": "focused",
+                            "projection_status": "missing",
+                            "blocked_by": [],
+                            "summary": "Demo topic",
+                        }
+                    ],
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        payload = self.service.list_active_topics(updated_by="pytest")
+
+        self.assertIn("control_plane_index_path", payload)
+        self.assertIn("blocker_queue_path", payload)
+        self.assertTrue(Path(payload["control_plane_index_path"]).exists())
+        self.assertTrue(Path(payload["blocker_queue_path"]).exists())
+        self.assertEqual(payload["control_plane_summary"]["topic_count"], 1)
+        self.assertEqual(payload["control_plane_summary"]["blocker_count"], 0)
+
     def test_pause_topic_moves_focus_to_next_eligible_topic(self) -> None:
         runtime_root = self.kernel_root / "runtime"
         runtime_root.mkdir(parents=True, exist_ok=True)
@@ -13221,6 +13277,5 @@ class AITPServiceTests(unittest.TestCase):
         self.assertIn("aitp-review", claude_payload["mcpServers"])
         self.assertNotIn("aitp", claude_payload["mcpServers"])
         self.assertEqual(claude_payload["mcpServers"]["aitp-review"]["env"]["AITP_MCP_PROFILE"], "review")
-
 
 

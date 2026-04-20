@@ -5,6 +5,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .remediation_task_support import (
+    build_remediation_tasks,
+    write_remediation_tasks,
+)
+
 
 def _now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
@@ -722,6 +727,10 @@ def materialize_research_report(
         research_contract=research_contract,
     )
     unfinished_work = _merge_unfinished_items(unfinished_work, round_rows=round_development)
+    remediation_tasks = build_remediation_tasks(
+        topic_slug=topic_slug,
+        round_rows=round_development,
+    )
     source_anchor_table = _source_anchor_table_rows(derivation_rows)
     target_source_location = _target_source_location(derivation_rows)
 
@@ -820,6 +829,7 @@ def materialize_research_report(
         "current_conclusion": _as_text(
             (round_development[-1].get("understanding_delta") if round_development else "")
         ),
+        "remediation_tasks": remediation_tasks.get("items") or [],
         "open_obligations": unfinished_items,
         "open_problems": open_problems,
         "recommended_skills": _recommended_skill_rows(service),
@@ -827,6 +837,7 @@ def materialize_research_report(
 
     paths = research_report_paths(service, topic_slug=topic_slug)
     _write_json(runtime_root / "unfinished_work.json", unfinished_work)
+    write_remediation_tasks(runtime_root, remediation_tasks)
     _write_json(paths["json"], payload)
     _write_text(paths["note"], _build_markdown(payload))
     return {
@@ -834,4 +845,3 @@ def materialize_research_report(
         "path": str(paths["json"]),
         "note_path": str(paths["note"]),
     }
-

@@ -13,6 +13,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+if str(PACKAGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_ROOT))
+
+from knowledge_hub.aitp_service import AITPService
 from closed_loop_v1 import compute_closed_loop_status
 from interaction_surface_support import (
     build_agent_brief as render_agent_brief,
@@ -1947,6 +1952,10 @@ def main() -> int:
         check=True,
         stdin=subprocess.DEVNULL,
     )
+    AITPService(
+        kernel_root=knowledge_root,
+        repo_root=research_root.parent,
+    ).materialize_control_plane_index(updated_by=args.updated_by)
 
     print(f"Orchestrated topic {topic_slug}")
     print(f"- topic_state: {topic_runtime_root / 'topic_state.json'}")

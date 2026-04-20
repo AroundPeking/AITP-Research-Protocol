@@ -149,6 +149,7 @@ class DispatchRuntimeControllerActionTests(unittest.TestCase):
 class DispatchActionQueueTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmpdir = tempfile.TemporaryDirectory()
+        self.work_root = Path(self._tmpdir.name)
         self.runtime_root = Path(self._tmpdir.name) / "topics" / "demo-topic" / "runtime"
         self.runtime_root.mkdir(parents=True, exist_ok=True)
         self.module = _load_module(
@@ -157,6 +158,7 @@ class DispatchActionQueueTests(unittest.TestCase):
         )
         self.module.resolve_topic_slug = lambda value: value or "demo-topic"
         self.module.topic_runtime_root = lambda topic_slug: self.runtime_root
+        self.module.KNOWLEDGE_ROOT = self.work_root
 
     def tearDown(self) -> None:
         self._tmpdir.cleanup()
@@ -241,6 +243,95 @@ class DispatchActionQueueTests(unittest.TestCase):
         receipt_rows = [json.loads(line) for line in receipts_path.read_text(encoding="utf-8").splitlines()]
         self.assertEqual(receipt_rows[0]["handler_key"], "assess_topic_completion")
 
+    def test_dispatch_queue_uses_dispatch_target_contract_for_execution_handoff(self) -> None:
+        queue_path = self.runtime_root / "action_queue.jsonl"
+        queue_path.write_text(
+            json.dumps(
+                {
+                    "action_id": "action:demo-topic:repair",
+                    "status": "pending",
+                    "auto_runnable": True,
+                    "action_type": "dispatch_execution_task",
+                    "handler": "dispatch_execution_task",
+                    "handler_args": {"run_id": "run-001"},
+                    "summary": "Dispatch the bounded benchmark repair.",
+                },
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (self.runtime_root / "next_action_decision.json").write_text(
+            json.dumps(
+                {
+                    "selected_action": {"action_id": "action:demo-topic:repair"},
+                    "auto_dispatch_allowed": True,
+                    "decision_mode": "auto",
+                    "reason": "test",
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        control_root = self.work_root / "runtime" / "control_plane"
+        control_root.mkdir(parents=True, exist_ok=True)
+        (control_root / "dispatch_targets.json").write_text(
+            json.dumps(
+                {
+                    "items": [
+                        {
+                            "dispatch_target_id": "dispatch:demo-topic:repair",
+                            "topic_slug": "demo-topic",
+                            "target_kind": "selected_action",
+                            "action_id": "action:demo-topic:repair",
+                            "action_ref": "topics/demo-topic/runtime/action_queue.jsonl#action:demo-topic:repair",
+                            "expected_writeback_paths": [
+                                "topics/demo-topic/runtime/execution_task.json",
+                                "validation/topics/demo-topic/runs/run-001/returned_execution_result.json",
+                            ],
+                        }
+                    ]
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        calls: list[dict[str, object]] = []
+
+        def fake_run(command, **kwargs):  # noqa: ANN001, ANN003
+            calls.append({"command": list(command), "stdin": kwargs.get("stdin")})
+            return mock.Mock(returncode=0, stdout="", stderr="")
+
+        with mock.patch.object(self.module.subprocess, "run", side_effect=fake_run):
+            with mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "dispatch_action_queue.py",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--max-actions",
+                    "1",
+                    "--updated-by",
+                    "openclaw-test",
+                ],
+            ):
+                exit_code = self.module.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("--dispatch-target-id", calls[0]["command"])
+        self.assertIn("dispatch:demo-topic:repair", calls[0]["command"])
+        self.assertIn("--expected-writeback-path", calls[0]["command"])
+        receipts_path = self.runtime_root / "action_receipts.jsonl"
+        receipt_rows = [json.loads(line) for line in receipts_path.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(receipt_rows[0]["dispatch_target_id"], "dispatch:demo-topic:repair")
+
 
 class DispatchExecutionTaskTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -292,6 +383,72 @@ class DispatchExecutionTaskTests(unittest.TestCase):
                 self.module.main()
 
         self.assertIn("requires human confirmation", str(ctx.exception))
+
+    def test_dispatch_execution_task_receipt_records_dispatch_target_id(self) -> None:
+        result_path = Path(self._tmpdir.name) / "validation" / "topics" / "demo-topic" / "runs" / "run-001" / "returned_execution_result.json"
+        (self.runtime_root / "execution_task.json").write_text(
+            json.dumps(
+                {
+                    "task_id": "demo-task",
+                    "route_id": "route:demo-topic:benchmark",
+                    "run_id": "run-001",
+                    "result_writeback_path": "validation/topics/demo-topic/runs/run-001/returned_execution_result.json",
+                    "result_template_path": "validation/templates/execution-result.template.json",
+                    "executor_kind": "codex_cli",
+                    "assigned_runtime": "codex",
+                    "needs_human_confirm": False,
+                    "auto_dispatch_allowed": True,
+                },
+                ensure_ascii=True,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        def fake_start_session(**kwargs):  # noqa: ANN003
+            return {"session_id": "session-demo", "tmux_session_name": "tmux-demo"}
+
+        def fake_wait_for_session(*args, **kwargs):  # noqa: ANN002, ANN003
+            result_path.parent.mkdir(parents=True, exist_ok=True)
+            result_path.write_text(
+                json.dumps({"result_id": "result:demo", "produced_by": "pytest"}, ensure_ascii=True, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            return {"exit_code": 0}
+
+        with mock.patch.object(self.module, "start_codex_exec_session", side_effect=fake_start_session):
+            with mock.patch.object(self.module, "wait_for_session", side_effect=fake_wait_for_session):
+                with mock.patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "dispatch_execution_task.py",
+                        "--topic-slug",
+                        "demo-topic",
+                        "--dispatch-target-id",
+                        "dispatch:demo-topic:repair",
+                        "--expected-writeback-path",
+                        "topics/demo-topic/runtime/execution_task.json",
+                        "--expected-writeback-path",
+                        "validation/topics/demo-topic/runs/run-001/returned_execution_result.json",
+                    ],
+                ):
+                    exit_code = self.module.main()
+
+        self.assertEqual(exit_code, 0)
+        receipt_rows = [
+            json.loads(line)
+            for line in (self.runtime_root / "execution_handoff_receipts.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertEqual(receipt_rows[0]["dispatch_target_id"], "dispatch:demo-topic:repair")
+        self.assertEqual(
+            receipt_rows[0]["expected_writeback_paths"],
+            [
+                "topics/demo-topic/runtime/execution_task.json",
+                "validation/topics/demo-topic/runs/run-001/returned_execution_result.json",
+            ],
+        )
 
 
 class ExternalSkillDiscoveryTests(unittest.TestCase):

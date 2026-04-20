@@ -57,6 +57,7 @@ def _topic_paths(l3_root: Path) -> dict[str, Path]:
         "research_report": runtime_root / "research_report.active.json",
         "idea_packet": runtime_root / "idea_packet.json",
         "unfinished_work": runtime_root / "unfinished_work.json",
+        "remediation_tasks": runtime_root / "remediation_tasks.json",
     }
 
 
@@ -173,7 +174,8 @@ def _render_manuscript_meta_line(pairs: list[tuple[str, str]]) -> list[str]:
         text = str(value or "").strip()
         if not text:
             continue
-        parts.append(f"\\textsc{{{_esc(label)}}}: {_esc_latex_body(text).replace(' \\\\\\n', ' ')}")
+        rendered_text = _esc_latex_body(text).replace(" \\\\\n", " ")
+        parts.append(f"\\textsc{{{_esc(label)}}}: {rendered_text}")
     if not parts:
         return []
     return ["{\\small\\color{muted} " + " \\quad ".join(parts) + r"\par}", ""]
@@ -1715,7 +1717,9 @@ def _render_open_problems_section(l3_root: Path, run_records: list[dict[str, Any
     research_report = _read_json(topic_paths["research_report"]) or {}
     research_contract = _read_json(topic_paths["research_contract"]) or {}
     unfinished_work = _read_json(topic_paths["unfinished_work"]) or {}
+    remediation = _read_json(topic_paths["remediation_tasks"]) or {}
     items: list[str] = []
+    remediation_items: list[str] = []
 
     items.extend(_string_list(research_report.get("open_problems") or research_contract.get("open_ambiguities")))
 
@@ -1730,13 +1734,19 @@ def _render_open_problems_section(l3_root: Path, run_records: list[dict[str, Any
         if summary:
             items.append(f"{summary} [{status or 'status unspecified'}]")
 
+    for row in _dict_list(remediation.get("items")):
+        summary = _summarize_scalar(row.get("summary"))
+        status = _summarize_scalar(row.get("status"))
+        if summary:
+            remediation_items.append(f"{summary} [{status or 'pending'}]")
+
     for record in run_records:
         for row in record.get("candidate_rows") or []:
             blockers = _string_list(row.get("promotion_blockers"))
             for blocker in blockers:
                 items.append(f"{row.get('candidate_id') or 'candidate'} blocker: {blocker}")
 
-    if not items:
+    if not items and not remediation_items:
         return []
 
     latest_synthesis = _latest_synthesis_payload(run_records)
@@ -1750,6 +1760,7 @@ def _render_open_problems_section(l3_root: Path, run_records: list[dict[str, Any
         lines.append("\\subsection*{Immediate Next Step}")
         lines.extend(_render_plain_paragraph(next_step))
     lines.extend(_render_bullet_block("Open Problems And Deferred Fragments", items))
+    lines.extend(_render_bullet_block("Remediation Tasks", remediation_items))
     return lines
 
 

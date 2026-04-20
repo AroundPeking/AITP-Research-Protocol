@@ -14,6 +14,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 
+from knowledge_hub.dispatch_target_support import materialize_dispatch_targets
 from knowledge_hub.mode_registry import normalize_runtime_mode
 
 UNFINISHED_WORK_FILENAME = "unfinished_work.json"
@@ -1056,6 +1057,13 @@ def main() -> int:
     write_text(topic_runtime_root / UNFINISHED_WORK_NOTE_FILENAME, build_unfinished_work_markdown(unfinished_work))
     write_json(topic_runtime_root / NEXT_ACTION_DECISION_FILENAME, next_action)
     write_text(topic_runtime_root / NEXT_ACTION_DECISION_NOTE_FILENAME, build_next_action_markdown(next_action))
+    materialize_dispatch_targets(
+        knowledge_root=knowledge_root,
+        topic_slug=args.topic_slug,
+        runtime_root=topic_runtime_root,
+        next_action_decision=next_action,
+        updated_by=updated_by,
+    )
 
     print(f"Materialized decision surfaces for {args.topic_slug}")
     print(f"- unfinished_work: {topic_runtime_root / UNFINISHED_WORK_FILENAME}")

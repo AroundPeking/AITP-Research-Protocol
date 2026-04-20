@@ -315,6 +315,32 @@ def test_numerical_round_requires_observable_definition_but_not_derivation_spine
     )
 
 
+def test_materialize_research_report_writes_remediation_task_ledger_for_missing_blocks() -> None:
+    service, topic_slug, run_id, runtime_root = _build_service_fixture(
+        round_type="numerical_or_benchmark_round",
+        derivation_rows=[],
+        comparison_rows=[],
+        plan_overrides={
+            "selected_action_summary": "Run the bounded benchmark comparison.",
+            "setup_and_regime": "Weak-coupling benchmark window.",
+            "observable_definition": "",
+        },
+    )
+
+    payload = service.materialize_research_report(
+        topic_slug=topic_slug,
+        run_id=run_id,
+        updated_by="pytest",
+    )
+
+    remediation_path = runtime_root / "remediation_tasks.json"
+    assert remediation_path.exists()
+    remediation = json.loads(remediation_path.read_text(encoding="utf-8"))
+    assert remediation["items"][0]["missing_block"] == "observable_definition"
+    assert remediation["items"][0]["recommended_round_type"] == "numerical_or_benchmark_round"
+    assert payload["remediation_tasks"][0]["blocks_claim_use"] is True
+
+
 def test_source_restoration_round_without_formula_anchor_table_is_blocked() -> None:
     service, topic_slug, run_id, runtime_root = _build_service_fixture(
         round_type="source_restoration_round",

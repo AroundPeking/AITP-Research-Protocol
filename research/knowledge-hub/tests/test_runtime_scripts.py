@@ -848,6 +848,70 @@ class RuntimeScriptTests(unittest.TestCase):
         self.assertEqual(len(actions), 1)
         self.assertEqual(actions[0]["action_type"], "apply_candidate_split_contract")
 
+    def test_orchestrate_topic_refreshes_runtime_control_plane_surfaces(self) -> None:
+        topic_slug = "demo-topic"
+        topic_runtime_root = self.knowledge_root / "topics" / topic_slug / "runtime"
+
+        def fake_load_json(path: Path):
+            if path.name == "topic_state.json":
+                return {
+                    "topic_slug": topic_slug,
+                    "latest_run_id": "run-001",
+                    "resume_stage": "L3",
+                }
+            return None
+
+        class _StubService:
+            def __init__(self, *, kernel_root: Path, repo_root: Path) -> None:
+                self.kernel_root = kernel_root
+                self.repo_root = repo_root
+
+            def materialize_control_plane_index(self, *, updated_by: str = "aitp-cli") -> dict:
+                control_root = self.kernel_root / "runtime" / "control_plane"
+                control_root.mkdir(parents=True, exist_ok=True)
+                (control_root / "topic_control_index.json").write_text(
+                    json.dumps({"status": "available", "updated_by": updated_by}, ensure_ascii=True, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                (control_root / "blocker_queue.json").write_text(
+                    json.dumps({"items": []}, ensure_ascii=True, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                return {"topic_count": 1, "blocker_queue": []}
+
+        with patch.object(self.orchestrate_topic, "AITPService", _StubService):
+            with patch.object(self.orchestrate_topic, "ensure_topic_shell"):
+                with patch.object(self.orchestrate_topic, "load_json", side_effect=fake_load_json):
+                    with patch.object(self.orchestrate_topic, "materialize_action_queue", return_value=([], {})):
+                        with patch.object(self.orchestrate_topic, "build_action_queue_contract_snapshot", return_value={}):
+                            with patch.object(self.orchestrate_topic, "build_interaction_state", return_value={}):
+                                with patch.object(self.orchestrate_topic, "build_operator_console", return_value="console"):
+                                    with patch.object(self.orchestrate_topic, "build_agent_brief", return_value="brief"):
+                                        with patch.object(self.orchestrate_topic, "build_action_queue_contract_markdown", return_value="contract"):
+                                            with patch.object(self.orchestrate_topic.subprocess, "run") as fake_run:
+                                                with patch.object(
+                                                    sys,
+                                                    "argv",
+                                                    [
+                                                        "orchestrate_topic.py",
+                                                        "--knowledge-root",
+                                                        str(self.knowledge_root),
+                                                        "--repo-root",
+                                                        str(self.knowledge_root.parent),
+                                                        "--topic-slug",
+                                                        topic_slug,
+                                                        "--updated-by",
+                                                        "pytest",
+                                                    ],
+                                                ):
+                                                    exit_code = self.orchestrate_topic.main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertGreaterEqual(fake_run.call_count, 3)
+        self.assertTrue((self.knowledge_root / "runtime" / "control_plane" / "topic_control_index.json").exists())
+        self.assertTrue((self.knowledge_root / "runtime" / "control_plane" / "blocker_queue.json").exists())
+        self.assertTrue((topic_runtime_root / "action_queue.jsonl").exists())
+
     def test_auto_promotion_actions_detect_ready_candidate(self) -> None:
         self._write_json(
             "runtime/closed_loop_policies.json",
@@ -2627,6 +2691,61 @@ class RuntimeScriptTests(unittest.TestCase):
         )
         self.assertTrue(
             (self.knowledge_root / "topics" / "demo-topic" / "runtime" / "next_action_decision.json").exists()
+        )
+
+    def test_decide_next_action_writes_dispatch_targets_for_selected_action(self) -> None:
+        script_path = self.knowledge_root / "runtime" / "scripts" / "decide_next_action.py"
+        script_path.parent.mkdir(parents=True, exist_ok=True)
+        script_path.write_text("# runtime script shim\n", encoding="utf-8")
+
+        self._write_json(
+            "topics/demo-topic/runtime/topic_state.json",
+            {
+                "topic_slug": "demo-topic",
+                "resume_stage": "L3",
+                "last_materialized_stage": "L3",
+                "updated_by": "test",
+                "pointers": {},
+            },
+        )
+        self._write_jsonl(
+            "topics/demo-topic/runtime/action_queue.jsonl",
+            [
+                {
+                    "action_id": "action:demo-topic:repair",
+                    "status": "pending",
+                    "action_type": "dispatch_execution_task",
+                    "summary": "Dispatch the bounded benchmark repair.",
+                    "auto_runnable": True,
+                    "handler": "dispatch_execution_task",
+                    "handler_args": {"run_id": "run-001"},
+                }
+            ],
+        )
+
+        with (
+            patch.object(self.decide_next_action, "__file__", str(script_path)),
+            patch.object(
+                sys,
+                "argv",
+                [
+                    "decide_next_action.py",
+                    "--topic-slug",
+                    "demo-topic",
+                    "--updated-by",
+                    "pytest",
+                ],
+            ),
+        ):
+            exit_code = self.decide_next_action.main()
+
+        self.assertEqual(exit_code, 0)
+        dispatch_targets = json.loads(
+            (self.knowledge_root / "runtime" / "control_plane" / "dispatch_targets.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(dispatch_targets["items"][0]["target_kind"], "selected_action")
+        self.assertTrue(
+            dispatch_targets["items"][0]["action_ref"].endswith("action_queue.jsonl#action:demo-topic:repair")
         )
 
     def test_materialize_action_queue_declared_contract_can_disable_runtime_appends_but_keep_skill_append(self) -> None:

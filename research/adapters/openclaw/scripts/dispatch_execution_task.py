@@ -369,6 +369,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--topic-slug")
     parser.add_argument("--run-id")
     parser.add_argument("--updated-by", default="openclaw")
+    parser.add_argument("--dispatch-target-id")
+    parser.add_argument("--expected-writeback-path", action="append", default=[])
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
@@ -415,6 +417,15 @@ def main() -> int:
         else result_writeback_path.parent / "execution_notes"
     )
     execution_notes_dir.mkdir(parents=True, exist_ok=True)
+    expected_writeback_paths = [
+        str(path).strip()
+        for path in (
+            args.expected_writeback_path
+            or task_payload.get("expected_writeback_paths")
+            or []
+        )
+        if str(path).strip()
+    ]
 
     prompt_path = execution_notes_dir / "codex_handoff_prompt.md"
     events_path = execution_notes_dir / "codex_exec_events.jsonl"
@@ -455,6 +466,11 @@ def main() -> int:
         "research_mode": task_payload.get("research_mode"),
         "executor_kind": task_payload.get("executor_kind") or task_payload.get("assigned_runtime"),
         "reasoning_profile": task_payload.get("reasoning_profile"),
+        "dispatch_target_id": str(
+            args.dispatch_target_id or task_payload.get("dispatch_target_id") or ""
+        ).strip()
+        or None,
+        "expected_writeback_paths": expected_writeback_paths,
         "command": quote_command(command),
         "workspace_root": relative_to_root(workspace_root, workspace_root) or ".",
         "prompt_path": relative_to_root(prompt_path, workspace_root),

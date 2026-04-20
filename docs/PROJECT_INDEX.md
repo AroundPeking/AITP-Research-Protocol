@@ -104,11 +104,15 @@ the git repo should stay code, protocol, and public docs.
 | **Human console** | `topics/<slug>/runtime/operator_console.md` | Immediate execution contract: do now / do not / escalate | Human, Agent |
 | **Runtime bundle** | `topics/<slug>/runtime/runtime_protocol.generated.md` | Progressive disclosure bundle: synopsis, contracts, triggers, guardrails | Agent |
 | **Next action** | `topics/<slug>/runtime/next_action_decision.json` | Authoritative decision: what to do next and why | Agent |
+| **Remediation tasks** | `topics/<slug>/runtime/remediation_tasks.json` | Topic-local repair ledger derived from notebook/report obligation gaps | Agent, Human |
 | **Topic dashboard** | `topics/<slug>/runtime/topic_dashboard.md` | Primary human render of current state | Human |
 | **Research report** | `topics/<slug>/runtime/research_report.active.md` | Physicist-facing topic report with round development, current best statements, excluded routes, and open obligations | Human |
 | **Action queue** | `topics/<slug>/runtime/action_queue_contract.generated.json` | Ordered list of executable actions | Agent |
 | **Unfinished work** | `topics/<slug>/runtime/unfinished_work.json` | Index of incomplete actions | Agent |
 | **Pending decisions** | `topics/<slug>/runtime/pending_decisions.json` | Unresolved decision points | Agent, Human |
+| **Control-plane index** | `runtime/control_plane/topic_control_index.json` | Cross-topic dashboard derived from topic-local runtime truth | Agent |
+| **Blocker queue** | `runtime/control_plane/blocker_queue.json` | Cross-topic queue of unresolved claim-blocking remediation items | Agent, Human |
+| **Dispatch targets** | `runtime/control_plane/dispatch_targets.json` | Thin dispatch contract for selected actions and remediation writeback expectations | Agent |
 | **Decision ledger** | `topics/<slug>/runtime/decision_ledger.jsonl` | Append-only decision history | Agent |
 | **Trajectory log** | `topics/<slug>/runtime/trajectory_log.jsonl` | Human-readable execution narrative | Human |
 | **Failure classification** | `topics/<slug>/runtime/failure_classification.json` | Classified failure types | Agent |

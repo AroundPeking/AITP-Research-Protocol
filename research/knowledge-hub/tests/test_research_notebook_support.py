@@ -348,6 +348,69 @@ def test_topic_notebook_prefers_physicist_reading_order_and_stepwise_derivation(
         assert r"\section{Consolidated Derivation And Validation Status}" not in tex
 
 
+def test_topic_notebook_renders_remediation_tasks_section() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        topic_root = Path(td) / "topics" / "demo-topic"
+        l3_root = topic_root / "L3"
+        runtime_root = topic_root / "runtime"
+        l3_root.mkdir(parents=True, exist_ok=True)
+        runtime_root.mkdir(parents=True, exist_ok=True)
+
+        (runtime_root / "research_question.contract.json").write_text(
+            json.dumps(
+                {
+                    "title": "Demo Topic",
+                    "question": "Check the bounded benchmark route.",
+                    "open_ambiguities": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (runtime_root / "research_report.active.json").write_text(
+            json.dumps(
+                {
+                    "status": "available",
+                    "current_conclusion": "A repair task is still open.",
+                    "current_claims": [],
+                    "open_problems": [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        (runtime_root / "unfinished_work.json").write_text(
+            json.dumps({"items": []}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        (runtime_root / "remediation_tasks.json").write_text(
+            json.dumps(
+                {
+                    "items": [
+                        {
+                            "task_id": "remediation:demo-topic:iteration-001:observable_definition",
+                            "status": "pending",
+                            "summary": "Repair notebook obligation 'observable_definition' for iteration-001.",
+                            "missing_block": "observable_definition",
+                        }
+                    ]
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+        notebook.compile_notebook(l3_root)
+        tex_path = l3_root / "research_notebook.tex"
+        rendered = tex_path.read_text(encoding="utf-8")
+
+        assert "Remediation Tasks" in rendered
+        assert "observable\\_definition" in rendered
+
+
 def test_long_topic_notebook_moves_intermediate_rounds_and_derivations_into_appendix_archives() -> None:
     with tempfile.TemporaryDirectory() as td:
         topic_root = Path(td) / "topics" / "demo-topic"

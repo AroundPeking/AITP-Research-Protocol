@@ -142,6 +142,16 @@ hiding those rules inside handler code.
   - authoritative machine-readable next-action decision
 - `topics/<topic_slug>/runtime/next_action_decision.md`
   - human-readable next-action decision note
+- `topics/<topic_slug>/runtime/remediation_tasks.json`
+  - machine-readable remediation ledger derived from notebook/report obligation gaps
+- `topics/<topic_slug>/runtime/remediation_tasks.md`
+  - human-readable remediation note for the current topic
+- `runtime/control_plane/topic_control_index.json`
+  - cross-topic machine-readable dashboard derived from per-topic runtime surfaces
+- `runtime/control_plane/blocker_queue.json`
+  - cross-topic blocker queue prioritizing claim-blocking remediation items
+- `runtime/control_plane/dispatch_targets.json`
+  - thin dispatch contract for selected actions and remediation writeback expectations
 - `topics/<topic_slug>/runtime/action_queue_contract.generated.json`
   - generated queue-contract snapshot showing the current executable queue in declarative form
 - `topics/<topic_slug>/runtime/action_queue_contract.generated.md`
@@ -213,7 +223,7 @@ Promotion-readiness rule of thumb for derivation-heavy work:
 - `topics/<topic_slug>/runtime/execution_task.md`
   - human-readable execution handoff note with return-path contract
 - `topics/<topic_slug>/runtime/execution_handoff_receipts.jsonl`
-  - receipts for auto-dispatched external execution tasks
+  - receipts for auto-dispatched external execution tasks, including dispatch target ids and expected writeback paths when present
 - `topics/<topic_slug>/L4/runs/<run_id>/execution_notes/codex_session.json`
   - tmux-backed Codex session state for a live external execution handoff
 - `topics/<topic_slug>/L4/runs/<run_id>/execution_notes/codex_session_receipts.jsonl`

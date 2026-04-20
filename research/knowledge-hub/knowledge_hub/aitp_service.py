@@ -101,6 +101,9 @@ from .capability_plane_support import (
     record_runtime_capability_declaration as persist_runtime_capability_declaration,
     write_runtime_capability_card as persist_runtime_capability_card,
 )
+from .control_plane_index_support import (
+    materialize_control_plane_index as materialize_control_plane_index_surface,
+)
 from .promotion_gate_support import (
     request_promotion,
     approve_promotion,
@@ -876,6 +879,9 @@ class AITPService:
             "json": runtime_root / "active_topics.json",
             "note": runtime_root / "active_topics.md",
         }
+
+    def _control_plane_root(self) -> Path:
+        return self.kernel_root / "runtime" / "control_plane"
 
     def _topic_family_reuse_paths(self) -> dict[str, Path]:
         runtime_root = self.kernel_root / "runtime"
@@ -7659,6 +7665,7 @@ class AITPService:
                     ),
                 }
             )
+        control_plane = self.materialize_control_plane_index(updated_by=updated_by)
         return {
             "focused_topic_slug": str(registry.get("focused_topic_slug") or "").strip(),
             "updated_at": str(registry.get("updated_at") or "").strip(),
@@ -7669,12 +7676,32 @@ class AITPService:
             "active_topics_note_path": str(
                 self._active_topics_registry_paths()["note"]
             ),
+            "control_plane_index_path": str(self._control_plane_root() / "topic_control_index.json"),
+            "control_plane_index_note_path": str(self._control_plane_root() / "topic_control_index.md"),
+            "blocker_queue_path": str(self._control_plane_root() / "blocker_queue.json"),
+            "blocker_queue_note_path": str(self._control_plane_root() / "blocker_queue.md"),
+            "control_plane_summary": {
+                "topic_count": control_plane.get("topic_count", 0),
+                "blocker_count": len(control_plane.get("blocker_queue") or []),
+            },
             "topic_family_reuse": registry.get("topic_family_reuse") or {},
             "topic_family_reuse_path": str(self._topic_family_reuse_paths()["json"]),
             "topic_family_reuse_note_path": str(
                 self._topic_family_reuse_paths()["note"]
             ),
         }
+
+    def materialize_control_plane_index(
+        self,
+        *,
+        updated_by: str = "aitp-cli",
+    ) -> dict[str, Any]:
+        return materialize_control_plane_index_surface(
+            kernel_root=self.kernel_root,
+            updated_by=updated_by,
+            active_topics_path=self._active_topics_registry_paths()["json"],
+            output_root=self._control_plane_root(),
+        )
 
     def focus_topic(
         self,

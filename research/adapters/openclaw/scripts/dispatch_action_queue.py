@@ -25,6 +25,7 @@ from _aitp_runtime_common import (
 
 RECEIPTS_FILENAME = "action_receipts.jsonl"
 NEXT_ACTION_DECISION_FILENAME = "next_action_decision.json"
+DISPATCH_TARGETS_FILENAME = "dispatch_targets.json"
 RUNTIME_CONTROLLER_ACTIONS = {
     "apply_candidate_split_contract",
     "reactivate_deferred_candidate",
@@ -145,6 +146,11 @@ def build_execution_handoff_command(topic_slug: str, updated_by: str, handler_ar
     ]
     if handler_args.get("run_id"):
         command.extend(["--run-id", str(handler_args["run_id"])])
+    if handler_args.get("dispatch_target_id"):
+        command.extend(["--dispatch-target-id", str(handler_args["dispatch_target_id"])])
+    for path in handler_args.get("expected_writeback_paths") or []:
+        if str(path).strip():
+            command.extend(["--expected-writeback-path", str(path)])
     return command
 
 
@@ -338,6 +344,35 @@ def load_decision_selected_action(topic_slug: str) -> dict:
     }
 
 
+def load_selected_dispatch_target(topic_slug: str) -> dict:
+    payload = read_json(KNOWLEDGE_ROOT / "runtime" / "control_plane" / DISPATCH_TARGETS_FILENAME) or {}
+    for item in payload.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("topic_slug") or "").strip() != topic_slug:
+            continue
+        if str(item.get("target_kind") or "").strip() != "selected_action":
+            continue
+        return {
+            "dispatch_targets_path": KNOWLEDGE_ROOT / "runtime" / "control_plane" / DISPATCH_TARGETS_FILENAME,
+            "dispatch_target_id": str(item.get("dispatch_target_id") or "").strip() or None,
+            "action_id": str(item.get("action_id") or "").strip() or None,
+            "auto_dispatch_allowed": bool(item.get("auto_dispatch_allowed")),
+            "expected_writeback_paths": [
+                str(path).strip()
+                for path in (item.get("expected_writeback_paths") or [])
+                if str(path).strip()
+            ],
+        }
+    return {
+        "dispatch_targets_path": KNOWLEDGE_ROOT / "runtime" / "control_plane" / DISPATCH_TARGETS_FILENAME,
+        "dispatch_target_id": None,
+        "action_id": None,
+        "auto_dispatch_allowed": False,
+        "expected_writeback_paths": [],
+    }
+
+
 def build_orchestrate_refresh_command(topic_slug: str, updated_by: str, handler_args: dict) -> list[str]:
     command = [
         *python_command(),
@@ -360,6 +395,7 @@ def dispatch_one(
     topic_slug: str,
     updated_by: str,
     receipts_path: Path,
+    dispatch_target: dict | None = None,
 ) -> tuple[dict, int]:
     row = dict(queue_rows[index])
     dispatch_key = normalize_dispatch_target(row.get("handler"), row.get("action_type"))
@@ -368,6 +404,11 @@ def dispatch_one(
             f"Action {row.get('action_id')} is not allowlisted for auto-dispatch: {row.get('handler')}"
         )
 
+    dispatch_target_id = None
+    expected_writeback_paths: list[str] = []
+    if dispatch_target and dispatch_target.get("action_id") == row.get("action_id"):
+        dispatch_target_id = dispatch_target.get("dispatch_target_id")
+        expected_writeback_paths = list(dispatch_target.get("expected_writeback_paths") or [])
     started_at = now_iso()
     dispatch_count = int(row.get("dispatch_count", 0)) + 1
     running_row = {
@@ -378,13 +419,20 @@ def dispatch_one(
         "last_dispatched_at": started_at,
         "last_dispatched_by": updated_by,
         "started_at": started_at,
+        "dispatch_target_id": dispatch_target_id,
+        "expected_writeback_paths": expected_writeback_paths,
     }
     queue_rows[index] = running_row
 
     queue_path = topic_runtime_root(topic_slug) / "action_queue.jsonl"
     write_jsonl(queue_path, queue_rows)
 
-    command = ALLOWLIST[dispatch_key](topic_slug, updated_by, running_row.get("handler_args") or {})
+    effective_handler_args = dict(running_row.get("handler_args") or {})
+    if dispatch_target_id:
+        effective_handler_args["dispatch_target_id"] = dispatch_target_id
+    if expected_writeback_paths:
+        effective_handler_args["expected_writeback_paths"] = expected_writeback_paths
+    command = ALLOWLIST[dispatch_key](topic_slug, updated_by, effective_handler_args)
     completed = subprocess.run(
         command,
         check=False,
@@ -417,6 +465,8 @@ def dispatch_one(
         "exit_code": completed.returncode,
         "stdout_tail": trim_text(completed.stdout),
         "stderr_tail": trim_text(completed.stderr),
+        "dispatch_target_id": dispatch_target_id,
+        "expected_writeback_paths": expected_writeback_paths,
     }
     append_jsonl(receipts_path, receipt)
 
@@ -461,10 +511,15 @@ def main() -> int:
     dispatched = 0
     while dispatched < max(args.max_actions, 0):
         requested_action_id = args.action_id
+        dispatch_target = None
         if requested_action_id is None:
+            dispatch_target = load_selected_dispatch_target(topic_slug)
             decision_selected = load_decision_selected_action(topic_slug)
-            requested_action_id = decision_selected["action_id"]
-            if not requested_action_id or not decision_selected["auto_dispatch_allowed"]:
+            requested_action_id = dispatch_target["action_id"] or decision_selected["action_id"]
+            auto_dispatch_allowed = bool(
+                dispatch_target["action_id"] and dispatch_target["auto_dispatch_allowed"]
+            ) or bool(decision_selected["auto_dispatch_allowed"])
+            if not requested_action_id or not auto_dispatch_allowed:
                 if dispatched == 0:
                     print(f"No auto-dispatchable decision-selected action for {topic_slug}")
                     print(
@@ -510,6 +565,7 @@ def main() -> int:
             topic_slug=topic_slug,
             updated_by=args.updated_by,
             receipts_path=receipts_path,
+            dispatch_target=dispatch_target,
         )
         dispatched += 1
         print(
