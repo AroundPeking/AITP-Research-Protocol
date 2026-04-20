@@ -40,8 +40,13 @@ def _bootstrap_full_flow(tmp: str, lane: str = "formal_theory") -> Path:
     mcp_server.aitp_resolve_promotion_gate(tmp, "demo-topic", cand_id, "approve")
     mcp_server.aitp_promote_candidate(tmp, "demo-topic", cand_id)
 
-    # Render flow notebook
-    mcp_server.aitp_render_flow_notebook(tmp, "demo-topic")
+    # Create minimal flow_notebook.tex (agent-generated in production)
+    tex_dir = tr / "L3" / "tex"
+    tex_dir.mkdir(parents=True, exist_ok=True)
+    (tex_dir / "flow_notebook.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\nTest\n\\end{document}\n",
+        encoding="utf-8",
+    )
     return repo_root
 
 
@@ -88,41 +93,26 @@ class FlowTeXGateTests(unittest.TestCase):
 
 
 class RealTopicE2ETests(unittest.TestCase):
-    def test_formal_theory_topic_emits_acceptable_flow_tex(self):
+    def test_formal_theory_lane_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_full_flow(tmp, lane="formal_theory")
             tr = repo_root / "topics" / "demo-topic"
-            tex = (tr / "L3" / "tex" / "flow_notebook.tex").read_text(encoding="utf-8")
-            for section in [
-                "Research Question", "Conventions And Regime",
-                "Derivation Route", "Validation And Checks",
-                "Current Claim Boundary", "Failures And Open Problems",
-            ]:
-                self.assertIn(section, tex, f"Missing section: {section}")
             state_fm, _ = mcp_server._parse_md(tr / "state.md")
             self.assertEqual(state_fm["lane"], "formal_theory")
 
-    def test_toy_numeric_topic_emits_acceptable_flow_tex(self):
+    def test_toy_numeric_lane_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_full_flow(tmp, lane="toy_numeric")
             tr = repo_root / "topics" / "demo-topic"
-            tex = (tr / "L3" / "tex" / "flow_notebook.tex").read_text(encoding="utf-8")
-            for section in [
-                "Research Question", "Conventions And Regime",
-                "Derivation Route", "Validation And Checks",
-            ]:
-                self.assertIn(section, tex, f"Missing section: {section}")
+            state_fm, _ = mcp_server._parse_md(tr / "state.md")
+            self.assertEqual(state_fm["lane"], "toy_numeric")
 
-    def test_code_method_topic_emits_acceptable_flow_tex(self):
+    def test_code_method_lane_preserved(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_full_flow(tmp, lane="code_method")
             tr = repo_root / "topics" / "demo-topic"
-            tex = (tr / "L3" / "tex" / "flow_notebook.tex").read_text(encoding="utf-8")
-            for section in [
-                "Research Question", "Conventions And Regime",
-                "Derivation Route", "Validation And Checks",
-            ]:
-                self.assertIn(section, tex, f"Missing section: {section}")
+            state_fm, _ = mcp_server._parse_md(tr / "state.md")
+            self.assertEqual(state_fm["lane"], "code_method")
 
 
 class PaperProvenanceTests(unittest.TestCase):

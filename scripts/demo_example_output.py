@@ -92,15 +92,19 @@ def main():
         mcp_server.aitp_submit_l4_review(
             tmp, "demo-topic", "cand-1", "pass", "All physics checks passed.")
 
-        # ── Step 8: Render flow notebook ──
-        print("\n[8] Rendering flow notebook TeX...")
-        mcp_server.aitp_render_flow_notebook(tmp, "demo-topic")
-
-        tex_path = tr / "L3" / "tex" / "flow_notebook.tex"
-        if tex_path.exists():
-            print("\n--- flow_notebook.tex ---")
-            print(tex_path.read_text(encoding="utf-8"))
-            print("--- end flow_notebook.tex ---")
+        # ── Step 8: Flow notebook ──
+        # Note: In production, the agent generates flow_notebook.tex during
+        # L3 distillation with proper Markdown→LaTeX conversion.
+        # Here we create a minimal placeholder for the demo.
+        print("\n[8] Creating minimal flow_notebook.tex placeholder...")
+        tex_dir = tr / "L3" / "tex"
+        tex_dir.mkdir(parents=True, exist_ok=True)
+        tex_path = tex_dir / "flow_notebook.tex"
+        tex_path.write_text(
+            "\\documentclass{article}\n\\begin{document}\nDemo\n\\end{document}\n",
+            encoding="utf-8",
+        )
+        print(f"  Created {tex_path}")
 
         # ── Step 9: Promote candidate ──
         print("\n[9] Promoting candidate to global L2...")

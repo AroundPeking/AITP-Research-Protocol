@@ -175,31 +175,6 @@ class L3SubplaneSkillTests(unittest.TestCase):
             self.assertIn("skill-l3-ideate", completed.stdout)
 
 
-class FlowTeXTests(unittest.TestCase):
-    def test_completed_l3_flow_emits_tex_notebook(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            repo_root = _bootstrap_l1_complete(tmp)
-            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
-            result = mcp_server.aitp_render_flow_notebook(tmp, "demo-topic")
-            self.assertIn("flow_notebook.tex", result)
-            tr = repo_root / "topics" / "demo-topic"
-            tex_path = tr / "L3" / "tex" / "flow_notebook.tex"
-            self.assertTrue(tex_path.exists(), "flow_notebook.tex must exist")
-
-    def test_flow_tex_includes_required_sections(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            repo_root = _bootstrap_l1_complete(tmp)
-            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
-            mcp_server.aitp_render_flow_notebook(tmp, "demo-topic")
-            tr = repo_root / "topics" / "demo-topic"
-            tex = (tr / "L3" / "tex" / "flow_notebook.tex").read_text(encoding="utf-8")
-            for section in [
-                "Research Question", "Conventions And Regime",
-                "Derivation Route", "Validation And Checks",
-                "Current Claim Boundary", "Failures And Open Problems",
-            ]:
-                self.assertIn(section, tex, f"Missing section: {section}")
-
 
 if __name__ == "__main__":
     unittest.main()

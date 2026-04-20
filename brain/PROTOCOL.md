@@ -43,7 +43,7 @@ advancing.
 | `aitp_submit_candidate` | L3 | After distillation, submit a distilled claim |
 | `aitp_create_validation_contract` | L4 | Define mandatory physics checks for a candidate |
 | `aitp_submit_l4_review` | L4 | Submit adjudication outcome (pass/partial_pass/fail/contradiction/stuck/timeout) |
-| `aitp_render_flow_notebook` | L3/L4 | Render flow-end TeX archive (required before L5) |
+| `aitp_advance_to_l5` | L4→L5 | Advance to writing phase (requires flow_notebook.tex from L3 distillation) |
 | `aitp_request_promotion` | L4→L2 | Request promotion for a validated candidate |
 | `aitp_resolve_promotion_gate` | L4→L2 | Approve or reject the promotion |
 | `aitp_promote_candidate` | L4→L2 | Execute the promotion (writes to global L2) |
@@ -129,8 +129,8 @@ Physics check fields:
 ### Phase 4: Promotion to Global L2
 
 ```
-10. aitp_render_flow_notebook(topics_root, topic_slug)
-    → Generates L3/tex/flow_notebook.tex (required before L5)
+10. Agent generates L3/tex/flow_notebook.tex during L3 distillation
+    (Markdown→LaTeX conversion and PDF compilation per skill-l3-distill)
 
 11. Request → resolve → promote:
     aitp_request_promotion(topics_root, topic_slug, candidate_id)

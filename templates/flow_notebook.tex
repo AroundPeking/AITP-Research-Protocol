@@ -1,0 +1,137 @@
+% ===========================================================================
+% AITP Flow Notebook Template
+% ===========================================================================
+% This template defines the structure for the L3 flow notebook PDF.
+% The AI agent must fill in each section by converting L3 Markdown artifacts
+% to proper LaTeX using the conversion rules in skill-l3-distill.md.
+%
+% Placeholders use the pattern {{PLACEHOLDER}} — replace them with content.
+% ===========================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{physics}          % \bra, \ket, \tr, \dd, etc.
+\usepackage{bm}               % \bm for bold math symbols
+\usepackage{booktabs}         % \toprule, \midrule, \bottomrule
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+}
+\usepackage{xcolor}
+\usepackage{enumitem}         % Better list customization
+\usepackage{longtable}        % Tables that span pages
+
+% --- Theorem environments (for formal_theory lane) ---
+\newtheorem{proposition}{Proposition}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+
+% --- Metadata ---
+\title{Research Flow Notebook: {{TOPIC_SLUG}}}
+\author{AITP v2}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% ===========================================================================
+% Section 1: Research Question
+% ===========================================================================
+% Source: L1/question_contract.md → frontmatter fields
+% Convert the bounded_question, scope_boundaries, target_quantities.
+% ===========================================================================
+
+\section{Research Question}
+
+{{RESEARCH_QUESTION}}
+
+\noindent\textbf{Scope:} {{SCOPE}}
+
+\noindent\textbf{Target Quantities:} {{TARGET_QUANTITIES}}
+
+% ===========================================================================
+% Section 2: Conventions
+% ===========================================================================
+% Source: L1/convention_snapshot.md → frontmatter fields
+% ===========================================================================
+
+\section{Conventions and Regime}
+
+{{NOTATION_CHOICES}}
+
+\noindent\textbf{Units:} {{UNIT_CONVENTIONS}}
+
+% ===========================================================================
+% Section 3: Derivation Route
+% ===========================================================================
+% Sources: L3/ideation/, L3/plan/, L3/analysis/, L3/integration/,
+%          L3/distillation/ — converted from Markdown to LaTeX.
+%
+% Each subplane gets its own subsection. Convert headings, lists, tables,
+% and math from Markdown to proper LaTeX.
+% ===========================================================================
+
+\section{Derivation Route}
+
+% --- 3.1 Ideation ---
+\subsection{Ideation}
+% Source: L3/ideation/active_ideation.md
+% Convert: idea statement, motivation, prior work table, risk assessment.
+{{IDEATION_CONTENT}}
+
+% --- 3.2 Plan ---
+\subsection{Planning}
+% Source: L3/plan/active_plan.md
+% Convert: plan statement, derivation route, expected outcomes, milestones.
+{{PLAN_CONTENT}}
+
+% --- 3.3 Analysis ---
+\subsection{Analysis}
+% Source: L3/analysis/active_analysis.md
+% Convert: derivation steps, formulas, anomalies, assumptions flagged.
+{{ANALYSIS_CONTENT}}
+
+% --- 3.4 Result Integration ---
+\subsection{Result Integration}
+% Source: L3/integration/active_integration.md
+% Convert: findings, consistency checks, gaps remaining.
+{{INTEGRATION_CONTENT}}
+
+% --- 3.5 Distillation ---
+\subsection{Distillation}
+% Source: L3/distillation/active_distillation.md
+% Convert: distilled claim, evidence summary, confidence level, open questions.
+{{DISTILLATION_CONTENT}}
+
+% ===========================================================================
+% Section 4: Validation and Checks
+% ===========================================================================
+% Source: L4/reviews/*.md (if available)
+% ===========================================================================
+
+\section{Validation and Checks}
+{{L4_VALIDATION_CONTENT}}
+
+% ===========================================================================
+% Section 5: Current Claim Boundary
+% ===========================================================================
+
+\section{Current Claim Boundary}
+{{CLAIM_BOUNDARY}}
+
+% ===========================================================================
+% Section 6: Failures and Open Problems
+% ===========================================================================
+
+\section{Failures and Open Problems}
+{{OPEN_PROBLEMS}}
+
+\end{document}

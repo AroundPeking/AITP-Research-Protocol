@@ -773,100 +773,6 @@ def aitp_retreat_to_l1(topics_root: str, topic_slug: str, reason: str = "") -> _
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
-def aitp_render_flow_notebook(topics_root: str, topic_slug: str) -> str:
-    """Compile a flow_notebook.tex from the completed L1/L3/L4 artifacts."""
-    root = _topic_root(topics_root, topic_slug)
-    tex_dir = root / "L3" / "tex"
-    tex_dir.mkdir(parents=True, exist_ok=True)
-
-    def _read_section(path: Path, heading: str) -> str:
-        if not path.exists():
-            return f"% {heading}: artifact not found at {path.relative_to(root)}\n"
-        _, text = _parse_md(path)
-        lines = []
-        capture = False
-        for line in text.splitlines():
-            if line.startswith("# "):
-                continue
-            lines.append(line)
-        return "\n".join(lines).strip() + "\n"
-
-    question_fm, question_body = _parse_md(root / "L1" / "question_contract.md")
-    convention_fm, convention_body = _parse_md(root / "L1" / "convention_snapshot.md")
-
-    research_q = question_fm.get("bounded_question", "Not yet defined")
-    scope = question_fm.get("scope_boundaries", "Not yet defined")
-    targets = question_fm.get("target_quantities", "Not yet defined")
-
-    notation = convention_fm.get("notation_choices", "Not yet defined")
-    units = convention_fm.get("unit_conventions", "Not yet defined")
-
-    # Gather L3 subplane content
-    derivation_lines = []
-    for sp in L3_SUBPLANES:
-        artifact_name = L3_ACTIVE_ARTIFACT_NAMES[sp]
-        sp_path = root / "L3" / sp / artifact_name
-        if sp_path.exists():
-            sp_fm, sp_body = _parse_md(sp_path)
-            derivation_lines.append(f"\\subsection{{{sp.replace('_', ' ').title()}}}")
-            derivation_lines.append(_escape_latex(sp_body))
-            derivation_lines.append("")
-
-    # Gather L4 reviews
-    validation_lines = []
-    rev_dir = root / "L4" / "reviews"
-    if rev_dir.is_dir():
-        for rev_path in sorted(rev_dir.glob("*.md")):
-            rev_fm, rev_body = _parse_md(rev_path)
-            validation_lines.append(_escape_latex(rev_body))
-            validation_lines.append("")
-
-    tex = f"""\\documentclass{{article}}
-\\usepackage{{amsmath,amssymb,physics}}
-\\title{{Research Flow Notebook: {_escape_latex(topic_slug)}}}
-\\date{{\\today}}
-\\begin{{document}}
-\\maketitle
-
-\\section{{Research Question}}
-{_escape_latex(research_q)}
-
-\\noindent\\textbf{{Scope:}} {_escape_latex(scope)}
-
-\\noindent\\textbf{{Target Quantities:}} {_escape_latex(targets)}
-
-\\section{{Conventions And Regime}}
-{_escape_latex(notation)}
-
-\\noindent\\textbf{{Units:}} {_escape_latex(units)}
-
-\\section{{Derivation Route}}
-{chr(10).join(derivation_lines) if derivation_lines else "% No derivation artifacts yet"}
-
-\\section{{Validation And Checks}}
-{chr(10).join(validation_lines) if validation_lines else "% No L4 reviews yet"}
-
-\\section{{Current Claim Boundary}}
-% To be filled by distillation output.
-
-\\section{{Failures And Open Problems}}
-% To be filled from contradiction register and anomaly logs.
-
-\\end{{document}}
-"""
-    tex_path = tex_dir / "flow_notebook.tex"
-    _atomic_write_text(tex_path, tex)
-    return f"Rendered {tex_path}"
-
-
-def _escape_latex(text: str) -> str:
-    """Minimal LaTeX escaping for flow notebook content."""
-    for old, new in [("\\", "\\\\"), ("{", "\\{"), ("}", "\\}"), ("$", "\\$"),
-                     ("&", "\\&"), ("%", "\\%"), ("#", "\\#"), ("_", "\\_"),
-                     ("~", "\\textasciitilde{}"), ("^", "\\textasciicircum{}")]:
-        text = text.replace(old, new)
-    return text
 
 
 # ---------------------------------------------------------------------------
@@ -1223,7 +1129,8 @@ def aitp_advance_to_l5(topics_root: str, topic_slug: str) -> dict[str, Any]:
         return _GateResult({
             "message": (
                 f"Blocked: flow_notebook.tex not found at {tex_path}. "
-                f"Run aitp_render_flow_notebook before advancing to L5."
+                f"The agent must generate and compile the flow notebook during L3 distillation "
+                f"before advancing to L5."
             ),
         })
 
