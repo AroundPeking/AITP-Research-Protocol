@@ -415,31 +415,38 @@ TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str]]] = {
     # L1 — source registration and framing
     ("L1", "read"): [
         ("arxiv-latex-mcp", "Read paper sections and abstracts from arXiv"),
+        ("paper-search-mcp", "Multi-source paper search (arXiv, PubMed, Semantic Scholar, etc.)"),
         ("knowledge-hub", "Query existing knowledge base for related sources"),
     ],
     ("L1", "frame"): [
         ("arxiv-latex-mcp", "Read paper sections and abstracts from arXiv"),
+        ("paper-search-mcp", "Search for related papers across multiple databases"),
         ("knowledge-hub", "Query existing knowledge base for related sources"),
     ],
     # L3 — derivation subplanes
     ("L3", "ideation"): [
         ("scientific-brainstorming", "Physics brainstorming and idea exploration"),
         ("arxiv-latex-mcp", "Check related papers and formulas"),
+        ("paper-search-mcp", "Search for related work to avoid duplication"),
         ("knowledge-hub", "Query validated knowledge from L2"),
     ],
     ("L3", "planning"): [
         ("arxiv-latex-mcp", "Check related papers and formulas"),
         ("knowledge-hub", "Query validated knowledge from L2"),
+        ("ssh-mcp", "Connect to Fisher server for compute-heavy tasks"),
         ("jupyter-mcp-server", "Run numerical experiments (toy_numeric/code_method lanes)"),
     ],
     ("L3", "analysis"): [
         ("arxiv-latex-mcp", "Reference papers during computation"),
         ("knowledge-hub", "Query validated knowledge from L2"),
         ("jupyter-mcp-server", "Run numerical experiments and analysis"),
+        ("ssh-mcp", "Connect to Fisher server for remote computation"),
+        ("mcp-server-chart", "Generate scientific charts and visualizations"),
     ],
     ("L3", "result_integration"): [
         ("arxiv-latex-mcp", "Cross-check findings against papers"),
         ("knowledge-hub", "Compare against validated L2 knowledge"),
+        ("mcp-server-chart", "Generate comparison charts"),
     ],
     ("L3", "distillation"): [
         ("arxiv-latex-mcp", "Verify distilled claims against literature"),
@@ -448,8 +455,10 @@ TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str]]] = {
     # L4 — validation
     ("L4", "validate"): [
         ("jupyter-mcp-server", "Run independent validation scripts"),
+        ("ssh-mcp", "Run validation on Fisher server"),
         ("arxiv-latex-mcp", "Check claims against published results"),
         ("knowledge-hub", "Compare against validated L2 knowledge"),
+        ("mcp-server-chart", "Generate validation comparison charts"),
     ],
     # L2 — promotion
     ("L2", "promote"): [
@@ -458,6 +467,8 @@ TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str]]] = {
     # L5 — writing
     ("L5", "write"): [
         ("arxiv-latex-mcp", "Reference paper formatting and structure"),
+        ("scientific-writing", "Academic writing guidance and structure"),
+        ("mcp-server-chart", "Generate publication-quality charts"),
     ],
 }
 
