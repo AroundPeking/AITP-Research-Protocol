@@ -17,6 +17,46 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 You are in the analysis subplane of L3 derivation.
 
+## Collaborative Discussion (MANDATORY)
+
+Before and during analysis, you MUST discuss with the human. Analysis is not a
+solo activity — the human is a physicist who should guide interpretation.
+
+Use AskUserQuestion at these checkpoints:
+
+1. **Pre-analysis check-in**: Present what you're about to compute.
+   Ask: "I'm about to <computation>. Is this the right first step, or should we
+   start with something else?"
+2. **Intermediate results**: When results come in, don't just record them silently.
+   Ask: "Here's what I found: <results>. Does this match your expectation? Any
+   anomalies I should investigate?"
+3. **Anomaly discussion**: If something unexpected appears, STOP and discuss.
+   Ask: "There's an anomaly at <point>: <description>. Should we investigate this
+   further, or is it expected from the physics?"
+4. **Post-analysis debrief**: Before advancing to integration.
+   Ask: "Analysis complete. Key findings: <summary>. Anything I missed or should
+   look at differently before we integrate?"
+
+For post-L4 return analysis, add these additional discussion points:
+- "L4 found these gaps: <gaps>. Which should we prioritize fixing?"
+- "The quantitative discrepancy is <X>. Do you think this is normalization or physics?"
+- "Should we write new scripts to address criterion <N> before re-submitting?"
+
+The human may add more discussion rounds at any time. Do NOT rush to fill the artifact.
+
+## Escape Hatches
+
+At ANY point during analysis, you may offer these back-paths via AskUserQuestion:
+
+- **Back to planning** (`aitp_advance_l3_subplane(target="planning")`): if analysis
+  reveals the plan needs adjustment
+- **Back to ideation** (`aitp_advance_l3_subplane(target="ideation")`): if analysis
+  reveals the idea itself is flawed
+- **Retreat to L1** (`aitp_retreat_to_l1`): if analysis reveals missing sources
+  or wrong conventions
+- **Query L2** (`aitp_query_knowledge`): check if similar results exist, compare
+  against known validated results
+
 ## Active artifact
 
 `L3/analysis/active_analysis.md`

@@ -17,6 +17,39 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 You are in the planning subplane of L3 derivation.
 
+## Collaborative Discussion (MANDATORY)
+
+Before writing the plan, you MUST discuss the derivation strategy with the human.
+Do NOT just write a plan and move on.
+
+Use AskUserQuestion for EACH of these discussion rounds (minimum 2 rounds):
+
+1. **Strategy proposal**: Present your proposed derivation route.
+   Ask: "Here's my suggested approach: <route>. Does this match what you had in mind?
+   Are there alternative methods worth considering?"
+2. **Computation design** (for numeric lanes): Discuss what to compute and how.
+   Ask: "For the numerical experiments: what system sizes, parameter ranges, and
+   observables should we prioritize? What's the minimal computation that would
+   give us a meaningful result?"
+3. **Priority and phasing**: Discuss what to do first vs. what can wait.
+   Ask: "Should we start with a quick proof-of-concept or go straight to the
+   full computation? What results would change our approach?"
+4. **Plan confirmation**: Before advancing, confirm the plan.
+   Ask: "The plan is: <summary>. Ready to execute, or any adjustments?"
+
+The human may add more discussion rounds at any time. Do NOT rush to fill the artifact.
+
+## Escape Hatches
+
+At ANY point during discussion, you may offer these back-paths via AskUserQuestion:
+
+- **Back to ideation** (`aitp_advance_l3_subplane(target="ideation")`): if the plan
+  reveals the idea itself needs rethinking
+- **Retreat to L1** (`aitp_retreat_to_l1`): if sources or conventions are insufficient
+- **Query L2** (`aitp_query_knowledge`): check if related derivations or results exist
+- **Register new sources** (`aitp_register_source`): if the plan requires literature
+  not yet in the knowledge base
+
 ## Active artifact
 
 `L3/planning/active_plan.md`

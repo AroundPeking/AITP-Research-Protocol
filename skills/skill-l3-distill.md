@@ -17,6 +17,40 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 You are in the distillation subplane of L3 derivation.
 
+## Collaborative Discussion (MANDATORY)
+
+Before distilling the final claim, you MUST discuss with the human about claim scope
+and confidence. The claim is what gets validated — get it right.
+
+Use AskUserQuestion at these checkpoints:
+
+1. **Draft claim review**: Present the proposed distilled claim.
+   Ask: "Here's my draft claim: <claim>. Is this too broad? Too narrow? Should we
+   qualify it with specific conditions?"
+2. **Evidence sufficiency**: Discuss whether evidence supports the claim.
+   Ask: "The evidence for this claim is: <evidence>. Is it strong enough, or should
+   we narrow the claim to match what we can actually support?"
+3. **Open questions handling**: Discuss what to exclude from the claim.
+   Ask: "These open questions remain: <questions>. Should any of them be resolved
+   before we submit, or are they appropriately flagged as future work?"
+4. **Claim finalization**: Before submitting candidate.
+   Ask: "Final claim: <claim>. Confidence: <level>. Submit for L4 validation?"
+
+The human may add more discussion rounds at any time. Do NOT rush to fill the artifact.
+
+## Escape Hatches
+
+At ANY point during distillation, you may offer these back-paths via AskUserQuestion:
+
+- **Back to integration** (`aitp_advance_l3_subplane(target="result_integration")`):
+  if the claim doesn't match the integrated findings
+- **Back to analysis** (`aitp_advance_l3_subplane(target="analysis")`): if the claim
+  needs more computational support
+- **Retreat to L1** (`aitp_retreat_to_l1`): if distillation reveals fundamental
+  framing problems
+- **Query L2** (`aitp_query_knowledge`): check if this claim contradicts or
+  duplicates existing validated knowledge
+
 ## Active artifact
 
 `L3/distillation/active_distillation.md`

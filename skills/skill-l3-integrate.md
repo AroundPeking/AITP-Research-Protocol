@@ -17,6 +17,41 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 You are in the result integration subplane of L3 derivation.
 
+## Collaborative Discussion (MANDATORY)
+
+Before integrating results, you MUST discuss with the human about what the results mean.
+Do NOT just combine numbers into a summary.
+
+Use AskUserQuestion at these checkpoints:
+
+1. **Cross-check discussion**: Present how different analysis results relate.
+   Ask: "The OTOC says <X> and Krylov says <Y>. Are these consistent with each other?
+   Do you see the same picture I do?"
+2. **Gap identification**: Discuss what's missing.
+   Ask: "Here are the gaps I've identified: <gaps>. Are there others? Which are
+   blocking vs. nice-to-have?"
+3. **Consistency with priors**: Compare against known results.
+   Ask: "Our findings <vs.> the Chen-Zhou prediction / HS integrable limit / prior work.
+   Does the comparison hold up? Any tensions?"
+4. **Integration confirmation**: Before advancing to distillation.
+   Ask: "The integrated picture is: <summary>. Ready to distill a claim, or do we
+   need more analysis first?"
+
+The human may add more discussion rounds at any time. Do NOT rush to fill the artifact.
+
+## Escape Hatches
+
+At ANY point during integration, you may offer these back-paths via AskUserQuestion:
+
+- **Back to analysis** (`aitp_advance_l3_subplane(target="analysis")`): if integration
+  reveals analysis gaps
+- **Back to planning** (`aitp_advance_l3_subplane(target="planning")`): if integration
+  reveals the plan was incomplete
+- **Retreat to L1** (`aitp_retreat_to_l1`): if integration reveals fundamental
+  framing issues
+- **Query L2** (`aitp_query_knowledge`): compare integrated findings against
+  validated global knowledge
+
 ## Active artifact
 
 `L3/result_integration/active_integration.md`
