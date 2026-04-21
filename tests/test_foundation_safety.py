@@ -139,22 +139,30 @@ class TestPromotionGate(unittest.TestCase):
     def _make_validated_candidate(self):
         from brain.mcp_server import (
             aitp_submit_candidate,
-            aitp_update_status,
+            aitp_submit_l4_review,
         )
-        # Submit and mark validated
+        from brain.mcp_server import _parse_md, _write_md
+        from pathlib import Path
+
+        # Submit candidate
         aitp_submit_candidate(
             self.tmp, "demo", "c1", "Test Claim",
             claim="The sky is blue", evidence="Looked outside",
         )
-        # Simulate validation by writing status directly
-        from brain.mcp_server import _parse_md, _write_md
-        from pathlib import Path
+
+        # Resolve candidate path
         cand_path = Path(self.tmp) / "topics" / "demo" / "L3" / "candidates" / "c1.md"
         if not cand_path.exists():
             cand_path = Path(self.tmp) / "demo" / "L3" / "candidates" / "c1.md"
-        fm, body = _parse_md(cand_path)
-        fm["status"] = "validated"
-        _write_md(cand_path, fm, body)
+
+        # Create L4 pass review (this also sets candidate status to "validated")
+        aitp_submit_l4_review(
+            self.tmp, "demo", "c1",
+            outcome="pass",
+            notes="All checks passed",
+            check_results={"dimensional_consistency": "pass"},
+        )
+
         return cand_path
 
     def test_request_promotion_marks_candidate_pending_approval(self):
@@ -213,13 +221,14 @@ class TestStopHookScope(unittest.TestCase):
         from hooks.stop import stop_for_topic
         from pathlib import Path
         from brain.state_model import topics_dir
+        from brain.mcp_server import _parse_md
         td = topics_dir(self.tmp)
         (td / ".current_topic").write_text("alpha", encoding="utf-8")
         stop_for_topic(self.tmp)
-        alpha_state = (td / "alpha" / "state.md").read_text(encoding="utf-8")
-        beta_state = (td / "beta" / "state.md").read_text(encoding="utf-8")
-        self.assertIn("Session ended", alpha_state)
-        self.assertNotIn("Session ended", beta_state)
+        alpha_fm, _ = _parse_md(td / "alpha" / "state.md")
+        beta_fm, _ = _parse_md(td / "beta" / "state.md")
+        self.assertIn("last_session_ended", alpha_fm)
+        self.assertNotIn("last_session_ended", beta_fm)
 
 
 if __name__ == "__main__":

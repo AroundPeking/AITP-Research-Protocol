@@ -403,6 +403,80 @@ PHYSICS_CHECK_FIELDS = [
 ]
 
 
+def evaluate_l4_stage(
+    parse_md: Callable[[Path], tuple[dict[str, Any], str]],
+    topic_root_path: Path,
+    lane: str = "unspecified",
+) -> StageSnapshot:
+    """Evaluate L4 gate status by checking validation contract and review."""
+    contract_path = topic_root_path / "L4" / "validation_contract.md"
+    if not contract_path.exists():
+        return StageSnapshot(
+            stage="L4", posture="verify", lane=lane,
+            gate_status="blocked_missing_artifact",
+            required_artifact_path=str(contract_path),
+            missing_requirements=["validation_contract.md"],
+            next_allowed_transition="",
+            skill="skill-l4-validate",
+        )
+
+    fm, body = parse_md(contract_path)
+    if not str(fm.get("candidate_id", "")).strip():
+        return StageSnapshot(
+            stage="L4", posture="verify", lane=lane,
+            gate_status="blocked_missing_field",
+            required_artifact_path=str(contract_path),
+            missing_requirements=["candidate_id"],
+            next_allowed_transition="",
+            skill="skill-l4-validate",
+        )
+
+    return StageSnapshot(
+        stage="L4", posture="verify", lane=lane,
+        gate_status="ready",
+        next_allowed_transition="L3,L5,L2",
+        skill="skill-l4-validate",
+    )
+
+
+def evaluate_l5_stage(
+    parse_md: Callable[[Path], tuple[dict[str, Any], str]],
+    topic_root_path: Path,
+    lane: str = "unspecified",
+) -> StageSnapshot:
+    """Evaluate L5 gate status by checking provenance artifacts."""
+    required = ["outline.md", "claim_evidence_map.md", "limitations.md"]
+    for name in required:
+        path = topic_root_path / "L5_writing" / name
+        if not path.exists():
+            return StageSnapshot(
+                stage="L5", posture="write", lane=lane,
+                gate_status="blocked_missing_artifact",
+                required_artifact_path=str(path),
+                missing_requirements=[name],
+                next_allowed_transition="",
+                skill="skill-l5-write",
+            )
+        fm, body = parse_md(path)
+        # Check that outline has at least some content beyond template
+        if "## Claims" in body and body.count("\n") < 8:
+            return StageSnapshot(
+                stage="L5", posture="write", lane=lane,
+                gate_status="blocked_missing_field",
+                required_artifact_path=str(path),
+                missing_requirements=[f"{name} body content"],
+                next_allowed_transition="",
+                skill="skill-l5-write",
+            )
+
+    return StageSnapshot(
+        stage="L5", posture="write", lane=lane,
+        gate_status="ready",
+        next_allowed_transition="L2",
+        skill="skill-l5-write",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Progressive-disclosure tool catalog
 # ---------------------------------------------------------------------------
@@ -438,6 +512,7 @@ TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str, str]]] = {
         ("arxiv-latex-mcp", "Check related papers and formulas", "A"),
         ("paper-search-mcp", "Search for related work to avoid duplication", "A"),
         ("knowledge-hub", "Query validated knowledge from L2", "A"),
+        ("jupyter-mcp-server", "Quick feasibility estimates during ideation", "A"),
     ],
     ("L3", "planning"): [
         ("arxiv-latex-mcp", "Check related papers and formulas", "A"),

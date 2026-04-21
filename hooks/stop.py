@@ -1,13 +1,15 @@
 """AITP Stop hook — save progress summary at session end.
 
 Only updates the active topic (via .current_topic marker or most-recent),
-not every topic in the tree.
+not every topic in the tree. Records session end in runtime/log.md and
+updates state.md updated_at timestamp atomically.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +30,39 @@ def _parse_frontmatter(path: str) -> dict:
     return fm
 
 
+def _parse_md(path: Path) -> tuple[dict, str]:
+    if not path.exists():
+        return {}, ""
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", text, re.DOTALL)
+    if not m:
+        return {}, text
+    import yaml
+    fm = yaml.safe_load(m.group(1)) or {}
+    return fm, m.group(2)
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def _render_md(fm: dict, body: str) -> str:
+    import yaml
+    frontmatter = yaml.dump(fm, default_flow_style=False, allow_unicode=True).strip()
+    return f"---\n{frontmatter}\n---\n{body}\n"
+
+
 def _find_topics_root() -> str | None:
     cwd = os.getcwd()
     for _ in range(5):
@@ -42,18 +77,15 @@ def _find_topics_root() -> str | None:
 
 
 def _find_active_topic(topics_root: str) -> str | None:
-    """Resolve the active topic from .current_topic marker or most-recent."""
     from brain.state_model import topics_dir
     td = topics_dir(topics_root)
 
-    # Prefer explicit marker
     marker = Path(td) / ".current_topic"
     if marker.exists():
         slug = marker.read_text(encoding="utf-8").strip()
         if slug and (Path(td) / slug / "state.md").exists():
             return slug
 
-    # Fallback: most recently updated
     best_slug = None
     best_time = ""
     if not os.path.isdir(td):
@@ -70,17 +102,29 @@ def _find_active_topic(topics_root: str) -> str | None:
 
 
 def stop_for_topic(topics_root: str) -> None:
-    """Stop hook that only touches the active topic."""
     from brain.state_model import topics_dir
     td = topics_dir(topics_root)
     slug = _find_active_topic(topics_root)
     if not slug:
         return
-    state_path = Path(td) / slug / "state.md"
+
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    root = Path(td) / slug
+
+    # Update state.md updated_at atomically
+    state_path = root / "state.md"
     if state_path.exists():
-        now = datetime.now().astimezone().isoformat(timespec="seconds")
-        with open(state_path, "a", encoding="utf-8") as f:
-            f.write(f"\n## Session ended {now}\n\n")
+        fm, body = _parse_md(state_path)
+        fm["updated_at"] = now
+        fm["last_session_ended"] = now
+        _atomic_write_text(state_path, _render_md(fm, body))
+
+    # Append session-end event to runtime log
+    log_path = root / "runtime" / "log.md"
+    log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else "# Topic Log\n\n## Events\n"
+    if not log_text.endswith("\n"):
+        log_text += "\n"
+    _atomic_write_text(log_path, log_text + f"- {now} session ended\n")
 
 
 def main():

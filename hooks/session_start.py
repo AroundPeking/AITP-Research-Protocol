@@ -97,6 +97,7 @@ def main():
 
     from brain.state_model import (
         topics_dir, evaluate_l1_stage, evaluate_l3_stage,
+        evaluate_l4_stage, evaluate_l5_stage,
         get_tool_catalog, get_pattern_b_instructions,
     )
     td = topics_dir(topics_root)
@@ -106,6 +107,10 @@ def main():
 
     if stage == "L3":
         snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    elif stage == "L4":
+        snapshot = evaluate_l4_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    elif stage == "L5":
+        snapshot = evaluate_l5_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
     else:
         snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
 

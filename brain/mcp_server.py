@@ -403,8 +403,13 @@ def aitp_submit_candidate(
     evidence: str = "",
     assumptions: str = "",
     validation_criteria: str = "",
+    depends_on: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Submit a candidate finding. Creates L3/candidates/<id>.md. Returns popup gate for confirmation."""
+    """Submit a candidate finding. Creates L3/candidates/<id>.md. Returns popup gate for confirmation.
+
+    depends_on: list of candidate_ids that this candidate builds upon. The dependency
+    chain is recorded in frontmatter for provenance tracking.
+    """
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
     path = root / "L3" / "candidates" / f"{slug}.md"
@@ -414,6 +419,7 @@ def aitp_submit_candidate(
         "claim": claim,
         "status": "submitted",
         "mode": "candidate",
+        "depends_on": depends_on or [],
         "created_at": _now(),
         "updated_at": _now(),
     }
@@ -457,7 +463,11 @@ def aitp_request_promotion(
     topic_slug: str,
     candidate_id: str,
 ) -> dict[str, Any]:
-    """Move a validated candidate to pending_approval for human review. Returns popup gate."""
+    """Move a validated candidate to pending_approval for human review. Returns popup gate.
+
+    Requires candidate status='validated' (i.e., L4 review with outcome='pass' has been submitted).
+    Also verifies that an L4 pass review exists for this candidate.
+    """
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(candidate_id)
     cand_path = root / "L3" / "candidates" / f"{slug}.md"
@@ -467,6 +477,18 @@ def aitp_request_promotion(
     current = fm.get("status", "")
     if current != "validated":
         return _GateResult({"message": f"Candidate {slug} status is '{current}', not 'validated'. Cannot request promotion."})
+
+    # Verify L4 pass review exists
+    review_path = root / "L4" / "reviews" / f"{slug}.md"
+    if not review_path.exists():
+        return _GateResult({
+            "message": f"No L4 review found for {slug}. Submit aitp_submit_l4_review with outcome='pass' first.",
+        })
+    rev_fm, _ = _parse_md(review_path)
+    if rev_fm.get("outcome") != "pass":
+        return _GateResult({
+            "message": f"L4 review for {slug} has outcome='{rev_fm.get('outcome')}', not 'pass'. Cannot promote.",
+        })
     fm["status"] = "pending_approval"
     fm["promotion_requested_at"] = _now()
     _write_md(cand_path, fm, body)
@@ -506,11 +528,20 @@ def aitp_resolve_promotion_gate(
         fm["approved_at"] = _now()
         fm["approval_reason"] = reason
     elif decision == "reject":
-        fm["status"] = "validated"
+        fm["status"] = "rejected_from_promotion"
         fm["rejection_reason"] = reason
+        fm["rejected_at"] = _now()
     else:
         return f"Unknown decision '{decision}'. Use 'approve' or 'reject'."
     _write_md(cand_path, fm, body)
+
+    if decision == "reject":
+        _append_to_topic_log(root, f"promotion rejected for {slug}: {reason}")
+        return (
+            f"Candidate {slug} promotion rejected. "
+            f"The agent MUST call aitp_return_to_l3_from_l4 to return to L3/analysis "
+            f"and address the rejection reason before re-submitting."
+        )
     return f"Candidate {slug} resolved: {decision}."
 
 
@@ -531,7 +562,12 @@ def aitp_promote_candidate(
         return f"Candidate {slug} not found."
     fm, body = _parse_md(cand_path)
     if fm.get("status") != "approved_for_promotion":
-        return f"Candidate {slug} is not approved_for_promotion (status: {fm.get('status')}). Use aitp_request_promotion then aitp_resolve_promotion_gate first."
+        return _GateResult({
+            "message": (
+                f"Candidate {slug} is not approved_for_promotion (status: {fm.get('status')}). "
+                f"Use aitp_request_promotion then aitp_resolve_promotion_gate(approve) first."
+            ),
+        })
 
     global_l2 = _global_l2_path(topics_root)
     global_l2.mkdir(parents=True, exist_ok=True)
@@ -660,6 +696,66 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
         ),
         "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
         "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
+    }
+
+
+@mcp.tool()
+def aitp_session_resume(
+    topics_root: str,
+    topic_slug: str,
+) -> dict[str, Any]:
+    """Get a resumption context for a topic after a session break.
+
+    Returns current state, recent log entries (last 10 events), and the
+    execution brief so the agent can pick up where it left off without
+    re-reading every artifact.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    fm, body = _parse_md(root / "state.md")
+
+    # Read last N log entries
+    log_path = root / "runtime" / "log.md"
+    recent_events: list[str] = []
+    if log_path.exists():
+        log_text = log_path.read_text(encoding="utf-8")
+        lines = [l.strip() for l in log_text.splitlines() if l.strip().startswith("- ")]
+        recent_events = lines[-10:]
+
+    # Get execution brief inline
+    stage = str(fm.get("stage", "L1"))
+    if stage == "L3":
+        snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    else:
+        snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+
+    # Summarize what was last worked on
+    last_subplane = fm.get("l3_subplane", "")
+    summary_parts = [
+        f"Topic '{fm.get('title', topic_slug)}' is at stage={stage}",
+    ]
+    if last_subplane:
+        summary_parts.append(f"L3 subplane={last_subplane}")
+    if snapshot.gate_status != "ready":
+        summary_parts.append(f"gated by: {snapshot.missing_requirements}")
+    if recent_events:
+        summary_parts.append(f"last activity: {recent_events[-1]}")
+
+    return {
+        "topic_slug": topic_slug,
+        "stage": stage,
+        "posture": fm.get("posture", snapshot.posture),
+        "lane": fm.get("lane", ""),
+        "l3_subplane": last_subplane,
+        "gate_status": snapshot.gate_status,
+        "skill": snapshot.skill,
+        "required_artifact_path": snapshot.required_artifact_path,
+        "missing_requirements": snapshot.missing_requirements,
+        "recent_events": recent_events,
+        "resume_summary": ". ".join(summary_parts) + ".",
+        "instruction": (
+            f"Resume by reading skill '{snapshot.skill}' and continuing "
+            f"from where the last session left off."
+        ),
     }
 
 
@@ -829,8 +925,14 @@ def aitp_submit_l4_review(
 ) -> dict[str, Any]:
     """Submit an L4 review with one of the six validation outcomes. Returns popup gate.
 
-    For toy_numeric / code_method lanes, evidence_scripts and evidence_outputs are REQUIRED.
-    For formal_theory lane, they are optional (analytical checks suffice).
+    EVIDENCE REQUIREMENTS BY LANE:
+    - toy_numeric / code_method: evidence_scripts and evidence_outputs are REQUIRED for 'pass'.
+      Every data point must have a data_provenance entry tracing it to a specific script execution.
+    - formal_theory: check_results dict is the primary evidence carrier. Required entries:
+      dimensional_consistency, symmetry_compatibility, limiting_case_check, correspondence_check.
+      evidence_scripts/outputs are optional but recommended for automated symbolic checks (SymPy).
+      The check_results values should describe WHAT was verified and the outcome (e.g., "pass: all
+      terms have units of energy; RHS and LHS match under ℏ=c=1").
 
     data_provenance: list of dicts, each with keys:
       - data_point: what was measured/computed
@@ -913,6 +1015,21 @@ def aitp_submit_l4_review(
     _write_md(review_path, fm, body)
     _append_to_topic_log(root, f"L4 review: {slug} -> {outcome}")
 
+    # Update candidate status based on L4 outcome
+    cand_path = root / "L3" / "candidates" / f"{slug}.md"
+    if cand_path.exists():
+        cand_fm, cand_body = _parse_md(cand_path)
+        if outcome == "pass":
+            cand_fm["status"] = "validated"
+            cand_fm["validated_at"] = _now()
+        elif outcome == "partial_pass":
+            cand_fm["status"] = "partial_validated"
+            cand_fm["l4_notes"] = notes
+        elif outcome in ("fail", "contradiction", "stuck", "timeout"):
+            cand_fm["l4_outcome"] = outcome
+            cand_fm["l4_notes"] = notes
+        _write_md(cand_path, cand_fm, cand_body)
+
     result: dict[str, Any] = {"message": f"L4 review submitted for {slug}: {outcome}."}
     if outcome != "pass":
         result["popup_gate"] = {
@@ -969,6 +1086,180 @@ def aitp_return_to_l3_from_l4(
 
 
 # ---------------------------------------------------------------------------
+# Topic lifecycle
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def aitp_archive_topic(
+    topics_root: str,
+    topic_slug: str,
+    reason: str = "",
+    reason_category: str = "abandoned",
+) -> dict[str, Any]:
+    """Archive a topic, marking it as abandoned or paused. Preserves all artifacts.
+
+    reason_category: abandoned | paused | superseded | merged_into_another
+    Returns a popup gate for confirmation.
+    """
+    valid_categories = {"abandoned", "paused", "superseded", "merged_into_another"}
+    if reason_category not in valid_categories:
+        return {"message": f"Invalid reason_category '{reason_category}'. Valid: {sorted(valid_categories)}"}
+
+    root = _topic_root(topics_root, topic_slug)
+    state_path = root / "state.md"
+    fm, body = _parse_md(state_path)
+
+    if fm.get("stage") == "archived":
+        return {"message": f"Topic {topic_slug} is already archived."}
+
+    old_stage = fm.get("stage", "unknown")
+    fm["stage"] = "archived"
+    fm["previous_stage"] = old_stage
+    fm["archive_reason"] = reason
+    fm["archive_category"] = reason_category
+    fm["archived_at"] = _now()
+    fm["updated_at"] = _now()
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, f"archived ({reason_category}): {reason}")
+
+    return _GateResult({
+        "message": f"Topic {topic_slug} archived ({reason_category}). All artifacts preserved.",
+        "popup_gate": {
+            "question": f"Archive topic '{fm.get('title', topic_slug)}' as {reason_category}?",
+            "header": "Archive",
+            "options": [
+                {"label": "Confirm archive", "description": f"Mark as {reason_category}. Artifacts preserved for future reference."},
+                {"label": "Cancel", "description": "Keep the topic active and continue working."},
+            ],
+        },
+    })
+
+
+@mcp.tool()
+def aitp_restore_topic(
+    topics_root: str,
+    topic_slug: str,
+) -> str:
+    """Restore an archived topic to its previous stage."""
+    root = _topic_root(topics_root, topic_slug)
+    state_path = root / "state.md"
+    fm, body = _parse_md(state_path)
+
+    if fm.get("stage") != "archived":
+        return f"Topic {topic_slug} is not archived (stage: {fm.get('stage')})."
+
+    previous = fm.pop("previous_stage", "L1")
+    fm["stage"] = previous
+    fm.pop("archived_at", None)
+    fm.pop("archive_reason", None)
+    fm.pop("archive_category", None)
+    fm["updated_at"] = _now()
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, f"restored from archive to {previous}")
+    return f"Topic {topic_slug} restored to stage {previous}."
+
+
+@mcp.tool()
+def aitp_switch_lane(
+    topics_root: str,
+    topic_slug: str,
+    new_lane: str,
+    reason: str = "",
+) -> dict[str, Any]:
+    """Switch the research lane for an active topic. Records old/new lane and reason.
+
+    new_lane: formal_theory | toy_numeric | code_method | unspecified
+    Valid transitions: any lane to any other lane. Common patterns:
+      - formal_theory → toy_numeric: analytical derivation hit a dead end
+      - toy_numeric → code_method: need production-quality computation
+      - code_method → formal_theory: numerical results suggest a clean analytical form
+    """
+    valid_lanes = {"formal_theory", "toy_numeric", "code_method", "unspecified"}
+    if new_lane not in valid_lanes:
+        return {"message": f"Invalid lane '{new_lane}'. Valid: {sorted(valid_lanes)}"}
+
+    root = _topic_root(topics_root, topic_slug)
+    state_path = root / "state.md"
+    fm, body = _parse_md(state_path)
+
+    old_lane = fm.get("lane", "unspecified")
+    if old_lane == new_lane:
+        return {"message": f"Topic is already on lane '{new_lane}'. No change needed."}
+
+    fm["lane"] = new_lane
+    fm["previous_lane"] = old_lane
+    fm["lane_switch_reason"] = reason
+    fm["lane_switched_at"] = _now()
+    fm["updated_at"] = _now()
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, f"switched lane: {old_lane} -> {new_lane} ({reason})")
+
+    return {
+        "message": f"Switched lane from '{old_lane}' to '{new_lane}'.",
+        "old_lane": old_lane,
+        "new_lane": new_lane,
+        "note": "L4 evidence requirements change with lane. Review validation contract.",
+    }
+
+
+@mcp.tool()
+def aitp_fork_topic(
+    topics_root: str,
+    parent_slug: str,
+    child_slug: str,
+    title: str,
+    question: str,
+    copy_l1_artifacts: bool = True,
+    reason: str = "",
+) -> str:
+    """Fork a new topic from a side-discovery in an existing topic.
+
+    Creates a new topic with optional L1 artifact copies from the parent.
+    Links parent and child in both topics' runtime logs.
+    """
+    safe_child = validate_topic_slug(child_slug)
+    base = topics_dir(topics_root)
+    child_root = base / safe_child
+
+    if child_root.exists():
+        return f"Topic {safe_child} already exists."
+
+    parent_root = _topic_root(topics_root, parent_slug)
+    parent_fm, _ = _parse_md(parent_root / "state.md")
+
+    # Bootstrap child with same lane as parent
+    result = aitp_bootstrap_topic(
+        topics_root, safe_child, title, question,
+        lane=parent_fm.get("lane", "unspecified"),
+    )
+
+    child_root = base / safe_child
+
+    # Copy L1 artifacts if requested
+    if copy_l1_artifacts:
+        for artifact_name in L1_ARTIFACT_TEMPLATES:
+            src = parent_root / "L1" / artifact_name
+            dst = child_root / "L1" / artifact_name
+            if src.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                _atomic_write_text(dst, src.read_text(encoding="utf-8"))
+
+    # Record provenance
+    state_path = child_root / "state.md"
+    fm, body = _parse_md(state_path)
+    fm["forked_from"] = parent_slug
+    fm["fork_reason"] = reason
+    fm["forked_at"] = _now()
+    _write_md(state_path, fm, body)
+
+    _append_to_topic_log(child_root, f"forked from {parent_slug}: {reason}")
+    _append_to_topic_log(parent_root, f"forked child topic {safe_child}: {reason}")
+
+    return result + f" Forked from {parent_slug}."
+
+
+# ---------------------------------------------------------------------------
 # Knowledge-base operations
 # ---------------------------------------------------------------------------
 
@@ -988,6 +1279,58 @@ def _append_to_topic_log(root: Path, event: str) -> None:
 def _global_l2_path(topics_root: str) -> Path:
     base = topics_dir(topics_root)
     return base.parent / "L2" if base.name == "topics" else Path(topics_root).parent / "L2"
+
+
+@mcp.tool()
+def aitp_query_l2(
+    topics_root: str,
+    query: str = "",
+) -> dict[str, Any]:
+    """Query the global L2 knowledge base (cross-topic validated claims).
+
+    Returns all promoted candidates with their claims, trust basis, scope,
+    and any conflicts. Optionally filter by query substring match on claim text.
+    Use this when starting a new topic to check existing validated knowledge.
+    """
+    global_l2 = _global_l2_path(topics_root)
+    if not global_l2.is_dir():
+        return {"message": "Global L2 directory not found.", "results": [], "count": 0}
+
+    results = []
+    conflicts = []
+    conflict_dir = global_l2 / "conflicts"
+    if conflict_dir.is_dir():
+        for cp in sorted(conflict_dir.glob("*.md")):
+            cfm, _ = _parse_md(cp)
+            conflicts.append({
+                "candidate_id": cfm.get("candidate_id", cp.stem),
+                "existing_claim": cfm.get("existing_claim", ""),
+                "new_claim": cfm.get("new_claim", ""),
+            })
+
+    for l2_path in sorted(global_l2.glob("*.md")):
+        if l2_path.parent.name == "conflicts":
+            continue
+        fm, body = _parse_md(l2_path)
+        claim_text = str(fm.get("claim", ""))
+        if query and query.lower() not in claim_text.lower() and query.lower() not in str(fm.get("title", "")).lower():
+            continue
+        results.append({
+            "candidate_id": fm.get("candidate_id", l2_path.stem),
+            "title": fm.get("title", ""),
+            "claim": claim_text,
+            "trust_basis": fm.get("trust_basis", ""),
+            "trust_scope": fm.get("trust_scope", ""),
+            "version": fm.get("version", 1),
+            "promoted_at": fm.get("promoted_at", ""),
+        })
+
+    return {
+        "results": results,
+        "conflicts": conflicts,
+        "count": len(results),
+        "authority_level": "L2_validated_reusable",
+    }
 
 
 @mcp.tool()
@@ -1262,6 +1605,50 @@ def aitp_advance_to_l5(topics_root: str, topic_slug: str) -> dict[str, Any]:
                 {"label": "Review first", "description": "Review the flow notebook and validation results before writing."},
             ],
         },
+    })
+
+
+@mcp.tool()
+def aitp_return_from_l5(
+    topics_root: str,
+    topic_slug: str,
+    reason: str = "",
+    target_subplane: str = "analysis",
+) -> dict[str, Any]:
+    """Return from L5 writing back to L3 for supplementary validation or revision.
+
+    Use when writing reveals an unvalidated intermediate step, a gap in evidence,
+    or a claim that needs refinement.
+
+    target_subplane: analysis | planning | result_integration
+    Default is analysis (for post-writing re-examination).
+    """
+    valid_targets = {"analysis", "planning", "result_integration"}
+    if target_subplane not in valid_targets:
+        return _GateResult({"message": f"Invalid target_subplane '{target_subplane}'. Valid: {sorted(valid_targets)}"})
+
+    root = _topic_root(topics_root, topic_slug)
+    state_path = root / "state.md"
+    fm, body = _parse_md(state_path)
+
+    if fm.get("stage") != "L5":
+        return _GateResult({"message": f"Cannot return from L5: topic is at {fm.get('stage')}, not L5."})
+
+    fm["stage"] = "L3"
+    fm["posture"] = "derive"
+    fm["l3_subplane"] = target_subplane
+    fm["returned_from_l5"] = True
+    fm["l5_return_reason"] = reason
+    fm["updated_at"] = _now()
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, f"returned from L5 to L3/{target_subplane}: {reason}")
+
+    return _GateResult({
+        "message": (
+            f"Returned from L5 to L3/{target_subplane}. "
+            f"L5 provenance artifacts are preserved. "
+            f"After revising, re-advance to L5 when ready."
+        ),
     })
 
 
