@@ -161,20 +161,31 @@ After returning to L3 from L4:
 2. **Update flow_notebook.tex** with the L4 findings (incremental update).
 
 3. **Ask the human** (MANDATORY — use AskUserQuestion):
-   - "L4 passed. The validated claim is: <claim>. Options:"
-     - **Persist and advance**: promote to L2 / advance to L5 writing
+   - "L4 passed. The validated claim is: <claim>. What next?"
+     - **Promote to L2**: promote to global knowledge base for cross-topic reuse
+     - **Advance to L5 writing**: start paper writing phase
      - **Continue iterating**: start a new L3 cycle (plan → analyze → integrate → distill → L4)
      - **Revise scope**: narrow or adjust the claim before persisting
 
-4. **If human says "continue iterating"**:
+4. **If human says "promote to L2"**:
+   - Call `aitp_request_promotion`, then `aitp_resolve_promotion_gate`, then `aitp_promote_candidate`
+   - After promotion, ask human if they also want to advance to L5
+
+5. **If human says "advance to L5"**:
+   - Call `aitp_advance_to_l5`
+   - Fill provenance files and start paper drafting
+
+6. **If human says "continue iterating"**:
    - Advance to `planning` subplane
    - Design new computational experiments based on L4 findings
    - Execute through the full L3 cycle (plan → analyze → integrate → distill)
    - Update flow_notebook.tex at each subplane
    - Submit new/updated candidate and re-enter L4
 
-5. **If human says "persist and advance"**:
-   - You may proceed to promotion (`aitp_request_promotion`) or L5 (`aitp_advance_to_l5`)
+7. **If human says "revise scope"**:
+   - Return to `distillation` subplane
+   - Narrow or adjust the claim
+   - Re-submit candidate and re-enter L4
 
 ## Rules
 
