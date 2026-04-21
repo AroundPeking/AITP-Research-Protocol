@@ -401,3 +401,67 @@ PHYSICS_CHECK_FIELDS = [
     "conservation_check",
     "correspondence_check",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Progressive-disclosure tool catalog
+# ---------------------------------------------------------------------------
+# Maps (stage, subplane_or_posture) → list of (tool_name, one_line_desc).
+# Only the MANDATORY skill for the current subplane is auto-loaded.
+# Everything else is listed as a short menu — the agent loads full content
+# on demand via Skill tool or ToolSearch when it actually needs it.
+
+TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str]]] = {
+    # L1 — source registration and framing
+    ("L1", "read"): [
+        ("arxiv-latex-mcp", "Read paper sections and abstracts from arXiv"),
+        ("knowledge-hub", "Query existing knowledge base for related sources"),
+    ],
+    ("L1", "frame"): [
+        ("arxiv-latex-mcp", "Read paper sections and abstracts from arXiv"),
+        ("knowledge-hub", "Query existing knowledge base for related sources"),
+    ],
+    # L3 — derivation subplanes
+    ("L3", "ideation"): [
+        ("scientific-brainstorming", "Physics brainstorming and idea exploration"),
+        ("arxiv-latex-mcp", "Check related papers and formulas"),
+        ("knowledge-hub", "Query validated knowledge from L2"),
+    ],
+    ("L3", "planning"): [
+        ("arxiv-latex-mcp", "Check related papers and formulas"),
+        ("knowledge-hub", "Query validated knowledge from L2"),
+        ("jupyter-mcp-server", "Run numerical experiments (toy_numeric/code_method lanes)"),
+    ],
+    ("L3", "analysis"): [
+        ("arxiv-latex-mcp", "Reference papers during computation"),
+        ("knowledge-hub", "Query validated knowledge from L2"),
+        ("jupyter-mcp-server", "Run numerical experiments and analysis"),
+    ],
+    ("L3", "result_integration"): [
+        ("arxiv-latex-mcp", "Cross-check findings against papers"),
+        ("knowledge-hub", "Compare against validated L2 knowledge"),
+    ],
+    ("L3", "distillation"): [
+        ("arxiv-latex-mcp", "Verify distilled claims against literature"),
+        ("knowledge-hub", "Check if claim duplicates existing L2 knowledge"),
+    ],
+    # L4 — validation
+    ("L4", "validate"): [
+        ("jupyter-mcp-server", "Run independent validation scripts"),
+        ("arxiv-latex-mcp", "Check claims against published results"),
+        ("knowledge-hub", "Compare against validated L2 knowledge"),
+    ],
+    # L2 — promotion
+    ("L2", "promote"): [
+        ("knowledge-hub", "Store validated knowledge to L2"),
+    ],
+    # L5 — writing
+    ("L5", "write"): [
+        ("arxiv-latex-mcp", "Reference paper formatting and structure"),
+    ],
+}
+
+
+def get_tool_catalog(stage: str, posture_or_subplane: str) -> list[tuple[str, str]]:
+    """Return the tool catalog for the given stage and posture/subplane."""
+    return TOOL_CATALOG.get((stage, posture_or_subplane), [])

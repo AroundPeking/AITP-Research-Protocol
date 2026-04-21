@@ -95,7 +95,9 @@ def main():
         print("AITP: No active topic found. Start one with aitp_bootstrap_topic.")
         return
 
-    from brain.state_model import topics_dir, evaluate_l1_stage, evaluate_l3_stage
+    from brain.state_model import (
+        topics_dir, evaluate_l1_stage, evaluate_l3_stage, get_tool_catalog,
+    )
     td = topics_dir(topics_root)
     root = Path(td) / topic_slug
     fm, _ = _parse_md(root / "state.md")
@@ -113,7 +115,16 @@ def main():
     )
     if snapshot.required_artifact_path:
         print(f"AITP: Fill {snapshot.required_artifact_path} before advancing.")
-    print(f"AITP: Read and follow skills/{snapshot.skill}.md before continuing.")
+    print(f"AITP: MANDATORY — read and follow skills/{snapshot.skill}.md before continuing.")
+
+    # Progressive-disclosure: short menu of available tools for this stage.
+    # Agent loads full content on demand via Skill tool or ToolSearch.
+    posture_key = snapshot.l3_subplane or snapshot.posture
+    catalog = get_tool_catalog(snapshot.stage, posture_key)
+    if catalog:
+        print("AITP: Available tools (load on demand with Skill or ToolSearch):")
+        for name, desc in catalog:
+            print(f"  - {name} — {desc}")
 
 
 if __name__ == "__main__":
