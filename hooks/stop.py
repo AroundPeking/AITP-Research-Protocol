@@ -7,6 +7,7 @@ updates state.md updated_at timestamp atomically.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import tempfile
@@ -63,7 +64,42 @@ def _render_md(fm: dict, body: str) -> str:
     return f"---\n{frontmatter}\n---\n{body}\n"
 
 
+def _find_workspace_root() -> str:
+    cwd = os.getcwd()
+    for _ in range(8):
+        if (os.path.isfile(os.path.join(cwd, ".aitp_config.json"))
+                or os.path.isfile(os.path.join(cwd, "CLAUDE.md"))
+                or os.path.isdir(os.path.join(cwd, ".git"))):
+            return cwd
+        parent = os.path.dirname(cwd)
+        if parent == cwd:
+            break
+        cwd = parent
+    return os.getcwd()
+
+
+def _read_aitp_config(workspace: str) -> dict:
+    config_path = os.path.join(workspace, ".aitp_config.json")
+    if not os.path.isfile(config_path):
+        return {}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            return json.loads(f.read())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def _find_topics_root() -> str | None:
+    env = os.environ.get("AITP_TOPICS_ROOT")
+    if env:
+        return env
+    workspace = _find_workspace_root()
+    config = _read_aitp_config(workspace)
+    cfg_root = config.get("topics_root")
+    if cfg_root:
+        if os.path.isabs(cfg_root):
+            return cfg_root
+        return os.path.normpath(os.path.join(workspace, cfg_root))
     cwd = os.getcwd()
     for _ in range(5):
         candidate = os.path.join(cwd, "topics")
@@ -73,7 +109,7 @@ def _find_topics_root() -> str | None:
         if parent == cwd:
             break
         cwd = parent
-    return os.environ.get("AITP_TOPICS_ROOT")
+    return None
 
 
 def _find_active_topic(topics_root: str) -> str | None:

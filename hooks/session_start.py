@@ -6,6 +6,7 @@ a stage/posture-aware skill injection instruction for the agent to follow.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -15,8 +16,54 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
+def _read_aitp_config(workspace: str) -> dict:
+    """Read .aitp_config.json from the given workspace root."""
+    config_path = os.path.join(workspace, ".aitp_config.json")
+    if not os.path.isfile(config_path):
+        return {}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            return json.loads(f.read())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _find_workspace_root() -> str:
+    """Walk up from cwd to find a workspace root (has .git, CLAUDE.md, or .aitp_config.json)."""
+    cwd = os.getcwd()
+    for _ in range(8):
+        if (os.path.isfile(os.path.join(cwd, ".aitp_config.json"))
+                or os.path.isfile(os.path.join(cwd, "CLAUDE.md"))
+                or os.path.isdir(os.path.join(cwd, ".git"))):
+            return cwd
+        parent = os.path.dirname(cwd)
+        if parent == cwd:
+            break
+        cwd = parent
+    return os.getcwd()
+
+
 def _find_topics_root() -> str | None:
-    """Find the topics root directory by walking up from cwd."""
+    """Find the topics root directory.
+
+    Priority:
+    1. AITP_TOPICS_ROOT env var (explicit override)
+    2. .aitp_config.json in workspace root → topics_root field
+    3. Walk up from cwd looking for a topics/ subdirectory
+    4. None (triggers first-run init flow)
+    """
+    env = os.environ.get("AITP_TOPICS_ROOT")
+    if env:
+        return env
+
+    workspace = _find_workspace_root()
+    config = _read_aitp_config(workspace)
+    cfg_root = config.get("topics_root")
+    if cfg_root:
+        if os.path.isabs(cfg_root):
+            return cfg_root
+        return os.path.normpath(os.path.join(workspace, cfg_root))
+
     cwd = os.getcwd()
     for _ in range(5):
         candidate = os.path.join(cwd, "topics")
@@ -26,7 +73,7 @@ def _find_topics_root() -> str | None:
         if parent == cwd:
             break
         cwd = parent
-    return os.environ.get("AITP_TOPICS_ROOT")
+    return None
 
 
 def _parse_frontmatter(path: str) -> dict:
@@ -86,8 +133,15 @@ def _find_active_topic(topics_root: str) -> str | None:
 
 def main():
     topics_root = _find_topics_root()
+
     if not topics_root:
-        print("AITP: No topics root found. Skipping skill injection.")
+        workspace = _find_workspace_root()
+        config_path = os.path.join(workspace, ".aitp_config.json")
+        print("AITP: No topics root configured. This is a first run in this workspace.")
+        print("AITP: MANDATORY — read and follow skills/skill-init.md before continuing.")
+        print(f"AITP: Workspace root detected: {workspace}")
+        print(f"AITP: Config will be saved to: {config_path}")
+        print("AITP: Use AskUserQuestion to ask the user where to store research topics.")
         return
 
     topic_slug = _find_active_topic(topics_root)

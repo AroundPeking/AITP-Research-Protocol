@@ -47,6 +47,7 @@ aitp-v2-refactor/
     state_model.py      # Stage evaluation, gate logic, artifact templates
     PROTOCOL.md         # Agent-facing operating manual (single source of truth)
   skills/
+    skill-init.md       # First-run workspace setup (AskUserQuestion)
     skill-read.md       # Per-stage skill files loaded by the agent
     skill-frame.md
     skill-l3-*.md       # 5 L3 subplane skills
@@ -103,7 +104,7 @@ pip install fastmcp pyyaml
 }
 ```
 
-4. Point `topics_root` to where you want research topics stored. The default used in tools is your project's `research/aitp-topics/` directory.
+4. Point `topics_root` to where you want research topics stored. On first run in a new workspace, AITP will prompt you to choose a location via AskUserQuestion and save it to `.aitp_config.json`. You can also set the `AITP_TOPICS_ROOT` environment variable for non-interactive setups.
 
 ### Agent-specific setup
 
@@ -140,24 +141,26 @@ The protocol is agent-agnostic. Any client that can:
 ## Topic file structure
 
 ```
-research/aitp-topics/<topic-slug>/
-  state.md                   # YAML frontmatter: stage, posture, lane, subplane
-  L0/sources/                # Registered source metadata
-  L1/                        # source_basis, question_contract, conventions, anchors, contradictions
-  L3/
-    ideation/active_idea.md
-    planning/active_plan.md
-    analysis/active_analysis.md
-    result_integration/active_integration.md
-    distillation/active_distillation.md
-    candidates/              # Submitted distilled claims
-    tex/flow_notebook.tex    # Derivation trail
-  L4/
-    validation_contract.md
-    reviews/
-  L5_writing/
-    outline.md, provenance/, draft/
-  runtime/                   # Execution state
+<workspace>/                          # Your project directory
+  .aitp_config.json                  # Workspace config (topics_root, created on first run)
+  topics/<topic-slug>/               # Research topics directory
+    state.md                         # YAML frontmatter: stage, posture, lane, subplane
+    L0/sources/                      # Registered source metadata
+    L1/                              # source_basis, question_contract, conventions, anchors, contradictions
+    L3/
+      ideation/active_idea.md
+      planning/active_plan.md
+      analysis/active_analysis.md
+      result_integration/active_integration.md
+      distillation/active_distillation.md
+      candidates/                    # Submitted distilled claims
+      tex/flow_notebook.tex          # Derivation trail
+    L4/
+      validation_contract.md
+      reviews/
+    L5_writing/
+      outline.md, provenance/, draft/
+    runtime/                         # Execution state
 ```
 
 ## Philosophy
