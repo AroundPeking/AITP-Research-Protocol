@@ -1162,6 +1162,9 @@ def aitp_submit_l4_review(
                 {"label": "Revise candidate", "description": "Return to L3 and revise the candidate based on review findings."},
                 {"label": "Re-validate", "description": "Re-run validation with adjusted criteria."},
                 {"label": "Abandon candidate", "description": "Discard this candidate and try a different approach."},
+                {"label": "Start research loop",
+                 "description": f"Let the agent autonomously iterate L3→L4 until pass or {state_fm.get('research_loop_max_cycles', 5)} cycles. "
+                                f"Good for repetitive refinement tasks. Call aitp_start_research_loop to activate."},
             ],
         }
     elif outcome != "pass" and loop_active:
