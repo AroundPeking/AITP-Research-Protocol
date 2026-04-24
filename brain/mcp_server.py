@@ -3033,27 +3033,91 @@ def _build_flow_notebook_content(
         )
         if ideas_list:
             tex.append(r"\section{Ideas Explored}")
+            tex.append(r"\label{sec:ideas}")
+            tex.append("")
+            tex.append(
+                r"Multiple derivation approaches were explored. "
+                r"Failed approaches are preserved — their lessons informed "
+                r"successful routes. Cross-references link related ideas."
+            )
             tex.append("")
             for ip in ideas_list:
                 fm_i, body_i = _parse_md(ip)
                 status = fm_i.get("status", "active")
                 status_cmd = {
-                    "succeeded": r"\textbf{[SUCCEEDED]}",
-                    "failed": r"\textbf{[FAILED]}",
-                    "active": r"\textbf{[ACTIVE]}",
+                    "succeeded": r"\textbf{[SUCCEEDED — promoted to candidate]}",
+                    "failed": r"\textbf{[FAILED — lessons preserved]}",
+                    "active": r"\textbf{[IN PROGRESS]}",
                     "abandoned": r"\textbf{[ABANDONED]}",
                     "superseded": r"\textbf{[SUPERSEDED]}",
                 }.get(status, "")
-                tex.append(r"\subsection*{" + _esc(fm_i.get("title", ip.stem)) + " " + status_cmd + "}")
+
+                tex.append(r"\subsection*{" + _esc(fm_i.get("title", ip.stem)) + "}")
+                tex.append(r"\textbf{Status:} " + status_cmd)
                 tex.append("")
-                tex.append(r"\textbf{Approach:} " + _esc((fm_i.get("approach", "") or "")[:500]))
-                tex.append("")
-                if fm_i.get("lessons_learned"):
-                    tex.append(r"\textbf{Lessons:} " + _esc(fm_i["lessons_learned"][:300]))
+
+                # Approach
+                approach = (fm_i.get("approach", "") or "").strip()
+                if approach:
+                    tex.append(r"\textbf{Approach:}")
                     tex.append("")
+                    tex.append(_inline_math_safe(approach))
+                    tex.append("")
+
+                # Derivation — extract from body
+                if body_i:
+                    deriv_text = body_i
+                    # Skip sections we handle separately
+                    for skip_hdr in ["## Approach", "## Outcome", "## Lessons Learned"]:
+                        if skip_hdr in deriv_text:
+                            deriv_text = deriv_text.split(skip_hdr, 1)[0]
+                    deriv_text = deriv_text.strip()
+                    # Remove leading "# Title" line
+                    if deriv_text.startswith("# "):
+                        deriv_text = deriv_text.split("\n", 1)[1] if "\n" in deriv_text else ""
+                    deriv_text = deriv_text.strip()
+                    if deriv_text:
+                        tex.append(r"\textbf{Derivation:}")
+                        tex.append("")
+                        tex.append(_inline_math_safe(deriv_text[:2000]))
+                        tex.append("")
+
+                # Lessons learned
+                lessons = (fm_i.get("lessons_learned", "") or "").strip()
+                if lessons:
+                    tex.append(r"\textbf{Lessons Learned:}")
+                    tex.append("")
+                    tex.append(_inline_math_safe(lessons))
+                    tex.append("")
+
+                # Cross-references
+                refs = []
+                if fm_i.get("inspired_by"):
+                    refs.append("Inspired by: " + ", ".join(fm_i["inspired_by"]))
+                if fm_i.get("supersedes"):
+                    refs.append("Supersedes: " + ", ".join(fm_i["supersedes"]))
                 if fm_i.get("superseded_by"):
-                    tex.append(r"Superseded by: " + _esc(fm_i["superseded_by"]))
+                    refs.append(r"\textbf{Superseded by:} " + fm_i["superseded_by"])
+                if fm_i.get("promoted_to_candidate"):
+                    refs.append(r"\textbf{Promoted to candidate:} " + fm_i["promoted_to_candidate"])
+                if refs:
+                    tex.append(r"\textbf{Connections:}")
                     tex.append("")
+                    for ref in refs:
+                        tex.append(r"\quad • " + _esc(ref))
+                    tex.append("")
+
+                # Timestamps
+                created = fm_i.get("created_at", "")
+                updated = fm_i.get("updated_at", "")
+                if created or updated:
+                    tex.append(r"\textit{Created: " + _esc(created[:19]) + "}")
+                    if updated and updated != created:
+                        tex.append(r" \textit{— Updated: " + _esc(updated[:19]) + "}")
+                    tex.append("")
+
+                tex.append(r"\hrulefill")
+                tex.append("")
 
     # ---- 6. Results ----
     tex.append(r"\section{Results}")
