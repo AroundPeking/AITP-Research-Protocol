@@ -68,6 +68,21 @@ Different kinds of physics work need different discipline:
 | `toy_numeric` | Model calculations, numerical experiments, benchmarks | Convergence checks, finite-size scaling, sanity bounds |
 | `code_method` | Algorithm development, computational methods | Reproduction, trust audits |
 
+## Domain skill extensions
+
+AITP keeps the lifecycle discipline in the core protocol and lets
+domain-specific skills provide the physics-specific contracts, invariants,
+benchmark recipes, and routing rules for a concrete workflow family.
+
+- Interface contract:
+  [`research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md`](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md)
+- First-principles example lane:
+  [`research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md`](research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md)
+- Derive-first implementation playbook:
+  [`research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md`](research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md)
+- Example external skill:
+  [oh-my-LibRPA](https://github.com/AroundPeking/oh-my-LibRPA)
+
 ## Architecture
 
 ```
@@ -206,6 +221,8 @@ Every topic is a directory of plain Markdown files. No database, no proprietary 
 - **Humans own trust.** The promotion gate exists because "the AI seems confident" is not a valid reason to trust a result.
 - **Durable by default.** Research state lives in your filesystem, not in a chat session. Close your laptop. Come back in a week. It's all still there.
 - **Agent-agnostic.** The protocol is defined by the MCP tools and the Markdown artifacts. Any agent that speaks MCP can drive it.
+- **Externalized specifications before code.** When source literature leaves implementation-critical details implicit, AITP can materialize a reviewed spec artifact before implementation begins.
+- **Notebook obligations before scientific claims.** Notebook-facing rounds should distinguish blocked, qualified, and stable routes instead of flattening all progress into one narrative.
 
 ## License
 
@@ -222,3 +239,9 @@ MIT License — see [LICENSE](LICENSE).
 | [docs/CHARTER.md](docs/CHARTER.md) | Project charter and principles |
 | [docs/roadmap.md](docs/roadmap.md) | Development roadmap |
 | [docs/design-principles.md](docs/design-principles.md) | Design principles |
+| [research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md) | Domain-skill interface contract for physics-specific workflows |
+| [research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md](research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md) | Externalized-spec and reproducibility protocol |
+| [research/knowledge-hub/PROJECT_STRUCTURE_CONVENTION.md](research/knowledge-hub/PROJECT_STRUCTURE_CONVENTION.md) | Derive-first project structure for code-method work |
+| [research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md](research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md) | First-principles lane contract for ABACUS + LibRPA work |
+| [research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md](research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md) | Nine-phase development playbook for physics features |
+| [docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md](docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md) | Notebook/report obligation closure for L3 scientific rounds |

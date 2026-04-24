@@ -33,6 +33,7 @@ CHARTER.md (highest authority: 10 articles + three-phase vision)
         │     ├── L1_intake_protocol.md
         │     ├── L2_backend_interface.md
         │     ├── L3_execution_protocol.md
+        │     ├── TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md
         │     ├── L4_validation_protocol.md
         │     ├── closed_loop_protocol.md
         │     └── promotion_pipeline.md
@@ -77,6 +78,11 @@ These define *what* AITP tracks and *what shape* the data must have.
 | Validation | [validation.md](../contracts/validation.md) | [validation.schema.json](../schemas/validation.schema.json) | Validation plan with acceptance/rejection rules |
 | Operation | [operation.md](../contracts/operation.md) | [operation.schema.json](../schemas/operation.schema.json) | Reusable computation with trust status |
 | Promotion/rejection | [promotion-or-reject.md](../contracts/promotion-or-reject.md) | [promotion-or-reject.schema.json](../schemas/promotion-or-reject.schema.json) | Gate decision with reason |
+| Development task | [development-task.md](../contracts/development-task.md) | [development-task.schema.json](../schemas/development-task.schema.json) | Derive-first feature-development contract for physics codes |
+| Computation workflow | [computation-workflow.md](../contracts/computation-workflow.md) | [computation-workflow.schema.json](../schemas/computation-workflow.schema.json) | Multi-stage GW / RPA workflow with stage invariants and compute settings |
+| Compute resource | [compute-resource.md](../contracts/compute-resource.md) | [compute-resource.schema.json](../schemas/compute-resource.schema.json) | Local / remote execution environment contract |
+| Benchmark report | [benchmark-report.md](../contracts/benchmark-report.md) | [benchmark-report.schema.json](../schemas/benchmark-report.schema.json) | Benchmark verdict and convergence evidence for a new method or feature |
+| Calculation debug | [calculation-debug.md](../contracts/calculation-debug.md) | [calculation-debug.schema.json](../schemas/calculation-debug.schema.json) | Debug root-cause, fix actions, and learned reusable knowledge |
 | Decision point | — | [decision-point.schema.json](../schemas/decision-point.schema.json) | Question requiring human input (10 trigger types) |
 | Decision trace | — | [decision-trace.schema.json](../schemas/decision-trace.schema.json) | Record of decisions made |
 | Topic synopsis | — | [topic-synopsis.schema.json](../schemas/topic-synopsis.schema.json) | Lightweight machine-readable topic status |
@@ -256,6 +262,11 @@ The Python package `aitp-kernel` provides all runtime services. Key modules:
 | Autonomy & operator model | [AUTONOMY_AND_OPERATOR_MODEL.md](../research/knowledge-hub/AUTONOMY_AND_OPERATOR_MODEL.md) | Understanding human vs agent roles |
 | Communication contract | [COMMUNICATION_CONTRACT.md](../research/knowledge-hub/COMMUNICATION_CONTRACT.md) | How agent and human communicate |
 | Execution guardrails | [RESEARCH_EXECUTION_GUARDRAILS.md](../research/knowledge-hub/RESEARCH_EXECUTION_GUARDRAILS.md) | Bounded action packets, forbidden proxies |
+| Topic notebook obligations | [TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md](protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md) | When a topic notebook/report must separate blocked, qualified, and stable scientific routes honestly |
+| Domain skill interface | [DOMAIN_SKILL_INTERFACE_PROTOCOL.md](../research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md) | How domain-specific skills register contracts, invariants, and routing without embedding knowledge in the core |
+| Externalized spec | [EXTERNALIZED_SPEC_PROTOCOL.md](../research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md) | Spec-before-code and append-only reproducibility for derive-first work |
+| Project structure convention | [PROJECT_STRUCTURE_CONVENTION.md](../research/knowledge-hub/PROJECT_STRUCTURE_CONVENTION.md) | Required folder structure, LaTeX docs, and derive-first workflow for code-method projects |
+| Feature development playbook | [FEATURE_DEVELOPMENT_PLAYBOOK.md](../research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md) | Nine-phase feature-development workflow over the derive-first lane |
 | Clarification | [CLARIFICATION_PROTOCOL.md](../research/knowledge-hub/CLARIFICATION_PROTOCOL.md) | When the question is ambiguous |
 | Decision points | [DECISION_POINT_PROTOCOL.md](../research/knowledge-hub/DECISION_POINT_PROTOCOL.md) | When agent needs human input |
 | Decision traces | [DECISION_TRACE_PROTOCOL.md](../research/knowledge-hub/DECISION_TRACE_PROTOCOL.md) | Recording decisions |
