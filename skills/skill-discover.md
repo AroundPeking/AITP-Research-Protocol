@@ -17,6 +17,22 @@ NEVER type questions as plain text. ALWAYS use the popup tool.
 
 You are in the source discovery phase. Your job is to find and register all relevant materials before the deep reading begins.
 
+## Step 0: Check L2 knowledge base FIRST (MANDATORY)
+
+Before searching for new sources, you MUST check what the global L2 knowledge base
+already knows about this topic. The L2 stores validated claims from ALL previous topics.
+
+1. Call `aitp_query_l2_index(topics_root)` — get the domain taxonomy tree
+2. Identify the domain(s) relevant to this topic
+3. Call `aitp_query_l2_index(topics_root, domain_filter="<relevant-domain>")` — get details
+4. If matching nodes exist, call `aitp_query_l2_graph(topics_root, query="<key concept>")`
+5. Record findings in `L0/source_registry.md` under "Prior L2 Knowledge":
+   - What is already known and validated?
+   - What contradictions or open questions exist?
+   - What needs new work vs. what is confirmed?
+
+This prevents re-deriving known results and ensures new work builds on validated knowledge.
+
 ## What this stage is about
 
 Source discovery is not just "list some papers." It is a deliberate survey of what exists, what coverage you have, and what is missing. Sources go beyond literature:
@@ -38,6 +54,7 @@ Source discovery is not just "list some papers." It is a deliberate survey of wh
 2. Search systematically using available tools (paper-search-mcp, arxiv-latex-mcp, knowledge-hub).
 3. Register each source with `aitp_register_source`. Be specific about source_type.
 4. Fill `L0/source_registry.md`:
+   - **Prior L2 Knowledge** — what the global knowledge base already knows
    - **Search Methodology** — where you looked, what queries you used, what databases
    - **Source Inventory** — grouped by type (papers, datasets, code, etc.)
    - **Coverage Assessment** — what areas are well-covered, what is missing

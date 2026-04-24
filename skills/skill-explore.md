@@ -10,6 +10,11 @@ You are in **explore** mode. Your job: discover relevant literature and register
 
 ## What to Do
 
+0. **Check L2 knowledge base FIRST** — call `aitp_query_l2_index(topics_root)`.
+   The global L2 stores validated claims from ALL previous topics. Before searching for
+   anything new, check what is already known. Record findings under "Prior L2 Knowledge"
+   in source_registry.md.
+
 1. **Search for literature** related to the research question in `state.md`.
    - Use arXiv search, Google Scholar, or references the human provides.
    - For each relevant paper, note the arXiv ID.
