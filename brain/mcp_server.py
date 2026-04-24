@@ -32,6 +32,8 @@ from brain.state_model import (
     evaluate_l0_stage,
     evaluate_l1_stage,
     evaluate_l3_stage,
+    evaluate_l4_stage,
+    evaluate_l5_stage,
     _get_l3_config,
     L0_ARTIFACT_TEMPLATES,
     L1_ARTIFACT_TEMPLATES,
@@ -55,6 +57,12 @@ from brain.state_model import (
     semantic_score,
     normalize_latex,
     tokenize_for_search,
+)
+
+from brain.sympy_verify import (
+    check_dimensions,
+    check_algebra,
+    check_limit,
 )
 
 mcp = FastMCP("aitp-brain")
@@ -583,8 +591,7 @@ def aitp_submit_candidate(
 # ---------------------------------------------------------------------------
 
 _PROMOTION_TRANSITIONS = {
-    "submitted": "pending_validation",
-    "pending_validation": "validated",
+    "submitted": "validated",
     "validated": "pending_approval",
     "pending_approval": "approved_for_promotion",
     "approved_for_promotion": "promoted",
@@ -783,8 +790,12 @@ def aitp_promote_candidate(
                 f"## Open Questions\n"
             )
             _write_md(node_path, node_fm, node_body)
-        except Exception:
-            pass  # Non-fatal: graph node creation is best-effort
+        except OSError as e:
+            _append_to_topic_log(
+                root,
+                f"promoted {slug} to L2 but graph node creation failed: {e}",
+            )
+            return f"Promoted {slug} to global L2 (v{fm['version']}). WARNING: graph node not created — {e}"
 
     _append_to_topic_log(root, f"promoted {slug} to global L2 (v{fm['version']})")
     return f"Promoted {slug} to global L2 (v{fm['version']})."
@@ -855,6 +866,52 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 else ["advance to L1 (reading and framing)"]
             ),
             "immediate_blocked_work": ["L1 framing", "L3 derivation", "L4 validation", "L2 promotion"],
+            "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
+        }
+
+    if stage == "L4":
+        snapshot = evaluate_l4_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+        return {
+            "topic_slug": topic_slug,
+            "stage": snapshot.stage,
+            "posture": snapshot.posture,
+            "lane": snapshot.lane,
+            "compute_target": str(fm.get("compute", "local")),
+            "gate_status": snapshot.gate_status,
+            "required_artifact_path": snapshot.required_artifact_path,
+            "missing_requirements": snapshot.missing_requirements,
+            "next_allowed_transition": snapshot.next_allowed_transition,
+            "skill": snapshot.skill,
+            "l3_subplane": snapshot.l3_subplane,
+            "immediate_allowed_work": (
+                [f"edit {snapshot.required_artifact_path}"]
+                if snapshot.required_artifact_path
+                else ["submit L4 review for unreviewed candidates"]
+            ),
+            "immediate_blocked_work": ["L5 writing", "L2 promotion (until validated)"],
+            "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
+        }
+
+    if stage == "L5":
+        snapshot = evaluate_l5_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+        return {
+            "topic_slug": topic_slug,
+            "stage": snapshot.stage,
+            "posture": snapshot.posture,
+            "lane": snapshot.lane,
+            "compute_target": str(fm.get("compute", "local")),
+            "gate_status": snapshot.gate_status,
+            "required_artifact_path": snapshot.required_artifact_path,
+            "missing_requirements": snapshot.missing_requirements,
+            "next_allowed_transition": snapshot.next_allowed_transition,
+            "skill": snapshot.skill,
+            "l3_subplane": snapshot.l3_subplane,
+            "immediate_allowed_work": (
+                [f"edit {snapshot.required_artifact_path}"]
+                if snapshot.required_artifact_path
+                else ["draft paper sections from L5_writing scaffolds"]
+            ),
+            "immediate_blocked_work": ["L3 derivation (use retreat_to_l3 if gaps found)"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
 
@@ -1375,6 +1432,9 @@ def aitp_submit_l4_review(
         elif outcome in ("fail", "contradiction", "stuck", "timeout"):
             cand_fm["l4_outcome"] = outcome
             cand_fm["l4_notes"] = notes
+            # Reset status if previously validated — new review invalidates old result
+            if cand_fm.get("status") in ("validated", "partial_validated"):
+                cand_fm["status"] = "submitted"
         _write_md(cand_path, cand_fm, cand_body)
 
     result: dict[str, Any] = {"message": f"L4 review submitted for {slug}: {outcome} (cycle {cycle})."}
@@ -1466,6 +1526,98 @@ def aitp_restore_topic(
     _write_md(state_path, fm, body)
     _append_to_topic_log(root, f"restored from archive to {previous}")
     return f"Topic {topic_slug} restored to stage {previous}."
+
+
+@mcp.tool()
+def aitp_verify_dimensions(
+    expression: str,
+    variable_dimensions: dict,  # JSON object mapping variable → dimension name
+) -> dict[str, Any]:
+    """Verify dimensional consistency of a physics equation using SymPy.
+
+    Checks that every term on the RHS has the same physical dimension as the LHS.
+    This is a pure symbolic check — no LLM judgment involved.
+
+    Args:
+        expression: A physics equation, e.g. "E = m * c**2"
+        variable_dimensions: Map of each variable to its dimension name.
+            Supported dimensions: mass, length, time, charge, temperature,
+            energy, momentum, velocity, acceleration, force, action, frequency,
+            angular_momentum, pressure, power, density, electric_field,
+            magnetic_field, electric_potential, wavefunction, cross_section,
+            entropy, heat_capacity, dimensionless, and others.
+
+    Example:
+        aitp_verify_dimensions("E = m * c**2", {"E": "energy", "m": "mass", "c": "velocity"})
+        → pass=True, rhs_dimensions=["mass * length^2 / time^2"]
+
+        aitp_verify_dimensions("E = m * c", {"E": "energy", "m": "mass", "c": "velocity"})
+        → pass=False, rhs_dimensions=["mass * length / time"]
+    """
+    return check_dimensions(expression, variable_dimensions)
+
+
+@mcp.tool()
+def aitp_verify_algebra(
+    lhs: str,
+    rhs: str,
+    assumptions: dict | None = None,
+) -> dict[str, Any]:
+    """Verify an algebraic identity using SymPy symbolic simplification.
+
+    Checks whether lhs - rhs simplifies to zero. Use for commutators,
+    operator identities, and analytic simplifications.
+
+    Args:
+        lhs: Left-hand side in SymPy-compatible syntax, e.g. "a*a_dag - a_dag*a"
+        rhs: Right-hand side, e.g. "1"
+        assumptions: Optional dict mapping symbols to definitions.
+            e.g., {"N": "a_dag * a"}
+
+    Example:
+        aitp_verify_algebra("(x + y)**2", "x**2 + 2*x*y + y**2")
+        → pass=True
+
+        aitp_verify_algebra("exp(I*pi)", "-1")
+        → pass=True
+    """
+    return check_algebra(lhs, rhs, assumptions)
+
+
+@mcp.tool()
+def aitp_verify_limit(
+    expression: str,
+    limit_var: str,
+    limit_value: str,
+    expected: str,
+    assumptions: dict | None = None,
+) -> dict[str, Any]:
+    r"""Verify that an expression reduces to the expected form in a given limit.
+
+    Essential for correspondence-principle checks: does the quantum result
+    reduce to the classical result when \hbar → 0? Does the relativistic
+    expression reduce to Newtonian when v/c → 0?
+
+    Args:
+        expression: The expression to check, e.g. "(n + 1/2) * hbar * omega"
+        limit_var: Variable approaching the limit, e.g. "n", "hbar", "v"
+        limit_value: Limit value, "0", "oo" (infinity), or an expression
+        expected: Expected limiting form, e.g. "n * hbar * omega"
+        assumptions: Optional symbol definitions
+
+    Example:
+        aitp_verify_limit(
+            "sqrt(1 - v**2/c**2)", "v", "0", "1"
+        )
+        → pass=True (Lorentz factor → 1 in non-relativistic limit)
+
+        aitp_verify_limit(
+            "(n + 1/2)*hbar*omega", "n", "oo",
+            "n*hbar*omega"
+        )
+        → pass=True (quantum → classical equipartition)
+    """
+    return check_limit(expression, limit_var, limit_value, expected, assumptions)
 
 
 @mcp.tool()
@@ -1698,6 +1850,98 @@ def aitp_query_l2(
     }
 
 
+@mcp.tool()
+def aitp_query_l2_index(
+    topics_root: str,
+    domain_filter: str = "",
+) -> dict[str, Any]:
+    """Query the L2 knowledge base index — progressive disclosure entry point.
+
+    Returns a domain taxonomy tree with per-domain summaries and node counts.
+    Use this FIRST when starting a new topic to discover what L2 already knows.
+    Then drill down with aitp_query_l2_graph for specific nodes.
+
+    If domain_filter is given, returns only that domain with full node listings.
+    Otherwise returns all domains with summary-level detail.
+    """
+    global_l2 = _global_l2_path(topics_root)
+    nodes_dir = global_l2 / "graph" / "nodes"
+    if not nodes_dir.is_dir():
+        return {"domains": {}, "total_nodes": 0, "message": "L2 graph is empty — no validated knowledge yet."}
+
+    # Scan all nodes and group by domain
+    domains: dict[str, dict[str, Any]] = {}
+    for node_path in sorted(nodes_dir.glob("*.md")):
+        fm, body = _parse_md(node_path)
+        domain = str(fm.get("domain", "")).strip()
+        if not domain:
+            domain = "uncategorized"
+
+        if domain not in domains:
+            domains[domain] = {
+                "node_count": 0,
+                "by_type": {},
+                "nodes": [],
+            }
+
+        node_info = {
+            "node_id": fm.get("node_id", node_path.stem),
+            "title": fm.get("title", node_path.stem),
+            "type": fm.get("type", "concept"),
+            "trust_basis": fm.get("trust_basis", "source_grounded"),
+            "regime_of_validity": fm.get("regime_of_validity", ""),
+            "mathematical_expression": fm.get("mathematical_expression", ""),
+            "physical_meaning": (fm.get("physical_meaning", "") or "")[:200],
+        }
+
+        domains[domain]["node_count"] += 1
+        ntype = node_info["type"]
+        domains[domain]["by_type"][ntype] = domains[domain]["by_type"].get(ntype, 0) + 1
+        domains[domain]["nodes"].append(node_info)
+
+    # Build progressive-disclosure response
+    domain_summaries: dict[str, Any] = {}
+    for domain_name, data in domains.items():
+        summary = {
+            "node_count": data["node_count"],
+            "by_type": data["by_type"],
+            "key_results": [
+                n["title"] for n in data["nodes"]
+                if n["type"] in ("result", "theorem")
+                and n["trust_basis"] in ("validated", "independently_verified")
+            ][:5],
+            "established_concepts": [
+                n["title"] for n in data["nodes"]
+                if n["type"] == "concept"
+            ][:5],
+            "open_questions": [
+                n["title"] for n in data["nodes"]
+                if n["type"] == "open_question"
+            ],
+        }
+
+        if domain_filter and domain_name != domain_filter:
+            continue
+
+        domain_summaries[domain_name] = summary
+
+    if domain_filter:
+        return {
+            "domain": domain_filter,
+            "summary": domain_summaries.get(domain_filter, {}),
+            "nodes": domains.get(domain_filter, {}).get("nodes", []),
+            "total_nodes_in_domain": domains.get(domain_filter, {}).get("node_count", 0),
+        }
+
+    return {
+        "domains": domain_summaries,
+        "domain_list": sorted(domains.keys()),
+        "total_domains": len(domains),
+        "total_nodes": sum(d["node_count"] for d in domains.values()),
+        "hint": "Use aitp_query_l2_graph to drill into specific nodes.",
+    }
+
+
 # ---------------------------------------------------------------------------
 # L2 knowledge graph operations
 # ---------------------------------------------------------------------------
@@ -1725,10 +1969,12 @@ def aitp_create_l2_node(
     units: str = "",
     source_candidate: str = "",
     energy_scale: str = "",
+    domain: str = "",
 ) -> str:
     """Create a node in the L2 knowledge graph.
 
     node_type: concept | theorem | technique | derivation_chain | result | approximation | open_question | regime_boundary
+    domain: e.g. 'electronic-structure', 'quantum-many-body', 'qft', 'condensed-matter'
     """
     if node_type not in L2_NODE_TYPES:
         return f"Invalid node_type '{node_type}'. Valid: {L2_NODE_TYPES}"
@@ -1749,6 +1995,7 @@ def aitp_create_l2_node(
         "node_id": slug,
         "type": node_type,
         "title": title,
+        "domain": domain,
         "regime_of_validity": regime_of_validity,
         "tower": tower,
         "trust_basis": "source_grounded",
@@ -1794,8 +2041,10 @@ def aitp_update_l2_node(
     tower: str | None = None,
     aliases: list[str] | None = None,
     trust_level: str | None = None,
+    domain: str | None = None,
 ) -> str:
-    """Update fields of an existing L2 graph node."""
+    """Update fields of an existing L2 graph node.
+    Set domain to categorize within the L2 index taxonomy."""
     global_l2 = _global_l2_path(topics_root)
     slug = _slugify(node_id)
     node_path = global_l2 / "graph" / "nodes" / f"{slug}.md"
@@ -1811,6 +2060,8 @@ def aitp_update_l2_node(
         fm["regime_of_validity"] = regime_of_validity
     if tower is not None:
         fm["tower"] = tower
+    if domain is not None:
+        fm["domain"] = domain
     if aliases is not None:
         fm["aliases"] = aliases
     if trust_level and trust_level in TRUST_EVOLUTION:
@@ -1845,16 +2096,21 @@ def aitp_create_l2_edge(
     slug = _slugify(edge_id)
     edge_path = global_l2 / "graph" / "edges" / f"{slug}.md"
 
-    # Verify both nodes exist
+    # Verify both nodes exist — refuse to create dangling edges
     from_slug = _slugify(from_node)
     to_slug = _slugify(to_node)
     from_path = global_l2 / "graph" / "nodes" / f"{from_slug}.md"
     to_path = global_l2 / "graph" / "nodes" / f"{to_slug}.md"
-    warnings = []
+    missing = []
     if not from_path.exists():
-        warnings.append(f"Warning: from_node '{from_slug}' not found in L2 graph")
+        missing.append(f"from_node '{from_slug}'")
     if not to_path.exists():
-        warnings.append(f"Warning: to_node '{to_slug}' not found in L2 graph")
+        missing.append(f"to_node '{to_slug}'")
+    if missing:
+        return (
+            f"Cannot create edge: node(s) not found in L2 graph: {', '.join(missing)}. "
+            f"Create the missing node(s) with aitp_create_l2_node first."
+        )
 
     fm: dict[str, Any] = {
         "edge_id": slug,
@@ -1874,10 +2130,7 @@ def aitp_create_l2_edge(
         f"## Verification\n{'Verified' if correspondence_verified else 'Not yet verified'}\n"
     )
     _write_md(edge_path, fm, body)
-    msg = f"Created L2 edge {slug} ({from_slug} --[{edge_type}]--> {to_slug})"
-    if warnings:
-        msg += ". " + "; ".join(warnings)
-    return msg
+    return f"Created L2 edge {slug} ({from_slug} --[{edge_type}]--> {to_slug})"
 
 
 @mcp.tool()

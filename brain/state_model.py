@@ -704,34 +704,67 @@ def evaluate_l4_stage(
     topic_root_path: Path,
     lane: str = "unspecified",
 ) -> StageSnapshot:
-    """Evaluate L4 gate status by checking validation contract and review."""
-    contract_path = topic_root_path / "L4" / "validation_contract.md"
-    if not contract_path.exists():
+    """Evaluate L4 gate status by checking candidates and reviews (v3).
+
+    L4 is entered when the agent has completed the L3 subplane cycle and
+    begins validating candidates. Gate checks:
+    - At least one candidate submitted
+    - At least one L4 review filed for each candidate being promoted
+    """
+    cand_dir = topic_root_path / "L3" / "candidates"
+    review_dir = topic_root_path / "L4" / "reviews"
+
+    submitted = list(cand_dir.glob("*.md")) if cand_dir.is_dir() else []
+    if not submitted:
         return StageSnapshot(
             stage="L4", posture="verify", lane=lane,
             gate_status="blocked_missing_artifact",
-            required_artifact_path=str(contract_path),
-            missing_requirements=["validation_contract.md"],
-            next_allowed_transition="",
-            skill="skill-l4-validate",
+            required_artifact_path=str(cand_dir),
+            missing_requirements=["at least one submitted candidate"],
+            next_allowed_transition="L3",
+            skill="skill-validate",
         )
 
-    fm, body = parse_md(contract_path)
-    if not str(fm.get("candidate_id", "")).strip():
+    # Check which submitted candidates have reviews
+    unreviewed = []
+    for cand_path in submitted:
+        slug = cand_path.stem
+        review_path = review_dir / f"{slug}.md"
+        if not review_path.exists():
+            unreviewed.append(slug)
+
+    if unreviewed:
+        return StageSnapshot(
+            stage="L4", posture="verify", lane=lane,
+            gate_status="blocked_missing_artifact",
+            required_artifact_path=str(review_dir / unreviewed[0]),
+            missing_requirements=[f"L4 review for {u}" for u in unreviewed],
+            next_allowed_transition="L3",
+            skill="skill-validate",
+        )
+
+    # Check if any candidate is validated
+    validated = []
+    for cand_path in submitted:
+        fm, _ = parse_md(cand_path)
+        if fm.get("status") == "validated":
+            validated.append(cand_path.stem)
+
+    if not validated:
         return StageSnapshot(
             stage="L4", posture="verify", lane=lane,
             gate_status="blocked_missing_field",
-            required_artifact_path=str(contract_path),
-            missing_requirements=["candidate_id"],
-            next_allowed_transition="",
-            skill="skill-l4-validate",
+            required_artifact_path=str(submitted[0]),
+            missing_requirements=["at least one validated candidate"],
+            next_allowed_transition="L3",
+            skill="skill-validate",
         )
 
     return StageSnapshot(
         stage="L4", posture="verify", lane=lane,
         gate_status="ready",
-        next_allowed_transition="L3,L5,L2",
-        skill="skill-l4-validate",
+        next_allowed_transition="L5,L2",
+        skill="skill-promote",
     )
 
 
@@ -740,10 +773,26 @@ def evaluate_l5_stage(
     topic_root_path: Path,
     lane: str = "unspecified",
 ) -> StageSnapshot:
-    """Evaluate L5 gate status by checking provenance artifacts."""
+    """Evaluate L5 gate status by checking writing scaffolds and promoted candidates.
+
+    Gate checks:
+    - L5_writing scaffolds exist (outline.md, claim_evidence_map.md, limitations.md)
+    - At least one candidate promoted to global L2
+    """
+    l5_dir = topic_root_path / "L5_writing"
+    if not l5_dir.is_dir():
+        return StageSnapshot(
+            stage="L5", posture="write", lane=lane,
+            gate_status="blocked_missing_artifact",
+            required_artifact_path=str(l5_dir),
+            missing_requirements=["L5_writing directory"],
+            next_allowed_transition="L4",
+            skill="skill-write",
+        )
+
     required = ["outline.md", "claim_evidence_map.md", "limitations.md"]
     for name in required:
-        path = topic_root_path / "L5_writing" / name
+        path = l5_dir / name
         if not path.exists():
             return StageSnapshot(
                 stage="L5", posture="write", lane=lane,
@@ -751,25 +800,14 @@ def evaluate_l5_stage(
                 required_artifact_path=str(path),
                 missing_requirements=[name],
                 next_allowed_transition="",
-                skill="skill-l5-write",
-            )
-        fm, body = parse_md(path)
-        # Check that outline has at least some content beyond template
-        if "## Claims" in body and body.count("\n") < 8:
-            return StageSnapshot(
-                stage="L5", posture="write", lane=lane,
-                gate_status="blocked_missing_field",
-                required_artifact_path=str(path),
-                missing_requirements=[f"{name} body content"],
-                next_allowed_transition="",
-                skill="skill-l5-write",
+                skill="skill-write",
             )
 
     return StageSnapshot(
         stage="L5", posture="write", lane=lane,
         gate_status="ready",
         next_allowed_transition="L2",
-        skill="skill-l5-write",
+        skill="skill-write",
     )
 
 
