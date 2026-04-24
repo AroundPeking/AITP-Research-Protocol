@@ -592,6 +592,282 @@ def aitp_submit_candidate(
 
 
 # ---------------------------------------------------------------------------
+# L3 idea branching — multiple approaches explored in parallel
+# ---------------------------------------------------------------------------
+
+_IDEA_STATUSES = {"active", "failed", "succeeded", "abandoned", "superseded"}
+
+
+@mcp.tool()
+def aitp_submit_idea(
+    topics_root: str,
+    topic_slug: str,
+    idea_slug: str,
+    title: str,
+    approach: str,
+    derivation: str = "",
+    outcome: str = "active",
+    lessons_learned: str = "",
+    inspired_by: list[str] | None = None,
+    supersedes: list[str] | None = None,
+) -> dict[str, Any]:
+    """Record a new derivation approach or idea attempt in L3.
+
+    Research is branching — you may have multiple ideas for how to derive
+    a result. Each idea gets its own record. Failed ideas are kept visible
+    because their lessons may help other approaches succeed.
+
+    Args:
+        idea_slug: Short identifier, e.g. 'algebraic-method', 'path-integral-attempt'
+        title: Human-readable name
+        approach: Description of the approach/method
+        derivation: Key derivation steps (optional, can be filled progressively)
+        outcome: active | failed | succeeded | abandoned | superseded
+        lessons_learned: What was learned, even from failure
+        inspired_by: List of idea slugs that inspired this one
+        supersedes: List of idea slugs this one replaces
+
+    Returns:
+        Dict with confirmation and popup gate.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    slug = _slugify(idea_slug)
+    ideas_dir = root / "L3" / "ideas"
+    ideas_dir.mkdir(parents=True, exist_ok=True)
+    idea_path = ideas_dir / f"{slug}.md"
+
+    is_update = idea_path.exists()
+    if is_update:
+        existing_fm, _ = _parse_md(idea_path)
+
+    fm = {
+        "idea_slug": slug,
+        "title": title,
+        "status": outcome if outcome in _IDEA_STATUSES else "active",
+        "approach": approach,
+        "created_at": _now() if not is_update else existing_fm.get("created_at", _now()),
+        "updated_at": _now(),
+    }
+    if inspired_by:
+        fm["inspired_by"] = inspired_by
+    if supersedes:
+        fm["supersedes"] = supersedes
+    if lessons_learned:
+        fm["lessons_learned"] = lessons_learned
+
+    body = (
+        f"# {title}\n\n"
+        f"## Approach\n{approach}\n\n"
+        f"## Derivation\n{derivation or '(To be filled as work progresses)'}\n\n"
+        f"## Outcome\n{outcome}\n\n"
+        f"## Lessons Learned\n{lessons_learned or '(To be filled)'}\n"
+    )
+
+    _write_md(idea_path, fm, body)
+
+    # Append to cross-idea log
+    log_path = ideas_dir / "_log.md"
+    if not log_path.exists():
+        _write_md(log_path, {
+            "kind": "ideas_log",
+            "topic_slug": topic_slug,
+            "created_at": _now(),
+        }, "# Ideas Log\n\n## Timeline\n")
+    _, log_body = _parse_md(log_path)
+    action = "updated" if is_update else "created"
+    log_body += f"\n- {_now()}: {action} idea `{slug}` — **{title}** (status: {outcome})"
+    _write_md(log_path, {"kind": "ideas_log", "updated_at": _now()}, log_body)
+
+    # If superseding other ideas, update them
+    if supersedes:
+        for sup_slug in supersedes:
+            sup_path = ideas_dir / f"{_slugify(sup_slug)}.md"
+            if sup_path.exists():
+                sup_fm, sup_body = _parse_md(sup_path)
+                sup_fm["status"] = "superseded"
+                sup_fm["superseded_by"] = slug
+                sup_fm["updated_at"] = _now()
+                _write_md(sup_path, sup_fm, sup_body)
+
+    # Auto-refresh flow notebook to include ideas section
+    state_fm, _ = _parse_md(root / "state.md")
+    _auto_refresh_flow_notebook(root, state_fm)
+
+    msg = f"Idea '{slug}' {action} (status: {outcome})."
+    if outcome == "failed":
+        msg += " Failed approaches are valuable — their lessons will be preserved."
+
+    return _GateResult({
+        "message": msg,
+        "popup_gate": {
+            "question": f"Idea '{title}': continue exploring or switch approach?",
+            "header": "Idea",
+            "options": [
+                {"label": "Continue this idea", "description": "Keep working on this approach. Fill derivation steps progressively."},
+                {"label": "Create another idea", "description": "Record a different approach. Multiple ideas can be explored in parallel."},
+                {"label": "Mark failed", "description": "This approach didn't work. Record lessons and keep visible for other ideas."},
+            ],
+        },
+        "idea_slug": slug,
+        "is_update": is_update,
+    })
+
+
+@mcp.tool()
+def aitp_list_ideas(
+    topics_root: str,
+    topic_slug: str,
+    status_filter: str = "",
+) -> dict[str, Any]:
+    """List all L3 ideas with their status and key findings.
+
+    Args:
+        status_filter: optional filter — active, failed, succeeded, abandoned, superseded
+    """
+    root = _topic_root(topics_root, topic_slug)
+    ideas_dir = root / "L3" / "ideas"
+    if not ideas_dir.is_dir():
+        return {"ideas": [], "count": 0, "message": "No ideas recorded yet."}
+
+    ideas = []
+    for ip in sorted(ideas_dir.glob("*.md")):
+        if ip.stem.startswith("_"):
+            continue  # Skip _log.md
+        fm, body = _parse_md(ip)
+        if status_filter and fm.get("status") != status_filter:
+            continue
+        ideas.append({
+            "slug": fm.get("idea_slug", ip.stem),
+            "title": fm.get("title", ip.stem),
+            "status": fm.get("status", "active"),
+            "approach": (fm.get("approach", "") or "")[:150],
+            "lessons_learned": (fm.get("lessons_learned", "") or "")[:200],
+            "superseded_by": fm.get("superseded_by", ""),
+            "inspired_by": fm.get("inspired_by", []),
+            "supersedes": fm.get("supersedes", []),
+            "created_at": fm.get("created_at", ""),
+            "updated_at": fm.get("updated_at", ""),
+        })
+
+    # Sort: active first, then succeeded, then failed, then others
+    def _sort_key(i):
+        order = {"active": 0, "succeeded": 1, "failed": 2, "superseded": 3, "abandoned": 4}
+        return (order.get(i["status"], 5), i["slug"])
+
+    ideas.sort(key=_sort_key)
+
+    return {
+        "ideas": ideas,
+        "count": len(ideas),
+        "by_status": {
+            s: sum(1 for i in ideas if i["status"] == s)
+            for s in _IDEA_STATUSES
+        },
+        "log_path": str(ideas_dir / "_log.md"),
+    }
+
+
+@mcp.tool()
+def aitp_promote_idea_to_candidate(
+    topics_root: str,
+    topic_slug: str,
+    idea_slug: str,
+    candidate_title: str = "",
+    candidate_claim: str = "",
+) -> dict[str, Any]:
+    """Promote a successful L3 idea to a full candidate for L4 validation.
+
+    Copies the idea's approach and derivation into a new candidate file.
+    The idea is marked as 'succeeded' and linked to the candidate.
+
+    Args:
+        idea_slug: The idea to promote
+        candidate_title: Title for the candidate (defaults to idea title)
+        candidate_claim: The claim statement (extracted from derivation if empty)
+    """
+    root = _topic_root(topics_root, topic_slug)
+    slug = _slugify(idea_slug)
+    ideas_dir = root / "L3" / "ideas"
+    idea_path = ideas_dir / f"{slug}.md"
+
+    if not idea_path.exists():
+        return {"message": f"Idea '{slug}' not found. Use aitp_submit_idea first."}
+
+    fm, body = _parse_md(idea_path)
+    if fm.get("status") not in ("active", "succeeded"):
+        return {
+            "message": (
+                f"Idea '{slug}' has status '{fm.get('status')}', "
+                f"not 'active' or 'succeeded'. Only viable ideas can be promoted."
+            ),
+        }
+
+    # Create candidate from idea
+    title = candidate_title or fm.get("title", slug)
+    claim = candidate_claim or f"Derived via approach: {fm.get('approach', '')}"
+
+    # Extract derivation from idea body
+    derivation = ""
+    if "## Derivation" in body:
+        derivation = body.split("## Derivation", 1)[1].strip()
+        if "## Outcome" in derivation:
+            derivation = derivation.split("## Outcome")[0].strip()
+
+    # Use aitp_submit_candidate's logic inline
+    cand_dir = root / "L3" / "candidates"
+    cand_dir.mkdir(parents=True, exist_ok=True)
+    cand_path = cand_dir / f"{slug}.md"
+
+    state_fm, _ = _parse_md(root / "state.md")
+    l3_mode = state_fm.get("l3_mode", "research")
+
+    cand_fm = {
+        "candidate_id": slug,
+        "title": title,
+        "claim": claim,
+        "status": "submitted",
+        "mode": "candidate",
+        "candidate_type": "research_claim",
+        "l3_mode": l3_mode,
+        "source_idea": slug,
+        "depends_on": [],
+        "created_at": _now(),
+        "updated_at": _now(),
+    }
+    cand_body = (
+        f"# {title}\n\n"
+        f"## Claim\n{claim}\n\n"
+        f"## Evidence\nDerived via idea `{slug}`:\n\n{derivation[:2000]}\n\n"
+        f"## Assumptions\nExtracted from idea approach.\n\n"
+        f"## Validation Criteria\nTo be validated via L4 review.\n"
+    )
+    _write_md(cand_path, cand_fm, cand_body)
+
+    # Update idea
+    fm["status"] = "succeeded"
+    fm["promoted_to_candidate"] = slug
+    fm["promoted_at"] = _now()
+    fm["updated_at"] = _now()
+    _write_md(idea_path, fm, body)
+
+    _auto_refresh_flow_notebook(root, state_fm)
+
+    return _GateResult({
+        "message": f"Idea '{slug}' promoted to candidate '{slug}'. L4 validation can now begin.",
+        "idea_slug": slug,
+        "candidate_id": slug,
+        "popup_gate": {
+            "question": f"Idea '{title}' promoted. Validate via L4 review now?",
+            "header": "Promote Idea",
+            "options": [
+                {"label": "Validate now", "description": "Submit this candidate for L4 adversarial review."},
+                {"label": "Promote other ideas", "description": "Check other ideas first before validating."},
+            ],
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
 # Promotion gate lifecycle
 # ---------------------------------------------------------------------------
 
@@ -2747,6 +3023,37 @@ def _build_flow_notebook_content(
     else:
         tex.append(r"(No structured derivation recorded. See subplane artifacts.)")
         tex.append("")
+
+    # ---- 5.5 Ideas Explored ----
+    ideas_dir = root / "L3" / "ideas"
+    if ideas_dir.is_dir():
+        ideas_list = sorted(
+            [ip for ip in ideas_dir.glob("*.md") if not ip.stem.startswith("_")],
+            key=lambda p: p.stat().st_mtime, reverse=True,
+        )
+        if ideas_list:
+            tex.append(r"\section{Ideas Explored}")
+            tex.append("")
+            for ip in ideas_list:
+                fm_i, body_i = _parse_md(ip)
+                status = fm_i.get("status", "active")
+                status_cmd = {
+                    "succeeded": r"\textbf{[SUCCEEDED]}",
+                    "failed": r"\textbf{[FAILED]}",
+                    "active": r"\textbf{[ACTIVE]}",
+                    "abandoned": r"\textbf{[ABANDONED]}",
+                    "superseded": r"\textbf{[SUPERSEDED]}",
+                }.get(status, "")
+                tex.append(r"\subsection*{" + _esc(fm_i.get("title", ip.stem)) + " " + status_cmd + "}")
+                tex.append("")
+                tex.append(r"\textbf{Approach:} " + _esc((fm_i.get("approach", "") or "")[:500]))
+                tex.append("")
+                if fm_i.get("lessons_learned"):
+                    tex.append(r"\textbf{Lessons:} " + _esc(fm_i["lessons_learned"][:300]))
+                    tex.append("")
+                if fm_i.get("superseded_by"):
+                    tex.append(r"Superseded by: " + _esc(fm_i["superseded_by"]))
+                    tex.append("")
 
     # ---- 6. Results ----
     tex.append(r"\section{Results}")
