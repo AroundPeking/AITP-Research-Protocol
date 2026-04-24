@@ -1,7 +1,7 @@
 # AITP Specification v2
 
 Status: authoritative specification, subordinate to CHARTER.md.
-Last updated: 2026-04-19.
+Last updated: 2026-04-24.
 Version: 2.0 (brain-driven, skill-first, markdown-only).
 
 This document is the single specification that bridges the Charter to the
@@ -153,6 +153,12 @@ not a substitute for validation.
 - L3-A: candidate formation — formal claims with evidence and assumptions.
 - L3 is the unified detailed-derivation home, including source reconstructions
   and novel candidate derivations.
+- Notebook-facing L3 rounds must declare a scientific `round_type`, satisfy the
+  required obligation blocks for that round, and record missing obligations
+  honestly enough to block or qualify claim use when necessary.
+- Cross-round obligations such as convention ledgers, source-anchor tables, and
+  failure-route notes are triggered by content and must flow into unfinished
+  work when missing.
 - L3-R: interpret L4 results, decide routing.
 - L3-D: prepare material for promotion.
 - Conjectures, source reconstructions, failed attempts, candidate derivations, anomalies,
@@ -532,6 +538,7 @@ All sub-protocols are organized into three domains:
 | L1 intake protocol | `docs/protocols/L1_intake_protocol.md` | Assumption extraction, reading depth |
 | L2 backend interface | `docs/protocols/L2_backend_interface.md` | Canonical knowledge, promotion |
 | L3 execution protocol | `docs/protocols/L3_execution_protocol.md` | Ideation, planning, candidate formation |
+| Topic notebook obligation protocol | `docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md` | Round types, obligation closure, claim-readiness, physicist-facing notebook ordering |
 | L4 validation protocol | `docs/protocols/L4_validation_protocol.md` | Validation types, trust audit |
 | L5 writing protocol | `docs/protocols/L5_writing_protocol.md` | Paper writing, publication artifacts |
 | Promotion pipeline | `docs/protocols/promotion_pipeline.md` | Promotion flow and gates |

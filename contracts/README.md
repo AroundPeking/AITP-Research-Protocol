@@ -2,7 +2,7 @@
 
 AITP uses durable contracts to keep research state inspectable and auditable.
 
-The first public contract family is:
+The current public contract family is:
 
 - `research-question`
 - `candidate-claim`
@@ -10,6 +10,11 @@ The first public contract family is:
 - `validation`
 - `operation`
 - `promotion-or-reject`
+- `development-task`
+- `computation-workflow`
+- `compute-resource`
+- `benchmark-report`
+- `calculation-debug`
 
 Each contract has:
 
