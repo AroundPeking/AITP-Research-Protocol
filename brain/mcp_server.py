@@ -213,6 +213,105 @@ def aitp_list_topics(topics_root: str) -> list[dict[str, Any]]:
 
 
 @mcp.tool()
+def aitp_health_check(topics_root: str) -> dict[str, Any]:
+    """Return aggregated health status of ALL topics.
+
+    Returns counts by stage, gate status, lane, and per-topic details
+    including blocked reasons, candidate counts, source counts, and
+    last-updated timestamps. Use as a single dashboard call before
+    diving into individual topics.
+    """
+    root = topics_dir(topics_root)
+    if not root.is_dir():
+        return {"error": f"Topics directory not found: {root}", "topics": [], "summary": {}}
+
+    topics_list: list[dict[str, Any]] = []
+    summary: dict[str, Any] = {
+        "total_topics": 0,
+        "by_stage": {},
+        "by_gate_status": {},
+        "by_lane": {},
+        "blocked_count": 0,
+        "ready_count": 0,
+        "total_candidates": 0,
+        "total_sources": 0,
+    }
+
+    for topic_dir in sorted(root.iterdir()):
+        if not topic_dir.is_dir():
+            continue
+        state_path = topic_dir / "state.md"
+        if not state_path.exists():
+            continue
+        slug = topic_dir.name
+
+        fm, _ = _parse_md(state_path)
+        stage = str(fm.get("stage", "L0")).strip() or "L0"
+        lane = str(fm.get("lane", "unspecified")).strip() or "unspecified"
+
+        # Live gate evaluation: gate_status from state.md may be stale
+        try:
+            if stage == "L3":
+                snap = evaluate_l3_stage(_parse_md, topic_dir, lane=lane)
+            elif stage == "L0":
+                snap = evaluate_l0_stage(_parse_md, topic_dir, lane=lane)
+            else:
+                snap = evaluate_l1_stage(_parse_md, topic_dir, lane=lane)
+            gate = snap.gate_status
+            posture = snap.posture
+            l3_subplane = snap.l3_subplane or ""
+            l3_mode = snap.l3_mode or ""
+            missing = snap.missing_requirements
+        except Exception as exc:
+            gate = "error"
+            posture = "unknown"
+            l3_subplane = ""
+            l3_mode = ""
+            missing = [f"evaluation error: {exc}"]
+
+        # Source and candidate counts
+        src_dir = topic_dir / "L0" / "sources"
+        src_count = len(list(src_dir.glob("*.md"))) if src_dir.is_dir() else 0
+        cand_dir = topic_dir / "L3" / "candidates"
+        cand_count = len(list(cand_dir.glob("*.md"))) if cand_dir.is_dir() else 0
+
+        entry = {
+            "topic_slug": slug,
+            "title": fm.get("title", slug),
+            "stage": stage,
+            "posture": posture,
+            "lane": lane,
+            "gate_status": gate,
+            "l3_subplane": l3_subplane,
+            "l3_mode": l3_mode,
+            "missing_requirements": missing,
+            "sources_count": src_count,
+            "candidates_count": cand_count,
+            "last_updated": str(fm.get("updated_at", "")),
+        }
+        topics_list.append(entry)
+
+        # Aggregate
+        summary["total_topics"] += 1
+        summary["by_stage"][stage] = summary["by_stage"].get(stage, 0) + 1
+        summary["by_gate_status"][gate] = summary["by_gate_status"].get(gate, 0) + 1
+        summary["by_lane"][lane] = summary["by_lane"].get(lane, 0) + 1
+        summary["total_sources"] += src_count
+        summary["total_candidates"] += cand_count
+        if gate.startswith("blocked"):
+            summary["blocked_count"] += 1
+        elif gate == "ready":
+            summary["ready_count"] += 1
+
+    return {
+        "summary": summary,
+        "topics": topics_list,
+        "topics_root": str(root),
+        "checked_at": _now(),
+    }
+
+
+@mcp.tool()
 def aitp_get_status(topics_root: str, topic_slug: str) -> dict[str, Any]:
     """Read topic state and return current status, stage, posture, and gate."""
     root = _topic_root(topics_root, topic_slug)
@@ -662,14 +761,24 @@ def aitp_promote_candidate(
     # Also create a graph node if the candidate has a type and regime
     cand_type = fm.get("candidate_type", "research_claim")
     regime = fm.get("regime_of_validity", "")
-    if cand_type != "research_claim" and cand_type in L2_NODE_TYPES:
+
+    # Map study candidate types to L2 node types
+    _STUDY_TO_L2_NODE_TYPE = {
+        "atomic_concept": "concept",
+        "derivation_chain": "derivation_chain",
+        "correspondence_link": "regime_boundary",
+        "regime_boundary": "regime_boundary",
+        "open_question": "open_question",
+    }
+    mapped_type = _STUDY_TO_L2_NODE_TYPE.get(cand_type, cand_type)
+    if cand_type != "research_claim" and mapped_type in L2_NODE_TYPES:
         try:
             _ensure_l2_graph_dirs(topics_root)
             global_l2 = _global_l2_path(topics_root)
             node_path = global_l2 / "graph" / "nodes" / f"{slug}.md"
             node_fm = {
                 "node_id": slug,
-                "type": cand_type,
+                "type": mapped_type,
                 "title": fm.get("title", slug),
                 "regime_of_validity": regime,
                 "trust_basis": trust_basis,
@@ -2088,6 +2197,7 @@ def aitp_create_l2_node(
     aliases: list[str] | None = None,
     units: str = "",
     source_candidate: str = "",
+    energy_scale: str = "",
 ) -> str:
     """Create a node in the L2 knowledge graph.
 
@@ -2120,6 +2230,7 @@ def aitp_create_l2_node(
         "aliases": aliases or [],
         "units": units,
         "mathematical_expression": mathematical_expression,
+        "energy_scale": energy_scale,
         "created_at": existing_fm.get("created_at", _now()),
         "updated_at": _now(),
     }
@@ -2460,18 +2571,38 @@ def aitp_coverage_map(
         "synthesis": "active_synthesis.md",
     }
 
+    # Map subplanes to the body sections (## Headings) that indicate progress.
+    subplane_sections = {
+        "source_decompose": ["Source Reference", "Atomic Claims", "Claim-Concept Map", "L2 Overlap Check"],
+        "step_derive": ["Derivation Chains", "Step-by-Step Trace", "Feynman Self-Check", "Unresolved Steps"],
+        "gap_audit": ["Unstated Assumptions", "Approximation Regimes", "Correspondence Check", "Prerequisite Gaps", "Severity Assessment"],
+        "synthesis": ["Reconstructed Contribution", "L2 Node Proposals", "L2 Edge Proposals", "Open Questions", "Regime Annotations"],
+    }
+
     for sp, artifact_name in subplanes_config.items():
         artifact_path = root / "L3" / sp / artifact_name
         if not artifact_path.exists():
-            subplane_status[sp] = {"status": "not_started", "filled_fields": 0}
+            subplane_status[sp] = {"status": "not_started", "filled_fields": 0, "total_fields": len(subplane_sections.get(sp, []))}
             continue
         fm, body = _parse_md(artifact_path)
-        filled = sum(1 for f in fm.get("required_fields", [])
-                     if str(fm.get(f, "")).strip())
+        sections = subplane_sections.get(sp, [])
+        filled = 0
+        for sec in sections:
+            # A section counts as filled if there's non-whitespace content after its heading
+            marker = f"## {sec}"
+            idx = body.find(marker)
+            if idx == -1:
+                continue
+            after = body[idx + len(marker):]
+            # Find content up to next ## heading (or end of body)
+            next_heading = after.find("\n## ")
+            section_content = after[:next_heading] if next_heading != -1 else after
+            if section_content.strip():
+                filled += 1
         subplane_status[sp] = {
-            "status": "partial" if filled < len(fm.get("required_fields", [])) else "complete",
+            "status": "partial" if filled < len(sections) else "complete",
             "filled_fields": filled,
-            "total_fields": len(fm.get("required_fields", [])),
+            "total_fields": len(sections),
         }
 
     # Count claims and gaps
@@ -2734,6 +2865,403 @@ def aitp_return_from_l5(
             f"After revising, re-advance to L5 when ready."
         ),
     })
+
+
+# ---------------------------------------------------------------------------
+# Visualization tools (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def aitp_visualize_eft_tower(
+    topics_root: str,
+    tower_id: str,
+) -> dict[str, Any]:
+    """Render an EFT tower as a structured ASCII diagram with energy axis, nodes, and correspondence links.
+
+    Returns a dict with 'ascii' (text diagram) and 'metadata' (layer/node counts).
+    """
+    global_l2 = _global_l2_path(topics_root)
+    tower_path = global_l2 / "graph" / "towers" / f"{_slugify(tower_id)}.md"
+    if not tower_path.exists():
+        return {"error": f"Tower '{tower_id}' not found."}
+
+    fm, body = _parse_md(tower_path)
+    layers = fm.get("layers", [])
+    if not layers:
+        return {"ascii": f"# {fm.get('name', tower_id)}\n\n(no layers defined)", "metadata": {"layer_count": 0}}
+
+    # Build node lookup for titles
+    nodes_dir = global_l2 / "graph" / "nodes"
+    node_titles = {}
+    if nodes_dir.exists():
+        for np in nodes_dir.glob("*.md"):
+            nfm, _ = _parse_md(np)
+            node_titles[np.stem] = nfm.get("title", np.stem)
+
+    # Build correspondence edges for this tower's nodes
+    edges_dir = global_l2 / "graph" / "edges"
+    corr_edges = []
+    tower_node_ids = set()
+    for layer in layers:
+        theories = layer.get("theories", "")
+        for t in theories.split(","):
+            t = t.strip()
+            if t:
+                tower_node_ids.add(_slugify(t))
+
+    if edges_dir.exists():
+        for ep in edges_dir.glob("*.md"):
+            efm, _ = _parse_md(ep)
+            if efm.get("type") in ("limits_to", "matches_onto", "emerges_from"):
+                fn = efm.get("from_node", "")
+                tn = efm.get("to_node", "")
+                if fn in tower_node_ids or tn in tower_node_ids:
+                    corr_edges.append({
+                        "from": fn,
+                        "to": tn,
+                        "type": efm.get("type", ""),
+                        "condition": efm.get("regime_condition", ""),
+                        "verified": efm.get("correspondence_verified", False),
+                    })
+
+    # Render ASCII tower
+    lines = []
+    lines.append(f"# {fm.get('name', tower_id)}")
+    lines.append(f"# Energy range: {fm.get('energy_range', '?')}")
+    lines.append("")
+    lines.append("  Energy")
+    lines.append("    ^")
+
+    for i, layer in enumerate(reversed(layers)):
+        lid = layer.get("id", f"layer-{i}")
+        escale = layer.get("energy_scale", "?")
+        theories = layer.get("theories", "")
+        theory_list = [t.strip() for t in theories.split(",") if t.strip()]
+        theory_names = [node_titles.get(_slugify(t), t) for t in theory_list]
+
+        # Find correspondence edges involving this layer's nodes
+        layer_edges = []
+        for e in corr_edges:
+            for t in theory_list:
+                if _slugify(t) in (e["from"], e["to"]):
+                    layer_edges.append(e)
+
+        if i == 0 and len(layers) > 1:
+            lines.append("    |")
+        lines.append(f"    +-- [{escale}]  {lid}")
+        for tn in theory_names:
+            lines.append(f"    |   |  - {tn}")
+        for e in layer_edges:
+            arrow = "-->" if e["type"] == "limits_to" else "<--" if e["type"] == "emerges_from" else "==>"
+            v_mark = " [verified]" if e.get("verified") else " [unverified]"
+            partner = e["to"] if e["from"] in {_slugify(t) for t in theory_list} else e["from"]
+            lines.append(f"    |   |  {arrow} {partner}{v_mark}")
+        lines.append("    |")
+
+    lines.append("    v")
+    lines.append("  (IR limit)")
+    lines.append("")
+
+    # Correspondence summary
+    if corr_edges:
+        lines.append("## Correspondence Links")
+        for e in corr_edges:
+            v = "OK" if e.get("verified") else "!!"
+            lines.append(f"  [{v}] {e['from']} --[{e['type']}]--> {e['to']}")
+            if e.get("condition"):
+                lines.append(f"       when: {e['condition']}")
+        lines.append("")
+
+    return {
+        "ascii": "\n".join(lines),
+        "metadata": {
+            "tower_id": _slugify(tower_id),
+            "layer_count": len(layers),
+            "node_count": len(tower_node_ids),
+            "correspondence_count": len(corr_edges),
+            "unverified_count": sum(1 for e in corr_edges if not e.get("verified")),
+        },
+    }
+
+
+@mcp.tool()
+def aitp_visualize_derivation_chain(
+    topics_root: str,
+    node_id: str,
+) -> dict[str, Any]:
+    """Render a derivation chain as a step-by-step ASCII diagram with justifications and dependencies.
+
+    Reads a derivation_chain node and traces connected edges to build a visual chain.
+    """
+    global_l2 = _global_l2_path(topics_root)
+    node_path = global_l2 / "graph" / "nodes" / f"{_slugify(node_id)}.md"
+    if not node_path.exists():
+        return {"error": f"Node '{node_id}' not found."}
+
+    fm, body = _parse_md(node_path)
+    if fm.get("type") != "derivation_chain":
+        return {"error": f"Node '{node_id}' is type '{fm.get('type')}', not 'derivation_chain'."}
+
+    # Parse body for step information
+    # Expected sections: ## Step-by-Step Trace or inline steps
+    steps = []
+    lines = body.split("\n")
+    step_idx = 0
+    in_steps = False
+    current_step = None
+
+    for line in lines:
+        if "## Step-by-Step" in line or "## Steps" in line:
+            in_steps = True
+            continue
+        if in_steps and line.startswith("## "):
+            in_steps = False
+            if current_step:
+                steps.append(current_step)
+                current_step = None
+            continue
+        if in_steps and line.strip().startswith("- ") or line.strip().startswith("* "):
+            if current_step:
+                steps.append(current_step)
+            step_idx += 1
+            current_step = {"step_id": f"S{step_idx}", "text": line.strip()[2:], "depends_on": [], "justification": ""}
+        elif in_steps and current_step and line.strip():
+            current_step["text"] += " " + line.strip()
+    if current_step:
+        steps.append(current_step)
+
+    # Find connected nodes via edges
+    edges_dir = global_l2 / "graph" / "edges"
+    incoming = []
+    outgoing = []
+    slug = _slugify(node_id)
+    if edges_dir.exists():
+        for ep in edges_dir.glob("*.md"):
+            efm, _ = _parse_md(ep)
+            if efm.get("from_node") == slug:
+                outgoing.append({"to": efm.get("to_node", ""), "type": efm.get("type", "")})
+            elif efm.get("to_node") == slug:
+                incoming.append({"from": efm.get("from_node", ""), "type": efm.get("type", "")})
+
+    # Build node title lookup
+    nodes_dir = global_l2 / "graph" / "nodes"
+    node_titles = {}
+    if nodes_dir.exists():
+        for np in nodes_dir.glob("*.md"):
+            nfm, _ = _parse_md(np)
+            node_titles[np.stem] = nfm.get("title", np.stem)
+
+    # Render ASCII
+    out = []
+    out.append(f"# Derivation Chain: {fm.get('title', node_id)}")
+    out.append(f"Regime: {fm.get('regime_of_validity', 'unspecified')}")
+    out.append(f"Trust: {fm.get('trust_basis', 'unknown')}")
+    out.append("")
+
+    if incoming:
+        out.append("## Prerequisites")
+        for inc in incoming:
+            out.append(f"  <-- [{inc['type']}] {node_titles.get(inc['from'], inc['from'])}")
+        out.append("")
+
+    if steps:
+        out.append("## Steps")
+        for step in steps:
+            out.append(f"  [{step['step_id']}] {step['text']}")
+            if step.get("justification"):
+                out.append(f"       just: {step['justification']}")
+            if step.get("depends_on"):
+                out.append(f"       deps: {', '.join(step['depends_on'])}")
+            out.append("       |")
+        out.append("       v")
+    else:
+        out.append("## Steps (from body text)")
+        for line in body.split("\n"):
+            if line.strip():
+                out.append(f"  {line}")
+        out.append("")
+
+    if outgoing:
+        out.append("## Results")
+        for og in outgoing:
+            out.append(f"  --> [{og['type']}] {node_titles.get(og['to'], og['to'])}")
+        out.append("")
+
+    return {
+        "ascii": "\n".join(out),
+        "metadata": {
+            "node_id": slug,
+            "step_count": len(steps),
+            "incoming_edges": len(incoming),
+            "outgoing_edges": len(outgoing),
+        },
+    }
+
+
+@mcp.tool()
+def aitp_visualize_knowledge_graph(
+    topics_root: str,
+    center_node: str = "",
+    max_depth: int = 2,
+    node_type: str = "",
+) -> dict[str, Any]:
+    """Render a local subgraph of the L2 knowledge graph as an ASCII diagram.
+
+    Shows nodes, edges, trust levels, conflicts, and missing prerequisites.
+    If center_node is given, shows its neighborhood up to max_depth.
+    If node_type is given, filters to that type.
+    """
+    global_l2 = _global_l2_path(topics_root)
+    nodes_dir = global_l2 / "graph" / "nodes"
+    edges_dir = global_l2 / "graph" / "edges"
+    conflicts_dir = global_l2 / "conflicts"
+
+    if not nodes_dir.exists() or not any(nodes_dir.iterdir()):
+        return {"ascii": "(empty graph)", "metadata": {"node_count": 0, "edge_count": 0}}
+
+    # Load all nodes
+    all_nodes = {}
+    for np in nodes_dir.glob("*.md"):
+        nfm, _ = _parse_md(np)
+        nid = np.stem
+        all_nodes[nid] = {
+            "id": nid,
+            "type": nfm.get("type", "unknown"),
+            "title": nfm.get("title", nid),
+            "trust": nfm.get("trust_basis", ""),
+            "regime": nfm.get("regime_of_validity", ""),
+            "version": nfm.get("version", 1),
+        }
+
+    # Filter by type if requested
+    if node_type:
+        all_nodes = {k: v for k, v in all_nodes.items() if v["type"] == node_type}
+
+    # Load all edges
+    all_edges = []
+    if edges_dir.exists():
+        for ep in edges_dir.glob("*.md"):
+            efm, _ = _parse_md(ep)
+            all_edges.append({
+                "id": ep.stem,
+                "from": efm.get("from_node", ""),
+                "to": efm.get("to_node", ""),
+                "type": efm.get("type", ""),
+                "verified": efm.get("correspondence_verified", False),
+            })
+
+    # Determine visible subgraph
+    if center_node:
+        center = _slugify(center_node)
+        visible = {center}
+        frontier = {center}
+        for _ in range(max_depth):
+            next_frontier = set()
+            for nid in frontier:
+                for e in all_edges:
+                    if e["from"] == nid and e["to"] in all_nodes:
+                        next_frontier.add(e["to"])
+                    if e["to"] == nid and e["from"] in all_nodes:
+                        next_frontier.add(e["from"])
+            visible |= next_frontier
+            frontier = next_frontier
+        nodes = {k: v for k, v in all_nodes.items() if k in visible}
+        edges = [e for e in all_edges if e["from"] in visible and e["to"] in visible]
+    else:
+        nodes = all_nodes
+        edges = all_edges
+
+    # Load conflicts
+    conflicts = []
+    if conflicts_dir.exists():
+        for cp in conflicts_dir.glob("*.md"):
+            cfm, _ = _parse_md(cp)
+            conflicts.append({
+                "id": cp.stem,
+                "nodes": cfm.get("involved_nodes", []),
+                "description": cfm.get("description", ""),
+                "resolved": cfm.get("resolved", False),
+            })
+
+    # Find nodes without limits_to edges (potential correspondence gaps)
+    result_nodes = {nid for nid, n in nodes.items() if n["type"] in ("result", "approximation")}
+    nodes_with_limits = set()
+    for e in edges:
+        if e["type"] == "limits_to":
+            nodes_with_limits.add(e["from"])
+    missing_correspondence = result_nodes - nodes_with_limits
+
+    # Type icons
+    type_icon = {
+        "concept": "[C]", "theorem": "[T]", "technique": "[X]",
+        "derivation_chain": "[D]", "result": "[R]", "approximation": "[A]",
+        "open_question": "[?]", "regime_boundary": "[B]",
+    }
+
+    # Trust markers
+    trust_mark = {
+        "source_grounded": ".", "multi_source_confirmed": "+",
+        "validated": "*", "independently_verified": "**",
+    }
+
+    # Render ASCII
+    out = []
+    out.append("# L2 Knowledge Graph")
+    out.append(f"# {len(nodes)} nodes, {len(edges)} edges, {len(conflicts)} conflicts")
+    out.append("")
+
+    # Nodes by type
+    by_type = {}
+    for nid, n in nodes.items():
+        by_type.setdefault(n["type"], []).append(n)
+    for ntype in sorted(by_type.keys()):
+        icon = type_icon.get(ntype, "[?]")
+        out.append(f"## {icon} {ntype} ({len(by_type[ntype])})")
+        for n in sorted(by_type[ntype], key=lambda x: x["id"]):
+            tm = trust_mark.get(n["trust"], " ")
+            gap_mark = " !" if n["id"] in missing_correspondence else ""
+            out.append(f"  {icon} {tm} {n['id']}: {n['title']}{gap_mark}")
+        out.append("")
+
+    # Edges by type
+    if edges:
+        out.append("## Edges")
+        edge_by_type = {}
+        for e in edges:
+            edge_by_type.setdefault(e["type"], []).append(e)
+        for etype in sorted(edge_by_type.keys()):
+            out.append(f"### {etype} ({len(edge_by_type[etype])})")
+            for e in edge_by_type[etype]:
+                v = " [v]" if e.get("verified") else ""
+                out.append(f"  {e['from']} --[{etype}]--> {e['to']}{v}")
+        out.append("")
+
+    # Conflicts
+    if conflicts:
+        out.append("## Conflicts")
+        for c in conflicts:
+            status = "RESOLVED" if c.get("resolved") else "OPEN"
+            out.append(f"  [{status}] {c.get('id', '?')}: {c.get('description', '')}")
+        out.append("")
+
+    # Missing correspondence
+    if missing_correspondence:
+        out.append("## Missing Correspondence (no limits_to edge)")
+        for nid in sorted(missing_correspondence):
+            out.append(f"  !! {nid}: {nodes[nid]['title']}")
+        out.append("")
+
+    return {
+        "ascii": "\n".join(out),
+        "metadata": {
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "conflict_count": len(conflicts),
+            "missing_correspondence": len(missing_correspondence),
+            "type_counts": {t: len(ns) for t, ns in by_type.items()},
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
