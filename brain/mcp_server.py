@@ -58,6 +58,8 @@ from brain.state_model import (
     semantic_score,
     normalize_latex,
     tokenize_for_search,
+    _generate_physics_next_action,
+    _check_question_semantic_validity,
 )
 
 from brain.sympy_verify import (
@@ -1645,6 +1647,9 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
         }
 
     snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    physics_context = _generate_physics_next_action(
+        _parse_md, root, "L1", snapshot.gate_status
+    )
     return {
         "topic_slug": topic_slug,
         "stage": snapshot.stage,
@@ -1657,6 +1662,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
         "next_allowed_transition": snapshot.next_allowed_transition,
         "skill": snapshot.skill,
         "l3_subplane": snapshot.l3_subplane,
+        "physics_context": physics_context,
         "immediate_allowed_work": (
             [f"edit {snapshot.required_artifact_path}"]
             if snapshot.required_artifact_path

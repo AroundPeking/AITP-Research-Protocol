@@ -265,6 +265,103 @@ def _missing_required_headings(body: str, headings: list[str]) -> list[str]:
     return [h for h in headings if h not in body]
 
 
+_QUESTION_STEMS = [
+    "what is", "how does", "why is", "under what conditions",
+    "derive", "compute", "estimate", "prove", "calculate",
+    "determine", "predict", "explain", "compare", "evaluate",
+]
+
+
+def _check_question_semantic_validity(
+    fm: dict[str, object], body: str
+) -> list[str]:
+    """Check that the bounded question is structurally well-posed.
+
+    Returns a list of missing requirements (empty = valid).
+    Checks are structural, not qualitative — we don't judge whether it's
+    a "good" question, only whether it has the necessary form.
+    """
+    issues: list[str] = []
+    question = str(fm.get("bounded_question", "")).strip().lower()
+    scope = str(fm.get("scope_boundaries", "")).strip().lower()
+    targets = str(fm.get("target_quantities", "")).strip()
+
+    if question:
+        has_stem = any(stem in question for stem in _QUESTION_STEMS)
+        if not has_stem:
+            issues.append(
+                "bounded_question must contain a question stem "
+                "(e.g. 'what is', 'derive', 'compute', 'estimate', 'determine'). "
+                f"Got: '{str(fm.get('bounded_question', ''))[:100]}'"
+            )
+
+    if not scope or "not" not in scope:
+        issues.append(
+            "scope_boundaries must identify at least one explicit exclusion "
+            "(e.g. 'This question does NOT ask about...'). "
+            "Without boundaries the question is unbounded."
+        )
+
+    if not targets:
+        issues.append(
+            "target_quantities must name at least one physically measurable "
+            "or calculable quantity with units or dimensionless characterization."
+        )
+
+    # Non-Success Conditions check
+    if "## Non-Success Conditions" in body:
+        nsc_start = body.index("## Non-Success Conditions")
+        nsc_end = body.find("##", nsc_start + 1)
+        nsc_section = body[nsc_start:nsc_end] if nsc_end > 0 else body[nsc_start:]
+        nsc_content = nsc_section.split("\n", 1)[1].strip() if "\n" in nsc_section else ""
+        if not nsc_content or len(nsc_content) < 20:
+            issues.append(
+                "## Non-Success Conditions must describe at least one specific "
+                "failure mode (not generic text). Describe what would falsify "
+                "or invalidate the expected answer."
+            )
+
+    return issues
+
+
+def _generate_physics_next_action(
+    parse_md: Callable[[Path], tuple[dict[str, Any], str]],
+    topic_root_path: Path,
+    stage: str,
+    gate_status: str,
+) -> str:
+    """Generate a physics-contentful next action prompt.
+
+    When gate is ready, produce a prompt grounded in the topic's question
+    contract and domain context. When blocked, describe what needs fixing.
+    """
+    if gate_status != "ready":
+        return ""
+
+    question_path = topic_root_path / "L1" / "question_contract.md"
+    if not question_path.exists():
+        return ""
+
+    q_fm, _ = parse_md(question_path)
+    question = str(q_fm.get("bounded_question", "")).strip()
+    scope = str(q_fm.get("scope_boundaries", "")).strip()
+    targets = str(q_fm.get("target_quantities", "")).strip()
+
+    if not question:
+        return ""
+
+    parts = [f"Your question: {question}"]
+    if targets:
+        parts.append(f"Key observable: {targets}")
+    if scope:
+        parts.append(f"Explicitly excluded: {scope}")
+    parts.append(
+        "Proceed to the next stage, or refine the question first if "
+        "the scope or target still feels vague."
+    )
+    return "\n".join(parts)
+
+
 _L1_CONTRACTS: list[tuple[str, str, list[str], list[str]]] = [
     (
         "question_contract.md",
@@ -336,6 +433,23 @@ def evaluate_l1_stage(
                 missing_requirements=missing,
                 next_allowed_transition="L1",
                 skill=f"skill-{posture}",
+            )
+
+    # Question semantic validity: check the question is genuinely well-posed
+    question_path = topic_root_path / "L1" / "question_contract.md"
+    if question_path.exists():
+        q_fm, q_body = parse_md(question_path)
+        sem_issues = _check_question_semantic_validity(q_fm, q_body)
+        if sem_issues:
+            return StageSnapshot(
+                stage="L1",
+                posture="read",
+                lane=lane,
+                gate_status="blocked_missing_field",
+                required_artifact_path=str(question_path),
+                missing_requirements=sem_issues,
+                next_allowed_transition="L1",
+                skill="skill-read",
             )
 
     # Coverage gate: source_toc_map must indicate full extraction or explicit deferrals
@@ -894,6 +1008,32 @@ def evaluate_l4_stage(
             next_allowed_transition="L3",
             skill="skill-validate",
         )
+
+    # Adversarial counterargument check: every review must challenge at least one claim
+    for cand_path in submitted:
+        slug = cand_path.stem
+        review_path = review_dir / f"{slug}.md"
+        if review_path.exists():
+            _, rev_body = parse_md(review_path)
+            has_counter = (
+                "## Counterargument" in rev_body
+                or "## Limitations Identified" in rev_body
+                or "## Devil's Advocate" in rev_body
+            )
+            if not has_counter:
+                return StageSnapshot(
+                    stage="L4", posture="verify", lane=lane,
+                    gate_status="blocked_missing_field",
+                    required_artifact_path=str(review_path),
+                    missing_requirements=[
+                        f"L4 review for {slug} must include a counterargument: "
+                        "## Counterargument, ## Limitations Identified, or "
+                        "## Devil's Advocate section that challenges at least "
+                        "one specific claim from the candidate."
+                    ],
+                    next_allowed_transition="L3",
+                    skill="skill-validate",
+                )
 
     # Domain invariant checks (if domain manifest exists)
     manifest = _load_manifest(topic_root_path)
