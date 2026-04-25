@@ -1,247 +1,188 @@
-<div align="center">
-  <img src=".github/assets/aitp-mark.svg" width="80" height="80" alt="AITP">
-  <h1>AITP Research Protocol</h1>
-  <p><em>Because your AI collaborator shouldn't hallucinate a breakthrough at 3 AM and forget it by morning.</em></p>
-  <p>
-    <a href="#installation">Install</a> ·
-    <a href="brain/PROTOCOL.md">Protocol Manual</a> ·
-    <a href="docs/QUICKSTART.md">Quickstart</a>
-  </p>
-</div>
+# AITP Research Protocol
 
----
+**AI-assisted Theoretical Physics.** Protocol v4.0.
 
-## The problem
+> 追求真理而非沽名钓誉。 *Pursue truth, not fame.*
 
-You've tried using an AI coding assistant for physics research. It went something like this:
+AITP is a protocol layer that gives your AI agent the discipline of a good research collaborator: show your sources, justify your claims, don't skip steps, and only call something "known" after it passes gates.
 
-- You ask about a symmetry argument. It gives you a plausible-sounding derivation. You spend an hour checking — turns out it silently dropped a boundary condition.
-- You close your laptop. The next morning, the session is gone. The AI has no memory of yesterday's work.
-- It confidently claims a result. You ask "where did this come from?" and it can't trace its own reasoning.
+## Quick start
 
-Sound familiar? These are not bugs in the AI. They're missing **discipline** — the same discipline you'd enforce in a research group meeting: *show your sources, justify your claims, don't skip steps, and get sign-off before calling something "known."*
-
-## What AITP does
-
-AITP gives your AI agent that discipline. It's a protocol layer that sits between you and any MCP-compatible AI agent (Claude Code, Kimi Code, Codex, etc.) and enforces the same workflow you'd use in real theoretical work:
-
-1. **Read before you reason.** Register your sources. Record what each paper actually says, not what you wish it said.
-2. **Frame a bounded question.** Not "study quantum gravity" — but "under what conditions does the WKB approximation break down for this class of potentials?"
-3. **Derive in stages.** Ideation → plan → analysis → integration → distillation. Each step has a gate. You can't skip ahead.
-4. **Validate before you trust.** The agent proposes a result. AITP runs consistency checks. Then *you* review it.
-5. **Promote only with human approval.** Nothing enters the trusted knowledge base unless you say so. Nothing.
-
-Think of it as an infinitely patient research collaborator who keeps a perfect lab notebook — but never calls a result "done" without showing you the work.
-
-## Protocol stages
-
-```
-L0 (discover) → L1 (read/frame) → L3 (ideation → planning → analysis → integration → distillation) → L4 (validate) → L2 (trusted) → L5 (write)
+```bash
+git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git
+cd AITP-Research-Protocol
+pip install -e .
 ```
 
-| Stage | What happens | Physics analogy |
-|-------|-------------|-----------------|
-| **L0** | Find and register sources | The literature search before the seminar — papers, datasets, code, experiments |
-| **L1** | Read sources, frame the question | Literature review + defining the scope of your calculation |
-| **L3** | Derive through 5 subplanes | The actual work: scratchpad → formal derivation → checking → synthesizing → distilling claims |
-| **L4** | Validation and adjudication | The "show me" moment — consistency checks, boundary cases, cross-references |
-| **L2** | Promoted to trusted knowledge | What goes into your group's shared notes — only after you sign off |
-| **L5** | Publication writing | The paper draft, with full provenance of every claim |
+Then connect it to your AI agent. The MCP server is at `brain/mcp_server.py`.
 
-The key insight: **L2 is not the starting point.** It's where things arrive after passing through the evidence pipeline. Your AI can't just *declare* something as known. It has to earn it.
+### Claude Code
 
-## Cross-session durability
+Add to `~/.claude/mcp.json` or project `.claude/mcp.json`:
 
-You close your laptop. Three days later, you reopen the conversation. The AI says:
+```json
+{
+  "mcpServers": {
+    "aitp": {
+      "command": "python",
+      "args": ["-m", "brain.mcp_server"],
+      "cwd": "/path/to/AITP-Research-Protocol"
+    }
+  }
+}
+```
 
-> *"I have no memory of what we were doing."*
+Then `/reload-plugins` in Claude Code.
 
-AITP fixes this. Every topic's state — what stage it's at, what sources were read, what derivations were attempted, what claims are pending validation — is stored in plain Markdown files. The AI picks up exactly where it left off, because the protocol state is in your filesystem, not in a chat window that disappears.
+### Other agents
 
-## Research lanes
+AITP is agent-agnostic. Any MCP-compatible agent can use it. See `adapters/` for specific setups.
 
-Different kinds of physics work need different discipline:
+## How to use
 
-| Lane | When to use it | How AITP validates |
-|------|---------------|-------------------|
-| `formal_theory` | Proofs, algebraic manipulations, logical arguments | Proof-gap analysis, logical consistency |
-| `toy_numeric` | Model calculations, numerical experiments, benchmarks | Convergence checks, finite-size scaling, sanity bounds |
-| `code_method` | Algorithm development, computational methods | Reproduction, trust audits |
+### Starting a research topic
 
-## Domain skill extensions
+1. Tell your AI agent what you want to study. It will call `aitp_bootstrap_topic` to create the topic structure.
+2. **L0 — Discover sources.** Register papers, datasets, code. Fill `source_registry.md`.
+3. **L1 — Read and frame.** Parse the table of contents for every source. Skim all sections. Deep-extract the relevant ones. Define a bounded question.
+4. **L3 — Derive.** Research mode for original work. Study mode for learning from literature.
+5. **L4 — Validate.** Submit candidates to adversarial review. Counterargument required.
+6. **L2 — Knowledge persists.** Promoted results enter the global L2 knowledge graph. The endpoint of every topic. The starting point of the next.
 
-AITP keeps the lifecycle discipline in the core protocol and lets
-domain-specific skills provide the physics-specific contracts, invariants,
-benchmark recipes, and routing rules for a concrete workflow family.
+### Checking progress
 
-- Interface contract:
-  [`research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md`](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md)
-- First-principles example lane:
-  [`research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md`](research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md)
-- Derive-first implementation playbook:
-  [`research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md`](research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md)
-- Example external skill:
-  [oh-my-LibRPA](https://github.com/AroundPeking/oh-my-LibRPA)
+```
+Ask your AI: "What's the status of this topic?"
+```
+The AI calls `aitp_get_execution_brief` which returns the gate status, any missing requirements, and a physics-contentful next action.
+
+### Resuming after a break
+
+Just open the topic again. State is stored in plain Markdown files. No database. No session dependency.
+
+### Best practices
+
+- **Push after every feature.** See `skills/aitp-push-after-feature.md` — this exists because we learned the hard way.
+- **Start from L2.** Every new topic should check `aitp_query_l2_index` first to discover what's already known.
+- **Source everything.** Every L2 node and edge requires a `source_ref`. Provenance is mandatory.
+
+## Protocol stages (v4.0)
+
+```
+L0 (discover) → L1 (read → frame) → L3 (derive) ⇄ L4 (validate) → L2 (knowledge)
+```
+
+| Stage | What happens | Key artifacts |
+|-------|-------------|--------------|
+| **L0** | Find and register sources | `source_registry.md`, `L0/sources/*.md` |
+| **L1** | TOC-first reading, bounded question, section intake | `source_toc_map.md`, `question_contract.md`, `L1/intake/` |
+| **L3** | Derivation (research) or literature study | Subplane artifacts, candidates |
+| **L4** | Adversarial validation with mandatory counterargument | Validation contracts, reviews |
+| **L2** | Persistent, cross-topic knowledge graph | Nodes, edges, EFT towers |
+
+**L5 (writing/publication) is removed in v4.0.** L2 is the endpoint. The knowledge graph itself is the output. Paper writing is the human's work.
+
+## Two paths to L2
+
+- **Path A (Lightweight):** L0 → L2 directly. For well-understood concepts with clear sources. Use `aitp_quick_l2_concept` to create concept nodes and edges in one call.
+- **Path B (Deep):** L0 → L1 → L3 → L4 → L2. For novel or uncertain claims requiring derivation and adversarial review.
+
+## L2 Knowledge Graph
+
+The L2 knowledge graph is the protocol's persistent memory. It stores:
+
+| Node type | Example |
+|-----------|---------|
+| `concept` | Density Functional Theory, Green's Function |
+| `theorem` | Kohn-Sham Equation, Dyson Equation |
+| `technique` | GW Approximation, RPA |
+| `approximation` | LDA, GGA |
+| `result` | AdS/CFT Correspondence |
+| `regime_boundary` | DFT validity limits |
+| `derivation_chain` | GW self-consistency proof |
+| `open_question` | Band gap problem |
+
+Current coverage: 21 nodes across 7 physics domains, 17 typed edges, 1 EFT tower.
+
+## Install / Update / Uninstall
+
+### Install
+
+```bash
+git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git
+cd AITP-Research-Protocol
+pip install -e .
+python scripts/aitp-pm.py install
+```
+
+The installer detects your environment and deploys hooks, skills, and MCP configs.
+
+### Update
+
+```bash
+cd AITP-Research-Protocol
+git pull origin main
+pip install -e . --upgrade
+python scripts/aitp-pm.py update
+```
+
+### Uninstall
+
+```bash
+cd AITP-Research-Protocol
+python scripts/aitp-pm.py uninstall
+pip uninstall aitp-kernel
+```
+
+This removes hooks, skills, and MCP configs from all detected agents.
+
+### Verify
+
+```bash
+aitp doctor
+```
+
+Checks: Python version, dependencies, MCP connectivity, topics root, git status.
 
 ## Architecture
 
 ```
 AITP-Research-Protocol/
-├── brain/                    # Core protocol engine
-│   ├── mcp_server.py         # FastMCP server — 32 tools, prefixed mcp__aitp__aitp_*
-│   ├── state_model.py        # Gate logic: what transitions are allowed, when
-│   └── PROTOCOL.md           # The operating manual your AI reads
-│
-├── skills/                   # Per-stage instructions loaded by the agent
-│   ├── skill-init.md         # First-run workspace setup
-│   ├── skill-read.md         # "Read the paper carefully" as a protocol step
-│   ├── skill-frame.md        # "Define the question precisely"
-│   ├── skill-l3-*.md         # Five L3 subplanes (ideate → plan → analyze → integrate → distill)
-│   ├── skill-validate.md     # "Prove it or lose it"
-│   ├── skill-promote.md      # "Get the human to sign off"
-│   └── skill-write.md        # "Write it up with full provenance"
-│
-├── adapters/                 # Agent-specific integration surfaces
-│   ├── claude-code/          # Claude Code hooks + skills + MCP
-│   ├── codex/                # Codex CLI
-│   ├── opencode/             # OpenCode
-│   └── openclaw/             # OpenClaw
-│
-├── contracts/                # Human-readable artifact templates
-│   ├── research-question.md  # What a well-formed question looks like
-│   ├── derivation.md         # What a derivation record must contain
-│   ├── candidate-claim.md    # What a claim must state before validation
-│   ├── validation.md         # What a validation contract checks
-│   └── promotion-or-reject.md # What the human sees at the gate
-│
-├── schemas/                  # Machine-readable JSON Schemas (16 total)
-├── deploy/                   # Package manager deployment templates
-├── hooks/                    # Claude Code hook source scripts
-├── scripts/                  # Package manager + migration tools
-├── templates/                # LaTeX templates (flow notebook for L5)
-├── tests/                    # Test suite
-└── docs/                     # Documentation
-```
-
-## MCP tools (32)
-
-The AI drives the protocol through 34 structured tools — it cannot directly edit topic files. Every action goes through a gate:
-
-| Category | Tools |
-|----------|-------|
-| **Topic lifecycle** | `bootstrap_topic`, `list_topics`, `get_status`, `update_status`, `archive_topic`, `restore_topic`, `fork_topic` |
-| **L0 — discovery** | `register_source`, `list_sources`, `advance_to_l1`, `retreat_to_l0` |
-| **L1 — reading** | `session_resume`, `ingest_knowledge` |
-| **L3 — derivation** | `advance_to_l3`, `advance_l3_subplane`, `retreat_to_l1`, `record_derivation`, `switch_lane` |
-| **L3 → L4 — validation gate** | `submit_candidate`, `list_candidates`, `create_validation_contract`, `submit_l4_review`, `return_to_l3_from_l4` |
-| **L2 — trusted knowledge** | `request_promotion`, `resolve_promotion_gate`, `promote_candidate`, `query_l2`, `ingest_knowledge`, `query_knowledge`, `lint_knowledge`, `writeback_query_result` |
-| **L5 — writing** | `advance_to_l5`, `return_from_l5` |
-| **Agent guidance** | `get_execution_brief`, `get_skill_context` |
-
-## Installation
-
-### Prerequisites
-
-- Python 3.10+
-- An MCP-compatible AI agent (Claude Code, Kimi Code, Codex, OpenCode, etc.)
-
-### Quick start
-
-```bash
-git clone https://github.com/bhjia-phys/AITP-Research-Protocol.git
-cd AITP-Research-Protocol
-python scripts/aitp-pm.py install
-```
-
-The package manager deploys hooks, skills, and MCP configs to your agent(s), and registers the `aitp` command globally. After the first run:
-
-```bash
-aitp install          # Deploy to all agents
-aitp uninstall        # Remove everything
-aitp update           # Re-sync from repo
-aitp upgrade          # git pull + re-deploy
-aitp status           # Check install state
-aitp doctor           # Full health check
-```
-
-### First-run topics root
-
-AITP asks where to store your research topics. Pre-set it if you prefer:
-
-- **Environment variable**: `AITP_TOPICS_ROOT=/path/to/aitp-topics`
-- **CLI flag**: `python scripts/aitp-pm.py install --topics-root /path/to/aitp-topics`
-
-Saved to `~/.aitp/install-record.json` — persists across sessions.
-
-### Supported agents
-
-| Agent | What gets deployed |
-|-------|-------------------|
-| **Claude Code** | Hooks (SessionStart, UserPromptSubmit, PreToolUse), skills, MCP server |
-| **Kimi Code** | `~/.kimi/mcp.json` + `config.toml` |
-| **Codex CLI** | See `adapters/codex/` |
-| **OpenCode** | See `adapters/opencode/` |
-| **Any MCP agent** | Connect to `brain/mcp_server.py` via stdio — protocol is agent-agnostic |
-
-## Topic file structure
-
-Every topic is a directory of plain Markdown files. No database, no proprietary format. You can read, diff, and grep your own research:
-
-```
-<topics_root>/
-  <topic-slug>/
-    state.md                         # Current stage, posture, lane
-    L0/
-      source_registry.md             # Source inventory, search methodology, coverage
-      sources/                       # Individual source files (papers, datasets, code, ...)
-    L1/
-      source_basis.md                # What the sources actually say
-      question_contract.md           # The bounded question
-      convention_snapshot.md         # Notation and assumptions locked in
-    L3/
-      ideation/active_idea.md
-      planning/active_plan.md
-      analysis/active_analysis.md
-      result_integration/active_integration.md
-      distillation/active_distillation.md
-      candidates/                    # Claims awaiting validation
-      tex/flow_notebook.tex          # Derivation trail
-    L4/
-      validation_contract.md         # What we're checking and how
-      reviews/                       # Pass / fail / contradiction
-    L5_writing/
-      outline.md, provenance/, draft/
-    runtime/                         # Execution state (auto-managed)
+├── brain/
+│   ├── mcp_server.py         # FastMCP server (~3500 lines, 35+ tools)
+│   ├── state_model.py        # Gate logic, stage machine, domain taxonomy
+│   ├── sympy_verify.py       # Symbolic verification (dimensions, algebra, limits)
+│   └── PROTOCOL.md           # Protocol operating manual v4.0
+├── skills/                   # Per-stage instructions
+│   ├── skill-discover.md     # L0: source discovery
+│   ├── skill-read.md         # L1: TOC-first reading workflow
+│   ├── skill-l3-*.md         # L3 subplanes (research + study)
+│   └── aitp-push-after-feature.md  # Push discipline
+├── tests/                    # Test suite (12 files)
+├── docs/                     # Specs, guides, design documents
+├── adapters/                 # Agent-specific integrations
+├── contracts/                # Artifact templates
+├── schemas/                  # JSON Schema definitions
+└── templates/                # LaTeX templates
 ```
 
 ## Design principles
 
-- **Evidence before confidence.** The AI doesn't get to act like it knows something until it has shown the work.
-- **Bounded questions, not open-ended exploration.** Every topic has a contract: a specific question, a scope, and a plan for knowing when you're done.
-- **Humans own trust.** The promotion gate exists because "the AI seems confident" is not a valid reason to trust a result.
-- **Durable by default.** Research state lives in your filesystem, not in a chat session. Close your laptop. Come back in a week. It's all still there.
-- **Agent-agnostic.** The protocol is defined by the MCP tools and the Markdown artifacts. Any agent that speaks MCP can drive it.
-- **Externalized specifications before code.** When source literature leaves implementation-critical details implicit, AITP can materialize a reviewed spec artifact before implementation begins.
-- **Notebook obligations before scientific claims.** Notebook-facing rounds should distinguish blocked, qualified, and stable routes instead of flattening all progress into one narrative.
-
-## License
-
-MIT License — see [LICENSE](LICENSE).
+- **Evidence before confidence.** No claim without provenance.
+- **Bounded questions, not open-ended exploration.** Every topic has a contract.
+- **Humans own trust.** The promotion gate exists because "the AI seems confident" is not a valid reason.
+- **Durable by default.** Research state lives in your filesystem (plain Markdown), not in chat sessions.
+- **Agent-agnostic.** Any MCP-speaking agent can drive the protocol.
+- **Compiled, not raw.** L2 stores distilled knowledge. Source provenance is stored for auditing but hidden from default queries to prevent context bloat.
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [brain/PROTOCOL.md](brain/PROTOCOL.md) | The operating manual your AI reads |
-| [docs/AITP_SPEC.md](docs/AITP_SPEC.md) | Formal protocol specification |
-| [docs/QUICKSTART.md](docs/QUICKSTART.md) | 5-minute quickstart |
-| [docs/INSTALL.md](docs/INSTALL.md) | Consolidated install guide |
-| [docs/CHARTER.md](docs/CHARTER.md) | Project charter and principles |
-| [docs/roadmap.md](docs/roadmap.md) | Development roadmap |
-| [docs/design-principles.md](docs/design-principles.md) | Design principles |
-| [research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md](research/knowledge-hub/DOMAIN_SKILL_INTERFACE_PROTOCOL.md) | Domain-skill interface contract for physics-specific workflows |
-| [research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md](research/knowledge-hub/EXTERNALIZED_SPEC_PROTOCOL.md) | Externalized-spec and reproducibility protocol |
-| [research/knowledge-hub/PROJECT_STRUCTURE_CONVENTION.md](research/knowledge-hub/PROJECT_STRUCTURE_CONVENTION.md) | Derive-first project structure for code-method work |
-| [research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md](research/knowledge-hub/FIRST_PRINCIPLES_LANE_PROTOCOL.md) | First-principles lane contract for ABACUS + LibRPA work |
-| [research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md](research/knowledge-hub/FEATURE_DEVELOPMENT_PLAYBOOK.md) | Nine-phase development playbook for physics features |
-| [docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md](docs/protocols/TOPIC_NOTEBOOK_OBLIGATION_PROTOCOL.md) | Notebook/report obligation closure for L3 scientific rounds |
+| [brain/PROTOCOL.md](brain/PROTOCOL.md) | Protocol operating manual (the AI reads this) |
+| [docs/superpowers/specs/](docs/superpowers/specs/) | Feature specs |
+| [research/knowledge-hub/](research/knowledge-hub/) | Protocol playbooks and contracts |
+
+## License
+
+MIT. See [LICENSE](LICENSE).
