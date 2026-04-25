@@ -3013,17 +3013,19 @@ _L5_ARTIFACTS = {
 def _build_flow_notebook_content(
     root: Path, title: str, question: str, lane: str
 ) -> str:
-    """Build flow_notebook.tex content from all L3 subplane artifacts.
+    """Build flow_notebook.tex from all topic artifacts.
 
-    Reads every subplane active artifact, every candidate, and every L4 review,
-    then consolidates into a structured LaTeX document.
+    Reads every layer (L0–L4), subplane, candidate, review, and domain manifest,
+    then produces a LaTeX document structured for theoretical physicists.
+
+    Section order follows the natural reading flow of a research notebook:
+    Question → Sources → Conventions → Journey → Results → Validation →
+    Knowledge Base → Open Questions.
     """
-    def _read_section(path: Path) -> str:
-        if not path.exists():
-            return ""
-        _, body = _parse_md(path)
-        return body
 
+    # -----------------------------------------------------------------------
+    # LaTeX helpers
+    # -----------------------------------------------------------------------
     def _esc(text: str) -> str:
         """Minimal LaTeX escaping."""
         return (text
@@ -3039,8 +3041,7 @@ def _build_flow_notebook_content(
                 .replace("~", "\\textasciitilde "))
 
     def _inline_math_safe(text: str) -> str:
-        """Keep $...$ and $$...$$ math blocks intact, escape the rest."""
-        # Simple approach: split on $, escape odd segments
+        """Keep $...$ math blocks intact, escape the rest."""
         parts = text.split("$")
         result = []
         for i, part in enumerate(parts):
@@ -3050,42 +3051,93 @@ def _build_flow_notebook_content(
                 result.append(f"${part}$")
         return "".join(result)
 
-    # Determine L3 mode
-    fm_state, _ = _parse_md(root / "state.md")
-    l3_mode = fm_state.get("l3_mode", "research")
+    def _md_body_to_tex(text: str, math: bool = True) -> list[str]:
+        """Convert Markdown body lines to LaTeX, preserving math if math=True."""
+        lines: list[str] = []
+        if not text:
+            return lines
+        for raw in text.split("\n"):
+            line = raw.rstrip()
+            if not line:
+                lines.append("")
+                continue
+            if line.startswith("### "):
+                lines.append(r"\paragraph{" + _esc(line[4:]) + "}")
+            elif line.startswith("## "):
+                lines.append(r"\subsubsection*{" + _esc(line[3:]) + "}")
+            elif line.startswith("# "):
+                lines.append(r"\subsection*{" + _esc(line[2:]) + "}")
+            elif line.startswith("- ") or line.startswith("* "):
+                item = line[2:]
+                lines.append(r"\item " + (_inline_math_safe(item) if math else _esc(item)))
+            elif line.startswith("|"):
+                lines.append(line)  # pass through table rows as-is
+            else:
+                lines.append(_inline_math_safe(line) if math else _esc(line))
+        return lines
 
-    # Collect subplane artifacts
+    def _wrap_itemize(md_text: str, math: bool = True, limit: int = 8000) -> list[str]:
+        """Convert a Markdown body into a LaTeX itemize block if it has bullets."""
+        text = (md_text or "").strip()[:limit]
+        if not text:
+            return []
+        lines = text.split("\n")
+        has_bullets = any(l.startswith(("- ", "* ")) for l in lines)
+        result: list[str] = []
+        if has_bullets:
+            result.append(r"\begin{itemize}")
+        for l in _md_body_to_tex(text, math):
+            result.append(l)
+        if has_bullets:
+            result.append(r"\end{itemize}")
+        return result
+
+    # -----------------------------------------------------------------------
+    # Data collection
+    # -----------------------------------------------------------------------
+    fm_state, body_state = _parse_md(root / "state.md")
+    l3_mode = fm_state.get("l3_mode", "research")
+    topic_slug = fm_state.get("topic_slug", "")
+    status = fm_state.get("status", "")
+    mode = fm_state.get("mode", "")
+    created_at = fm_state.get("created_at", "")
+
+    # L3 subplanes
     subplanes = []
     if l3_mode == "research":
         from brain.state_model import L3_SUBPLANES, L3_ACTIVE_ARTIFACT_NAMES
-        sp_names = L3_SUBPLANES
-        art_names = L3_ACTIVE_ARTIFACT_NAMES
+        sp_names, art_names = L3_SUBPLANES, L3_ACTIVE_ARTIFACT_NAMES
     else:
         from brain.state_model import STUDY_L3_SUBPLANES, STUDY_L3_ACTIVE_ARTIFACT_NAMES
-        sp_names = STUDY_L3_SUBPLANES
-        art_names = STUDY_L3_ACTIVE_ARTIFACT_NAMES
+        sp_names, art_names = STUDY_L3_SUBPLANES, STUDY_L3_ACTIVE_ARTIFACT_NAMES
 
     for sp in sp_names:
         art_name = art_names.get(sp, f"active_{sp}.md")
         path = root / "L3" / sp / art_name
         if path.exists():
             fm, body = _parse_md(path)
-            subplanes.append({
-                "name": sp,
-                "frontmatter": fm,
-                "body": body,
-            })
+            subplanes.append({"name": sp, "fm": fm, "body": body})
 
-    # Collect candidates
+    # L3 ideas
+    ideas_dir = root / "L3" / "ideas"
+    ideas_list = sorted(
+        [p for p in ideas_dir.glob("*.md") if not p.stem.startswith("_")],
+        key=lambda p: p.stat().st_mtime, reverse=True,
+    ) if ideas_dir.is_dir() else []
+
+    # L3 candidates (all statuses for full picture)
     cand_dir = root / "L3" / "candidates"
     candidates = []
     if cand_dir.is_dir():
         for cp in sorted(cand_dir.glob("*.md")):
             fm, body = _parse_md(cp)
-            if fm.get("status") in ("validated", "approved_for_promotion", "promoted", ""):
-                candidates.append({"slug": cp.stem, "fm": fm, "body": body})
+            candidates.append({"slug": cp.stem, "fm": fm, "body": body})
 
-    # Collect L4 reviews
+    # L3 deferred
+    deferred_path = root / "L3" / "deferred.md"
+    deferred_fm, deferred_body = _parse_md(deferred_path) if deferred_path.exists() else ({}, "")
+
+    # L4 reviews
     review_dir = root / "L4" / "reviews"
     reviews = []
     if review_dir.is_dir():
@@ -3093,267 +3145,556 @@ def _build_flow_notebook_content(
             fm, body = _parse_md(rp)
             reviews.append({"slug": rp.stem, "fm": fm, "body": body})
 
-    # Build LaTeX document
-    tex = []
+    # L4 invariant checks (code_method lane)
+    inv_path = root / "L4" / "invariant-checks.md"
+    inv_body = ""
+    if inv_path.exists():
+        _, inv_body = _parse_md(inv_path)
+
+    # L0 sources
+    src_dir = root / "L0" / "sources"
+    sources = []
+    if src_dir.is_dir():
+        for sp in sorted(src_dir.glob("*.md")):
+            fm, body = _parse_md(sp)
+            sources.append({"slug": sp.stem, "fm": fm, "body": body})
+
+    # L2 promoted
+    l2_dir = root / "L2" / "canonical"
+    l2_nodes = []
+    if l2_dir.is_dir():
+        for np in sorted(l2_dir.glob("*.md")):
+            fm, body = _parse_md(np)
+            l2_nodes.append({"slug": np.stem, "fm": fm, "body": body})
+
+    # Domain manifest
+    manifest_path = root / "contracts" / "domain-manifest.md"
+    manifest_fm = {}
+    if manifest_path.exists():
+        manifest_fm, _ = _parse_md(manifest_path)
+
+    # L1 artifacts
+    qc_path = root / "L1" / "question_contract.md"
+    fm_qc, body_qc = _parse_md(qc_path) if qc_path.exists() else ({}, "")
+    sb_path = root / "L1" / "source_basis.md"
+    _, body_sb = _parse_md(sb_path) if sb_path.exists() else ({}, "")
+    cs_path = root / "L1" / "convention_snapshot.md"
+    fm_cs, body_cs = _parse_md(cs_path) if cs_path.exists() else ({}, "")
+
+    # -----------------------------------------------------------------------
+    # Build LaTeX
+    # -----------------------------------------------------------------------
+    tex: list[str] = []
+
+    # ---- Preamble ----
     tex.append(r"\documentclass[11pt,a4paper]{article}")
     tex.append(r"\usepackage[utf8]{inputenc}")
     tex.append(r"\usepackage[T1]{fontenc}")
     tex.append(r"\usepackage{amsmath,amssymb,amsfonts}")
     tex.append(r"\usepackage{physics}")
-    tex.append(r"\usepackage{hyperref}")
+    tex.append(r"\usepackage{bm}")
     tex.append(r"\usepackage[margin=2.5cm]{geometry}")
+    tex.append(r"\setlength{\parindent}{0pt}")
+    tex.append(r"\setlength{\parskip}{0.5em plus 0.2em minus 0.1em}")
     tex.append(r"\usepackage{enumitem}")
+    tex.append(r"\usepackage{booktabs}")
+    tex.append(r"\usepackage{longtable}")
+    tex.append(r"\usepackage{array}")
+    tex.append(r"\usepackage{xcolor}")
+    tex.append(r"\usepackage[most]{tcolorbox}")
+    tex.append(r"\usepackage{hyperref}")
+    tex.append(r"\hypersetup{colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black}")
     tex.append("")
-    tex.append(r"\title{Flow Notebook: " + _esc(title) + "}")
+    tex.append(r"\definecolor{passgreen}{RGB}{34,139,34}")
+    tex.append(r"\definecolor{failred}{RGB}{178,34,34}")
+    tex.append(r"\definecolor{warnorange}{RGB}{204,119,34}")
+    tex.append(r"\definecolor{infoblue}{RGB}{47,85,151}")
+    tex.append(r"\definecolor{lightbg}{RGB}{245,245,250}")
+    tex.append("")
+    tex.append(r"\newcommand{\statuspass}{\textcolor{passgreen}{\textbf{PASS}}}")
+    tex.append(r"\newcommand{\statusfail}{\textcolor{failred}{\textbf{FAIL}}}")
+    tex.append(r"\newcommand{\statusactive}{\textcolor{warnorange}{\textbf{ACTIVE}}}")
+    tex.append(r"\newcommand{\statusdeferred}{\textcolor{gray}{\textbf{DEFERRED}}}")
+    tex.append("")
+    tex.append(r"\newtcolorbox{resultbox}[1][]{colback=infoblue!4,colframe=infoblue!70,")
+    tex.append(r"  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}")
+    tex.append(r"\newtcolorbox{warningbox}[1][]{colback=warnorange!4,colframe=warnorange!70,")
+    tex.append(r"  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}")
+    tex.append(r"\newtcolorbox{valbox}[1][]{colback=passgreen!4,colframe=passgreen!70,")
+    tex.append(r"  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}")
+    tex.append("")
+    tex.append(r"\title{\textbf{Research Flow Notebook}\\[0.4em]")
+    tex.append(r"  \large " + _esc(title))
+    if lane:
+        tex.append(r"  \quad \texttt{" + _esc(lane) + r" lane}")
+    tex.append(r"}")
     tex.append(r"\author{AITP Protocol v3}")
-    tex.append(r"\date{\today}")
+    if created_at:
+        tex.append(r"\date{" + _esc(str(created_at)[:10]) + "}")
+    else:
+        tex.append(r"\date{\today}")
     tex.append("")
     tex.append(r"\begin{document}")
     tex.append(r"\maketitle")
+
+    # ---- Abstract ----
+    tex.append(r"\begin{abstract}")
+    tex.append(r"This notebook records the complete research trajectory: sources, conventions,")
+    tex.append(r"derivation attempts, validated results, and open questions.")
+    if mode:
+        tex.append(r"Mode: \texttt{" + _esc(mode) + r"}.")
+    if l3_mode == "study":
+        tex.append(r"L3 sub-mode: \texttt{study} (literature reconstruction).")
+    tex.append(r"\end{abstract}")
     tex.append("")
+    tex.append(r"\tableofcontents")
+    tex.append(r"\newpage")
 
-    # ---- 1. Abstract / Synthesis ----
-    tex.append(r"\section{Research Summary}")
-    tex.append("")
-    synopsis_written = False
-    for sp in subplanes:
-        if sp["name"] in ("distillation", "synthesis"):
-            text = _inline_math_safe(sp["body"].strip())
-            if text:
-                tex.append(r"\subsection*{Synthesis}")
-                tex.append("")
-                for line in text.split("\n"):
-                    if line.startswith("#"):
-                        tex.append(r"\subsection*{" + _esc(line.lstrip("# ")) + "}")
-                    elif line.strip():
-                        tex.append(_esc(line))
-                    tex.append("")
-                synopsis_written = True
-
-    if not synopsis_written and candidates:
-        tex.append(r"\subsection*{Key Claims}")
-        tex.append(r"\begin{itemize}")
-        for c in candidates[:5]:
-            claim = c["fm"].get("claim", "")[:300]
-            tex.append(r"\item " + _inline_math_safe(claim))
-        tex.append(r"\end{itemize}")
-
-    # ---- 2. Question & Scope ----
+    # ======================================================================
+    # §1  Research Question
+    # ======================================================================
     tex.append(r"\section{Research Question}")
     tex.append("")
-    qc_path = root / "L1" / "question_contract.md"
-    if qc_path.exists():
-        fm_qc, body_qc = _parse_md(qc_path)
-        bounded = fm_qc.get("bounded_question", question)
-        scope = fm_qc.get("scope_boundaries", "")
-        tex.append(r"\textbf{Bounded Question:} " + _inline_math_safe(bounded))
+    bounded = fm_qc.get("bounded_question", question)
+    if bounded:
+        tex.append(r"\begin{resultbox}[Bounded Question]")
+        tex.append(_inline_math_safe(bounded))
+        tex.append(r"\end{resultbox}")
         tex.append("")
+
+    scope = fm_qc.get("scope_boundaries", "")
+    targets = fm_qc.get("target_quantities", "")
+    if scope or targets:
+        tex.append(r"\noindent")
         if scope:
-            tex.append(r"\textbf{Scope:} " + _esc(scope))
-            tex.append("")
-
-    # ---- 3. Source Basis ----
-    tex.append(r"\section{Source Basis}")
-    tex.append("")
-    sb_path = root / "L1" / "source_basis.md"
-    if sb_path.exists():
-        _, body_sb = _parse_md(sb_path)
-        tex.append(_inline_math_safe(body_sb[:2000]))
+            tex.append(r"\textbf{Scope:} " + _esc(scope) + r" \quad")
+        if targets:
+            tex.append(r"\textbf{Target quantities:} " + _esc(targets))
         tex.append("")
 
-    # ---- 4. Conventions ----
-    cs_path = root / "L1" / "convention_snapshot.md"
-    if cs_path.exists():
+    nsc = fm_qc.get("non_success_conditions", "")
+    if nsc:
+        tex.append(r"\begin{warningbox}[Non-Success Conditions]")
+        tex.append(_inline_math_safe(str(nsc)))
+        tex.append(r"\end{warningbox}")
+        tex.append("")
+
+    uncertainty = fm_qc.get("uncertainty_markers", "")
+    if uncertainty:
+        tex.append(r"\subsection*{Uncertainty Markers}")
+        for line in _wrap_itemize(str(uncertainty)):
+            tex.append(line)
+        tex.append("")
+
+    # ======================================================================
+    # §2  Source Landscape  (L0)
+    # ======================================================================
+    if sources:
+        tex.append(r"\section{Source Landscape}")
+        tex.append("")
+        tex.append(r"\begin{longtable}{>{\raggedright}p{3cm} p{5cm} p{2.5cm} p{2.5cm}}")
+        tex.append(r"\toprule")
+        tex.append(r"\textbf{Source} & \textbf{Title} & \textbf{Fidelity} & \textbf{Relation} \\")
+        tex.append(r"\midrule")
+        tex.append(r"\endhead")
+        for s in sources:
+            slug = _esc(s["slug"])
+            stitle = _esc(s["fm"].get("title", "")[:60])
+            fidelity = _esc(s["fm"].get("fidelity", s["fm"].get("source_fidelity", "")))
+            relation = _esc(s["fm"].get("relation", ""))
+            tex.append(f"{slug} & {stitle} & {fidelity} & {relation} \\\\")
+        tex.append(r"\bottomrule")
+        tex.append(r"\end{longtable}")
+        tex.append("")
+
+    if body_sb:
+        tex.append(r"\subsection*{Source Basis Analysis}")
+        for line in _md_body_to_tex(body_sb[:3000]):
+            tex.append(line)
+        tex.append("")
+
+    # ======================================================================
+    # §3  Conventions & Notation  (L1)
+    # ======================================================================
+    if body_cs or fm_cs:
         tex.append(r"\section{Conventions \& Notation}")
         tex.append("")
-        _, body_cs = _parse_md(cs_path)
-        tex.append(_inline_math_safe(body_cs[:1000]))
-        tex.append("")
+        if body_cs:
+            for line in _md_body_to_tex(body_cs[:2000]):
+                tex.append(line)
+            tex.append("")
+        notation = fm_cs.get("notation_choices", "")
+        units = fm_cs.get("unit_conventions", "")
+        sign = fm_cs.get("sign_convention", "")
+        if notation:
+            tex.append(r"\noindent\textbf{Notation:} " + _esc(str(notation)))
+            tex.append("")
+        if units:
+            tex.append(r"\noindent\textbf{Units:} " + _esc(str(units)))
+            tex.append("")
+        if sign:
+            tex.append(r"\noindent\textbf{Sign convention:} " + _esc(str(sign)))
+            tex.append("")
 
-    # ---- 5. Derivation ----
-    tex.append(r"\section{Derivation}")
+    # ======================================================================
+    # §4  Mode & Session History
+    # ======================================================================
+    tex.append(r"\section{Mode \& Session History}")
     tex.append("")
-    derivation_sps = [sp for sp in subplanes if sp["name"] in ("analysis", "step_derive", "result_integration")]
+    tex.append(r"\noindent")
+    tex.append(r"\begin{tabular}{ll}")
+    tex.append(r"\toprule")
+    tex.append(r"\textbf{Axis} & \textbf{Value} \\")
+    tex.append(r"\midrule")
+    tex.append(r"Topic slug & \texttt{" + _esc(topic_slug) + r"} \\")
+    tex.append(r"Status & \texttt{" + _esc(status) + r"} \\")
+    if mode:
+        tex.append(r"Mode & \texttt{" + _esc(mode) + r"} \\")
+    tex.append(r"Lane & \texttt{" + _esc(lane) + r"} \\")
+    tex.append(r"L3 mode & \texttt{" + _esc(l3_mode) + r"} \\")
+    subplane_current = fm_state.get("l3_subplane", "")
+    if subplane_current:
+        tex.append(r"L3 subplane & \texttt{" + _esc(subplane_current) + r"} \\")
+    tex.append(r"\bottomrule")
+    tex.append(r"\end{tabular}")
+    tex.append("")
+
+    # Session log if present
+    sess_path = root / "runtime" / "sessions.md"
+    if sess_path.exists():
+        _, body_sess = _parse_md(sess_path)
+        if body_sess.strip():
+            tex.append(r"\subsection*{Session Log}")
+            for line in _md_body_to_tex(body_sess[:3000]):
+                tex.append(line)
+            tex.append("")
+
+    # ======================================================================
+    # §5  Derivation Journey  (L3)
+    # ======================================================================
+    tex.append(r"\section{Derivation Journey}")
+    tex.append("")
+
+    # ---- 5a  Ideas Explored ----
+    if ideas_list:
+        tex.append(r"\subsection{Ideas Explored}")
+        tex.append(r"\label{sec:ideas}")
+        tex.append("")
+        tex.append(r"Multiple derivation routes were attempted. Failed and abandoned")
+        tex.append(r"approaches are preserved alongside successes --- their lessons")
+        tex.append(r"informed later routes.")
+        tex.append("")
+        for ip in ideas_list:
+            fm_i, body_i = _parse_md(ip)
+            status_i = fm_i.get("status", "active")
+            badge = {
+                "succeeded": r"\statuspass{} (promoted)",
+                "failed": r"\statusfail{} (lessons preserved)",
+                "active": r"\statusactive{}",
+                "abandoned": r"\statusdeferred{} (abandoned)",
+                "superseded": r"\statusdeferred{} (superseded)",
+            }.get(status_i, r"\statusactive{}")
+
+            tex.append(r"\subsection*{" + _esc(fm_i.get("title", ip.stem)) + "}")
+            tex.append(r"\noindent\textbf{Status:} " + badge)
+            tex.append("")
+
+            approach = (fm_i.get("approach", "") or "").strip()
+            if approach:
+                tex.append(r"\noindent\textbf{Approach:} " + _inline_math_safe(approach))
+                tex.append("")
+
+            if body_i:
+                deriv_text = body_i
+                for skip_hdr in ["## Approach", "## Outcome", "## Lessons Learned"]:
+                    if skip_hdr in deriv_text:
+                        deriv_text = deriv_text.split(skip_hdr, 1)[0]
+                deriv_text = deriv_text.strip()
+                if deriv_text.startswith("# "):
+                    deriv_text = deriv_text.split("\n", 1)[1] if "\n" in deriv_text else ""
+                deriv_text = deriv_text.strip()
+                if deriv_text:
+                    for line in _md_body_to_tex(deriv_text[:3000]):
+                        tex.append(line)
+                    tex.append("")
+
+            lessons = (fm_i.get("lessons_learned", "") or "").strip()
+            if lessons:
+                tex.append(r"\noindent\textbf{Lessons:} " + _inline_math_safe(lessons))
+                tex.append("")
+
+            refs = []
+            if fm_i.get("inspired_by"):
+                refs.append("Inspired by: " + ", ".join(fm_i["inspired_by"]))
+            if fm_i.get("supersedes"):
+                refs.append("Supersedes: " + ", ".join(fm_i["supersedes"]))
+            if fm_i.get("superseded_by"):
+                refs.append("Superseded by: " + fm_i["superseded_by"])
+            if fm_i.get("promoted_to_candidate"):
+                refs.append("Promoted to: " + fm_i["promoted_to_candidate"])
+            if refs:
+                tex.append(r"\noindent\textbf{Connections:} " + _esc("; ".join(refs)))
+                tex.append("")
+
+            tex.append(r"\medskip\hrulefill\medskip")
+            tex.append("")
+
+    # ---- 5b  Subplane derivations ----
+    derivation_sps = [sp for sp in subplanes
+                      if sp["name"] in ("analysis", "step_derive", "result_integration")]
     if derivation_sps:
+        tex.append(r"\subsection{Structured Derivation}")
+        tex.append("")
         for sp in derivation_sps:
-            tex.append(r"\subsection*{" + sp["name"].replace("_", " ").title() + "}")
+            label = sp["name"].replace("_", " ").title()
+            tex.append(r"\subsubsection*{" + label + "}")
             tex.append("")
-            text = _inline_math_safe(sp["body"].strip())
-            for line in text.split("\n"):
-                if line.startswith("## "):
-                    tex.append(r"\subsubsection*{" + _esc(line[3:]) + "}")
-                elif line.strip():
-                    tex.append(_esc(line))
-                tex.append("")
-    else:
-        tex.append(r"(No structured derivation recorded. See subplane artifacts.)")
+            for line in _md_body_to_tex(sp["body"].strip()):
+                tex.append(line)
+            tex.append("")
+    elif not ideas_list:
+        tex.append(r"\noindent (No structured derivation recorded.)")
         tex.append("")
 
-    # ---- 5.5 Ideas Explored ----
-    ideas_dir = root / "L3" / "ideas"
-    if ideas_dir.is_dir():
-        ideas_list = sorted(
-            [ip for ip in ideas_dir.glob("*.md") if not ip.stem.startswith("_")],
-            key=lambda p: p.stat().st_mtime, reverse=True,
-        )
-        if ideas_list:
-            tex.append(r"\section{Ideas Explored}")
-            tex.append(r"\label{sec:ideas}")
-            tex.append("")
-            tex.append(
-                r"Multiple derivation approaches were explored. "
-                r"Failed approaches are preserved — their lessons informed "
-                r"successful routes. Cross-references link related ideas."
-            )
-            tex.append("")
-            for ip in ideas_list:
-                fm_i, body_i = _parse_md(ip)
-                status = fm_i.get("status", "active")
-                status_cmd = {
-                    "succeeded": r"\textbf{[SUCCEEDED — promoted to candidate]}",
-                    "failed": r"\textbf{[FAILED — lessons preserved]}",
-                    "active": r"\textbf{[IN PROGRESS]}",
-                    "abandoned": r"\textbf{[ABANDONED]}",
-                    "superseded": r"\textbf{[SUPERSEDED]}",
-                }.get(status, "")
-
-                tex.append(r"\subsection*{" + _esc(fm_i.get("title", ip.stem)) + "}")
-                tex.append(r"\textbf{Status:} " + status_cmd)
+    # ---- 5c  Planning & ideation subplanes ----
+    plan_sps = [sp for sp in subplanes if sp["name"] in ("planning", "ideation")]
+    if plan_sps:
+        tex.append(r"\subsection{Planning Notes}")
+        tex.append("")
+        for sp in plan_sps:
+            if sp["body"].strip():
+                tex.append(r"\subsubsection*{" + sp["name"].replace("_", " ").title() + "}")
+                for line in _md_body_to_tex(sp["body"].strip()[:2000]):
+                    tex.append(line)
                 tex.append("")
 
-                # Approach
-                approach = (fm_i.get("approach", "") or "").strip()
-                if approach:
-                    tex.append(r"\textbf{Approach:}")
-                    tex.append("")
-                    tex.append(_inline_math_safe(approach))
-                    tex.append("")
-
-                # Derivation — extract from body
-                if body_i:
-                    deriv_text = body_i
-                    # Skip sections we handle separately
-                    for skip_hdr in ["## Approach", "## Outcome", "## Lessons Learned"]:
-                        if skip_hdr in deriv_text:
-                            deriv_text = deriv_text.split(skip_hdr, 1)[0]
-                    deriv_text = deriv_text.strip()
-                    # Remove leading "# Title" line
-                    if deriv_text.startswith("# "):
-                        deriv_text = deriv_text.split("\n", 1)[1] if "\n" in deriv_text else ""
-                    deriv_text = deriv_text.strip()
-                    if deriv_text:
-                        tex.append(r"\textbf{Derivation:}")
-                        tex.append("")
-                        tex.append(_inline_math_safe(deriv_text[:2000]))
-                        tex.append("")
-
-                # Lessons learned
-                lessons = (fm_i.get("lessons_learned", "") or "").strip()
-                if lessons:
-                    tex.append(r"\textbf{Lessons Learned:}")
-                    tex.append("")
-                    tex.append(_inline_math_safe(lessons))
-                    tex.append("")
-
-                # Cross-references
-                refs = []
-                if fm_i.get("inspired_by"):
-                    refs.append("Inspired by: " + ", ".join(fm_i["inspired_by"]))
-                if fm_i.get("supersedes"):
-                    refs.append("Supersedes: " + ", ".join(fm_i["supersedes"]))
-                if fm_i.get("superseded_by"):
-                    refs.append(r"\textbf{Superseded by:} " + fm_i["superseded_by"])
-                if fm_i.get("promoted_to_candidate"):
-                    refs.append(r"\textbf{Promoted to candidate:} " + fm_i["promoted_to_candidate"])
-                if refs:
-                    tex.append(r"\textbf{Connections:}")
-                    tex.append("")
-                    for ref in refs:
-                        tex.append(r"\quad • " + _esc(ref))
-                    tex.append("")
-
-                # Timestamps
-                created = fm_i.get("created_at", "")
-                updated = fm_i.get("updated_at", "")
-                if created or updated:
-                    tex.append(r"\textit{Created: " + _esc(created[:19]) + "}")
-                    if updated and updated != created:
-                        tex.append(r" \textit{— Updated: " + _esc(updated[:19]) + "}")
-                    tex.append("")
-
-                tex.append(r"\hrulefill")
-                tex.append("")
-
-    # ---- 6. Results ----
-    tex.append(r"\section{Results}")
+    # ======================================================================
+    # §6  Synthesis & Claims
+    # ======================================================================
+    distill_sps = [sp for sp in subplanes if sp["name"] in ("distillation", "synthesis")]
+    tex.append(r"\section{Synthesis \& Claims}")
     tex.append("")
-    if candidates:
-        for i, c in enumerate(candidates, 1):
-            title = c["fm"].get("title", c["slug"])
+    for sp in distill_sps:
+        claim_text = sp["fm"].get("distilled_claim", "")
+        if claim_text:
+            tex.append(r"\begin{resultbox}[Distilled Claim]")
+            tex.append(_inline_math_safe(claim_text))
+            tex.append(r"\end{resultbox}")
+            tex.append("")
+        evidence = sp["fm"].get("evidence_summary", "")
+        if evidence:
+            tex.append(r"\noindent\textbf{Evidence:} " + _inline_math_safe(str(evidence)))
+            tex.append("")
+        confidence = sp["fm"].get("confidence_level", "")
+        if confidence:
+            tex.append(r"\noindent\textbf{Confidence:} " + _esc(str(confidence)))
+            tex.append("")
+        if sp["body"].strip():
+            for line in _md_body_to_tex(sp["body"].strip()[:2000]):
+                tex.append(line)
+            tex.append("")
+
+    # Candidates as results
+    promoted_cands = [c for c in candidates
+                      if c["fm"].get("status") in
+                      ("validated", "approved_for_promotion", "promoted")]
+    if promoted_cands:
+        tex.append(r"\subsection*{Validated Results}")
+        tex.append("")
+        for i, c in enumerate(promoted_cands, 1):
+            ctitle = c["fm"].get("title", c["slug"])
             claim = c["fm"].get("claim", "")
             ctype = c["fm"].get("candidate_type", "research_claim")
             regime = c["fm"].get("regime_of_validity", "")
-            tex.append(r"\subsection*{Result " + str(i) + r": " + _esc(title) + "}")
+            cstatus = c["fm"].get("status", "")
+            tex.append(r"\begin{resultbox}[Result " + str(i) + ": " + _esc(ctitle) + "]")
+            tex.append(r"\textbf{Type:} " + _esc(ctype) + r" \quad ")
+            tex.append(r"\textbf{Status:} " + _esc(cstatus))
             tex.append("")
-            tex.append(r"\textbf{Type:} " + _esc(ctype))
-            tex.append("")
-            tex.append(r"\textbf{Claim:} " + _inline_math_safe(claim))
-            tex.append("")
+            tex.append(_inline_math_safe(claim))
             if regime:
-                tex.append(r"\textbf{Regime of Validity:} " + _esc(regime))
                 tex.append("")
-    else:
-        tex.append(r"(No candidates submitted.)")
-        tex.append("")
-
-    # ---- 7. Gap Audit / Limitations ----
-    tex.append(r"\section{Assumptions, Gaps \& Limitations}")
-    tex.append("")
-    gap_sps = [sp for sp in subplanes if sp["name"] in ("gap_audit", "planning", "ideation")]
-    gap_written = False
-    for sp in gap_sps:
-        text = _inline_math_safe(sp["body"].strip())
-        if text:
-            tex.append(r"\subsection*{" + sp["name"].replace("_", " ").title() + "}")
+                tex.append(r"\textit{Regime of validity:} " + _esc(regime))
+            tex.append(r"\end{resultbox}")
             tex.append("")
-            for line in text.split("\n"):
-                if line.strip():
-                    tex.append(_esc(line))
-                    tex.append("")
-            gap_written = True
-    if not gap_written:
-        tex.append(r"(No formal gap audit recorded.)")
-        tex.append("")
 
-    # ---- 8. Validation ----
+    # ======================================================================
+    # §7  Validation  (L4)
+    # ======================================================================
     tex.append(r"\section{Validation}")
     tex.append("")
     if reviews:
-        for r in reviews:
-            outcome = r["fm"].get("outcome", "unknown")
-            notes = r["fm"].get("notes", "")
-            tex.append(r"\subsection*{" + _esc(r["slug"]) + r" — " + _esc(outcome) + "}")
-            tex.append("")
+        for rv in reviews:
+            outcome = rv["fm"].get("outcome", "unknown")
+            badge = (r"\statuspass{}" if outcome == "pass"
+                     else r"\statusfail{}" if outcome == "fail"
+                     else _esc(outcome))
+            tex.append(r"\begin{valbox}[" + _esc(rv["slug"]) + r" \quad " + badge + "]")
+            notes = rv["fm"].get("notes", "")
             if notes:
-                tex.append(_inline_math_safe(notes[:500]))
+                tex.append(_inline_math_safe(notes[:1000]))
+            # Individual check fields
+            check_fields = [k for k in rv["fm"]
+                            if k.endswith("_check") or k.endswith("_result")]
+            if check_fields:
                 tex.append("")
+                for cf in check_fields:
+                    val = str(rv["fm"][cf])
+                    mark = (r"\statuspass{}" if val.lower() == "pass"
+                            else r"\statusfail{}" if val.lower() == "fail"
+                            else _esc(val))
+                    tex.append(r"\noindent " + _esc(cf) + r": " + mark + r" \\")
+            tex.append(r"\end{valbox}")
+            tex.append("")
     else:
-        tex.append(r"(No L4 reviews submitted.)")
+        tex.append(r"\noindent (No L4 reviews submitted.)")
         tex.append("")
 
-    # ---- 9. Open Questions ----
-    tex.append(r"\section{Open Questions \& Future Work}")
+    # Domain invariant checks
+    if inv_body.strip():
+        tex.append(r"\subsection*{Domain Invariant Checks}")
+        for line in _md_body_to_tex(inv_body[:2000]):
+            tex.append(line)
+        tex.append("")
+
+    # ======================================================================
+    # §8  Canonical Knowledge  (L2)
+    # ======================================================================
+    if l2_nodes:
+        tex.append(r"\section{Canonical Knowledge (L2)}")
+        tex.append("")
+        tex.append(r"\begin{longtable}{>{\raggedright}p{3cm} p{2cm} p{6cm}}")
+        tex.append(r"\toprule")
+        tex.append(r"\textbf{Node} & \textbf{Type} & \textbf{Summary} \\")
+        tex.append(r"\midrule")
+        tex.append(r"\endhead")
+        for n in l2_nodes:
+            slug = _esc(n["slug"])
+            ntype = _esc(n["fm"].get("node_type", n["fm"].get("artifact_kind", "")))
+            summary = _esc((n["fm"].get("title", "") or n["body"][:80]).replace("\n", " "))
+            tex.append(f"{slug} & {ntype} & {summary} \\\\")
+        tex.append(r"\bottomrule")
+        tex.append(r"\end{longtable}")
+        tex.append("")
+
+    # ======================================================================
+    # §9  Domain Context  (code_method only)
+    # ======================================================================
+    if manifest_fm:
+        tex.append(r"\section{Domain Context}")
+        tex.append("")
+        tex.append(r"\noindent")
+        tex.append(r"\begin{tabular}{ll}")
+        tex.append(r"\toprule")
+        tex.append(r"\textbf{Field} & \textbf{Value} \\")
+        tex.append(r"\midrule")
+        did = manifest_fm.get("domain_id", "")
+        if did:
+            tex.append(r"Domain & \texttt{" + _esc(did) + r"} \\")
+        codes = manifest_fm.get("target_codes", [])
+        if codes:
+            tex.append(r"Target codes & " + _esc(", ".join(codes)) + r" \\")
+        ops = manifest_fm.get("operations", [])
+        if ops:
+            op_names = [o.get("name", "") if isinstance(o, dict) else str(o) for o in ops]
+            tex.append(r"Operations & " + _esc(", ".join(op_names)) + r" \\")
+        repo_ref = manifest_fm.get("repo_ref", {})
+        if isinstance(repo_ref, dict) and repo_ref.get("path"):
+            tex.append(r"Repo & \texttt{" + _esc(str(repo_ref["path"])) + r"} \\")
+            if repo_ref.get("branch"):
+                tex.append(r"Branch & \texttt{" + _esc(str(repo_ref["branch"])) + r"} \\")
+        tex.append(r"\bottomrule")
+        tex.append(r"\end{tabular}")
+        tex.append("")
+
+        # Invariants
+        invs = manifest_fm.get("invariants", [])
+        if invs:
+            tex.append(r"\subsection*{Domain Invariants}")
+            tex.append(r"\begin{longtable}{>{\raggedright}p{3cm} p{5cm} p{4cm}}")
+            tex.append(r"\toprule")
+            tex.append(r"\textbf{ID} & \textbf{Description} & \textbf{Failure Mode} \\")
+            tex.append(r"\midrule")
+            tex.append(r"\endhead")
+            for inv in invs:
+                if isinstance(inv, dict):
+                    iid = _esc(inv.get("id", ""))
+                    desc = _esc(inv.get("description", "")[:60])
+                    fm_val = _esc(inv.get("failure_mode", "")[:50])
+                    tex.append(f"{iid} & {desc} & {fm_val} \\\\")
+            tex.append(r"\bottomrule")
+            tex.append(r"\end{longtable}")
+            tex.append("")
+
+    # ======================================================================
+    # §10  Negative Results & Open Questions
+    # ======================================================================
+    tex.append(r"\section{Negative Results \& Open Questions}")
     tex.append("")
-    oq_candidates = [c for c in candidates if c["fm"].get("candidate_type") == "open_question"]
-    if oq_candidates:
+
+    # Failed ideas
+    failed_ideas = [ip for ip in ideas_list
+                    if (_parse_md(ip)[0]).get("status") in ("failed", "abandoned")]
+    if failed_ideas:
+        tex.append(r"\subsection*{Failed Approaches}")
+        tex.append("")
+        for ip in failed_ideas:
+            fm_i, _ = _parse_md(ip)
+            tex.append(r"\begin{warningbox}[" + _esc(fm_i.get("title", ip.stem)) + r"]")
+            reason = fm_i.get("lessons_learned", fm_i.get("approach", ""))
+            if reason:
+                tex.append(_inline_math_safe(str(reason)[:500]))
+            tex.append(r"\end{warningbox}")
+            tex.append("")
+
+    # Deferred candidates
+    if deferred_body.strip():
+        tex.append(r"\subsection*{Deferred Items}")
+        for line in _md_body_to_tex(deferred_body[:2000]):
+            tex.append(line)
+        tex.append("")
+
+    # Open-question candidates
+    oq_cands = [c for c in candidates if c["fm"].get("candidate_type") == "open_question"]
+    if oq_cands:
+        tex.append(r"\subsection*{Open Questions}")
         tex.append(r"\begin{itemize}")
-        for c in oq_candidates:
+        for c in oq_cands:
             tex.append(r"\item " + _inline_math_safe(c["fm"].get("claim", c["slug"])[:300]))
         tex.append(r"\end{itemize}")
-    else:
-        tex.append(r"(No open questions formally recorded.)")
         tex.append("")
 
+    # Remaining active ideas
+    active_ideas = [ip for ip in ideas_list
+                    if (_parse_md(ip)[0]).get("status") == "active"]
+    if active_ideas:
+        tex.append(r"\subsection*{Active Explorations}")
+        tex.append(r"\begin{itemize}")
+        for ip in active_ideas:
+            fm_i, _ = _parse_md(ip)
+            tex.append(r"\item \textbf{" + _esc(fm_i.get("title", ip.stem)) + r"}")
+        tex.append(r"\end{itemize}")
+        tex.append("")
+
+    has_content = (failed_ideas or deferred_body.strip() or oq_cands or active_ideas)
+    if not has_content:
+        tex.append(r"\noindent (No negative results or open questions formally recorded.)")
+        tex.append("")
+
+    # ======================================================================
+    # §11  Execution Provenance
+    # ======================================================================
+    exec_path = root / "runtime" / "execution_provenance.md"
+    if exec_path.exists():
+        _, body_exec = _parse_md(exec_path)
+        if body_exec.strip():
+            tex.append(r"\section{Execution Provenance}")
+            tex.append("")
+            for line in _md_body_to_tex(body_exec[:1500]):
+                tex.append(line)
+            tex.append("")
+
+    # ---- Close ----
     tex.append("")
     tex.append(r"\end{document}")
 
@@ -3420,15 +3761,17 @@ def aitp_generate_flow_notebook(
         "path": str(tex_path),
         "size_bytes": len(tex_content),
         "sections_included": [
-            "Research Summary",
             "Research Question",
-            "Source Basis",
-            "Conventions & Notation",
-            "Derivation",
-            "Results",
-            "Assumptions, Gaps & Limitations",
-            "Validation",
-            "Open Questions & Future Work",
+            "Source Landscape (L0)",
+            "Conventions & Notation (L1)",
+            "Mode & Session History",
+            "Derivation Journey (L3)",
+            "Synthesis & Claims",
+            "Validation (L4)",
+            "Canonical Knowledge (L2)",
+            "Domain Context (if code_method)",
+            "Negative Results & Open Questions",
+            "Execution Provenance (if recorded)",
         ],
     }
 

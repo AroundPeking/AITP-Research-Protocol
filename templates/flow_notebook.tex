@@ -1,165 +1,300 @@
 % ===========================================================================
-% AITP Flow Notebook Template
+% AITP Flow Notebook Template  (v3 — covers full L0–L4 lifecycle)
 % ===========================================================================
-% This template defines the structure for the L3 flow notebook PDF.
-% The AI agent must fill in each section by converting L3 Markdown artifacts
-% to proper LaTeX using the conversion rules in skill-l3-distill.md.
+% This template defines the canonical section structure for the L3 flow
+% notebook PDF.  The actual content is filled by _build_flow_notebook_content()
+% in brain/mcp_server.py, which reads every layer artifact and converts
+% Markdown to LaTeX.
 %
-% Placeholders use the pattern {{PLACEHOLDER}} — replace them with content.
+% Placeholders use {{PLACEHOLDER}} — replace them with content.
 % ===========================================================================
 
 \documentclass[11pt,a4paper]{article}
 
-% --- Packages ---
-\usepackage{amsmath,amssymb,amsthm}
+% --- Encoding & Fonts ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% --- Mathematics ---
+\usepackage{amsmath,amssymb,amsfonts}
 \usepackage{physics}          % \bra, \ket, \tr, \dd, etc.
 \usepackage{bm}               % \bm for bold math symbols
-\usepackage{booktabs}         % \toprule, \midrule, \bottomrule
+
+% --- Page layout ---
 \usepackage{geometry}
 \geometry{margin=2.5cm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em plus 0.2em minus 0.1em}
+
+% --- Tables ---
+\usepackage{booktabs}         % \toprule, \midrule, \bottomrule
+\usepackage{longtable}        % Tables that span pages
+\usepackage{array}            % >{\raggedright}p{...} column type
+
+% --- Lists ---
+\usepackage{enumitem}         % Better list customization
+
+% --- Colors & Boxes ---
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+% --- Cross-referencing ---
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
     linkcolor=blue!60!black,
     urlcolor=blue!60!black,
 }
-\usepackage{xcolor}
-\usepackage{enumitem}         % Better list customization
-\usepackage{longtable}        % Tables that span pages
 
-% --- Theorem environments (for formal_theory lane) ---
-\newtheorem{proposition}{Proposition}
-\newtheorem{definition}{Definition}
-\newtheorem{remark}{Remark}
+% --- Custom colors ---
+\definecolor{passgreen}{RGB}{34,139,34}
+\definecolor{failred}{RGB}{178,34,34}
+\definecolor{warnorange}{RGB}{204,119,34}
+\definecolor{infoblue}{RGB}{47,85,151}
+
+% --- Status commands ---
+\newcommand{\statuspass}{\textcolor{passgreen}{\textbf{PASS}}}
+\newcommand{\statusfail}{\textcolor{failred}{\textbf{FAIL}}}
+\newcommand{\statusactive}{\textcolor{warnorange}{\textbf{ACTIVE}}}
+\newcommand{\statusdeferred}{\textcolor{gray}{\textbf{DEFERRED}}}
+
+% --- Highlighted boxes ---
+\newtcolorbox{resultbox}[1][]{
+    colback=infoblue!4, colframe=infoblue!70,
+    fonttitle=\bfseries, boxrule=0.6pt, arc=2pt, breakable,
+    title={#1}
+}
+\newtcolorbox{warningbox}[1][]{
+    colback=warnorange!4, colframe=warnorange!70,
+    fonttitle=\bfseries, boxrule=0.6pt, arc=2pt, breakable,
+    title={#1}
+}
+\newtcolorbox{valbox}[1][]{
+    colback=passgreen!4, colframe=passgreen!70,
+    fonttitle=\bfseries, boxrule=0.6pt, arc=2pt, breakable,
+    title={#1}
+}
 
 % --- Metadata ---
-\title{Research Flow Notebook: {{TOPIC_SLUG}}}
-\author{AITP v2}
+\title{\textbf{Research Flow Notebook}\\[0.4em]
+  \large {{TOPIC_TITLE}}}
+\author{AITP Protocol v3}
 \date{\today}
 
 \begin{document}
 \maketitle
+
+\begin{abstract}
+This notebook records the complete research trajectory: sources,
+conventions, derivation attempts, validated results, and open questions.
+Mode: \texttt{{MODE}}.  Lane: \texttt{{LANE}}.
+\end{abstract}
+
 \tableofcontents
 \newpage
 
 % ===========================================================================
-% Section 1: Research Question
+% §1  Research Question
 % ===========================================================================
 % Source: L1/question_contract.md → frontmatter fields
-% Convert the bounded_question, scope_boundaries, target_quantities.
 % ===========================================================================
 
 \section{Research Question}
 
-{{RESEARCH_QUESTION}}
+\begin{resultbox}[Bounded Question]
+{{BOUNDED_QUESTION}}
+\end{resultbox}
 
-\noindent\textbf{Scope:} {{SCOPE}}
+\noindent\textbf{Scope:} {{SCOPE}} \quad
+\textbf{Target quantities:} {{TARGET_QUANTITIES}}
 
-\noindent\textbf{Target Quantities:} {{TARGET_QUANTITIES}}
-
-% ===========================================================================
-% Section 2: Conventions
-% ===========================================================================
-% Source: L1/convention_snapshot.md → frontmatter fields
-% ===========================================================================
-
-\section{Conventions and Regime}
-
-{{NOTATION_CHOICES}}
-
-\noindent\textbf{Units:} {{UNIT_CONVENTIONS}}
+\begin{warningbox}[Non-Success Conditions]
+{{NON_SUCCESS_CONDITIONS}}
+\end{warningbox}
 
 % ===========================================================================
-% Section 3: Session Provenance
+% §2  Source Landscape  (L0)
 % ===========================================================================
-% Source: runtime/sessions.md — list all sessions that contributed.
-% One row per session: ID, start time, end time, stage at entry.
+% Source: L0/sources/*.md → per-source frontmatter (title, fidelity, relation)
+%         L1/source_basis.md → coverage analysis
 % ===========================================================================
 
-\section{Session Provenance}
+\section{Source Landscape}
 
-\begin{longtable}{llll}
+\begin{longtable}{>{\raggedright}p{3cm} p{5cm} p{2.5cm} p{2.5cm}}
 \toprule
-\textbf{Session} & \textbf{Started} & \textbf{Ended} & \textbf{Stage} \\
+\textbf{Source} & \textbf{Title} & \textbf{Fidelity} & \textbf{Relation} \\
 \midrule
 \endhead
-{{SESSION_ROWS}}
+{{SOURCE_TABLE_ROWS}}
 \bottomrule
 \end{longtable}
 
 % ===========================================================================
-% Section 4: Derivation Route
+% §3  Conventions & Notation  (L1)
 % ===========================================================================
-% Sources: L3/ideation/, L3/plan/, L3/analysis/, L3/integration/,
-%          L3/distillation/ — converted from Markdown to LaTeX.
-%
-% Each subplane gets its own subsection. Convert headings, lists, tables,
-% and math from Markdown to proper LaTeX.
+% Source: L1/convention_snapshot.md → frontmatter + body
 % ===========================================================================
 
-\section{Derivation Route}
+\section{Conventions \& Notation}
 
-% --- 4.1 Ideation ---
-\subsection{Ideation}
-% Source: L3/ideation/active_ideation.md
-% Convert: idea statement, motivation, prior work table, risk assessment.
-{{IDEATION_CONTENT}}
+{{NOTATION_BODY}}
 
-% --- 4.2 Plan ---
-\subsection{Planning}
-% Source: L3/plan/active_plan.md
-% Convert: plan statement, derivation route, expected outcomes, milestones.
-{{PLAN_CONTENT}}
+\noindent\textbf{Units:} {{UNIT_CONVENTIONS}}
 
-% --- 4.3 Analysis ---
-\subsection{Analysis}
-% Source: L3/analysis/active_analysis.md
-% Convert: round_type, derivation steps (equation + justification + origin per step),
-% source anchor table, anomalies, failed routes, assumptions flagged.
-% For formal_theory derivation_round: every step MUST have equation, justification,
-% step_origin. Missing fields go into Open Obligations.
+\noindent\textbf{Sign convention:} {{SIGN_CONVENTION}}
+
+% ===========================================================================
+% §4  Mode & Session History
+% ===========================================================================
+% Source: state.md frontmatter, runtime/sessions.md
+% ===========================================================================
+
+\section{Mode \& Session History}
+
+\noindent
+\begin{tabular}{ll}
+\toprule
+\textbf{Axis} & \textbf{Value} \\
+\midrule
+Topic slug  & \texttt{{TOPIC_SLUG}} \\
+Status      & \texttt{{STATUS}} \\
+Mode        & \texttt{{MODE}} \\
+Lane        & \texttt{{LANE}} \\
+L3 mode     & \texttt{{L3_MODE}} \\
+\bottomrule
+\end{tabular}
+
+% ===========================================================================
+% §5  Derivation Journey  (L3)
+% ===========================================================================
+% Sources:
+%   L3/ideas/*.md     — branched idea exploration (§5.1)
+%   L3/*/active_*.md  — subplane artifacts (§5.2)
+%   L3/planning/      — planning notes (§5.3)
+% ===========================================================================
+
+\section{Derivation Journey}
+
+% --- 5.1  Ideas Explored ---
+\subsection{Ideas Explored}
+\label{sec:ideas}
+
+Multiple derivation routes were attempted.  Failed and abandoned
+approaches are preserved alongside successes --- their lessons
+informed later routes.
+
+{{IDEAS_CONTENT}}
+
+% --- 5.2  Structured Derivation ---
+\subsection{Structured Derivation}
+
+\subsubsection*{Analysis}
 {{ANALYSIS_CONTENT}}
 
-% --- 4.4 Result Integration ---
-\subsection{Result Integration}
-% Source: L3/integration/active_integration.md
-% Convert: findings, claim readiness (blocked/qualified/stable), open obligations.
-% Each finding must have a readiness level. Blocked findings cannot become candidates.
+\subsubsection*{Result Integration}
 {{INTEGRATION_CONTENT}}
 
-% --- 4.5 Distillation ---
-\subsection{Distillation}
-% Source: L3/distillation/active_distillation.md
-% Convert: distilled claim, evidence summary, confidence level, open questions.
-{{DISTILLATION_CONTENT}}
+% --- 5.3  Planning Notes ---
+\subsection{Planning Notes}
+{{PLANNING_CONTENT}}
 
 % ===========================================================================
-% Section 5: Validation and Checks
+% §6  Synthesis & Claims
 % ===========================================================================
-% Source: L4/reviews/*.md (if available)
+% Source: L3/distillation/active_distillation.md, L3/candidates/*.md
 % ===========================================================================
 
-\section{Validation and Checks}
-{{L4_VALIDATION_CONTENT}}
+\section{Synthesis \& Claims}
+
+\begin{resultbox}[Distilled Claim]
+{{DISTILLED_CLAIM}}
+\end{resultbox}
+
+\noindent\textbf{Evidence:} {{EVIDENCE_SUMMARY}}
+
+\noindent\textbf{Confidence:} {{CONFIDENCE_LEVEL}}
+
+{{VALIDATED_RESULTS}}
 
 % ===========================================================================
-% Section 6: Current Claim Boundary
+% §7  Validation  (L4)
 % ===========================================================================
-% Report claim readiness level per finding (blocked/qualified/stable).
-% Blocked findings: list with reason and repair plan.
-% Qualified findings: list with validity_regime, depends_on, breaks_if, still_unclosed.
-% Stable findings: summarize as current best statements.
+% Source: L4/reviews/*.md, L4/invariant-checks.md
+% ===========================================================================
 
-\section{Current Claim Boundary}
-{{CLAIM_BOUNDARY}}
+\section{Validation}
+
+{{L4_REVIEWS}}
+
+{{DOMAIN_INVARIANT_CHECKS}}
 
 % ===========================================================================
-% Section 7: Failures and Open Problems
+% §8  Canonical Knowledge  (L2)
 % ===========================================================================
-% Record failed derivation routes with: why plausible, exact failure point,
-% lesson, revive conditions. Also list all open obligations from integration.
+% Source: L2/canonical/*.md — promoted knowledge nodes
+% ===========================================================================
 
-\section{Failures and Open Problems}
-{{OPEN_PROBLEMS}}
+\section{Canonical Knowledge (L2)}
+
+\begin{longtable}{>{\raggedright}p{3cm} p{2cm} p{6cm}}
+\toprule
+\textbf{Node} & \textbf{Type} & \textbf{Summary} \\
+\midrule
+\endhead
+{{L2_TABLE_ROWS}}
+\bottomrule
+\end{longtable}
+
+% ===========================================================================
+% §9  Domain Context  (code_method only)
+% ===========================================================================
+% Source: contracts/domain-manifest.md
+% ===========================================================================
+
+\section{Domain Context}
+
+\noindent
+\begin{tabular}{ll}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Domain       & \texttt{{DOMAIN_ID}} \\
+Target codes & {{TARGET_CODES}} \\
+Operations   & {{OPERATIONS}} \\
+Repo         & \texttt{{REPO_PATH}} \\
+Branch       & \texttt{{REPO_BRANCH}} \\
+\bottomrule
+\end{tabular}
+
+\subsection*{Domain Invariants}
+{{DOMAIN_INVARIANTS_TABLE}}
+
+% ===========================================================================
+% §10  Negative Results & Open Questions
+% ===========================================================================
+% Sources: L3/ideas/*.md (failed), L3/deferred.md, L3/candidates (open_question)
+% ===========================================================================
+
+\section{Negative Results \& Open Questions}
+
+\subsection*{Failed Approaches}
+{{FAILED_APPROACHES}}
+
+\subsection*{Deferred Items}
+{{DEFERRED_ITEMS}}
+
+\subsection*{Open Questions}
+{{OPEN_QUESTIONS}}
+
+% ===========================================================================
+% §11  Execution Provenance  (if applicable)
+% ===========================================================================
+% Source: runtime/execution_provenance.md
+% ===========================================================================
+
+\section{Execution Provenance}
+
+{{EXECUTION_PROVENANCE}}
 
 \end{document}
