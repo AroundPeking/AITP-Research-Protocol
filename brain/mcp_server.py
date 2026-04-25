@@ -3026,71 +3026,196 @@ def _build_flow_notebook_content(
     # -----------------------------------------------------------------------
     # LaTeX helpers
     # -----------------------------------------------------------------------
-    def _esc(text: str) -> str:
-        """Minimal LaTeX escaping."""
-        return (text
-                .replace("\\", "\\textbackslash ")
-                .replace("&", "\\&")
-                .replace("%", "\\%")
-                .replace("$", "\\$")
-                .replace("#", "\\#")
-                .replace("_", "\\_")
-                .replace("{", "\\{")
-                .replace("}", "\\}")
-                .replace("^", "\\^{}")
-                .replace("~", "\\textasciitilde "))
+    _UNICODE_LATEX = {
+        "Α": r"\Alpha", "Β": r"\Beta", "Γ": r"\Gamma",
+        "Δ": r"\Delta", "Ε": r"\Epsilon", "Ζ": r"\Zeta",
+        "Η": r"\Eta", "Θ": r"\Theta", "Ι": r"\Iota",
+        "Κ": r"\Kappa", "Λ": r"\Lambda", "Μ": r"\Mu",
+        "Ν": r"\Nu", "Ξ": r"\Xi", "Ο": r"\Omicron",
+        "Π": r"\Pi", "Ρ": r"\Rho", "Σ": r"\Sigma",
+        "Τ": r"\Tau", "Υ": r"\Upsilon", "Φ": r"\Phi",
+        "Χ": r"\Chi", "Ψ": r"\Psi", "Ω": r"\Omega",
+        "α": r"\alpha", "β": r"\beta", "γ": r"\gamma",
+        "δ": r"\delta", "ε": r"\varepsilon", "ζ": r"\zeta",
+        "η": r"\eta", "θ": r"\theta", "ι": r"\iota",
+        "κ": r"\kappa", "λ": r"\lambda", "μ": r"\mu",
+        "ν": r"\nu", "ξ": r"\xi", "ο": r"o",
+        "π": r"\pi", "ρ": r"\rho", "ς": r"\varsigma",
+        "σ": r"\sigma", "τ": r"\tau", "υ": r"\upsilon",
+        "φ": r"\varphi", "χ": r"\chi", "ψ": r"\psi",
+        "ω": r"\omega",
+        "ℏ": r"\hbar", "∂": r"\partial", "∏": r"\prod",
+        "∑": r"\sum", "√": r"\surd", "∫": r"\int",
+        "≤": r"\leq", "≥": r"\geq",
+        "±": r"\pm", "·": r"\cdot", "×": r"\times",
+        "→": r"\rightarrow", "←": r"\leftarrow",
+        "²": r"{}^{2}",
+        "—": "---", "–": "--",
+    }
 
-    def _inline_math_safe(text: str) -> str:
-        """Keep $...$ math blocks intact, escape the rest."""
+    def _esc(text: str) -> str:
+        """Minimal LaTeX escaping + Unicode conversion for non-math text."""
+        out = (text
+               .replace("\\", "\\textbackslash ")
+               .replace("&", "\\&")
+               .replace("%", "\\%")
+               .replace("$", "\\$")
+               .replace("#", "\\#")
+               .replace("_", "\\_")
+               .replace("{", "\\{")
+               .replace("}", "\\}")
+               .replace("^", "\\^{}")
+               .replace("~", "\\textasciitilde "))
+        return _unicode_to_latex(out, wrap=True)
+
+    def _unicode_to_latex(text: str, wrap: bool = False) -> str:
+        """Replace Unicode math chars with LaTeX equivalents.
+
+        wrap=True wraps each in $...$ for text-mode usage.
+        wrap=False assumes caller is already inside math mode.
+        """
+        for uc, cmd in _UNICODE_LATEX.items():
+            if uc in text:
+                ltx = f"${cmd}$" if wrap else cmd
+                text = text.replace(uc, ltx)
+        return text
+
+    def _inline_fmt(text: str, math: bool = True) -> str:
+        """Convert inline Markdown to LaTeX: $math$, **bold**, *italic*, `code`."""
+        if not text:
+            return ""
         parts = text.split("$")
         result = []
         for i, part in enumerate(parts):
-            if i % 2 == 0:
-                result.append(_esc(part))
+            if i % 2 == 1 and math:
+                # Math segment: convert Unicode → LaTeX math commands
+                result.append("$" + _unicode_to_latex(part, wrap=False) + "$")
             else:
-                result.append(f"${part}$")
+                seg = _esc(part)
+                seg = _unicode_to_latex(seg, wrap=True)
+                seg = re.sub(r"`([^`]+)`", r"\\texttt{\1}", seg)
+                seg = re.sub(r"\*\*(.+?)\*\*", r"\\textbf{\1}", seg)
+                seg = re.sub(r"\*(.+?)\*", r"\\textit{\1}", seg)
+                result.append(seg)
         return "".join(result)
 
-    def _md_body_to_tex(text: str, math: bool = True) -> list[str]:
-        """Convert Markdown body lines to LaTeX, preserving math if math=True."""
-        lines: list[str] = []
-        if not text:
-            return lines
-        for raw in text.split("\n"):
-            line = raw.rstrip()
-            if not line:
-                lines.append("")
-                continue
-            if line.startswith("### "):
-                lines.append(r"\paragraph{" + _esc(line[4:]) + "}")
-            elif line.startswith("## "):
-                lines.append(r"\subsubsection*{" + _esc(line[3:]) + "}")
-            elif line.startswith("# "):
-                lines.append(r"\subsection*{" + _esc(line[2:]) + "}")
-            elif line.startswith("- ") or line.startswith("* "):
-                item = line[2:]
-                lines.append(r"\item " + (_inline_math_safe(item) if math else _esc(item)))
-            elif line.startswith("|"):
-                lines.append(line)  # pass through table rows as-is
+    def _inline_math_safe(text: str) -> str:
+        """Keep $...$ math blocks intact, escape the rest. Backward compat."""
+        return _inline_fmt(text, math=True)
+
+    def _md_table_to_tex(rows: list[str]) -> list[str]:
+        """Convert a Markdown table (list of |row| strings) to LaTeX tabular."""
+        if len(rows) < 2:
+            return []
+        # Parse cells
+        parsed = []
+        for r in rows:
+            cells = [c.strip() for c in r.strip("|").split("|")]
+            parsed.append(cells)
+        ncol = len(parsed[0])
+        col_spec = "l" * ncol
+        out: list[str] = []
+        out.append(r"\begin{tabular}{" + col_spec + "}")
+        for i, cells in enumerate(parsed):
+            if i == 0:
+                out.append(r"\toprule")
+                out.append(" & ".join(_inline_fmt(c) for c in cells) + r" \\")
+                out.append(r"\midrule")
+            elif all(set(c) <= {"-", ":", " "} for c in cells):
+                continue  # skip separator row
             else:
-                lines.append(_inline_math_safe(line) if math else _esc(line))
-        return lines
+                out.append(" & ".join(_inline_fmt(c) for c in cells) + r" \\")
+        out.append(r"\bottomrule")
+        out.append(r"\end{tabular}")
+        return out
+
+    def _md_body_to_tex(text: str, math: bool = True) -> list[str]:
+        """Convert Markdown body to LaTeX with proper environments."""
+        if not text:
+            return []
+        raw_lines = text.split("\n")
+
+        # Group consecutive table rows together
+        groups: list[tuple] = []
+        table_buf: list[str] = []
+        for raw in raw_lines:
+            stripped = raw.strip()
+            if stripped.startswith("|") and stripped.endswith("|") and len(stripped) > 2:
+                table_buf.append(stripped)
+            else:
+                if table_buf:
+                    groups.append(("table", table_buf))
+                    table_buf = []
+                groups.append(("line", stripped))
+        if table_buf:
+            groups.append(("table", table_buf))
+
+        # Convert groups
+        out: list[str] = []
+        in_itemize = False
+        in_enumerate = False
+
+        def _close_list():
+            nonlocal in_itemize, in_enumerate
+            if in_itemize:
+                out.append(r"\end{itemize}")
+                in_itemize = False
+            if in_enumerate:
+                out.append(r"\end{enumerate}")
+                in_enumerate = False
+
+        for kind, content in groups:
+            if kind == "table":
+                _close_list()
+                out.extend(_md_table_to_tex(content))
+                continue
+
+            line = content
+            if not line:
+                _close_list()
+                out.append("")
+                continue
+
+            # Markdown headers
+            if line.startswith("### "):
+                _close_list()
+                out.append(r"\paragraph{" + _inline_fmt(line[4:], math) + "}")
+            elif line.startswith("## "):
+                _close_list()
+                out.append(r"\subsubsection*{" + _inline_fmt(line[3:], math) + "}")
+            elif line.startswith("# "):
+                _close_list()
+                out.append(r"\subsection*{" + _inline_fmt(line[2:], math) + "}")
+            # Bullet lists
+            elif line.startswith("- ") or line.startswith("* "):
+                if in_enumerate:
+                    _close_list()
+                if not in_itemize:
+                    out.append(r"\begin{itemize}")
+                    in_itemize = True
+                out.append(r"\item " + _inline_fmt(line[2:], math))
+            # Numbered lists
+            elif re.match(r"^\d+\.\s", line):
+                if in_itemize:
+                    _close_list()
+                if not in_enumerate:
+                    out.append(r"\begin{enumerate}")
+                    in_enumerate = True
+                item_text = re.sub(r"^\d+\.\s", "", line)
+                out.append(r"\item " + _inline_fmt(item_text, math))
+            else:
+                _close_list()
+                out.append(_inline_fmt(line, math))
+
+        _close_list()
+        return out
 
     def _wrap_itemize(md_text: str, math: bool = True, limit: int = 8000) -> list[str]:
-        """Convert a Markdown body into a LaTeX itemize block if it has bullets."""
+        """Convert a Markdown body into LaTeX. Delegates to _md_body_to_tex."""
         text = (md_text or "").strip()[:limit]
         if not text:
             return []
-        lines = text.split("\n")
-        has_bullets = any(l.startswith(("- ", "* ")) for l in lines)
-        result: list[str] = []
-        if has_bullets:
-            result.append(r"\begin{itemize}")
-        for l in _md_body_to_tex(text, math):
-            result.append(l)
-        if has_bullets:
-            result.append(r"\end{itemize}")
-        return result
+        return _md_body_to_tex(text, math)
 
     # -----------------------------------------------------------------------
     # Data collection
