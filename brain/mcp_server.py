@@ -56,8 +56,6 @@ from brain.state_model import (
     DOMAIN_TAXONOMY,
     VALID_DOMAINS,
     L2_QUERY_HIDDEN_FIELDS,
-    DIAGRAM_TYPES,
-    DIAGRAM_SOURCES,
     DIAGRAM_TEMPLATE,
 )
 
@@ -3052,35 +3050,29 @@ def aitp_get_l2_provenance(
 def aitp_create_diagram(
     topics_root: str,
     diagram_id: str,
-    diagram_type: str,
     title: str,
-    caption: str = "",
-    physical_meaning: str = "",
+    what_it_shows: str = "",
     related_nodes: list[str] | None = None,
     related_edges: list[str] | None = None,
-    related_steps: list[str] | None = None,
     source_ref: str = "",
     source_file: str = "",
-    drawn_by: str = "extracted_from_source",
-    regime: str = "",
-    tags: list[str] | None = None,
 ) -> str:
-    """Register a diagram (figure, plot, diagram) in the L2 knowledge graph.
+    """Register a figure or diagram from the literature in L2.
 
     Diagrams are evidence attachments — they hang on nodes and edges, not
     enter the force graph as independent entities.
 
-    diagram_type: feynman | spectral | band_structure | phase_diagram |
-                  rg_flow | commutative | schematic | penrose | table
-    drawn_by: extracted_from_source | ai_regenerated | hand_drawn
-    related_nodes: list of L2 node_ids this diagram supports
-    related_edges: list of L2 edge_ids this diagram supports
-    source_ref: human-readable citation (e.g. "Hedin 1965, Fig. 1")
-    source_file: path relative to L2/images/ for the image file
-    """
-    if diagram_type not in DIAGRAM_TYPES:
-        return f"Invalid diagram_type '{diagram_type}'. Valid: {DIAGRAM_TYPES}"
+    what_it_shows: plain-language description of what the figure shows.
+        Write this so that both a human and an AI can understand the
+        physical content without needing to actually see the image.
+        Include: key visual elements, physical interpretation,
+        why this figure matters.
 
+    related_nodes: list of L2 node_ids this figure supports.
+    related_edges: list of L2 edge_ids this figure supports.
+    source_ref: human-readable citation (e.g. "Hedin 1965, Fig. 1")
+    source_file: path relative to L2/images/ for the image file.
+    """
     global_l2 = _ensure_l2_graph_dirs(topics_root)
     slug = _slugify(diagram_id)
     diagrams_dir = global_l2 / "graph" / "diagrams"
@@ -3090,32 +3082,24 @@ def aitp_create_diagram(
     fm: dict[str, Any] = dict(DIAGRAM_TEMPLATE)
     fm.update({
         "diagram_id": slug,
-        "type": diagram_type,
         "title": title,
-        "caption": caption,
-        "physical_meaning": physical_meaning,
+        "what_it_shows": what_it_shows,
         "related_nodes": related_nodes or [],
         "related_edges": related_edges or [],
-        "related_steps": related_steps or [],
         "source_ref": source_ref,
         "source_file": source_file,
-        "drawn_by": drawn_by,
-        "regime": regime,
-        "tags": tags or [],
         "created_at": _now(),
         "updated_at": _now(),
     })
 
     body = (
         f"# {title}\n\n"
-        f"## Physical Description (for AI)\n{physical_meaning}\n\n"
-        f"## Caption\n{caption}\n\n"
-        f"## What This Figure Tells Us\n\n"
+        f"## What This Figure Shows\n{what_it_shows}\n\n"
         f"## Source\n{source_ref}\n"
     )
     _write_md(diagram_path, fm, body)
     return (
-        f"Created L2 diagram {slug} (type={diagram_type}). "
+        f"Created L2 diagram {slug}. "
         f"Linked to {len(related_nodes or [])} nodes, {len(related_edges or [])} edges."
     )
 
@@ -3124,9 +3108,8 @@ def aitp_create_diagram(
 def aitp_list_diagrams(
     topics_root: str,
     related_node: str = "",
-    diagram_type: str = "",
 ) -> list[dict[str, Any]]:
-    """List diagrams in the L2 knowledge graph, optionally filtered by related node or type."""
+    """List diagrams, optionally filtered by related node."""
     global_l2 = _global_l2_path(topics_root)
     diagrams_dir = global_l2 / "graph" / "diagrams"
     if not diagrams_dir.is_dir():
@@ -3135,19 +3118,15 @@ def aitp_list_diagrams(
     results = []
     for dp in sorted(diagrams_dir.glob("*.md")):
         fm, _ = _parse_md(dp)
-        if diagram_type and fm.get("type") != diagram_type:
-            continue
         if related_node and related_node not in (fm.get("related_nodes") or []):
             continue
         results.append({
             "diagram_id": fm.get("diagram_id", dp.stem),
-            "type": fm.get("type", ""),
             "title": fm.get("title", dp.stem),
-            "caption": fm.get("caption", ""),
+            "what_it_shows": (fm.get("what_it_shows") or "")[:300],
             "related_nodes": fm.get("related_nodes", []),
             "related_edges": fm.get("related_edges", []),
             "source_ref": fm.get("source_ref", ""),
-            "source_file": fm.get("source_file", ""),
         })
     return results
 
