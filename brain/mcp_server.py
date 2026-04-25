@@ -35,21 +35,14 @@ from brain.state_model import (
     evaluate_l3_stage,
     evaluate_l4_stage,
     evaluate_l5_stage,
-    _get_l3_config,
     L0_ARTIFACT_TEMPLATES,
     L1_ARTIFACT_TEMPLATES,
-    L3_ARTIFACT_TEMPLATES,
-    L3_ACTIVE_ARTIFACT_NAMES,
-    L3_SKILL_MAP,
-    L3_SUBPLANES,
-    L3_ALLOWED_TRANSITIONS,
+    L3_ACTIVITIES,
+    L3_ACTIVITY_TEMPLATES,
+    L3_ACTIVITY_ARTIFACT_NAMES,
+    L3_ACTIVITY_SKILL_MAP,
     L4_OUTCOMES,
     PHYSICS_CHECK_FIELDS,
-    STUDY_L3_SUBPLANES,
-    STUDY_L3_ARTIFACT_TEMPLATES,
-    STUDY_L3_ACTIVE_ARTIFACT_NAMES,
-    STUDY_L3_SKILL_MAP,
-    STUDY_L3_ALLOWED_TRANSITIONS,
     STUDY_CANDIDATE_TYPES,
     L2_NODE_TYPES,
     L2_EDGE_TYPES,
@@ -1819,57 +1812,42 @@ def aitp_retreat_to_l0(topics_root: str, topic_slug: str, reason: str = "") -> _
 def aitp_advance_to_l3(
     topics_root: str,
     topic_slug: str,
-    l3_mode: str = "research",
 ) -> dict[str, Any]:
-    """Transition a topic from L1 (ready) to L3. Returns popup gate.
+    """Transition a topic from L1 (ready) to L3 flexible workspace.
 
-    l3_mode: research | study
-    - research (default): start at ideation subplane for original derivation
-    - study: start at source_decompose for literature understanding
+    L3 has no forced mode — the agent chooses activities as needed.
+    Default starting activity: ideate.
     """
     root = _topic_root(topics_root, topic_slug)
     l1_snapshot = evaluate_l1_stage(_parse_md, root)
     if l1_snapshot.gate_status != "ready":
         return _GateResult({"message": f"L1 gate is not ready (status: {l1_snapshot.gate_status}). Fill missing artifacts first."})
 
-    if l3_mode not in ("research", "study"):
-        return _GateResult({"message": f"Invalid l3_mode '{l3_mode}'. Use 'research' or 'study'."})
-
-    (
-        subplanes,
-        _,
-        templates,
-        artifact_names,
-        _,
-        _,
-        entry_subplane,
-    ) = _get_l3_config(l3_mode)
-
     state_path = root / "state.md"
     fm, body = _parse_md(state_path)
     fm["stage"] = "L3"
     fm["posture"] = "derive"
-    fm["l3_mode"] = l3_mode
-    fm["l3_subplane"] = entry_subplane
+    fm["l3_activity"] = "ideate"
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
 
-    # Create L3 subplane directories and scaffolds
-    for subplane in subplanes:
-        (root / "L3" / subplane).mkdir(parents=True, exist_ok=True)
-        _, template_fm, template_body = templates[subplane]
-        artifact_path = root / "L3" / subplane / artifact_names[subplane]
-        if not artifact_path.exists():
-            _write_md(artifact_path, template_fm, template_body)
+    # Create L3 activity directories and scaffolds
+    for activity in L3_ACTIVITIES:
+        (root / "L3" / activity).mkdir(parents=True, exist_ok=True)
+        if activity in L3_ACTIVITY_TEMPLATES:
+            _, template_fm, template_body = L3_ACTIVITY_TEMPLATES[activity]
+            artifact_name = L3_ACTIVITY_ARTIFACT_NAMES.get(activity, f"active_{activity}.md")
+            artifact_path = root / "L3" / activity / artifact_name
+            if not artifact_path.exists():
+                _write_md(artifact_path, template_fm, template_body)
 
-    (root / "L3" / "tex").mkdir(parents=True, exist_ok=True)
     return _GateResult({
-        "message": f"Advanced to L3 {entry_subplane} (mode: {l3_mode}).",
+        "message": "Advanced to L3 flexible workspace. All activities available. Default: ideate.",
         "popup_gate": {
-            "question": f"L1 complete. Start L3 in {l3_mode} mode ({entry_subplane})?",
-            "header": "L1->L3",
+            "question": "L1 complete. Enter L3 flexible workspace?",
+            "header": "L1→L3",
             "options": [
-                {"label": "Start", "description": f"Proceed to L3 {l3_mode} mode, starting at {entry_subplane}."},
+                {"label": "Enter L3", "description": "Start working in L3. All activities available. Switch freely."},
                 {"label": "Review L1 first", "description": "Go back and review L1 artifacts before advancing."},
             ],
         },
@@ -1877,49 +1855,34 @@ def aitp_advance_to_l3(
 
 
 @mcp.tool()
-def aitp_advance_l3_subplane(
-    topics_root: str, topic_slug: str, target_subplane: str,
+def aitp_switch_l3_activity(
+    topics_root: str, topic_slug: str, activity: str, reason: str = "",
 ) -> str:
     """Advance the L3 subplane. Only allows valid forward transitions and backedges.
 
-    Transition rules depend on l3_mode:
-    - research: ideation -> planning -> analysis -> result_integration -> distillation
-    - study: source_decompose -> step_derive -> gap_audit -> synthesis
+    """Switch to a different L3 activity. No forced sequence — any activity
+    can be entered at any time. All activities are available regardless of
+    the current one.
     """
     root = _topic_root(topics_root, topic_slug)
     state_path = root / "state.md"
     fm, body = _parse_md(state_path)
-    l3_mode = str(fm.get("l3_mode", "research")).strip() or "research"
 
-    (
-        subplanes,
-        allowed_transitions,
-        _,
-        _,
-        skill_map,
-        _,
-        _,
-    ) = _get_l3_config(l3_mode)
+    if activity not in L3_ACTIVITIES:
+        return f"Unknown activity '{activity}'. Valid: {L3_ACTIVITIES}"
 
-    if target_subplane not in subplanes:
-        return f"Unknown subplane '{target_subplane}' for mode '{l3_mode}'. Valid: {subplanes}"
-
-    current = fm.get("l3_subplane", subplanes[0])
-    allowed = allowed_transitions.get(current, [])
-    if target_subplane not in allowed:
-        return (
-            f"Transition from '{current}' to '{target_subplane}' is not allowed "
-            f"in {l3_mode} mode. Allowed targets: {allowed}"
-        )
-
-    fm["l3_subplane"] = target_subplane
+    old = fm.get("l3_activity", "ideate")
+    fm["l3_activity"] = activity
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
 
-    _auto_refresh_flow_notebook(root, fm)
+    log_msg = f"L3 activity: {old} → {activity}"
+    if reason:
+        log_msg += f" ({reason})"
+    _append_to_topic_log(root, log_msg)
 
-    skill = skill_map.get(target_subplane, skill_map.get(subplanes[0], "skill-l3-ideate"))
-    return f"Advanced to L3/{target_subplane} (mode: {l3_mode}). Follow {skill}."
+    skill = L3_ACTIVITY_SKILL_MAP.get(activity, "skill-l3-ideate")
+    return f"Switched L3 activity: {old} → {activity}. Follow {skill}."
 
 
 @mcp.tool()
@@ -1962,80 +1925,6 @@ def aitp_retreat_to_l1(topics_root: str, topic_slug: str, reason: str = "") -> _
 
 
 @mcp.tool()
-def aitp_switch_l3_mode(
-    topics_root: str,
-    topic_slug: str,
-    new_mode: str,
-    reason: str = "",
-) -> dict[str, Any]:
-    """Switch between L3 research mode and study mode.
-
-    new_mode: research | study
-    - research: original derivation (ideation -> planning -> analysis -> result_integration -> distillation)
-    - study: literature understanding (source_decompose -> step_derive -> gap_audit -> synthesis)
-
-    Switching preserves current subplane state and resets to the entry subplane
-    of the new mode. Use when:
-    - research -> study: L3 derivation reveals knowledge gaps needing literature study
-    - study -> research: literature study yields new research directions
-    """
-    valid_modes = {"research", "study"}
-    if new_mode not in valid_modes:
-        return {"message": f"Invalid mode '{new_mode}'. Valid: {sorted(valid_modes)}"}
-
-    root = _topic_root(topics_root, topic_slug)
-    state_path = root / "state.md"
-    fm, body = _parse_md(state_path)
-
-    if fm.get("stage") not in ("L3", "L1"):
-        return _GateResult({
-            "message": f"Cannot switch L3 mode: topic is at {fm.get('stage')}, not L3/L1.",
-        })
-
-    old_mode = fm.get("l3_mode", "research")
-    if old_mode == new_mode:
-        return {"message": f"Already in '{new_mode}' mode. No change needed."}
-
-    # Determine entry subplane for new mode
-    _, _, _, _, _, _, entry_subplane = _get_l3_config(new_mode)
-
-    fm["l3_mode"] = new_mode
-    fm["previous_l3_mode"] = old_mode
-    fm["l3_mode_switch_reason"] = reason
-    fm["l3_mode_switched_at"] = _now()
-    if fm.get("stage") == "L3":
-        fm["l3_subplane"] = entry_subplane
-    fm["updated_at"] = _now()
-    _write_md(state_path, fm, body)
-
-    if fm.get("stage") == "L3":
-        # Create subplane directories and scaffolds for new mode
-        subplanes, _, templates, artifact_names, _, _, _ = _get_l3_config(new_mode)
-        for subplane in subplanes:
-            (root / "L3" / subplane).mkdir(parents=True, exist_ok=True)
-            _, template_fm, template_body = templates[subplane]
-            artifact_path = root / "L3" / subplane / artifact_names[subplane]
-            if not artifact_path.exists():
-                _write_md(artifact_path, template_fm, template_body)
-
-    _append_to_topic_log(root, f"switched L3 mode: {old_mode} -> {new_mode} ({reason})")
-
-    mode_desc = {
-        "research": "ideation -> planning -> analysis -> result_integration -> distillation",
-        "study": "source_decompose -> step_derive -> gap_audit -> synthesis",
-    }
-    return _GateResult({
-        "message": (
-            f"Switched L3 mode from '{old_mode}' to '{new_mode}'. "
-            f"New subplane flow: {mode_desc[new_mode]}. "
-            f"Entry subplane: {entry_subplane}."
-        ),
-        "old_mode": old_mode,
-        "new_mode": new_mode,
-        "entry_subplane": entry_subplane,
-    })
-
-
 # ---------------------------------------------------------------------------
 # Flow TeX
 # ---------------------------------------------------------------------------

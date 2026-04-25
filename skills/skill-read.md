@@ -78,6 +78,17 @@ For sections identified as relevant by the skim pass:
    - `"low"` — significant gaps, need to re-read or consult external sources
 3. The tool automatically marks sections with `completeness_confidence ∈ {high, medium}`
    as `extracted` in the TOC map and links the intake note.
+4. **Contribute to L2 immediately** — for each significant concept found in this section:
+   - Call `aitp_create_l2_node` with `source_ref="<source_id>/<section_id>"` to create
+     a concept node in the global L2 knowledge graph.
+   - If the concept's relationship to an existing L2 node is obvious (e.g., "GGA
+     generalizes LDA"), call `aitp_create_l2_edge` immediately with
+     `source_ref="<source_id>/<section_id>"`.
+   - Call `aitp_update_section_status` with `new_status="extracted"`.
+   
+   **This is the L1→L2 bridge**: concepts enter the knowledge graph as soon as they
+   are extracted, not after the entire paper is studied. Each concept is traceable
+   to its exact source location.
 
 ### Step 3C: Defer genuinely out-of-scope sections
 For sections that are genuinely irrelevant to the bounded question:

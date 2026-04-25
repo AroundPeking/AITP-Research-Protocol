@@ -544,222 +544,109 @@ def evaluate_l1_stage(
 # L3 subplanes
 # ---------------------------------------------------------------------------
 
-L3_SUBPLANES = ["ideation", "planning", "analysis", "result_integration", "distillation"]
+# ---------------------------------------------------------------------------
+# L3 flexible workspace — no forced mode or subplane sequence
+# ---------------------------------------------------------------------------
 
-L3_ALLOWED_TRANSITIONS: dict[str, list[str]] = {
-    "ideation": ["planning"],
-    "planning": ["analysis", "ideation"],
-    "analysis": ["result_integration", "ideation", "planning"],
-    "result_integration": ["distillation", "analysis"],
-    "distillation": ["result_integration"],
-}
+L3_ACTIVITIES = [
+    "ideate", "derive", "trace-derivation",
+    "gap-audit", "connect", "integrate", "distill",
+]
 
-L3_ARTIFACT_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
-    # (subplane, frontmatter, body)
-    "ideation": (
-        "ideation",
-        {
-            "artifact_kind": "l3_active_idea",
-            "subplane": "ideation",
-            "required_fields": ["idea_statement", "motivation"],
-            "idea_statement": "",
-            "motivation": "",
-        },
+L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
+    "ideate": (
+        "ideate",
+        {"artifact_kind": "l3_active_idea", "activity": "ideate",
+         "required_fields": ["idea_statement", "motivation"],
+         "idea_statement": "", "motivation": ""},
         "# Active Idea\n\n## Idea Statement\n\n## Motivation\n\n"
-        "## Prior Work\n\n## Risk Assessment\n",
+        "## Prior Work (L2 Check)\n\n## Risk Assessment\n",
     ),
-    "planning": (
-        "planning",
-        {
-            "artifact_kind": "l3_active_plan",
-            "subplane": "planning",
-            "required_fields": ["plan_statement", "derivation_route"],
-            "plan_statement": "",
-            "derivation_route": "",
-        },
-        "# Active Plan\n\n## Plan Statement\n\n## Derivation Route\n\n"
-        "## Expected Outcomes\n\n## Milestones\n",
+    "derive": (
+        "derive",
+        {"artifact_kind": "l3_active_derivation", "activity": "derive",
+         "required_fields": ["derivation_count", "all_steps_justified"],
+         "derivation_count": 0, "all_steps_justified": ""},
+        "# Active Derivation\n\n## Derivation Chains\n\n"
+        "## Step-by-Step Trace\n\n## Feynman Self-Check\n\n## Unresolved Steps\n",
     ),
-    "analysis": (
-        "analysis",
-        {
-            "artifact_kind": "l3_active_analysis",
-            "subplane": "analysis",
-            "required_fields": ["analysis_statement", "method"],
-            "analysis_statement": "",
-            "method": "",
-        },
-        "# Active Analysis\n\n## Analysis Statement\n\n## Method\n\n"
-        "## Results So Far\n\n## Anomalies\n",
+    "trace-derivation": (
+        "trace-derivation",
+        {"artifact_kind": "l3_active_trace", "activity": "trace-derivation",
+         "required_fields": ["source_id", "derivation_count"],
+         "source_id": "", "derivation_count": 0},
+        "# Active Trace\n\n## Source Reference\n\n## Derivation Chains\n\n"
+        "## Step-by-Step Trace\n\n## Justification Gaps\n",
     ),
-    "result_integration": (
-        "result_integration",
-        {
-            "artifact_kind": "l3_active_integration",
-            "subplane": "result_integration",
-            "required_fields": ["integration_statement", "findings"],
-            "integration_statement": "",
-            "findings": "",
-        },
+    "gap-audit": (
+        "gap-audit",
+        {"artifact_kind": "l3_active_gaps", "activity": "gap-audit",
+         "required_fields": ["gap_count", "blocking_gaps"],
+         "gap_count": 0, "blocking_gaps": ""},
+        "# Active Gap Audit\n\n## Unstated Assumptions\n\n"
+        "## Approximation Regimes\n\n## Correspondence Check\n\n"
+        "## Prerequisite Gaps\n\n## Severity Assessment\n",
+    ),
+    "connect": (
+        "connect",
+        {"artifact_kind": "l3_active_connect", "activity": "connect",
+         "required_fields": ["connection_summary"],
+         "connection_summary": ""},
+        "# Active Connection\n\n## Concepts Being Connected\n\n"
+        "## Proposed Edges\n\n## Evidence\n\n## Trust Assessment\n",
+    ),
+    "integrate": (
+        "integrate",
+        {"artifact_kind": "l3_active_integration", "activity": "integrate",
+         "required_fields": ["integration_statement", "findings"],
+         "integration_statement": "", "findings": ""},
         "# Active Integration\n\n## Integration Statement\n\n## Findings\n\n"
         "## Consistency Checks\n\n## Gaps Remaining\n",
     ),
-    "distillation": (
-        "distillation",
-        {
-            "artifact_kind": "l3_active_distillation",
-            "subplane": "distillation",
-            "required_fields": ["distilled_claim", "evidence_summary"],
-            "distilled_claim": "",
-            "evidence_summary": "",
-        },
+    "distill": (
+        "distill",
+        {"artifact_kind": "l3_active_distillation", "activity": "distill",
+         "required_fields": ["distilled_claim", "evidence_summary"],
+         "distilled_claim": "", "evidence_summary": ""},
         "# Active Distillation\n\n## Distilled Claim\n\n## Evidence Summary\n\n"
         "## Confidence Level\n\n## Open Questions\n",
     ),
 }
 
-L3_ACTIVE_ARTIFACT_NAMES: dict[str, str] = {
-    "ideation": "active_idea.md",
-    "planning": "active_plan.md",
-    "analysis": "active_analysis.md",
-    "result_integration": "active_integration.md",
-    "distillation": "active_distillation.md",
+L3_ACTIVITY_ARTIFACT_NAMES: dict[str, str] = {
+    "ideate": "active_idea.md",
+    "derive": "active_derivation.md",
+    "trace-derivation": "active_trace.md",
+    "gap-audit": "active_gaps.md",
+    "connect": "active_connect.md",
+    "integrate": "active_integration.md",
+    "distill": "active_distillation.md",
 }
 
-L3_SKILL_MAP: dict[str, str] = {
-    "ideation": "skill-l3-ideate",
-    "planning": "skill-l3-plan",
-    "analysis": "skill-l3-analyze",
-    "result_integration": "skill-l3-integrate",
-    "distillation": "skill-l3-distill",
+L3_ACTIVITY_SKILL_MAP: dict[str, str] = {
+    "ideate": "skill-l3-ideate",
+    "derive": "skill-l3-derive",
+    "trace-derivation": "skill-l3-trace",
+    "gap-audit": "skill-l3-gap-audit",
+    "connect": "skill-l3-connect",
+    "integrate": "skill-l3-integrate",
+    "distill": "skill-l3-distill",
 }
 
-L3_REQUIRED_HEADINGS: dict[str, list[str]] = {
-    "ideation": ["## Idea Statement", "## Motivation"],
-    "planning": ["## Plan Statement", "## Derivation Route"],
-    "analysis": ["## Analysis Statement", "## Method"],
-    "result_integration": ["## Integration Statement", "## Findings"],
-    "distillation": ["## Distilled Claim", "## Evidence Summary"],
-}
-
-
-# ---------------------------------------------------------------------------
-# L3 study mode subplanes (learning / literature understanding)
-# ---------------------------------------------------------------------------
-
-STUDY_L3_SUBPLANES = ["source_decompose", "step_derive", "gap_audit", "synthesis"]
-
-STUDY_L3_ALLOWED_TRANSITIONS: dict[str, list[str]] = {
-    "source_decompose": ["step_derive"],
-    "step_derive": ["gap_audit", "source_decompose"],
-    "gap_audit": ["synthesis", "step_derive"],
-    "synthesis": ["gap_audit"],
-}
-
-STUDY_L3_ARTIFACT_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
-    "source_decompose": (
-        "source_decompose",
-        {
-            "artifact_kind": "l3_active_decomposition",
-            "subplane": "source_decompose",
-            "required_fields": ["source_id", "claim_count"],
-            "source_id": "",
-            "claim_count": 0,
-        },
-        "# Active Decomposition\n\n## Source Reference\n\n## Atomic Claims\n\n"
-        "## Claim-Concept Map\n\n## L2 Overlap Check\n",
-    ),
-    "step_derive": (
-        "step_derive",
-        {
-            "artifact_kind": "l3_active_derivation",
-            "subplane": "step_derive",
-            "required_fields": ["derivation_count", "all_steps_justified"],
-            "derivation_count": 0,
-            "all_steps_justified": "",
-        },
-        "# Active Derivation\n\n## Derivation Chains\n\n"
-        "## Step-by-Step Trace\n\n## Feynman Self-Check\n\n## Unresolved Steps\n",
-    ),
-    "gap_audit": (
-        "gap_audit",
-        {
-            "artifact_kind": "l3_active_gaps",
-            "subplane": "gap_audit",
-            "required_fields": ["gap_count", "blocking_gaps"],
-            "gap_count": 0,
-            "blocking_gaps": "",
-        },
-        "# Active Gap Audit\n\n## Unstated Assumptions\n\n"
-        "## Approximation Regimes\n\n## Correspondence Check\n\n"
-        "## Prerequisite Gaps\n\n## Severity Assessment\n",
-    ),
-    "synthesis": (
-        "synthesis",
-        {
-            "artifact_kind": "l3_active_synthesis",
-            "subplane": "synthesis",
-            "required_fields": ["synthesis_statement", "l2_update_summary"],
-            "synthesis_statement": "",
-            "l2_update_summary": "",
-        },
-        "# Active Synthesis\n\n## Reconstructed Contribution\n\n"
-        "## L2 Node Proposals\n\n## L2 Edge Proposals\n\n"
-        "## Open Questions\n\n## Regime Annotations\n",
-    ),
-}
-
-STUDY_L3_ACTIVE_ARTIFACT_NAMES: dict[str, str] = {
-    "source_decompose": "active_decomposition.md",
-    "step_derive": "active_derivation.md",
-    "gap_audit": "active_gaps.md",
-    "synthesis": "active_synthesis.md",
-}
-
-STUDY_L3_SKILL_MAP: dict[str, str] = {
-    "source_decompose": "skill-l3-decompose",
-    "step_derive": "skill-l3-step-derive",
-    "gap_audit": "skill-l3-gap-audit",
-    "synthesis": "skill-l3-synthesis",
-}
-
-STUDY_L3_REQUIRED_HEADINGS: dict[str, list[str]] = {
-    "source_decompose": ["## Source Reference", "## Atomic Claims"],
-    "step_derive": ["## Derivation Chains", "## Step-by-Step Trace"],
-    "gap_audit": ["## Unstated Assumptions", "## Correspondence Check"],
-    "synthesis": ["## Reconstructed Contribution", "## L2 Node Proposals"],
+L3_ACTIVITY_REQUIRED_HEADINGS: dict[str, list[str]] = {
+    "ideate": ["## Idea Statement", "## Motivation"],
+    "derive": ["## Derivation Chains", "## Step-by-Step Trace"],
+    "trace-derivation": ["## Source Reference", "## Derivation Chains"],
+    "gap-audit": ["## Unstated Assumptions", "## Correspondence Check"],
+    "connect": ["## Concepts Being Connected", "## Proposed Edges"],
+    "integrate": ["## Integration Statement", "## Findings"],
+    "distill": ["## Distilled Claim", "## Evidence Summary"],
 }
 
 STUDY_CANDIDATE_TYPES = [
-    "atomic_concept",
-    "derivation_chain",
-    "correspondence_link",
-    "regime_boundary",
-    "open_question",
+    "atomic_concept", "derivation_chain", "correspondence_link",
+    "regime_boundary", "open_question",
 ]
-
-
-def _get_l3_config(l3_mode: str):
-    """Return the L3 configuration (subplanes, transitions, templates, etc.) for the given mode."""
-    if l3_mode == "study":
-        return (
-            STUDY_L3_SUBPLANES,
-            STUDY_L3_ALLOWED_TRANSITIONS,
-            STUDY_L3_ARTIFACT_TEMPLATES,
-            STUDY_L3_ACTIVE_ARTIFACT_NAMES,
-            STUDY_L3_SKILL_MAP,
-            STUDY_L3_REQUIRED_HEADINGS,
-            "source_decompose",
-        )
-    return (
-        L3_SUBPLANES,
-        L3_ALLOWED_TRANSITIONS,
-        L3_ARTIFACT_TEMPLATES,
-        L3_ACTIVE_ARTIFACT_NAMES,
-        L3_SKILL_MAP,
-        L3_REQUIRED_HEADINGS,
-        "ideation",
-    )
 
 
 def evaluate_l3_stage(
@@ -767,41 +654,40 @@ def evaluate_l3_stage(
     topic_root_path: Path,
     lane: str = "unspecified",
 ) -> StageSnapshot:
-    """Evaluate L3 gate status by checking active subplane artifacts."""
+    """Evaluate L3 gate status. L3 is a flexible workspace — any activity
+    can be entered at any time. The gate checks that the current activity's
+    artifact exists and is filled."""
     state_fm, _ = parse_md(topic_root_path / "state.md")
-    l3_mode = str(state_fm.get("l3_mode", "research")).strip() or "research"
+    current_activity = str(state_fm.get("l3_activity", "")).strip() or "ideate"
 
-    (
-        subplanes,
-        allowed_transitions,
-        artifact_templates,
-        artifact_names,
-        skill_map,
-        required_headings_map,
-        default_subplane,
-    ) = _get_l3_config(l3_mode)
+    if current_activity not in L3_ACTIVITIES:
+        return StageSnapshot(
+            stage="L3", posture="derive", lane=lane,
+            gate_status="blocked_missing_artifact",
+            required_artifact_path="",
+            missing_requirements=[f"unknown activity '{current_activity}'. Valid: {L3_ACTIVITIES}"],
+            next_allowed_transition="", skill="skill-l3-ideate",
+            l3_subplane=current_activity, l3_mode="",
+        )
 
-    current_subplane = str(state_fm.get("l3_subplane", "")).strip() or default_subplane
+    artifact_name = L3_ACTIVITY_ARTIFACT_NAMES.get(current_activity, f"active_{current_activity}.md")
+    artifact_path = topic_root_path / "L3" / current_activity / artifact_name
+    skill = L3_ACTIVITY_SKILL_MAP.get(current_activity, "skill-l3-ideate")
 
-    artifact_name = artifact_names.get(current_subplane, f"active_{current_subplane}.md")
-    artifact_path = topic_root_path / "L3" / current_subplane / artifact_name
-    skill = skill_map.get(current_subplane, skill_map.get(default_subplane, "skill-l3-ideate"))
-
-    template_info = artifact_templates.get(current_subplane)
+    template_info = L3_ACTIVITY_TEMPLATES.get(current_activity)
     if template_info is None:
         return StageSnapshot(
             stage="L3", posture="derive", lane=lane,
             gate_status="blocked_missing_artifact",
             required_artifact_path=str(artifact_path),
-            missing_requirements=[f"unknown subplane '{current_subplane}'"],
+            missing_requirements=[f"no template for activity '{current_activity}'"],
             next_allowed_transition="", skill=skill,
-            l3_subplane=current_subplane, l3_mode=l3_mode,
+            l3_subplane=current_activity, l3_mode="",
         )
 
     _, template_fm, _ = template_info
-    req_fields = [f for f in template_fm.get("required_fields", [])
-                   if not current_subplane.startswith("_")]
-    req_headings = required_headings_map.get(current_subplane, [])
+    req_fields = [f for f in template_fm.get("required_fields", [])]
+    req_headings = L3_ACTIVITY_REQUIRED_HEADINGS.get(current_activity, [])
 
     if not artifact_path.exists():
         return StageSnapshot(
@@ -811,7 +697,7 @@ def evaluate_l3_stage(
             missing_requirements=[artifact_name],
             next_allowed_transition="",
             skill=skill,
-            l3_subplane=current_subplane, l3_mode=l3_mode,
+            l3_subplane=current_activity, l3_mode="",
         )
 
     fm, body = parse_md(artifact_path)
@@ -827,25 +713,17 @@ def evaluate_l3_stage(
             missing_requirements=missing,
             next_allowed_transition="",
             skill=skill,
-            l3_subplane=current_subplane, l3_mode=l3_mode,
+            l3_subplane=current_activity, l3_mode="",
         )
 
-    # Current subplane is complete; check if this is the last one
-    last_subplane = subplanes[-1]
-    if current_subplane == last_subplane:
-        return StageSnapshot(
-            stage="L3", posture="derive", lane=lane,
-            gate_status="ready",
-            next_allowed_transition="L4",
-            skill=skill,
-            l3_subplane=current_subplane, l3_mode=l3_mode,
-        )
+    # L3 is ready when at least one activity artifact is complete.
+    # Any activity can lead to L4 — there is no "last subplane".
     return StageSnapshot(
         stage="L3", posture="derive", lane=lane,
         gate_status="ready",
-        next_allowed_transition=",".join(allowed_transitions.get(current_subplane, [])),
+        next_allowed_transition="L4",
         skill=skill,
-        l3_subplane=current_subplane, l3_mode=l3_mode,
+        l3_subplane=current_activity, l3_mode="",
     )
 
 

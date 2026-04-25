@@ -21,25 +21,27 @@ description: Operating manual for the AITP adversarial-collaborator protocol.
 
 ## Core Model
 
-The protocol is a **stage machine** with orthogonal posture, lane, and L3 mode:
+The protocol is a **stage machine** with orthogonal posture and lane:
 
 ```
-Stage:    L0 (discover) → L1 (read → frame) → L3 → L4 → L3 → L4 → ... → L2
-Posture:  discover | read | frame | derive | verify | distill
+Stage:    L0 (discover) → L1 (read → frame) → L3 (work) ⇄ L4 (validate) → L2 (knowledge)
+Posture:  discover | read | frame | derive | verify
 Lane:     formal_theory | toy_numeric | code_method
-L3 Mode:  research | study
 ```
 
-- **Stage** is hard state — you cannot skip or reverse.
-- **Posture** is operating stance — what you *do* at the current stage.
-- **Lane** is research style — orthogonal, does not affect gate logic.
-- **L3 Mode** determines the subplane flow within L3:
-  - **research** (default): ideation → planning → analysis → result_integration → distillation
-  - **study**: source_decompose → step_derive → gap_audit → synthesis
+- **L1** is the knowledge extraction engine. Section-by-section TOC-parsed reading. Every
+  completed section immediately contributes concepts and obvious edges to L2. L1 can
+  stay active for a long time — the `source_toc_map` tracks which sections have been
+  extracted and which are still pending.
+- **L3** is a flexible workspace. No forced mode or subplane sequence. The agent
+  chooses the right activity at the right time, guided by the topic state:
+  - 📖 trace-derivation, 🧠 ideate, ✏️ derive, 🔍 gap-audit, 🔗 connect
+- **L4** validates candidates from L3. Counterargument required.
+- **L2** is the persistent knowledge graph. L1 feeds it concepts. L3 feeds it
+  relationships and derivations. L4 feeds it trust upgrades.
 
-Every agent action must respect the gate model.  When
-`gate_status != "ready"`, you must fix missing requirements before
-advancing.
+Every agent action must respect the gate model. When `gate_status != "ready"`,
+you must fix missing requirements before advancing.
 
 ## Quick Reference: Tool → When to Call
 
@@ -60,11 +62,10 @@ advancing.
 | Tool | Stage | When |
 |------|-------|------|
 | `aitp_advance_to_l1` | L0→L1 | After L0 source_registry.md passes gate |
-| `aitp_advance_to_l3` | L1→L3 | After all L1 artifacts pass gate. Set l3_mode |
-| `aitp_advance_l3_subplane` | L3 | Move between subplanes (respect allowed transitions) |
+| `aitp_advance_to_l3` | L1→L3 | After all L1 artifacts pass gate |
+| `aitp_switch_l3_activity` | L3 | Switch between activities (no forced sequence) |
 | `aitp_retreat_to_l0` | L1/L3 | Return to L0 |
 | `aitp_retreat_to_l1` | L3 | Return to L1 |
-| `aitp_switch_l3_mode` | L3 | Switch research ↔ study mode |
 | `aitp_switch_lane` | any | Change lane (formal_theory / toy_numeric / code_method) |
 
 ### Sources & Candidates
@@ -248,54 +249,58 @@ L1 enforces mechanical source coverage via `source_toc_map.md` and per-section i
 This prevents the common failure mode where L1 reading skips sections or
 creates shallow extractions, leaving gaps that corrupt downstream L3 derivation.
 
-### Phase 2: L3 Derivation (stage = L3, posture = derive)
+#### L1 → L2 Bridging (per-section concept creation)
+
+After deep-extracting a section (Step 4 above), immediately contribute to L2:
 
 ```
-8. aitp_advance_to_l3(topics_root, topic_slug, l3_mode="research"|"study")
-   → Sets stage=L3, l3_subplane=entry subplane for chosen mode
-   → research mode: l3_subplane=ideation
-   → study mode: l3_subplane=source_decompose
+For each significant concept found in this section:
+  → aitp_create_l2_node(source_ref="<source_id>/<section_id>")
+For each obvious relationship between concepts:
+  → aitp_create_l2_edge(source_ref="<source_id>/<section_id>")
 
-9. Walk subplanes in order (mode-dependent):
-
-   RESEARCH mode: ideation → planning → analysis → result_integration → distillation
-   STUDY mode:    source_decompose → step_derive → gap_audit → synthesis
-
-   For each subplane:
-   a. Edit the active artifact (e.g., L3/ideation/active_idea.md)
-      Fill frontmatter fields AND body headings.
-   b. aitp_advance_l3_subplane(topics_root, topic_slug, next_subplane)
-      Only valid transitions are allowed (see tables below).
-      Back-edges exist for revision.
-
-10. aitp_submit_candidate(topics_root, topic_slug, candidate_id, claim, evidence,
-      candidate_type="research_claim"|"atomic_concept"|"derivation_chain"|..., regime_of_validity=...)
-    → After final subplane is complete. Creates L3/candidates/<id>.md
+Update section status:
+  → aitp_update_section_status(new_status="extracted")
 ```
 
-Allowed L3 transitions (research mode):
+This ensures L2 grows incrementally as L1 progresses. Each section's concepts
+are traceable to their exact source location.
+
+### Phase 2: L3 Flexible Workspace (stage = L3, posture = derive)
+
+L3 is a flexible workspace — **no forced mode or subplane sequence**. The agent
+chooses the right activity at the right time. Study and research are not separate
+modes; they are activities you switch between as the work demands.
+
 ```
-ideation       → planning
-planning       → analysis, ideation
-analysis       → result_integration, ideation, planning
-result_integration → distillation, analysis
-distillation   → result_integration
+8. aitp_advance_to_l3(topics_root, topic_slug)
+   → Sets stage=L3. Default activity: ideate
+
+9. Work through activities in any order. Switch via:
+   aitp_switch_l3_activity(topics_root, topic_slug, activity, reason=...)
 ```
 
-Allowed L3 transitions (study mode):
+**L3 Activities** (no forced sequence, can revisit any at any time):
+
+| Activity | What you do | Key output |
+|----------|-------------|------------|
+| **ideate** | Propose new ideas based on L2 concepts + source material | `active_idea.md`: idea, motivation, prior work |
+| **derive** | Execute a derivation or calculation | `active_derivation.md`: step-by-step trace |
+| **trace-derivation** | Trace a source's derivation step by step | `active_derivation.md`: justification_type per step |
+| **gap-audit** | Find hidden assumptions, regime boundaries, prerequisites | `active_gaps.md`: gap count, blocking gaps |
+| **connect** | Create/refine L2 edges, deepen concept relationships | L2 edges, trust upgrades |
+| **integrate** | Combine findings, check consistency | `active_integration.md`: findings, gaps |
+| **distill** | Extract claims from completed work | `active_distillation.md`: distilled claim |
+
 ```
-source_decompose → step_derive
-step_derive      → gap_audit, source_decompose
-gap_audit        → synthesis, step_derive
-synthesis        → gap_audit
+Allowed transitions: any activity → any other activity.
+aitp_retreat_to_l1 at any time (continue reading more sections).
 ```
 
-Switching between modes mid-session:
+Submit candidates at any point when a claim is ready:
 ```
-aitp_switch_l3_mode(topics_root, topic_slug, new_mode="research"|"study", reason=...)
-→ Resets to entry subplane of new mode
-→ Current subplane state is preserved (not deleted)
-→ Use when research reveals knowledge gaps (→study) or study yields new ideas (→research)
+10. aitp_submit_candidate(topics_root, topic_slug, candidate_id, claim, evidence, ...)
+    → Creates L3/candidates/<id>.md
 ```
 
 ### Phase 3: L4 Validation (stage = L4, posture = verify)
