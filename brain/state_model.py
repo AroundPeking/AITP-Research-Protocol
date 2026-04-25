@@ -221,7 +221,36 @@ L1_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
         "# Contradiction Register\n\n## Unresolved Source Conflicts\n\n"
         "## Regime Mismatches\n\n## Notation Collisions\n\n## Blocking Status\n",
     ),
+    "source_toc_map.md": (
+        {
+            "artifact_kind": "l1_source_toc_map",
+            "stage": "L1",
+            "required_fields": ["sources_with_toc", "total_sections", "coverage_status"],
+            "sources_with_toc": "",
+            "total_sections": 0,
+            "coverage_status": "",
+        },
+        "# Source TOC Map\n\n## Per-Source TOC\n\n"
+        "## Coverage Summary\n\n## Deferred Sections\n\n## Extraction Notes\n",
+    ),
 }
+
+L1_INTAKE_TEMPLATE: tuple[dict[str, Any], str] = (
+    {
+        "artifact_kind": "l1_section_intake",
+        "stage": "L1",
+        "required_fields": ["source_id", "section_id", "extraction_status", "completeness_confidence"],
+        "source_id": "",
+        "section_id": "",
+        "section_title": "",
+        "extraction_status": "skimming",
+        "completeness_confidence": "",
+    },
+    "# Section Intake\n\n## Section Summary (skim)\n\n"
+    "## Key Concepts\n\n## Equations Found\n\n"
+    "## Physical Claims\n\n## Prerequisites\n\n"
+    "## Cross-References\n\n## Completeness Self-Assessment\n",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +331,84 @@ def evaluate_l1_stage(
                 next_allowed_transition="L1",
                 skill=f"skill-{posture}",
             )
+
+    # Coverage gate: source_toc_map must indicate full extraction or explicit deferrals
+    toc_path = topic_root_path / "L1" / "source_toc_map.md"
+    if toc_path.exists():
+        toc_fm, toc_body = parse_md(toc_path)
+        cov = str(toc_fm.get("coverage_status", "")).strip().lower()
+        if cov not in ("complete", "partial_with_deferrals"):
+            return StageSnapshot(
+                stage="L1",
+                posture="read",
+                lane=lane,
+                gate_status="blocked_coverage_incomplete",
+                required_artifact_path=str(toc_path),
+                missing_requirements=[
+                    "coverage_status must be 'complete' or 'partial_with_deferrals' "
+                    f"(got '{cov or '(empty)'}'). Extract or defer all source sections."
+                ],
+                next_allowed_transition="L1",
+                skill="skill-read",
+            )
+        # If partial_with_deferrals, require at least one deferred section documented
+        if cov == "partial_with_deferrals" and "## Deferred Sections" not in toc_body:
+            return StageSnapshot(
+                stage="L1",
+                posture="read",
+                lane=lane,
+                gate_status="blocked_coverage_incomplete",
+                required_artifact_path=str(toc_path),
+                missing_requirements=[
+                    "coverage_status is 'partial_with_deferrals' but ## Deferred Sections "
+                    "heading is missing. Document which sections are deferred and why."
+                ],
+                next_allowed_transition="L1",
+                skill="skill-read",
+            )
+        # Intake quality audit: extracted sections must have non-trivial intake notes
+        intake_dir = topic_root_path / "L1" / "intake"
+        if intake_dir.is_dir():
+            extracted = toc_body.count("� status: extracted")
+            intake_notes = list(intake_dir.rglob("*.md"))
+            if extracted > 0 and len(intake_notes) < extracted:
+                return StageSnapshot(
+                    stage="L1",
+                    posture="read",
+                    lane=lane,
+                    gate_status="blocked_coverage_incomplete",
+                    required_artifact_path=str(intake_dir),
+                    missing_requirements=[
+                        f"{extracted} sections marked extracted but only "
+                        f"{len(intake_notes)} intake notes found under L1/intake/. "
+                        "Create an intake note for each extracted section via "
+                        "aitp_write_section_intake."
+                    ],
+                    next_allowed_transition="L1",
+                    skill="skill-read",
+                )
+            # Check that intake notes for extracted sections have completeness_confidence
+            low_confidence = []
+            for note_path in intake_notes:
+                nfm, _ = parse_md(note_path)
+                conf = str(nfm.get("completeness_confidence", "")).strip().lower()
+                if conf == "low":
+                    low_confidence.append(note_path.stem)
+            if low_confidence:
+                return StageSnapshot(
+                    stage="L1",
+                    posture="read",
+                    lane=lane,
+                    gate_status="blocked_coverage_incomplete",
+                    required_artifact_path=str(intake_dir),
+                    missing_requirements=[
+                        f"Low completeness_confidence in intake notes: "
+                        f"{', '.join(low_confidence[:5])}. "
+                        "Re-read these sections or explicitly defer them."
+                    ],
+                    next_allowed_transition="L1",
+                    skill="skill-read",
+                )
 
     return StageSnapshot(
         stage="L1",
