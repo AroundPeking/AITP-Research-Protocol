@@ -1,7 +1,7 @@
 ---
 name: skill-l3-ideate
 description: L3 Ideation subplane — generate and record research ideas.
-trigger: l3_subplane == "ideation"
+trigger: l3_activity == "ideation"
 ---
 
 # L3 Ideation

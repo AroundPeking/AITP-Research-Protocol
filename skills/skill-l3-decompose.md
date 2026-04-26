@@ -1,7 +1,7 @@
 ---
 name: skill-l3-decompose
 description: L3 Study — source_decompose subplane. Break a source into atomic claims.
-trigger: l3_subplane == "source_decompose" AND l3_mode == "study"
+trigger: l3_activity == "source_decompose" AND l3_mode == "study"
 ---
 
 # Source Decompose (Study Mode)

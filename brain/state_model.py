@@ -821,6 +821,17 @@ L3_ACTIVITY_ARTIFACT_NAMES: dict[str, str] = {
     "distill": "active_distillation.md",
 }
 
+# Backwards-compat aliases for flow notebook and legacy tools.
+L3_SUBPLANES = L3_ACTIVITIES
+L3_ACTIVE_ARTIFACT_NAMES = L3_ACTIVITY_ARTIFACT_NAMES
+STUDY_L3_SUBPLANES = ["source_decompose", "step_derive", "gap_audit", "synthesis"]
+STUDY_L3_ACTIVE_ARTIFACT_NAMES = {
+    "source_decompose": "active_decomposition.md",
+    "step_derive": "active_derivation.md",
+    "gap_audit": "active_gaps.md",
+    "synthesis": "active_synthesis.md",
+}
+
 L3_ACTIVITY_SKILL_MAP: dict[str, str] = {
     "ideate": "skill-l3-ideate",
     "derive": "skill-l3-analyze",

@@ -1,7 +1,7 @@
 ---
 name: skill-l3-distill
 description: L3 Distillation subplane — extract final claims from integrated results.
-trigger: l3_subplane == "distillation"
+trigger: l3_activity == "distillation"
 ---
 
 # L3 Distillation

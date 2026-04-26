@@ -1786,13 +1786,6 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "skill": snapshot.skill,
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
-            "compute_target": str(fm.get("compute", "local")),
-            "gate_status": snapshot.gate_status,
-            "required_artifact_path": snapshot.required_artifact_path,
-            "missing_requirements": snapshot.missing_requirements,
-            "next_allowed_transition": snapshot.next_allowed_transition,
-            "skill": snapshot.skill,
-            "l3_subplane": snapshot.l3_subplane,
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2057,6 +2050,7 @@ def aitp_switch_l3_activity(
 
     old = fm.get("l3_activity", "ideate")
     fm["l3_activity"] = activity
+    fm["l3_subplane"] = activity  # compat: skill triggers check l3_subplane
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
 

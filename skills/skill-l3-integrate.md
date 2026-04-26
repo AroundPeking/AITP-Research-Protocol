@@ -1,7 +1,7 @@
 ---
 name: skill-l3-integrate
 description: L3 Result Integration subplane — combine analysis into findings.
-trigger: l3_subplane == "result_integration"
+trigger: l3_activity == "result_integration"
 ---
 
 # L3 Result Integration

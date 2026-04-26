@@ -858,7 +858,30 @@ def _v_series_expand(inp, out, arg, ns):
 
 
 def _v_commutator_eval(inp, out, arg, ns):
+    """Evaluate a commutator with non-commutative operator support.
+
+    Detects operator-like symbols and declares them non-commutative.
+    Falls back to commutative simplification for scalar expressions.
+    """
     import sympy
+    try:
+        all_syms = set(inp.free_symbols) | set(out.free_symbols)
+    except Exception:
+        all_syms = set()
+    ncs = {}
+    for s in all_syms:
+        name = str(s)
+        if len(name) <= 2 or '_' in name:
+            ncs[name] = sympy.Symbol(name, commutative=False)
+    if ncs:
+        try:
+            inp_nc = inp.subs({s: ncs[str(s)] for s in all_syms if str(s) in ncs})
+            out_nc = out.subs({s: ncs[str(s)] for s in all_syms if str(s) in ncs})
+            diff = sympy.simplify(inp_nc - out_nc)
+            is_eq = diff == 0
+            return {"pass": is_eq, "difference": str(diff) if not is_eq else "0"}
+        except Exception:
+            pass
     diff = sympy.simplify(inp - out)
     is_eq = diff == 0
     if not is_eq:

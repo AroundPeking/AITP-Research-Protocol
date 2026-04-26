@@ -1,7 +1,7 @@
 ---
 name: skill-l3-synthesis
 description: L3 Study — synthesis subplane. Reconstruct the source's contribution and propose L2 updates.
-trigger: l3_subplane == "synthesis" AND l3_mode == "study"
+trigger: l3_activity == "synthesis" AND l3_mode == "study"
 ---
 
 # Synthesis (Study Mode)

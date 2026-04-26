@@ -1,7 +1,7 @@
 ---
 name: skill-l3-analyze
 description: L3 Analysis subplane — execute derivations and calculations.
-trigger: l3_subplane == "analysis"
+trigger: l3_activity == "analysis"
 ---
 
 # L3 Analysis

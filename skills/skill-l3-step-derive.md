@@ -1,7 +1,7 @@
 ---
 name: skill-l3-step-derive
 description: L3 Study — step_derive subplane. Trace every derivation step with explicit justification.
-trigger: l3_subplane == "step_derive" AND l3_mode == "study"
+trigger: l3_activity == "step_derive" AND l3_mode == "study"
 ---
 
 # Step Derive (Study Mode)

@@ -1,7 +1,7 @@
 ---
 name: skill-l3-plan
 description: L3 Planning subplane — design derivation route from idea.
-trigger: l3_subplane == "planning"
+trigger: l3_activity == "planning"
 ---
 
 # L3 Planning

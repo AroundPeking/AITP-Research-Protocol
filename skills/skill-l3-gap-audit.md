@@ -1,7 +1,7 @@
 ---
 name: skill-l3-gap-audit
 description: L3 Study — gap_audit subplane. Actively find hidden assumptions, unstated approximations, and missing correspondence checks.
-trigger: l3_subplane == "gap_audit" AND l3_mode == "study"
+trigger: l3_activity == "gap_audit" AND l3_mode == "study"
 ---
 
 # Gap Audit (Study Mode)
