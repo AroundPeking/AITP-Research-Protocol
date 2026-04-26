@@ -1689,7 +1689,6 @@ def aitp_promote_candidate(
             )
             _write_md(conflict_path, conflict_fm, conflict_body)
             return f"Conflict ({conflict_type}) detected for {slug}. Written to L2/conflicts/. Resolve before promoting."
-            return f"Conflict detected for {slug}. Written to L2/conflicts/. Resolve before promoting."
 
         # Same or compatible claim: version bump
         existing_version = int(existing_fm.get("version", 1))
@@ -5367,8 +5366,7 @@ def aitp_visualize_knowledge_graph(
 # Entry point
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    mcp.run()@mcp.tool()
+@mcp.tool()
 def aitp_request_source_evidence(
     topics_root: str,
     topic_slug: str,
@@ -5420,6 +5418,10 @@ def aitp_request_source_evidence(
     _write_md(req_path, fm, body)
     _append_to_topic_log(root, f"L0 evidence request: {slug} — {required_claim[:60]}")
     return f"Evidence request '{slug}' filed in L0/pending_requests/. Resolve by registering supporting sources."
+
+
+if __name__ == "__main__":
+    mcp.run()
 
 
 
