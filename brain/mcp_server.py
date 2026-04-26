@@ -1634,14 +1634,61 @@ def aitp_promote_candidate(
         existing_fm, _ = _parse_md(l2_path)
         existing_claim = str(existing_fm.get("claim", "")).strip()
         if existing_claim and existing_claim != new_claim and new_claim:
-            # Conflict: different claims for same unit
+            # Classify the conflict type
+            def _classify_conflict(existing: str, new: str) -> str:
+                """Heuristic classification of conflict type."""
+                existing_lower = existing.lower()
+                new_lower = new.lower()
+                # Same result but different regime → regime_mismatch
+                regime_words = {"regime", "coupling", "temperature", "limit", "thermal", "2d", "3d",
+                               "weak", "strong", "low-t", "high-t", "finite", "zero-t"}
+                if any(w in existing_lower for w in regime_words) and \
+                   any(w in new_lower for w in regime_words):
+                    # Check if the core claim is similar but regime differs
+                    return "regime_mismatch"
+                # Direct contradiction → physical_contradiction
+                contradiction_words = {"not", "fails", "cannot", "does not", "never", "contradicts"}
+                if any(w in existing_lower for w in contradiction_words) or \
+                   any(w in new_lower for w in contradiction_words):
+                    return "physical_contradiction"
+                # Different notation → notation_collision
+                notation_markers = {"sign", "convention", "normalization", "metric", "units",
+                                   "factor of", "hbar", "c=1", "g=1", "(-+++)", "(+---)"}
+                if any(w in existing_lower for w in notation_markers) and \
+                   any(w in new_lower for w in notation_markers):
+                    return "notation_collision"
+                # New claim extends or replaces old → supersedes
+                extend_words = {"extends", "generalizes", "supersedes", "beyond", "all-order"}
+                if any(w in new_lower for w in extend_words):
+                    return "supersedes"
+                # Default: same topic but different conclusion
+                return "physical_contradiction"
+
+            conflict_type = _classify_conflict(existing_claim, new_claim)
             conflict_path = global_l2 / "conflicts" / f"{slug}.md"
             conflict_path.parent.mkdir(parents=True, exist_ok=True)
-            _write_md(conflict_path, {
-                "kind": "conflict", "candidate_id": slug,
-                "existing_claim": existing_claim, "new_claim": new_claim,
+            conflict_fm = {
+                "kind": "conflict",
+                "candidate_id": slug,
+                "conflict_type": conflict_type,
+                "existing_claim": existing_claim,
+                "new_claim": new_claim,
                 "detected_at": _now(),
-            }, f"# Conflict: {slug}\n\nExisting: {existing_claim}\n\nNew: {new_claim}\n")
+            }
+            resolution_hints = {
+                "physical_contradiction": "One claim must be wrong — re-validate both against independent sources.",
+                "regime_mismatch": "Claims may both be correct in different regimes — define regime boundaries explicitly.",
+                "notation_collision": "Likely a convention difference — canonicalise notation and re-compare.",
+                "supersedes": "New claim extends old — verify the extension is valid, then version-bump.",
+            }
+            conflict_body = (
+                f"# Conflict: {slug}\n\n"
+                f"Type: **{conflict_type}**\n\n"
+                f"Existing: {existing_claim}\n\nNew: {new_claim}\n\n"
+                f"## Suggested Resolution\n{resolution_hints.get(conflict_type, 'Manual review required.')}\n"
+            )
+            _write_md(conflict_path, conflict_fm, conflict_body)
+            return f"Conflict ({conflict_type}) detected for {slug}. Written to L2/conflicts/. Resolve before promoting."
             return f"Conflict detected for {slug}. Written to L2/conflicts/. Resolve before promoting."
 
         # Same or compatible claim: version bump

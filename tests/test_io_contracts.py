@@ -455,3 +455,37 @@ class TestDoctorValidation:
             assert False, "Should have raised"
         except yaml.YAMLError:
             pass  # Expected — broken YAML
+
+
+class TestL2ConflictAnalysis:
+    """L2 conflict type classification."""
+
+    def test_conflict_file_has_type_field(self):
+        """Conflict frontmatter must include conflict_type."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tr = _bootstrap(tmp)
+            _fill_l1(tmp, tr)
+            # Create two promoted candidates with conflicting claims
+            global_l2 = mcp_server._global_l2_path(tmp)
+            global_l2.mkdir(parents=True, exist_ok=True)
+            l2_path = global_l2 / "test-conflict-claim.md"
+            mcp_server._write_md(l2_path,
+                {"claim": "The gap is exactly 2 meV at T=0"},
+                "# Existing\n")
+            # Write candidate as approved_for_promotion
+            tr2 = tr / "L3" / "candidates"
+            tr2.mkdir(parents=True, exist_ok=True)
+            mcp_server._write_md(
+                tr2 / "test-conflict-claim.md",
+                {"candidate_id": "test-conflict-claim", "claim": "The gap vanishes at finite T",
+                 "status": "approved_for_promotion"},
+                "# New\n")
+            result = mcp_server.aitp_promote_candidate(tmp, "test-topic", "test-conflict-claim")
+            assert "conflict" in str(result).lower()
+            # Check conflict file has type
+            conflict_path = global_l2 / "conflicts" / "test-conflict-claim.md"
+            if conflict_path.exists():
+                cfm, _ = mcp_server._parse_md(conflict_path)
+                assert "conflict_type" in cfm, f"Conflict missing type: {list(cfm.keys())}"
+                assert cfm["conflict_type"] in ("physical_contradiction", "regime_mismatch",
+                    "notation_collision", "supersedes")
