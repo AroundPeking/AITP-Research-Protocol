@@ -1787,6 +1787,19 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
     stage = str(fm.get("stage", "L0"))
     domain_prereqs = resolve_domain_prerequisites(root, topic_slug)
 
+    # Scan pending L0 evidence requests
+    pending_requests = []
+    req_dir = root / "L0" / "pending_requests"
+    if req_dir.is_dir():
+        for req_path in sorted(req_dir.glob("*.md")):
+            rfm, _ = _parse_md(req_path)
+            if rfm.get("status") == "pending":
+                pending_requests.append({
+                    "request_id": rfm.get("request_id", req_path.stem),
+                    "required_claim": str(rfm.get("required_claim", ""))[:120],
+                    "requested_from": rfm.get("requested_from_stage", "unknown"),
+                })
+
     if stage == "L3":
         snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
         return {
@@ -1808,6 +1821,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 if snapshot.required_artifact_path
                 else [f"advance from {snapshot.l3_subplane}"]
             ),
+            "pending_evidence_requests": pending_requests,
             "immediate_blocked_work": ["L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1832,6 +1846,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 if snapshot.required_artifact_path
                 else ["advance to L1 (reading and framing)"]
             ),
+            "pending_evidence_requests": pending_requests,
             "immediate_blocked_work": ["L1 framing", "L3 derivation", "L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1856,6 +1871,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 if snapshot.required_artifact_path
                 else ["submit L4 review for unreviewed candidates"]
             ),
+            "pending_evidence_requests": pending_requests,
             "immediate_blocked_work": ["L5 writing", "L2 promotion (until validated)"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1881,6 +1897,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 if snapshot.required_artifact_path
                 else ["edit L1 artifacts"]
             ),
+            "pending_evidence_requests": pending_requests,
             "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1908,6 +1925,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             if snapshot.required_artifact_path
             else ["prepare transition to L3"]
         ),
+        "pending_evidence_requests": pending_requests,
         "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
         "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
     }
@@ -3308,8 +3326,19 @@ def aitp_update_l2_node(
         fm["domain"] = domain
     if aliases is not None:
         fm["aliases"] = aliases
-    if trust_level and trust_level in TRUST_EVOLUTION:
-        fm.update(TRUST_EVOLUTION[trust_level])
+    # Multi-dimensional trust: trust_level can be a single key or
+    # comma-separated list (e.g. "validated, numerical").
+    # Takes the highest trust level across all specified dimensions.
+    if trust_level:
+        levels = trust_level.replace(" ", "").split(",")
+        highest = "source_grounded"
+        trust_order = list(TRUST_EVOLUTION.keys())
+        for lvl in levels:
+            if lvl in TRUST_EVOLUTION:
+                if trust_order.index(lvl) > trust_order.index(highest):
+                    highest = lvl
+        fm.update(TRUST_EVOLUTION[highest])
+        fm["trust_dimensions"] = levels  # record all dimensions
     fm["updated_at"] = _now()
     fm["version"] = int(fm.get("version", 1)) + 1
     _write_md(node_path, fm, body)
@@ -5339,4 +5368,58 @@ def aitp_visualize_knowledge_graph(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run()@mcp.tool()
+def aitp_request_source_evidence(
+    topics_root: str,
+    topic_slug: str,
+    required_claim: str,
+    required_regime: str = "",
+    reason: str = "",
+) -> str:
+    """Request additional source evidence from L0. Callable from L3/L4.
+
+    When derivation or validation reveals a gap that needs source support
+    (e.g. "need a proof of theorem X under condition Y"), this tool creates
+    a structured request in L0 that the agent can pick up on next L0 pass.
+
+    Each request is recorded as L0/pending_requests/<slug>.md and included
+    in aitp_get_execution_brief so the agent sees outstanding evidence gaps.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    req_dir = root / "L0" / "pending_requests"
+    req_dir.mkdir(parents=True, exist_ok=True)
+
+    slug = _slugify(required_claim[:60])
+    req_path = req_dir / f"{slug}.md"
+
+    fm = {
+        "kind": "l0_evidence_request",
+        "request_id": slug,
+        "required_claim": required_claim,
+        "required_regime": required_regime,
+        "reason": reason,
+        "requested_from_stage": _parse_md(root / "state.md")[0].get("stage", "unknown"),
+        "requested_at": _now(),
+        "status": "pending",
+    }
+    body = (
+        f"# Evidence Request: {required_claim[:80]}\\n\\n"
+        f"**Required claim**: {required_claim}\\n\\n"
+        f"**Required regime**: {required_regime or 'unspecified'}\\n\\n"
+        f"**Reason**: {reason or 'Gap discovered during derivation/validation.'}\\n\\n"
+        f"## Resolution\\n\\n"
+        f"(Resolve by registering sources that address this claim, "
+        f"then mark status as 'fulfilled' or 'deferred'.)\\n"
+    )
+
+    if req_path.exists():
+        existing_fm, _ = _parse_md(req_path)
+        if existing_fm.get("status") == "fulfilled":
+            fm["status"] = "pending"  # Re-open
+
+    _write_md(req_path, fm, body)
+    _append_to_topic_log(root, f"L0 evidence request: {slug} — {required_claim[:60]}")
+    return f"Evidence request '{slug}' filed in L0/pending_requests/. Resolve by registering supporting sources."
+
+
+

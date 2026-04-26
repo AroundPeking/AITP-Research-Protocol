@@ -491,6 +491,41 @@ class TestL2ConflictAnalysis:
                     "notation_collision", "supersedes")
 
 
+class TestL3L0Callback:
+    """L3→L0 evidence request callback."""
+
+    def test_request_creates_pending_file(self):
+        """aitp_request_source_evidence must create a pending request."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tr = _bootstrap(tmp)
+            _fill_l0(tmp, tr)
+            result = mcp_server.aitp_request_source_evidence(
+                tmp, "test-topic",
+                "Prove the gap is finite at T=0",
+                "T=0, 1D",
+                "Need support for finite-gap claim"
+            )
+            assert "filed" in str(result).lower()
+            req_dir = tr / "L0" / "pending_requests"
+            assert req_dir.is_dir()
+            reqs = list(req_dir.glob("*.md"))
+            assert len(reqs) >= 1
+
+    def test_pending_requests_appear_in_brief(self):
+        """Execution brief must include pending evidence requests."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tr = _bootstrap(tmp)
+            _fill_l0(tmp, tr)
+            mcp_server.aitp_request_source_evidence(
+                tmp, "test-topic",
+                "Prove gap is finite",
+                "T=0",
+                "gap evidence needed"
+            )
+            brief = mcp_server.aitp_get_execution_brief(tmp, "test-topic")
+            assert "pending_evidence_requests" in brief
+
+
 class TestOrderEstimation:
     """Order-of-magnitude estimation tool."""
 
