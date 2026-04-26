@@ -23,15 +23,22 @@ structured theoretical physics research with formal validation.
 
 ## Domain Skill System
 
-The execution brief includes a `domain_prerequisites` field. When a topic slug
-matches patterns in `DOMAIN_SKILL_REGISTRY` (in `state_model.py`), the
-corresponding domain skill is listed. The agent must load domain skills BEFORE
-the stage skill. Domain skills encode domain-specific conventions, invariants,
-routing, and validation requirements.
+The execution brief includes a `domain_prerequisites` field. Domain skills are
+detected via three mechanisms (in priority order):
 
-Current domains:
-- `abacus-librpa` — triggered by slug patterns: `librpa`, `crpa`, `scrpa`, `qsgw`,
-  `gw-topology`. Loads `skill-librpa.md` with oh-my-LibRPA conventions.
+1. **Contract-based**: `contracts/domain-manifest.<domain_id>.json` in the topic
+   directory. The manifest declares the domain's operations, invariants, and
+   routing. This is the primary mechanism — content-driven, not slug-dependent.
+2. **State frontmatter**: `domains: [abacus-librpa]` in `state.md` frontmatter.
+3. **Legacy slug fallback**: pattern matching on topic slug (for pre-existing topics).
+
+The agent must load domain skills BEFORE the stage skill. Domain skills encode
+domain-specific conventions, invariants, routing, and validation requirements.
+
+To add a new domain: add an entry to `DOMAIN_ID_TO_SKILL` in `state_model.py`
+and create the corresponding skill file in `skills/`. To register a topic with
+a domain: copy the domain manifest into the topic's `contracts/` or add
+`domains` to `state.md` frontmatter.
 
 ## Key Conventions
 

@@ -1720,7 +1720,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
     root = _topic_root(topics_root, topic_slug)
     fm, _ = _parse_md(root / "state.md")
     stage = str(fm.get("stage", "L0"))
-    domain_prereqs = resolve_domain_prerequisites(topic_slug)
+    domain_prereqs = resolve_domain_prerequisites(root, topic_slug)
 
     if stage == "L3":
         snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
@@ -1802,8 +1802,9 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
 
+    # L5 writing removed in v4.0. If a legacy topic is at L5, redirect to L1.
     if stage == "L5":
-        snapshot = evaluate_l5_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+        snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
         return {
             "topic_slug": topic_slug,
             "stage": snapshot.stage,
@@ -1820,9 +1821,9 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
-                else ["draft paper sections from L5_writing scaffolds"]
+                else ["edit L1 artifacts"]
             ),
-            "immediate_blocked_work": ["L3 derivation (use retreat_to_l3 if gaps found)"],
+            "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
 
@@ -2154,7 +2155,6 @@ def aitp_return_to_l3_from_l4(
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool()
 # ---------------------------------------------------------------------------
 # Flow TeX
 # ---------------------------------------------------------------------------
@@ -3799,7 +3799,6 @@ _L5_ARTIFACTS = {
 }
 
 
-@mcp.tool()
 def _build_flow_notebook_content(
     root: Path, title: str, question: str, lane: str
 ) -> str:

@@ -158,13 +158,15 @@ def _record_key(agent: str, scope: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _build_variables(topics_root: str | None = None) -> dict:
+def _build_variables(topics_root: str | None = None, target_root: str | None = None) -> dict:
     return {
         "REPO_ROOT": str(REPO_ROOT).replace("\\", "/"),
         "TOPICS_ROOT": (topics_root or "").replace("\\", "/"),
+        "TARGET_ROOT": (target_root or "").replace("\\", "/"),
         "USER_HOME": str(Path.home()).replace("\\", "/"),
         "CLAUDE_USER_DIR": str(Path.home() / ".claude").replace("\\", "/"),
         "KIMI_USER_DIR": str(Path.home() / ".kimi").replace("\\", "/"),
+        "AGENTS_SKILLS_DIR": str(Path.home() / ".agents" / "skills").replace("\\", "/"),
     }
 
 
@@ -218,6 +220,7 @@ def _detect_topics_root() -> str | None:
     for hook_file in [
         Path.home() / ".claude" / "hooks" / "aitp-keyword-router.py",
         Path.home() / ".claude" / "skills" / "using-aitp" / "SKILL.md",
+        Path.home() / ".agents" / "skills" / "using-aitp" / "SKILL.md",
     ]:
         if hook_file.exists():
             try:
@@ -365,7 +368,7 @@ def _merge_claude_settings(settings_path: Path, variables: dict, remove: bool = 
     _atomic_write(settings_path, json.dumps(settings, indent=2, ensure_ascii=False))
 
 
-def _write_mcp_json(mcp_path: Path, repo_root: str, remove: bool = False) -> None:
+def _write_mcp_json(mcp_path: Path, repo_root: str, topics_root: str = "", remove: bool = False) -> None:
     """Add or remove AITP MCP server entry."""
     if mcp_path.exists():
         try:
@@ -382,10 +385,14 @@ def _write_mcp_json(mcp_path: Path, repo_root: str, remove: bool = False) -> Non
         if not servers:
             del data["mcpServers"]
     else:
-        servers["aitp"] = {
+        entry = {
             "command": "python",
             "args": [f"{repo_root}/brain/mcp_server.py"],
+            "cwd": repo_root,
         }
+        if topics_root:
+            entry["env"] = {"AITP_TOPICS_ROOT": topics_root}
+        servers["aitp"] = entry
 
     if data:
         _atomic_write(mcp_path, json.dumps(data, indent=2, ensure_ascii=False))
@@ -456,26 +463,32 @@ def _merge_kimi_config_toml(config_path: Path, repo_root: str, remove: bool = Fa
 # Deploy: Claude Code
 # ---------------------------------------------------------------------------
 
-# Source hooks (in repo) → deployed name
+# Source hooks (in repo) → deployed name. Auto-discovered from hooks/.
 _HOOK_COPIES = [
-    ("hooks/session_start.py", "session-start.py"),
-    ("hooks/compact.py", "compact.py"),
-    ("hooks/stop.py", "stop.py"),
+    (f"hooks/{p.name}", p.stem.replace("_", "-") + ".py")
+    for p in sorted((REPO_ROOT / "hooks").glob("*.py"))
+    if p.name != "__init__.py"
 ]
 
-# Template files → deployed name
+# Template files → deployed name. Auto-discovered from deploy/templates/claude-code/.
+# Non-skill, non-markdown files (cmd, sh, json, py — excluding skill files).
 _HOOK_TEMPLATES = [
-    ("claude-code/run-hook.cmd", "run-hook.cmd"),
-    ("claude-code/session-start.sh", "session-start"),
-    ("claude-code/hooks.json", "hooks.json"),
-    ("claude-code/aitp-keyword-router.py", "aitp-keyword-router.py"),
-    ("claude-code/aitp-routing-guard.py", "aitp-routing-guard.py"),
+    (f"claude-code/{p.name}", p.stem.replace("_", "-") + p.suffix if p.suffix == ".py" else p.name)
+    for p in sorted((TEMPLATES_DIR / "claude-code").iterdir())
+    if p.suffix in (".cmd", ".sh", ".json", ".py")
+    and "using-aitp" not in p.stem
+    and "aitp-runtime" not in p.stem
+    and "aitp-mcp-setup" not in p.stem
 ]
 
 _SKILL_TEMPLATES = [
-    ("claude-code/using-aitp.md", "using-aitp/SKILL.md"),
-    ("claude-code/aitp-runtime.md", "aitp-runtime/SKILL.md"),
-    ("claude-code/aitp-mcp-setup.md", "aitp-runtime/AITP_MCP_SETUP.md"),
+    (f"claude-code/{p.name}", f"{p.stem}/SKILL.md")
+    for p in sorted((TEMPLATES_DIR / "claude-code").iterdir())
+    if p.suffix == ".md" and p.name.startswith("using-aitp") or p.name.startswith("aitp-runtime")
+] + [
+    (f"claude-code/{p.name}", f"aitp-runtime/{p.name.upper()}")
+    for p in sorted((TEMPLATES_DIR / "claude-code").iterdir())
+    if p.suffix == ".md" and p.name.startswith("aitp-mcp-setup")
 ]
 
 _KIMI_SKILL_TEMPLATES = [
@@ -533,7 +546,7 @@ def _deploy_claude_code(
         # Remove project .mcp.json
         if scope == "project":
             mcp_path = (target_root or Path.cwd()) / ".mcp.json"
-            _write_mcp_json(mcp_path, variables["REPO_ROOT"], remove=True)
+            _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""), remove=True)
             deployed.append(f"~ {mcp_path} (aitp entry removed)")
 
         return deployed
@@ -610,7 +623,7 @@ def _deploy_claude_code(
 
         # Write .mcp.json for project
         mcp_path = (target_root or Path.cwd()) / ".mcp.json"
-        _write_mcp_json(mcp_path, variables["REPO_ROOT"])
+        _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
         deployed.append(str(mcp_path))
 
     return deployed
@@ -625,16 +638,16 @@ def _deploy_kimi_code(
     scope: str, target_root: Path | None, variables: dict, remove: bool = False
 ) -> list[str]:
     """Install or uninstall AITP for Kimi Code."""
-    if scope == "user":
-        base = Path(variables["KIMI_USER_DIR"])
-    else:
-        base = target_root / ".kimi" if target_root else Path.cwd() / ".kimi"
+    # Kimi Code scans ~/.agents/skills/ for skills
+    skills_dir = Path.home() / ".agents" / "skills"
+
+    # MCP config lives in ~/.kimi/ (both user and project scope use user-level config for now)
+    mcp_base = Path.home() / ".kimi"
 
     deployed: list[str] = []
-    skills_dir = base / "skills"
 
     if remove:
-        # Remove skill files
+        # Remove skill files from ~/.agents/skills/
         for _, dst_rel in _KIMI_SKILL_TEMPLATES:
             p = skills_dir / dst_rel
             if p.exists():
@@ -642,7 +655,7 @@ def _deploy_kimi_code(
                 deployed.append(f"- {p}")
 
         # Clean empty dirs
-        for d in [skills_dir / "using-aitp", skills_dir / "aitp-runtime", skills_dir]:
+        for d in [skills_dir / "using-aitp", skills_dir / "aitp-runtime"]:
             try:
                 if d.exists() and not list(d.iterdir()):
                     d.rmdir()
@@ -650,12 +663,12 @@ def _deploy_kimi_code(
                 pass
 
         # mcp.json
-        mcp_path = base / "mcp.json"
+        mcp_path = mcp_base / "mcp.json"
         _write_mcp_json(mcp_path, variables["REPO_ROOT"], remove=True)
         deployed.append(f"~ {mcp_path} (aitp entry removed)")
 
         # config.toml
-        config_path = base / "config.toml"
+        config_path = mcp_base / "config.toml"
         _merge_kimi_config_toml(config_path, variables["REPO_ROOT"], remove=True)
         deployed.append(f"~ {config_path} ([mcp.servers.aitp] removed)")
 
@@ -674,12 +687,12 @@ def _deploy_kimi_code(
         deployed.append(str(dst))
 
     # mcp.json
-    mcp_path = base / "mcp.json"
-    _write_mcp_json(mcp_path, variables["REPO_ROOT"])
+    mcp_path = mcp_base / "mcp.json"
+    _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
     deployed.append(f"{mcp_path} (aitp entry written)")
 
     # config.toml
-    config_path = base / "config.toml"
+    config_path = mcp_base / "config.toml"
     _merge_kimi_config_toml(config_path, variables["REPO_ROOT"])
     deployed.append(f"{config_path} ([mcp.servers.aitp] merged)")
 
@@ -1144,8 +1157,17 @@ def cmd_doctor(args) -> None:
     # 6. Kimi Code
     print("\n  --- Kimi Code ---")
     kimi_dir = Path.home() / ".kimi"
+    agents_skills_dir = Path.home() / ".agents" / "skills"
     kimi_mcp = kimi_dir / "mcp.json"
     kimi_config = kimi_dir / "config.toml"
+
+    # Check skills deployed to ~/.agents/skills/
+    for skill_file in ["using-aitp/SKILL.md", "aitp-runtime/SKILL.md"]:
+        p = agents_skills_dir / skill_file
+        status = "OK" if p.exists() else "MISSING"
+        if status == "MISSING":
+            issues.append(f"Kimi Code skill missing: {skill_file}")
+        print(f"    skills/{skill_file}: {status}")
 
     if kimi_mcp.exists():
         try:
@@ -1159,7 +1181,7 @@ def cmd_doctor(args) -> None:
             issues.append("Cannot parse Kimi Code mcp.json")
         print(f"    mcp.json: {status}")
     else:
-        print("    mcp.json: NOT FOUND (Kimi Code not installed or not configured)")
+        print("    mcp.json: NOT FOUND (Kimi Code MCP not configured)")
 
     if kimi_config.exists():
         content = kimi_config.read_text(encoding="utf-8")

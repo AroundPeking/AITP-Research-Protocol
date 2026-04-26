@@ -3,20 +3,20 @@ name: using-aitp
 description: HIGHEST PRIORITY — Use for ANY theoretical-physics research, topic continuation, idea steering, paper learning, derivation work, validation planning, or study of physical systems. This skill MUST be loaded BEFORE brainstorming, exploration, or any other skill. Enter AITP before any substantial response.
 ---
 
-# Using AITP (v2)
+# Using AITP (v2) — Kimi Code
 
 ## CRITICAL: Tool-first rules
 
 You MUST follow these rules in this exact order. Violating ANY of them is a protocol error:
 
-1. **NEVER browse files with Grep/Glob/Read to "check what exists"**. Use `mcp__aitp__aitp_get_execution_brief` or `mcp__aitp__aitp_get_status` instead.
-2. **NEVER manually read or edit files under the AITP topics directory.** Always use `mcp__aitp__*` tools.
+1. **NEVER browse files with Grep/Glob/Read to "check what exists"**. Use `aitp_get_execution_brief` or `aitp_get_status` instead.
+2. **NEVER manually read or edit files under the AITP topics directory.** Always use `aitp_*` tools.
 3. **NEVER type out questions as plain text.** Use `AskUserQuestion` tool for ALL questions to the user.
 4. **NEVER guess the topics_root path.** It is always: `{{TOPICS_ROOT}}`
 
 ## Environment
 
-- AITP v2 runs as an MCP server. All tools are prefixed `mcp__aitp__aitp_*`.
+- AITP v2 runs as an MCP server. Tools are available directly as `aitp_*` (no prefix needed).
 - Topics root: `{{TOPICS_ROOT}}`
 - Protocol manual: `{{REPO_ROOT}}/brain/PROTOCOL.md`
 
@@ -43,7 +43,7 @@ When this skill activates, do these steps IN ORDER:
 
 ### Step 1: Find matching topic
 ```
-Call: mcp__aitp__aitp_list_topics(topics_root="{{TOPICS_ROOT}}")
+Call: aitp_list_topics(topics_root="{{TOPICS_ROOT}}")
 ```
 - Read the returned list. Match the user's request to the best topic by title/question/slug.
 - If a matching topic is found → go to Step 3
@@ -51,7 +51,7 @@ Call: mcp__aitp__aitp_list_topics(topics_root="{{TOPICS_ROOT}}")
 
 ### Step 2: Bootstrap new topic
 ```
-Call: mcp__aitp__aitp_bootstrap_topic(
+Call: aitp_bootstrap_topic(
     topics_root="{{TOPICS_ROOT}}",
     topic_slug=<slug>,
     title=<title>,
@@ -62,16 +62,12 @@ Call: mcp__aitp__aitp_bootstrap_topic(
 
 ### Step 3: Get execution brief
 ```
-Call: mcp__aitp__aitp_get_execution_brief(topics_root="{{TOPICS_ROOT}}", topic_slug=<slug>)
+Call: aitp_get_execution_brief(topics_root="{{TOPICS_ROOT}}", topic_slug=<slug>)
 ```
 Read the brief. It tells you exactly what to do next.
 
 ### Step 4: Ask clarification (if needed)
-**BEFORE asking ANY question to the user, you MUST load the AskUserQuestion tool first:**
-```
-Call: ToolSearch(query="select:AskUserQuestion", max_results=1)
-```
-Then use it for ALL questions. NEVER type options as plain text.
+Use `AskUserQuestion` for ALL questions. NEVER type options as plain text.
 ```
 Call: AskUserQuestion(questions=[{
     "question": "<your question>",
@@ -80,7 +76,7 @@ Call: AskUserQuestion(questions=[{
         {"label": "<option1>", "description": "<what it means>"},
         {"label": "<option2>", "description": "<what it means>"},
     ],
-    "multiSelect": false,
+    "multi_select": false,
 }])
 ```
 
@@ -111,15 +107,9 @@ The brief tells you the current stage and what to do. Follow it.
 3. Prefer questions that remove the biggest ambiguity first: scope, assumptions, target claims.
 4. If the human says `just go`, proceed and mark missing fields as deferred.
 
-## Skill activation
+## Stage guidance (compressed)
 
-After getting the execution brief, load the matching skill:
-- L0 discover → `skill-discover.md`
-- L1 read → `skill-read.md`
-- L1 frame → `skill-frame.md`
-- L3 derive → `skill-l3-ideate.md` through `skill-l3-distill.md`
-- L4 verify → `skill-validate.md`
-- L5 write → `skill-write.md`
+Because Kimi Code loads all skills into context, stage-specific details are kept concise. After getting the execution brief, consult the brief's `stage`, `posture`, and `l3_subplane` fields, then follow the corresponding section in `aitp-runtime.md` (the companion skill) for detailed workflow guidance.
 
 ## Red flags (STOP if you catch yourself doing these)
 

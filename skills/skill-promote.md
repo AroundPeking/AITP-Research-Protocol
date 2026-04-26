@@ -1,7 +1,7 @@
 ---
 name: skill-promote
 description: Promote mode — guide validated candidates through L2 promotion gate.
-trigger: status == "validated"
+trigger: stage == "L4"
 ---
 
 # Promote Mode

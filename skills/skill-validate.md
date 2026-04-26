@@ -1,7 +1,7 @@
 ---
 name: skill-validate
 description: Validate mode — check candidates against evidence and known results.
-trigger: status == "candidate_ready"
+trigger: stage == "L4"
 ---
 
 # Validate Mode

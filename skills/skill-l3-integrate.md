@@ -43,9 +43,9 @@ The human may add more discussion rounds at any time. Do NOT rush to fill the ar
 
 At ANY point during integration, you may offer these back-paths via AskUserQuestion:
 
-- **Back to analysis** (`aitp_advance_l3_subplane(target="analysis")`): if integration
+- **Back to analysis** (`aitp_switch_l3_activity(target="analysis")`): if integration
   reveals analysis gaps
-- **Back to planning** (`aitp_advance_l3_subplane(target="planning")`): if integration
+- **Back to planning** (`aitp_switch_l3_activity(target="planning")`): if integration
   reveals the plan was incomplete
 - **Retreat to L1** (`aitp_retreat_to_l1`): if integration reveals fundamental
   framing issues
