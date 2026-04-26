@@ -210,7 +210,12 @@ L1_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
         "equilibrium vs non-equilibrium, thermodynamic limit\n"
         "- **Notational assumptions**: sign conventions, normalization choices, "
         "index ranges, Fourier convention (factors of 2π)\n\n"
-        "## Unresolved Tensions\n",
+        "## Unresolved Tensions\n\n"
+        "## L3 Discoveries\n\n"
+        "Appended during L3 derivation as new conventions, sign choices, "
+        "or normalization factors are discovered that were not captured "
+        "at L1 framing time. Each entry should include the derivation "
+        "context and source equation.\n",
     ),
     "derivation_anchor_map.md": (
         {
@@ -279,6 +284,7 @@ L1_INTAKE_TEMPLATE: tuple[dict[str, Any], str] = (
         "completeness_confidence": "",
         "regime": "",
         "validity_conditions": "",
+        "figure_refs": "",
     },
     "# Section Intake\n\n## Section Summary (skim)\n\n"
     "## Key Concepts\n\n## Equations Found\n\n"
@@ -293,6 +299,14 @@ L1_INTAKE_TEMPLATE: tuple[dict[str, Any], str] = (
     "How do the claims connect? Record the section's logical flow:\n"
     "- Claim A establishes → Claim B uses A to derive → Claim C generalizes B\n"
     "- Which claims are load-bearing for downstream sections?\n\n"
+    "## Figures & Diagrams\n\n"
+    "Record each figure that conveys physics content. For each figure:\n"
+    "- Figure number and label from source\n"
+    "- What it shows (phase diagram, Feynman diagram, band structure, "
+    "energy landscape, schematic, data plot, etc.)\n"
+    "- Which equations/concepts it illustrates\n"
+    "- Whether it's essential for understanding the argument\n"
+    "- Link to L2 diagram node if already created\n\n"
     "## Regime & Validity\n\n"
     "What physical regime do these results live in? "
     "What conditions must hold for them to be valid?\n"

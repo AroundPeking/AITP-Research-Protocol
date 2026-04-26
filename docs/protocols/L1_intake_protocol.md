@@ -21,11 +21,19 @@ anchors for traceability.
 
 When sources are registered in L0, L1 receives them and:
 
-1. **Assumption extraction** — structural, not keyword-based. Captured as flat
-   assumption strings. Future enhancement: sub-categorize into mathematical
-   (topology, dimensionality, symmetry group), physical (energy regime,
-   boundary conditions, coupling limits), and notational (convention choices,
-   sign conventions).
+1. **Assumption extraction** — structural, not keyword-based. Now captured
+   with sub-categorization in `convention_snapshot.md` under
+   `## Categorized Assumptions`:
+   - **Mathematical**: topology, dimensionality, symmetry group, completeness,
+     convergence properties.
+   - **Physical**: energy regime, coupling limits, boundary conditions,
+     equilibrium vs non-equilibrium, thermodynamic limit.
+   - **Notational**: sign conventions, normalization choices, index ranges,
+     Fourier convention (factors of 2π).
+   
+   Each category has different failure modes — a violated mathematical
+   assumption is a hard error; a violated physical assumption may only
+   change the regime of validity.
 
 2. **Reading depth tracking** — each source gets a depth grade:
    - `skim` — title, abstract, key results only (default),
@@ -51,14 +59,20 @@ When sources are registered in L0, L1 receives them and:
    - canonical notation selection: NOT YET IMPLEMENTED. Currently only
      records per-source notation; no canonical selection mechanism.
 
-5. **Derivation anchor capture** — NOT YET IMPLEMENTED. The protocol envisions:
-   - source-section pointers for where a derivation is stated or omitted,
-   - equation-location anchors for later reconstruction,
-   - dependency hints that help L3 rebuild the derivation honestly.
+5. **Derivation anchor capture** — IMPLEMENTED. The `derivation_anchor_map.md`
+   artifact now captures:
+   - **Section pointer** — exact source location where the derivation lives.
+   - **Derivation type** — `derived_in_full`, `stated_with_sketch`, or
+     `handwaved` ("it can be shown that...").
+   - **Depends on** — prior equations or results within the source.
+   - **Feeds into** — downstream results that depend on it.
+   - **Assumptions used** — categorized as mathematical/physical/notational.
+   - **Dependency graph** — equation dependency graph across all sources.
+   - **Missing steps** — skipped or unclear steps that L3 needs to fill in.
+   - **Candidate starting points** — strongest entry points for L3 derivation.
 
-   The detailed derivation body does NOT live in L1. Even when the work is
-   source reconstruction rather than novel research, the full derivation note
-   belongs in L3 so one topic has one derivation home.
+   Gate requires `starting_anchors` (non-empty) and `anchor_count` (> 0).
+   The detailed derivation body still belongs in L3; L1 records the map.
 
 6. **Method specificity tracking** — IMPLEMENTED (not in original protocol).
    Tracks `method_family` and `specificity_tier` per source, classifying
@@ -75,6 +89,20 @@ When sources are registered in L0, L1 receives them and:
 9. **Evidence sentence anchoring** — IMPLEMENTED (not in original protocol).
    Every anchor row carries `evidence_sentence_ids` and `evidence_excerpt`
    fields for sentence-level traceability to source material.
+
+10. **Figure & diagram extraction** — IMPLEMENTED. The section intake template
+    now includes a `## Figures & Diagrams` heading and optional `figure_refs`
+    frontmatter. For each figure that conveys physics content, the agent records:
+    - Figure number and label from source.
+    - What it shows (phase diagram, Feynman diagram, band structure, energy
+      landscape, schematic, data plot, etc.).
+    - Which equations or concepts it illustrates.
+    - Whether it is essential for understanding the argument.
+    - Link to L2 diagram node if already created.
+
+    This bridges L1 reading to L2 diagram nodes, enabling the L2 knowledge
+    graph to accumulate figure-based evidence alongside concept and
+    derivation nodes.
 
 ## 1.3. Three-Layer Vault
 
@@ -174,10 +202,20 @@ runtime guard preventing downstream L2 promotion of L1 material.
 ## 1.8. Implementation Status
 
 ### Currently implemented
-- Assumption extraction (flat, no sub-categorization).
+- Assumption extraction with sub-categorization (mathematical, physical,
+  notational) in `convention_snapshot.md`.
 - Reading depth tracking (`skim`/`full_read`/`multi_pass`).
-- Contradiction detection and notation tension detection.
+- Contradiction detection and notation tension detection, including
+  internal inconsistencies and weakest-step flagging.
 - Notation regime recording (per-source, no canonical selection).
+- Derivation anchor capture with dependency graph, derivation types, and
+  per-anchor assumption tracking (`derivation_anchor_map.md`).
+- Figure and diagram extraction with bridge to L2 diagram nodes.
+- Regime and validity condition tracking in section intake notes.
+- Argument structure and role classification (physical_principle,
+  algebraic_identity, assumption, approximation, conjecture).
+- Competing hypotheses gate-check in question contract.
+- Convention backflow mechanism (`## L3 Discoveries` in convention snapshot).
 - Three-layer vault with manifest, schema, and flowback system.
 - Concept graph (nodes, edges, hyperedges, communities, god-nodes).
 - Source intelligence (citations, neighbors, fidelity, relevance).
@@ -188,8 +226,6 @@ runtime guard preventing downstream L2 promotion of L1 material.
 - Obsidian concept graph export.
 
 ### Not yet implemented
-- Derivation anchor capture (section 1.2 item 5).
-- Assumption sub-categorization (mathematical/physical/notational).
 - Canonical notation selection.
 - Research question contract schema validation.
 - Per-claim provisional marking (only blanket authority level exists).
