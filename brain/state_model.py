@@ -189,7 +189,30 @@ L0_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
             "search_status": "",
         },
         "# Source Registry\n\n## Search Methodology\n\n## Source Inventory\n\n"
-        "## Coverage Assessment\n\n## Gaps And Next Sources\n",
+        "## Source Roles\n\n"
+        "Classify each source by its role in the research:\n"
+        "- **foundational**: defines the framework (e.g. Hedin 1965 for GW)\n"
+        "- **direct_dependency**: derivation directly depends on this\n"
+        "- **contrast_reference**: used to validate against known limits\n"
+        "- **background**: contextual but not load-bearing\n\n"
+        "## Coverage Assessment\n\n"
+        "Define the dimensions that matter for YOUR research question, "
+        "then assess coverage for each. Do NOT fill a preset table — "
+        "choose dimensions that would block your derivation if missing.\n\n"
+        "### [Dimension 1 — e.g. method / regime / spatial dimension / "
+        "approximation order / symmetry group]\n"
+        "Currently covered:\n"
+        "Missing:\n\n"
+        "### [Dimension 2 — ...]\n"
+        "Currently covered:\n"
+        "Missing:\n\n"
+        "### [Dimension N — ...]\n"
+        "Currently covered:\n"
+        "Missing:\n\n"
+        "## Overall Verdict\n\n"
+        "Which key dimensions are adequately covered? "
+        "Which gaps would block derivation?\n\n"
+        "## Gaps And Next Sources\n",
     ),
 }
 
@@ -208,7 +231,8 @@ _L0_CONTRACTS: list[tuple[str, str, list[str], list[str]]] = [
         "source_registry.md",
         "discover",
         ["source_count", "search_status"],
-        ["## Search Methodology", "## Source Inventory", "## Coverage Assessment"],
+        ["## Search Methodology", "## Source Inventory", "## Coverage Assessment",
+         "## Overall Verdict", "## Gaps And Next Sources"],
     ),
 ]
 

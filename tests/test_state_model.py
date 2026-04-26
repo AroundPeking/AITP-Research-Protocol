@@ -82,7 +82,7 @@ class L1GateTests(unittest.TestCase):
                 tr / "L0" / "source_registry.md",
                 {"artifact_kind": "l0_source_registry", "stage": "L0",
                  "source_count": 1, "search_status": "complete"},
-                "# Source Registry\n\n## Search Methodology\narxiv\n\n## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate\n\n## Gaps And Next Sources\nNone\n",
+                "# Source Registry\n\n## Search Methodology\narxiv\n\n## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n## Overall Verdict\nAdequate for initial work.\n\n## Gaps And Next Sources\nNone\n",
             )
             mcp_server._write_md(
                 tr / "L0" / "sources" / "paper-a.md",
@@ -177,6 +177,7 @@ class HookOutputTests(unittest.TestCase):
                  "source_count": 1, "search_status": "complete"},
                 "# Source Registry\n\n## Search Methodology\narxiv\n\n"
                 "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n"
+                "## Overall Verdict\nNo blocking gaps.\n\n"
                 "## Gaps And Next Sources\nNone.\n",
             )
             mcp_server._write_md(
@@ -211,6 +212,7 @@ class HookOutputTests(unittest.TestCase):
                  "source_count": 1, "search_status": "complete"},
                 "# Source Registry\n\n## Search Methodology\narxiv\n\n"
                 "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n"
+                "## Overall Verdict\nNo blocking gaps.\n\n"
                 "## Gaps And Next Sources\nNone.\n",
             )
             mcp_server._write_md(

@@ -35,6 +35,7 @@ def _fill_l0(tmp: str, tr: Path) -> None:
          "source_count": 1, "search_status": "initial"},
         "# Source Registry\n\n## Search Methodology\nArXiv search.\n\n"
         "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n"
+        "## Overall Verdict\nNo blocking gaps for initial exploration.\n\n"
         "## Gaps And Next Sources\nNone.\n",
     )
     mcp_server._write_md(
