@@ -204,8 +204,9 @@ L2 nodes are organized by domain. Valid domains are enumerated (not free text):
 ### Phase 1: Reading and Framing (stage = L1, posture = read → frame)
 
 ```
-5. aitp_ingest_knowledge(topics_root, topic_slug, source_id, ...)
-   → Updates L1 artifacts from source content
+5. Fill L1 artifacts: question_contract.md, source_basis.md,
+   source_toc_map.md, convention_snapshot.md, derivation_anchor_map.md,
+   contradiction_register.md
 
 6. aitp_get_execution_brief(topics_root, topic_slug)
    → Check gate_status. If "ready", proceed to Phase 2.
@@ -306,11 +307,7 @@ Submit candidates at any point when a claim is ready:
 ### Phase 3: L4 Validation (stage = L4, posture = verify)
 
 ```
-11. aitp_create_validation_contract(topics_root, topic_slug, candidate_id,
-      mandatory_checks=["dimensional_consistency", ...])
-    → Defines what must be checked.
-
-12. Write validation scripts (L4/scripts/) and execute on target machine.
+11. Write validation scripts (L4/scripts/) and execute on target machine.
     Every data point must have provenance: script path, execution timestamp, method.
 
 13. aitp_submit_l4_review(topics_root, topic_slug, candidate_id,
@@ -461,8 +458,8 @@ while topic is not complete:
     # Lifecycle overrides (can happen at any stage):
     if human requests lane change:
         aitp_switch_lane(topics_root, topic_slug, new_lane, reason)
-    if human requests L3 mode switch (research <-> study):
-        aitp_switch_l3_mode(topics_root, topic_slug, new_mode, reason)
+    # L3 mode switching removed in v4.0 — all activities are available
+    # in a single flexible workspace. Use aitp_switch_l3_activity instead.
     if human requests fork:
         aitp_fork_topic(topics_root, topic_slug, child_slug, ...)
     if human requests archive:

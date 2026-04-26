@@ -91,10 +91,10 @@ The brief tells you the current stage and what to do. Follow it.
 
 0. **L0 (discover)**: Find, evaluate, and register sources before deep reading begins
 1. **L1 (read → frame)**: Register sources, fill reading notes, frame research question
-2. **L3 (ideation → planning → analysis → integration → distillation)**: Generate ideas, plan derivations, analyze, integrate results, distill claims
-3. **L4 (validate)**: Create validation contract, submit review
-4. **Promote**: Request promotion → resolve gate → promote to global L2
-5. **L5 (write)**: Render flow notebook, fill provenance, draft paper
+2. **L3 (flexible workspace)**: Switch between ideate, derive, trace-derivation, gap-audit, connect, integrate, distill — no forced sequence
+3. **L4 (validate)**: Submit adversarial review with counterargument; non-pass returns to L3
+4. **Promote**: Request promotion → human gate → promote to global L2
+5. **L2 is the endpoint** — L5 (writing) removed in v4.0
 
 ## Conversation style rules
 
@@ -117,9 +117,9 @@ After getting the execution brief, load the matching skill:
 - L0 discover → `skill-discover.md`
 - L1 read → `skill-read.md`
 - L1 frame → `skill-frame.md`
-- L3 derive → `skill-l3-ideate.md` through `skill-l3-distill.md`
+- L3 workspace → `skill-l3-ideate.md` through `skill-l3-distill.md`
 - L4 verify → `skill-validate.md`
-- L5 write → `skill-write.md`
+- Promote → `skill-promote.md`
 
 ## Red flags (STOP if you catch yourself doing these)
 

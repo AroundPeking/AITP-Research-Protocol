@@ -222,12 +222,9 @@ def evaluate_l0_stage(
     # Determine discovery mode from state.md to select the right skill
     state_fm, _ = parse_md(topic_root_path / "state.md")
     mode = state_fm.get("mode", "explore")
-    skill = "skill-deep-research" if mode == "deep_research" else "skill-discover"
-    # Fallback: if skill-deep-research is not deployed, use skill-discover
-    import importlib.util
-    if skill == "skill-deep-research":
-        # skill-deep-research is optional; default to discover
-        pass  # The agent will use skill-discover as fallback
+    # skill-deep-research is optional. Fall back to skill-discover if not deployed.
+    _deep_research_skill = "skill-deep-research" if mode == "deep_research" else None
+    skill = _deep_research_skill or "skill-discover"
 
     for name, posture, fields, headings in _L0_CONTRACTS:
         path = topic_root_path / "L0" / name

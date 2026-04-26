@@ -37,7 +37,6 @@ while topic is not complete:
             "L0" → Execute discover posture (see L0 section below)
             "L1" → Fill remaining L1 artifacts or advance to L3
             "L3" → Work on active subplane artifact, then advance
-            "L5" → Fill provenance files, then draft paper
         continue
 ```
 
@@ -72,7 +71,6 @@ Tools that may return `popup_gate`:
 - `aitp_submit_candidate` — candidate submission confirmation
 - `aitp_request_promotion` — promotion approval gate
 - `aitp_submit_l4_review` — non-pass review outcome handling
-- `aitp_advance_to_l5` — L4→L5 transition confirmation
 - `aitp_retreat_to_l1` — L3→L1 retreat reason
 
 ### Rule 2: Clarification popups
@@ -91,7 +89,7 @@ Call AskUserQuestion(questions=[{
 }])
 ```
 
-This applies at ALL stages: L1 framing, L3 direction changes, L4 review decisions, L5 writing priorities.
+This applies at ALL stages: L1 framing, L3 direction changes, L4 review decisions, L2 promotion.
 
 ## Workflow by stage
 
@@ -161,7 +159,7 @@ Also fill the markdown body with expanded details under required headings.
 
 Goal: generate ideas, plan derivations, analyze, integrate results, distill claims.
 
-L3 is NOT strictly linear. Subplanes allow back-edges. Use `aitp_advance_l3_subplane` with any allowed target.
+L3 is NOT strictly linear. Subplanes allow back-edges. Use `aitp_switch_l3_activity` with any allowed target.
 
 #### L3 Ideation
 
@@ -230,7 +228,7 @@ Before filling ANY content, you MUST call `AskUserQuestion` at least once. The h
 4. Update `flow_notebook.tex` Distillation section.
 5. Compile `flow_notebook.tex` to PDF (optional but recommended).
 
-**Exit:** After claims are distilled, call `aitp_submit_candidate`, then `aitp_create_validation_contract`.
+**Exit:** After claims are distilled, call `aitp_submit_candidate`, then proceed to L4 validation.
 
 ### L4 — Validate
 
@@ -258,25 +256,19 @@ Goal: move validated candidate to global L2 knowledge base.
 
 **Exit:** After promotion, call `aitp_advance_to_l5`.
 
-### L5 — Write
 
 Goal: render flow notebook, fill provenance, draft paper.
 
-**Required before advancing to L5:**
 - `flow_notebook.tex` must exist.
 
 **What to do:**
 1. Ensure `flow_notebook.tex` is complete and compiled.
-2. Fill provenance files (`L5/provenance/*.md`).
 3. Draft the paper or final output.
-4. Call `aitp_advance_to_l5` to enter L5.
 
-**Exit:** Topic is complete when all L5 artifacts are filled.
 
 ## Key constraints
 
 - Only "pass" in L4 review allows promotion.
-- `flow_notebook.tex` must exist before advancing to L5.
 - L2 direct writeback is blocked — use promotion gate instead.
 - Respect `authority_warning` from query results.
 
@@ -284,11 +276,11 @@ Goal: render flow notebook, fill provenance, draft paper.
 
 The protocol is NOT strictly linear. You can:
 
-1. **Register sources at any stage**: `aitp_register_source` works during L1, L3, L4, L5. If you discover during L3 that you need more literature, call it directly — no stage change needed.
+1. **Register sources at any stage**: `aitp_register_source` works during L1, L3, L4. If you discover during L3 that you need more literature, call it directly — no stage change needed.
 
 2. **Retreat L3 → L1**: If analysis reveals insufficient sources or wrong framing, call `aitp_retreat_to_l1`. This preserves all L3 work but lets you re-read. Then call `aitp_advance_to_l3` again when ready.
 
-3. **Jump within L3 subplanes**: Use `aitp_advance_l3_subplane` with any allowed target (analysis → planning, integration → analysis).
+3. **Jump within L3 subplanes**: Use `aitp_switch_l3_activity` with any allowed target (analysis → planning, integration → analysis).
 
 4. **Resume after compaction**: After context compaction, call `aitp_get_execution_brief` first to re-orient. The brief returns all the state you need.
 

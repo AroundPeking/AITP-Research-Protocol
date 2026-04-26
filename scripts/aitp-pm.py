@@ -1113,22 +1113,26 @@ def cmd_doctor(args) -> None:
     hooks_dir = claude_dir / "hooks"
     skills_dir = claude_dir / "skills"
 
-    # Check hooks
-    for hook_file in ["session-start.py", "compact.py", "stop.py", "run-hook.cmd",
-                       "aitp-keyword-router.py", "aitp-routing-guard.py"]:
-        p = hooks_dir / hook_file
+    # Check hooks — auto-discovered from expected deploy set
+    expected_hooks = set()
+    for src_rel, dst_name in _HOOK_COPIES:
+        expected_hooks.add(dst_name)
+    for tmpl_rel, dst_name in _HOOK_TEMPLATES:
+        expected_hooks.add(dst_name)
+    for dst_name in sorted(expected_hooks):
+        p = hooks_dir / dst_name
         status = "OK" if p.exists() else "MISSING"
         if status == "MISSING":
-            issues.append(f"Claude Code hook missing: {hook_file}")
-        print(f"    hooks/{hook_file}: {status}")
+            issues.append(f"Claude Code hook missing: {dst_name}")
+        print(f"    hooks/{dst_name}: {status}")
 
-    # Check skills
-    for skill_file in ["using-aitp/SKILL.md", "aitp-runtime/SKILL.md"]:
-        p = skills_dir / skill_file
+    # Check skills — auto-discovered from expected deploy set
+    for src_rel, dst_rel in _SKILL_TEMPLATES:
+        p = skills_dir / dst_rel
         status = "OK" if p.exists() else "MISSING"
         if status == "MISSING":
-            issues.append(f"Claude Code skill missing: {skill_file}")
-        print(f"    skills/{skill_file}: {status}")
+            issues.append(f"Claude Code skill missing: {dst_rel}")
+        print(f"    skills/{dst_rel}: {status}")
 
     # Check settings.json hooks
     if settings_path.exists():

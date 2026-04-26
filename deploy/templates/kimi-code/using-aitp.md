@@ -90,7 +90,7 @@ The brief tells you the current stage and what to do. Follow it.
 2. **L3 (ideation → planning → analysis → integration → distillation)**: Generate ideas, plan derivations, analyze, integrate results, distill claims
 3. **L4 (validate)**: Create validation contract, submit review
 4. **Promote**: Request promotion → resolve gate → promote to global L2
-5. **L5 (write)**: Render flow notebook, fill provenance, draft paper
+5. **L2 is the endpoint** — L5 (writing) removed in v4.0
 
 ## Conversation style rules
 
