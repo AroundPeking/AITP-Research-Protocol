@@ -489,3 +489,25 @@ class TestL2ConflictAnalysis:
                 assert "conflict_type" in cfm, f"Conflict missing type: {list(cfm.keys())}"
                 assert cfm["conflict_type"] in ("physical_contradiction", "regime_mismatch",
                     "notation_collision", "supersedes")
+
+
+class TestOrderEstimation:
+    """Order-of-magnitude estimation tool."""
+
+    def test_estimate_order_with_params(self):
+        """Must return valid order estimate for known physics expression."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _bootstrap(tmp)
+            result = mcp_server.aitp_estimate_order(
+                tmp, "hbar * c / G",
+                '{"hbar": "1.05e-34", "c": "3e8", "G": "6.67e-11"}'
+            )
+            assert "estimated_order" in result
+            assert "confidence_note" in result
+
+    def test_estimate_order_missing_params_graceful(self):
+        """Must not crash when parameters are missing."""
+        with tempfile.TemporaryDirectory() as tmp:
+            _bootstrap(tmp)
+            result = mcp_server.aitp_estimate_order(tmp, "hbar * c / G", "{}")
+            assert "note" in result or "estimated_order" in result

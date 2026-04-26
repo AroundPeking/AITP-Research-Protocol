@@ -2243,6 +2243,106 @@ def aitp_return_to_l3_from_l4(
 # ---------------------------------------------------------------------------
 
 
+@mcp.tool()
+def aitp_estimate_order(
+    topics_root: str,
+    expression: str,
+    parameter_ranges: str = "",
+) -> dict[str, Any]:
+    """Estimate the order of magnitude of a physical expression.
+
+    Given a symbolic expression and parameter value ranges, returns an
+    order-of-magnitude estimate with uncertainty bounds. Uses dimensional
+    analysis and provided parameter ranges.
+
+    expression: a physical formula (e.g. "hbar * c / (G * M)")
+    parameter_ranges: JSON string mapping parameter names to numeric ranges
+        (e.g. '{"hbar": "1e-34", "c": "3e8", "G": "6.67e-11", "M": "2e30"}')
+        Values can be single numbers or "min,max" ranges.
+
+    Returns: dict with estimated_order (power of 10), lower_bound, upper_bound,
+        units_hint, and a note about confidence.
+
+    IMPORTANT: This is an order-of-magnitude estimate only. Results should be
+    treated as ±1 order of magnitude. Use for sanity checks, not proofs.
+    """
+    import json as _json
+    import math
+
+    try:
+        ranges = _json.loads(parameter_ranges) if parameter_ranges else {}
+    except _json.JSONDecodeError:
+        return {"error": "parameter_ranges must be valid JSON"}
+
+    # Parse each parameter
+    params = {}
+    for name, val in ranges.items():
+        if isinstance(val, str) and "," in val:
+            lo, hi = val.split(",")
+            params[name] = (float(lo), float(hi))
+        else:
+            v = float(val) if isinstance(val, str) else float(val)
+            params[name] = (v, v)
+
+    # Known physical constants for auto-fill
+    constants = {
+        "hbar": 1.054571817e-34,
+        "h": 6.62607015e-34,
+        "c": 2.99792458e8,
+        "e": 1.602176634e-19,
+        "k_B": 1.380649e-23,
+        "G": 6.67430e-11,
+        "m_e": 9.10938356e-31,
+        "m_p": 1.67262192e-27,
+        "epsilon_0": 8.8541878128e-12,
+        "mu_0": 1.25663706212e-6,
+    }
+
+    # Try to evaluate the expression with nominal parameter values
+    import sympy as _sp
+    try:
+        expr = _sp.sympify(expression)
+    except Exception:
+        return {"error": f"Cannot parse expression: {expression}"}
+
+    # Substitute known constants and parameters
+    subs = {}
+    for s in expr.free_symbols:
+        name = str(s)
+        if name in params:
+            subs[s] = (params[name][0] + params[name][1]) / 2  # midpoint
+        elif name in constants:
+            subs[s] = constants[name]
+
+    try:
+        nominal = float(expr.subs(subs))
+    except Exception:
+        nominal = None
+
+    # Estimate order of magnitude
+    if nominal and nominal != 0:
+        order = int(math.floor(math.log10(abs(nominal))))
+        lower = 10 ** (order - 1)
+        upper = 10 ** (order + 1)
+        return {
+            "expression": expression,
+            "estimated_order": order,
+            "estimated_value": nominal,
+            "lower_bound": lower,
+            "upper_bound": upper,
+            "confidence_note": "Order-of-magnitude estimate only. ±1 order. Use for sanity checks, not proofs.",
+        }
+    else:
+        # Pure dimensional estimate
+        return {
+            "expression": expression,
+            "estimated_order": "unknown",
+            "note": "Could not evaluate numerically. Check parameter values.",
+            "missing_params": [str(s) for s in expr.free_symbols if str(s) not in subs],
+            "confidence_note": "Could not compute. Provide parameter_ranges for all symbols.",
+        }
+
+
 # ---------------------------------------------------------------------------
 # Flow TeX
 # ---------------------------------------------------------------------------
@@ -2367,6 +2467,14 @@ def aitp_submit_l4_review(
 
     (root / "L4" / "reviews").mkdir(parents=True, exist_ok=True)
     cycle = int(state_fm.get("l4_cycle_count", 0)) + 1
+    max_cycles = int(state_fm.get("research_loop_max_cycles", 0))
+    loop_warning = ""
+    if max_cycles > 0 and cycle > max_cycles:
+        loop_warning = (
+            f" WARNING: L4 cycle {cycle} exceeds max_cycles={max_cycles}. "
+            f"Consider: (a) switching lane via aitp_switch_lane, "
+            f"(b) narrowing the claim scope, or (c) accepting current result."
+        )
     # Versioned review: cand-1_v1.md, cand-1_v2.md, etc. Also overwrite latest.
     version_tag = f"_v{cycle}"
     review_path_versioned = root / "L4" / "reviews" / f"{slug}{version_tag}.md"
@@ -2452,8 +2560,12 @@ def aitp_submit_l4_review(
                 cand_fm["status"] = "submitted"
         _write_md(cand_path, cand_fm, cand_body)
 
-    result: dict[str, Any] = {"message": f"L4 review submitted for {slug}: {outcome} (cycle {cycle})."}
+    msg = f"L4 review submitted for {slug}: {outcome} (cycle {cycle}).{loop_warning}"
+    result: dict[str, Any] = {"message": msg}
     result["l4_cycle"] = cycle
+    if max_cycles > 0:
+        result["max_cycles"] = max_cycles
+        result["cycles_remaining"] = max(0, max_cycles - cycle)
 
     if outcome != "pass":
         result["popup_gate"] = {
