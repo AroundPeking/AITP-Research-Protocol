@@ -974,73 +974,53 @@ L2_EDGE_TYPES = [
     "invariant_under",      # quantity invariant under a symmetry group
 ]
 
+# Suggested domains for L2 node categorisation. These are hints, not a closed enum.
+# Any domain string is valid — new domains are auto-registered on first use.
+# The list below provides labels, descriptions, and typical energy scales for
+# common physics domains. Extend freely as research expands.
 DOMAIN_TAXONOMY: dict[str, dict[str, Any]] = {
     "electronic-structure": {
         "label": "Electronic Structure",
-        "description": "DFT, GW, BSE, RPA, and related first-principles methods",
         "energy_scales": ["eV", "Hartree"],
     },
     "quantum-many-body": {
         "label": "Quantum Many-Body Theory",
-        "description": "Green's functions, Feynman diagrams, RG, tensor networks",
         "energy_scales": ["eV", "meV", "K"],
     },
     "qft": {
         "label": "Quantum Field Theory",
-        "description": "QED, QCD, EFT, axiomatic QFT, CFT",
         "energy_scales": ["GeV", "TeV", "Planck"],
     },
     "condensed-matter": {
         "label": "Condensed Matter Physics",
-        "description": "Superconductivity, topological phases, strongly correlated systems",
         "energy_scales": ["meV", "eV", "K"],
     },
     "quantum-gravity": {
         "label": "Quantum Gravity",
-        "description": "String theory, LQG, holography, AdS/CFT",
         "energy_scales": ["Planck"],
     },
     "generalized-symmetries": {
-        "label": "Generalized / Higher-Form Symmetries",
-        "description": "Higher-form, non-invertible, categorical symmetries",
-        "energy_scales": ["various"],
+        "label": "Generalized Symmetries",
+        "energy_scales": [],
     },
     "quantum-information": {
         "label": "Quantum Information",
-        "description": "Entanglement, quantum channels, error correction",
-        "energy_scales": ["various"],
+        "energy_scales": [],
     },
     "statistical-mechanics": {
         "label": "Statistical Mechanics",
-        "description": "Phase transitions, critical phenomena, transport",
         "energy_scales": ["K", "eV"],
     },
     "aitp-protocol": {
         "label": "AITP Protocol (Internal)",
-        "description": "Protocol design, skills, gate models, workflow architecture",
         "energy_scales": [],
-    },
-    "mathematical-physics": {
-        "label": "Mathematical Physics",
-        "description": "Integrable systems, random matrix theory, rigorous results",
-        "energy_scales": [],
-    },
-    "nuclear-physics": {
-        "label": "Nuclear Physics",
-        "description": "Nuclear structure, reactions, QCD phase diagram",
-        "energy_scales": ["MeV", "GeV"],
-    },
-    "cosmology": {
-        "label": "Cosmology & Astrophysics",
-        "description": "Early universe, CMB, dark matter/energy, large-scale structure",
-        "energy_scales": ["GeV", "TeV", "Planck"],
-    },
-    "amo-physics": {
-        "label": "Atomic, Molecular & Optical Physics",
-        "description": "Cold atoms, optical lattices, quantum simulation",
-        "energy_scales": ["meV", "eV", "K"],
     },
 }
+
+# Domains are open — any string is valid. New domains register on first use.
+# VALID_DOMAINS exists for backwards compat but is NOT used for validation.
+def _is_valid_domain(domain: str) -> bool:
+    return bool(domain.strip())
 
 VALID_DOMAINS = frozenset(DOMAIN_TAXONOMY.keys())
 

@@ -3016,8 +3016,8 @@ def aitp_create_l2_node(
     if node_type not in L2_NODE_TYPES:
         return f"Invalid node_type '{node_type}'. Valid: {L2_NODE_TYPES}"
 
-    if domain and domain not in VALID_DOMAINS:
-        return f"Invalid domain '{domain}'. Valid domains: {sorted(VALID_DOMAINS)}"
+    # Domain is open — any string is valid. VALID_DOMAINS is a suggested list.
+    # New domains auto-register on first use.
 
     if not source_ref and not source_candidate:
         return (
