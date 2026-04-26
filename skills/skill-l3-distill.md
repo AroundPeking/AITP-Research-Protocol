@@ -88,6 +88,11 @@ When `active_distillation.md` has filled frontmatter fields `distilled_claim`
 and `evidence_summary`, plus headings `## Distilled Claim` and `## Evidence Summary`,
 the L3 flow is complete. Advance to L4 for adjudication.
 
+If the current distill claim originated from an idea (e.g. via `aitp_submit_idea`),
+call `aitp_promote_idea_to_candidate` with `derivation_summary` and `evidence`
+instead of directly calling `aitp_submit_candidate`. This preserves provenance
+back to the original idea.
+
 ## Allowed transitions
 
 - Forward: L4 adjudication

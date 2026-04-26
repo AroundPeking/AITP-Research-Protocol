@@ -1642,6 +1642,17 @@ PHYSICS_CONCEPT_ALIASES: dict[str, list[str]] = {
     "wannier": ["wannier90", "maximally localized wannier functions"],
     "lcao": ["linear combination of atomic orbitals"],
     "paw": ["projector augmented wave"],
+    # LaTeX symbol → concept aliases
+    "sigma": ["self-energy", "correlation", "many-body", "dyson"],
+    "chi": ["susceptibility", "response", "polarization", "linear response"],
+    "g_0": ["free green", "greens function", "propagator", "non-interacting"],
+    "w": ["screened coulomb", "screening", "dielectric", "polarization"],
+    "epsilon": ["dielectric", "dielectric function", "screening", "permittivity"],
+    "gamma": ["vertex correction", "beyond-gw", "electron-hole interaction", "vertex"],
+    "v_c": ["bare coulomb", "coulomb interaction", "unscreened", "hartree"],
+    "partial sigma partial e": ["quasiparticle", "z-factor", "mass renormalization", "spectral weight"],
+    "delta n": ["density response", "charge fluctuation", "screening", "polarization"],
+    "chi_0": ["bare susceptibility", "rpa", "non-interacting response", "lindhard"],
 }
 
 LATEX_NORM_RE = re.compile(r'\s+')
@@ -1735,6 +1746,20 @@ def semantic_score(query: str, content_fields: list[str]) -> float:
             f_latex = normalize_latex(field_text)
             if q_latex and f_latex and q_latex in f_latex:
                 score = max(score, 0.9)
+        # LaTeX command extraction bonus
+        latex_commands = re.findall(r'\\([a-zA-Z]+)', query)
+        if latex_commands:
+            for cmd in latex_commands:
+                cmd_lower = cmd.lower()
+                for alias_key, alias_vals in _ALIAS_LOOKUP.items():
+                    if cmd_lower == alias_key or cmd_lower in alias_key:
+                        for av in alias_vals:
+                            if av in field_text.lower():
+                                score = max(score, min(score * 1.5, 1.0))
+                                break
+                # Direct substring match for LaTeX command name in field
+                if cmd_lower in field_text.lower():
+                    score = max(score, min(score * 1.5, 1.0))
         best_score = max(best_score, score)
 
     return best_score

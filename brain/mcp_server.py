@@ -1392,6 +1392,9 @@ def aitp_promote_idea_to_candidate(
     idea_slug: str,
     candidate_title: str = "",
     candidate_claim: str = "",
+    derivation_summary: str = "",
+    evidence: str = "",
+    regime_of_validity: str = "",
 ) -> dict[str, Any]:
     """Promote a successful L3 idea to a full candidate for L4 validation.
 
@@ -1402,6 +1405,9 @@ def aitp_promote_idea_to_candidate(
         idea_slug: The idea to promote
         candidate_title: Title for the candidate (defaults to idea title)
         candidate_claim: The claim statement (extracted from derivation if empty)
+        derivation_summary: Summary of derivation from idea to claim
+        evidence: Evidence supporting the claim
+        regime_of_validity: Applicable scope/regime for the claim
     """
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(idea_slug)
@@ -1422,7 +1428,7 @@ def aitp_promote_idea_to_candidate(
 
     # Create candidate from idea
     title = candidate_title or fm.get("title", slug)
-    claim = candidate_claim or f"Derived via approach: {fm.get('approach', '')}"
+    claim = candidate_claim or fm.get("idea_statement", "") or f"Derived via approach: {fm.get('approach', '')}"
 
     # Extract derivation from idea body
     derivation = ""
@@ -1443,10 +1449,14 @@ def aitp_promote_idea_to_candidate(
         "candidate_id": slug,
         "title": title,
         "claim": claim,
+        "derivation_summary": derivation_summary,
+        "evidence": evidence,
+        "regime_of_validity": regime_of_validity,
         "status": "submitted",
         "mode": "candidate",
         "candidate_type": "research_claim",
         "l3_mode": l3_mode,
+        "promoted_from_idea": slug,
         "source_idea": slug,
         "depends_on": [],
         "created_at": _now(),
@@ -1455,7 +1465,8 @@ def aitp_promote_idea_to_candidate(
     cand_body = (
         f"# {title}\n\n"
         f"## Claim\n{claim}\n\n"
-        f"## Evidence\nDerived via idea `{slug}`:\n\n{derivation[:2000]}\n\n"
+        f"## Derivation Summary\n{derivation_summary or derivation[:2000]}\n\n"
+        f"## Evidence\n{evidence or f'Derived via idea `{slug}`:\\n\\n' + derivation[:2000]}\n\n"
         f"## Assumptions\nExtracted from idea approach.\n\n"
         f"## Validation Criteria\nTo be validated via L4 review.\n"
     )
@@ -1765,6 +1776,129 @@ def aitp_promote_candidate(
 
 
 @mcp.tool()
+def aitp_resolve_conflict(
+    topics_root: str,
+    topic_slug: str,
+    conflict_id: str,
+    resolution: str,
+) -> dict[str, Any]:
+    """Resolve an L2 conflict with a structured decision.
+
+    Args:
+        conflict_id: The conflict file slug (without .md)
+        resolution: One of "accept_new", "accept_existing", "mark_regime_dependent", "defer"
+    """
+    valid_resolutions = ("accept_new", "accept_existing", "mark_regime_dependent", "defer")
+    if resolution not in valid_resolutions:
+        return {"message": f"Invalid resolution '{resolution}'. Must be one of {valid_resolutions}."}
+
+    root = _topic_root(topics_root, topic_slug)
+    global_l2 = _global_l2_path(topics_root)
+    conflict_path = global_l2 / "conflicts" / f"{_slugify(conflict_id)}.md"
+
+    if not conflict_path.exists():
+        return {"message": f"Conflict '{conflict_id}' not found in L2/conflicts/."}
+
+    cfm, cbody = _parse_md(conflict_path)
+
+    if resolution == "defer":
+        cfm["status"] = "deferred"
+        cfm["resolved_at"] = _now()
+        _write_md(conflict_path, cfm, cbody)
+        _append_to_topic_log(root, f"conflict {conflict_id} deferred")
+        return {"message": f"Conflict '{conflict_id}' deferred.", "status": "deferred"}
+
+    if resolution == "accept_existing":
+        cfm["status"] = "rejected"
+        cfm["resolved_at"] = _now()
+        _write_md(conflict_path, cfm, cbody)
+        _append_to_topic_log(root, f"conflict {conflict_id}: accepted existing, rejected new")
+        return {"message": f"Conflict '{conflict_id}': new claim rejected.", "status": "rejected"}
+
+    slug = _slugify(conflict_id)
+
+    if resolution == "accept_new":
+        # Move old L2 node to superseded/
+        l2_path = global_l2 / f"{slug}.md"
+        if l2_path.exists():
+            sup_dir = global_l2 / "superseded"
+            sup_dir.mkdir(parents=True, exist_ok=True)
+            existing_fm, existing_body = _parse_md(l2_path)
+            existing_version = int(existing_fm.get("version", 1))
+            existing_fm["superseded_at"] = _now()
+            existing_fm["superseded_by"] = slug
+            _write_md(sup_dir / f"{slug}_v{existing_version}.md", existing_fm, existing_body)
+            l2_path.unlink()
+
+        # Write new claim into L2 from candidate
+        cand_path = root / "L3" / "candidates" / f"{slug}.md"
+        if cand_path.exists():
+            new_fm, new_body = _parse_md(cand_path)
+            new_fm["status"] = "promoted"
+            new_fm["promoted_at"] = _now()
+            new_fm["version"] = int(new_fm.get("version", 0)) + 1
+            _write_md(l2_path if not l2_path.exists() else global_l2 / f"{slug}.md",
+                       new_fm, new_body)
+            # Ensure the file exists (l2_path may have been unlinked above)
+            target = global_l2 / f"{slug}.md"
+            if not target.exists():
+                _write_md(target, new_fm, new_body)
+
+        cfm["status"] = "resolved"
+        cfm["resolution"] = "accept_new"
+        cfm["resolved_at"] = _now()
+        _write_md(conflict_path, cfm, cbody)
+        _append_to_topic_log(root, f"conflict {conflict_id}: accepted new claim, superseded old")
+        return {"message": f"Conflict '{conflict_id}': new claim accepted, old superseded.", "status": "resolved"}
+
+    if resolution == "mark_regime_dependent":
+        # Keep both: create a regime_boundary node linking them
+        l2_path = global_l2 / f"{slug}.md"
+        new_claim = cfm.get("new_claim", "")
+        existing_claim = cfm.get("existing_claim", "")
+
+        # Create regime_boundary node
+        _ensure_l2_graph_dirs(topics_root)
+        boundary_slug = f"{slug}-regime-boundary"
+        node_path = global_l2 / "graph" / "nodes" / f"{boundary_slug}.md"
+        node_fm = {
+            "node_id": boundary_slug,
+            "type": "regime_boundary",
+            "title": f"Regime boundary for {slug}",
+            "regime_of_validity": "see conflicting claims",
+            "trust_basis": "conflict_resolved",
+            "trust_scope": "bounded_reusable",
+            "version": 1,
+            "conflicting_claims": [existing_claim[:100], new_claim[:100]],
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
+        node_body = (
+            f"# Regime Boundary: {slug}\n\n"
+            f"## Existing Claim\n{existing_claim}\n\n"
+            f"## New Claim\n{new_claim}\n\n"
+            f"## Boundary Description\nBoth claims retained as regime-dependent.\n"
+        )
+        _write_md(node_path, node_fm, node_body)
+
+        cfm["status"] = "resolved"
+        cfm["resolution"] = "mark_regime_dependent"
+        cfm["resolved_at"] = _now()
+        _write_md(conflict_path, cfm, cbody)
+        _append_to_topic_log(
+            root,
+            f"conflict {conflict_id}: marked regime-dependent, boundary node created",
+        )
+        return {
+            "message": f"Conflict '{conflict_id}': both claims retained as regime-dependent.",
+            "status": "resolved",
+            "boundary_node": boundary_slug,
+        }
+
+    return {"message": f"Unhandled resolution: {resolution}"}
+
+
+@mcp.tool()
 def aitp_list_candidates(topics_root: str, topic_slug: str) -> list[dict[str, Any]]:
     """List all candidates for a topic."""
     root = _topic_root(topics_root, topic_slug)
@@ -1799,6 +1933,22 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                     "requested_from": rfm.get("requested_from_stage", "unknown"),
                 })
 
+    # Scan L2 conflicts with open/pending status
+    active_conflicts = []
+    global_l2 = _global_l2_path(topics_root)
+    conflicts_dir = global_l2 / "conflicts"
+    if conflicts_dir.is_dir():
+        for cp in sorted(conflicts_dir.glob("*.md")):
+            cfm, _ = _parse_md(cp)
+            cstatus = cfm.get("status", "")
+            if cstatus in ("", "open", "pending"):
+                active_conflicts.append({
+                    "conflict_id": cfm.get("candidate_id", cp.stem),
+                    "conflict_type": cfm.get("conflict_type", "unknown"),
+                    "new_claim": str(cfm.get("new_claim", ""))[:120],
+                    "existing_claim": str(cfm.get("existing_claim", ""))[:120],
+                })
+
     if stage == "L3":
         snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
         return {
@@ -1821,6 +1971,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 else [f"advance from {snapshot.l3_subplane}"]
             ),
             "pending_evidence_requests": pending_requests,
+            "active_conflicts": active_conflicts,
             "immediate_blocked_work": ["L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1846,6 +1997,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 else ["advance to L1 (reading and framing)"]
             ),
             "pending_evidence_requests": pending_requests,
+            "active_conflicts": active_conflicts,
             "immediate_blocked_work": ["L1 framing", "L3 derivation", "L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1871,6 +2023,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 else ["submit L4 review for unreviewed candidates"]
             ),
             "pending_evidence_requests": pending_requests,
+            "active_conflicts": active_conflicts,
             "immediate_blocked_work": ["L5 writing", "L2 promotion (until validated)"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1897,6 +2050,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
                 else ["edit L1 artifacts"]
             ),
             "pending_evidence_requests": pending_requests,
+            "active_conflicts": active_conflicts,
             "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
@@ -1925,6 +2079,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             else ["prepare transition to L3"]
         ),
         "pending_evidence_requests": pending_requests,
+        "active_conflicts": active_conflicts,
         "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
         "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
     }

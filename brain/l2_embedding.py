@@ -40,6 +40,19 @@ _PHYSICS_ALIASES: dict[str, list[str]] = {
     "cft": ["conformal field theory", "scaling", "critical", "operator product expansion"],
     "superconductivity": ["superconductor", "bcs", "cooper pair", "meissner"],
     "path-integral": ["path integral", "feynman", "functional integral", "partition function"],
+    # LaTeX symbol → concept mappings
+    r"\sigma": ["self-energy", "correlation", "many-body", "dyson"],
+    r"\chi": ["susceptibility", "response", "polarization", "linear response"],
+    "g_0": ["free green", "greens function", "propagator", "non-interacting"],
+    "w": ["screened coulomb", "screening", "dielectric", "polarization"],
+    r"\epsilon": ["dielectric", "dielectric function", "screening", "permittivity"],
+    r"\gamma": ["vertex correction", "beyond-gw", "electron-hole interaction", "vertex"],
+    "v_c": ["bare coulomb", "coulomb interaction", "unscreened", "hartree"],
+    r"\partial\sigma/\partial e": ["quasiparticle", "z-factor", "mass renormalization", "spectral weight"],
+    r"\delta n": ["density response", "charge fluctuation", "screening", "polarization"],
+    r"\mathcal{h}": ["hamiltonian", "energy operator", "quantum system", "total energy"],
+    r"\mathcal{l}": ["lagrangian", "action", "variational", "principle of least action"],
+    r"\chi_0": ["bare susceptibility", "rpa", "non-interacting response", "lindhard"],
 }
 
 

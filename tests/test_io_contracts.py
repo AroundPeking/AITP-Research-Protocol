@@ -546,3 +546,147 @@ class TestOrderEstimation:
             _bootstrap(tmp)
             result = mcp_server.aitp_estimate_order(tmp, "hbar * c / G", "{}")
             assert "note" in result or "estimated_order" in result
+
+
+class TestLatexSearch:
+    """L2 LaTeX semantic search enhancements."""
+
+    def test_latex_alias_exists(self):
+        """_PHYSICS_ALIASES must contain at least 3 LaTeX symbol entries."""
+        from brain.l2_embedding import _PHYSICS_ALIASES
+        latex_keys = [k for k in _PHYSICS_ALIASES if k.startswith("\\")]
+        assert len(latex_keys) >= 3, (
+            f"Expected at least 3 LaTeX alias entries, got {len(latex_keys)}: {latex_keys}"
+        )
+
+    def test_latex_query_matches_concept(self):
+        r"""Query \Sigma must match a Self-Energy L2 node."""
+        with tempfile.TemporaryDirectory() as tmp:
+            # Create a Self-Energy node in L2
+            mcp_server.aitp_create_l2_node(
+                tmp, "self-energy", "concept",
+                "Self-Energy", source_ref="test-source",
+                physical_meaning="The self-energy captures correlation effects.",
+                domain="electronic-structure",
+            )
+            result = mcp_server.aitp_query_l2_graph(
+                topics_root=tmp, query=r"\Sigma",
+            )
+            nodes = result.get("nodes", [])
+            assert len(nodes) > 0, (
+                r"Query '\Sigma' should match Self-Energy node but got no results"
+            )
+
+
+class TestConflictResolution:
+    """L2 conflict resolution workflow."""
+
+    def _setup_conflict(self, tmp: str) -> str:
+        """Create a topic with a conflict and return the conflict ID."""
+        tr = _bootstrap(tmp)
+        _fill_l1(tmp, tr)
+        global_l2 = mcp_server._global_l2_path(tmp)
+        global_l2.mkdir(parents=True, exist_ok=True)
+        # Write existing L2 node
+        mcp_server._write_md(
+            global_l2 / "test-claim.md",
+            {"claim": "The gap is exactly 2 meV at T=0"},
+            "# Existing\n")
+        # Write candidate as approved_for_promotion
+        cand_dir = tr / "L3" / "candidates"
+        cand_dir.mkdir(parents=True, exist_ok=True)
+        mcp_server._write_md(
+            cand_dir / "test-claim.md",
+            {"candidate_id": "test-claim", "claim": "The gap vanishes at finite T",
+             "status": "approved_for_promotion"},
+            "# New\n")
+        # Trigger conflict detection
+        mcp_server.aitp_promote_candidate(tmp, "test-topic", "test-claim")
+        return "test-claim"
+
+    def test_resolve_accept_new(self):
+        """accept_new should place new claim in L2."""
+        with tempfile.TemporaryDirectory() as tmp:
+            conflict_id = self._setup_conflict(tmp)
+            result = mcp_server.aitp_resolve_conflict(
+                tmp, "test-topic", conflict_id, "accept_new")
+            assert "accepted" in str(result).lower() or "resolved" in str(result).lower()
+            # Verify new claim is in L2
+            global_l2 = mcp_server._global_l2_path(tmp)
+            l2_node = global_l2 / "test-claim.md"
+            assert l2_node.exists(), "New claim should exist in L2 after accept_new"
+
+    def test_resolve_defer(self):
+        """defer should set conflict file status to deferred."""
+        with tempfile.TemporaryDirectory() as tmp:
+            conflict_id = self._setup_conflict(tmp)
+            result = mcp_server.aitp_resolve_conflict(
+                tmp, "test-topic", conflict_id, "defer")
+            assert "deferred" in str(result).lower()
+            # Check conflict file status
+            global_l2 = mcp_server._global_l2_path(tmp)
+            conflict_path = global_l2 / "conflicts" / "test-claim.md"
+            assert conflict_path.exists()
+            cfm, _ = mcp_server._parse_md(conflict_path)
+            assert cfm.get("status") == "deferred"
+
+    def test_active_conflicts_in_brief(self):
+        """Brief must include active_conflicts when there are open conflicts."""
+        with tempfile.TemporaryDirectory() as tmp:
+            conflict_id = self._setup_conflict(tmp)
+            brief = mcp_server.aitp_get_execution_brief(tmp, "test-topic")
+            assert "active_conflicts" in brief
+            assert len(brief["active_conflicts"]) >= 1, (
+                f"Expected at least 1 active conflict, got {len(brief['active_conflicts'])}"
+            )
+
+
+class TestScratchToCandidate:
+    """L3 Scratch → Candidate bridging."""
+
+    def _setup_topic_with_idea(self, tmp: str) -> tuple[str, Path]:
+        """Bootstrap topic, advance to L3, submit an idea, return (slug, topic_root)."""
+        tr = _bootstrap(tmp)
+        _fill_l1(tmp, tr)
+        mcp_server.aitp_advance_to_l3(tmp, "test-topic")
+        mcp_server.aitp_submit_idea(
+            tmp, "test-topic",
+            "Test Idea",
+            "The ground state energy is bounded from below",
+            "Variational principle",
+        )
+        return "test-idea", tr
+
+    def test_promote_idea_to_candidate(self):
+        """Promoted candidate must have claim, promoted_from_idea, derivation_summary."""
+        with tempfile.TemporaryDirectory() as tmp:
+            slug, tr = self._setup_topic_with_idea(tmp)
+            result = mcp_server.aitp_promote_idea_to_candidate(
+                tmp, "test-topic", slug,
+                derivation_summary="From variational principle, E >= <psi|H|psi>",
+                evidence="Numerical check on 2-site model confirms bound.",
+            )
+            cand_path = tr / "L3" / "candidates" / f"{slug}.md"
+            assert cand_path.exists(), "Candidate file should exist after promotion"
+            cfm, cbody = mcp_server._parse_md(cand_path)
+            assert "claim" in cfm, "Candidate must have claim field"
+            assert cfm.get("promoted_from_idea") == slug, "Must have promoted_from_idea"
+            assert "derivation_summary" in cfm, "Must have derivation_summary"
+            assert "## Derivation Summary" in cbody, "Body must contain Derivation Summary heading"
+
+    def test_idea_promotion_fills_regime(self):
+        """Promote with regime_of_validity must appear in candidate frontmatter."""
+        with tempfile.TemporaryDirectory() as tmp:
+            slug, tr = self._setup_topic_with_idea(tmp)
+            mcp_server.aitp_promote_idea_to_candidate(
+                tmp, "test-topic", slug,
+                regime_of_validity="T=0, 1D chain",
+                derivation_summary="Simple variational bound.",
+                evidence="Direct calculation.",
+            )
+            cand_path = tr / "L3" / "candidates" / f"{slug}.md"
+            assert cand_path.exists()
+            cfm, _ = mcp_server._parse_md(cand_path)
+            assert cfm.get("regime_of_validity") == "T=0, 1D chain", (
+                f"Expected 'T=0, 1D chain', got '{cfm.get('regime_of_validity')}'"
+            )
