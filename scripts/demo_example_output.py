@@ -130,27 +130,6 @@ def main():
         if log_path.exists():
             print(log_path.read_text(encoding="utf-8"))
 
-        # ── Step 11: Advance to L5 ──
-        print("\n[11] Advancing to L5 writing...")
-        mcp_server.aitp_advance_to_l5(tmp, "demo-topic")
-
-        # Show L5 provenance files
-        l5_dir = tr / "L5_writing"
-        print("\n[12] L5 Writing provenance scaffolds:")
-        for name in ["outline.md", "claim_evidence_map.md", "equation_provenance.md",
-                      "figure_provenance.md", "limitations.md"]:
-            fpath = l5_dir / name
-            if fpath.exists():
-                print(f"\n--- {name} ---")
-                content = fpath.read_text(encoding="utf-8")
-                # Show first 20 lines
-                for i, line in enumerate(content.splitlines()):
-                    if i >= 20:
-                        print(f"  ... ({len(content.splitlines())} total lines)")
-                        break
-                    print(line)
-                print(f"--- end {name} ---")
-
         # ── Final status ──
         print("\n" + SEPARATOR)
         print("Final status:")

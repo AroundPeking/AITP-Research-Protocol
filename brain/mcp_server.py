@@ -34,7 +34,6 @@ from brain.state_model import (
     evaluate_l1_stage,
     evaluate_l3_stage,
     evaluate_l4_stage,
-    evaluate_l5_stage,
     resolve_domain_prerequisites,
     L0_ARTIFACT_TEMPLATES,
     L1_ARTIFACT_TEMPLATES,
@@ -193,7 +192,7 @@ _SKILL_MAP = {
     "intake_done": "skill-derive",
     "candidate_ready": "skill-validate",
     "validated": "skill-promote",
-    "promoted": "skill-write",
+    "promoted": "skill-promote",
 }
 
 
@@ -382,7 +381,17 @@ def aitp_get_status(topics_root: str, topic_slug: str) -> dict[str, Any]:
     root = _topic_root(topics_root, topic_slug)
     fm, body = _parse_md(root / "state.md")
     status = _infer_status(fm, root)
-    snapshot = evaluate_l1_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    stage = str(fm.get("stage", "L1")).strip() or "L1"
+    lane = str(fm.get("lane", "unspecified")).strip() or "unspecified"
+
+    if stage == "L3":
+        snapshot = evaluate_l3_stage(_parse_md, root, lane=lane)
+    elif stage == "L4":
+        snapshot = evaluate_l4_stage(_parse_md, root, lane=lane)
+    elif stage == "L0":
+        snapshot = evaluate_l0_stage(_parse_md, root, lane=lane)
+    else:
+        snapshot = evaluate_l1_stage(_parse_md, root, lane=lane)
     src_dir = root / "L0" / "sources"
     cand_dir = root / "L3" / "candidates"
     global_l2 = _global_l2_path(topics_root)
@@ -469,7 +478,7 @@ def aitp_bootstrap_topic(
     for sub in [
         "L0/sources", "L1/intake", "L3/candidates",
         "L4/reviews", "L4/scripts", "L4/outputs", "L4/outputs/figures",
-        "L5_writing/figures", "L5_writing/tables", "runtime",
+        "runtime",
     ]:
         (root / sub).mkdir(parents=True)
     # Domain-specific directories for code_method lane (PROJECT_STRUCTURE_CONVENTION)
@@ -500,7 +509,7 @@ def aitp_bootstrap_topic(
         "## Research Notebook\n- L3/ subplane active artifacts\n\n"
         "## Validation\n- L4/reviews/\n\n"
         "## Reusable Results\n- global L2/ (cross-topic)\n\n"
-        "## Writing\n- L3/tex/flow_notebook.tex\n- L5_writing/\n"
+        "## Writing\n- L3/tex/flow_notebook.tex\n"
     ))
     _write_md(root / "runtime" / "log.md", {
         "topic_slug": safe_slug, "kind": "topic_log", "created_at": _now(),
@@ -1021,6 +1030,7 @@ def _suggest_related_concepts(
 
     # Collect all existing nodes with embeddings
     candidates = []
+    existing_texts = []
     exclude = set(exclude_ids)
     for np in nodes_dir.glob("*.md"):
         nid = np.stem
@@ -1034,16 +1044,12 @@ def _suggest_related_concepts(
             "type": fm.get("type", ""),
             "_embedding": fm.get("_embedding", ""),
         })
+        existing_texts.append(
+            fm.get("title", nid) + " " + (fm.get("physical_meaning", "") or "")
+        )
 
     if not candidates:
         return []
-
-    # Fit vectorizer on existing titles for vocabulary
-    existing_texts = [
-        c["title"] + " " + (fm.get("physical_meaning", "") or "")
-        for c in candidates
-        for fm in [_parse_md(global_l2 / "graph" / "nodes" / f"{c['node_id']}.md")[0]]
-    ]
 
     try:
         from brain.l2_embedding import embed_concept, find_similar
@@ -1815,12 +1821,15 @@ def aitp_fast_track_claim(
     regime_of_validity: str = "",
     node_type: str = "result",
     domain: str = "",
-) -> str:
+) -> _GateResult:
     """Fast-track a claim from L3 distillation directly to L2 promotion.
 
     For claims already validated by literature or simple enough that formal
-    L4 adversarial review is disproportionate. Creates candidate, marks it
-    approved, and promotes to L2 in one call.
+    L4 adversarial review is disproportionate. Creates candidate with
+    source_grounded trust and returns a popup gate for human approval.
+
+    The human MUST approve before the claim enters L2. This prevents
+    unvalidated claims from poisoning the global knowledge graph.
 
     Trust basis is set to "source_grounded" (not "validated") to reflect
     the abbreviated path. Use aitp_fast_track_claim for:
@@ -1830,6 +1839,19 @@ def aitp_fast_track_claim(
 
     Do NOT use for novel claims requiring adversarial validation.
     """
+    # Require non-empty source_ref
+    if not source_ref or not source_ref.strip():
+        return _GateResult({
+            "message": "Fast-track requires a non-empty source_ref. "
+                       "Provide the source that validates this claim."
+        })
+    # Require non-empty evidence_summary
+    if not evidence_summary or not evidence_summary.strip():
+        return _GateResult({
+            "message": "Fast-track requires a non-empty evidence_summary. "
+                       "Describe why this claim is already validated."
+        })
+
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(claim)[:60]
     candidate_id = f"fast_{slug}"
@@ -1863,59 +1885,41 @@ def aitp_fast_track_claim(
     cand_path = root / "L3" / "candidates" / f"{slug}.md"
     _write_md(cand_path, cand_fm, cand_body)
 
-    # Promote to L2
-    global_l2 = _global_l2_path(topics_root)
-    global_l2.mkdir(parents=True, exist_ok=True)
-    l2_path = global_l2 / f"{slug}.md"
-    l2_fm = dict(cand_fm)
-    l2_fm["version"] = 1
-    l2_fm["trust_basis"] = "source_grounded"
-    l2_fm["trust_scope"] = "bounded_reusable"
-    l2_fm["updated_at"] = _now()
-    _write_md(l2_path, l2_fm, cand_body)
-
-    # Also create L2 graph node
-    try:
-        _ensure_l2_graph_dirs(topics_root)
-        node_path = global_l2 / "graph" / "nodes" / f"{slug}.md"
-        node_fm = {
-            "node_id": slug,
-            "type": node_type if node_type in L2_NODE_TYPES else "result",
-            "title": claim[:120],
-            "regime_of_validity": regime_of_validity,
-            "trust_basis": "source_grounded",
-            "trust_scope": "bounded_reusable",
-            "version": 1,
-            "source_candidate": slug,
-            "source_topic": topic_slug,
-            "mathematical_expression": "",
-            "domain": domain,
-            "created_at": _now(),
-            "updated_at": _now(),
-        }
-        node_body = (
-            f"# {claim[:120]}\n\n"
-            f"## Physical Meaning\n{claim}\n\n"
-            f"## Evidence\n{evidence_summary}\n\n"
-            f"## Source\n{source_ref}\n\n"
-            f"## Regime and Limits\n{regime_of_validity or '(unspecified)'}\n"
-        )
-        _write_md(node_path, node_fm, node_body)
-    except OSError as e:
-        _append_to_topic_log(root, f"fast_track {slug}: L2 graph node creation failed: {e}")
-
     # Update state counters
     state_fm, state_body = _parse_md(root / "state.md")
     state_fm["candidates_count"] = state_fm.get("candidates_count", 0) + 1
     _write_md(root / "state.md", state_fm, state_body)
 
-    _append_to_topic_log(root, f"fast-tracked claim '{claim[:80]}' → L2 ({slug})")
-    return (
-        f"Fast-tracked claim to L2: '{claim[:80]}...'\n"
-        f"  candidate_id: {slug}\n"
-        f"  trust_basis: source_grounded (abbreviated path)\n"
-        f"  regime: {regime_of_validity or '(unspecified)'}"
-    )
+    _append_to_topic_log(root, f"fast-track claim '{claim[:80]}' awaiting approval ({slug})")
+
+    return _GateResult({
+        "message": (
+            f"Fast-track candidate created: '{claim[:80]}'\n"
+            f"  candidate_id: {slug}\n"
+            f"  trust_basis: source_grounded (abbreviated path)\n"
+            f"  regime: {regime_of_validity or '(unspecified)'}\n\n"
+            f"HUMAN APPROVAL REQUIRED before L2 promotion."
+        ),
+        "popup_gate": {
+            "question": (
+                f"Fast-track claim for L2 promotion:\n\n"
+                f"Claim: {claim}\n"
+                f"Evidence: {evidence_summary}\n"
+                f"Source: {source_ref}\n"
+                f"Regime: {regime_of_validity or '(unspecified)'}\n\n"
+                f"This skips L4 adversarial review. Approve?"
+            ),
+            "header": "Fast-Track Approval",
+            "options": [
+                {"label": "Approve", "description": "Promote to L2 with source_grounded trust"},
+                {"label": "Send to L4", "description": "Require full adversarial validation first"},
+                {"label": "Reject", "description": "Do not promote this claim"},
+            ],
+            "multiSelect": False,
+        },
+        "candidate_id": slug,
+        "pending_approval": True,
+    })
 
 
 @mcp.tool()
@@ -2179,7 +2183,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             ),
             "pending_evidence_requests": pending_requests,
             "active_conflicts": active_conflicts,
-            "immediate_blocked_work": ["L5 writing", "L2 promotion (until validated)"],
+            "immediate_blocked_work": ["L2 promotion (until validated)"],
             "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
         }
 
@@ -2509,7 +2513,6 @@ def aitp_retreat_to_l1(topics_root: str, topic_slug: str, reason: str = "") -> _
     })
 
 @mcp.tool()
-@mcp.tool()
 def aitp_advance_l3_subplane(topics_root: str, topic_slug: str, target: str = "") -> str:
     """Deprecated alias for aitp_switch_l3_activity. Preserved for test compat."""
     return aitp_switch_l3_activity(topics_root, topic_slug, target)
@@ -2525,6 +2528,7 @@ def aitp_switch_l3_mode(topics_root: str, topic_slug: str, new_mode: str) -> str
     _write_md(state_path, fm, body)
     return f"L3 mode set to {new_mode} (deprecated)"
 
+@mcp.tool()
 def aitp_return_to_l3_from_l4(
     topics_root: str,
     topic_slug: str,
@@ -4372,29 +4376,6 @@ def aitp_create_l2_tower(
     return f"Created EFT tower {slug}: {name}"
 
 
-# ---------------------------------------------------------------------------
-# L5 writing
-# ---------------------------------------------------------------------------
-
-_L5_ARTIFACTS = {
-    "outline.md":
-        "# Writing Outline\n\n## Title\n\n## Claims\n\n## Structure\n\n"
-        "## Target Audience\n\n## Key Equations\n",
-    "claim_evidence_map.md":
-        "# Claim-Evidence Map\n\n## Claims\n\n## Evidence Links\n\n"
-        "## Provenance Chain\n\n## Confidence Per Claim\n",
-    "equation_provenance.md":
-        "# Equation Provenance\n\n## Equations\n\n## Source Classification\n\n"
-        "## Derivation Chain\n\n## Verification Status\n",
-    "figure_provenance.md":
-        "# Figure Provenance\n\n## Figures\n\n## Source Data\n\n"
-        "## Reproducibility Notes\n",
-    "limitations.md":
-        "# Limitations\n\n## Non-Claims\n\n## Unresolved Issues\n\n"
-        "## Regime Boundaries\n\n## Negative Results\n",
-}
-
-
 def _build_flow_notebook_content(
     root: Path, title: str, question: str, lane: str
 ) -> str:
@@ -5242,7 +5223,7 @@ def aitp_generate_flow_notebook(
     This is the readable research record  --  a physicist can understand the full
     derivation, results, and validation from this single document.
 
-    Call this before advance_to_l5, or at any point during L3/L4 to snapshot progress.
+    Call this at any point during L3/L4 to snapshot progress.
     """
     root = _topic_root(topics_root, topic_slug)
     fm, _ = _parse_md(root / "state.md")
@@ -5284,44 +5265,6 @@ def aitp_generate_flow_notebook(
             "Execution Provenance (if recorded)",
         ],
     }
-
-
-def aitp_advance_to_l5(topics_root: str, topic_slug: str) -> dict[str, Any]:
-    """Transition from L4 to L5 writing. Returns popup gate.
-
-    Auto-generates flow_notebook.tex before advancing if it doesn't exist."""
-    root = _topic_root(topics_root, topic_slug)
-    state_path = root / "state.md"
-    fm, body = _parse_md(state_path)
-    fm["stage"] = "L5"
-    fm["posture"] = "write"
-    fm["updated_at"] = _now()
-    _write_md(state_path, fm, body)
-
-    # Create L5 scaffolds
-    l5_dir = root / "L5_writing"
-    l5_dir.mkdir(parents=True, exist_ok=True)
-    for name, content in _L5_ARTIFACTS.items():
-        path = l5_dir / name
-        if not path.exists():
-            _write_md(path, {
-                "artifact_kind": f"l5_{name.replace('.', '_')}",
-                "stage": "L5",
-                "created_at": _now(),
-            }, content)
-
-    _append_to_topic_log(root, "advanced to L5 writing")
-    return _GateResult({
-        "message": "Advanced to L5 writing. Fill provenance artifacts before drafting.",
-        "popup_gate": {
-            "question": "Ready to start the L5 writing phase?",
-            "header": "L4->L5",
-            "options": [
-                {"label": "Start writing", "description": "Proceed to L5 writing. Draft the paper from validated results."},
-                {"label": "Review first", "description": "Review the flow notebook and validation results before writing."},
-            ],
-        },
-    })
 
 
 # ---------------------------------------------------------------------------

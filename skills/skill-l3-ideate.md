@@ -70,10 +70,10 @@ These are not just for this subplane — they are available throughout ALL L3 su
 
 ## Exit condition
 
-Advance to **planning** when `active_idea.md` has filled frontmatter fields
+Advance to **plan** when `active_idea.md` has filled frontmatter fields
 `idea_statement` and `motivation`, plus headings `## Idea Statement` and `## Motivation`.
 
 ## Allowed transitions
 
-- Forward: `planning`
+- Forward: `plan`
 - Backedges: none (this is the entry subplane)

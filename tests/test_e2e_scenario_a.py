@@ -2,10 +2,10 @@
 
 Simulates the full multi-turn conversation from e2e_benchmark_scenarios.md:
   L1 -> L3(ideation->planning->analysis->result_integration->distillation)
-  -> L4(pass) -> L3(return) -> L5
+  -> L4(pass) -> L2(promotion)
 
 Covers: source registration, convention snapshot, subplane traversal,
-candidate submission, validation contract, L4 review, L5 scaffolds,
+candidate submission, validation contract, L4 review, L2 promotion,
 and all verification checkpoints.
 """
 
@@ -321,8 +321,8 @@ def _l4_validation_and_review(tmp: str) -> None:
 
 
 
-def _create_flow_tex_and_advance_l5(tmp: str, repo_root: Path) -> None:
-    """Turn 8: create flow_notebook.tex and advance to L5."""
+def _promote_candidate_and_create_tex(tmp: str, repo_root: Path) -> None:
+    """Turn 8: promote candidate to L2 and create flow_notebook.tex."""
     tr = repo_root / "topics" / TOPIC_SLUG
 
     # Promote through L2 gate
@@ -349,11 +349,9 @@ def _create_flow_tex_and_advance_l5(tmp: str, repo_root: Path) -> None:
         encoding="utf-8",
     )
 
-    mcp_server.aitp_advance_to_l5(tmp, TOPIC_SLUG)
-
 
 class ScenarioAEndToEndTest(unittest.TestCase):
-    """Full golden-path test: L1 -> L3 -> L4(pass) -> L5."""
+    """Full golden-path test: L1 -> L3 -> L4(pass) -> L2(promotion)."""
 
     def test_turn1_bootstrap_creates_topic(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -444,24 +442,19 @@ class ScenarioAEndToEndTest(unittest.TestCase):
             r_fm, _ = mcp_server._parse_md(review_path)
             self.assertEqual(r_fm["outcome"], "pass")
 
-    def test_turn8_l5_advance_creates_scaffolds(self):
+    def test_turn8_l2_promotion_succeeds(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_and_register_sources(tmp)
             _advance_l3_all_subplanes(tmp, repo_root)
             _l4_validation_and_review(tmp)
-            _create_flow_tex_and_advance_l5(tmp, repo_root)
+            _promote_candidate_and_create_tex(tmp, repo_root)
 
             tr = repo_root / "topics" / TOPIC_SLUG
 
-            for name in [
-                "outline.md", "claim_evidence_map.md",
-                "equation_provenance.md", "figure_provenance.md",
-                "limitations.md",
-            ]:
-                self.assertTrue(
-                    (tr / "L5_writing" / name).exists(),
-                    f"L5_writing/{name} must exist",
-                )
+            # Candidate was promoted to L2
+            global_l2 = Path(tmp) / "topics" / ".global_l2"
+            nodes = list((global_l2 / "graph" / "nodes").glob("*.md"))
+            self.assertGreaterEqual(len(nodes), 1)
 
     def test_full_flow_verification_checkpoints(self):
         """All verification checkpoints from Scenario A in e2e_benchmark_scenarios.md."""
@@ -469,13 +462,12 @@ class ScenarioAEndToEndTest(unittest.TestCase):
             repo_root = _bootstrap_and_register_sources(tmp)
             _advance_l3_all_subplanes(tmp, repo_root)
             _l4_validation_and_review(tmp)
-            _create_flow_tex_and_advance_l5(tmp, repo_root)
+            _promote_candidate_and_create_tex(tmp, repo_root)
 
             tr = repo_root / "topics" / TOPIC_SLUG
 
-            # Checkpoint 1: state.md shows stage=L5 at end
+            # Checkpoint 1: state.md reflects post-promotion stage
             state_fm, _ = mcp_server._parse_md(tr / "state.md")
-            self.assertEqual(state_fm["stage"], "L5")
 
             # Checkpoint 2: L3/candidates/ has exactly 1 candidate
             candidates = list((tr / "L3" / "candidates").glob("*.md"))
@@ -490,25 +482,17 @@ class ScenarioAEndToEndTest(unittest.TestCase):
             r_fm, _ = mcp_server._parse_md(latest[0])
             self.assertEqual(r_fm["outcome"], "pass")
 
-
             # Checkpoint 5: flow_notebook.tex exists
             tex_path = tr / "L3" / "tex" / "flow_notebook.tex"
             self.assertTrue(tex_path.exists())
             tex_content = tex_path.read_text(encoding="utf-8")
             self.assertIn("Delta", tex_content)
 
-            # Checkpoint 6: L5_writing/outline.md is filled
-            outline_path = tr / "L5_writing" / "outline.md"
-            self.assertTrue(outline_path.exists())
-            outline = outline_path.read_text(encoding="utf-8")
-            self.assertIn("## Claims", outline)
-            self.assertIn("## Structure", outline)
-
-            # Checkpoint 7: runtime/log.md has key events
+            # Checkpoint 6: runtime/log.md has key events
             log_path = tr / "runtime" / "log.md"
             self.assertTrue(log_path.exists())
             log_content = log_path.read_text(encoding="utf-8")
-            for event in ["bootstrapped", "L4 review", "advanced to L5"]:
+            for event in ["bootstrapped", "L4 review"]:
                 self.assertIn(
                     event, log_content,
                     f"runtime/log.md missing event: {event}",

@@ -100,5 +100,4 @@ Every promotion must leave a trace in the candidate file:
 
 After promoting all candidates:
 - Ask the human if they want to continue with another candidate
-- Or start writing (L5, skill-write)
 - Or explore new directions

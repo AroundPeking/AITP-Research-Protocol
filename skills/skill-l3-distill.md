@@ -1,7 +1,7 @@
 ---
 name: skill-l3-distill
 description: L3 Distillation subplane — extract final claims from integrated results.
-trigger: l3_activity == "distillation"
+trigger: l3_activity == "distill"
 ---
 
 # L3 Distillation
@@ -42,9 +42,9 @@ The human may add more discussion rounds at any time. Do NOT rush to fill the ar
 
 At ANY point during distillation, you may offer these back-paths via AskUserQuestion:
 
-- **Back to integration** (`aitp_switch_l3_activity(target="result_integration")`):
+- **Back to integration** (`aitp_switch_l3_activity(target="integrate")`):
   if the claim doesn't match the integrated findings
-- **Back to analysis** (`aitp_switch_l3_activity(target="analysis")`): if the claim
+- **Back to analysis** (`aitp_switch_l3_activity(target="derive")`): if the claim
   needs more computational support
 - **Retreat to L1** (`aitp_retreat_to_l1`): if distillation reveals fundamental
   framing problems

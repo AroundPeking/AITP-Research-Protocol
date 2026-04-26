@@ -12,11 +12,12 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from session_start import (
-    _find_workspace_root,
-    _find_topics_root,
+from hook_utils import (
     _find_active_topic,
+    _find_topics_root,
+    _find_workspace_root,
     _hooks_disabled,
     _parse_md,
 )
@@ -37,7 +38,8 @@ def main():
         return
 
     from brain.state_model import (
-        topics_dir, evaluate_l0_stage, evaluate_l1_stage, evaluate_l3_stage,
+        topics_dir, evaluate_l0_stage, evaluate_l1_stage,
+        evaluate_l3_stage, evaluate_l4_stage,
     )
     td = topics_dir(topics_root)
     root = Path(td) / topic_slug
@@ -46,6 +48,8 @@ def main():
 
     if stage == "L3":
         snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    elif stage == "L4":
+        snapshot = evaluate_l4_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
     elif stage == "L0":
         snapshot = evaluate_l0_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
     else:

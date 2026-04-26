@@ -57,8 +57,8 @@ _DIMENSION_MAP: dict[str, tuple[int, int, int, int, int]] = {
     "permittivity": (-1, -3, 4, 2, 0),
     "permeability": (1, 1, -2, -2, 0),
     # Quantum
-    "wavefunction": (0, -1, 0, 0, 0),  # 1/sqrt(L) in 1D; simplified
-    "probability_density": (0, -1, 0, 0, 0),  # 1/L in 1D
+    "wavefunction": (0, -1, 0, 0, 0),  # dim L^{-d/2}: half-int not representable; 1D approximation
+    "probability_density": (0, -3, 0, 0, 0),  # L^{-3} in 3D: |psi|^2
     "cross_section": (0, 2, 0, 0, 0),
     # Thermodynamic
     "entropy": (1, 2, -2, 0, -1),

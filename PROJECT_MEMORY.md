@@ -7,10 +7,10 @@ structured theoretical physics research with formal validation.
 ## Architecture
 
 - `brain/mcp_server.py` — Main MCP server. ~49 @mcp.tool() functions implement the
-  AITP protocol (L0-L5 layers). Uses FastMCP + PyYAML with file-based persistence
+  AITP protocol (L0-L4 layers). Uses FastMCP + PyYAML with file-based persistence
   (Markdown + YAML frontmatter).
 - `brain/state_model.py` — Gate evaluation logic, artifact templates, stage
-  definitions (L0, L1, L3, L4, L5), required frontmatter fields, and heading
+  definitions (L0, L1, L3, L4), required frontmatter fields, and heading
   contracts. Also defines the knowledge graph types (nodes, edges, towers) and
   the domain skill registry (`DOMAIN_SKILL_REGISTRY`, `resolve_domain_prerequisites`).
 - `skills/` — Stage-specific skill Markdown files loaded by agents, plus domain
@@ -46,7 +46,7 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   databases, no SQL.
 - **Topics root**: Set via `AITP_TOPICS_ROOT` env var. Each topic is a directory
   with `state.md` as the entry point.
-- **Gate model**: Each stage (L0, L1, L3, L4, L5) has required artifacts with
+- **Gate model**: Each stage (L0, L1, L3, L4) has required artifacts with
   required frontmatter fields and required Markdown headings. Missing any = blocked.
 - **Tool return types**: Tools return `dict` or `_GateResult` (dict subclass).
   `_GateResult.__str__` returns its message for human display.
@@ -69,7 +69,6 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
 | L2 | Cross-topic knowledge graph | `create_l2_node`, `create_l2_edge`, `promote_candidate` |
 | L3 | Derivation campaign | `advance_to_l3`, `advance_l3_subplane`, `submit_candidate` |
 | L4 | Validation | `create_validation_contract`, `submit_l4_review`, research loop |
-| L5 | Writing | `advance_to_l5`, `return_from_l5` |
 | Cross | Health & navigation | `health_check`, `list_topics`, `get_status`, `get_execution_brief` |
 
 ## Operator Rule

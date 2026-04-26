@@ -1,7 +1,7 @@
 ---
 name: skill-l3-analyze
 description: L3 Analysis subplane — execute derivations and calculations.
-trigger: l3_activity == "analysis"
+trigger: l3_activity == "derive"
 ---
 
 # L3 Analysis
@@ -48,9 +48,9 @@ The human may add more discussion rounds at any time. Do NOT rush to fill the ar
 
 At ANY point during analysis, you may offer these back-paths via AskUserQuestion:
 
-- **Back to planning** (`aitp_switch_l3_activity(target="planning")`): if analysis
+- **Back to planning** (`aitp_switch_l3_activity(target="plan")`): if analysis
   reveals the plan needs adjustment
-- **Back to ideation** (`aitp_switch_l3_activity(target="ideation")`): if analysis
+- **Back to ideation** (`aitp_switch_l3_activity(target="ideate")`): if analysis
   reveals the idea itself is flawed
 - **Retreat to L1** (`aitp_retreat_to_l1`): if analysis reveals missing sources
   or wrong conventions
@@ -145,7 +145,7 @@ If you are returning to analysis after L4 validation (post-L4 return), your anal
    - What remains open (larger L, different operators, thermodynamic limit)
 ## Exit condition
 
-Advance to **result_integration** when `active_analysis.md` has filled frontmatter fields
+Advance to **integrate** when `active_analysis.md` has filled frontmatter fields
 `analysis_statement` and `method`, plus headings `## Analysis Statement` and `## Method`.
 
 **Or submit candidate directly** if the derivation produced a clear, verifiable claim
@@ -155,5 +155,5 @@ the known limit") that don't need the full integration/distillation pipeline.
 
 ## Allowed transitions
 
-- Forward: `result_integration`, candidate submission
-- Backedges: `ideation`, `planning`
+- Forward: `integrate`, candidate submission
+- Backedges: `ideate`, `plan`

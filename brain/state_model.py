@@ -977,17 +977,6 @@ L3_ACTIVITY_REQUIRED_HEADINGS: dict[str, list[str]] = {
     "distill": ["## Distilled Claim", "## Evidence Summary"],
 }
 
-# Backwards-compat: old name used by legacy tests
-L3_ARTIFACT_TEMPLATES = L3_ACTIVITY_TEMPLATES
-
-def _get_l3_config() -> dict:
-    """Deprecated — returns activity config for test compat."""
-    return {
-        'activities': L3_ACTIVITIES,
-        'skill_map': L3_ACTIVITY_SKILL_MAP,
-        'artifact_names': L3_ACTIVITY_ARTIFACT_NAMES,
-    }
-
 STUDY_CANDIDATE_TYPES = [
     "atomic_concept", "derivation_chain", "correspondence_link",
     "regime_boundary", "open_question",
@@ -1277,7 +1266,8 @@ def _load_manifest(topic_root_path: Path) -> dict[str, Any] | None:
         data = yaml.safe_load(text[3:end])
         if data and ("domain_id" in data or "repo_ref" in data):
             return data
-    except (json.JSONDecodeError, OSError):
+    except Exception:
+        # yaml.YAMLError, OSError, or any parse failure — manifest is unreadable
         pass
     return None
 
@@ -1467,49 +1457,6 @@ def evaluate_l4_stage(
     )
 
 
-def evaluate_l5_stage(
-    parse_md: Callable[[Path], tuple[dict[str, Any], str]],
-    topic_root_path: Path,
-    lane: str = "unspecified",
-) -> StageSnapshot:
-    """Evaluate L5 gate status by checking writing scaffolds and promoted candidates.
-
-    Gate checks:
-    - L5_writing scaffolds exist (outline.md, claim_evidence_map.md, limitations.md)
-    - At least one candidate promoted to global L2
-    """
-    l5_dir = topic_root_path / "L5_writing"
-    if not l5_dir.is_dir():
-        return StageSnapshot(
-            stage="L5", posture="write", lane=lane,
-            gate_status="blocked_missing_artifact",
-            required_artifact_path=str(l5_dir),
-            missing_requirements=["L5_writing directory"],
-            next_allowed_transition="L4",
-            skill="skill-write",
-        )
-
-    required = ["outline.md", "claim_evidence_map.md", "limitations.md"]
-    for name in required:
-        path = l5_dir / name
-        if not path.exists():
-            return StageSnapshot(
-                stage="L5", posture="write", lane=lane,
-                gate_status="blocked_missing_artifact",
-                required_artifact_path=str(path),
-                missing_requirements=[name],
-                next_allowed_transition="",
-                skill="skill-write",
-            )
-
-    return StageSnapshot(
-        stage="L5", posture="write", lane=lane,
-        gate_status="ready",
-        next_allowed_transition="L2",
-        skill="skill-write",
-    )
-
-
 # ---------------------------------------------------------------------------
 # Progressive-disclosure tool catalog
 # ---------------------------------------------------------------------------
@@ -1587,12 +1534,6 @@ TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str, str]]] = {
     ("L2", "promote"): [
         ("knowledge-hub", "Store validated knowledge to L2", "C"),
     ],
-    # L5 — writing
-    ("L5", "write"): [
-        ("arxiv-latex-mcp", "Reference paper formatting and structure", "A"),
-        ("scientific-writing", "Academic writing guidance and structure", "B"),
-        ("mcp-server-chart", "Generate publication-quality charts", "A"),
-    ],
     # L3 study mode — literature understanding subplanes
     ("L3_study", "source_decompose"): [
         ("arxiv-latex-mcp", "Read paper sections for decomposition", "A"),
@@ -1625,11 +1566,6 @@ PATTERN_B_INSTRUCTIONS: dict[str, list[tuple[str, str, str]]] = {
         ("L3", "ideation",
          "Invoke skill 'scientific-brainstorming' BEFORE discussion round 1 "
          "to structure the idea exploration workflow."),
-    ],
-    "scientific-writing": [
-        ("L5", "write",
-         "Invoke skill 'scientific-writing' at the start of L5 to follow "
-         "the academic writing structure and methodology."),
     ],
 }
 
