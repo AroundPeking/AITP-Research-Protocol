@@ -96,9 +96,10 @@ class L1GateTests(unittest.TestCase):
                 tr / "L1" / "question_contract.md",
                 {"artifact_kind": "l1_question_contract", "stage": "L1",
                  "bounded_question": "What quantity is bounded here?",
-                 "scope_boundaries": "One model, one regime.",
-                 "target_quantities": "Gap and symmetry sector."},
-                "# Question Contract\n\n## Bounded Question\nWhat quantity is bounded here?\n\n## Scope Boundaries\nOne model, one regime.\n\n## Target Quantities Or Claims\nGap and symmetry sector.\n\n## Non-Success Conditions\nNo broad universality claim.\n\n## Uncertainty Markers\nFinite-size risk.\n",
+                 "scope_boundaries": "One model, one regime. Does NOT consider multi-band effects or finite-temperature corrections.",
+                 "target_quantities": "Gap and symmetry sector.",
+                 "competing_hypotheses": "Alternative: the gap closes at the BKT transition point."},
+                "# Question Contract\n\n## Bounded Question\nWhat quantity is bounded here?\n\n## Competing Hypotheses\nAlternative: the gap closes at the BKT transition point.\n\n## Scope Boundaries\nOne model, one regime. Does NOT consider multi-band effects or finite-temperature corrections.\n\n## Target Quantities Or Claims\nGap and symmetry sector.\n\n## Non-Success Conditions\nNo broad universality claim.\n\n## Uncertainty Markers\nFinite-size risk.\n",
             )
             mcp_server._write_md(
                 tr / "L1" / "source_basis.md",
@@ -111,19 +112,19 @@ class L1GateTests(unittest.TestCase):
                 {"artifact_kind": "l1_convention_snapshot", "stage": "L1",
                  "notation_choices": "Use source-a symbols.",
                  "unit_conventions": "Natural units."},
-                "# Convention Snapshot\n\n## Notation Choices\nUse source-a symbols.\n\n## Unit Conventions\nNatural units.\n\n## Sign Conventions\nHamiltonian sign fixed.\n\n## Metric Or Coordinate Conventions\nEuclidean.\n\n## Unresolved Tensions\nNone blocking.\n",
+                "# Convention Snapshot\n\n## Notation Choices\nUse source-a symbols.\n\n## Unit Conventions\nNatural units.\n\n## Sign Conventions\nHamiltonian sign fixed.\n\n## Metric Or Coordinate Conventions\nEuclidean.\n\n## Categorized Assumptions\nMathematical: SU(2) symmetry. Physical: zero temperature.\n\n## Unresolved Tensions\nNone blocking.\n",
             )
             mcp_server._write_md(
                 tr / "L1" / "derivation_anchor_map.md",
                 {"artifact_kind": "l1_derivation_anchor_map", "stage": "L1",
-                 "starting_anchors": "eq-12"},
-                "# Derivation Anchor Map\n\n## Source Anchors\neq-12\n\n## Missing Steps\nOne omitted algebra step.\n\n## Candidate Starting Points\neq-12 to eq-14.\n",
+                 "starting_anchors": "eq-12", "anchor_count": 1},
+                "# Derivation Anchor Map\n\n## Source Anchors\neq-12\n\n## Dependency Graph\neq-12 -> eq-14.\n\n## Missing Steps\nOne omitted algebra step.\n\n## Candidate Starting Points\neq-12 to eq-14.\n",
             )
             mcp_server._write_md(
                 tr / "L1" / "contradiction_register.md",
                 {"artifact_kind": "l1_contradiction_register", "stage": "L1",
                  "blocking_contradictions": "none"},
-                "# Contradiction Register\n\n## Unresolved Source Conflicts\nNone.\n\n## Regime Mismatches\nNone blocking.\n\n## Notation Collisions\nTracked and resolved.\n\n## Blocking Status\nnone\n",
+                "# Contradiction Register\n\n## Unresolved Source Conflicts\nNone.\n\n## Internal Inconsistencies\nNone detected.\n\n## Regime Mismatches\nNone blocking.\n\n## Notation Collisions\nTracked and resolved.\n\n## Blocking Status\nnone\n",
             )
             mcp_server._write_md(
                 tr / "L1" / "source_toc_map.md",

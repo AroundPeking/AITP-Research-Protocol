@@ -80,14 +80,18 @@ def _bootstrap_and_register_sources(tmp: str) -> Path:
          "bounded_question": "Compute the one-loop effective action for N massless "
                             "Dirac fermions in the fundamental of U(N) CS theory "
                             "at level k and determine the level shift.",
-         "scope_boundaries": "One-loop, massless fermions, fundamental rep, 2+1D",
-         "target_quantities": "Level shift Delta_k = N*sgn(m)/2"},
+         "scope_boundaries": "One-loop, massless fermions, fundamental rep, 2+1D. Does NOT claim all-loop order or other representations.",
+         "target_quantities": "Level shift Delta_k = N*sgn(m)/2",
+         "competing_hypotheses": "Shift vanishes in SUSY extension; possible scheme dependence."},
         "# Question Contract\n\n"
         "## Bounded Question\n"
         "Does a 2+1D U(N) Chern-Simons gauge theory coupled to N massless Dirac "
         "fermions in the fundamental produce a one-loop level shift?\n\n"
+        "## Competing Hypotheses\n"
+        "Shift vanishes in SUSY extension; possible scheme dependence.\n\n"
         "## Scope Boundaries\n"
-        "One-loop only, massless fermions, fundamental representation, 2+1D.\n\n"
+        "One-loop only, massless fermions, fundamental representation, 2+1D. "
+        "Does NOT claim all-loop order or other representations.\n\n"
         "## Target Quantities Or Claims\n"
         "Level shift Delta_k = N*sgn(m)/2.\n\n"
         "## Non-Success Conditions\n"
@@ -123,15 +127,19 @@ def _bootstrap_and_register_sources(tmp: str) -> Path:
         "## Unit Conventions\nNatural units hbar=c=1.\n\n"
         "## Sign Conventions\nMostly-plus metric (+--).\n\n"
         "## Metric Or Coordinate Conventions\nMostly-plus (+--), Euclidean continuation for determinant.\n\n"
+        "## Categorized Assumptions\nMathematical: U(N) gauge group, compact 3-manifold. Physical: massless limit, zero temperature.\n\n"
         "## Unresolved Tensions\nNone blocking.\n",
     )
     mcp_server._write_md(
         tr / "L1" / "derivation_anchor_map.md",
         {"artifact_kind": "l1_derivation_anchor_map", "stage": "L1",
-         "starting_anchors": "Dirac operator in 2+1D, Pauli-Villars regulator"},
+         "starting_anchors": "Dirac operator in 2+1D, Pauli-Villars regulator",
+         "anchor_count": 2},
         "# Derivation Anchor Map\n\n"
         "## Source Anchors\n"
         "Dirac operator in 2+1D, Pauli-Villars regulator.\n\n"
+        "## Dependency Graph\n"
+        "Dirac operator -> proper-time regulator -> zeta-function -> CS term.\n\n"
         "## Missing Steps\n"
         "Regularization of functional determinant.\n\n"
         "## Candidate Starting Points\n"
@@ -143,6 +151,7 @@ def _bootstrap_and_register_sources(tmp: str) -> Path:
          "blocking_contradictions": "none"},
         "# Contradiction Register\n\n"
         "## Unresolved Source Conflicts\nNone.\n\n"
+        "## Internal Inconsistencies\nNone detected.\n\n"
         "## Regime Mismatches\nNone blocking.\n\n"
         "## Notation Collisions\n"
         "CS level convention aligned with Witten's normalization.\n\n"

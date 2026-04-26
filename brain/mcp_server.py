@@ -1,4 +1,4 @@
-"""AITP Brain MCP Server v2 — Minimal skill-driven research protocol.
+"""AITP Brain MCP Server v2  --  Minimal skill-driven research protocol.
 
 Provides ~12 tools for the agent to read/write topic state.
 All storage is Markdown with YAML frontmatter. No JSON, no JSONL.
@@ -96,18 +96,18 @@ class _GateResult(dict):
 
 
 # ---------------------------------------------------------------------------
-# Helpers — Markdown + YAML frontmatter I/O
+# Helpers  --  Markdown + YAML frontmatter I/O
 # ---------------------------------------------------------------------------
 
 _FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
 
 _AGENT_BEHAVIOR_REMINDER = (
     "Python is storage+search only. You are the physicist. "
-    "Assess your own work before advancing — the skill file asks Socratic questions, "
+    "Assess your own work before advancing  --  the skill file asks Socratic questions, "
     "not compliance checklists. Evidence before claims. "
     "Derivations before conclusions. Limits before generalizations. "
     "Check compute_target before ANY code, SymPy, Lean, or numerical work "
-    "— route heavy computation to the declared target (local/fisher/lean-remote)."
+    " --  route heavy computation to the declared target (local/fisher/lean-remote)."
 )
 
 
@@ -727,7 +727,7 @@ def aitp_parse_source_toc(
         indent = "  " * (int(depth) - 1) if depth.isdigit() else ""
         page_info = f" (pp. {page_range})" if page_range else ""
         section_lines.append(
-            f"{indent}- [{sid}] {title}{page_info} — status: pending"
+            f"{indent}- [{sid}] {title}{page_info}  --  status: pending"
         )
 
     # Append to ## Per-Source TOC
@@ -796,7 +796,7 @@ def aitp_update_section_status(
     for i, line in enumerate(lines):
         if old_pattern in line and source_id in body[:body.index(line) + len(line)]:
             # Replace status
-            lines[i] = _re_section.sub(r"— status: \w+", f"— status: {new_status}", line)
+            lines[i] = _re_section.sub(r" --  status: \w+", f" --  status: {new_status}", line)
             if extraction_note:
                 lines[i] += f"\n  > {extraction_note}"
             # Link to intake note if it exists
@@ -817,7 +817,7 @@ def aitp_update_section_status(
                 break
             if in_source_block and old_pattern in line:
                 import re as _re_section2
-                lines[i] = _re_section2.sub(r"— status: \w+", f"— status: {new_status}", line)
+                lines[i] = _re_section2.sub(r" --  status: \w+", f" --  status: {new_status}", line)
                 if extraction_note:
                     lines[i] += f"\n  > {extraction_note}"
                 # Link to intake note if it exists
@@ -834,8 +834,8 @@ def aitp_update_section_status(
 
     # Recompute coverage
     total = int(fm.get("total_sections", 0))
-    done = body.count("— status: extracted")
-    deferred = body.count("— status: deferred")
+    done = body.count(" --  status: extracted")
+    deferred = body.count(" --  status: deferred")
     pending = total - done - deferred
 
     if pending <= 0:
@@ -843,7 +843,7 @@ def aitp_update_section_status(
             fm["coverage_status"] = "partial_with_deferrals"
             # Ensure ## Deferred Sections is populated
             if "## Deferred Sections" in body and body.count("## Deferred Sections") > 0:
-                deferred_lines = [l for l in lines if "— status: deferred" in l]
+                deferred_lines = [l for l in lines if " --  status: deferred" in l]
                 deferred_summary = "\n".join(f"- {l.strip()}" for l in deferred_lines)
                 body = body.replace(
                     "## Deferred Sections\n",
@@ -1040,7 +1040,7 @@ def aitp_write_section_intake(
     corresponding TOC map entry with a link to this intake note.
 
     Call this after reading each section during Step 3 of the read workflow.
-    completeness_confidence: high | medium | low — honest self-assessment.
+    completeness_confidence: high | medium | low  --  honest self-assessment.
     """
     root = _topic_root(topics_root, topic_slug)
     intake_dir = root / "L1" / "intake" / _slugify(source_id)
@@ -1138,7 +1138,7 @@ def aitp_submit_candidate(
     """Submit a candidate finding. Creates L3/candidates/<id>.md. Returns popup gate for confirmation.
 
     depends_on: list of candidate_ids that this candidate builds upon.
-    candidate_type: type of candidate — research modes produce research_claim (default),
+    candidate_type: type of candidate  --  research modes produce research_claim (default),
         study modes produce atomic_concept, derivation_chain, correspondence_link,
         regime_boundary, or open_question.
     regime_of_validity: physical regime where this candidate applies (required for study candidates).
@@ -1190,7 +1190,7 @@ def aitp_submit_candidate(
 
 
 # ---------------------------------------------------------------------------
-# L3 idea branching — multiple approaches explored in parallel
+# L3 idea branching  --  multiple approaches explored in parallel
 # ---------------------------------------------------------------------------
 
 _IDEA_STATUSES = {"active", "failed", "succeeded", "abandoned", "superseded"}
@@ -1211,7 +1211,7 @@ def aitp_submit_idea(
 ) -> dict[str, Any]:
     """Record a new derivation approach or idea attempt in L3.
 
-    Research is branching — you may have multiple ideas for how to derive
+    Research is branching  --  you may have multiple ideas for how to derive
     a result. Each idea gets its own record. Failed ideas are kept visible
     because their lessons may help other approaches succeed.
 
@@ -1273,7 +1273,7 @@ def aitp_submit_idea(
         }, "# Ideas Log\n\n## Timeline\n")
     _, log_body = _parse_md(log_path)
     action = "updated" if is_update else "created"
-    log_body += f"\n- {_now()}: {action} idea `{slug}` — **{title}** (status: {outcome})"
+    log_body += f"\n- {_now()}: {action} idea `{slug}`  --  **{title}** (status: {outcome})"
     _write_md(log_path, {"kind": "ideas_log", "updated_at": _now()}, log_body)
 
     # If superseding other ideas, update them
@@ -1293,7 +1293,7 @@ def aitp_submit_idea(
 
     msg = f"Idea '{slug}' {action} (status: {outcome})."
     if outcome == "failed":
-        msg += " Failed approaches are valuable — their lessons will be preserved."
+        msg += " Failed approaches are valuable  --  their lessons will be preserved."
 
     return _GateResult({
         "message": msg,
@@ -1320,7 +1320,7 @@ def aitp_list_ideas(
     """List all L3 ideas with their status and key findings.
 
     Args:
-        status_filter: optional filter — active, failed, succeeded, abandoned, superseded
+        status_filter: optional filter  --  active, failed, succeeded, abandoned, superseded
     """
     root = _topic_root(topics_root, topic_slug)
     ideas_dir = root / "L3" / "ideas"
@@ -1674,7 +1674,7 @@ def aitp_promote_candidate(
                 root,
                 f"promoted {slug} to L2 but graph node creation failed: {e}",
             )
-            return f"Promoted {slug} to global L2 (v{fm['version']}). WARNING: graph node not created — {e}"
+            return f"Promoted {slug} to global L2 (v{fm['version']}). WARNING: graph node not created  --  {e}"
 
     _append_to_topic_log(root, f"promoted {slug} to global L2 (v{fm['version']})")
     state_fm, _ = _parse_md(root / "state.md")
@@ -1969,7 +1969,7 @@ def aitp_advance_to_l3(
 ) -> dict[str, Any]:
     """Transition a topic from L1 (ready) to L3 flexible workspace.
 
-    L3 has no forced mode — the agent chooses activities as needed.
+    L3 has no forced mode  --  the agent chooses activities as needed.
     Default starting activity: ideate.
     """
     root = _topic_root(topics_root, topic_slug)
@@ -2012,11 +2012,9 @@ def aitp_advance_to_l3(
 def aitp_switch_l3_activity(
     topics_root: str, topic_slug: str, activity: str, reason: str = "",
 ) -> str:
-    """Advance the L3 subplane. Only allows valid forward transitions and backedges.
-
-    """Switch to a different L3 activity. No forced sequence — any activity
+    """Switch to a different L3 activity. No forced sequence: any activity
     can be entered at any time. All activities are available regardless of
-    the current one.
+    the current one. Only allows valid forward transitions and backedges.
     """
     root = _topic_root(topics_root, topic_slug)
     state_path = root / "state.md"
@@ -2117,12 +2115,12 @@ def aitp_submit_l4_review(
       Every data point must have a data_provenance entry.
     - formal_theory: outcome="pass" REQUIRES check_results with at minimum:
         dimensional_consistency, symmetry_compatibility, limiting_case_check,
-        correspondence_check — OR verification_evidence from SymPy verification tools.
+        correspondence_check  --  OR verification_evidence from SymPy verification tools.
       Each check must describe what was verified and the outcome.
 
     devils_advocate: REQUIRED for "pass". State at least one specific way the
       claim could still be wrong despite passing all checks. This is the
-      adversarial collaborator's duty — no claim is beyond doubt.
+      adversarial collaborator's duty  --  no claim is beyond doubt.
 
     verification_evidence: Optional dict with results from SymPy verification
       tools (aitp_verify_dimensions, aitp_verify_algebra, etc.).
@@ -2165,7 +2163,7 @@ def aitp_submit_l4_review(
             return {
                 "message": (
                     "BLOCKED: Adversarial review requires devils_advocate for pass outcomes. "
-                    "State at least one specific way the claim could still be wrong — "
+                    "State at least one specific way the claim could still be wrong  --  "
                     "what assumptions could break? What regime boundaries are untested? "
                     "What measurement would falsify this claim?"
                 ),
@@ -2197,7 +2195,7 @@ def aitp_submit_l4_review(
                         f"{sorted(PHYSICS_CHECK_FIELDS)}, OR\n"
                         f"2. verification_evidence from SymPy verification tools "
                         f"(aitp_verify_dimensions, aitp_verify_algebra, aitp_verify_derivation_step).\n"
-                        f"Python cannot certify physics — you must provide the evidence."
+                        f"Python cannot certify physics  --  you must provide the evidence."
                     ),
                 }
 
@@ -2283,7 +2281,7 @@ def aitp_submit_l4_review(
         elif outcome in ("fail", "contradiction", "stuck", "timeout"):
             cand_fm["l4_outcome"] = outcome
             cand_fm["l4_notes"] = notes
-            # Reset status if previously validated — new review invalidates old result
+            # Reset status if previously validated  --  new review invalidates old result
             if cand_fm.get("status") in ("validated", "partial_validated"):
                 cand_fm["status"] = "submitted"
         _write_md(cand_path, cand_fm, cand_body)
@@ -2388,7 +2386,7 @@ def aitp_verify_dimensions(
     """Verify dimensional consistency of a physics equation using SymPy.
 
     Checks that every term on the RHS has the same physical dimension as the LHS.
-    This is a pure symbolic check — no LLM judgment involved.
+    This is a pure symbolic check  --  no LLM judgment involved.
 
     Args:
         expression: A physics equation, e.g. "E = m * c**2"
@@ -2502,7 +2500,7 @@ def aitp_verify_derivation_step(
     """Verify a single derivation step using the specified inference rule.
 
     Each rule has a generic SymPy-based validator that checks whether the
-    output correctly follows from the input using this rule — independent
+    output correctly follows from the input using this rule  --  independent
     of the specific equation content.
 
     Args:
@@ -2796,7 +2794,7 @@ def aitp_query_l2_index(
     topics_root: str,
     domain_filter: str = "",
 ) -> dict[str, Any]:
-    """Query the L2 knowledge base index — progressive disclosure entry point.
+    """Query the L2 knowledge base index  --  progressive disclosure entry point.
 
     Returns a domain taxonomy tree with per-domain summaries and node counts.
     Use this FIRST when starting a new topic to discover what L2 already knows.
@@ -2812,7 +2810,7 @@ def aitp_query_l2_index(
             "domains": {},
             "total_nodes": 0,
             "valid_domains": sorted(VALID_DOMAINS),
-            "message": "L2 graph is empty — no validated knowledge yet. Use aitp_quick_l2_concept to seed foundational concepts.",
+            "message": "L2 graph is empty  --  no validated knowledge yet. Use aitp_quick_l2_concept to seed foundational concepts.",
         }
 
     # Scan all nodes and group by domain
@@ -3073,7 +3071,7 @@ def aitp_create_l2_edge(
     slug = _slugify(edge_id)
     edge_path = global_l2 / "graph" / "edges" / f"{slug}.md"
 
-    # Verify both nodes exist — refuse to create dangling edges
+    # Verify both nodes exist  --  refuse to create dangling edges
     from_slug = _slugify(from_node)
     to_slug = _slugify(to_node)
     from_path = global_l2 / "graph" / "nodes" / f"{from_slug}.md"
@@ -3180,7 +3178,7 @@ def aitp_get_l2_provenance(
 ) -> dict[str, Any]:
     """Get the full provenance of an L2 node, including hidden source fields.
 
-    Use this for auditing — verify where a claim came from before trusting it.
+    Use this for auditing  --  verify where a claim came from before trusting it.
     Default L2 queries hide source fields to prevent context bloat.
     """
     global_l2 = _global_l2_path(topics_root)
@@ -3220,7 +3218,7 @@ def aitp_create_diagram(
 ) -> str:
     """Register a figure or diagram from the literature in L2.
 
-    Diagrams are evidence attachments — they hang on nodes and edges, not
+    Diagrams are evidence attachments  --  they hang on nodes and edges, not
     enter the force graph as independent entities.
 
     what_it_shows: plain-language description of what the figure shows.
@@ -3309,7 +3307,7 @@ def aitp_create_derivation_step(
     regime_condition: str = "",
     source_ref: str = "",
 ) -> str:
-    """Create a derivation step in the L2 knowledge graph — a first-class entity.
+    """Create a derivation step in the L2 knowledge graph  --  a first-class entity.
 
     Steps form a DAG within a derivation chain (chain_id groups them).
     Each step records: what came in, what transform was applied,
@@ -3764,7 +3762,7 @@ def _build_flow_notebook_content(
         "±": r"\pm", "·": r"\cdot", "×": r"\times",
         "→": r"\rightarrow", "←": r"\leftarrow",
         "²": r"{}^{2}",
-        "—": "---", "–": "--",
+        " -- ": "---", "–": "--",
     }
 
     def _esc(text: str) -> str:
@@ -4541,7 +4539,7 @@ def _build_flow_notebook_content(
 
 
 def _auto_refresh_flow_notebook(root: Path, fm: dict) -> None:
-    """Silently regenerate flow_notebook.tex. Never blocks — errors are ignored."""
+    """Silently regenerate flow_notebook.tex. Never blocks  --  errors are ignored."""
     try:
         title = str(fm.get("title", ""))
         question = ""  # extracted from body if needed
@@ -4568,7 +4566,7 @@ def aitp_generate_flow_notebook(
 
     Reads every subplane active artifact, every candidate, and every L4 review,
     then consolidates into a structured LaTeX document at L3/tex/flow_notebook.tex.
-    This is the readable research record — a physicist can understand the full
+    This is the readable research record  --  a physicist can understand the full
     derivation, results, and validation from this single document.
 
     Call this before advance_to_l5, or at any point during L3/L4 to snapshot progress.
