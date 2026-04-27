@@ -1,7 +1,7 @@
 ---
 name: skill-l3-ideate
 description: L3 Ideation subplane — generate and record research ideas.
-trigger: l3_activity == "ideation"
+trigger: l3_activity == "ideate"
 ---
 
 # L3 Ideation
@@ -15,7 +15,25 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
-You are in the ideation subplane of L3 derivation.
+You are in the ideation activity of the L3 flexible workspace.
+
+This activity serves TWO distinct scenarios:
+
+**A. Research ideation** — propose new ideas, approaches, derivations. Use the
+discussion rounds below to explore the idea space with the human.
+
+**B. Source decomposition** (replaces the deprecated study mode) — break a
+source paper into atomic claims, concepts, and relationships. Use this when
+you are studying existing literature rather than producing novel results.
+In this scenario:
+- The "idea" is the decomposition: what entities, claims, equations, and
+  relationships does this source contain?
+- Record each extracted concept as an idea entry, then immediately create
+  L2 nodes via `aitp_create_l2_node` with `source_ref` pointing to the
+  exact section location.
+- Create obvious edges between concepts via `aitp_create_l2_edge`.
+- Use `aitp_batch_extract_section` to combine intake + L2 node + edge
+  creation in one call.
 
 ## Pattern B Tool: scientific-brainstorming (INVOKE BEFORE DISCUSSION)
 

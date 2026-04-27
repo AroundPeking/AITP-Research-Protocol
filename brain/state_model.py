@@ -936,19 +936,15 @@ L3_ACTIVITY_ARTIFACT_NAMES: dict[str, str] = {
 # Backwards-compat aliases for flow notebook and legacy tools.
 L3_SUBPLANES = L3_ACTIVITIES
 L3_ACTIVE_ARTIFACT_NAMES = L3_ACTIVITY_ARTIFACT_NAMES
-STUDY_L3_SUBPLANES = ["source_decompose", "step_derive", "gap_audit", "synthesis"]
-STUDY_L3_ACTIVE_ARTIFACT_NAMES = {
-    "source_decompose": "active_decomposition.md",
-    "step_derive": "active_derivation.md",
-    "gap_audit": "active_gaps.md",
-    "synthesis": "active_synthesis.md",
-}
+# Study mode merged into flexible workspace in v4.  Kept as empty for compat.
+STUDY_L3_SUBPLANES: list[str] = []
+STUDY_L3_ACTIVE_ARTIFACT_NAMES: dict[str, str] = {}
 
 L3_ACTIVITY_SKILL_MAP: dict[str, str] = {
     "ideate": "skill-l3-ideate",
     "plan": "skill-l3-plan",
     "derive": "skill-l3-analyze",
-    "trace-derivation": "skill-l3-step-derive",
+    "trace-derivation": "skill-l3-analyze",  # merged: derivation tracing covered by analyze skill
     "gap-audit": "skill-l3-gap-audit",
     "connect": "skill-l3-analyze",
     "integrate": "skill-l3-integrate",
@@ -1069,6 +1065,7 @@ L2_NODE_TYPES = [
     # Core knowledge types
     "concept", "theorem", "technique", "derivation_chain",
     "result", "approximation", "open_question", "regime_boundary",
+    "negative_result",      # a claim that was tested and failed — equal value to positive
     # Fine-grained types (from LAYER2_OBJECT_FAMILIES)
     "definition",           # definition_card
     "equation",             # equation_card
@@ -1091,6 +1088,8 @@ L2_EDGE_TYPES = [
     "matches_onto", "decouples_at", "emerges_from",
     # Research
     "refines", "motivates",
+    # Falsification
+    "falsifies",            # a negative result / experiment that rules out a claim
     # Physics-specific relations
     "dual_to",              # Kramers-Wannier, AdS/CFT bulk/boundary
     "conjugate_to",         # Fourier conjugate, Legendre conjugate
@@ -1533,24 +1532,6 @@ TOOL_CATALOG: dict[tuple[str, str], list[tuple[str, str, str]]] = {
     # L2 — promotion
     ("L2", "promote"): [
         ("knowledge-hub", "Store validated knowledge to L2", "C"),
-    ],
-    # L3 study mode — literature understanding subplanes
-    ("L3_study", "source_decompose"): [
-        ("arxiv-latex-mcp", "Read paper sections for decomposition", "A"),
-        ("knowledge-hub", "Check existing L2 concepts for overlap", "C"),
-    ],
-    ("L3_study", "step_derive"): [
-        ("arxiv-latex-mcp", "Reference derivation steps from source", "A"),
-        ("jupyter-mcp-server", "Symbolic verification of derivation steps (SymPy)", "A"),
-        ("knowledge-hub", "Query prerequisite concepts from L2", "A"),
-    ],
-    ("L3_study", "gap_audit"): [
-        ("arxiv-latex-mcp", "Cross-check claims against source", "A"),
-        ("knowledge-hub", "Check L2 for correspondence targets", "C"),
-    ],
-    ("L3_study", "synthesis"): [
-        ("knowledge-hub", "Write synthesized knowledge to L2", "C"),
-        ("arxiv-latex-mcp", "Final verification against source", "A"),
     ],
 }
 

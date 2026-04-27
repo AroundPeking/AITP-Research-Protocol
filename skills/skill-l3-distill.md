@@ -101,4 +101,4 @@ back to the original idea.
 ## Allowed transitions
 
 - Forward: L4 adjudication
-- Backedges: `result_integration`
+- Backedges: `integrate`, `derive`

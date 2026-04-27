@@ -43,7 +43,6 @@ from brain.state_model import (
     L3_ACTIVITY_SKILL_MAP,
     L4_OUTCOMES,
     PHYSICS_CHECK_FIELDS,
-    STUDY_CANDIDATE_TYPES,
     L2_NODE_TYPES,
     L2_EDGE_TYPES,
     L2_TOWER_TEMPLATE,
@@ -114,6 +113,18 @@ _AGENT_BEHAVIOR_REMINDER = (
 
 def _now() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def _get_protocol_version() -> str:
+    """Read protocol version from package.json, fall back to '0.0.0'."""
+    try:
+        pkg_path = Path(__file__).resolve().parent.parent / "package.json"
+        if pkg_path.exists():
+            import json
+            return json.loads(pkg_path.read_text(encoding="utf-8")).get("version", "0.0.0")
+    except Exception:
+        pass
+    return "0.0.0"
 
 
 def _topic_root(topics_root: str, topic_slug: str) -> Path:
@@ -317,6 +328,8 @@ def aitp_health_check(topics_root: str) -> dict[str, Any]:
         try:
             if stage == "L3":
                 snap = evaluate_l3_stage(_parse_md, topic_dir, lane=lane)
+            elif stage == "L4":
+                snap = evaluate_l4_stage(_parse_md, topic_dir, lane=lane)
             elif stage == "L0":
                 snap = evaluate_l0_stage(_parse_md, topic_dir, lane=lane)
             else:
@@ -352,6 +365,7 @@ def aitp_health_check(topics_root: str) -> dict[str, Any]:
             "sources_count": src_count,
             "candidates_count": cand_count,
             "last_updated": str(fm.get("updated_at", "")),
+            "protocol_version": str(fm.get("protocol_version", "0.0.0")),
         }
         topics_list.append(entry)
 
@@ -367,11 +381,29 @@ def aitp_health_check(topics_root: str) -> dict[str, Any]:
         elif gate == "ready":
             summary["ready_count"] += 1
 
+    # Protocol version compatibility check
+    server_version = _get_protocol_version()
+    version_warnings: list[dict[str, Any]] = []
+    for entry in topics_list:
+        pv = entry.get("protocol_version", "0.0.0")
+        if pv and pv != "0.0.0" and pv != server_version:
+            version_warnings.append({
+                "topic_slug": entry["topic_slug"],
+                "topic_protocol_version": pv,
+                "server_version": server_version,
+                "action": (
+                    "Topic was created with a different AITP version. "
+                    "State is forward-compatible but verify gate status is correct."
+                ),
+            })
+
     return {
         "summary": summary,
         "topics": topics_list,
         "topics_root": str(root),
         "checked_at": _now(),
+        "server_version": server_version,
+        "version_warnings": version_warnings,
     }
 
 
@@ -553,6 +585,7 @@ def aitp_bootstrap_topic(
         "l3_mode": "research",
         "research_intensity": research_intensity,
         "interaction_level": interaction_level,
+        "protocol_version": _get_protocol_version(),
     }
     body = f"# {title}\n\n## Research Question\n{question}\n"
     _write_md(root / "state.md", fm, body)
@@ -1806,9 +1839,55 @@ def aitp_promote_candidate(
             return f"Promoted {slug} to global L2 (v{fm['version']}). WARNING: graph node not created  --  {e}"
 
     _append_to_topic_log(root, f"promoted {slug} to global L2 (v{fm['version']})")
+
+    # EFT tower auto-matching: check if this result naturally fits into
+    # existing EFT towers based on energy scale or regime proximity.
+    eft_hints: list[str] = []
+    try:
+        reg = str(fm.get("regime_of_validity", ""))
+        energy = str(fm.get("energy_scale", ""))
+        if reg or energy:
+            towers_dir = global_l2 / "graph" / "towers"
+            if towers_dir.is_dir():
+                for tp in sorted(towers_dir.glob("*.md")):
+                    tfm, _ = _parse_md(tp)
+                    tower_range = str(tfm.get("energy_range", "")).lower()
+                    reg_lower = reg.lower()
+                    energy_lower = energy.lower()
+                    # Check regime keyword overlap
+                    regime_overlap = any(
+                        kw in tower_range or kw in str(tfm.get("name", "")).lower()
+                        for kw in reg_lower.split()
+                        if len(kw) > 3
+                    )
+                    # Check energy scale overlap
+                    energy_overlap = (
+                        energy_lower
+                        and (energy_lower in tower_range or tower_range in energy_lower)
+                    )
+                    if regime_overlap or energy_overlap:
+                        eft_hints.append(
+                            f"EFT tower '{tfm.get('name', tp.stem)}' "
+                            f"({tower_range}) may match. "
+                            f"Consider aitp_create_l2_edge(edge_type='matches_onto') "
+                            f"to link this result to the tower."
+                        )
+
+        if eft_hints:
+            _append_to_topic_log(
+                root,
+                f"EFT auto-match for {slug}: {len(eft_hints)} candidate tower(s)",
+            )
+    except Exception:
+        pass  # EFT matching is advisory only — never block promotion
+
     state_fm, _ = _parse_md(root / "state.md")
     _auto_refresh_flow_notebook(root, state_fm)
-    return f"Promoted {slug} to global L2 (v{fm['version']})."
+    return (
+        f"Promoted {slug} to global L2 (v{fm['version']})."
+        + (f"\n\nEFT tower matches:\n" + "\n".join(f"  - {h}" for h in eft_hints)
+           if eft_hints else "")
+    )
 
 
 @mcp.tool()
@@ -2275,6 +2354,8 @@ def aitp_session_resume(
     stage = str(fm.get("stage", "L0"))
     if stage == "L3":
         snapshot = evaluate_l3_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
+    elif stage == "L4":
+        snapshot = evaluate_l4_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
     elif stage == "L0":
         snapshot = evaluate_l0_stage(_parse_md, root, lane=fm.get("lane", "unspecified"))
     else:
@@ -3634,14 +3715,44 @@ def aitp_create_l2_node(
 
     if source_candidate:
         fm["source_candidate"] = source_candidate
-    # Preserve higher trust level if merging
+
+    # Preserve higher trust level if merging.
+    # Multi-source confirmation: when a DIFFERENT source confirms an existing
+    # node, auto-upgrade trust (Bayesian updating as evidence accumulates).
     if existing_fm:
         trust_order = ["source_grounded", "multi_source_confirmed", "validated", "independently_verified"]
         old_idx = trust_order.index(existing_fm.get("trust_basis", "source_grounded")) if existing_fm.get("trust_basis") in trust_order else 0
         new_idx = trust_order.index(fm["trust_basis"])
-        if old_idx > new_idx:
+
+        # Detect multi-source confirmation: different source_ref → upgrade
+        existing_refs = str(existing_fm.get("source_ref", ""))
+        new_ref = str(source_ref or "")
+        is_different_source = (
+            new_ref
+            and existing_refs
+            and new_ref.strip() != existing_refs.strip()
+            and not (new_ref.strip() in existing_refs or existing_refs in new_ref.strip())
+        )
+
+        if is_different_source and old_idx < 2:
+            # Two independent sources → multi_source_confirmed
+            fm["trust_basis"] = "multi_source_confirmed"
+            fm["trust_scope"] = "bounded_reusable"
+            fm["trust_upgraded_at"] = _now()
+            fm["trust_upgrade_reason"] = (
+                f"Confirmed by independent source: {new_ref} "
+                f"(previous: {existing_refs[:80]})"
+            )
+            # Accumulate source references
+            fm["source_ref"] = f"{existing_refs} | {new_ref}"
+        elif old_idx > new_idx:
             fm["trust_basis"] = existing_fm["trust_basis"]
             fm["trust_scope"] = existing_fm.get("trust_scope", fm["trust_scope"])
+            if existing_fm.get("source_ref") and source_ref:
+                fm["source_ref"] = existing_fm["source_ref"]
+        else:
+            if existing_fm.get("source_ref") and source_ref:
+                fm["source_ref"] = existing_fm["source_ref"]
 
     body = (
         f"# {title}\n\n"
@@ -4595,12 +4706,8 @@ def _build_flow_notebook_content(
 
     # L3 subplanes
     subplanes = []
-    if l3_mode == "research":
-        from brain.state_model import L3_SUBPLANES, L3_ACTIVE_ARTIFACT_NAMES
-        sp_names, art_names = L3_SUBPLANES, L3_ACTIVE_ARTIFACT_NAMES
-    else:
-        from brain.state_model import STUDY_L3_SUBPLANES, STUDY_L3_ACTIVE_ARTIFACT_NAMES
-        sp_names, art_names = STUDY_L3_SUBPLANES, STUDY_L3_ACTIVE_ARTIFACT_NAMES
+    from brain.state_model import L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES
+    sp_names, art_names = L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES
 
     for sp in sp_names:
         art_name = art_names.get(sp, f"active_{sp}.md")
@@ -5661,6 +5768,251 @@ def aitp_visualize_knowledge_graph(
             "missing_correspondence": len(missing_correspondence),
             "type_counts": {t: len(ns) for t, ns in by_type.items()},
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Experimental proposal — falsification-driven physics
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def aitp_propose_experiment(
+    topics_root: str,
+    topic_slug: str,
+    candidate_id: str = "",
+    claim: str = "",
+    regime: str = "",
+) -> dict[str, Any]:
+    """Propose a falsifiable experimental/numerical test for a claim.
+
+    Given a claim (from a candidate or free text), this tool asks the agent to
+    reason about what measurement or computation would test it, under what
+    conditions, and what result would falsify it. The output is recorded as
+    a structured proposal in L4/proposals/.
+
+    This is the physicist's core skill: not just verifying what was derived,
+    but designing the test that could prove it wrong.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    proposals_dir = root / "L4" / "proposals"
+    proposals_dir.mkdir(parents=True, exist_ok=True)
+
+    # If candidate_id given, read claim from candidate
+    if candidate_id and not claim:
+        cand_path = root / "L3" / "candidates" / f"{_slugify(candidate_id)}.md"
+        if cand_path.exists():
+            cfm, _ = _parse_md(cand_path)
+            claim = str(cfm.get("claim", ""))
+            if not regime:
+                regime = str(cfm.get("regime_of_validity", ""))
+
+    if not claim.strip():
+        return {
+            "message": (
+                "Provide a claim (directly or via candidate_id) to design "
+                "an experimental proposal around."
+            ),
+        }
+
+    proposal_id = _slugify(claim[:60])
+    proposal_path = proposals_dir / f"{proposal_id}.md"
+
+    fm = {
+        "artifact_kind": "l4_experimental_proposal",
+        "proposal_id": proposal_id,
+        "claim": claim,
+        "regime": regime,
+        "candidate_id": candidate_id,
+        "created_at": _now(),
+    }
+
+    body = (
+        f"# Experimental Proposal: {claim[:80]}\n\n"
+        f"## Claim Under Test\n{claim}\n\n"
+        f"## Physical Regime\n{regime or '(unspecified)'}\n\n"
+        f"## Proposed Measurement\n\n"
+        f"What should be measured? Specify the observable, the system, "
+        f"and the experimental or computational setup.\n\n"
+        f"## Predicted Outcome (if claim is correct)\n\n"
+        f"What value / signature / behavior is expected if the claim holds?\n\n"
+        f"## Falsification Condition\n\n"
+        f"What result would FALSIFY the claim? Be specific: "
+        f"'if X < 0.5 meV' or 'if the spectral function shows a gap above 2 eV'.\n"
+        f"A claim that cannot be falsified is not physics.\n\n"
+        f"## Feasibility Assessment\n\n"
+        f"Is this measurement/computation feasible with current methods? "
+        f"If not, what would be needed?\n\n"
+        f"## Existing Constraints\n\n"
+        f"What do we already know from prior experiments or computations? "
+        f"Does existing data already rule this claim out?\n\n"
+        f"## Status\npending — agent must fill the sections above\n"
+    )
+
+    _write_md(proposal_path, fm, body)
+    _append_to_topic_log(
+        root,
+        f"experimental proposal created for claim '{claim[:60]}'",
+    )
+
+    return _GateResult({
+        "message": (
+            f"Experimental proposal template created: {proposal_id}\n\n"
+            f"Claim: {claim[:120]}\n"
+            f"Regime: {regime or '(unspecified)'}\n\n"
+            f"Fill the proposal sections: Proposed Measurement, "
+            f"Predicted Outcome, Falsification Condition, "
+            f"Feasibility Assessment, Existing Constraints.\n\n"
+            f"REMINDER: A claim that cannot be falsified is not physics. "
+            f"If you cannot think of a measurement or computation that "
+            f"would prove the claim wrong, the claim may be ill-posed."
+        ),
+    })
+
+
+@mcp.tool()
+def aitp_find_cross_topic_bridges(
+    topics_root: str,
+    topic_slug: str = "",
+    expression: str = "",
+    concept_name: str = "",
+) -> dict[str, Any]:
+    """Search for structural isomorphisms across topics in L2.
+
+    Given a mathematical expression or concept name, scans L2 across all
+    domains and topics to find similar structures. A Green's function in
+    condensed matter may have the same form as a propagator in QFT —
+    this tool flags these deep connections.
+
+    Args:
+        topic_slug: If given, uses this topic's candidates/claims as the source.
+        expression: A LaTeX mathematical expression to search for.
+        concept_name: A physics concept name to search for.
+    """
+    global_l2 = _global_l2_path(topics_root)
+    nodes_dir = global_l2 / "graph" / "nodes"
+    edges_dir = global_l2 / "graph" / "edges"
+
+    if not nodes_dir.is_dir():
+        return {"bridges": [], "message": "L2 graph is empty."}
+
+    # Collect source references if a topic is given
+    source_expressions: list[str] = []
+    source_concepts: list[str] = []
+
+    if topic_slug:
+        root = _topic_root(topics_root, topic_slug)
+        cand_dir = root / "L3" / "candidates"
+        if cand_dir.is_dir():
+            for cp in cand_dir.glob("*.md"):
+                cfm, _ = _parse_md(cp)
+                claim = str(cfm.get("claim", ""))
+                if claim:
+                    source_concepts.append(claim[:200])
+        # Also check L1 intake for concepts
+        intake_dir = root / "L1" / "intake"
+        if intake_dir.is_dir():
+            for ip in intake_dir.rglob("*.md"):
+                ifm, _ = _parse_md(ip)
+                eqs = str(ifm.get("equations_found", ""))
+                if eqs:
+                    source_expressions.append(eqs[:300])
+
+    if expression:
+        source_expressions.append(expression)
+    if concept_name:
+        source_concepts.append(concept_name)
+
+    if not source_expressions and not source_concepts:
+        return {
+            "bridges": [],
+            "message": (
+                "Provide a topic_slug, expression, or concept_name to search "
+                "for cross-topic bridges."
+            ),
+        }
+
+    # Scan all L2 nodes for structural similarity
+    bridges = []
+    for np in sorted(nodes_dir.glob("*.md")):
+        fm, body = _parse_md(np)
+        node_expr = str(fm.get("mathematical_expression", ""))
+        node_meaning = str(fm.get("physical_meaning", ""))
+        node_title = str(fm.get("title", ""))
+        node_domain = str(fm.get("domain", ""))
+        node_id = fm.get("node_id", np.stem)
+
+        # Check expression similarity via LaTeX normalization
+        for src_expr in source_expressions:
+            if src_expr and node_expr:
+                src_norm = normalize_latex(src_expr)
+                node_norm = normalize_latex(node_expr)
+                if src_norm and node_norm:
+                    # Check for shared LaTeX commands as structural signature
+                    src_cmds = set(re.findall(r'\\([a-zA-Z]+)', src_norm))
+                    node_cmds = set(re.findall(r'\\([a-zA-Z]+)', node_norm))
+                    shared = src_cmds & node_cmds
+                    if len(shared) >= 2:
+                        bridges.append({
+                            "node_id": node_id,
+                            "title": node_title,
+                            "domain": node_domain,
+                            "bridge_type": "mathematical_structure",
+                            "shared_structures": sorted(shared),
+                            "note": (
+                                f"Shared LaTeX structures: {sorted(shared)}. "
+                                f"Check if this is a deep correspondence or "
+                                f"coincidental notation."
+                            ),
+                        })
+
+        # Check concept similarity via semantic scoring
+        for src_concept in source_concepts:
+            if src_concept:
+                score = semantic_score(
+                    src_concept,
+                    [node_title, node_meaning, body[:500]],
+                )
+                if score > 0.3 and node_domain:
+                    bridges.append({
+                        "node_id": node_id,
+                        "title": node_title,
+                        "domain": node_domain,
+                        "bridge_type": "conceptual_similarity",
+                        "similarity": round(score, 3),
+                        "note": (
+                            f"Conceptual similarity score {score:.2f}. "
+                            f"Consider whether the same physics appears "
+                            f"in a different regime."
+                        ),
+                    })
+
+    # Deduplicate and sort by relevance
+    seen = set()
+    unique_bridges = []
+    for b in bridges:
+        key = (b["node_id"], b["bridge_type"])
+        if key not in seen:
+            seen.add(key)
+            unique_bridges.append(b)
+
+    unique_bridges.sort(
+        key=lambda b: b.get("similarity", len(b.get("shared_structures", []))),
+        reverse=True,
+    )
+
+    return {
+        "bridges": unique_bridges[:10],
+        "bridge_count": len(unique_bridges),
+        "message": (
+            f"Found {len(unique_bridges)} potential cross-topic bridges. "
+            f"Review each: structural similarities may indicate deep "
+            f"physical connections, or they may be coincidental."
+        ) if unique_bridges else (
+            "No cross-topic bridges found. The mathematical structure "
+            "may be novel, or the L2 graph may not yet have enough "
+            "entries in related domains."
+        ),
     }
 
 

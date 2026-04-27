@@ -1,10 +1,10 @@
 ---
 name: skill-l3-analyze
-description: L3 Analysis subplane — execute derivations and calculations.
-trigger: l3_activity == "derive"
+description: L3 Derivation — execute derivations, trace source derivations, run calculations.
+trigger: l3_activity == "derive" or l3_activity == "trace-derivation"
 ---
 
-# L3 Analysis
+# L3 Derivation (derive / trace-derivation)
 
 ## MANDATORY: AskUserQuestion rule
 
@@ -15,7 +15,25 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
-You are in the analysis subplane of L3 derivation.
+This skill covers two L3 activities:
+
+**`derive`** — execute your own derivations, calculations, and analysis.
+
+**`trace-derivation`** (replaces deprecated study mode `step_derive`) —
+step-by-step tracing of a source paper's derivation. Use this when studying
+existing literature: reproduce each step, verify each justification, flag gaps.
+Every step must record:
+- `source_ref`: exact equation/page where this step lives in the source
+- `justification_type`: definition | theorem | approximation | physical_principle |
+  algebraic_identity | limit | assumption | conjecture | gap | numerical_evidence
+- `rigor_level`: rigorous | heuristic | handwaving | conjectured
+
+For trace-derivation, record steps using `aitp_create_derivation_step` and
+verify with `aitp_verify_derivation_step` / `aitp_verify_derivation_chain`.
+
+---
+
+You are in the derivation workspace of L3.
 
 ## Collaborative Discussion (MANDATORY)
 
@@ -59,11 +77,11 @@ At ANY point during analysis, you may offer these back-paths via AskUserQuestion
 
 ## Active artifact
 
-`L3/derive/active_analysis.md`
+`L3/derive/active_derivation.md`
 
 ## Round Type (MANDATORY frontmatter field)
 
-Set `round_type` in `active_analysis.md` frontmatter to one of:
+Set `round_type` in `active_derivation.md` frontmatter to one of:
 
 | Round type | When to use | Mandatory blocks |
 |---|---|---|
@@ -139,14 +157,14 @@ If you are returning to analysis after L4 validation (post-L4 return), your anal
    caveats, and quantitative discrepancies.
 2. **Assess validation quality** — were checks independent? Were any criterion relying
    on stored data rather than fresh computation? Note gaps.
-3. **Record findings** in `L3/derive/active_analysis.md`:
+3. **Record findings** in `L3/derive/active_derivation.md`:
    - What was validated conclusively
    - What had caveats (normalization differences, finite-size limitations)
    - What remains open (larger L, different operators, thermodynamic limit)
 ## Exit condition
 
-Advance to **integrate** when `active_analysis.md` has filled frontmatter fields
-`analysis_statement` and `method`, plus headings `## Analysis Statement` and `## Method`.
+Advance to **integrate** when `active_derivation.md` has filled frontmatter fields
+`derivation_count` and `all_steps_justified`, plus headings `## Derivation Chains` and `## Step-by-Step Trace`.
 
 **Or submit candidate directly** if the derivation produced a clear, verifiable claim
 (use `aitp_submit_candidate` from derive activity without going through integrate/distill).

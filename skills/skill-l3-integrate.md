@@ -1,6 +1,6 @@
 ---
 name: skill-l3-integrate
-description: L3 Result Integration subplane — combine analysis into findings.
+description: "L3 Integration — combine analysis into findings. Also covers the deprecated synthesis scenario: reconstruct a source's contribution and propose L2 updates."
 trigger: l3_activity == "integrate"
 ---
 
@@ -128,5 +128,5 @@ self-contained claim. Use `aitp_submit_candidate` from integrate activity.
 
 ## Allowed transitions
 
-- Forward: `distillation`, candidate submission
-- Backedges: `analysis`
+- Forward: `distill`, candidate submission
+- Backedges: `derive`, `gap-audit`

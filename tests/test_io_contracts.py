@@ -399,11 +399,13 @@ class TestFlowNotebook:
 
     def test_notebook_imports_work(self):
         """Flow notebook builder must not crash on import."""
-        # The backwards-compat aliases should prevent ImportError
+        # Backwards-compat aliases should exist
         assert hasattr(state_model, "L3_SUBPLANES"), "L3_SUBPLANES missing"
         assert hasattr(state_model, "L3_ACTIVE_ARTIFACT_NAMES"), "L3_ACTIVE_ARTIFACT_NAMES missing"
+        # Study mode merged into flexible workspace in v4; kept as empty for compat
         assert hasattr(state_model, "STUDY_L3_SUBPLANES"), "STUDY_L3_SUBPLANES missing"
         assert hasattr(state_model, "STUDY_L3_ACTIVE_ARTIFACT_NAMES"), "STUDY_L3_ACTIVE_ARTIFACT_NAMES missing"
+        assert state_model.STUDY_L3_SUBPLANES == [], "STUDY_L3_SUBPLANES should be empty (study merged into workspace)"
 
     def test_notebook_builds_without_crash(self):
         """Flow notebook generation must not crash."""

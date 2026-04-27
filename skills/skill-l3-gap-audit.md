@@ -1,10 +1,10 @@
 ---
 name: skill-l3-gap-audit
-description: L3 Study — gap_audit subplane. Actively find hidden assumptions, unstated approximations, and missing correspondence checks.
-trigger: l3_activity == "gap_audit" AND l3_mode == "study"
+description: L3 Gap Audit — find hidden assumptions, unstated approximations, missing correspondence checks, and prerequisite gaps. Used for both novel derivations and source study.
+trigger: l3_activity == "gap-audit"
 ---
 
-# Gap Audit (Study Mode)
+# Gap Audit
 
 ## MANDATORY: AskUserQuestion rule
 
@@ -15,7 +15,15 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
-You are auditing the source for gaps: hidden assumptions, unstated approximations, missing correspondence checks, and prerequisite knowledge gaps.
+You are auditing for gaps. This applies equally to two scenarios:
+
+**A. Novel derivation** — after deriving a result, audit: what assumptions were
+used but not stated? What approximation regimes are violated? Does the result
+reduce to known limits?
+
+**B. Source study** (replaces deprecated study mode) — after tracing a paper's
+derivation, audit: what does the paper assume without proof? What prerequisites
+does it expect? Are there internal inconsistencies or regime mismatches?
 
 ## Active artifact
 

@@ -997,43 +997,6 @@ def cmd_upgrade(args) -> None:
             print("  WARNING: could not restore stash. Run 'git stash pop' manually.")
 
     print(f"\n  Upgrade complete: v{old_ver} → v{new_ver}")
-
-
-
-    record = _load_record()
-    if not record["installs"]:
-        print("No AITP installs on record.")
-        print(f"  Record file: {RECORD_PATH}")
-        return
-
-    print(f"AITP Install Status (record at {RECORD_PATH})")
-    print("=" * 60)
-
-    for key, inst in record["installs"].items():
-        agent, scope = key.split(":", 1)
-        ts = inst.get("timestamp", "unknown")
-        ver = inst.get("package_version", "unknown")
-        print(f"\n  {agent} ({scope})")
-        print(f"    Installed: {ts}")
-        print(f"    Version:   {ver}")
-
-        # Check file drift
-        files = inst.get("files", [])
-        changed = 0
-        missing = 0
-        for f in files:
-            f = f.split(" (")[0]  # Remove annotation
-            p = Path(f)
-            if not p.exists():
-                missing += 1
-                print(f"    MISSING: {f}")
-            elif "(merged)" not in f and "(removed)" not in f:
-                # Could compare content hash but that requires storing hashes
-                pass
-        if missing == 0 and changed == 0:
-            print(f"    Files: all present ({len(files)} items)")
-
-
 def cmd_status(args) -> None:
     record = _load_record()
     if not record["installs"]:

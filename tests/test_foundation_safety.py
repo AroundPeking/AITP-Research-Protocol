@@ -155,13 +155,21 @@ class TestPromotionGate(unittest.TestCase):
         if not cand_path.exists():
             cand_path = Path(self.tmp) / "demo" / "L3" / "candidates" / "c1.md"
 
+        # Set topic stage to L4 so promotion gate allows it
+        state_path = Path(self.tmp) / "topics" / "demo" / "state.md"
+        if not state_path.exists():
+            state_path = Path(self.tmp) / "demo" / "state.md"
+        state_fm, state_body = _parse_md(state_path)
+        state_fm["stage"] = "L4"
+        _write_md(state_path, state_fm, state_body)
+
         # Create L4 pass review (this also sets candidate status to "validated")
         aitp_submit_l4_review(
             self.tmp, "demo", "c1",
             outcome="pass",
             notes="All checks passed",
             check_results={"dimensional_consistency": "pass"},
-            devils_advocate="Foundation test — single dimensional check is insufficient for real pass.",
+            devils_advocate="Foundation test -- single dimensional check is insufficient for real pass.",
         )
 
         return cand_path

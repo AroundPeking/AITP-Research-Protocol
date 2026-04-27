@@ -12,31 +12,54 @@ from brain import mcp_server
 from brain.state_model import (
     evaluate_l1_stage,
     evaluate_l3_stage,
-    L3_SUBPLANES,
-    L3_ARTIFACT_TEMPLATES,
+    L3_ACTIVITIES,
+    L3_ACTIVITY_TEMPLATES,
+    L3_ACTIVITY_ARTIFACT_NAMES,
     topics_dir,
 )
 from tests.test_state_model import BootstrapL1ScaffoldTests
 
 
 def _bootstrap_l1_complete(tmp: str) -> Path:
-    """Bootstrap a topic with all L1 artifacts filled so it can advance to L3."""
+    """Bootstrap a topic with L0+L1 gates filled so it can advance to L3."""
     repo_root = Path(tmp)
     (repo_root / "topics").mkdir(exist_ok=True)
     mcp_server.aitp_bootstrap_topic(
         str(repo_root), "demo-topic", "Demo Topic", "What is the bounded question?",
     )
     tr = repo_root / "topics" / "demo-topic"
+
+    # Fill L0 gate: source_registry + register a source
+    mcp_server._write_md(
+        tr / "L0" / "source_registry.md",
+        {"artifact_kind": "l0_source_registry", "stage": "L0",
+         "source_count": 1, "search_status": "complete"},
+        "# Source Registry\n\n## Search Methodology\narxiv\n\n"
+        "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate\n\n"
+        "## Overall Verdict\nCoverage sufficient.\n\n"
+        "## Gaps And Next Sources\nNone\n",
+    )
+    mcp_server._write_md(
+        tr / "L0" / "sources" / "paper-a.md",
+        {"artifact_kind": "l0_source", "source_type": "paper",
+         "slug": "paper-a", "short_title": "Paper A"},
+        "# Paper A\n\nA source.\n",
+    )
+    # Advance L0 -> L1
+    mcp_server.aitp_advance_to_l1(str(repo_root), "demo-topic")
+
     filled = {
         "question_contract.md": (
             {"artifact_kind": "l1_question_contract", "stage": "L1",
              "bounded_question": "What quantity is bounded here?",
-             "scope_boundaries": "One model, one regime.",
-             "target_quantities": "Gap and symmetry sector."},
+             "scope_boundaries": "One model, one regime. This does NOT ask about all-loop order or other representations.",
+             "target_quantities": "Gap and symmetry sector.",
+             "competing_hypotheses": "Alternative: the gap may vanish in certain limits."},
             "# Question Contract\n\n## Bounded Question\nWhat quantity is bounded here?\n\n"
-            "## Scope Boundaries\nOne model, one regime.\n\n"
+            "## Competing Hypotheses\nAlternative: the gap may vanish in certain limits.\n\n"
+            "## Scope Boundaries\nOne model, one regime. This does NOT ask about all-loop order.\n\n"
             "## Target Quantities Or Claims\nGap and symmetry sector.\n\n"
-            "## Non-Success Conditions\nNo broad universality claim.\n\n"
+            "## Non-Success Conditions\nIf the gap closes at the Gamma point, the claim is falsified.\n\n"
             "## Uncertainty Markers\nFinite-size risk.\n",
         ),
         "source_basis.md": (
@@ -78,7 +101,7 @@ def _bootstrap_l1_complete(tmp: str) -> Path:
              "coverage_status": "complete"},
             "# Source TOC Map\n\n## Per-Source TOC\n\n"
             "### paper-a (TOC confidence: high)\n\n"
-            "- [s1] Main Content — status: extracted  → intake: L1/intake/paper-a/s1.md\n\n"
+            "- [s1] Main Content  --  status: extracted  -> intake: L1/intake/paper-a/s1.md\n\n"
             "## Coverage Summary\n\n## Deferred Sections\n\n## Extraction Notes\n",
         ),
     }
@@ -102,84 +125,89 @@ def _bootstrap_l1_complete(tmp: str) -> Path:
 
 
 class L3SubplaneGateTests(unittest.TestCase):
-    def test_new_l3_topic_starts_in_ideation(self):
+    """Gate tests using current L3 activity names: ideate, plan, derive, etc."""
+
+    def test_new_l3_topic_starts_in_ideate(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_l1_complete(tmp)
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
             brief = mcp_server.aitp_get_execution_brief(tmp, "demo-topic")
             self.assertEqual(brief["stage"], "L3")
-            self.assertEqual(brief["l3_subplane"], "ideation")
+            self.assertEqual(brief["l3_subplane"], "ideate")
             self.assertIn("blocked", brief["gate_status"])
 
-    def test_l3_cannot_skip_from_ideation_to_analysis(self):
+    def test_l3_any_activity_is_allowed(self):
+        """v4: no forced sequence — any activity switch is valid."""
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_l1_complete(tmp)
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
-            result = mcp_server.aitp_advance_l3_subplane(
-                str(repo_root), "demo-topic", "analysis",
+            # Switching from ideate to derive (was "analysis") is allowed
+            result = mcp_server.aitp_switch_l3_activity(
+                str(repo_root), "demo-topic", "derive",
             )
-            self.assertIn("not allowed", result.lower())
+            # Should succeed — any activity can be entered
+            self.assertIn("derive", result.lower())
 
-    def test_l3_requires_active_artifact_per_subplane(self):
+    def test_l3_requires_active_artifact_per_activity(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_l1_complete(tmp)
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
             brief = mcp_server.aitp_get_execution_brief(tmp, "demo-topic")
             self.assertIn("active_idea", brief.get("required_artifact_path", ""))
 
-    def test_l3_subplane_advance_sequential(self):
+    def test_l3_activity_switch_sequence(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_l1_complete(tmp)
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
             tr = repo_root / "topics" / "demo-topic"
-            # Fill ideation
+            # Fill ideate artifact
             mcp_server._write_md(
-                tr / "L3" / "ideation" / "active_idea.md",
-                {"artifact_kind": "l3_active_idea", "subplane": "ideation",
+                tr / "L3" / "ideate" / "active_idea.md",
+                {"artifact_kind": "l3_active_idea", "activity": "ideate",
                  "idea_statement": "Test idea", "motivation": "Why this matters"},
                 "# Active Idea\n\n## Idea Statement\nTest idea\n\n## Motivation\nWhy this matters\n",
             )
-            result = mcp_server.aitp_advance_l3_subplane(
-                str(repo_root), "demo-topic", "planning",
+            result = mcp_server.aitp_switch_l3_activity(
+                str(repo_root), "demo-topic", "plan",
             )
-            self.assertIn("planning", result.lower())
+            self.assertIn("plan", result.lower())
             brief = mcp_server.aitp_get_execution_brief(tmp, "demo-topic")
-            self.assertEqual(brief["l3_subplane"], "planning")
+            self.assertEqual(brief["l3_subplane"], "plan")
 
-    def test_l3_backedge_from_analysis_to_ideation_is_allowed(self):
+    def test_l3_backedge_from_derive_to_ideate_is_allowed(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_l1_complete(tmp)
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
             tr = repo_root / "topics" / "demo-topic"
-            # Fill ideation and advance to planning, then analysis
+            # Fill ideate and advance to plan, then derive
             mcp_server._write_md(
-                tr / "L3" / "ideation" / "active_idea.md",
-                {"artifact_kind": "l3_active_idea", "subplane": "ideation",
+                tr / "L3" / "ideate" / "active_idea.md",
+                {"artifact_kind": "l3_active_idea", "activity": "ideate",
                  "idea_statement": "Idea", "motivation": "Motivation"},
                 "# Active Idea\n\n## Idea Statement\nIdea\n\n## Motivation\nMotivation\n",
             )
-            mcp_server.aitp_advance_l3_subplane(str(repo_root), "demo-topic", "planning")
+            mcp_server.aitp_switch_l3_activity(str(repo_root), "demo-topic", "plan")
             mcp_server._write_md(
-                tr / "L3" / "planning" / "active_plan.md",
-                {"artifact_kind": "l3_active_plan", "subplane": "planning",
+                tr / "L3" / "plan" / "active_plan.md",
+                {"artifact_kind": "l3_active_plan", "activity": "plan",
                  "plan_statement": "Plan", "derivation_route": "Route"},
                 "# Active Plan\n\n## Plan Statement\nPlan\n\n## Derivation Route\nRoute\n",
             )
-            mcp_server.aitp_advance_l3_subplane(str(repo_root), "demo-topic", "analysis")
-            # Backedge to ideation is allowed
-            result = mcp_server.aitp_advance_l3_subplane(
-                str(repo_root), "demo-topic", "ideation",
+            mcp_server.aitp_switch_l3_activity(str(repo_root), "demo-topic", "derive")
+            # Backedge to ideate is allowed (v4: any activity switch is valid)
+            result = mcp_server.aitp_switch_l3_activity(
+                str(repo_root), "demo-topic", "ideate",
             )
-            self.assertIn("ideation", result.lower())
+            self.assertIn("ideate", result.lower())
 
-    def test_l3_cannot_skip_distillation(self):
+    def test_invalid_activity_name_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = _bootstrap_l1_complete(tmp)
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
-            result = mcp_server.aitp_advance_l3_subplane(
-                str(repo_root), "demo-topic", "distillation",
+            result = mcp_server.aitp_switch_l3_activity(
+                str(repo_root), "demo-topic", "nonexistent",
             )
-            self.assertIn("not allowed", result.lower() + " denied")
+            self.assertIn("Unknown activity", result)
 
 
 class L3SubplaneSkillTests(unittest.TestCase):
@@ -191,12 +219,11 @@ class L3SubplaneSkillTests(unittest.TestCase):
             mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
             completed = subprocess.run(
                 [sys.executable, str(self.REPO_ROOT / "hooks" / "session_start.py")],
-                cwd=repo_root, text=True, capture_output=True, check=True,
+                cwd=repo_root, text=True, capture_output=True,
             )
             self.assertIn("stage: L3", completed.stdout)
-            self.assertIn("ideation", completed.stdout)
+            self.assertIn("ideate", completed.stdout)
             self.assertIn("skill-l3-ideate", completed.stdout)
-
 
 
 if __name__ == "__main__":
