@@ -105,7 +105,11 @@ aitp_submit_l4_review(
         "dimensional_consistency": "pass: [H] = energy, [hbar*omega] = energy",
         "symmetry_compatibility": "pass: H commutes with parity",
         "limiting_case_check": "pass: classical HO recovered as n→∞",
+        "conservation_check": "pass: energy conserved, Hamiltonian time-independent",
         "correspondence_check": "pass: matches Griffiths 2.61",
+        "approximation_validity_check": "pass: harmonic approximation valid for small displacements",
+        "unitarity_check": "pass: time-evolution operator e^{-iHt} is unitary",
+        "causality_check": "pass: retarded Green's function vanishes for t<0",
     },
     devils_advocate="REQUIRED: state how this could still be wrong...",
     verification_evidence={
@@ -123,6 +127,8 @@ The MCP server will BLOCK submission if:
 - outcome="pass" but devils_advocate is empty (ALL lanes)
 - Lane is toy_numeric/code_method and evidence_scripts/outputs missing
 - Lane is formal_theory and neither check_results nor verification_evidence provided
+- check_results is missing any required physics check field (lane-dependent):
+  formal_theory requires all 8 fields; other lanes require the first 5
 
 ### Step 6: After L4 decision
 

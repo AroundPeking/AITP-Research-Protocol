@@ -106,6 +106,7 @@ class PhysicsChecksTests(unittest.TestCase):
         expected = {
             "dimensional_consistency", "symmetry_compatibility",
             "limiting_case_check", "conservation_check", "correspondence_check",
+            "approximation_validity_check", "unitarity_check", "causality_check",
         }
         self.assertEqual(set(PHYSICS_CHECK_FIELDS), expected)
 

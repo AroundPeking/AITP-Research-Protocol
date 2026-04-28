@@ -9,6 +9,7 @@ Integration: called from mcp_server.py MCP tools, requires sympy installed.
 from __future__ import annotations
 
 import re
+from fractions import Fraction
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -57,7 +58,7 @@ _DIMENSION_MAP: dict[str, tuple[int, int, int, int, int]] = {
     "permittivity": (-1, -3, 4, 2, 0),
     "permeability": (1, 1, -2, -2, 0),
     # Quantum
-    "wavefunction": (0, -1, 0, 0, 0),  # dim L^{-d/2}: half-int not representable; 1D approximation
+    "wavefunction": (Fraction(0), Fraction(-3, 2), Fraction(0), Fraction(0), Fraction(0)),  # dim L^{-d/2}: |psi|^2 = L^{-d}; in 3D psi ~ L^{-3/2}
     "probability_density": (0, -3, 0, 0, 0),  # L^{-3} in 3D: |psi|^2
     "cross_section": (0, 2, 0, 0, 0),
     # Thermodynamic
@@ -76,7 +77,7 @@ _DIMENSION_MAP: dict[str, tuple[int, int, int, int, int]] = {
 _DIM_NAMES = ["mass", "length", "time", "charge", "temperature"]
 
 
-def _dim_to_str(dim: tuple[int, ...]) -> str:
+def _dim_to_str(dim: tuple) -> str:
     """Convert a dimension tuple to a human-readable string."""
     parts = []
     for i, exp in enumerate(dim):
@@ -84,6 +85,8 @@ def _dim_to_str(dim: tuple[int, ...]) -> str:
             name = _DIM_NAMES[i]
             if exp == 1:
                 parts.append(name)
+            elif isinstance(exp, Fraction) and exp.denominator == 1:
+                parts.append(f"{name}^{exp.numerator}")
             else:
                 parts.append(f"{name}^{exp}")
     return " * ".join(parts) if parts else "dimensionless"
@@ -98,28 +101,28 @@ def _parse_dimension(name: str) -> tuple[int, ...] | None:
 
     # Try to parse composite: "mass*length^2/time^2"
     try:
-        total = [0, 0, 0, 0, 0]
+        total = [Fraction(0), Fraction(0), Fraction(0), Fraction(0), Fraction(0)]
         # Split by * and /
         if "/" in name:
             num, den = name.split("/", 1)
         else:
             num, den = name, ""
 
-        for part in re.findall(r'([a-z_]+)(\^?)(-?\d*)', num):
+        for part in re.findall(r'([a-z_]+)(\^?)(-?\d+(?:/\d+)?)', num):
             base_name, hat, exp_str = part
             if hat != "^":
                 continue
-            exp = int(exp_str) if exp_str else 1
+            exp = Fraction(exp_str) if exp_str else Fraction(1)
             if base_name in _DIMENSION_MAP:
                 base_dim = _DIMENSION_MAP[base_name]
                 for i in range(5):
                     total[i] += base_dim[i] * exp
 
-        for part in re.findall(r'([a-z_]+)(\^?)(-?\d*)', den):
+        for part in re.findall(r'([a-z_]+)(\^?)(-?\d+(?:/\d+)?)', den):
             base_name, hat, exp_str = part
             if hat != "^":
                 continue
-            exp = int(exp_str) if exp_str else 1
+            exp = Fraction(exp_str) if exp_str else Fraction(1)
             if base_name in _DIMENSION_MAP:
                 base_dim = _DIMENSION_MAP[base_name]
                 for i in range(5):
@@ -282,7 +285,7 @@ def _parse_expression_dimension(
     Handles: variables, products, powers, fractions.
     Returns dimension tuple or None if any variable has unknown dimension.
     """
-    total = [0, 0, 0, 0, 0]
+    total = [Fraction(0), Fraction(0), Fraction(0), Fraction(0), Fraction(0)]
 
     # Normalize: remove whitespace, handle ** and ^
     expr = expr.strip()
@@ -386,7 +389,7 @@ def _parse_expression_dimension(
             return None
 
         for i in range(5):
-            total[i] += int(dim[i] * exp_val)
+            total[i] += dim[i] * Fraction(exp_val).limit_denominator(10)
 
     return tuple(total)
 

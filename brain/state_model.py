@@ -137,7 +137,7 @@ def resolve_domain_prerequisites(topic_root_path: Path, topic_slug: str = "") ->
     if not skills and topic_slug:
         slug_lower = topic_slug.lower()
         for pattern, skill in _SLUG_FALLBACK_PATTERNS.items():
-            if pattern in slug_lower and skill not in skills:
+            if re.search(rf'(?<![a-z]){re.escape(pattern)}(?![a-z])', slug_lower) and skill not in skills:
                 skills.append(skill)
 
     return skills
@@ -485,6 +485,10 @@ _QUESTION_STEMS = [
     "what", "how does", "why", "under what conditions",
     "derive", "compute", "estimate", "prove", "calculate",
     "determine", "predict", "explain", "compare", "evaluate",
+    "verify", "test", "examine", "investigate",
+    "show", "demonstrate", "characterize",
+    "measure", "simulate", "model", "analyze",
+    "is it true", "does", "can",
 ]
 
 
@@ -503,7 +507,15 @@ def _check_question_semantic_validity(
     targets = str(fm.get("target_quantities", "")).strip()
 
     if question:
-        has_stem = any(stem in question for stem in _QUESTION_STEMS)
+        has_stem = False
+        for stem in _QUESTION_STEMS:
+            if len(stem) < 3:
+                if question.startswith(stem + " "):
+                    has_stem = True
+                    break
+            elif stem in question:
+                has_stem = True
+                break
         if not has_stem:
             issues.append(
                 "bounded_question must contain a question stem "
@@ -1246,7 +1258,18 @@ PHYSICS_CHECK_FIELDS = [
     "limiting_case_check",
     "conservation_check",
     "correspondence_check",
+    "approximation_validity_check",
+    "unitarity_check",
+    "causality_check",
 ]
+
+# Lane-dependent required check fields.
+# formal_theory requires all 8 physics checks.
+# Other lanes require only the original 5 (heavy-topological checks like
+# unitarity/causality are less relevant to numerical/material workflows).
+_LANE_PHYSICS_CHECK_FIELDS: dict[str, list[str]] = {
+    "formal_theory": PHYSICS_CHECK_FIELDS,
+}
 
 
 def _load_manifest(topic_root_path: Path) -> dict[str, Any] | None:
@@ -1387,6 +1410,36 @@ def evaluate_l4_stage(
                         "## Counterargument, ## Limitations Identified, or "
                         "## Devil's Advocate section that challenges at least "
                         "one specific claim from the candidate."
+                    ],
+                    next_allowed_transition="L3",
+                    skill="skill-validate",
+                )
+
+    # Physics check completeness: every review must cover the required check fields.
+    # formal_theory lane requires all 8; other lanes require the original 5.
+    _base_checks = PHYSICS_CHECK_FIELDS[:5]
+    _required_checks = _LANE_PHYSICS_CHECK_FIELDS.get(lane, _base_checks)
+    for cand_path in submitted:
+        slug = cand_path.stem
+        review_path = review_dir / f"{slug}.md"
+        if review_path.exists():
+            rfm, _ = parse_md(review_path)
+            check_results = rfm.get("check_results", {})
+            if isinstance(check_results, dict):
+                missing_checks = [
+                    f for f in _required_checks
+                    if f not in check_results or not str(check_results[f]).strip()
+                ]
+            else:
+                missing_checks = list(_required_checks)
+            if missing_checks:
+                return StageSnapshot(
+                    stage="L4", posture="verify", lane=lane,
+                    gate_status="blocked_missing_field",
+                    required_artifact_path=str(review_path),
+                    missing_requirements=[
+                        f"L4 review for {slug} missing physics check: {mc}"
+                        for mc in missing_checks
                     ],
                     next_allowed_transition="L3",
                     skill="skill-validate",
