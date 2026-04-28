@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# AITP SessionStart hook — Unix entry point for Claude Code plugin system
+# Invoked by: .claude-plugin/plugin.json → hooks.sessionStart
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
+
+if command -v python3 &>/dev/null; then
+    exec python3 "${SCRIPT_DIR}/session_start.py" "$@"
+elif command -v python &>/dev/null; then
+    exec python "${SCRIPT_DIR}/session_start.py" "$@"
+else
+    echo "WARNING: AITP SessionStart: python not found" >&2
+    exit 0
+fi

@@ -1,11 +1,14 @@
 """
-Native MCP stdio server — zero dependencies beyond Python stdlib.
+AITP MCP server over HTTP (Streamable HTTP transport).
 
-Replaces FastMCP 3.x (ndjson) + claude_code_bridge.py (Content-Length converter)
-with a single file that speaks MCP's native Content-Length framing directly.
+Replaces the stdio native_mcp.py approach with a local HTTP server,
+bypassing Windows pipe communication issues entirely.
 
-The tool functions are imported from mcp_server.py — they remain unchanged.
-Only the transport and JSON-RPC dispatch are replaced.
+Usage:
+    python brain/aitp_mcp_http.py [--port PORT] [--host HOST]
+
+Claude Code config:
+    {"type": "http", "url": "http://127.0.0.1:PORT/mcp"}
 """
 from __future__ import annotations
 
@@ -14,80 +17,30 @@ import os
 import sys
 import time
 import traceback
+import uuid
 import warnings
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 
-_DIAG = Path(__file__).resolve().parent / "_mcp_boot.log"
+_PORT = int(os.environ.get("AITP_MCP_HTTP_PORT", "9876"))
+_HOST = os.environ.get("AITP_MCP_HTTP_HOST", "127.0.0.1")
 
-# Suppress any stderr warnings before importing mcp_server (which triggers
-# fastmcp -> requests, which emits RequestsDependencyWarning on stderr).
-# Claude Code treats early stderr output as a startup failure.
+# Suppress warnings before importing mcp_server
 warnings.filterwarnings("ignore")
-
-def _log(msg):
-    try:
-        with open(_DIAG, "a", encoding="utf-8") as f:
-            f.write(f"[{time.strftime('%H:%M:%S')} pid={os.getpid()}] {msg}\n")
-    except Exception:
-        pass
-
-_log(f"BOOT python={sys.executable} cwd={Path.cwd()}")
-
-
-# ---------------------------------------------------------------------------
-# Content-Length framed stdio (MCP spec)
-# ---------------------------------------------------------------------------
-
-def _read_message() -> dict | None:
-    """Read one Content-Length-prefixed JSON-RPC message from stdin."""
-    header = b""
-    while True:
-        ch = sys.stdin.buffer.read(1)
-        if not ch:
-            return None
-        header += ch
-        if header.endswith(b"\r\n\r\n") or header.endswith(b"\n\n"):
-            break
-    content_length = 0
-    for line in header.decode("utf-8").replace("\r\n", "\n").split("\n"):
-        if line.lower().startswith("content-length:"):
-            content_length = int(line.split(":", 1)[1].strip())
-            break
-    if content_length <= 0:
-        return None
-    # Loop to handle partial reads from pipes (Windows especially)
-    body = b""
-    while len(body) < content_length:
-        chunk = sys.stdin.buffer.read(content_length - len(body))
-        if not chunk:
-            break
-        body += chunk
-    return json.loads(body.decode("utf-8"))
-
-
-def _write_message(msg: dict) -> None:
-    """Write one Content-Length-prefixed JSON-RPC message to stdout."""
-    body = json.dumps(msg, ensure_ascii=False, default=str)
-    encoded = body.encode("utf-8")
-    header = f"Content-Length: {len(encoded)}\r\n\r\n".encode("utf-8")
-    sys.stdout.buffer.write(header + encoded)
-    sys.stdout.buffer.flush()
-
-
-# ---------------------------------------------------------------------------
-# JSON-RPC dispatch
-# ---------------------------------------------------------------------------
 
 # Ensure brain/ is importable
 _REPO_ROOT = str(Path(__file__).resolve().parent.parent)
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-# Collect all @mcp.tool() decorated functions from mcp_server
-_log("importing brain.mcp_server ...")
+# Import tool definitions (same as native_mcp.py)
+print(f"[aitp-http] Importing brain.mcp_server ...", file=sys.stderr)
+_t0 = time.time()
 import brain.mcp_server as _ms
-_log(f"imported, found tools")
+print(f"[aitp-http] Imported in {time.time() - _t0:.1f}s", file=sys.stderr)
+
+# Collect tools (same logic as native_mcp.py)
 _tools: dict[str, Any] = {}
 for _name in dir(_ms):
     _obj = getattr(_ms, _name)
@@ -96,7 +49,6 @@ for _name in dir(_ms):
     ):
         _tools[_name] = _obj
 
-# If __mcp_tool__ detection failed, collect all aitp_* callables
 if len(_tools) < 10:
     _tools = {}
     for _name in dir(_ms):
@@ -104,9 +56,8 @@ if len(_tools) < 10:
         if callable(_obj) and _name.startswith("aitp_"):
             _tools[_name] = _obj
 
-
+# Tool schema building (same as native_mcp.py)
 def _build_tool_schema(func) -> dict:
-    """Build a minimal JSON Schema for a tool from its signature and docstring."""
     import inspect
     sig = inspect.signature(func)
     properties = {}
@@ -118,18 +69,14 @@ def _build_tool_schema(func) -> dict:
         is_optional = False
         if param.annotation is not inspect.Parameter.empty:
             ann = param.annotation
-            # Unwrap Optional / Union with None
             origin = getattr(ann, "__origin__", None)
             if origin is not None:
                 args = getattr(ann, "__args__", ())
                 non_none = [a for a in args if a is not type(None)]
                 if len(args) > len(non_none):
-                    is_optional = True  # None was in the union
+                    is_optional = True
                 if non_none:
                     ann = non_none[0]
-            elif hasattr(ann, "__union_params__"):
-                # Python 3.9 Union backport
-                pass
             if ann is int:
                 ptype = "integer"
             elif ann is float:
@@ -145,10 +92,6 @@ def _build_tool_schema(func) -> dict:
             required.append(pname)
 
     doc = (func.__doc__ or "").strip()
-    # Strip leading whitespace from each line of the docstring
-    lines = doc.split("\n")
-    if len(lines) > 1:
-        doc = lines[0] + "\n" + "\n".join(l.lstrip() for l in lines[1:])
     return {
         "name": func.__name__,
         "description": doc[:500] if doc else f"AITP tool: {func.__name__}",
@@ -158,7 +101,6 @@ def _build_tool_schema(func) -> dict:
             "required": required,
         },
     }
-
 
 TOOL_SCHEMAS: list[dict] = []
 for _tname, _tfunc in sorted(_tools.items()):
@@ -171,14 +113,11 @@ for _tname, _tfunc in sorted(_tools.items()):
             "inputSchema": {"type": "object", "properties": {}, "required": []},
         })
 
-SERVER_INFO = {
-    "name": "aitp-brain",
-    "version": "0.6.0",
-}
+SERVER_INFO = {"name": "aitp-brain", "version": "0.6.0"}
+_sessions: dict[str, str] = {}  # session_id -> created_at
 
 
-def _handle_request(req: dict) -> dict | None:
-    """Handle a single JSON-RPC request. Returns response or None for notifications."""
+def handle_request(req: dict) -> dict | None:
     rid = req.get("id")
     method = req.get("method", "")
     params = req.get("params", {})
@@ -198,7 +137,7 @@ def _handle_request(req: dict) -> dict | None:
         return {"jsonrpc": "2.0", "id": rid, "result": {}}
 
     if method == "notifications/initialized":
-        return None  # No response for notifications
+        return None
 
     if method == "tools/list":
         return {
@@ -209,7 +148,6 @@ def _handle_request(req: dict) -> dict | None:
     if method == "tools/call":
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
-        _log(f"tools/call: {tool_name}")
         func = _tools.get(tool_name)
         if func is None:
             return {
@@ -229,48 +167,99 @@ def _handle_request(req: dict) -> dict | None:
                 "result": {"content": [{"type": "text", "text": text}]},
             }
         except Exception as e:
-            tb = traceback.format_exc()
-            _log(f"tools/call ERROR: {tb[:300]}")
             return {
                 "jsonrpc": "2.0", "id": rid,
                 "error": {"code": -32603, "message": f"{type(e).__name__}: {e}"},
             }
 
-    # Unknown method
     return {
         "jsonrpc": "2.0", "id": rid,
         "error": {"code": -32601, "message": f"Unknown method: {method}"},
     }
 
 
-# ---------------------------------------------------------------------------
-# Main loop
-# ---------------------------------------------------------------------------
+class MCPHandler(BaseHTTPRequestHandler):
+    """HTTP handler for MCP JSON-RPC requests."""
+
+    def do_GET(self):
+        """Health check endpoint."""
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ok", "server": "aitp-brain",
+                "version": "0.6.0", "tools": len(TOOL_SCHEMAS),
+            }).encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self):
+        """MCP JSON-RPC endpoint."""
+        if self.path != "/mcp":
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length)
+
+        try:
+            req = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.end_headers()
+            return
+
+        # Session management
+        session_id = self.headers.get("Mcp-Session-Id", "")
+        new_session_id = None
+
+        if req.get("method") == "initialize":
+            new_session_id = uuid.uuid4().hex[:16]
+            _sessions[new_session_id] = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        resp = handle_request(req)
+
+        if resp is None:
+            # Notification — return 202 Accepted
+            self.send_response(202)
+            self.end_headers()
+            return
+
+        resp_body = json.dumps(resp, ensure_ascii=False, default=str)
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        if new_session_id:
+            self.send_header("Mcp-Session-Id", new_session_id)
+        self.send_header("Content-Length", str(len(resp_body.encode("utf-8"))))
+        self.end_headers()
+        self.wfile.write(resp_body.encode("utf-8"))
+
+    def do_DELETE(self):
+        """Session cleanup."""
+        session_id = self.headers.get("Mcp-Session-Id", "")
+        _sessions.pop(session_id, None)
+        self.send_response(200)
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        """Log to stderr."""
+        print(f"[aitp-http] {args[0]}", file=sys.stderr)
+
 
 def main():
-    _log("main() entered")
-    while True:
-        try:
-            req = _read_message()
-            _log(f"got: {req.get('method','?') if req else 'EOF'}")
-        except Exception:
-            # Log but don't crash
-            print(f"READ ERROR: {traceback.format_exc()}", file=sys.stderr)
-            continue
-        if req is None:
-            break
-        try:
-            resp = _handle_request(req)
-        except Exception:
-            resp = {
-                "jsonrpc": "2.0", "id": req.get("id"),
-                "error": {"code": -32603, "message": traceback.format_exc()[:500]},
-            }
-        if resp is not None:
-            try:
-                _write_message(resp)
-            except Exception:
-                print(f"WRITE ERROR: {traceback.format_exc()}", file=sys.stderr)
+    server = HTTPServer((_HOST, _PORT), MCPHandler)
+    print(f"[aitp-http] AITP MCP HTTP server on http://{_HOST}:{_PORT}/mcp", file=sys.stderr)
+    print(f"[aitp-http] {len(TOOL_SCHEMAS)} tools loaded", file=sys.stderr)
+    print(f"[aitp-http] Health check: http://{_HOST}:{_PORT}/health", file=sys.stderr)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("[aitp-http] Shutting down", file=sys.stderr)
+        server.shutdown()
 
 
 if __name__ == "__main__":
