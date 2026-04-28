@@ -12,8 +12,14 @@ from __future__ import annotations
 import json
 import sys
 import traceback
+import warnings
 from pathlib import Path
 from typing import Any
+
+# Suppress any stderr warnings before importing mcp_server (which triggers
+# fastmcp -> requests, which emits RequestsDependencyWarning on stderr).
+# Claude Code treats early stderr output as a startup failure.
+warnings.filterwarnings("ignore")
 
 
 # ---------------------------------------------------------------------------
@@ -37,7 +43,13 @@ def _read_message() -> dict | None:
             break
     if content_length <= 0:
         return None
-    body = sys.stdin.buffer.read(content_length)
+    # Loop to handle partial reads from pipes (Windows especially)
+    body = b""
+    while len(body) < content_length:
+        chunk = sys.stdin.buffer.read(content_length - len(body))
+        if not chunk:
+            break
+        body += chunk
     return json.loads(body.decode("utf-8"))
 
 
