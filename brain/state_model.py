@@ -27,6 +27,7 @@ class StageSnapshot:
     l3_mode: str = ""
     domain_prerequisites: list[str] = field(default_factory=list)
     domain_constraints: dict = field(default_factory=dict)
+    l4_background_status: str = ""
     research_intensity: str = "standard"
     interaction_level: str = "collaborative"
 

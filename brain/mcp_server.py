@@ -107,7 +107,10 @@ _AGENT_BEHAVIOR_REMINDER = (
     "Derivations before conclusions. Limits before generalizations. "
     "Check compute_target before ANY code, SymPy, Lean, or numerical work "
     " --  route heavy computation to the declared target (local/fisher/lean-remote). "
-    "If domain_prerequisites is non-empty, load those skills BEFORE the stage skill."
+    "If domain_prerequisites is non-empty, load those skills BEFORE the stage skill. "
+"If l4_background_status is 'submitted' or 'running', a validation job is executing "
+"on HPC — you can switch to L3 for ideation/planning while waiting, then call "
+"aitp_l4_check_results when the job completes."
 )
 
 
@@ -2200,6 +2203,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "l3_mode": snapshot.l3_mode,
             "domain_prerequisites": domain_prereqs,
             "domain_constraints": getattr(snapshot, "domain_constraints", {}),
+            "l4_background_status": getattr(snapshot, "l4_background_status", ""),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2229,6 +2233,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
             "domain_constraints": getattr(snapshot, "domain_constraints", {}),
+            "l4_background_status": getattr(snapshot, "l4_background_status", ""),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2258,6 +2263,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
             "domain_constraints": getattr(snapshot, "domain_constraints", {}),
+            "l4_background_status": getattr(snapshot, "l4_background_status", ""),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2288,6 +2294,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
             "domain_constraints": getattr(snapshot, "domain_constraints", {}),
+            "l4_background_status": getattr(snapshot, "l4_background_status", ""),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2330,6 +2337,199 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
         "immediate_blocked_work": ["L3 derivation", "L4 validation", "L2 promotion"],
         "_agent_behavior_reminder": _AGENT_BEHAVIOR_REMINDER,
     }
+
+
+@mcp.tool()
+def aitp_l4_background_submit(
+    topics_root: str,
+    topic_slug: str,
+    job_id: str = "",
+    host: str = "",
+    estimated_wall_time: str = "",
+    notes: str = "",
+) -> dict[str, Any]:
+    """Submit L4 validation as a background HPC job and return to L3.
+
+    Use when numerical validation requires long-running HPC jobs (QSGW, GW, DFT).
+    The agent can switch back to L3 to ideate/plan/derive while the test runs.
+    When the test completes, use aitp_l4_check_results to review.
+
+    Args:
+        topics_root: Path to AITP topics directory
+        topic_slug: Topic identifier
+        job_id: Slurm job ID or equivalent
+        host: Host where the job is running
+        estimated_wall_time: Expected duration (e.g. "2h", "30m")
+        notes: What this test is validating
+    """
+    root = Path(topics_root) / topic_slug
+    state_path = root / "state.md"
+    if not state_path.exists():
+        return {"error": f"Topic {topic_slug} not found"}
+
+    fm, body = _parse_md(state_path)
+    fm["l4_background_status"] = "submitted"
+    fm["l4_job_id"] = job_id
+    fm["l4_job_host"] = host
+    fm["l4_job_estimated_time"] = estimated_wall_time
+    fm["l4_job_submitted_at"] = _now()
+    fm["updated_at"] = _now()
+
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, "L4_background_submit",
+                         f"L4 validation submitted as background job: {job_id} on {host} ({estimated_wall_time})")
+
+    _auto_refresh_flow_notebook(topics_root, fm)
+
+    return {
+        "status": "submitted",
+        "job_id": job_id,
+        "host": host,
+        "estimated_wall_time": estimated_wall_time,
+        "message": (
+            "L4 validation is now running in background. "
+            "Use aitp_switch_l3_activity to return to L3 for ideation/planning/derivation "
+            "while the test runs. When the job completes, use aitp_l4_check_results to review."
+        ),
+    }
+
+
+@mcp.tool()
+def aitp_l4_check_results(
+    topics_root: str,
+    topic_slug: str,
+    job_status: str = "",
+    output_summary: str = "",
+) -> dict[str, Any]:
+    """Check L4 background validation results and return to L4 for review.
+
+    Call this when the HPC job completes. Updates topic state to return to L4.
+
+    Args:
+        topics_root: Path to AITP topics directory
+        topic_slug: Topic identifier
+        job_status: Status of the completed job ("success", "failed", "timeout")
+        output_summary: Brief summary of results
+    """
+    root = Path(topics_root) / topic_slug
+    state_path = root / "state.md"
+    if not state_path.exists():
+        return {"error": f"Topic {topic_slug} not found"}
+
+    fm, body = _parse_md(state_path)
+    old_status = fm.get("l4_background_status", "")
+    fm["l4_background_status"] = "completed"
+    fm["l4_job_result"] = job_status
+    fm["l4_job_completed_at"] = _now()
+    if output_summary:
+        fm["l4_job_output_summary"] = output_summary
+    fm["stage"] = "L4"
+    fm["posture"] = "verify"
+    fm["updated_at"] = _now()
+
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, "L4_check_results",
+                         f"L4 background job completed: {job_status}. Returning to L4 verification.")
+
+    return {
+        "previous_status": old_status,
+        "job_result": job_status,
+        "stage": "L4",
+        "posture": "verify",
+        "message": (
+            "Returned to L4 for verification review. "
+            f"Job result: {job_status}. "
+            "Review outputs in L4/outputs/ and file L4 reviews for candidates."
+        ),
+    }
+
+
+@mcp.tool()
+def aitp_record_numerical_result(
+    topics_root: str,
+    topic_slug: str,
+    observable: str,
+    computed_value: str,
+    uncertainty: str = "",
+    units: str = "",
+    system: str = "",
+    method: str = "",
+    k_grid: str = "",
+    host: str = "",
+    job_id: str = "",
+    literature_value: str = "",
+    literature_source: str = "",
+    agreement_status: str = "",
+) -> str:
+    """Record a structured numerical result with benchmark comparison.
+
+    Creates a file in L4/outputs/ with structured frontmatter for L2 querying.
+    Each result is traceable to execution conditions and literature benchmarks.
+
+    Args:
+        topics_root: Path to AITP topics directory
+        topic_slug: Topic identifier
+        observable: What was measured (e.g. "Si indirect band gap")
+        computed_value: The computed value (e.g. "1.15")
+        uncertainty: Estimated uncertainty (e.g. "0.05")
+        units: Physical units (e.g. "eV")
+        system: Physical system (e.g. "Si bulk 2x2x2")
+        method: Method used (e.g. "QSGW band0, option_dielect_func=3")
+        k_grid: k-point grid (e.g. "4x4x4")
+        host: Execution host
+        job_id: Slurm job ID
+        literature_value: Known literature value
+        literature_source: Reference for literature value
+        agreement_status: "agrees", "deviates", "inconclusive", or empty
+    """
+    root = Path(topics_root) / topic_slug
+    outputs_dir = root / "L4" / "outputs"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    slug = _slugify(observable)
+    result_path = outputs_dir / f"{slug}.md"
+
+    fm: dict[str, Any] = {
+        "artifact_kind": "numerical_result",
+        "observable": observable,
+        "computed_value": computed_value,
+        "uncertainty": uncertainty,
+        "units": units,
+        "system": system,
+        "method": method,
+        "k_grid": k_grid,
+        "host": host,
+        "job_id": job_id,
+        "literature_value": literature_value,
+        "literature_source": literature_source,
+        "agreement_status": agreement_status,
+        "recorded_at": _now(),
+    }
+
+    body = (
+        f"# Numerical Result: {observable}\n\n"
+        f"## Computed Value\n"
+        f"- **Value**: {computed_value} ± {uncertainty} {units}\n"
+        f"- **System**: {system}\n"
+        f"- **Method**: {method}\n"
+        f"- **k-grid**: {k_grid}\n\n"
+        f"## Execution\n"
+        f"- **Host**: {host}\n"
+        f"- **Job ID**: {job_id}\n\n"
+        f"## Benchmark Comparison\n"
+        f"- **Literature value**: {literature_value} {units}\n"
+        f"- **Source**: {literature_source}\n"
+        f"- **Agreement**: {agreement_status}\n"
+    )
+
+    _write_md(result_path, fm, body)
+    _auto_refresh_flow_notebook(topics_root, _parse_md(root / "state.md")[0])
+
+    return (
+        f"Recorded numerical result '{observable}': {computed_value} ± {uncertainty} {units} "
+        f"(vs literature {literature_value} {units}, {agreement_status}). "
+        f"Saved to L4/outputs/{slug}.md"
+    )
 
 
 @mcp.tool()
@@ -2537,6 +2737,35 @@ def aitp_switch_l3_activity(
 
     if activity not in L3_ACTIVITIES:
         return f"Unknown activity '{activity}'. Valid: {L3_ACTIVITIES}"
+
+    # Allow switching from L4 back to L3 when background validation is running
+    current_stage = fm.get("stage", "L3")
+    if current_stage == "L4":
+        l4_bg = fm.get("l4_background_status", "")
+        if l4_bg in ("submitted", "running"):
+            fm["stage"] = "L3"
+            fm["posture"] = "derive"
+            fm["l3_activity"] = activity
+            fm["l3_subplane"] = activity
+            fm["updated_at"] = _now()
+            _write_md(state_path, fm, body)
+            _append_to_topic_log(root,
+                f"L4→L3: switched to {activity} while L4 background job {fm.get('l4_job_id', '?')} "
+                f"is {l4_bg} on {fm.get('l4_job_host', '?')}. "
+                f"Use aitp_l4_check_results when job completes."
+            )
+            skill = L3_ACTIVITY_SKILL_MAP.get(activity, "skill-l3-ideate")
+            return (
+                f"Switched from L4 to L3 ({activity}) while background validation runs "
+                f"(job {fm.get('l4_job_id', '?')} on {fm.get('l4_job_host', '?')}). "
+                f"Follow {skill}. Use aitp_l4_check_results when the job completes."
+            )
+        else:
+            return (
+                f"Cannot switch from L4 to L3: no background job submitted. "
+                f"Use aitp_l4_background_submit to submit validation as a background job first, "
+                f"or complete L4 review to advance."
+            )
 
     old = fm.get("l3_activity", "ideate")
 
