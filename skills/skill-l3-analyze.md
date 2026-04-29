@@ -126,6 +126,43 @@ under `## Source Anchor Table`:
 
 This makes it explicit which steps come from sources vs. which are L3-completed.
 
+## Lane-Specific Verification
+
+### formal_theory lane
+
+Use `aitp_verify_derivation_step` and `aitp_verify_derivation_chain` with SymPy.
+Steps missing `equation` + `justification` + `step_origin` are `non_auditable`.
+The analysis is NOT ready to advance until ALL derivation steps are auditable OR
+explicitly marked with `open_gap` notes explaining what is missing.
+
+Additionally use: `aitp_verify_dimensions` (dimensional analysis), `aitp_verify_algebra`
+(algebraic identity check), `aitp_verify_limit` (correspondence principle).
+
+### code_method lane
+
+Do NOT use `aitp_verify_derivation_step` for symbolic verification. SymPy cannot handle
+matrix/integral physics expressions (produces `'Equality' and 'Equality'` errors).
+
+Verification for code_method is:
+1. **Source anchoring**: Each step records `source_ref` to exact code location (file:line).
+   A step anchored to real code with a correct formula is `source_anchored`.
+2. **Numerical verification at L4**: Compile, run with known inputs, compare output to
+   expected (literature/symmetry/limit). Record in `L4/outputs/`.
+3. If a step has `justification_type = "gap"`, it MUST have a `gap_marker` with a
+   concrete plan for resolution.
+
+When recording steps via `aitp_create_derivation_step` for code_method:
+- Set `rigor_level` based on code clarity and formula correctness (not algebraic proof)
+- Use `justification_type = "definition"` for variable assignments, `"algebraic_identity"`
+  for matrix multiplications, `"physical_principle"` for physics formulas
+- `source_ref` MUST point to file:line range
+
+### toy_numeric lane
+
+Same as code_method for verification: source anchoring + numerical validation at L4.
+Additionally check: dimensional consistency of inputs/outputs, reproducibility across
+random seeds, behavior at known limits.
+
 ## What to do
 
 1. Set `round_type` in frontmatter.

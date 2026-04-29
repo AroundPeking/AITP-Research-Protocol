@@ -17,13 +17,46 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 You are building the topic's source-grounded basis with **mechanical completeness guarantees**.
 
+## Lane Branch
+
+### formal_theory lane: Paper reading (default)
+
+Follow the Reading workflow below. Sources are papers with TOCs, sections, subsections.
+Use arxiv-latex-mcp for machine-parsed section lists. Skim all sections, then deep-extract
+priority sections. Every section must be `extracted` or `deferred`.
+
+### code_method lane: Code function tracing
+
+For code sources, "reading" means **tracing the algorithm through function calls**:
+
+1. **Identify the entry point**: Which function is the first call in the algorithm chain?
+   Ask the researcher: "I'll trace from the entry point. Is `function_X()` the right starting point?"
+2. **Read one function at a time**:
+   - Read the function body
+   - Extract the formula (LaTeX) and data flow (inputs → transform → outputs)
+   - Record via `aitp_create_derivation_step` with `source_ref = "file.cpp:start-end"`, `justification_type`, and `rigor_level`
+3. **After each function**: Present the formula and physical meaning.
+   Ask: "Does this match your understanding? Next I'll trace its caller/callee `function_Y()`."
+4. **TOC for code** = the call graph. Record function names, file:line ranges, and what each calls.
+   Write this into `source_toc_map.md` under `## Per-Source TOC` as a function table.
+5. **Coverage**: All functions in the algorithm chain must be traced. Mark infrastructure
+   code (MPI setup, I/O boilerplate) as `deferred` with explicit reason.
+6. **Source basis**: Core sources are the key algorithm files. Peripheral sources are
+   build configs, test scripts, I/O helpers. Record roles in `source_basis.md`.
+
+### toy_numeric lane
+
+Follow the code_method lane for numerical scripts and notebooks. Replace "function call graph"
+with "computational pipeline steps." Record each step's input data, transform, output data,
+and expected numerical behavior.
+
 ## Required artifacts
 
 - `L1/source_basis.md`
 - `L1/question_contract.md`
 - `L1/source_toc_map.md`
 
-## Reading workflow (mandatory sequence)
+## Reading workflow (mandatory sequence for formal_theory)
 
 ### Step 1: Register sources
 1. Register or inspect sources using `aitp_register_source`.

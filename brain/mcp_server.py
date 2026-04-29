@@ -2199,6 +2199,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "l3_subplane": snapshot.l3_subplane,
             "l3_mode": snapshot.l3_mode,
             "domain_prerequisites": domain_prereqs,
+            "domain_constraints": getattr(snapshot, "domain_constraints", {}),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2227,6 +2228,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "skill": snapshot.skill,
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
+            "domain_constraints": getattr(snapshot, "domain_constraints", {}),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2255,6 +2257,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "skill": snapshot.skill,
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
+            "domain_constraints": getattr(snapshot, "domain_constraints", {}),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2284,6 +2287,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
             "skill": snapshot.skill,
             "l3_subplane": snapshot.l3_subplane,
             "domain_prerequisites": domain_prereqs,
+            "domain_constraints": getattr(snapshot, "domain_constraints", {}),
             "immediate_allowed_work": (
                 [f"edit {snapshot.required_artifact_path}"]
                 if snapshot.required_artifact_path
@@ -2314,6 +2318,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
         "skill": snapshot.skill,
         "l3_subplane": snapshot.l3_subplane,
         "domain_prerequisites": domain_prereqs,
+        "domain_constraints": getattr(snapshot, "domain_constraints", {}),
         "physics_context": physics_context,
         "immediate_allowed_work": (
             [f"edit {snapshot.required_artifact_path}"]
@@ -2386,6 +2391,7 @@ def aitp_session_resume(
         "gate_status": snapshot.gate_status,
         "skill": snapshot.skill,
         "domain_prerequisites": domain_prereqs,
+        "domain_constraints": getattr(snapshot, "domain_constraints", {}),
         "required_artifact_path": snapshot.required_artifact_path,
         "missing_requirements": snapshot.missing_requirements,
         "recent_events": recent_events,
@@ -3224,6 +3230,18 @@ def aitp_verify_derivation_step(
         aitp_verify_derivation_step("differentiate", "x**2", "3*x", "x")
         → pass=False (d(x^2)/dx ≠ 3x)
     """
+    # For code_method steps that are source_anchored, skip SymPy verification
+    if rule == "source_anchored":
+        return {
+            "pass": True,
+            "method": "source_anchored",
+            "rule": rule,
+            "note": (
+                "code_method lane: this step is verified by source anchoring "
+                "(file:line reference to real code). Numerical verification "
+                "required at L4 (compile + run + compare output)."
+            ),
+        }
     return validate_derivation_step(rule, input_expr, output_expr, argument, assumptions)
 
 
@@ -4109,6 +4127,14 @@ def aitp_create_derivation_step(
     if justification_type and justification_type not in JUSTIFICATION_TYPES:
         return f"Invalid justification_type '{justification_type}'. Valid: {JUSTIFICATION_TYPES}"
 
+    # Detect lane from state.md to set lane-appropriate validation
+    root = Path(topics_root)
+    lane = "unspecified"
+    state_path = root / "state.md"
+    if state_path.exists():
+        state_fm, _ = _parse_md(state_path)
+        lane = str(state_fm.get("lane", "unspecified")).strip()
+
     global_l2 = _ensure_l2_graph_dirs(topics_root)
     slug = _slugify(step_id)
     steps_dir = global_l2 / "graph" / "steps"
@@ -4132,9 +4158,20 @@ def aitp_create_derivation_step(
         "approximation": approximation,
         "regime_condition": regime_condition,
         "source_ref": source_ref,
+        "lane": lane,
         "created_at": _now(),
         "updated_at": _now(),
     })
+
+    # Lane-specific validation: code_method uses source anchoring instead of SymPy
+    if lane == "code_method" and source_ref:
+        fm["validation_status"] = "source_anchored"
+        fm["validation_note"] = (
+            "code_method lane: source anchoring at file:line is the primary verification. "
+            "Numerical verification required at L4 (compile + run + compare output)."
+        )
+    elif lane in ("toy_numeric",):
+        fm["validation_status"] = "pending_numerical"
 
     body = (
         f"# Step {order}: {slug}\n\n"
@@ -4826,7 +4863,7 @@ def _build_flow_notebook_content(
     if lane:
         tex.append(r"  \quad \texttt{" + _esc(lane) + r" lane}")
     tex.append(r"}")
-    tex.append(r"\author{AITP Protocol v3}")
+    tex.append(r"\author{AITP Protocol v4}")
     if created_at:
         tex.append(r"\date{" + _esc(str(created_at)[:10]) + "}")
     else:

@@ -127,11 +127,24 @@ Check `brief.domain_prerequisites` — if it lists domain skill files (e.g. `ski
 load them after the stage skill. Domain skills encode domain-specific invariants, validation
 criteria, and workflow lanes that the stage skill assumes are present.
 
-## Red flags (STOP if you catch yourself doing these)
+## Red Flags
 
-- "I can just answer this research question directly."
-- "This topic change is small enough to skip routing."
-- "I will read files first and decide later whether AITP applies."
-- "Let me search the codebase to see what already exists."
+These thoughts mean STOP — you are rationalizing. Each entry comes from a real protocol violation
+observed in live research sessions:
 
-If one of these is true, stop and enter AITP first.
+| Thought | Reality |
+|---------|---------|
+| "I can SSH/read the files to check what's there" | NEVER browse AITP topic files with Grep/Glob/Read/Bash. Use `mcp__aitp__aitp_get_execution_brief`. Code sources must be registered via `aitp_register_source` before deep reading. |
+| "Let me check the server code first, then register" | Register sources FIRST. Then explore. Reverse order = lost traceability and unregistered knowledge. |
+| "The derivation is obvious from the code, I'll just write it" | Record each step via `aitp_create_derivation_step` with `source_ref` to file:line. "Obvious" derivations are where unstated assumptions hide. |
+| "Domain skill is optional background reading" | Domain constraints from `brief.domain_prerequisites` are mandatory. Load domain skills BEFORE the stage skill. |
+| "The gate just checks headings exist, empty content passes" | Gates check heading presence AND content completeness. Fill all required sections with substantive content. |
+| "I can write the artifact directly with Write tool" | Use AITP MCP tools to write artifacts. They ensure state consistency and auto-refresh the flow notebook. |
+| "Discussion rounds are just protocol overhead" | Each round must eliminate ONE specific uncertainty. Ask one question per round. If the user says "直接做", proceed — but record what was deferred. |
+| "This is just a simple code/config check" | Code reading for AITP topics IS research. Follow the pipeline — register sources, trace functions, record derivation steps. |
+| "I already understand the physics, let me skip to implementation" | Understanding ≠ recording. Recorded claims persist across sessions and feed L2 knowledge. Unrecorded understanding is lost when context compacts. |
+| "SymPy verification failed — that's fine for code_method" | code_method uses source anchoring (file:line references), not SymPy. The verification path differs by lane. Use lane-appropriate verification. |
+| "I can just answer this research question directly" | Direct answers bypass source registration, derivation recording, and L2 accumulation. Enter AITP first. |
+| "I will read files first and decide later whether AITP applies" | Skill check comes BEFORE file exploration. AITP tells you HOW to explore. |
+
+If you catch yourself thinking any of these, you are rationalizing. Stop. Return to the protocol.

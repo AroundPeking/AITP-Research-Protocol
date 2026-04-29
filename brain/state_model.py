@@ -26,6 +26,7 @@ class StageSnapshot:
     l3_subplane: str = ""
     l3_mode: str = ""
     domain_prerequisites: list[str] = field(default_factory=list)
+    domain_constraints: dict = field(default_factory=dict)
     research_intensity: str = "standard"
     interaction_level: str = "collaborative"
 
@@ -279,6 +280,20 @@ def evaluate_l0_stage(
                 next_allowed_transition="L0",
                 skill=skill,
             )
+        # Content check: ## Overall Verdict must have substantive content
+        if not _check_heading_content(body, "## Overall Verdict", min_chars=200):
+            return StageSnapshot(
+                stage="L0",
+                posture=posture,
+                lane=lane,
+                gate_status="blocked_missing_field",
+                required_artifact_path=str(path),
+                missing_requirements=[
+                    "## Overall Verdict has insufficient content (need >= 200 chars of substantive assessment)"
+                ],
+                next_allowed_transition="L0",
+                skill=skill,
+            )
         # Require at least one registered source
         src_dir = topic_root_path / "L0" / "sources"
         actual_count = len(list(src_dir.glob("*.md"))) if src_dir.is_dir() else 0
@@ -479,6 +494,76 @@ def _missing_frontmatter_keys(frontmatter: dict[str, object], required: list[str
 
 def _missing_required_headings(body: str, headings: list[str]) -> list[str]:
     return [h for h in headings if h not in body]
+
+
+def _check_heading_content(body: str, heading: str, min_chars: int = 80) -> bool:
+    """Check that a Markdown heading has substantive body content (not just placeholder text)."""
+    idx = body.find(heading)
+    if idx == -1:
+        return False
+    content_start = idx + len(heading)
+    remaining = body[content_start:]
+    next_heading = remaining.find("\n## ")
+    if next_heading == -1:
+        section_body = remaining
+    else:
+        section_body = remaining[:next_heading]
+    cleaned = section_body.strip()
+    return len(cleaned) >= min_chars
+
+
+def _check_derivation_steps(topics_root: str) -> tuple[int, list[str]]:
+    """Count recorded derivation steps and return (count, [step_ids])."""
+    steps_dir = Path(topics_root) / "L2" / "graph" / "steps"
+    if not steps_dir.exists():
+        return 0, []
+    step_files = list(steps_dir.glob("*.md"))
+    step_ids = [f.stem for f in step_files]
+    return len(step_files), step_ids
+
+
+def _extract_domain_rules(skill_path: Path) -> dict[str, list[str]]:
+    """Extract '## Hard Domain Rules' section from a domain skill file.
+
+    Returns a dict with keys like 'hard_rules', 'workflow_lanes', 'smoke_test'
+    containing lists of rule strings extracted from the skill body.
+    """
+    if not skill_path.exists():
+        return {}
+    try:
+        _, body = _parse_md(skill_path)
+    except Exception:
+        return {}
+
+    rules: dict[str, list[str]] = {"hard_rules": [], "workflow_lanes": [], "smoke_test": []}
+
+    # Extract Hard Domain Rules section
+    section_start = body.find("## Hard Domain Rules")
+    if section_start == -1:
+        return rules
+
+    section_body = body[section_start + len("## Hard Domain Rules"):]
+    next_section = section_body.find("\n## ")
+    if next_section != -1:
+        section_body = section_body[:next_section]
+
+    # Parse bullet points and sub-sections
+    current_key = "hard_rules"
+    for line in section_body.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("### "):
+            # Sub-section: map to appropriate key
+            sub = stripped[4:].lower()
+            if "smoke" in sub or "test" in sub:
+                current_key = "smoke_test"
+            elif "workflow" in sub or "lane" in sub:
+                current_key = "workflow_lanes"
+            else:
+                current_key = "hard_rules"
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            rules.setdefault(current_key, []).append(stripped[2:].strip())
+
+    return rules
 
 
 _QUESTION_STEMS = [
@@ -1060,12 +1145,33 @@ def evaluate_l3_stage(
 
     # L3 is ready when at least one activity artifact is complete.
     # Any activity can lead to L4 — there is no "last subplane".
+
+    # Build domain constraints from domain manifest + domain skill
+    domain_constraints = {}
+    domain_manifest_path = topic_root_path / "contracts" / "domain-manifest.md"
+    if domain_manifest_path.exists():
+        dm_fm, _ = parse_md(domain_manifest_path)
+        domain_id = str(dm_fm.get("domain_id", "")).strip()
+        if domain_id:
+            # Check legacy slug patterns
+            skill_name = DOMAIN_ID_TO_SKILL.get(domain_id)
+            if not skill_name:
+                for pattern, s in _SLUG_FALLBACK_PATTERNS.items():
+                    if pattern in domain_id:
+                        skill_name = s
+                        break
+            if skill_name:
+                skill_path = Path(__file__).parent.parent / "skills" / f"{skill_name}.md"
+                if skill_path.exists():
+                    domain_constraints = _extract_domain_rules(skill_path)
+
     return StageSnapshot(
         stage="L3", posture="derive", lane=lane,
         gate_status="ready",
         next_allowed_transition="L4",
         skill=skill,
         l3_subplane=current_activity, l3_mode="",
+        domain_constraints=domain_constraints,
     )
 
 

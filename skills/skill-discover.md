@@ -17,33 +17,32 @@ NEVER type questions as plain text. ALWAYS use the popup tool.
 
 You are in the source discovery phase. Your job is to find and register all relevant materials before the deep reading begins.
 
-## Check progress at any time
+## <HARD-GATE>
+Do NOT advance to L1 until the researcher confirms source coverage is adequate.
+Do NOT register sources the researcher hasn't explicitly asked for.
+Do NOT search/read code or papers directly — register them as sources first.
+</HARD-GATE>
 
-`L3/tex/flow_notebook.tex` is auto-regenerated after every subplane advance,
-candidate submission, L4 review, and promotion. The researcher can open this
-file at any time to see the current state of the research — all derivations,
-results, gaps, and validation evidence in one structured LaTeX document.
+## Checklist
+You MUST create a task for each item and complete them in order:
 
-## Step 0: Check L2 knowledge base FIRST (MANDATORY)
+1. **Check L2 first** — `aitp_query_l2_index(topics_root)`. Report: what's already known? What domains are populated? This prevents re-deriving known results.
+2. **Ask: what is the single most important source?** — ONE question via AskUserQuestion. Target the most central reference first (paper, codebase, dataset). Do NOT ask "what sources do you need?" (invites vague lists). Ask specifically: "What's the primary reference for this topic?"
+3. **Register that source** — `aitp_register_source(...)`. Fill all metadata fields: source_type, title, fidelity, physical_system, method_category, source_role, epistemic_tier. Show the result.
+4. **Record in registry** — update `L0/source_registry.md` with: Prior L2 Knowledge (from step 1), the registered source, and gaps you notice.
+5. **Ask: what next?** — ONE question: "Is there another key source, or is coverage adequate?" Repeat steps 3-4 for each source the researcher names.
+6. **Present coverage summary** — state: total sources, areas covered, identified gaps. Ask: "Ready to advance to L1, or should we hunt for sources in these gap areas?"
+7. **Advance** — `aitp_advance_to_l1(topics_root, topic_slug)` only after researcher confirms.
 
-Before searching for new sources, you MUST check what the global L2 knowledge base
-already knows about this topic. The L2 stores validated claims from ALL previous topics.
+## One Question At A Time
 
-1. Call `aitp_query_l2_index(topics_root)` — get the domain taxonomy tree
-2. Identify the domain(s) relevant to this topic
-3. Call `aitp_query_l2_index(topics_root, domain_filter="<relevant-domain>")` — get details
-4. If matching nodes exist, call `aitp_query_l2_graph(topics_root, query="<key concept>")`
-5. Record findings in `L0/source_registry.md` under "Prior L2 Knowledge":
-   - What is already known and validated?
-   - What contradictions or open questions exist?
-   - What needs new work vs. what is confirmed?
+- Each round targets ONE source or ONE gap.
+- Do not present a list of "potential sources to register." Let the researcher drive.
+- If the researcher says "直接做" or "just go": register the sources they've already mentioned, mark search_status as "focused", record deferred gaps in `## Gaps And Next Sources`, and advance.
 
-This prevents re-deriving known results and ensures new work builds on validated knowledge.
+## Source Types
 
-## What this stage is about
-
-Source discovery is not just "list some papers." It is a deliberate survey of what exists, what coverage you have, and what is missing. Sources go beyond literature:
-
+Sources go beyond literature. When the researcher names a source, help them classify it:
 - **Papers and preprints** — journal articles, arXiv preprints, conference proceedings
 - **Datasets** — experimental data, simulation outputs, benchmark results
 - **Code** — reference implementations, computational libraries, notebooks
@@ -52,32 +51,22 @@ Source discovery is not just "list some papers." It is a deliberate survey of wh
 
 ## Required artifacts
 
-- `L0/source_registry.md` — the master inventory with search methodology and coverage assessment
+- `L0/source_registry.md` — master inventory with all required headings
 - `L0/sources/*.md` — individual source files (created by `aitp_register_source`)
-
-## What to do now
-
-1. Discuss with the researcher what kind of sources are relevant to this topic.
-2. Search systematically using available tools (paper-search-mcp, arxiv-latex-mcp, knowledge-hub).
-3. Register each source with `aitp_register_source`. Be specific about source_type.
-4. Fill `L0/source_registry.md`:
-   - **Prior L2 Knowledge** — what the global knowledge base already knows
-   - **Search Methodology** — where you looked, what queries you used, what databases
-   - **Source Inventory** — grouped by type (papers, datasets, code, etc.)
-   - **Coverage Assessment** — what areas are well-covered, what is missing
-   - **Gaps And Next Sources** — what still needs to be found
-5. Set `source_count` to the actual number of registered sources.
-6. Set `search_status` to one of: `initial`, `focused`, `comprehensive`, `exhausted`.
 
 ## Gate requirements
 
-Before advancing to L1 (reading and framing), ALL of these must be true:
-
-- `L0/source_registry.md` exists with all required headings filled
-- `source_count` > 0 (at least one source registered)
+Before advancing to L1:
+- `L0/source_registry.md` exists with all required headings filled: `## Search Methodology`, `## Source Inventory`, `## Coverage Assessment`, `## Overall Verdict`, `## Gaps And Next Sources`
+- `source_count` > 0 in frontmatter
 - `search_status` is set (not empty)
+- `## Overall Verdict` has substantive content (min 200 chars — not placeholder text)
 
 ## Exit condition
 
 Move on to L1 only after the researcher confirms the source coverage is adequate.
 Call `aitp_advance_to_l1` to transition.
+
+## Check progress at any time
+
+`L3/tex/flow_notebook.tex` is auto-regenerated after every subplane advance, candidate submission, L4 review, and promotion.
