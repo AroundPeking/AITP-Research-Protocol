@@ -64,6 +64,11 @@ Before advancing to L1:
 
 ## Exit condition
 
+Before advancing, load `skill-physicist-check`:
+1. Query L2 for what's already known. Record in `## Prior L2 Knowledge`.
+2. If L2 has relevant results, flag them for the human.
+3. If nothing exists, state "no prior L2 knowledge on this topic."
+
 Move on to L1 only after the researcher confirms the source coverage is adequate.
 Call `aitp_advance_to_l1` to transition.
 

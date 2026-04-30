@@ -94,6 +94,18 @@ pass without non-empty `devils_advocate`. Answer each dimension:
 Format as a single string with these 5 sections. The MCP server
 checks that `devils_advocate` is non-empty — fill it substantively.
 
+### Step 4.5: AI Physicist Check
+
+Before filing the review, load `skill-physicist-check` and answer the four questions:
+
+1. **What does L2 already know?** Query L2 for benchmark values, prior results, regime boundaries.
+2. **Correspondence check**: Name a concrete physical limit. State expected vs actual behavior.
+3. **Anomalies**: Any surprises? Deviations? Unexpected behavior?
+4. **For the human to verify**: What's the single most critical thing to scrutinize?
+
+Record findings under `## Physicist Check` in the review. The gate checks that
+correspondence names a limit and anomalies are documented.
+
 ### Step 5: Submit L4 review
 
 ```
