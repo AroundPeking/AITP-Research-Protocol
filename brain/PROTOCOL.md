@@ -503,8 +503,11 @@ topics_root/
     ├── L1/                          # Framing artifacts (5 files)
     ├── L3/
     │   ├── <subplane>/active_*.md   # Subplane artifacts
-    │   │   # Research mode: ideation/ planning/ analysis/ result_integration/ distillation/
-    │   │   # Study mode: source_decompose/ step_derive/ gap_audit/ synthesis/
+    │   │   # Research mode: ideate/ plan/ derive/ trace-derivation/ gap-audit/ connect/ integrate/ distill/
+    │   ├── ideate/
+    │   │   ├── active_idea.md       # The ONE active idea
+    │   │   ├── idea_registry.md     # Index of ALL ideas with status
+    │   │   └── ideas/*.md           # Individual idea files (active, parked, merged, discarded)
     │   ├── candidates/*.md          # Submitted candidates
     │   └── tex/flow_notebook.tex     # Auto-generated LaTeX PDF — final per-topic output
     ├── L4/
@@ -516,6 +519,73 @@ topics_root/
         ├── index.md                 # Topic index
         └── log.md                   # Event log
 ```
+
+## Multi-Idea Model (L3 Ideation)
+
+Research topics naturally spawn multiple competing or complementary ideas. AITP
+supports tracking all of them within a single topic without premature convergence.
+
+### Directory Layout
+
+```
+L3/ideate/
+├── active_idea.md          # The ONE idea currently being pursued
+├── idea_registry.md        # Index of ALL ideas with status
+└── ideas/                  # Individual idea files
+    ├── phase1-verify.md    # Idea: first-iteration head-wing verification
+    ├── phase2-iterative.md # Idea: iterative pyatb velocity regeneration
+    └── alt-fhi-aims.md     # Idea: use FHI-aims path instead of ABACUS
+```
+
+### Idea States
+
+| Status | Meaning |
+|--------|---------|
+| `active` | Currently being pursued — promoted to `active_idea.md` |
+| `parked` | Deferred for later — valid but lower priority |
+| `merged` | Absorbed into another idea (see `merged_into`) |
+| `discarded` | Proven wrong, infeasible, or superseded (see `discard_reason`) |
+
+### Idea Lifecycle
+
+1. **Diverge**: During ideation, generate ideas freely. Each becomes `ideas/{id}.md`.
+2. **Converge**: Select ONE as active → copy to `active_idea.md`.
+3. **Execute**: Pursue active idea through plan → derive → validate.
+4. **Pivot**: When a route fails or a better one emerges, park the current idea
+   (update its status to `parked`), select another, and update `active_idea.md`.
+5. **Merge**: When two ideas converge on the same approach, merge the newer into
+   the older (set `status: merged`, `merged_into: <target-id>`).
+6. **Discard**: When an idea is proven wrong or infeasible, record the reason
+   and mark `status: discarded`. Failed ideas prevent future sessions from
+   repeating dead ends.
+
+### Idea File Frontmatter
+
+```yaml
+idea_id: phase1-verify
+status: active          # active | parked | merged | discarded
+created_at: "2026-04-29"
+parked_at: ""           # when parked (ISO datetime)
+merged_into: ""         # target idea_id if merged
+discard_reason: ""      # why discarded (required if status=discarded)
+idea_statement: >
+  Re-enable task_qsgw_band_0.cpp and verify first-iteration
+  head-wing correction on Si benchmark.
+motivation: >
+  Before attempting iterative head-wing, verify the basic
+  head-wing mechanism works in the periodic QSGW code path.
+```
+
+### Relationship to Other Topic Artifacts
+
+- **active_idea.md** is still the single source of truth for the L3 plan gate.
+  Only ONE idea is active at a time.
+- **idea_registry.md** provides the full idea history — what was tried, what
+  was rejected, what is deferred.
+- When `aitp_fork_topic` is used, the originating idea records the fork in
+  `forked_to_topic: <slug>`.
+- Failed ideas become **Failure Route** entries in `L3/derive/active_derivation.md`
+  and contribute to the "Negative Results" section of `flow_notebook.tex`.
 
 ## Tool Integration Architecture
 
