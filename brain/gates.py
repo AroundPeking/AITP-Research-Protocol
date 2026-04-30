@@ -370,7 +370,7 @@ def evaluate_l3_stage(
             if skill_name:
                 skill_path = Path(__file__).parent.parent / "skills" / f"{skill_name}.md"
                 if skill_path.exists():
-                    domain_constraints = _extract_domain_rules(skill_path)
+                    domain_constraints = _extract_domain_rules(skill_path, parse_md)
 
     return StageSnapshot(
         stage="L3", posture="derive", lane=lane,

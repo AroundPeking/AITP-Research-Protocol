@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from pathlib import Path
+from typing import Any, Callable
 
 
 # -- Frontmatter and heading checks --
@@ -169,16 +170,22 @@ def _generate_physics_next_action(
 
 # -- Domain rule extraction --
 
-def _extract_domain_rules(skill_path: Path) -> dict[str, list[str]]:
+def _extract_domain_rules(skill_path: Path, parse_md: Callable | None = None) -> dict[str, list[str]]:
     """Extract '## Hard Domain Rules' section from a domain skill file.
+
+    Args:
+        skill_path: Path to the domain skill .md file
+        parse_md: Callable(path) -> (frontmatter_dict, body_string). Required.
 
     Returns a dict with keys like 'hard_rules', 'workflow_lanes', 'smoke_test'
     containing lists of rule strings extracted from the skill body.
     """
+    if parse_md is None:
+        return {}
     if not skill_path.exists():
         return {}
     try:
-        _, body = _parse_md(skill_path)
+        _, body = parse_md(skill_path)
     except Exception:
         return {}
 
