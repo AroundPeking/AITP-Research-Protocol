@@ -587,6 +587,51 @@ motivation: >
 - Failed ideas become **Failure Route** entries in `L3/derive/active_derivation.md`
   and contribute to the "Negative Results" section of `flow_notebook.tex`.
 
+## Topic Memory — The "L2 Within a Topic"
+
+While **global L2** stores distilled, cross-topic, reusable knowledge, each topic
+also needs a **local shared memory** — a place where ALL ideas within the topic
+accumulate common experience.
+
+### Concept
+
+```
+L2 (global)         ← validated, reusable across ALL topics
+     ↑ promoted from
+MEMORY.md (topic)   ← shared across ALL ideas within ONE topic
+     ↑ feeds from
+ideas/{id}.md       ← per-idea state and learnings
+```
+
+### What Topic Memory Stores
+
+| Category | Example |
+|----------|---------|
+| **Server configs** | "df server: oneAPI 2024.2, module load, abacus_work path" |
+| **Tool paths** | "kouxiang FHI-aims: /mnt/sg001/.../aims.250403.scalapack.mpi.x" |
+| **Discovered conventions** | "ABACUS NSCF: rpa=1 must be COMMENTED OUT" |
+| **Pitfalls** | "exx_pca_threshold=1e-3 over-compresses ABF; use 10" |
+| **Dead ends** | "Internal velocity rotation approach abandoned — AO reconstruction rank-deficient" |
+| **Cross-idea insights** | "Both ABACUS and FHI-aims paths converge on replace_w_head=t, option_dielect_func=3" |
+
+### Difference from global L2
+
+| | Global L2 | Topic Memory |
+|---|---|---|
+| **Scope** | All topics | Single topic |
+| **Trust** | source_grounded → validated | "worked for us" / "didn't work" |
+| **Format** | Structured nodes + edges | Free-form Markdown sections |
+| **Promotion** | Via L4 adversarial review | Direct write from any idea |
+| **Survival** | Permanent | Survives topic archive |
+
+### Operation
+
+- Agent reads `MEMORY.md` at session start for the topic.
+- After any significant discovery (working config, dead end, pitfall), agent
+  writes a concise entry to `MEMORY.md`.
+- When switching between ideas, agent consults `MEMORY.md` for cross-idea context.
+- When an idea is discarded, its key lesson is condensed into `MEMORY.md`.
+
 ## Tool Integration Architecture
 
 External tools (MCP servers, skills) integrate into AITP via three patterns:
