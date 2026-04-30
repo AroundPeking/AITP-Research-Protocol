@@ -103,8 +103,14 @@ you must fix missing requirements before advancing.
 
 ## L2 Knowledge Graph — The Protocol's Memory
 
-L2 is the persistent, cross-topic knowledge graph. It is the **endpoint of every
-topic** and the **starting point of every new topic**.
+L2 is the persistent, cross-topic knowledge graph. It is one of **two final
+outputs per topic** — the reusable, distilled knowledge. The other is
+`L3/tex/flow_notebook.tex` (auto-generated LaTeX PDF), the **per-topic
+comprehensive research record** that captures the full lifecycle: sources,
+derivations, candidates, validation evidence, and promotion status in a single
+readable document.
+
+L2 is also the **starting point of every new topic**.
 
 ### Design Principles
 
@@ -500,6 +506,7 @@ topics_root/
     │   │   # Research mode: ideation/ planning/ analysis/ result_integration/ distillation/
     │   │   # Study mode: source_decompose/ step_derive/ gap_audit/ synthesis/
     │   ├── candidates/*.md          # Submitted candidates
+    │   └── tex/flow_notebook.tex     # Auto-generated LaTeX PDF — final per-topic output
     ├── L4/
     │   ├── validation_contract.md
     │   ├── scripts/*.py               # Validation scripts (mandatory for numeric lanes)
