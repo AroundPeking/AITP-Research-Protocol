@@ -17,6 +17,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+_aitp_repo = Path("D:/BaiduSyncdisk/repos/AITP-Research-Protocol")
+if _aitp_repo.exists() and str(_aitp_repo) not in sys.path:
+    sys.path.insert(0, str(_aitp_repo))
 
 from hook_utils import (
     _find_active_topic,
@@ -30,14 +33,10 @@ _GATEWAY_SKILL_REL = "deploy/templates/claude-code/using-aitp.md"
 
 
 def _read_gateway_skill() -> str:
-    skill_path = Path(__file__).resolve().parents[1] / _GATEWAY_SKILL_REL
+    skill_path = Path("D:/BaiduSyncdisk/repos/AITP-Research-Protocol") / _GATEWAY_SKILL_REL
     if skill_path.exists():
         return skill_path.read_text(encoding="utf-8")
     return ""
-
-
-def _escape_for_json(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
 
 
 def _output_json(context: str) -> None:
@@ -96,23 +95,24 @@ def main():
 
     # Build re-injection context
     domain_constraints = getattr(snapshot, "domain_constraints", {})
+    NL = chr(10)
     domain_block = ""
     if domain_constraints:
         rules = domain_constraints.get("hard_rules", [])
         if rules:
-            domain_block = "\\n\\n## Domain Constraints (re-injected after compaction)\\n" + "\\n".join(f"- {r}" for r in rules)
+            domain_block = f"{NL}{NL}## Domain Constraints (re-injected after compaction){NL}" + NL.join(f"- {r}" for r in rules)
 
     context = (
-        "<EXTREMELY_IMPORTANT>\\n"
-        "Context was compacted. The AITP protocol is re-injected below.\\n"
-        "Re-read the Red Flags table — all entries still apply.\\n\\n"
-        f"{_escape_for_json(skill_content)}\\n"
-        f"{domain_block}\\n"
-        "</EXTREMELY_IMPORTANT>\\n\\n"
+        f"<EXTREMELY_IMPORTANT>{NL}"
+        f"Context was compacted. The AITP protocol is re-injected below.{NL}"
+        f"Re-read the Red Flags table — all entries still apply.{NL}{NL}"
+        f"{skill_content}{NL}"
+        f"{domain_block}{NL}"
+        f"</EXTREMELY_IMPORTANT>{NL}{NL}"
         f"AITP: Compaction resume. Topic: {topic_slug} | "
         f"stage: {snapshot.stage} | posture: {snapshot.posture} | "
-        f"gate: {snapshot.gate_status}{subplane_info}\\n"
-        f"Required skill: skills/{snapshot.skill}.md\\n"
+        f"gate: {snapshot.gate_status}{subplane_info}{NL}"
+        f"Required skill: skills/{snapshot.skill}.md{NL}"
     )
     _output_json(context)
 

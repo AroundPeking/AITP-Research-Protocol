@@ -22,6 +22,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# AITP protocol repo — needed for brain.state_model imports in gate evaluation
+_aitp_repo = Path("D:/BaiduSyncdisk/repos/AITP-Research-Protocol")
+if _aitp_repo.exists() and str(_aitp_repo) not in sys.path:
+    sys.path.insert(0, str(_aitp_repo))
 
 from hook_utils import (
     _find_active_topic,
@@ -36,8 +40,8 @@ _GATEWAY_SKILL_REL = "deploy/templates/claude-code/using-aitp.md"
 
 
 def _read_gateway_skill() -> str:
-    """Read the full using-aitp gateway skill content."""
-    skill_path = Path(__file__).resolve().parents[1] / _GATEWAY_SKILL_REL
+    """Read the full using-aitp gateway skill content from the AITP repo."""
+    skill_path = Path("D:/BaiduSyncdisk/repos/AITP-Research-Protocol") / _GATEWAY_SKILL_REL
     if skill_path.exists():
         return skill_path.read_text(encoding="utf-8")
     return ""
@@ -66,30 +70,32 @@ def _build_context_injection(
         f"gate: {gate_status}{subplane_info}"
     )
 
+    NL = chr(10)  # real newline — json.dump handles the escaping
+
     domain_block = ""
     if domain_constraints:
         rules = domain_constraints.get("hard_rules", [])
         lanes = domain_constraints.get("workflow_lanes", [])
         smoke = domain_constraints.get("smoke_test", [])
         if rules or lanes or smoke:
-            domain_block = "\\n\\n## Domain Constraints (auto-injected)\\n"
+            domain_block = f"{NL}{NL}## Domain Constraints (auto-injected){NL}"
             if rules:
-                domain_block += "\\n### Hard Rules\\n" + "\\n".join(f"- {r}" for r in rules)
+                domain_block += f"{NL}### Hard Rules{NL}" + NL.join(f"- {r}" for r in rules)
             if lanes:
-                domain_block += "\\n\\n### Workflow Lanes\\n" + "\\n".join(f"- {l}" for l in lanes)
+                domain_block += f"{NL}{NL}### Workflow Lanes{NL}" + NL.join(f"- {l}" for l in lanes)
             if smoke:
-                domain_block += "\\n\\n### Smoke Test\\n" + "\\n".join(f"- {s}" for s in smoke)
+                domain_block += f"{NL}{NL}### Smoke Test{NL}" + NL.join(f"- {s}" for s in smoke)
 
     context = (
-        "<EXTREMELY_IMPORTANT>\\n"
-        "You have AITP superpowers.\\n\\n"
-        "**Below is the full content of your 'using-aitp' skill with the AITP protocol.**\\n"
-        "For all other skills, use the 'Skill' tool.\\n\\n"
-        f"{_escape_for_json(skill_content)}\\n"
-        f"{domain_block}\\n"
-        "</EXTREMELY_IMPORTANT>\\n\\n"
-        f"AITP Runtime: {status_line}\\n"
-        f"Topics root: {topics_root}\\n"
+        f"<EXTREMELY_IMPORTANT>{NL}"
+        f"You have AITP superpowers.{NL}{NL}"
+        f"**Below is the full content of your 'using-aitp' skill with the AITP protocol.**{NL}"
+        f"For all other skills, use the 'Skill' tool.{NL}{NL}"
+        f"{skill_content}{NL}"
+        f"{domain_block}{NL}"
+        f"</EXTREMELY_IMPORTANT>{NL}{NL}"
+        f"AITP Runtime: {status_line}{NL}"
+        f"Topics root: {topics_root}{NL}"
     )
     return context
 
@@ -167,24 +173,26 @@ def main():
         print(f"AITP: Workspace root: {workspace}", file=sys.stderr)
         print(f"AITP: Config will be saved to: {config_path}", file=sys.stderr)
         # Inject skill-init guidance even without a topic
+        NL = chr(10)
         context = (
-            "<EXTREMELY_IMPORTANT>\\n"
-            f"{_escape_for_json(skill_content)}\\n"
-            "</EXTREMELY_IMPORTANT>\\n\\n"
-            f"AITP: No topics root configured. Workspace root: {workspace}\\n"
-            "AITP: Use AskUserQuestion to ask the user where to store research topics.\\n"
+            f"<EXTREMELY_IMPORTANT>{NL}"
+            f"{skill_content}{NL}"
+            f"</EXTREMELY_IMPORTANT>{NL}{NL}"
+            f"AITP: No topics root configured. Workspace root: {workspace}{NL}"
+            "AITP: Use AskUserQuestion to ask the user where to store research topics.\n"
         )
         _output_json(context)
         return
 
     topic_slug = _find_active_topic(topics_root)
     if not topic_slug:
+        NL = chr(10)
         context = (
-            "<EXTREMELY_IMPORTANT>\\n"
-            f"{_escape_for_json(skill_content)}\\n"
-            "</EXTREMELY_IMPORTANT>\\n\\n"
-            f"AITP: No active topic found. Topics root: {topics_root}\\n"
-            "Use aitp_bootstrap_topic or aitp_list_topics to get started.\\n"
+            f"<EXTREMELY_IMPORTANT>{NL}"
+            f"{skill_content}{NL}"
+            f"</EXTREMELY_IMPORTANT>{NL}{NL}"
+            f"AITP: No active topic found. Topics root: {topics_root}{NL}"
+            "Use aitp_bootstrap_topic or aitp_list_topics to get started.\n"
         )
         _output_json(context)
         return
