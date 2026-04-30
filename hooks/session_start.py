@@ -47,6 +47,79 @@ def _read_gateway_skill() -> str:
     return ""
 
 
+def _read_idea_registry(topic_root: Path) -> dict | None:
+    """Read L3/ideate/idea_registry.md and return parsed idea data, or None."""
+    registry_path = topic_root / "L3" / "ideate" / "idea_registry.md"
+    if not registry_path.exists():
+        return None
+    fm, body = _parse_md(registry_path)
+    idea_count = int(fm.get("idea_count", 0))
+    active_idea = fm.get("active_idea", "")
+    if idea_count <= 1:
+        return None
+
+    # Parse the idea table from body
+    ideas = []
+    for line in body.split("\n"):
+        line = line.strip()
+        if line.startswith("|") and not line.startswith("|---") and "idea_id" not in line.lower():
+            cells = [c.strip() for c in line.split("|")[1:-1]]
+            if len(cells) >= 3:
+                ideas.append({
+                    "id": cells[0],
+                    "status": cells[1],
+                    "statement": cells[2] if len(cells) > 2 else "",
+                })
+
+    active_ideas = [i for i in ideas if i["status"] == "active"]
+    parked_ideas = [i for i in ideas if i["status"] == "parked"]
+    if not active_ideas and not parked_ideas:
+        return None
+
+    return {
+        "active": active_ideas,
+        "parked": parked_ideas,
+        "all": ideas,
+        "current_active": active_idea,
+    }
+
+
+def _build_idea_context(ideas: dict) -> str:
+    """Build context injection telling the agent to ask the user to select an idea."""
+    lines = [
+        "## Multi-Idea Topic",
+        f"This topic has {len(ideas['all'])} registered ideas.",
+    ]
+
+    active = ideas.get("active", [])
+    parked = ideas.get("parked", [])
+
+    if active:
+        lines.append(f"\n### Active ideas ({len(active)})")
+        for a in active:
+            lines.append(f"- **{a['id']}**: {a['statement'][:120]}")
+
+    if parked:
+        lines.append(f"\n### Parked ideas ({len(parked)})")
+        for p in parked:
+            lines.append(f"- **{p['id']}**: {p['statement'][:120]}")
+
+    lines.extend([
+        "",
+        "**IMPORTANT**: Before taking ANY action on this topic, you MUST:",
+        "1. Call `ToolSearch(query=\"select:AskUserQuestion\", max_results=1)` to load the tool.",
+        "2. Call `AskUserQuestion` to let the user select which idea to pursue.",
+        f"3. Include ALL ideas (active + parked) as options in the question.",
+        "4. If the user selects a parked idea, update `idea_registry.md`:",
+        "   - Set the selected idea's status to `active`",
+        "   - Set the previously active idea's status to `parked`",
+        "   - Update `active_idea` frontmatter field",
+        "5. Copy the selected idea's content to `active_idea.md`.",
+        "6. Read `MEMORY.md` for cross-idea context before proceeding.",
+        "",
+        "Do NOT start working until the user has selected an idea.",
+    ])
+    return "\n".join(lines)
 def _escape_for_json(s: str) -> str:
     """JSON-escape a string, handling the characters that matter."""
     return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
@@ -228,6 +301,14 @@ def main():
         str(topics_root),
         domain_constraints,
     )
+
+    # Inject multi-idea selection prompt if applicable
+    ideas = _read_idea_registry(root)
+    if ideas:
+        idea_context = _build_idea_context(ideas)
+        context += f"\n{idea_context}\n"
+        subplane_info += ", multi-idea: selection required"
+
     _output_json(context)
 
     # Diagnostic output to stderr

@@ -66,6 +66,26 @@ Call: mcp__aitp__aitp_get_execution_brief(topics_root="{{TOPICS_ROOT}}", topic_s
 ```
 Read the brief. It tells you exactly what to do next.
 
+### Step 3.5: Multi-idea selection (if applicable)
+If the session-start context mentions "Multi-Idea Topic", the topic has multiple registered ideas. You MUST ask the user to select which idea to pursue BEFORE doing anything else:
+
+```
+Call: AskUserQuestion(questions=[{
+    "question": "This topic has multiple ideas. Which one should I work on?",
+    "header": "Select Idea",
+    "options": [
+        {"label": "<idea1-id> (active)", "description": "<statement>"},
+        {"label": "<idea2-id> (parked)", "description": "<statement>"},
+    ],
+    "multiSelect": false,
+}])
+```
+
+After the user selects:
+- If a parked idea is selected, update `L3/ideate/idea_registry.md` frontmatter: change `active_idea` to the selected ID, swap statuses
+- Copy the selected idea's content to `active_idea.md`
+- Read `MEMORY.md` for cross-idea context
+
 ### Step 4: Ask clarification (if needed)
 **BEFORE asking ANY question to the user, you MUST load the AskUserQuestion tool first:**
 ```
