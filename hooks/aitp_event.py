@@ -37,10 +37,10 @@ def record_event(topics_root: str, topic_slug: str, event_type: str, description
             "---\n\n# Runtime Log\n\n## Events\n\n"
         )
 
-    entry = f"\n- {_now()} {event_type}"
+    event = f"{event_type}"
     if description:
-        entry += f": {description}"
-    entry += "\n"
+        event += f": {description}"
+    entry = f"\n- {_now()} {event}\n"
     text += entry
     log_path.write_text(text, encoding="utf-8")
     return str(log_path)
