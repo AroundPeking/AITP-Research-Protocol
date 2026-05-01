@@ -35,8 +35,13 @@ def _fill_l0(tmp: str, tr: Path) -> None:
          "source_count": 1, "search_status": "initial"},
         "# Source Registry\n\n## Search Methodology\nArXiv search.\n\n"
         "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n"
-        "## Overall Verdict\nNo blocking gaps for initial exploration.\n\n"
-        "## Gaps And Next Sources\nNone.\n",
+        "## Overall Verdict\nThis assessment confirms that the registered sources are "
+        "sufficient for the bounded research question. The coverage spans the core "
+        "derivation path and primary validation checks. No blocking gaps were identified. "
+        "Source quality is adequate for current research intensity.\n\n"
+        "## Gaps And Next Sources\nNone.\n\n"
+        "## Prior L2 Knowledge\nNo prior L2 knowledge exists for this test "
+        "bootstrap topic. This is a unit test fixture used to verify gate behavior.\n",
     )
     mcp_server._write_md(
         tr / "L0" / "sources" / "paper-a.md",
@@ -67,7 +72,8 @@ def _fill_l1(tmp: str, tr: Path) -> None:
         "## Deliverables\nNumeric value for E0.\n\n"
         "## Acceptance Criteria\nMatches known result within 1%.\n\n"
         "## Non-Success Conditions\nResult outside known bounds.\n\n"
-        "## Uncertainty Markers\nFinite-size effects.\n",
+        "## Uncertainty Markers\nFinite-size effects.\n\n"
+        "## L2 Cross-Reference\nNo prior L2 knowledge exists for this test topic. Unit test fixture.\n",
     )
     mcp_server._write_md(
         tr / "L1" / "source_basis.md",
