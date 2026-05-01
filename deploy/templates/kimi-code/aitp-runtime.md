@@ -254,16 +254,11 @@ Goal: move validated candidate to global L2 knowledge base.
 2. If approved, call `aitp_resolve_promotion_gate` with `decision: "approve"`.
 3. Then call `aitp_promote_candidate` to write to global L2.
 
-**Exit:** After promotion, call `aitp_advance_to_l5`.
-
-
-Goal: render flow notebook, fill provenance, draft paper.
-
-- `flow_notebook.tex` must exist.
+**Exit:** Promotion is the final protocol step. Use `aitp_generate_flow_notebook` to render a complete research notebook.
 
 **What to do:**
 1. Ensure `flow_notebook.tex` is complete and compiled.
-3. Draft the paper or final output.
+2. The research is now ready for external write-up.
 
 
 ## Key constraints

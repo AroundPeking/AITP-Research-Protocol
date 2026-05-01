@@ -17,8 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-_aitp_repo = Path("D:/BaiduSyncdisk/repos/AITP-Research-Protocol")
-if _aitp_repo.exists() and str(_aitp_repo) not in sys.path:
+_aitp_repo = Path(__file__).resolve().parent.parent
+if str(_aitp_repo) not in sys.path:
     sys.path.insert(0, str(_aitp_repo))
 
 from hook_utils import (
@@ -33,7 +33,7 @@ _GATEWAY_SKILL_REL = "deploy/templates/claude-code/using-aitp.md"
 
 
 def _read_gateway_skill() -> str:
-    skill_path = Path("D:/BaiduSyncdisk/repos/AITP-Research-Protocol") / _GATEWAY_SKILL_REL
+    skill_path = _aitp_repo / _GATEWAY_SKILL_REL
     if skill_path.exists():
         return skill_path.read_text(encoding="utf-8")
     return ""

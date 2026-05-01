@@ -6,8 +6,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from brain.state import StageSnapshot, L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES, L3_ACTIVITY_REQUIRED_HEADINGS, L3_ACTIVITY_TEMPLATES, L3_ACTIVITY_SKILL_MAP
-from brain.contracts import _L0_CONTRACTS, _L1_INTENSITY_CONTRACTS, L1_ARTIFACT_TEMPLATES
+from brain.state import StageSnapshot, L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES, L3_ACTIVITY_REQUIRED_HEADINGS, L3_ACTIVITY_TEMPLATES, L3_ACTIVITY_SKILL_MAP, PHYSICS_CHECK_FIELDS, _LANE_PHYSICS_CHECK_FIELDS
+from brain.contracts import _L0_CONTRACTS, _L1_INTENSITY_CONTRACTS, _L1_CONTRACTS
 from brain.checks import _missing_frontmatter_keys, _missing_required_headings, _check_heading_content, _check_question_semantic_validity, _extract_domain_rules
 from brain.physicist import _check_physicist_l2_lookup, _check_physicist_correspondence, _check_physicist_anomalies
 from brain.domains import _detect_domains_from_contracts, _detect_domains_from_state, resolve_domain_prerequisites, DOMAIN_ID_TO_SKILL, _SLUG_FALLBACK_PATTERNS
@@ -21,12 +21,8 @@ def evaluate_l0_stage(
     lane: str = "unspecified",
 ) -> StageSnapshot:
     """Evaluate L0 gate status by checking source registry and registered sources."""
-    # Determine discovery mode from state.md to select the right skill
     state_fm, _ = parse_md(topic_root_path / "state.md")
-    mode = state_fm.get("mode", "explore")
-    # skill-deep-research is optional. Fall back to skill-discover if not deployed.
-    _deep_research_skill = "skill-deep-research" if mode == "deep_research" else None
-    skill = _deep_research_skill or "skill-discover"
+    skill = "skill-discover"
 
     for name, posture, fields, headings in _L0_CONTRACTS:
         path = topic_root_path / "L0" / name
@@ -270,6 +266,23 @@ def evaluate_l1_stage(
                         research_intensity=research_intensity,
                     )
 
+    # L2 cross-reference check: question_contract must reference prior L2 knowledge
+    qc_path = topic_root_path / "L1" / "question_contract.md"
+    if qc_path.exists():
+        _, qc_body = parse_md(qc_path)
+        if "## L2 Cross-Reference" not in qc_body:
+            return StageSnapshot(
+                stage="L1",
+                posture="frame",
+                lane=lane,
+                gate_status="blocked_missing_field",
+                required_artifact_path=str(qc_path),
+                missing_requirements=["## L2 Cross-Reference — must record what L2 already knows about this question"],
+                next_allowed_transition="L1",
+                skill="skill-frame",
+                research_intensity=research_intensity,
+            )
+
     return StageSnapshot(
         stage="L1",
         posture="frame",
@@ -385,24 +398,32 @@ def evaluate_l3_stage(
 # -- L4 gate --
 
 def _load_manifest(topic_root_path: Path) -> dict[str, Any] | None:
-    """Load domain-manifest.md from topic's contracts/ directory."""
+    """Load domain-manifest from topic's contracts/ directory. Supports .md and .json."""
+    # Try .md format first
     manifest_path = topic_root_path / "contracts" / "domain-manifest.md"
-    if not manifest_path.exists():
-        return None
-    try:
-        text = manifest_path.read_text(encoding="utf-8")
-        if not text.startswith("---"):
-            return None
-        end = text.find("---", 3)
-        if end == -1:
-            return None
-        import yaml
-        data = yaml.safe_load(text[3:end])
-        if data and ("domain_id" in data or "repo_ref" in data):
-            return data
-    except Exception:
-        # yaml.YAMLError, OSError, or any parse failure — manifest is unreadable
-        pass
+    if manifest_path.exists():
+        try:
+            text = manifest_path.read_text(encoding="utf-8")
+            if text.startswith("---"):
+                end = text.find("---", 3)
+                if end != -1:
+                    import yaml
+                    data = yaml.safe_load(text[3:end])
+                    if data and ("domain_id" in data or "repo_ref" in data):
+                        return data
+        except Exception:
+            pass
+    # Try .json format (multi-domain convention)
+    contracts_dir = topic_root_path / "contracts"
+    if contracts_dir.is_dir():
+        for jp in sorted(contracts_dir.glob("domain-manifest.*.json")):
+            try:
+                import json
+                data = json.loads(jp.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and ("domain_id" in data or "repo_ref" in data):
+                    return data
+            except Exception:
+                pass
     return None
 
 
@@ -501,31 +522,33 @@ def evaluate_l4_stage(
             skill="skill-validate",
         )
 
-    # Adversarial counterargument check: every review must challenge at least one claim
+    # Adversarial counterargument check: pass reviews must challenge at least one claim
     for cand_path in submitted:
         slug = cand_path.stem
         review_path = review_dir / f"{slug}.md"
         if review_path.exists():
-            _, rev_body = parse_md(review_path)
-            has_counter = (
-                "## Counterargument" in rev_body
-                or "## Limitations Identified" in rev_body
-                or "## Devil's Advocate" in rev_body
-            )
-            if not has_counter:
-                return StageSnapshot(
-                    stage="L4", posture="verify", lane=lane,
-                    gate_status="blocked_missing_field",
-                    required_artifact_path=str(review_path),
-                    missing_requirements=[
-                        f"L4 review for {slug} must include a counterargument: "
-                        "## Counterargument, ## Limitations Identified, or "
-                        "## Devil's Advocate section that challenges at least "
-                        "one specific claim from the candidate."
-                    ],
-                    next_allowed_transition="L3",
-                    skill="skill-validate",
+            rfm, rev_body = parse_md(review_path)
+            # Only require counterargument for pass outcomes
+            if rfm.get("outcome") == "pass":
+                has_counter = (
+                    "## Counterargument" in rev_body
+                    or "## Limitations Identified" in rev_body
+                    or "## Devil's Advocate" in rev_body
                 )
+                if not has_counter:
+                    return StageSnapshot(
+                        stage="L4", posture="verify", lane=lane,
+                        gate_status="blocked_missing_field",
+                        required_artifact_path=str(review_path),
+                        missing_requirements=[
+                            f"L4 review for {slug} must include a counterargument: "
+                            "## Counterargument, ## Limitations Identified, or "
+                            "## Devil's Advocate section that challenges at least "
+                            "one specific claim from the candidate."
+                        ],
+                        next_allowed_transition="L3",
+                        skill="skill-validate",
+                    )
 
     # Physics check completeness: every review must cover the required check fields.
     # formal_theory lane requires all 8; other lanes require the original 5.

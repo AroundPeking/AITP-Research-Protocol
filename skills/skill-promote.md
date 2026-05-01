@@ -63,7 +63,7 @@ for L2 promotion approval.
    - Read `L3/candidates/<id>.md`
    - Change frontmatter `status: revision_needed`
    - Add the human's feedback to the body
-   - Return to derive mode (skill-derive)
+   - Return to derive mode (skill-l3-analyze)
 
 5. **After all candidates are resolved**, update topic status:
    ```

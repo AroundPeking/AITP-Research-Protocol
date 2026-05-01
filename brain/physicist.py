@@ -48,6 +48,8 @@ def _check_physicist_correspondence(body: str, lane: str) -> list[str]:
     if idx == -1:
         idx = body.find("## Limiting Case Check")
     if idx == -1:
+        idx = body.find("## Physicist Check")
+    if idx == -1:
         return ["Missing correspondence/limiting case check"]
 
     content_start = body.find("\n", idx) + 1

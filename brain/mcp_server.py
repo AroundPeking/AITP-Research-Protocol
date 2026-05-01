@@ -211,21 +211,31 @@ _SKILL_MAP = {
 
 
 def _load_domain_manifest(topic_root_path: Path) -> dict[str, Any] | None:
-    """Load domain-manifest.md from the topic's contracts/ directory.
+    """Load domain-manifest from the topic's contracts/ directory.
 
     Returns the parsed frontmatter dict, or None if no manifest exists.
+    Supports both .md (frontmatter) and .json formats.
     Accepts manifests with either domain_id (full domain skill) or
     repo_ref (code binding only).
     """
+    # Try .md format first
     manifest_path = topic_root_path / "contracts" / "domain-manifest.md"
-    if not manifest_path.exists():
-        return None
-    try:
-        fm, _ = _parse_md(manifest_path)
-        if "domain_id" in fm or "repo_ref" in fm:
-            return fm
-    except Exception:
-        pass
+    if manifest_path.exists():
+        try:
+            fm, _ = _parse_md(manifest_path)
+            if "domain_id" in fm or "repo_ref" in fm:
+                return fm
+        except Exception:
+            pass
+    # Try .json format (multi-domain convention)
+    for jp in sorted((topic_root_path / "contracts").glob("domain-manifest.*.json")) if (topic_root_path / "contracts").is_dir() else []:
+        try:
+            import json
+            data = json.loads(jp.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and ("domain_id" in data or "repo_ref" in data):
+                return data
+        except Exception:
+            pass
     return None
 
 
@@ -269,7 +279,7 @@ def aitp_list_topics(topics_root: str) -> list[dict[str, Any]]:
     Use this BEFORE aitp_get_status when you need to discover which topic
     matches the user's research request.
     """
-    root = Path(topics_root)
+    root = topics_dir(topics_root)
     if not root.is_dir():
         return []
     results = []
@@ -449,7 +459,11 @@ def aitp_get_status(topics_root: str, topic_slug: str) -> dict[str, Any]:
         "missing_requirements": snapshot.missing_requirements,
         "sources_count": len(list(src_dir.glob("*.md"))) if src_dir.is_dir() else 0,
         "candidates_count": len(list(cand_dir.glob("*.md"))) if cand_dir.is_dir() else 0,
-        "l2_count": len(list(global_l2.glob("*.md"))) if global_l2.is_dir() else 0,
+        "l2_count": (
+            (len(list(global_l2.glob("*.md"))) if global_l2.is_dir() else 0)
+            + (len(list((global_l2 / "entries").glob("*.md"))) - 1 if (global_l2 / "entries").is_dir() else 0)
+            + (len(list((global_l2 / "graph" / "nodes").glob("*.md"))) if (global_l2 / "graph" / "nodes").is_dir() else 0)
+        ),
         "domain_prerequisites": domain_prereqs,
         "repo_ref": {},
         "updated_at": fm.get("updated_at", ""),
@@ -553,7 +567,7 @@ def aitp_bootstrap_topic(
         "kind": "session_log", "topic_slug": safe_slug, "created_at": _now(),
     }, f"# Session Log: {title}\n\n## Sessions\n")
     # Global L2 surfaces
-    global_l2 = base.parent / "L2" if base.name == "topics" else Path(topics_root).parent / "L2"
+    global_l2 = base / "L2"
     global_l2.mkdir(parents=True, exist_ok=True)
     if not (global_l2 / "index.md").exists():
         _write_md(global_l2 / "index.md", {
@@ -1886,6 +1900,55 @@ def aitp_promote_candidate(
     except Exception:
         pass  # EFT matching is advisory only — never block promotion
 
+    # Create/update a v5 faceted entry for this promoted claim
+    try:
+        entries_dir = global_l2 / "entries"
+        entries_dir.mkdir(parents=True, exist_ok=True)
+        entry_path = entries_dir / f"{slug}.md"
+
+        # Map trust_basis to entry status
+        trust_to_status = {
+            "validated": "verified",
+            "independently_verified": "verified",
+            "multi_source_confirmed": "consistent",
+            "source_grounded": "unverified",
+        }
+        entry_status = trust_to_status.get(trust_basis, "unverified")
+
+        entry_fm: dict[str, Any] = {
+            "entry_id": slug,
+            "role": "claim",
+            "title": fm.get("title", slug),
+            "lane": [fm.get("lane", _normalize_lane("code_method"))],
+            "status": entry_status,
+            "regime": fm.get("regime_of_validity", ""),
+            "claim_type": mapped_type if mapped_type in ("theorem", "result", "approximation",
+                          "negative_result", "definition", "equation") else "result",
+            "statement": fm.get("claim", ""),
+            "observable": fm.get("observable", ""),
+            "evidence_type": "code_derived" if _normalize_lane(fm.get("lane", "code_method")) == "code_method" else "analytic_proof",
+            "source_ref": f"topic:{topic_slug}/candidate:{slug}",
+            "updated": _now(),
+            "version": 1,
+            "created_at": _now(),
+        }
+        entry_body = (
+            f"# {fm.get('title', slug)}\n\n"
+            f"**Claim:** {fm.get('claim', '')}\n\n"
+            f"**Trust:** {trust_basis} (promoted from topic:{topic_slug})\n\n"
+            f"## Relationships\n"
+            f"- promoted_from: topic:{topic_slug}\n"
+        )
+        if entry_path.exists():
+            existing_entry_fm, _ = _parse_md(entry_path)
+            entry_fm["version"] = int(existing_entry_fm.get("version", 1)) + 1
+        _write_md(entry_path, entry_fm, entry_body)
+        _rebuild_entry_index(global_l2)
+        _append_to_topic_log(root, f"created L2 entry {slug} from promoted candidate")
+    except Exception as e:
+        _append_to_topic_log(root, f"entry creation for {slug} failed: {e}")
+        # Don't block promotion — entry creation is additive
+
     state_fm, _ = _parse_md(root / "state.md")
     _auto_refresh_flow_notebook(root, state_fm)
     return (
@@ -1938,7 +2001,7 @@ def aitp_fast_track_claim(
 
     root = _topic_root(topics_root, topic_slug)
     slug = _slugify(claim)[:60]
-    candidate_id = f"fast_{slug}"
+    candidate_id = f"fast-{slug}"
 
     # Write candidate
     cand_fm = {
@@ -1966,7 +2029,7 @@ def aitp_fast_track_claim(
         f"- A concept definition directly traceable to source\n\n"
         f"Trust basis: source_grounded (not validated — no L4 review)\n"
     )
-    cand_path = root / "L3" / "candidates" / f"{slug}.md"
+    cand_path = root / "L3" / "candidates" / f"{candidate_id}.md"
     _write_md(cand_path, cand_fm, cand_body)
 
     # Update state counters
@@ -1974,12 +2037,12 @@ def aitp_fast_track_claim(
     state_fm["candidates_count"] = state_fm.get("candidates_count", 0) + 1
     _write_md(root / "state.md", state_fm, state_body)
 
-    _append_to_topic_log(root, f"fast-track claim '{claim[:80]}' awaiting approval ({slug})")
+    _append_to_topic_log(root, f"fast-track claim '{claim[:80]}' awaiting approval ({candidate_id})")
 
     return _GateResult({
         "message": (
             f"Fast-track candidate created: '{claim[:80]}'\n"
-            f"  candidate_id: {slug}\n"
+            f"  candidate_id: {candidate_id}\n"
             f"  trust_basis: source_grounded (abbreviated path)\n"
             f"  regime: {regime_of_validity or '(unspecified)'}\n\n"
             f"HUMAN APPROVAL REQUIRED before L2 promotion."
@@ -2074,6 +2137,36 @@ def aitp_resolve_conflict(
             target = global_l2 / f"{slug}.md"
             if not target.exists():
                 _write_md(target, new_fm, new_body)
+
+        # Also supersede old graph node and entry, create new entry
+        try:
+            old_node = global_l2 / "graph" / "nodes" / f"{slug}.md"
+            if old_node.exists():
+                old_nfm, old_nbody = _parse_md(old_node)
+                old_nfm["superseded_at"] = _now()
+                old_nfm["superseded_by"] = slug
+                _write_md(sup_dir / f"{slug}_node_v{old_nfm.get('version',1)}.md", old_nfm, old_nbody)
+                old_node.unlink()
+            old_entry = global_l2 / "entries" / f"{slug}.md"
+            if old_entry.exists():
+                old_efm, old_ebody = _parse_md(old_entry)
+                old_efm["superseded_at"] = _now()
+                _write_md(sup_dir / f"{slug}_entry_v{old_efm.get('version',1)}.md", old_efm, old_ebody)
+                old_entry.unlink()
+            # Create new v5 entry for accepted claim
+            entries_dir = global_l2 / "entries"
+            entries_dir.mkdir(parents=True, exist_ok=True)
+            entry_fm = {
+                "entry_id": slug, "role": "claim", "title": str(new_fm.get("title", slug)),
+                "lane": [], "status": "verified", "regime": str(new_fm.get("regime_of_validity", "")),
+                "claim_type": "result", "statement": str(new_fm.get("claim", "")),
+                "source_ref": f"topic:{topic_slug}/conflict-resolution",
+                "updated": _now(), "version": 1, "created_at": _now(),
+            }
+            _write_md(entries_dir / f"{slug}.md", entry_fm, f"# {new_fm.get('title', slug)}\n\n**Claim:** {new_fm.get('claim', '')}\n\n## Relationships\n- supersedes: prior conflicting claim\n")
+            _rebuild_entry_index(global_l2)
+        except Exception:
+            pass
 
         cfm["status"] = "resolved"
         cfm["resolution"] = "accept_new"
@@ -2364,7 +2457,7 @@ def aitp_l4_background_submit(
         estimated_wall_time: Expected duration (e.g. "2h", "30m")
         notes: What this test is validating
     """
-    root = Path(topics_root) / topic_slug
+    root = _topic_root(topics_root, topic_slug)
     state_path = root / "state.md"
     if not state_path.exists():
         return {"error": f"Topic {topic_slug} not found"}
@@ -2378,10 +2471,9 @@ def aitp_l4_background_submit(
     fm["updated_at"] = _now()
 
     _write_md(state_path, fm, body)
-    _append_to_topic_log(root, "L4_background_submit",
-                         f"L4 validation submitted as background job: {job_id} on {host} ({estimated_wall_time})")
+    _append_to_topic_log(root, f"L4_background_submit: {job_id} on {host} ({estimated_wall_time})")
 
-    _auto_refresh_flow_notebook(topics_root, fm)
+    _auto_refresh_flow_notebook(root, fm)
 
     return {
         "status": "submitted",
@@ -2413,7 +2505,7 @@ def aitp_l4_check_results(
         job_status: Status of the completed job ("success", "failed", "timeout")
         output_summary: Brief summary of results
     """
-    root = Path(topics_root) / topic_slug
+    root = _topic_root(topics_root, topic_slug)
     state_path = root / "state.md"
     if not state_path.exists():
         return {"error": f"Topic {topic_slug} not found"}
@@ -2430,8 +2522,7 @@ def aitp_l4_check_results(
     fm["updated_at"] = _now()
 
     _write_md(state_path, fm, body)
-    _append_to_topic_log(root, "L4_check_results",
-                         f"L4 background job completed: {job_status}. Returning to L4 verification.")
+    _append_to_topic_log(root, f"L4_check_results: background job {job_status}. Returning to L4 verification.")
 
     return {
         "previous_status": old_status,
@@ -2484,7 +2575,7 @@ def aitp_record_numerical_result(
         literature_source: Reference for literature value
         agreement_status: "agrees", "deviates", "inconclusive", or empty
     """
-    root = Path(topics_root) / topic_slug
+    root = _topic_root(topics_root, topic_slug)
     outputs_dir = root / "L4" / "outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2525,7 +2616,7 @@ def aitp_record_numerical_result(
     )
 
     _write_md(result_path, fm, body)
-    _auto_refresh_flow_notebook(topics_root, _parse_md(root / "state.md")[0])
+    _auto_refresh_flow_notebook(root, _parse_md(root / "state.md")[0])
 
     return (
         f"Recorded numerical result '{observable}': {computed_value} ± {uncertainty} {units} "
@@ -3233,6 +3324,8 @@ def aitp_submit_l4_review(
                 {"label": "Abandon candidate", "description": "Discard this candidate and try a different approach."},
             ],
         }
+    state_fm["l4_cycle_count"] = cycle
+    _write_md(root / "state.md", state_fm, _parse_md(root / "state.md")[1])
     _auto_refresh_flow_notebook(root, state_fm)
     return _GateResult(result)
 
@@ -3714,8 +3807,14 @@ def _append_to_topic_log(root: Path, event: str) -> None:
 
 
 def _global_l2_path(topics_root: str) -> Path:
+    """Return the global L2 directory under the resolved topics directory.
+
+    The L2 directory lives alongside topic directories, not outside the topics root.
+    This is the single source of truth for all L2 data: promoted candidates,
+    graph nodes/edges/towers, and v5 entries.
+    """
     base = topics_dir(topics_root)
-    return base.parent / "L2" if base.name == "topics" else Path(topics_root).parent / "L2"
+    return base / "L2"
 
 
 @mcp.tool()
@@ -3746,8 +3845,6 @@ def aitp_query_l2(
             })
 
     for l2_path in sorted(global_l2.glob("*.md")):
-        if l2_path.parent.name == "conflicts":
-            continue
         fm, body = _parse_md(l2_path)
         claim_text = str(fm.get("claim", ""))
         title = str(fm.get("title", ""))
@@ -3766,13 +3863,64 @@ def aitp_query_l2(
             "version": fm.get("version", 1),
             "promoted_at": fm.get("promoted_at", ""),
             "relevance": round(score, 3),
+            "source": "promoted_candidate",
         })
+
+    # Scan v5 entries for richer structured knowledge
+    entries_dir = global_l2 / "entries"
+    if entries_dir.is_dir():
+        for ep in sorted(entries_dir.glob("*.md")):
+            fm, body = _parse_md(ep)
+            if ep.stem == "INDEX":
+                continue
+            entry_role = str(fm.get("role", ""))
+            title = str(fm.get("title", ""))
+            # Collect searchable text based on role
+            search_text = title
+            if entry_role == "claim":
+                search_text += " " + str(fm.get("statement", ""))
+                search_text += " " + str(fm.get("mathematical_expression", ""))
+            elif entry_role == "pitfall":
+                search_text += " " + str(fm.get("symptom", ""))
+                search_text += " " + str(fm.get("cause", ""))
+            elif entry_role == "question":
+                search_text += " " + str(fm.get("question_statement", ""))
+            elif entry_role == "method":
+                search_text += " " + str(fm.get("steps", ""))
+            elif entry_role == "system":
+                search_text += " " + str(fm.get("formula_or_identifier", ""))
+            if query:
+                score = semantic_score(query, [search_text, body])
+                if score < 0.15:
+                    continue
+            else:
+                score = 1.0
+            results.append({
+                "candidate_id": fm.get("entry_id", ep.stem),
+                "title": title,
+                "entry_role": entry_role,
+                "claim": (
+                    str(fm.get("statement", "")) or
+                    str(fm.get("question_statement", "")) or
+                    str(fm.get("symptom", "")) or
+                    str(fm.get("formula_or_identifier", "")) or
+                    title
+                ),
+                "trust_basis": fm.get("status", ""),
+                "trust_scope": fm.get("regime", ""),
+                "version": 1,
+                "promoted_at": fm.get("updated", ""),
+                "relevance": round(score, 3),
+                "source": "v5_entry",
+            })
 
     results.sort(key=lambda r: r.get("relevance", 0.0), reverse=True)
     return {
         "results": results,
         "conflicts": conflicts,
         "count": len(results),
+        "entry_count": sum(1 for r in results if r.get("source") == "v5_entry"),
+        "candidate_count": sum(1 for r in results if r.get("source") == "promoted_candidate"),
         "authority_level": "L2_validated_reusable",
     }
 
@@ -3793,12 +3941,21 @@ def aitp_query_l2_index(
     """
     global_l2 = _global_l2_path(topics_root)
     nodes_dir = global_l2 / "graph" / "nodes"
+    entries_dir = global_l2 / "entries"
     if not nodes_dir.is_dir():
+        has_entries = entries_dir.is_dir() and any(
+            ep.stem != "INDEX" for ep in entries_dir.glob("*.md")
+        )
         return {
             "domains": {},
             "total_nodes": 0,
             "valid_domains": sorted(VALID_DOMAINS),
-            "message": "L2 graph is empty  --  no validated knowledge yet. Use aitp_quick_l2_concept to seed foundational concepts.",
+            "message": (
+                "L2 graph is empty — no validated knowledge yet. "
+                "Use aitp_quick_l2_concept to seed foundational concepts."
+                + (" However, v5 entries exist — use aitp_query_entries to search them."
+                   if has_entries else "")
+            ),
         }
 
     # Scan all nodes and group by domain
@@ -3870,7 +4027,165 @@ def aitp_query_l2_index(
         "domain_list": sorted(domains.keys()),
         "total_domains": len(domains),
         "total_nodes": sum(d["node_count"] for d in domains.values()),
-        "hint": "Use aitp_query_l2_graph to drill into specific nodes.",
+        "hint": "Use aitp_query_l2_graph to drill into specific nodes, or aitp_query_entries for v5 faceted queries.",
+    }
+
+
+@mcp.tool()
+def aitp_query_entries(
+    topics_root: str,
+    role: str = "",
+    system: str = "",
+    status: str = "",
+    query: str = "",
+) -> dict[str, Any]:
+    """Query L2 v5 faceted entries by role, system, status, or free text.
+
+    This is the PRIMARY L2 query tool for physicist workflow patterns:
+    - "What's known about system X?" → role="claim", system="X"
+    - "What methods exist for this?" → role="method"
+    - "Known pitfalls?" → role="pitfall"
+    - "Open questions?" → role="question"
+    - "Verified claims?" → role="claim", status="verified"
+
+    Entries use the v5 faceted schema with five roles:
+    - claim: statements about nature (theorem, result, equation, definition, ...)
+    - system: physical systems (material, hamiltonian, field_theory, ...)
+    - method: techniques and workflows (code, numerics, analytics, ...)
+    - pitfall: known failure modes (symptom + cause + fix)
+    - question: open research problems (question + competing hypotheses)
+
+    Use aitp_query_entries BEFORE aitp_query_l2_graph — entries are the
+    primary knowledge store. Drill into graph nodes for theoretical relationships.
+    """
+    global_l2 = _global_l2_path(topics_root)
+    entries_dir = global_l2 / "entries"
+
+    if not entries_dir.is_dir():
+        return {
+            "entries": [],
+            "count": 0,
+            "message": "No entries directory found. Create entries with aitp_create_entry or promote candidates.",
+        }
+
+    results = []
+    for ep in sorted(entries_dir.glob("*.md")):
+        if ep.stem == "INDEX":
+            continue
+        fm, body = _parse_md(ep)
+        entry_role = str(fm.get("role", ""))
+        entry_title = str(fm.get("title", ""))
+
+        # Filter by role
+        if role and entry_role != role:
+            continue
+
+        # Filter by status
+        entry_status = str(fm.get("status", ""))
+        if status and entry_status != status:
+            continue
+
+        # Filter by system (checks relationships and system_id fields)
+        if system:
+            system_match = False
+            # Check if this entry relates to the target system
+            sys_id = str(fm.get("system_id", "")).lower()
+            if system.lower() in sys_id:
+                system_match = True
+            # Check title for system name
+            if system.lower() in entry_title.lower():
+                system_match = True
+            # Check body for system slug or name
+            if f"system-{system}" in body.lower() or system.lower() in body.lower():
+                system_match = True
+            # Check relationships section
+            rel_section = body.find("## Relationships")
+            if rel_section != -1:
+                rel_text = body[rel_section:]
+                if system.lower() in rel_text.lower():
+                    system_match = True
+            if not system_match:
+                continue
+
+        # Free text search
+        if query:
+            search_text = entry_title
+            if entry_role == "claim":
+                search_text += " " + str(fm.get("statement", ""))
+                search_text += " " + str(fm.get("mathematical_expression", ""))
+                search_text += " " + str(fm.get("claim_type", ""))
+            elif entry_role == "pitfall":
+                search_text += " " + str(fm.get("symptom", ""))
+                search_text += " " + str(fm.get("cause", ""))
+                search_text += " " + str(fm.get("fix", ""))
+            elif entry_role == "question":
+                search_text += " " + str(fm.get("question_statement", ""))
+            elif entry_role == "method":
+                search_text += " " + str(fm.get("method_type", ""))
+                search_text += " " + str(fm.get("toolchain", ""))
+                search_text += " " + str(fm.get("steps", ""))
+            elif entry_role == "system":
+                search_text += " " + str(fm.get("system_type", ""))
+                search_text += " " + str(fm.get("formula_or_identifier", ""))
+                search_text += " " + str(fm.get("parameters", ""))
+
+            score = semantic_score(query, [search_text, body])
+            if score < 0.15:
+                continue
+            relevance = round(score, 3)
+        else:
+            relevance = 1.0
+
+        # Build entry result with role-specific fields
+        entry_result = {
+            "entry_id": fm.get("entry_id", ep.stem),
+            "role": entry_role,
+            "title": entry_title,
+            "status": entry_status,
+            "lane": fm.get("lane", []),
+            "regime": fm.get("regime", ""),
+            "source_ref": fm.get("source_ref", ""),
+            "updated": fm.get("updated", ""),
+            "relevance": relevance,
+        }
+
+        # Role-specific facet exposure
+        if entry_role == "claim":
+            entry_result["claim_type"] = fm.get("claim_type", "")
+            entry_result["statement"] = fm.get("statement", "")
+            entry_result["observable"] = fm.get("observable", "")
+            entry_result["evidence_type"] = fm.get("evidence_type", "")
+        elif entry_role == "system":
+            entry_result["system_type"] = fm.get("system_type", "")
+            entry_result["formula_or_identifier"] = fm.get("formula_or_identifier", "")
+            entry_result["parameters"] = fm.get("parameters", "")
+            entry_result["reference_values"] = fm.get("reference_values", {})
+        elif entry_role == "method":
+            entry_result["method_type"] = fm.get("method_type", "")
+            entry_result["toolchain"] = fm.get("toolchain", [])
+            entry_result["steps"] = fm.get("steps", [])
+            entry_result["compatibility"] = fm.get("compatibility", {})
+            entry_result["resource_estimate"] = fm.get("resource_estimate", "")
+        elif entry_role == "pitfall":
+            entry_result["symptom"] = fm.get("symptom", "")
+            entry_result["cause"] = fm.get("cause", "")
+            entry_result["fix"] = fm.get("fix", "")
+            entry_result["affects_methods"] = fm.get("affects_methods", [])
+        elif entry_role == "question":
+            entry_result["question_statement"] = fm.get("question_statement", "")
+            entry_result["competing_hypotheses"] = fm.get("competing_hypotheses", [])
+
+        results.append(entry_result)
+
+    # Sort: verified first, then by relevance
+    status_rank = {"verified": 0, "consistent": 1, "unverified": 2, "failed": 3, "conjectured": 4}
+    results.sort(key=lambda r: (status_rank.get(r.get("status", ""), 5), -r.get("relevance", 0)))
+
+    return {
+        "entries": results,
+        "count": len(results),
+        "roles_present": list(set(r["role"] for r in results)),
+        "authority_level": "L2_entries_v5",
     }
 
 
@@ -3880,9 +4195,9 @@ def aitp_query_l2_index(
 
 
 def _ensure_l2_graph_dirs(topics_root: str) -> Path:
-    """Ensure L2/graph/ directories exist and return the graph root."""
+    """Ensure L2/graph/ and L2/entries/ directories exist and return the L2 root."""
     global_l2 = _global_l2_path(topics_root)
-    for sub in ["graph/nodes", "graph/edges", "graph/towers", "graph/diagrams", "graph/steps"]:
+    for sub in ["entries", "templates", "graph/nodes", "graph/edges", "graph/towers", "graph/diagrams", "graph/steps"]:
         (global_l2 / sub).mkdir(parents=True, exist_ok=True)
     return global_l2
 
@@ -4012,6 +4327,58 @@ def aitp_create_l2_node(
         f"## Open Questions\n"
     )
     _write_md(node_path, fm, body)
+
+    # Auto-create corresponding v5 entry for mappable node types
+    _NODE_TYPE_TO_ENTRY: dict[str, str] = {
+        "concept": "claim", "theorem": "claim", "result": "claim",
+        "approximation": "claim", "negative_result": "claim",
+        "definition": "claim", "equation": "claim",
+        "assumption_card": "claim", "proof_fragment": "claim",
+        "technique": "method", "open_question": "question",
+    }
+    if node_type in _NODE_TYPE_TO_ENTRY:
+        try:
+            entry_role = _NODE_TYPE_TO_ENTRY[node_type]
+            entries_dir = global_l2 / "entries"
+            entries_dir.mkdir(parents=True, exist_ok=True)
+            entry_path = entries_dir / f"{slug}.md"
+            entry_fm: dict[str, Any] = {
+                "entry_id": slug,
+                "role": entry_role,
+                "title": title,
+                "lane": [],
+                "status": "unverified",
+                "regime": regime_of_validity,
+                "source_ref": source_ref,
+                "updated": _now(),
+                "version": 1,
+                "created_at": _now(),
+            }
+            if entry_role == "claim":
+                entry_fm["claim_type"] = node_type if node_type in (
+                    "theorem", "result", "approximation", "negative_result",
+                    "definition", "equation"
+                ) else "definition"
+                entry_fm["statement"] = physical_meaning
+                entry_fm["mathematical_expression"] = mathematical_expression
+            elif entry_role == "method":
+                entry_fm["method_type"] = "analytics" if "analytic" in physical_meaning.lower() else "numerics"
+            elif entry_role == "question":
+                entry_fm["question_statement"] = physical_meaning
+            entry_body = (
+                f"# {title}\n\n"
+                f"{physical_meaning}\n\n"
+                f"## Relationships\n"
+                f"- auto_generated_from: graph node {slug}\n"
+            )
+            if entry_path.exists():
+                existing_efm, _ = _parse_md(entry_path)
+                entry_fm["version"] = int(existing_efm.get("version", 1)) + 1
+            _write_md(entry_path, entry_fm, entry_body)
+            _rebuild_entry_index(global_l2)
+        except Exception:
+            pass  # entry creation is additive; never block graph node creation
+
     return f"Created L2 graph node {slug} (type={node_type}, v{fm['version']})"
 
 
@@ -4064,7 +4431,245 @@ def aitp_update_l2_node(
     fm["updated_at"] = _now()
     fm["version"] = int(fm.get("version", 1)) + 1
     _write_md(node_path, fm, body)
+
+    # Sync update to corresponding v5 entry if it exists
+    try:
+        entry_path = global_l2 / "entries" / f"{slug}.md"
+        if entry_path.exists():
+            efm, ebody = _parse_md(entry_path)
+            if physical_meaning is not None:
+                if efm.get("role") == "claim":
+                    efm["statement"] = physical_meaning
+                elif efm.get("role") == "question":
+                    efm["question_statement"] = physical_meaning
+            if mathematical_expression is not None and efm.get("role") == "claim":
+                efm["mathematical_expression"] = mathematical_expression
+            if regime_of_validity is not None:
+                efm["regime"] = regime_of_validity
+            if trust_level is not None:
+                trust_to_status = {"validated": "verified", "independently_verified": "verified",
+                                   "multi_source_confirmed": "consistent", "source_grounded": "unverified"}
+                efm["status"] = trust_to_status.get(highest if trust_level else "source_grounded", "unverified")
+            efm["updated"] = _now()
+            efm["version"] = int(efm.get("version", 1)) + 1
+            _write_md(entry_path, efm, ebody)
+    except Exception:
+        pass
+
     return f"Updated L2 node {slug} (v{fm['version']})"
+
+
+@mcp.tool()
+def aitp_create_entry(
+    topics_root: str,
+    entry_id: str,
+    role: str,
+    title: str,
+    source_ref: str,
+    status: str = "unverified",
+    lane: list[str] | None = None,
+    regime: str = "",
+    # Role-specific fields (only relevant fields for the given role are used)
+    claim_type: str = "",
+    statement: str = "",
+    mathematical_expression: str = "",
+    observable: str = "",
+    evidence_type: str = "",
+    system_type: str = "",
+    formula_or_identifier: str = "",
+    parameters: str = "",
+    reference_values: str = "",
+    method_type: str = "",
+    toolchain: str = "",
+    steps: str = "",
+    compatibility: str = "",
+    resource_estimate: str = "",
+    symptom: str = "",
+    cause: str = "",
+    fix: str = "",
+    affects_methods: str = "",
+    question_statement: str = "",
+    competing_hypotheses: str = "",
+    body_content: str = "",
+    relationships: str = "",
+) -> str:
+    """Create or update a v5 faceted L2 entry.
+
+    Entries are the primary L2 knowledge store. Five roles:
+    - claim: statement about nature → use claim_type, statement, mathematical_expression, observable, evidence_type
+    - system: physical system → use system_type, formula_or_identifier, parameters, reference_values
+    - method: technique/workflow → use method_type, toolchain, steps, compatibility, resource_estimate
+    - pitfall: known failure → use symptom, cause, fix, affects_methods
+    - question: open problem → use question_statement, competing_hypotheses
+
+    source_ref is REQUIRED. Every entry must have provenance.
+    body_content: Markdown body (all sections after the frontmatter).
+    relationships: text for the ## Relationships section (e.g. "- derives_from: other-entry-id").
+    """
+    VALID_ROLES = {"claim", "system", "method", "pitfall", "question"}
+    if role not in VALID_ROLES:
+        return f"Invalid role '{role}'. Valid: {sorted(VALID_ROLES)}"
+
+    if not source_ref or not source_ref.strip():
+        return "source_ref is REQUIRED for L2 entries. Every entry must have provenance."
+
+    global_l2 = _ensure_l2_graph_dirs(topics_root)
+    slug = _slugify(entry_id)
+    entry_path = global_l2 / "entries" / f"{slug}.md"
+
+    # Check for existing entry (merge scenario)
+    existing_version = 0
+    if entry_path.exists():
+        existing_fm, _ = _parse_md(entry_path)
+        existing_version = int(existing_fm.get("version", 1))
+
+    fm: dict[str, Any] = {
+        "entry_id": slug,
+        "role": role,
+        "title": title,
+        "lane": lane or [],
+        "status": status,
+        "regime": regime,
+        "source_ref": source_ref,
+        "updated": _now(),
+        "version": existing_version + 1,
+        "created_at": existing_fm.get("created_at", _now()) if entry_path.exists() else _now(),
+    }
+
+    # Role-specific frontmatter
+    if role == "claim":
+        fm["claim_type"] = claim_type
+        fm["statement"] = statement
+        fm["mathematical_expression"] = mathematical_expression
+        fm["observable"] = observable
+        fm["evidence_type"] = evidence_type
+    elif role == "system":
+        fm["system_type"] = system_type
+        fm["formula_or_identifier"] = formula_or_identifier
+        fm["parameters"] = parameters
+        if reference_values:
+            fm["reference_values"] = reference_values
+    elif role == "method":
+        fm["method_type"] = method_type
+        if toolchain:
+            fm["toolchain"] = [t.strip() for t in toolchain.split(",")]
+        if steps:
+            fm["steps"] = [s.strip() for s in steps.split("\n") if s.strip()]
+        if compatibility:
+            fm["compatibility"] = compatibility
+        if resource_estimate:
+            fm["resource_estimate"] = resource_estimate
+    elif role == "pitfall":
+        fm["symptom"] = symptom
+        fm["cause"] = cause
+        fm["fix"] = fix
+        if affects_methods:
+            fm["affects_methods"] = [m.strip() for m in affects_methods.split(",")]
+    elif role == "question":
+        fm["question_statement"] = question_statement
+        if competing_hypotheses:
+            fm["competing_hypotheses"] = [h.strip() for h in competing_hypotheses.split("\n") if h.strip()]
+
+    # Build body
+    body = f"# {title}\n\n"
+    if body_content:
+        body += body_content
+    else:
+        if role == "claim":
+            body += f"**Claim:** {statement}\n\n"
+        elif role == "system":
+            body += f"**Identifier:** {formula_or_identifier}\n\n"
+        elif role == "method":
+            body += f"**Toolchain:** {toolchain}\n\n"
+        elif role == "pitfall":
+            body += f"**Symptom:** {symptom}\n\n**Cause:** {cause}\n\n**Fix:** {fix}\n\n"
+        elif role == "question":
+            body += f"**Question:** {question_statement}\n\n"
+
+    body += "\n## Relationships\n"
+    if relationships:
+        body += relationships + "\n"
+
+    _write_md(entry_path, fm, body)
+
+    # Auto-update INDEX.md
+    _rebuild_entry_index(global_l2)
+
+    return f"Created L2 entry {slug} (role={role}, v{fm['version']})"
+
+
+def _rebuild_entry_index(global_l2: Path) -> None:
+    """Rebuild L2/entries/INDEX.md from current entries."""
+    entries_dir = global_l2 / "entries"
+    if not entries_dir.is_dir():
+        return
+
+    by_role: dict[str, list[dict[str, str]]] = {}
+    for ep in sorted(entries_dir.glob("*.md")):
+        if ep.stem == "INDEX":
+            continue
+        fm, _ = _parse_md(ep)
+        r = str(fm.get("role", "other"))
+        if r not in by_role:
+            by_role[r] = []
+        by_role[r].append({
+            "entry_id": fm.get("entry_id", ep.stem),
+            "title": str(fm.get("title", "")),
+            "status": str(fm.get("status", "")),
+            "lane": str(fm.get("lane", [])),
+        })
+
+    lines = [
+        "---",
+        "catalog: entries",
+        f"updated: \"{_now()}\"",
+        "---",
+        "",
+        "# L2 Entries Index",
+        "",
+        "## By Role",
+    ]
+
+    role_labels = {
+        "claim": "Claims", "system": "Systems", "method": "Methods",
+        "pitfall": "Pitfalls", "question": "Questions",
+    }
+    role_order = ["claim", "system", "method", "pitfall", "question"]
+    for r in role_order:
+        entries = by_role.get(r, [])
+        if not entries:
+            continue
+        lines.append(f"\n### {role_labels.get(r, r)}")
+        lines.append("| ID | Title | Status | Lane |")
+        lines.append("|----|-------|--------|------|")
+        for e in entries:
+            lines.append(f"| {e['entry_id']} | {e['title']} | {e['status']} | {e['lane']} |")
+
+    # By Status
+    lines.append("\n## By Status")
+    for s in ["verified", "consistent", "unverified", "failed", "conjectured"]:
+        items = [e for entries in by_role.values() for e in entries if e["status"] == s]
+        if items:
+            lines.append(f"\n### {s.capitalize()}")
+            for e in items:
+                lines.append(f"- {e['entry_id']} ({e['title']})")
+
+    lines.append("\n## Quick Search")
+    lines.append("```")
+    lines.append("# All verified claims")
+    lines.append('grep -l "role: claim" L2/entries/*.md | xargs grep -l "status: verified"')
+    lines.append("")
+    lines.append("# Everything about system X")
+    lines.append('grep -l "system-<slug>" L2/entries/*.md')
+    lines.append("")
+    lines.append("# Known pitfalls")
+    lines.append('grep -l "role: pitfall" L2/entries/*.md')
+    lines.append("")
+    lines.append("# Open questions")
+    lines.append('grep -l "role: question" L2/entries/*.md')
+    lines.append("```")
+
+    _atomic_write_text(entries_dir / "INDEX.md", "\n".join(lines) + "\n")
 
 
 @mcp.tool()
@@ -4205,33 +4810,76 @@ def aitp_get_l2_provenance(
     topics_root: str,
     node_id: str,
 ) -> dict[str, Any]:
-    """Get the full provenance of an L2 node, including hidden source fields.
+    """Get the full provenance of an L2 entry, graph node, or promoted candidate.
 
-    Use this for auditing  --  verify where a claim came from before trusting it.
+    Use this for auditing — verify where a claim came from before trusting it.
+    Searches three sources in order: v5 entries, graph nodes, promoted candidates.
     Default L2 queries hide source fields to prevent context bloat.
     """
     global_l2 = _global_l2_path(topics_root)
     slug = _slugify(node_id)
+
+    # Try v5 entry first (primary knowledge store)
+    entry_path = global_l2 / "entries" / f"{slug}.md"
+    if entry_path.exists():
+        fm, body = _parse_md(entry_path)
+        return {
+            "node_id": fm.get("entry_id", slug),
+            "title": fm.get("title", ""),
+            "type": fm.get("role", "") + (f"/{fm.get('claim_type', '')}" if fm.get("claim_type") else ""),
+            "trust_basis": fm.get("status", ""),
+            "trust_scope": fm.get("regime", ""),
+            "source_ref": fm.get("source_ref", ""),
+            "source_candidate": "",
+            "source_topic": "",
+            "version": fm.get("version", 1),
+            "created_at": fm.get("created_at", fm.get("updated", "")),
+            "updated_at": fm.get("updated", ""),
+            "body_preview": body[:2000],
+            "source": "v5_entry",
+        }
+
+    # Try graph node (legacy)
     node_path = global_l2 / "graph" / "nodes" / f"{slug}.md"
+    if node_path.exists():
+        fm, body = _parse_md(node_path)
+        return {
+            "node_id": fm.get("node_id", slug),
+            "title": fm.get("title", ""),
+            "type": fm.get("type", ""),
+            "trust_basis": fm.get("trust_basis", ""),
+            "trust_scope": fm.get("trust_scope", ""),
+            "source_ref": fm.get("source_ref", ""),
+            "source_candidate": fm.get("source_candidate", ""),
+            "source_topic": fm.get("source_topic", ""),
+            "version": fm.get("version", 1),
+            "created_at": fm.get("created_at", ""),
+            "updated_at": fm.get("updated_at", ""),
+            "body_preview": body[:2000],
+            "source": "graph_node",
+        }
 
-    if not node_path.exists():
-        return {"error": f"Node '{slug}' not found in L2 graph."}
+    # Try promoted candidate
+    cand_path = global_l2 / f"{slug}.md"
+    if cand_path.exists():
+        fm, body = _parse_md(cand_path)
+        return {
+            "node_id": fm.get("candidate_id", slug),
+            "title": fm.get("title", ""),
+            "type": str(fm.get("candidate_type", "research_claim")),
+            "trust_basis": fm.get("trust_basis", ""),
+            "trust_scope": fm.get("trust_scope", ""),
+            "source_ref": fm.get("source_ref", ""),
+            "source_candidate": slug,
+            "source_topic": str(fm.get("source_topic", "")),
+            "version": fm.get("version", 1),
+            "created_at": fm.get("promoted_at", ""),
+            "updated_at": fm.get("promoted_at", ""),
+            "body_preview": body[:2000],
+            "source": "promoted_candidate",
+        }
 
-    fm, body = _parse_md(node_path)
-    return {
-        "node_id": fm.get("node_id", slug),
-        "title": fm.get("title", ""),
-        "type": fm.get("type", ""),
-        "trust_basis": fm.get("trust_basis", ""),
-        "trust_scope": fm.get("trust_scope", ""),
-        "source_ref": fm.get("source_ref", ""),
-        "source_candidate": fm.get("source_candidate", ""),
-        "source_topic": fm.get("source_topic", ""),
-        "version": fm.get("version", 1),
-        "created_at": fm.get("created_at", ""),
-        "updated_at": fm.get("updated_at", ""),
-        "body_preview": body[:2000],
-    }
+    return {"error": f"'{slug}' not found in L2 entries, graph nodes, or promoted candidates."}
 
 
 @mcp.tool()
@@ -4359,9 +5007,11 @@ def aitp_create_derivation_step(
         return f"Invalid justification_type '{justification_type}'. Valid: {JUSTIFICATION_TYPES}"
 
     # Detect lane from state.md to set lane-appropriate validation
-    root = Path(topics_root)
+    # Note: derivation steps are global (not topic-scoped), so we check
+    # the resolved topics directory rather than an individual topic.
+    base = topics_dir(topics_root)
     lane = "unspecified"
-    state_path = root / "state.md"
+    state_path = base / "state.md"
     if state_path.exists():
         state_fm, _ = _parse_md(state_path)
         lane = str(state_fm.get("lane", "unspecified")).strip()
@@ -5892,8 +6542,17 @@ def aitp_visualize_knowledge_graph(
     edges_dir = global_l2 / "graph" / "edges"
     conflicts_dir = global_l2 / "conflicts"
 
+    # Count entries for metadata even though graph visualization focuses on nodes
+    entries_dir = global_l2 / "entries"
+    entry_count = 0
+    if entries_dir.is_dir():
+        entry_count = sum(1 for ep in entries_dir.glob("*.md") if ep.stem != "INDEX")
+
     if not nodes_dir.exists() or not any(nodes_dir.iterdir()):
-        return {"ascii": "(empty graph)", "metadata": {"node_count": 0, "edge_count": 0}}
+        return {
+            "ascii": "(empty graph)" if entry_count == 0 else f"(empty graph — {entry_count} v5 entries exist, use aitp_query_entries to search)",
+            "metadata": {"node_count": 0, "edge_count": 0, "entry_count": entry_count},
+        }
 
     # Load all nodes
     all_nodes = {}
@@ -6032,6 +6691,7 @@ def aitp_visualize_knowledge_graph(
         "metadata": {
             "node_count": len(nodes),
             "edge_count": len(edges),
+            "entry_count": entry_count,
             "conflict_count": len(conflicts),
             "missing_correspondence": len(missing_correspondence),
             "type_counts": {t: len(ns) for t, ns in by_type.items()},
@@ -6254,6 +6914,67 @@ def aitp_find_cross_topic_bridges(
                             f"in a different regime."
                         ),
                     })
+
+    # Also scan v5 entries for structural similarity
+    entries_dir = global_l2 / "entries"
+    if entries_dir.is_dir():
+        for ep in sorted(entries_dir.glob("*.md")):
+            if ep.stem == "INDEX":
+                continue
+            fm, body = _parse_md(ep)
+            entry_expr = str(fm.get("mathematical_expression", ""))
+            entry_title = str(fm.get("title", ""))
+            entry_role = str(fm.get("role", ""))
+            entry_id = fm.get("entry_id", ep.stem)
+            # Build searchable text from entry role
+            entry_text = entry_title
+            if entry_role == "claim":
+                entry_text += " " + str(fm.get("statement", ""))
+            elif entry_role == "question":
+                entry_text += " " + str(fm.get("question_statement", ""))
+
+            # Check expression similarity
+            for src_expr in source_expressions:
+                if src_expr and entry_expr:
+                    src_norm = normalize_latex(src_expr)
+                    node_norm = normalize_latex(entry_expr)
+                    if src_norm and node_norm:
+                        src_cmds = set(re.findall(r'\\([a-zA-Z]+)', src_norm))
+                        node_cmds = set(re.findall(r'\\([a-zA-Z]+)', node_norm))
+                        shared = src_cmds & node_cmds
+                        if len(shared) >= 2:
+                            bridges.append({
+                                "node_id": entry_id,
+                                "title": entry_title,
+                                "domain": f"entries/{entry_role}",
+                                "bridge_type": "mathematical_structure",
+                                "shared_structures": sorted(shared),
+                                "note": (
+                                    f"Shared LaTeX structures: {sorted(shared)}. "
+                                    f"Found in v5 entry ({entry_role}). "
+                                    f"Check if this is a deep correspondence or coincidental notation."
+                                ),
+                            })
+
+            # Check concept similarity
+            for src_concept in source_concepts:
+                if src_concept:
+                    score = semantic_score(
+                        src_concept,
+                        [entry_title, entry_text, body[:500]],
+                    )
+                    if score > 0.3:
+                        bridges.append({
+                            "node_id": entry_id,
+                            "title": entry_title,
+                            "domain": f"entries/{entry_role}",
+                            "bridge_type": "conceptual_similarity",
+                            "similarity": round(score, 3),
+                            "note": (
+                                f"Conceptual similarity score {score:.2f} with v5 entry ({entry_role}). "
+                                f"Consider whether the same physics appears in a different regime."
+                            ),
+                        })
 
     # Deduplicate and sort by relevance
     seen = set()

@@ -16,26 +16,35 @@ When you need to ask the user ANY question, use `AskUserQuestion`. NEVER type op
 
 Executed at topic bootstrap, session resume, or whenever the user asks "what do we know about X".
 
-### Layer 1: Entries (file-based, Grep)
+### Layer 1: Entries (MCP tool, primary)
 
-Search the `L2/entries/` directory for prior knowledge:
+Use `aitp_query_entries` as the PRIMARY tool for L2 knowledge retrieval:
 
 ```
-Glob(pattern="L2/entries/*.md", path=$TOPICS_ROOT)
-Grep(pattern="role: <target>", path="L2/entries/")
+aitp_query_entries(topics_root, role="claim", system="<system-slug>")
+aitp_query_entries(topics_root, role="claim", status="verified")
+aitp_query_entries(topics_root, role="method")
+aitp_query_entries(topics_root, role="pitfall")
+aitp_query_entries(topics_root, role="question")
+aitp_query_entries(topics_root, query="<free text>")
 ```
 
 Query patterns by use case:
 
-| Question | Grep |
-|----------|------|
-| "What's known about system X?" | `grep -l "system_id:.*<slug>" L2/entries/*.md` |
-| "Verified claims?" | `grep -l "role: claim.*status: verified" L2/entries/*.md` |
-| "Known pitfalls for method X?" | `grep -l "role: pitfall" L2/entries/*.md` |
-| "What methods exist?" | `grep -l "role: method" L2/entries/*.md` |
-| "Open questions?" | `grep -l "role: question" L2/entries/*.md` |
+| Question | Tool call |
+|----------|----------|
+| "What's known about system X?" | `aitp_query_entries(role="claim", system="<system-slug>")` |
+| "Verified claims?" | `aitp_query_entries(role="claim", status="verified")` |
+| "Known pitfalls for method X?" | `aitp_query_entries(role="pitfall", query="<method>")` |
+| "What methods exist?" | `aitp_query_entries(role="method")` |
+| "Open questions?" | `aitp_query_entries(role="question")` |
+| "Everything about X?" | `aitp_query_l2(query="<X>")` (includes promoted candidates) |
 
-Read matching entries to get full details (templates, workflow steps, symptoms/fixes).
+Fallback: if `aitp_query_entries` is unavailable, use Grep/Glob:
+```
+Glob(pattern="L2/entries/*.md", path=$TOPICS_ROOT)
+Grep(pattern="role: <target>", path="L2/entries/")
+```
 
 ### Layer 2: Graph (MCP)
 
@@ -89,6 +98,22 @@ Executed after L4 validation, after a pitfall is discovered, or when the researc
 
 ### Entry file format
 
+Use `aitp_create_entry` to create entries programmatically:
+```
+aitp_create_entry(
+    topics_root=...,
+    entry_id="<role>-<slug>",
+    role="claim",
+    title="...",
+    source_ref="...",
+    status="verified",
+    ...
+)
+```
+
+Each creation auto-rebuilds `L2/entries/INDEX.md`.
+
+Manual entry template for reference (when MCP tools are unavailable):
 Save as `L2/entries/<role>-<slug>.md`:
 
 ```markdown
