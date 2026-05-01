@@ -160,8 +160,7 @@ python scripts/aitp-pm.py install
 The installer:
 - Detects installed AI agents (Claude Code, Kimi Code)
 - Prompts for `topics_root` — where research topics live (default: `~/aitp-topics`)
-- Deploys hooks (SessionStart, keyword routing, routing guard)
-- Deploys skills (`using-aitp`, `aitp-runtime`)
+- Auto-discovers and deploys ALL skills, hooks, runners, and config
 - Registers MCP server config
 - Creates a global `aitp` CLI wrapper
 
@@ -175,11 +174,24 @@ aitp install --topics-root /path/to/topics  # Custom topics directory
 
 ### Update
 
-Re-sync deployed files from the current repo state (no git pull):
+Re-sync deployed files from the current repo state (no git pull). Auto-discovers all deployable assets:
 
 ```bash
 aitp update
 ```
+
+**What gets deployed automatically:**
+| Asset type | Source directory | Deployed to |
+|-----------|-----------------|-------------|
+| Gateway skills | `deploy/skills/*.md` | `~/.claude/skills/<name>/SKILL.md` |
+| Protocol skills | `skills/*.md` | `~/.claude/skills/<name>/SKILL.md` + workspace `skills-shared/` |
+| Hook scripts | `deploy/hooks/*.py`, `hooks/*.{py,cmd,sh}` | `~/.claude/hooks/` |
+| Runners | `deploy/runners/*.{cmd,sh}` | `~/.claude/hooks/` |
+| Hook config | `deploy/config/hooks.json` | `~/.claude/hooks/hooks.json` + `settings.json` |
+| MCP server | `brain/native_mcp.py` | Configured in `settings.json` (runs in-place) |
+
+To add a new skill, just drop a `.md` file in `skills/` or `deploy/skills/`. No code changes needed.
+Stale files (renamed/removed skills or hooks) are cleaned up automatically.
 
 Options: `--agent claude-code`, `--topics-root <path>`
 
@@ -216,29 +228,45 @@ The `doctor` command checks: Python version, dependencies, repo integrity, topic
 ```
 AITP-Research-Protocol/
 ├── brain/
-│   ├── mcp_server.py         # FastMCP server (~3500 lines, 35+ tools)
-│   ├── state_model.py        # Gate logic, stage machine, domain taxonomy
-│   ├── sympy_verify.py       # Symbolic verification (dimensions, algebra, limits)
-│   └── PROTOCOL.md           # Protocol operating manual v4.0
-├── scripts/
-│   ├── aitp-pm.py            # Package manager (install/update/upgrade/uninstall)
-│   ├── aitp / aitp.cmd       # CLI entry wrappers
-│   └── generate_l2_viz.py    # L2 graph visualization
-├── deploy/templates/         # Agent-specific deploy templates
-│   ├── claude-code/          # Skills, hooks, routing guard for Claude Code
-│   └── kimi-code/            # Skills for Kimi Code
-├── skills/                   # Per-stage instructions
-│   ├── skill-discover.md     # L0: source discovery
-│   ├── skill-read.md         # L1: TOC-first reading workflow
-│   ├── skill-l3-*.md         # L3 subplanes (research + study)
+│   ├── native_mcp.py          # MCP server (HTTP transport, 35+ tools)
+│   ├── state_model.py         # Gate logic, stage machine, domain taxonomy
+│   ├── sympy_verify.py        # Symbolic verification (dimensions, algebra, limits)
+│   ├── physicist.py           # AI physicist check at stage transitions
+│   ├── gates.py, checks.py    # Validation gates and correspondence checks
+│   ├── contracts.py, domains.py  # Contract types and domain taxonomy
+│   ├── semantic.py, state.py  # Knowledge graph and state management
+│   └── PROTOCOL.md            # Protocol operating manual v4.1
+├── deploy/                    # Unified deployment source (auto-discovered)
+│   ├── skills/                # Gateway skills: using-aitp, aitp-runtime, aitp-mcp-setup
+│   ├── hooks/                 # Generated hooks: keyword-router, routing-guard
+│   ├── runners/               # Shell/batch runners: run-hook.cmd, session-start.sh
+│   └── config/                # Hook configuration: hooks.json (single source of truth)
+├── skills/                    # Protocol skills (auto-discovered + deployed)
+│   ├── skill-discover.md      # L0: source discovery
+│   ├── skill-read.md          # L1: TOC-first reading workflow
+│   ├── skill-l2-entry.md      # L2 knowledge entry before topic bootstrap
+│   ├── skill-physicist-check.md  # AI physicist at every stage transition
+│   ├── skill-l3-*.md          # L3 subplanes (ideate, plan, analyze, gap-audit, integrate, distill)
+│   ├── skill-validate.md      # L4: adversarial validation
+│   ├── skill-promote.md       # L2 promotion gate
+│   ├── skill-continuous.md    # Resume after session break
+│   ├── skill-librpa.md        # Domain skill: ABACUS+LibRPA
 │   └── aitp-push-after-feature.md  # Push discipline
-├── tests/                    # Test suite
-├── docs/                     # Specs, guides, design documents
-├── hooks/                    # Agent hook scripts (session start, compact, stop)
-├── adapters/                 # Agent-specific integrations
-├── contracts/                # Artifact templates
-├── schemas/                  # JSON Schema definitions
-└── templates/                # LaTeX templates
+├── hooks/                     # Agent hook scripts (auto-discovered + deployed)
+│   ├── aitp_event.py          # Offline event recording
+│   ├── session_start.py       # Session start handler
+│   ├── compact.py, stop.py    # Context compaction and stop handlers
+│   └── hook_utils.py          # Shared hook utilities
+├── scripts/
+│   ├── aitp-pm.py             # Package manager (install/update/upgrade/uninstall)
+│   ├── aitp / aitp.cmd        # CLI entry wrappers
+│   └── generate_l2_viz.py     # L2 graph visualization
+├── tests/                     # Test suite
+├── docs/                      # Specs, guides, design documents
+├── adapters/                  # Agent-specific integrations
+├── contracts/                 # Artifact templates
+├── schemas/                   # JSON Schema definitions
+└── templates/                 # LaTeX templates
 ```
 
 ## Design principles
