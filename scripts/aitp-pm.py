@@ -479,44 +479,130 @@ def _merge_kimi_config_toml(config_path: Path, repo_root: str, remove: bool = Fa
 # Deploy: Claude Code
 # ---------------------------------------------------------------------------
 
-# Source hooks (in repo) → deployed name. Auto-discovered from hooks/.
-_HOOK_COPIES = [
-    (f"hooks/{p.name}", p.stem.replace("_", "-") + ".py")
-    for p in sorted((REPO_ROOT / "hooks").glob("*.py"))
-    if p.name != "__init__.py"
-]
+# ── Auto-discovered deployment sources ───────────────────────────────────
+# All deployable assets are auto-discovered — no hardcoded lists.
+# To add a new skill/hook/runner/config, just drop the file in the right folder.
 
-# Template files → deployed name. Auto-discovered from deploy/templates/claude-code/.
-# Non-skill, non-markdown files (cmd, sh, json, py — excluding skill files).
-_HOOK_TEMPLATES = [
-    (f"claude-code/{p.name}", p.stem.replace("_", "-") + p.suffix if p.suffix == ".py" else p.name)
-    for p in sorted((TEMPLATES_DIR / "claude-code").iterdir())
-    if p.suffix in (".cmd", ".sh", ".json", ".py")
-    and "using-aitp" not in p.stem
-    and "aitp-runtime" not in p.stem
-    and "aitp-mcp-setup" not in p.stem
-]
+def _discover_deploy_skills() -> list[tuple[Path, str]]:
+    """Discover all skills to deploy.
 
-_SKILL_TEMPLATES = [
-    (f"claude-code/{p.name}", f"{p.stem}/SKILL.md")
-    for p in sorted((TEMPLATES_DIR / "claude-code").iterdir())
-    if p.suffix == ".md" and p.name.startswith("using-aitp") or p.name.startswith("aitp-runtime")
-] + [
-    (f"claude-code/{p.name}", f"aitp-runtime/{p.name.upper()}")
-    for p in sorted((TEMPLATES_DIR / "claude-code").iterdir())
-    if p.suffix == ".md" and p.name.startswith("aitp-mcp-setup")
-]
+    Returns list of (source_path, deploy_rel_path) where deploy_rel_path
+    is relative to the skills directory (e.g. "using-aitp/SKILL.md").
 
-_KIMI_SKILL_TEMPLATES = [
-    ("kimi-code/using-aitp.md", "using-aitp/SKILL.md"),
-    ("kimi-code/aitp-runtime.md", "aitp-runtime/SKILL.md"),
-]
+    Sources (in priority order):
+      1. deploy/skills/        — gateway + curated skills (templates with {{vars}})
+      2. skills/ (repo root)   — protocol skills (plain md, deployed as-is)
+    """
+    results: list[tuple[Path, str]] = []
+    seen: set[str] = set()
+
+    # Gateway skills from deploy/skills/ (may use template variables)
+    deploy_skills_dir = REPO_ROOT / "deploy" / "skills"
+    if deploy_skills_dir.is_dir():
+        for p in sorted(deploy_skills_dir.glob("*.md")):
+            name = p.stem
+            if name not in seen:
+                seen.add(name)
+                results.append((p, f"{name}/SKILL.md"))
+
+    # Protocol skills from repo skills/ (plain, no template vars)
+    repo_skills_dir = REPO_ROOT / "skills"
+    if repo_skills_dir.is_dir():
+        for p in sorted(repo_skills_dir.glob("*.md")):
+            name = p.stem
+            if name not in seen:
+                seen.add(name)
+                results.append((p, f"{name}/SKILL.md"))
+
+    return results
+
+
+def _discover_deploy_hooks() -> list[tuple[Path, str]]:
+    """Discover all hook scripts to deploy.
+
+    Returns list of (source_path, deployed_filename).
+    Sources: deploy/hooks/ (generated), hooks/ (repo root, with path injection).
+    """
+    results: list[tuple[Path, str]] = []
+    seen: set[str] = set()
+
+    # Generated hooks from deploy/hooks/
+    deploy_hooks_dir = REPO_ROOT / "deploy" / "hooks"
+    if deploy_hooks_dir.is_dir():
+        for p in sorted(deploy_hooks_dir.glob("*.py")):
+            dst_name = p.stem.replace("_", "-") + ".py"
+            if dst_name not in seen:
+                seen.add(dst_name)
+                results.append((p, dst_name))
+
+    # Repo hooks from hooks/ (need brain path injection)
+    repo_hooks_dir = REPO_ROOT / "hooks"
+    if repo_hooks_dir.is_dir():
+        for p in sorted(repo_hooks_dir.glob("*.py")):
+            if p.name == "__init__.py":
+                continue
+            dst_name = p.stem.replace("_", "-") + ".py"
+            if dst_name not in seen:
+                seen.add(dst_name)
+                results.append((p, dst_name))
+
+    return results
+
+
+def _discover_deploy_runners() -> list[tuple[Path, str]]:
+    """Discover runner scripts (.cmd, .sh) from deploy/runners/."""
+    runners_dir = REPO_ROOT / "deploy" / "runners"
+    if not runners_dir.is_dir():
+        return []
+    return [
+        (p, p.name)
+        for p in sorted(runners_dir.iterdir())
+        if p.suffix in (".cmd", ".sh")
+    ]
+
+
+def _discover_deploy_config() -> list[tuple[Path, str]]:
+    """Discover config files (.json) from deploy/config/."""
+    config_dir = REPO_ROOT / "deploy" / "config"
+    if not config_dir.is_dir():
+        return []
+    return [
+        (p, p.name)
+        for p in sorted(config_dir.iterdir())
+        if p.suffix == ".json"
+    ]
+
+
+def _discover_workspace_skills_root() -> Path | None:
+    """Find the workspace skills-shared/ directory for protocol skill sync."""
+    topics_root = os.environ.get("AITP_TOPICS_ROOT",
+        _detect_topics_root() or "")
+    if topics_root:
+        # topics_root is like D:/.../Theoretical-Physics/research/aitp-topics
+        # workspace is two levels up
+        ws = Path(topics_root).parent.parent
+        skills_shared = ws / "skills-shared"
+        if skills_shared.is_dir():
+            return skills_shared
+    return None
 
 
 def _deploy_claude_code(
     scope: str, target_root: Path | None, variables: dict, remove: bool = False
 ) -> list[str]:
-    """Install or uninstall AITP for Claude Code. Returns list of deployed/removed paths."""
+    """Install or uninstall AITP for Claude Code. Auto-discovers all deployable assets.
+
+    Deploy sources (auto-discovered):
+      - deploy/skills/*.md  → ~/.claude/skills/<name>/SKILL.md  (gateway skills)
+      - skills/*.md         → ~/.claude/skills/<name>/SKILL.md  (protocol skills)
+      - deploy/hooks/*.py   → ~/.claude/hooks/<name>.py         (generated hooks)
+      - hooks/*.py          → ~/.claude/hooks/<name>.py         (repo hooks, path-injected)
+      - deploy/runners/*    → ~/.claude/hooks/<name>            (shell/batch runners)
+      - deploy/config/*.json → ~/.claude/hooks/<name>           (config files)
+
+    Workspace sync (additional):
+      - Protocol skills also synced to <workspace>/skills-shared/<name>.md
+    """
     if scope == "user":
         base = Path(variables["CLAUDE_USER_DIR"])
     else:
@@ -526,28 +612,49 @@ def _deploy_claude_code(
     skills_dir = base / "skills"
     deployed: list[str] = []
 
+    # Discover all deployable assets
+    all_skills = _discover_deploy_skills()
+    all_hooks = _discover_deploy_hooks()
+    all_runners = _discover_deploy_runners()
+    all_configs = _discover_deploy_config()
+
     if remove:
         # Remove hook files
-        for _, dst_name in _HOOK_COPIES + _HOOK_TEMPLATES:
+        for _, dst_name in all_hooks:
+            p = hooks_dir / dst_name
+            if p.exists():
+                p.unlink()
+                deployed.append(f"- {p}")
+        for _, dst_name in all_runners:
+            p = hooks_dir / dst_name
+            if p.exists():
+                p.unlink()
+                deployed.append(f"- {p}")
+        for _, dst_name in all_configs:
             p = hooks_dir / dst_name
             if p.exists():
                 p.unlink()
                 deployed.append(f"- {p}")
 
-        # Remove skill files
-        for _, dst_rel in _SKILL_TEMPLATES:
+        # Remove skill dirs
+        for _, dst_rel in all_skills:
             p = skills_dir / dst_rel
             if p.exists():
                 p.unlink()
-                deployed.append(f"- {p}")
-
-        # Clean empty dirs
-        for d in [skills_dir / "using-aitp", skills_dir / "aitp-runtime", skills_dir, hooks_dir]:
+            # Clean parent dir if empty
+            parent = p.parent
             try:
-                if d.exists() and not list(d.iterdir()):
-                    d.rmdir()
+                if parent.exists() and parent != skills_dir and not list(parent.iterdir()):
+                    parent.rmdir()
             except OSError:
                 pass
+
+        # Clean empty skills dir
+        try:
+            if skills_dir.exists() and not list(skills_dir.iterdir()):
+                skills_dir.rmdir()
+        except OSError:
+            pass
 
         # Unmerge settings
         settings_path = base / "settings.json"
@@ -559,7 +666,6 @@ def _deploy_claude_code(
                 settings_path.unlink()
                 deployed.append(f"- {settings_path}")
 
-        # Remove project .mcp.json
         if scope == "project":
             mcp_path = (target_root or Path.cwd()) / ".mcp.json"
             _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""), remove=True)
@@ -568,16 +674,15 @@ def _deploy_claude_code(
         return deployed
 
     # --- Install ---
+    # 1. Deploy hooks (from both deploy/hooks/ and repo hooks/)
     print(f"  Deploying hooks to {hooks_dir}/")
     hooks_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy repo hooks with repo-path injection
-    for src_rel, dst_name in _HOOK_COPIES:
-        src = REPO_ROOT / src_rel
+    for src, dst_name in all_hooks:
         if not src.exists():
-            print(f"    WARNING: source not found: {src_rel}")
+            print(f"    WARNING: source not found: {src}")
             continue
         content = src.read_text(encoding="utf-8")
+        # Inject REPO_ROOT into hooks that import from brain
         if "from brain." in content or "import brain." in content:
             inject = f'sys.path.insert(0, r"{variables["REPO_ROOT"]}")\n'
             if inject.strip() not in content:
@@ -585,37 +690,72 @@ def _deploy_claude_code(
                     "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))",
                     f'sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n{inject}',
                 )
+        # Apply template variables
+        content = _fill(content, variables)
         dst = hooks_dir / dst_name
         _atomic_write(dst, content)
         deployed.append(str(dst))
 
-    # Generate from templates
-    for tmpl_rel, dst_name in _HOOK_TEMPLATES:
-        content = _read_template(tmpl_rel)
-        if content is None:
-            print(f"    WARNING: template not found: {tmpl_rel}")
+    # 2. Deploy runners (.cmd, .sh)
+    for src, dst_name in all_runners:
+        if not src.exists():
             continue
+        content = _fill(src.read_text(encoding="utf-8"), variables)
         dst = hooks_dir / dst_name
-        _atomic_write(dst, _fill(content, variables))
+        _atomic_write(dst, content)
         deployed.append(str(dst))
 
-    print(f"  Deploying skills to {skills_dir}/")
-    for tmpl_rel, dst_rel in _SKILL_TEMPLATES:
-        content = _read_template(tmpl_rel)
-        if content is None:
-            print(f"    WARNING: template not found: {tmpl_rel}")
+    # 3. Deploy config (.json)
+    for src, dst_name in all_configs:
+        if not src.exists():
             continue
-        dst = skills_dir / dst_rel
-        _atomic_write(dst, _fill(content, variables))
+        content = _fill(src.read_text(encoding="utf-8"), variables)
+        dst = hooks_dir / dst_name
+        _atomic_write(dst, content)
         deployed.append(str(dst))
 
-    # Merge settings.json
+    # 4. Deploy skills to ~/.claude/skills/<name>/SKILL.md
+    print(f"  Deploying skills to {skills_dir}/")
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    for src, dst_rel in all_skills:
+        if not src.exists():
+            print(f"    WARNING: skill source not found: {src}")
+            continue
+        content = _fill(src.read_text(encoding="utf-8"), variables)
+        dst = skills_dir / dst_rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write(dst, content)
+        deployed.append(str(dst))
+
+    # 5. Sync protocol skills to workspace skills-shared/ (flat .md files)
+    ws_skills = _discover_workspace_skills_root()
+    if ws_skills:
+        deployed_ws = 0
+        repo_skills_dir = REPO_ROOT / "skills"
+        if repo_skills_dir.is_dir():
+            for src in sorted(repo_skills_dir.glob("*.md")):
+                dst = ws_skills / src.name
+                dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+                deployed_ws += 1
+        # Also sync deploy/skills/*.md as SKILL.md in subdirectories
+        deploy_skills_dir = REPO_ROOT / "deploy" / "skills"
+        if deploy_skills_dir.is_dir():
+            for src in sorted(deploy_skills_dir.glob("*.md")):
+                content = _fill(src.read_text(encoding="utf-8"), variables)
+                dst_dir = ws_skills / src.stem
+                dst_dir.mkdir(parents=True, exist_ok=True)
+                (dst_dir / "SKILL.md").write_text(content, encoding="utf-8")
+                deployed_ws += 1
+        if deployed_ws:
+            print(f"  Synced {deployed_ws} skills to workspace {ws_skills}")
+            deployed.append(f"{ws_skills} ({deployed_ws} skills synced)")
+
+    # 6. Merge settings.json
     if scope == "user":
         settings_path = base / "settings.json"
         _merge_claude_settings(settings_path, variables)
         deployed.append(f"{settings_path} (hooks merged)")
     else:
-        # Project scope: write settings.json with hooks
         settings_path = base / "settings.json"
         hooks_dir_str = str(base / "hooks").replace("\\", "/")
         project_settings = {
@@ -637,7 +777,6 @@ def _deploy_claude_code(
         _atomic_write(settings_path, json.dumps(project_settings, indent=2, ensure_ascii=False))
         deployed.append(str(settings_path))
 
-        # Write .mcp.json for project
         mcp_path = (target_root or Path.cwd()) / ".mcp.json"
         _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
         deployed.append(str(mcp_path))
@@ -653,37 +792,36 @@ def _deploy_claude_code(
 def _deploy_kimi_code(
     scope: str, target_root: Path | None, variables: dict, remove: bool = False
 ) -> list[str]:
-    """Install or uninstall AITP for Kimi Code."""
-    # Kimi Code scans ~/.agents/skills/ for skills
+    """Install or uninstall AITP for Kimi Code. Auto-discovers skills."""
+    # Kimi Code scans ~/.agents/skills/ for skills (directory-per-skill format)
     skills_dir = Path.home() / ".agents" / "skills"
-
-    # MCP config lives in ~/.kimi/ (both user and project scope use user-level config for now)
     mcp_base = Path.home() / ".kimi"
+
+    # Gateway skills for Kimi Code (only the essential entry + runtime)
+    gateway_skills = [
+        ("using-aitp", "using-aitp/SKILL.md"),
+        ("aitp-runtime", "aitp-runtime/SKILL.md"),
+    ]
 
     deployed: list[str] = []
 
     if remove:
-        # Remove skill files from ~/.agents/skills/
-        for _, dst_rel in _KIMI_SKILL_TEMPLATES:
+        for skill_name, dst_rel in gateway_skills:
             p = skills_dir / dst_rel
             if p.exists():
                 p.unlink()
                 deployed.append(f"- {p}")
-
-        # Clean empty dirs
-        for d in [skills_dir / "using-aitp", skills_dir / "aitp-runtime"]:
+            parent = p.parent
             try:
-                if d.exists() and not list(d.iterdir()):
-                    d.rmdir()
+                if parent.exists() and parent != skills_dir and not list(parent.iterdir()):
+                    parent.rmdir()
             except OSError:
                 pass
 
-        # mcp.json
         mcp_path = mcp_base / "mcp.json"
         _write_mcp_json(mcp_path, variables["REPO_ROOT"], remove=True)
         deployed.append(f"~ {mcp_path} (aitp entry removed)")
 
-        # config.toml
         config_path = mcp_base / "config.toml"
         _merge_kimi_config_toml(config_path, variables["REPO_ROOT"], remove=True)
         deployed.append(f"~ {config_path} ([mcp.servers.aitp] removed)")
@@ -693,21 +831,26 @@ def _deploy_kimi_code(
     # --- Install ---
     print(f"  Deploying skills to {skills_dir}/")
     skills_dir.mkdir(parents=True, exist_ok=True)
-    for tmpl_rel, dst_rel in _KIMI_SKILL_TEMPLATES:
-        content = _read_template(tmpl_rel)
-        if content is None:
-            print(f"    WARNING: template not found: {tmpl_rel}")
+    for skill_name, dst_rel in gateway_skills:
+        # Source from deploy/skills/ first, fall back to deploy/templates/
+        src = REPO_ROOT / "deploy" / "skills" / f"{skill_name}.md"
+        if not src.exists():
+            src = TEMPLATES_DIR / "kimi-code" / f"{skill_name}.md"
+        if not src.exists():
+            src = TEMPLATES_DIR / "claude-code" / f"{skill_name}.md"
+        if not src.exists():
+            print(f"    WARNING: skill source not found: {skill_name}")
             continue
+        content = _fill(src.read_text(encoding="utf-8"), variables)
         dst = skills_dir / dst_rel
-        _atomic_write(dst, _fill(content, variables))
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write(dst, content)
         deployed.append(str(dst))
 
-    # mcp.json
     mcp_path = mcp_base / "mcp.json"
     _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
     deployed.append(f"{mcp_path} (aitp entry written)")
 
-    # config.toml
     config_path = mcp_base / "config.toml"
     _merge_kimi_config_toml(config_path, variables["REPO_ROOT"])
     deployed.append(f"{config_path} ([mcp.servers.aitp] merged)")
@@ -1146,11 +1289,13 @@ def cmd_doctor(args) -> None:
     hooks_dir = claude_dir / "hooks"
     skills_dir = claude_dir / "skills"
 
-    # Check hooks — auto-discovered from expected deploy set
+    # Check hooks — auto-discovered from deploy sources
     expected_hooks = set()
-    for src_rel, dst_name in _HOOK_COPIES:
+    for _, dst_name in _discover_deploy_hooks():
         expected_hooks.add(dst_name)
-    for tmpl_rel, dst_name in _HOOK_TEMPLATES:
+    for _, dst_name in _discover_deploy_runners():
+        expected_hooks.add(dst_name)
+    for _, dst_name in _discover_deploy_config():
         expected_hooks.add(dst_name)
     for dst_name in sorted(expected_hooks):
         p = hooks_dir / dst_name
@@ -1159,8 +1304,8 @@ def cmd_doctor(args) -> None:
             issues.append(f"Claude Code hook missing: {dst_name}")
         print(f"    hooks/{dst_name}: {status}")
 
-    # Check skills — auto-discovered from expected deploy set
-    for src_rel, dst_rel in _SKILL_TEMPLATES:
+    # Check skills — auto-discovered from deploy sources
+    for _, dst_rel in _discover_deploy_skills():
         p = skills_dir / dst_rel
         status = "OK" if p.exists() else "MISSING"
         if status == "MISSING":
@@ -1199,12 +1344,18 @@ def cmd_doctor(args) -> None:
     kimi_config = kimi_dir / "config.toml"
 
     # Check skills deployed to ~/.agents/skills/
-    for skill_file in ["using-aitp/SKILL.md", "aitp-runtime/SKILL.md"]:
-        p = agents_skills_dir / skill_file
-        status = "OK" if p.exists() else "MISSING"
-        if status == "MISSING":
-            issues.append(f"Kimi Code skill missing: {skill_file}")
-        print(f"    skills/{skill_file}: {status}")
+    try:
+        if agents_skills_dir.exists():
+            for skill_name in ["using-aitp", "aitp-runtime"]:
+                p = agents_skills_dir / skill_name / "SKILL.md"
+                status = "OK" if p.exists() else "MISSING"
+                if status == "MISSING":
+                    issues.append(f"Kimi Code skill missing: {skill_name}/SKILL.md")
+                print(f"    skills/{skill_name}/SKILL.md: {status}")
+        else:
+            print("    skills/: NOT FOUND (Kimi Code skills not deployed)")
+    except OSError:
+        print("    skills/: INACCESSIBLE (broken path, may need manual cleanup)")
 
     if kimi_mcp.exists():
         try:
