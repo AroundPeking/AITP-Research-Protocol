@@ -570,9 +570,7 @@ def aitp_bootstrap_topic(
     fm = {
         "topic_slug": safe_slug,
         "title": title,
-        "status": "new",
         "mode": mode,
-        "layer": "L0",
         "stage": "L0",
         "posture": "discover",
         "lane": lane,
@@ -585,11 +583,15 @@ def aitp_bootstrap_topic(
         "l4_cycle_count": 0,
         "research_loop_active": False,
         "research_loop_max_cycles": 0,
-        "l3_mode": "research",
         "research_intensity": research_intensity,
         "interaction_level": interaction_level,
+        "l3_activity": "ideate",
         "protocol_version": _get_protocol_version(),
     }
+    # Note: `layer` and `l3_mode` are v3 legacy fields NOT written at bootstrap.
+    # `layer` is set by retreat/advance ops when needed.
+    # `l3_mode` is set by aitp_switch_l3_mode for research vs study distinction.
+    # `l3_activity` starts at "ideate" — the default L3 subplane activity.
     body = f"# {title}\n\n## Research Question\n{question}\n"
     _write_md(root / "state.md", fm, body)
     return (
