@@ -29,7 +29,7 @@ This skill helps you pick up where you left off.
 
 5. **If you need the full topic picture**, also read:
    - `state.md` — current status and research question
-   - `L3/derivations.md` — what derivations have been done
+   - `L3/derive/active_derivation.md` — what derivations have been done
    - `L3/candidates/*.md` — what candidates exist
 
 ## Rules
