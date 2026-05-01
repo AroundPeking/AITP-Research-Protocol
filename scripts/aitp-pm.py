@@ -277,7 +277,11 @@ def _file_hash(path: Path) -> str:
 
 
 def _merge_claude_settings(settings_path: Path, variables: dict, remove: bool = False) -> None:
-    """Add or remove AITP hooks from Claude Code settings.json."""
+    """Add or remove AITP hooks from Claude Code settings.json.
+
+    Hook configuration is read from deploy/config/hooks.json — the single
+    source of truth. To add a new hook event, edit hooks.json only.
+    """
     if settings_path.exists():
         try:
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
@@ -286,45 +290,30 @@ def _merge_claude_settings(settings_path: Path, variables: dict, remove: bool = 
     else:
         settings = {}
 
-    hooks_dir = variables["CLAUDE_USER_DIR"].replace("\\", "/") + "/hooks"
-    aitp_hooks = {
-        "SessionStart": [
-            {
+    # Load hook configuration from deploy/config/hooks.json
+    hooks_config_path = REPO_ROOT / "deploy" / "config" / "hooks.json"
+    aitp_hooks: dict = {}
+    if hooks_config_path.exists():
+        try:
+            raw = _fill(hooks_config_path.read_text(encoding="utf-8"), variables)
+            config = json.loads(raw)
+            aitp_hooks = config.get("hooks", {})
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if not aitp_hooks:
+        # Fallback: hardcoded minimum
+        hooks_dir = variables["CLAUDE_USER_DIR"].replace("\\", "/") + "/hooks"
+        aitp_hooks = {
+            "SessionStart": [{
                 "matcher": "startup|clear|compact",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": f'"{hooks_dir}/run-hook.cmd" session-start',
-                        "async": False,
-                    }
-                ],
-            }
-        ],
-        "UserPromptSubmit": [
-            {
-                "matcher": "",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": f'python "{hooks_dir}/aitp-keyword-router.py"',
-                        "async": False,
-                    }
-                ],
-            }
-        ],
-        "PreToolUse": [
-            {
-                "matcher": "Write|Edit",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": f'python "{hooks_dir}/aitp-routing-guard.py"',
-                        "async": False,
-                    }
-                ],
-            }
-        ],
-    }
+                "hooks": [{
+                    "type": "command",
+                    "command": f'"{hooks_dir}/run-hook.cmd" session-start',
+                    "async": False,
+                }],
+            }],
+        }
 
     existing_hooks = settings.setdefault("hooks", {})
 
@@ -522,6 +511,7 @@ def _discover_deploy_hooks() -> list[tuple[Path, str]]:
 
     Returns list of (source_path, deployed_filename).
     Sources: deploy/hooks/ (generated), hooks/ (repo root, with path injection).
+    Includes .py, .cmd, and extensionless scripts.
     """
     results: list[tuple[Path, str]] = []
     seen: set[str] = set()
@@ -529,22 +519,28 @@ def _discover_deploy_hooks() -> list[tuple[Path, str]]:
     # Generated hooks from deploy/hooks/
     deploy_hooks_dir = REPO_ROOT / "deploy" / "hooks"
     if deploy_hooks_dir.is_dir():
-        for p in sorted(deploy_hooks_dir.glob("*.py")):
-            dst_name = p.stem.replace("_", "-") + ".py"
-            if dst_name not in seen:
-                seen.add(dst_name)
-                results.append((p, dst_name))
+        for p in sorted(deploy_hooks_dir.iterdir()):
+            if p.is_file() and p.suffix in (".py", ".cmd", ".sh"):
+                dst_name = p.stem.replace("_", "-") + p.suffix if p.suffix else p.name
+                if dst_name not in seen:
+                    seen.add(dst_name)
+                    results.append((p, dst_name))
 
     # Repo hooks from hooks/ (need brain path injection)
     repo_hooks_dir = REPO_ROOT / "hooks"
     if repo_hooks_dir.is_dir():
-        for p in sorted(repo_hooks_dir.glob("*.py")):
-            if p.name == "__init__.py":
+        for p in sorted(repo_hooks_dir.iterdir()):
+            if p.name == "__init__.py" or p.suffix == ".pyc":
                 continue
-            dst_name = p.stem.replace("_", "-") + ".py"
-            if dst_name not in seen:
-                seen.add(dst_name)
-                results.append((p, dst_name))
+            if p.is_file():
+                # .py files get underscore→hyphen rename; other files keep original name
+                if p.suffix == ".py":
+                    dst_name = p.stem.replace("_", "-") + ".py"
+                else:
+                    dst_name = p.name
+                if dst_name not in seen:
+                    seen.add(dst_name)
+                    results.append((p, dst_name))
 
     return results
 
@@ -758,28 +754,62 @@ def _deploy_claude_code(
     else:
         settings_path = base / "settings.json"
         hooks_dir_str = str(base / "hooks").replace("\\", "/")
-        project_settings = {
-            "hooks": {
-                "SessionStart": [
-                    {
-                        "matcher": "startup|clear|compact",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": f'"{hooks_dir_str}/run-hook.cmd" session-start',
-                                "async": False,
-                            }
-                        ],
-                    }
-                ],
+        project_vars = {**variables, "CLAUDE_USER_DIR": str(base).replace("\\", "/")}
+        # Read hook config from hooks.json (same source as user scope)
+        hooks_config_path = REPO_ROOT / "deploy" / "config" / "hooks.json"
+        project_hooks: dict = {}
+        if hooks_config_path.exists():
+            try:
+                raw = _fill(hooks_config_path.read_text(encoding="utf-8"), project_vars)
+                project_hooks = json.loads(raw).get("hooks", {})
+            except (json.JSONDecodeError, OSError):
+                pass
+        if not project_hooks:
+            project_hooks = {
+                "SessionStart": [{
+                    "matcher": "startup|clear|compact",
+                    "hooks": [{
+                        "type": "command",
+                        "command": f'"{hooks_dir_str}/run-hook.cmd" session-start',
+                        "async": False,
+                    }],
+                }],
             }
-        }
+        project_settings = {"hooks": project_hooks}
         _atomic_write(settings_path, json.dumps(project_settings, indent=2, ensure_ascii=False))
         deployed.append(str(settings_path))
 
         mcp_path = (target_root or Path.cwd()) / ".mcp.json"
         _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
         deployed.append(str(mcp_path))
+
+    # 7. Clean up stale AITP files (deployed files with no matching source)
+    # Only remove files that match AITP naming patterns to avoid touching
+    # skills/hooks installed by other tools.
+    _AITP_HOOK_PREFIXES = ("aitp-", "hook-", "compact", "session-start", "stop")
+    _AITP_SKILL_PREFIXES = ("aitp-", "skill-", "using-aitp")
+
+    expected_hook_names = set()
+    for _, dst_name in all_hooks:
+        expected_hook_names.add(dst_name)
+    for _, dst_name in all_runners:
+        expected_hook_names.add(dst_name)
+    for _, dst_name in all_configs:
+        expected_hook_names.add(dst_name)
+    for existing in hooks_dir.iterdir():
+        if existing.is_file() and existing.name not in expected_hook_names:
+            if existing.stem.startswith(_AITP_HOOK_PREFIXES):
+                existing.unlink()
+                deployed.append(f"- stale: {existing}")
+
+    expected_skill_dirs = set()
+    for _, dst_rel in all_skills:
+        expected_skill_dirs.add(dst_rel.split("/")[0])
+    for existing in skills_dir.iterdir():
+        if existing.is_dir() and existing.name not in expected_skill_dirs:
+            if existing.name.startswith(_AITP_SKILL_PREFIXES):
+                shutil.rmtree(existing, ignore_errors=True)
+                deployed.append(f"- stale: {existing}")
 
     return deployed
 
@@ -969,12 +999,15 @@ def cmd_update(args) -> None:
     backup_count = 0
     for key in record["installs"]:
         for f in record["installs"][key].get("files", []):
-            f = f.split(" (")[0]  # Strip annotations
+            f = f.split(" (")[0]  # Strip annotations like "(hooks merged)"
             p = Path(f)
-            if p.exists():
-                dest = backup_dir / p.name
-                shutil.copy2(p, dest)
-                backup_count += 1
+            if p.is_file():
+                try:
+                    dest = backup_dir / p.name
+                    shutil.copy2(p, dest)
+                    backup_count += 1
+                except (OSError, PermissionError):
+                    pass
     if backup_count > 0:
         print(f"Backed up {backup_count} files to {backup_dir}")
 

@@ -11,6 +11,30 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"{{CLAUDE_USER_DIR}}/hooks/aitp-keyword-router.py\"",
+            "async": false
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"{{CLAUDE_USER_DIR}}/hooks/aitp-routing-guard.py\"",
+            "async": false
+          }
+        ]
+      }
     ]
   }
 }
