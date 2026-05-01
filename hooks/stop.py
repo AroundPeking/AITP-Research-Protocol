@@ -58,7 +58,7 @@ def stop_for_topic(topics_root: str) -> None:
                 if line.startswith(old_line) and "| end: —" in line:
                     text = text.replace(line, line.replace("| end: —", f"| end: {now_short}"))
                     break
-            sessions_path.write_text(text, encoding="utf-8")
+            _atomic_write_text(sessions_path, text)
         marker.unlink(missing_ok=True)
 
     # Append session-end event to runtime log

@@ -28,6 +28,7 @@ if str(_aitp_repo) not in sys.path:
     sys.path.insert(0, str(_aitp_repo))
 
 from hook_utils import (
+    _atomic_write_text,
     _find_active_topic,
     _find_topics_root,
     _find_workspace_root,
@@ -198,7 +199,7 @@ def _record_session_start(
             "## Sessions\n\n"
         )
     text += f"- {sid} | start: {now} | end: — | stage: {stage_info}\n"
-    sessions_path.write_text(text, encoding="utf-8")
+    _atomic_write_text(sessions_path, text)
     return sid
 
 

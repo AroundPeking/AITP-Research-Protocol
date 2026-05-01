@@ -1693,8 +1693,8 @@ def aitp_resolve_promotion_gate(
         _append_to_topic_log(root, f"promotion rejected for {slug}: {reason}")
         return (
             f"Candidate {slug} promotion rejected. "
-            f"The agent should call aitp_retreat_to_l3 to return to L3/analysis "
-            f"and address the rejection reason before re-submitting."
+            f"Address the rejection reason, then re-submit via aitp_submit_candidate "
+            f"with the same candidate_id to restart the validation cycle."
         )
     return f"Candidate {slug} resolved: {decision}."
 
@@ -2691,7 +2691,10 @@ def aitp_session_resume(
         "resume_summary": ". ".join(summary_parts) + ".",
         "instruction": (
             f"Resume by reading skill '{snapshot.skill}' and continuing "
-            f"from where the last session left off."
+            f"from where the last session left off. "
+            f"Before continuing, check what L2 already knows: "
+            f"call aitp_query_entries to find relevant verified claims, "
+            f"methods, and pitfalls for this topic's domain."
         ),
     }
 
@@ -2983,6 +2986,45 @@ def aitp_return_to_l3_from_l4(
         ),
     })
 
+
+@mcp.tool()
+def aitp_advance_to_l4(
+    topics_root: str,
+    topic_slug: str,
+) -> _GateResult:
+    """Advance from L3 to L4 — requires at least one submitted candidate.
+
+    This is the explicit transition into validation mode. After advancing,
+    use aitp_submit_l4_review to validate candidates, then
+    aitp_request_promotion to begin the promotion gate.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    state_path = root / "state.md"
+    fm, body = _parse_md(state_path)
+    current_stage = fm.get("stage", "L0")
+    if current_stage != "L3":
+        return _GateResult({
+            "message": f"Cannot advance to L4: topic is at {current_stage}, not L3."
+        })
+
+    # Require at least one submitted candidate
+    cand_dir = root / "L3" / "candidates"
+    if not cand_dir.is_dir() or not list(cand_dir.glob("*.md")):
+        return _GateResult({
+            "message": "No candidates found. Submit at least one candidate via aitp_submit_candidate before advancing to L4."
+        })
+
+    fm["stage"] = "L4"
+    fm["posture"] = "verify"
+    fm["updated_at"] = _now()
+    _write_md(state_path, fm, body)
+    _append_to_topic_log(root, "advanced to L4 validation")
+    return _GateResult({
+        "message": (
+            "Advanced to L4. Submit validation reviews via aitp_submit_l4_review. "
+            "When candidates pass validation, use aitp_request_promotion to begin the promotion gate."
+        ),
+    })
 
 
 # ---------------------------------------------------------------------------
