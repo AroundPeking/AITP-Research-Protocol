@@ -166,5 +166,23 @@ observed in live research sessions:
 | "SymPy verification failed — that's fine for code_method" | code_method uses source anchoring (file:line references), not SymPy. The verification path differs by lane. Use lane-appropriate verification. |
 | "I can just answer this research question directly" | Direct answers bypass source registration, derivation recording, and L2 accumulation. Enter AITP first. |
 | "I will read files first and decide later whether AITP applies" | Skill check comes BEFORE file exploration. AITP tells you HOW to explore. |
+| "MCP is down, I'll just work directly and record later" | Use `aitp_event.py` to record events OFFLINE. Test submissions, failures, and results must be logged as they happen, not retroactively. `python3 hooks/aitp_event.py <topics_root> <slug> <event_type> <desc>` |
+| "I'll record the test results after the job finishes" | Record job SUBMISSION now. Record FAILURE when it fails. Don't batch — each event is a data point. The harness can't track what it doesn't know about. |
+
+## Offline Recording (When MCP Is Unavailable)
+
+When the AITP MCP server is disconnected, use `hooks/aitp_event.py` to record events
+directly to the topic's `runtime/log.md`. No MCP dependency needed.
+
+```
+python3 D:/BaiduSyncdisk/repos/AITP-Research-Protocol/hooks/aitp_event.py \
+  D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics \
+  qsgw-headwing-update-librpa \
+  L4_test_submit \
+  "Job 1732319: full pipeline, 8 procs, 120GB"
+```
+
+Event types for HPC work: `L4_test_submit`, `L4_test_fail`, `L4_test_complete`,
+`L4_test_ooms`, `L4_test_fpe`, `L4_numerical_result`.
 
 If you catch yourself thinking any of these, you are rationalizing. Stop. Return to the protocol.
