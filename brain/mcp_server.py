@@ -6066,7 +6066,8 @@ def _build_flow_notebook_content(
 
     # ---- 5b  Subplane derivations ----
     derivation_sps = [sp for sp in subplanes
-                      if sp["name"] in ("analysis", "step_derive", "result_integration")]
+                      if sp["name"] in ("derive", "trace-derivation", "integrate",
+                                         "analysis", "step_derive", "result_integration")]
     if derivation_sps:
         tex.append(r"\subsection{Structured Derivation}")
         tex.append("")
@@ -6082,7 +6083,7 @@ def _build_flow_notebook_content(
         tex.append("")
 
     # ---- 5c  Planning & ideation subplanes ----
-    plan_sps = [sp for sp in subplanes if sp["name"] in ("planning", "ideation")]
+    plan_sps = [sp for sp in subplanes if sp["name"] in ("plan", "ideate", "planning", "ideation")]
     if plan_sps:
         tex.append(r"\subsection{Planning Notes}")
         tex.append("")
@@ -6096,7 +6097,7 @@ def _build_flow_notebook_content(
     # ======================================================================
     # §6  Synthesis & Claims
     # ======================================================================
-    distill_sps = [sp for sp in subplanes if sp["name"] in ("distillation", "synthesis")]
+    distill_sps = [sp for sp in subplanes if sp["name"] in ("distill", "distillation", "synthesis")]
     tex.append(r"\section{Synthesis \& Claims}")
     tex.append("")
     for sp in distill_sps:
@@ -6120,13 +6121,16 @@ def _build_flow_notebook_content(
             tex.append("")
 
     # Candidates as results
-    promoted_cands = [c for c in candidates
-                      if c["fm"].get("status") in
-                      ("validated", "approved_for_promotion", "promoted")]
-    if promoted_cands:
+    all_validated = [c for c in candidates
+                     if c["fm"].get("status") in
+                     ("validated", "approved_for_promotion", "promoted")]
+    all_submitted = [c for c in candidates
+                     if c["fm"].get("status") not in
+                     ("validated", "approved_for_promotion", "promoted")]
+    if all_validated:
         tex.append(r"\subsection*{Validated Results}")
         tex.append("")
-        for i, c in enumerate(promoted_cands, 1):
+        for i, c in enumerate(all_validated, 1):
             ctitle = c["fm"].get("title", c["slug"])
             claim = c["fm"].get("claim", "")
             ctype = c["fm"].get("candidate_type", "research_claim")
@@ -6142,6 +6146,20 @@ def _build_flow_notebook_content(
                 tex.append(r"\textit{Regime of validity:} " + _esc(regime))
             tex.append(r"\end{resultbox}")
             tex.append("")
+    if all_submitted:
+        tex.append(r"\subsection*{Submitted Claims (Pending Validation)}")
+        tex.append("")
+        for i, c in enumerate(all_submitted, 1):
+            ctitle = c["fm"].get("title", c["slug"])
+            claim = c["fm"].get("claim", "")
+            cstatus = c["fm"].get("status", "")
+            tex.append(r"\noindent\textbf{" + str(i) + ". " + _esc(ctitle) + "}")
+            tex.append(r"\hfill \textit{" + _esc(cstatus) + "}")
+            tex.append("")
+            tex.append(_inline_math_safe(claim[:500]))
+            tex.append("")
+    if not all_validated and not all_submitted:
+        tex.append(r"\noindent (No candidates submitted.)")
 
     # ======================================================================
     # §7  Validation  (L4)
