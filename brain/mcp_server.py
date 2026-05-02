@@ -584,6 +584,7 @@ def aitp_bootstrap_topic(
     fm = {
         "topic_slug": safe_slug,
         "title": title,
+        "status": "new",
         "mode": mode,
         "stage": "L0",
         "posture": "discover",

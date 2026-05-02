@@ -82,7 +82,7 @@ class L1GateTests(unittest.TestCase):
                 tr / "L0" / "source_registry.md",
                 {"artifact_kind": "l0_source_registry", "stage": "L0",
                  "source_count": 1, "search_status": "complete"},
-                "# Source Registry\n\n## Search Methodology\narxiv\n\n## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n## Overall Verdict\nAdequate for initial work.\n\n## Gaps And Next Sources\nNone\n",
+                "# Source Registry\n\n## Search Methodology\narxiv\n\n## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n## Overall Verdict\nThis assessment confirms that the registered sources are sufficient for the bounded research question. Coverage spans the core derivation path and primary validation checks. No blocking gaps were identified. Source quality is adequate for current research intensity level.\n\n## Gaps And Next Sources\nNone\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
             )
             mcp_server._write_md(
                 tr / "L0" / "sources" / "paper-a.md",
@@ -99,7 +99,7 @@ class L1GateTests(unittest.TestCase):
                  "scope_boundaries": "One model, one regime. Does NOT consider multi-band effects or finite-temperature corrections.",
                  "target_quantities": "Gap and symmetry sector.",
                  "competing_hypotheses": "Alternative: the gap closes at the BKT transition point."},
-                "# Question Contract\n\n## Bounded Question\nWhat quantity is bounded here?\n\n## Competing Hypotheses\nAlternative: the gap closes at the BKT transition point.\n\n## Scope Boundaries\nOne model, one regime. Does NOT consider multi-band effects or finite-temperature corrections.\n\n## Target Quantities Or Claims\nGap and symmetry sector.\n\n## Non-Success Conditions\nNo broad universality claim.\n\n## Uncertainty Markers\nFinite-size risk.\n",
+                "# Question Contract\n\n## Bounded Question\nWhat quantity is bounded here?\n\n## Competing Hypotheses\nAlternative: the gap closes at the BKT transition point.\n\n## Scope Boundaries\nOne model, one regime. Does NOT consider multi-band effects or finite-temperature corrections.\n\n## Target Quantities Or Claims\nGap and symmetry sector.\n\n## Non-Success Conditions\nNo broad universality claim.\n\n## Uncertainty Markers\nFinite-size risk.\n\n## L2 Cross-Reference\nNo prior L2 knowledge for this test topic. Unit test fixture.\n",
             )
             mcp_server._write_md(
                 tr / "L1" / "source_basis.md",
@@ -177,8 +177,8 @@ class HookOutputTests(unittest.TestCase):
                  "source_count": 1, "search_status": "complete"},
                 "# Source Registry\n\n## Search Methodology\narxiv\n\n"
                 "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n"
-                "## Overall Verdict\nNo blocking gaps.\n\n"
-                "## Gaps And Next Sources\nNone.\n",
+                "## Overall Verdict\nThis assessment confirms that the registered sources are sufficient for the bounded research question. Coverage spans the core derivation path and primary validation checks. No blocking gaps were identified. Source quality is adequate for current research intensity level.\n\n"
+                "## Gaps And Next Sources\nNone.\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
             )
             mcp_server._write_md(
                 tr / "L0" / "sources" / "paper-a.md",
@@ -212,8 +212,8 @@ class HookOutputTests(unittest.TestCase):
                  "source_count": 1, "search_status": "complete"},
                 "# Source Registry\n\n## Search Methodology\narxiv\n\n"
                 "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate.\n\n"
-                "## Overall Verdict\nNo blocking gaps.\n\n"
-                "## Gaps And Next Sources\nNone.\n",
+                "## Overall Verdict\nThis assessment confirms that the registered sources are sufficient for the bounded research question. Coverage spans the core derivation path and primary validation checks. No blocking gaps were identified. Source quality is adequate for current research intensity level.\n\n"
+                "## Gaps And Next Sources\nNone.\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
             )
             mcp_server._write_md(
                 tr / "L0" / "sources" / "paper-a.md",

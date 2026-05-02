@@ -68,8 +68,11 @@ def _bootstrap_and_fill(td):
          "source_count": 1, "search_status": "complete"},
         "# Source Registry\n\n## Search Methodology\nTextbook.\n\n"
         "## Source Inventory\ngriffiths-qm-ch2\n\n## Coverage Assessment\nAdequate.\n\n"
-        "## Overall Verdict\nCoverage sufficient.\n\n"
-        "## Gaps And Next Sources\nNone.\n",
+        "## Overall Verdict\nThis assessment confirms that the registered sources are sufficient "
+        "for the bounded research question. Coverage spans the core derivation path and primary "
+        "validation checks. No blocking gaps were identified. Source quality is adequate for "
+        "current research intensity level.\n\n"
+        "## Gaps And Next Sources\nNone.\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
     )
 
     # Advance to L1
@@ -88,7 +91,8 @@ def _bootstrap_and_fill(td):
         "## Competing Hypotheses\nAlternative: continuous spectrum for unbounded potential.\n\n"
         "## Scope Boundaries\n1D NRQM. Does NOT ask about relativistic or coupled oscillators.\n\n"
         "## Target Quantities Or Claims\nE_n = (n+1/2) hbar omega.\n\n"
-        "## Non-Success Conditions\nIf zero-point energy is zero, the claim is falsified.\n",
+        "## Non-Success Conditions\nIf zero-point energy is zero, the claim is falsified.\n\n"
+        "## L2 Cross-Reference\nNo prior L2 knowledge for this test topic. Unit test fixture.\n",
     )
     _write_md(
         tr / "L1" / "source_basis.md",
@@ -103,7 +107,7 @@ def _bootstrap_and_fill(td):
          "notation_choices": "Dirac bra-ket, natural units hbar=c=1.",
          "unit_conventions": "Natural units."},
         "# Convention Snapshot\n\n## Notation Choices\nDirac bra-ket.\n\n"
-        "## Unit Conventions\nNatural units.\n\n## Unresolved Tensions\nNone.\n",
+        "## Unit Conventions\nNatural units.\n\n## Unresolved Tensions\nNone.\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
     )
     _write_md(
         tr / "L1" / "derivation_anchor_map.md",

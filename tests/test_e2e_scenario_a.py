@@ -68,8 +68,8 @@ def _bootstrap_and_register_sources(tmp: str) -> Path:
         "# Source Registry\n\n## Search Methodology\narxiv + textbook\n\n"
         "## Source Inventory\nwitten-cs-2018, redlich-parity-2016, weinberg-qft-v2\n\n"
         "## Coverage Assessment\nAdequate for one-loop CS computation\n\n"
-        "## Overall Verdict\nSources sufficient for one-loop analysis.\n\n"
-        "## Gaps And Next Sources\nNone\n",
+        "## Overall Verdict\nThis assessment confirms that the registered sources are sufficient for the bounded research question. Coverage spans the core derivation path and primary validation checks. No blocking gaps were identified. Source quality is adequate for current research intensity level.\n\n"
+        "## Gaps And Next Sources\nNone\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
     )
     mcp_server.aitp_advance_to_l1(tmp, TOPIC_SLUG)
 
@@ -98,7 +98,7 @@ def _bootstrap_and_register_sources(tmp: str) -> Path:
         "## Non-Success Conditions\n"
         "No claim about all-loop order or other representations.\n\n"
         "## Uncertainty Markers\n"
-        "Regularization scheme dependence to be checked.\n",
+        "Regularization scheme dependence to be checked.\n\n## L2 Cross-Reference\nNo prior L2 knowledge for this test topic. Unit test fixture.\n",
     )
     mcp_server._write_md(
         tr / "L1" / "source_basis.md",

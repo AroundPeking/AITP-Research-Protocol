@@ -36,8 +36,11 @@ def _bootstrap_l1_complete(tmp: str) -> Path:
          "source_count": 1, "search_status": "complete"},
         "# Source Registry\n\n## Search Methodology\narxiv\n\n"
         "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate\n\n"
-        "## Overall Verdict\nCoverage sufficient.\n\n"
-        "## Gaps And Next Sources\nNone\n",
+        "## Overall Verdict\nThis assessment confirms that the registered sources are sufficient "
+        "for the bounded research question. Coverage spans the core derivation path and primary "
+        "validation checks. No blocking gaps were identified. Source quality is adequate for "
+        "current research intensity level.\n\n"
+        "## Gaps And Next Sources\nNone\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
     )
     mcp_server._write_md(
         tr / "L0" / "sources" / "paper-a.md",
@@ -60,7 +63,7 @@ def _bootstrap_l1_complete(tmp: str) -> Path:
             "## Scope Boundaries\nOne model, one regime. This does NOT ask about all-loop order.\n\n"
             "## Target Quantities Or Claims\nGap and symmetry sector.\n\n"
             "## Non-Success Conditions\nIf the gap closes at the Gamma point, the claim is falsified.\n\n"
-            "## Uncertainty Markers\nFinite-size risk.\n",
+            "## Uncertainty Markers\nFinite-size risk.\n\n## L2 Cross-Reference\nNo prior L2 knowledge for this test topic. Unit test fixture.\n",
         ),
         "source_basis.md": (
             {"artifact_kind": "l1_source_basis", "stage": "L1",

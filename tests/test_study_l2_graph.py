@@ -56,8 +56,11 @@ def _fill_l0_gate(td):
          "source_count": 1, "search_status": "complete"},
         "# Source Registry\n\n## Search Methodology\narxiv\n\n"
         "## Source Inventory\npaper-a\n\n## Coverage Assessment\nAdequate\n\n"
-        "## Overall Verdict\nCoverage sufficient.\n\n"
-        "## Gaps And Next Sources\nNone\n",
+        "## Overall Verdict\nThis assessment confirms that the registered sources are sufficient "
+        "for the bounded research question. Coverage spans the core derivation path and primary "
+        "validation checks. No blocking gaps were identified. Source quality is adequate for "
+        "current research intensity level.\n\n"
+        "## Gaps And Next Sources\nNone\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
     )
     _write_md(
         tr / "L0" / "sources" / "paper-a.md",
@@ -80,7 +83,8 @@ def _fill_l1_gate(td):
         "## Competing Hypotheses\nAlternative: the spectrum may be continuous.\n\n"
         "## Scope Boundaries\nOne model. This does NOT ask about other models.\n\n"
         "## Target Quantities Or Claims\nEnergy spectrum.\n\n"
-        "## Non-Success Conditions\nIf the spectrum is not bounded below, the claim is falsified.\n",
+        "## Non-Success Conditions\nIf the spectrum is not bounded below, the claim is falsified.\n\n"
+        "## L2 Cross-Reference\nNo prior L2 knowledge for this test topic. Unit test fixture.\n",
     )
     _write_md(
         tr / "L1" / "source_basis.md",
@@ -94,7 +98,7 @@ def _fill_l1_gate(td):
         {"artifact_kind": "l1_convention_snapshot", "stage": "L1",
          "notation_choices": "Dirac notation.", "unit_conventions": "Natural units."},
         "# Convention Snapshot\n\n## Notation Choices\nDirac notation.\n\n"
-        "## Unit Conventions\nNatural units.\n\n## Unresolved Tensions\nNone.\n",
+        "## Unit Conventions\nNatural units.\n\n## Unresolved Tensions\nNone.\n\n## Prior L2 Knowledge\nNo prior L2 knowledge for this test bootstrap topic. Unit test fixture for gate verification.\n",
     )
     _write_md(
         tr / "L1" / "derivation_anchor_map.md",

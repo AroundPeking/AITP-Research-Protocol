@@ -45,19 +45,19 @@ class GlobalL2SurfaceTests(unittest.TestCase):
     def test_global_l2_index_is_materialized(self):
         with tempfile.TemporaryDirectory() as tmp:
             _bootstrap_with_l3(tmp)
-            l2_idx = Path(tmp) / "L2" / "index.md"
+            l2_idx = mcp_server._global_l2_path(tmp) / "index.md"
             self.assertTrue(l2_idx.exists(), "L2/index.md must exist")
 
     def test_global_l2_log_is_materialized(self):
         with tempfile.TemporaryDirectory() as tmp:
             _bootstrap_with_l3(tmp)
-            l2_log = Path(tmp) / "L2" / "log.md"
+            l2_log = mcp_server._global_l2_path(tmp) / "log.md"
             self.assertTrue(l2_log.exists(), "L2/log.md must exist")
 
     def test_global_l2_index_groups_by_family_and_regime(self):
         with tempfile.TemporaryDirectory() as tmp:
             _bootstrap_with_l3(tmp)
-            l2_idx = (Path(tmp) / "L2" / "index.md").read_text(encoding="utf-8")
+            l2_idx = (mcp_server._global_l2_path(tmp) / "index.md").read_text(encoding="utf-8")
             for section in ["Family", "Regime", "Warning", "Negative"]:
                 self.assertIn(section, l2_idx, f"Missing grouping in L2 index: {section}")
 
