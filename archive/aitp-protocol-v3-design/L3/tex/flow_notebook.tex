@@ -1,0 +1,216 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{physics}
+\usepackage{bm}
+\usepackage[margin=2.5cm]{geometry}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em plus 0.2em minus 0.1em}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black}
+
+\definecolor{passgreen}{RGB}{34,139,34}
+\definecolor{failred}{RGB}{178,34,34}
+\definecolor{warnorange}{RGB}{204,119,34}
+\definecolor{infoblue}{RGB}{47,85,151}
+\definecolor{lightbg}{RGB}{245,245,250}
+
+\newcommand{\statuspass}{\textcolor{passgreen}{\textbf{PASS}}}
+\newcommand{\statusfail}{\textcolor{failred}{\textbf{FAIL}}}
+\newcommand{\statusactive}{\textcolor{warnorange}{\textbf{ACTIVE}}}
+\newcommand{\statusdeferred}{\textcolor{gray}{\textbf{DEFERRED}}}
+
+\newtcolorbox{resultbox}[1][]{colback=infoblue!4,colframe=infoblue!70,
+  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}
+\newtcolorbox{warningbox}[1][]{colback=warnorange!4,colframe=warnorange!70,
+  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}
+\newtcolorbox{valbox}[1][]{colback=passgreen!4,colframe=passgreen!70,
+  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}
+
+\title{\textbf{Research Flow Notebook}\\[0.4em]
+  \large AITP Protocol v3: From Compliance Officer to Adversarial Collaborator
+  \quad \texttt{code\_method lane}
+}
+\author{AITP Protocol v4}
+\date{2026-04-24}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+This notebook records the complete research trajectory: sources, conventions,
+derivation attempts, validated results, and open questions.
+Mode: \texttt{explore}.
+\end{abstract}
+
+\tableofcontents
+\newpage
+\section{Research Question}
+
+\begin{resultbox}[Bounded Question]
+Refactor AITP from 50-tool compliance-checking protocol to \textasciitilde 15-tool adversarial-collaborator protocol: Python handles only file persistence + semantic search, all physics judgment lives in skill files as Socratic/role-based prompts.
+\end{resultbox}
+
+\noindent
+\textbf{Scope:} MCP server brain/mcp\_server.py and brain/state\_model.py, plus skill files. Does NOT include: UI, external MCP integrations, Zotero/Obsidian sync, numerical computing infrastructure. Study mode pipeline is in-scope because it feeds L2. \quad
+\textbf{Target quantities:} 1) Tools: cut from 50 to \textasciitilde 15. 2) Gate evaluators: remove content-quality pretensions, keep only file-existence checks. 3) L2 search: semantic from substring. 4) Skill files: rewritten as role-based adversarial prompts. 5) Autonomous loops: removed or gated behind human review. 6) All existing tests must still pass (behavior preserved where tools remain).
+
+\section{Source Landscape}
+
+\begin{longtable}{>{\raggedright}p{3cm} p{5cm} p{2.5cm} p{2.5cm}}
+\toprule
+\textbf{Source} & \textbf{Title} & \textbf{Fidelity} & \textbf{Relation} \\
+\midrule
+\endhead
+adversarial-collaborator-design & Adversarial Collaborator Design: Skills as Socratic Interloc & local\_source &  \\
+current-mcp-server-codebase & Current AITP MCP Server v2: 50 tools, brain/mcp\_server.py +  & local\_source &  \\
+protocol-critique-20260424 & 26-Problem Protocol Critique from Theoretical Physicist Pers & local\_source &  \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Source Basis Analysis}
+\subsection*{Source Basis}
+
+\subsubsection*{Core Sources}
+
+\begin{enumerate}
+\item \textbf{current-mcp-server-codebase}: \texttt{brain/mcp\_server.py} (3273 lines, 50 @mcp.tool()), \texttt{brain/state\_model.py} (912 lines, gate evaluators, templates, constants). This is the substrate to be refactored. Every tool function, every gate evaluator, every template is candidate for deletion or rewrite.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{protocol-critique-20260424}: The 26-problem analysis from a theoretical physicist's perspective. Organized by: gate quality (4 problems), L2 knowledge representation (6), mathematical verification (4), trust model (4), workflow (5), scaling (3). This is the "what's broken" reference.
+\end{enumerate}
+
+\begin{enumerate}
+\item \textbf{adversarial-collaborator-design}: Design direction note establishing: Python = storage + search only; Skills = role-based adversarial prompts; L2 = conversationally curated; no autonomous LLM-self-validation loops. This is the "where we're going" reference.
+\end{enumerate}
+
+\subsubsection*{Peripheral Sources}
+
+\begin{itemize}
+\item Existing 7 AITP topics (real usage data showing what's working and what's not)
+\item Test suite \textasciitilde 5000 lines (what behaviors are currently promised)
+\item \texttt{.claude/skills/} v2 skill files (reference for what good skills look like)
+\end{itemize}
+
+\subsubsection*{Source Roles}
+
+\begin{tabular}{ll}
+\toprule
+Source & Role \\
+\midrule
+mcp\_server.py + state\_model.py & Primary substrate — what gets cut/rewritten \\
+protocol-critique & Requirements document — what must be fixed \\
+adversarial-collaborator-design & Architecture vision — how it should work \\
+Test suite & Compatibility constraint — what must not break \\
+Existing 7 topics & Migration constraint — data must survive \\
+\bottomrule
+\end{tabular}
+
+\subsubsection*{Reading Depth}
+
+All sources are local, relatively short (< 5000 lines total), and already deeply analyzed. No need for extended reading phase — move quickly to design (L3).
+
+\subsubsection*{Why Each Source Matters}
+
+\begin{itemize}
+\item \textbf{codebase}: You can't refactor what you haven't read
+\item \textbf{critique}: 26 specific bugs/gaps, each is a design constraint
+\item \textbf{design note}: The positive vision — if the critique says "don't do X", the design note says "do Y instead"
+\end{itemize}
+
+
+\section{Conventions \& Notation}
+
+\subsection*{Convention Snapshot}
+
+\subsubsection*{Notation Choices}
+
+\begin{itemize}
+\item \textbf{Protocol layers}: L0 (discover) $\rightarrow$ L1 (read/frame) $\rightarrow$ L2 (cross-topic knowledge graph) $\rightarrow$ L3 (derive, research or study mode) $\rightarrow$ L4 (validate) $\rightarrow$ L5 (write)
+\item \textbf{Tool naming}: \texttt{aitp\_<verb>\_<noun>} e.g., \texttt{aitp\_create\_l2\_node}, \texttt{aitp\_query\_l2}
+\item \textbf{Skill naming}: \texttt{skill-<stage>-<subplane>.md} for stage-specific, descriptive names for cross-cutting skills
+\item \textbf{Adversarial collaborator}: The persona embedded in each skill file that asks Socratic/critical questions — modeled after a skeptical but constructive peer reviewer or co-author
+\item \textbf{"Python never judges"}: A design invariant — no Python function returns a content-quality verdict, trust assessment, or physics correctness claim
+\end{itemize}
+
+\subsubsection*{Unit Conventions}
+
+\begin{itemize}
+\item Python 3.10+, FastMCP framework
+\item pytest for testing, PyYAML for frontmatter parsing
+\item All persistence: Markdown files with YAML frontmatter (no JSON, no SQL, no embedings DB)
+\item File naming: snake\_case for slugs, kebab-case for artifact directories
+\end{itemize}
+
+\subsubsection*{Sign Conventions}
+
+\begin{itemize}
+\item \textbf{Remove, don't add}: Default action is deleting tools, not creating new ones
+\item \textbf{Skill over Python}: When in doubt, put logic in skill files (LLM-mediated), not in Python (deterministic but dumb)
+\item \textbf{Storage is sacred}: File I/O must be atomic and reliable — this is Python's only real responsibility
+\end{itemize}
+
+\subsubsection*{Metric Or Coordinate Conventions}
+
+\begin{itemize}
+\item Code measured in: tool count (\textasciitilde 15 target), lines of Python (targeting significant reduction from 3273), test coverage (must not regress)
+\item Quality measured in: how well the protocol enables a real physics research conversation, not in checkboxes checked
+\end{itemize}
+
+\subsubsection*{Unresolved Tensions}
+
+\begin{enumerate}
+\item Semantic search — can we get good enough results without embedding models? (Pure Python: token overlap + concept aliases + LaTeX normalization)
+\item Gate evaluation — if Python doesn't check content, what signals "you're not ready to advance"? Answer: skill-level adversarial questions that the agent must answer honestly
+\item Backward compatibilit
+\end{enumerate}
+
+\noindent\textbf{Notation:} Protocol layers: L0(discover)$\rightarrow$L1(read)$\rightarrow$L2(cross-topic KG)$\rightarrow$L3(derive)$\rightarrow$L4(validate)$\rightarrow$L5(write). Tool naming: aitp\_<verb>\_<noun>. Skill naming: skill-<stage>-<subplane>.md. Adversarial collaborator: the agent-in-skill that asks Socratic questions, not checklist items.
+
+\noindent\textbf{Units:} Code: Python 3.10+, FastMCP framework, pytest, PyYAML. Storage: Markdown files with YAML frontmatter (no JSON, no SQL). File naming: snake\_case for slugs, kebab-case for artifact directories.
+
+\section{Mode \& Session History}
+
+\noindent
+\begin{tabular}{ll}
+\toprule
+\textbf{Axis} & \textbf{Value} \\
+\midrule
+Topic slug & \texttt{aitp-protocol-v3} \\
+Status & \texttt{new} \\
+Mode & \texttt{explore} \\
+Lane & \texttt{code\_method} \\
+L3 mode & \texttt{research} \\
+\bottomrule
+\end{tabular}
+
+\subsection*{Session Log}
+\subsection*{Session Log: AITP Protocol v3: From Compliance Officer to Adversarial Collaborator}
+
+\subsubsection*{Sessions}
+
+
+
+\section{Derivation Journey}
+
+\noindent (No structured derivation recorded.)
+
+\section{Synthesis \& Claims}
+
+\section{Validation}
+
+\noindent (No L4 reviews submitted.)
+
+\section{Negative Results \& Open Questions}
+
+\noindent (No negative results or open questions formally recorded.)
+
+
+\end{document}

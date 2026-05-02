@@ -1,0 +1,8 @@
+\contentsline {section}{\numberline {1}Research Question}{2}{section.1}%
+\contentsline {section}{\numberline {2}Source Landscape}{2}{section.2}%
+\contentsline {section}{\numberline {3}Conventions \& Notation}{3}{section.3}%
+\contentsline {section}{\numberline {4}Mode \& Session History}{5}{section.4}%
+\contentsline {section}{\numberline {5}Derivation Journey}{5}{section.5}%
+\contentsline {section}{\numberline {6}Synthesis \& Claims}{5}{section.6}%
+\contentsline {section}{\numberline {7}Validation}{5}{section.7}%
+\contentsline {section}{\numberline {8}Negative Results \& Open Questions}{5}{section.8}%
