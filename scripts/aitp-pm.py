@@ -712,7 +712,10 @@ def _deploy_claude_code(
 
     # 4. Deploy skills to ~/.claude/skills/<name>/SKILL.md
     print(f"  Deploying skills to {skills_dir}/")
-    skills_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        skills_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass  # Windows junction/mount point — directory already accessible
     for src, dst_rel in all_skills:
         if not src.exists():
             print(f"    WARNING: skill source not found: {src}")
@@ -860,7 +863,10 @@ def _deploy_kimi_code(
 
     # --- Install ---
     print(f"  Deploying skills to {skills_dir}/")
-    skills_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        skills_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass  # Windows junction/mount point
     for skill_name, dst_rel in gateway_skills:
         # Source from deploy/skills/ first, fall back to deploy/templates/
         src = REPO_ROOT / "deploy" / "skills" / f"{skill_name}.md"
