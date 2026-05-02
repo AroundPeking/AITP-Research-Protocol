@@ -8,17 +8,38 @@ AITP is a protocol layer that gives your AI agent the discipline of a good resea
 
 ## Quick start
 
+**One-liner (Claude Code):**
+
+```bash
+git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git && cd AITP-Research-Protocol && AITP_TOPICS_ROOT=~/research/aitp-topics python scripts/aitp-pm.py install
+```
+
+This auto-detects your AI agents, deploys all hooks/skills/config, and registers a global `aitp` CLI command. No interactive prompts needed when `AITP_TOPICS_ROOT` is set.
+
+Step by step:
+
 ```bash
 git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git
 cd AITP-Research-Protocol
+
+# Non-interactive (recommended for CI/scripts):
+AITP_TOPICS_ROOT=~/research/aitp-topics python scripts/aitp-pm.py install
+
+# Interactive (prompts for topics root):
 python scripts/aitp-pm.py install
+
+# Single agent only:
+python scripts/aitp-pm.py install --agent claude-code
 ```
 
-The installer detects your AI agents (Claude Code, Kimi Code), prompts for a topics directory, and deploys hooks, skills, and MCP configs automatically. After install, use `aitp` from anywhere:
+After install, use `aitp` from anywhere:
 
 ```bash
-aitp doctor     # Verify everything is working
+aitp doctor     # Full health check
 aitp status     # Show what's installed
+aitp update     # Re-sync deployed files
+aitp upgrade    # Git pull + re-deploy
+aitp uninstall  # Remove everything
 ```
 
 ### Manual MCP setup
@@ -52,7 +73,7 @@ Once AITP is installed, tell your AI agent what you want to study in plain langu
 
 The agent (equipped with the `using-aitp` skill) will:
 
-1. **Check existing knowledge** — calls `aitp_query_l2_index` to see what's already in the L2 graph
+1. **Check existing knowledge** — calls `aitp_query_entries` (v5 faceted entries) and `aitp_query_l2` (promoted candidates) to see what the L2 knowledge base already knows about this domain
 2. **Create the topic** — calls `aitp_bootstrap_topic` to set up the directory structure
 3. **Walk through the stages** — guided by `aitp_get_execution_brief` at each step
 
@@ -84,7 +105,7 @@ Just open the topic again. State is stored in plain Markdown files. No database.
 ### Best practices
 
 - **Push after every feature.** See `skills/aitp-push-after-feature.md` — this exists because we learned the hard way.
-- **Start from L2.** Every new topic should call `aitp_query_l2_index` first to discover what's already known.
+- **Start from L2.** Every new topic should call `aitp_query_entries` first to discover verified claims, known methods, pitfalls, and open questions that already exist for this domain.
 - **Source everything.** Every L2 node and edge requires a `source_ref`. Provenance is mandatory.
 - **Let the brief guide you.** Always call `aitp_get_execution_brief` before deciding what to do next. It tells you gates, blockers, and the next allowed action.
 
@@ -136,7 +157,17 @@ For novel claims that need derivation and validation:
 
 ### Querying L2
 
-Before starting any new topic, the agent should call `aitp_query_l2_index` to get the domain taxonomy. Then `aitp_query_l2_graph` with filters (domain, node type) to find specific nodes. Source provenance is hidden by default (to keep context lean) but available via `aitp_get_l2_provenance`.
+Before starting any new topic, the agent should call `aitp_query_entries` (the primary v5 faceted entry query tool) to find relevant knowledge:
+
+```bash
+aitp_query_entries(role="claim", system="<system-slug>")  # What's known about this system?
+aitp_query_entries(role="claim", status="verified")        # All verified claims
+aitp_query_entries(role="method")                          # Available methods/workflows
+aitp_query_entries(role="pitfall")                         # Known failure modes
+aitp_query_entries(role="question")                        # Open research questions
+```
+
+For domain taxonomy and graph relationships, use `aitp_query_l2_index` and `aitp_query_l2_graph`. Use `aitp_query_l2` to search across both v5 entries and promoted candidates. Source provenance is hidden by default (to keep context lean) but available via `aitp_get_l2_provenance`.
 
 ### Trust levels
 
@@ -147,26 +178,17 @@ You control promotion. The protocol provides evidence; you decide what enters th
 
 ## Install / Update / Uninstall
 
-AITP includes a package manager (`aitp-pm.py`) that handles deployment across AI agents. After initial setup, use the `aitp` command from anywhere.
-
-### Install
-
-```bash
-git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git
-cd AITP-Research-Protocol
-python scripts/aitp-pm.py install
-```
+See [Quick start](#quick-start) above for one-liner install. After initial setup, use the `aitp` command from anywhere.
 
 The installer:
 - Detects installed AI agents (Claude Code, Kimi Code)
-- Prompts for `topics_root` — where research topics live (default: `~/aitp-topics`)
+- Sets `topics_root` from `AITP_TOPICS_ROOT` env var or prompts interactively (default: `~/aitp-topics`)
 - Auto-discovers and deploys ALL skills, hooks, runners, and config
-- Registers MCP server config
-- Creates a global `aitp` CLI wrapper
+- Registers MCP server config and creates a global `aitp` CLI wrapper
 
 Options:
 ```bash
-aitp install                          # All agents, user scope (auto-detects topics_root)
+aitp install                          # All agents, user scope
 aitp install --agent claude-code      # Claude Code only
 aitp install --scope project          # Project-level install (writes to .claude/)
 aitp install --topics-root /path/to/topics  # Custom topics directory
