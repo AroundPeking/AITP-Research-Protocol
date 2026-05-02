@@ -1,6 +1,6 @@
 ---
 name: aitp-protocol
-version: "4.0"
+version: "4.1"
 description: Operating manual for the AITP adversarial-collaborator protocol.
   Python stores and searches, you judge physics. Evidence before claims.
   Derivations before conclusions. Limits before generalizations.

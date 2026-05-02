@@ -1,6 +1,6 @@
 # AITP Research Protocol
 
-**AI-assisted Theoretical Physics.** Protocol v4.0.
+**AI-assisted Theoretical Physics.** Protocol v4.1.
 
 > 追求真理而非沽名钓誉。 *Pursue truth, not fame.*
 
@@ -109,7 +109,7 @@ Just open the topic again. State is stored in plain Markdown files. No database.
 - **Source everything.** Every L2 node and edge requires a `source_ref`. Provenance is mandatory.
 - **Let the brief guide you.** Always call `aitp_get_execution_brief` before deciding what to do next. It tells you gates, blockers, and the next allowed action.
 
-## Protocol stages (v4.0)
+## Protocol stages (v4.1)
 
 ```
 L0 (discover) → L1 (read → frame) → L3 (derive) ⇄ L4 (validate) → L2 (knowledge)
@@ -123,7 +123,7 @@ L0 (discover) → L1 (read → frame) → L3 (derive) ⇄ L4 (validate) → L2 (
 | **L4** | Adversarial validation with mandatory counterargument | Validation contracts, reviews |
 | **L2** | Persistent, cross-topic knowledge graph | Nodes, edges, EFT towers |
 
-**L5 (writing/publication) is removed in v4.0.** L2 is the endpoint. The knowledge graph itself is the output. Paper writing is the human's work.
+**L5 (writing/publication) is removed in v4.1.** L2 is the endpoint. The knowledge graph itself is the output. Paper writing is the human's work.
 
 ## Expanding the L2 Knowledge Graph
 
@@ -262,7 +262,7 @@ AITP-Research-Protocol/
 │   ├── tool_catalog.py        # Progressive-disclosure tool registry
 │   ├── state_model.py         # Backward-compatible re-export layer
 │   ├── L2_ARCHITECTURE_v5.md  # L2 v5 faceted knowledge base design
-│   └── PROTOCOL.md            # Protocol operating manual v4.0
+│   └── PROTOCOL.md            # Protocol operating manual v4.1
 ├── deploy/                    # Unified deployment source (auto-discovered)
 │   ├── skills/                # Gateway skills: using-aitp, aitp-runtime, aitp-mcp-setup
 │   ├── hooks/                 # Generated hooks: keyword-router, routing-guard

@@ -567,7 +567,19 @@ def aitp_bootstrap_topic(
         "kind": "session_log", "topic_slug": safe_slug, "created_at": _now(),
     }, f"# Session Log: {title}\n\n## Sessions\n")
     # Global L2 surfaces — full v5 faceted layout
-    _ensure_l2_graph_dirs(str(base))
+    global_l2 = _ensure_l2_graph_dirs(str(base))
+    if not (global_l2 / "index.md").exists():
+        _write_md(global_l2 / "index.md", {
+            "kind": "global_l2_index", "created_at": _now(),
+        }, (
+            "# Global L2 Index\n\n"
+            "## Family\n\n## Regime\n\n"
+            "## Warning And Negative Results\n\n## Cross-Topic Bridges\n"
+        ))
+    if not (global_l2 / "log.md").exists():
+        _write_md(global_l2 / "log.md", {
+            "kind": "global_l2_log", "created_at": _now(),
+        }, "# Global L2 Log\n\n## Events\n")
     fm = {
         "topic_slug": safe_slug,
         "title": title,
@@ -4267,7 +4279,7 @@ def _ensure_l2_graph_dirs(topics_root: str) -> Path:
             "## By Symptom\n\n## By Affected Method\n\n## By Status\n"
         )),
     ]:
-        p = global_l2 / fname
+        p = global_l2 / "entries" / fname
         if not p.exists():
             _write_md(p, fm, body)
 
