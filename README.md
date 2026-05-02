@@ -83,7 +83,7 @@ The agent (equipped with the `using-aitp` skill) will:
 
 **L1 — Read and frame.** TOC-first reading for every source. Skim all sections (Phase A), deep-extract the relevant ones (Phase B). Each extracted section immediately contributes concepts and obvious edges to L2. This stage answers: *What exactly are we trying to figure out?*
 
-**L3 — Derive.** Flexible workspace with 7 activities: ideate, derive, trace-derivation, gap-audit, connect, integrate, distill. Switch between them freely — no forced sequence. Submit candidates when claims are ready.
+**L3 — Derive.** Flexible workspace with 8 activities: ideate, plan, derive, trace-derivation, gap-audit, connect, integrate, distill. Switch between them freely — no forced sequence. Submit candidates when claims are ready.
 
 **L4 — Validate.** Adversarial review with mandatory counterargument. Dimensional analysis, symmetry checks, limiting cases. Non-pass outcomes return to L3 for revision. This is the trust gate.
 
@@ -210,7 +210,7 @@ aitp update
 | Hook scripts | `deploy/hooks/*.py`, `hooks/*.{py,cmd,sh}` | `~/.claude/hooks/` |
 | Runners | `deploy/runners/*.{cmd,sh}` | `~/.claude/hooks/` |
 | Hook config | `deploy/config/hooks.json` | `~/.claude/hooks/hooks.json` + `settings.json` |
-| MCP server | `brain/native_mcp.py` | Configured in `settings.json` (runs in-place) |
+| MCP server | `brain/mcp_server.py` (FastMCP) or `brain/native_mcp.py` (stdlib) | Configured in `settings.json` (runs in-place) |
 
 To add a new skill, just drop a `.md` file in `skills/` or `deploy/skills/`. No code changes needed.
 Stale files (renamed/removed skills or hooks) are cleaned up automatically.
@@ -250,32 +250,45 @@ The `doctor` command checks: Python version, dependencies, repo integrity, topic
 ```
 AITP-Research-Protocol/
 ├── brain/
-│   ├── native_mcp.py          # MCP server (HTTP transport, 35+ tools)
-│   ├── state_model.py         # Gate logic, stage machine, domain taxonomy
-│   ├── sympy_verify.py        # Symbolic verification (dimensions, algebra, limits)
+│   ├── mcp_server.py          # MCP server — 75+ tools, HTTP transport
+│   ├── native_mcp.py          # Stdio-native MCP wrapper (zero-dependency)
+│   ├── state.py               # Protocol constants, node/edge types, activities
+│   ├── gates.py               # Stage gate evaluation (L0/L1/L3/L4)
+│   ├── checks.py              # Content validation, derivation verification
+│   ├── contracts.py           # Artifact templates, required headings
 │   ├── physicist.py           # AI physicist check at stage transitions
-│   ├── gates.py, checks.py    # Validation gates and correspondence checks
-│   ├── contracts.py, domains.py  # Contract types and domain taxonomy
-│   ├── semantic.py, state.py  # Knowledge graph and state management
-│   └── PROTOCOL.md            # Protocol operating manual v4.1
+│   ├── domains.py             # Domain detection, skill mapping, path resolution
+│   ├── semantic.py            # TF-IDF semantic search for L2 queries
+│   ├── tool_catalog.py        # Progressive-disclosure tool registry
+│   ├── state_model.py         # Backward-compatible re-export layer
+│   ├── L2_ARCHITECTURE_v5.md  # L2 v5 faceted knowledge base design
+│   └── PROTOCOL.md            # Protocol operating manual v4.0
 ├── deploy/                    # Unified deployment source (auto-discovered)
 │   ├── skills/                # Gateway skills: using-aitp, aitp-runtime, aitp-mcp-setup
 │   ├── hooks/                 # Generated hooks: keyword-router, routing-guard
 │   ├── runners/               # Shell/batch runners: run-hook.cmd, session-start.sh
-│   └── config/                # Hook configuration: hooks.json (single source of truth)
+│   ├── config/                # Hook configuration: hooks.json (single source of truth)
+│   └── templates/             # Agent-specific template overrides (claude-code, kimi-code)
 ├── skills/                    # Protocol skills (auto-discovered + deployed)
 │   ├── skill-discover.md      # L0: source discovery
 │   ├── skill-read.md          # L1: TOC-first reading workflow
-│   ├── skill-l2-entry.md      # L2 knowledge entry before topic bootstrap
+│   ├── skill-frame.md         # L1: framing — lock conventions and contradictions
+│   ├── skill-init.md          # First-run workspace setup
+│   ├── skill-l2-entry.md      # L2 knowledge entry and retrieval
 │   ├── skill-physicist-check.md  # AI physicist at every stage transition
-│   ├── skill-l3-*.md          # L3 subplanes (ideate, plan, analyze, gap-audit, integrate, distill)
+│   ├── skill-l3-ideate.md     # L3: idea generation
+│   ├── skill-l3-plan.md       # L3: derivation route planning
+│   ├── skill-l3-analyze.md    # L3: derivation execution
+│   ├── skill-l3-gap-audit.md  # L3: hidden assumption and gap detection
+│   ├── skill-l3-integrate.md  # L3: cross-activity synthesis
+│   ├── skill-l3-distill.md    # L3: final claim extraction
 │   ├── skill-validate.md      # L4: adversarial validation
 │   ├── skill-promote.md       # L2 promotion gate
 │   ├── skill-continuous.md    # Resume after session break
 │   ├── skill-librpa.md        # Domain skill: ABACUS+LibRPA
 │   └── aitp-push-after-feature.md  # Push discipline
 ├── hooks/                     # Agent hook scripts (auto-discovered + deployed)
-│   ├── aitp_event.py          # Offline event recording
+│   ├── aitp_event.py          # Offline event recording (no MCP dependency)
 │   ├── session_start.py       # Session start handler
 │   ├── compact.py, stop.py    # Context compaction and stop handlers
 │   └── hook_utils.py          # Shared hook utilities
@@ -283,7 +296,7 @@ AITP-Research-Protocol/
 │   ├── aitp-pm.py             # Package manager (install/update/upgrade/uninstall)
 │   ├── aitp / aitp.cmd        # CLI entry wrappers
 │   └── generate_l2_viz.py     # L2 graph visualization
-├── tests/                     # Test suite
+├── tests/                     # Test suite (141 passing)
 ├── docs/                      # Specs, guides, design documents
 ├── adapters/                  # Agent-specific integrations
 ├── contracts/                 # Artifact templates
