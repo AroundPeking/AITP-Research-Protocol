@@ -193,7 +193,7 @@ class HookOutputTests(unittest.TestCase):
             )
             self.assertIn("stage: L1", completed.stdout)
             self.assertIn("posture: read", completed.stdout)
-            self.assertIn("question_contract.md", completed.stdout)
+            self.assertIn("question_contract.md", completed.stderr)
             self.assertIn("skill-read.md", completed.stdout)
 
     def test_compact_prints_same_stage_posture_summary(self):
