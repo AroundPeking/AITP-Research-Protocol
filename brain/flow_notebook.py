@@ -285,7 +285,11 @@ def _esc(text: str) -> str:
     while i < len(text):
         ch = text[i]
         if ch == '\\':
-            result.append(r"\textbackslash{}")
+            # Keep backslash-commands (like \omega, \frac) — they're valid LaTeX
+            if i + 1 < len(text) and text[i + 1].isalpha():
+                result.append(ch)
+            else:
+                result.append(r"\textbackslash{}")
         elif ch == '&':
             result.append(r"\&")
         elif ch == '%':
@@ -295,9 +299,32 @@ def _esc(text: str) -> str:
         elif ch == '#':
             result.append(r"\#")
         elif ch == '_':
-            result.append(r"\_")
+            # Don't escape _ in LaTeX command context (e.g. \omega_n, \varepsilon^{\mu\nu})
+            if i > 0 and text[i - 1] == '\\':
+                result.append(ch)
+            elif i > 0 and text[i - 1].isalpha():
+                # Check if preceded by \command (backtrack to find \)
+                j = i - 1
+                while j >= 0 and (text[j].isalpha() or text[j] in '{}[]'):
+                    j -= 1
+                if j >= 0 and text[j] == '\\':
+                    result.append(ch)
+                else:
+                    result.append(r"\_")
+            else:
+                result.append(r"\_")
         elif ch == '^':
-            result.append(r"\^{}")
+            # Similar logic: don't escape ^ in LaTeX command context
+            if i > 0 and (text[i - 1] == '\\' or text[i - 1].isalpha()):
+                j = i - 1
+                while j >= 0 and (text[j].isalpha() or text[j] in '{}[]'):
+                    j -= 1
+                if j >= 0 and (text[j] == '\\' or j >= 0):
+                    result.append(ch)
+                else:
+                    result.append(r"\^{}")
+            else:
+                result.append(r"\^{}")
         elif ch == '~':
             result.append(r"\textasciitilde{}")
         elif ch == '{':
@@ -323,7 +350,7 @@ def _build_title_page(fm_state: dict) -> list[str]:
     lane = fm_state.get("lane", "unspecified")
     stage = fm_state.get("stage", "")
     posture = fm_state.get("posture", "")
-    created = fm_state.get("created_at", "")
+    created = str(fm_state.get("created_at", ""))
 
     tex: list[str] = []
     tex.append(r"{\LARGE\flushleft\sffamily\bfseries " + _esc(title) + r"\par}")
