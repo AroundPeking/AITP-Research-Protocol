@@ -722,9 +722,12 @@ def _deploy_claude_code(
             continue
         content = _fill(src.read_text(encoding="utf-8"), variables)
         dst = skills_dir / dst_rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        _atomic_write(dst, content)
-        deployed.append(str(dst))
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            _atomic_write(dst, content)
+            deployed.append(str(dst))
+        except OSError:
+            print(f"    SKIP {dst_rel} (cannot write to {dst.parent} — junction/mount point)")
 
     # 5. Sync protocol skills to workspace skills-shared/ (flat .md files)
     ws_skills = _discover_workspace_skills_root()
@@ -879,9 +882,12 @@ def _deploy_kimi_code(
             continue
         content = _fill(src.read_text(encoding="utf-8"), variables)
         dst = skills_dir / dst_rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        _atomic_write(dst, content)
-        deployed.append(str(dst))
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            _atomic_write(dst, content)
+            deployed.append(str(dst))
+        except OSError:
+            print(f"    SKIP {dst_rel} (cannot write to {dst.parent} — junction/mount point)")
 
     mcp_path = mcp_base / "mcp.json"
     _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
