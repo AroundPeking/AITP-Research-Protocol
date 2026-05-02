@@ -1814,16 +1814,17 @@ def aitp_promote_candidate(
     cand_type = fm.get("candidate_type", "research_claim")
     regime = fm.get("regime_of_validity", "")
 
-    # Map study candidate types to L2 node types
-    _STUDY_TO_L2_NODE_TYPE = {
+    # Map candidate types to L2 node types
+    _CANDIDATE_TO_L2_NODE_TYPE = {
         "atomic_concept": "concept",
         "derivation_chain": "derivation_chain",
         "correspondence_link": "regime_boundary",
         "regime_boundary": "regime_boundary",
         "open_question": "open_question",
+        "research_claim": "result",
     }
-    mapped_type = _STUDY_TO_L2_NODE_TYPE.get(cand_type, cand_type)
-    if cand_type != "research_claim" and mapped_type in L2_NODE_TYPES:
+    mapped_type = _CANDIDATE_TO_L2_NODE_TYPE.get(cand_type, cand_type)
+    if mapped_type in L2_NODE_TYPES:
         try:
             _ensure_l2_graph_dirs(topics_root)
             global_l2 = _global_l2_path(topics_root)
