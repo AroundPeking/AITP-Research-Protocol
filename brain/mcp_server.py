@@ -566,21 +566,8 @@ def aitp_bootstrap_topic(
     _write_md(root / "runtime" / "sessions.md", {
         "kind": "session_log", "topic_slug": safe_slug, "created_at": _now(),
     }, f"# Session Log: {title}\n\n## Sessions\n")
-    # Global L2 surfaces
-    global_l2 = base / "L2"
-    global_l2.mkdir(parents=True, exist_ok=True)
-    if not (global_l2 / "index.md").exists():
-        _write_md(global_l2 / "index.md", {
-            "kind": "global_l2_index", "created_at": _now(),
-        }, (
-            "# Global L2 Index\n\n"
-            "## Family\n\n## Regime\n\n"
-            "## Warning And Negative Results\n\n## Cross-Topic Bridges\n"
-        ))
-    if not (global_l2 / "log.md").exists():
-        _write_md(global_l2 / "log.md", {
-            "kind": "global_l2_log", "created_at": _now(),
-        }, "# Global L2 Log\n\n## Events\n")
+    # Global L2 surfaces — full v5 faceted layout
+    _ensure_l2_graph_dirs(str(base))
     fm = {
         "topic_slug": safe_slug,
         "title": title,
@@ -4238,10 +4225,52 @@ def aitp_query_entries(
 
 
 def _ensure_l2_graph_dirs(topics_root: str) -> Path:
-    """Ensure L2/graph/ and L2/entries/ directories exist and return the L2 root."""
+    """Ensure L2 subdirectories exist and return the L2 root.
+
+    Creates the full v5 faceted layout: entries/, graph/{nodes,edges,towers,
+    diagrams,steps}, templates/, conflicts/. Also bootstraps INDEX.md,
+    INDEX_status.md, and INDEX_pitfalls.md if they don't exist.
+    """
     global_l2 = _global_l2_path(topics_root)
-    for sub in ["entries", "templates", "graph/nodes", "graph/edges", "graph/towers", "graph/diagrams", "graph/steps"]:
+    global_l2.mkdir(parents=True, exist_ok=True)
+    for sub in [
+        "entries", "templates",
+        "graph/nodes", "graph/edges", "graph/towers",
+        "graph/diagrams", "graph/steps",
+        "conflicts",
+    ]:
         (global_l2 / sub).mkdir(parents=True, exist_ok=True)
+
+    # Bootstrap index files if missing
+    now_ = _now()
+    for fname, fm, body in [
+        ("INDEX.md", {
+            "kind": "l2_index", "created_at": now_,
+        }, (
+            "# L2 Knowledge Index\n\n"
+            "## By Role\n\n"
+            "## By Status\n\n"
+            "## By Lane\n\n"
+            "## By Regime\n"
+        )),
+        ("INDEX_status.md", {
+            "kind": "l2_status_index", "created_at": now_,
+        }, (
+            "# L2 Status Index — Verified Entries Only\n\n"
+            "Bootstrap-only index. Contains only entries with status=verified.\n\n"
+            "## Claims\n\n## Systems\n\n## Methods\n\n## Pitfalls\n\n## Questions\n"
+        )),
+        ("INDEX_pitfalls.md", {
+            "kind": "l2_pitfalls_index", "created_at": now_,
+        }, (
+            "# L2 Pitfalls Index — All Pitfalls with Symptoms\n\n"
+            "## By Symptom\n\n## By Affected Method\n\n## By Status\n"
+        )),
+    ]:
+        p = global_l2 / fname
+        if not p.exists():
+            _write_md(p, fm, body)
+
     return global_l2
 
 
@@ -4642,14 +4671,14 @@ def aitp_create_entry(
 
 
 def _rebuild_entry_index(global_l2: Path) -> None:
-    """Rebuild L2/entries/INDEX.md from current entries."""
+    """Rebuild L2/entries/INDEX.md, INDEX_status.md, INDEX_pitfalls.md."""
     entries_dir = global_l2 / "entries"
     if not entries_dir.is_dir():
         return
 
     by_role: dict[str, list[dict[str, str]]] = {}
     for ep in sorted(entries_dir.glob("*.md")):
-        if ep.stem == "INDEX":
+        if ep.stem in ("INDEX", "INDEX_status", "INDEX_pitfalls"):
             continue
         fm, _ = _parse_md(ep)
         r = str(fm.get("role", "other"))
@@ -4662,22 +4691,18 @@ def _rebuild_entry_index(global_l2: Path) -> None:
             "lane": str(fm.get("lane", [])),
         })
 
-    lines = [
-        "---",
-        "catalog: entries",
-        f"updated: \"{_now()}\"",
-        "---",
-        "",
-        "# L2 Entries Index",
-        "",
-        "## By Role",
-    ]
-
+    now_str = _now()
     role_labels = {
         "claim": "Claims", "system": "Systems", "method": "Methods",
         "pitfall": "Pitfalls", "question": "Questions",
     }
     role_order = ["claim", "system", "method", "pitfall", "question"]
+
+    # --- INDEX.md (full) ---
+    lines = [
+        "---", "catalog: entries", f"updated: \"{now_str}\"", "---",
+        "", "# L2 Entries Index", "", "## By Role",
+    ]
     for r in role_order:
         entries = by_role.get(r, [])
         if not entries:
@@ -4687,8 +4712,6 @@ def _rebuild_entry_index(global_l2: Path) -> None:
         lines.append("|----|-------|--------|------|")
         for e in entries:
             lines.append(f"| {e['entry_id']} | {e['title']} | {e['status']} | {e['lane']} |")
-
-    # By Status
     lines.append("\n## By Status")
     for s in ["verified", "consistent", "unverified", "failed", "conjectured"]:
         items = [e for entries in by_role.values() for e in entries if e["status"] == s]
@@ -4696,23 +4719,49 @@ def _rebuild_entry_index(global_l2: Path) -> None:
             lines.append(f"\n### {s.capitalize()}")
             for e in items:
                 lines.append(f"- {e['entry_id']} ({e['title']})")
-
-    lines.append("\n## Quick Search")
-    lines.append("```")
-    lines.append("# All verified claims")
-    lines.append('grep -l "role: claim" L2/entries/*.md | xargs grep -l "status: verified"')
-    lines.append("")
-    lines.append("# Everything about system X")
-    lines.append('grep -l "system-<slug>" L2/entries/*.md')
-    lines.append("")
-    lines.append("# Known pitfalls")
-    lines.append('grep -l "role: pitfall" L2/entries/*.md')
-    lines.append("")
-    lines.append("# Open questions")
-    lines.append('grep -l "role: question" L2/entries/*.md')
-    lines.append("```")
-
+    lines.extend(["\n## Quick Search", "```",
+        '# All verified claims',
+        'grep -l "role: claim" L2/entries/*.md | xargs grep -l "status: verified"',
+        "", '# Everything about system X', 'grep -l "system-<slug>" L2/entries/*.md',
+        "", '# Known pitfalls', 'grep -l "role: pitfall" L2/entries/*.md',
+        "", '# Open questions', 'grep -l "role: question" L2/entries/*.md',
+        "```"])
     _atomic_write_text(entries_dir / "INDEX.md", "\n".join(lines) + "\n")
+
+    # --- INDEX_status.md (verified only, quick bootstrap) ---
+    verified_by_role: dict[str, list[dict[str, str]]] = {}
+    for r, entries in by_role.items():
+        verified = [e for e in entries if e["status"] == "verified"]
+        if verified:
+            verified_by_role[r] = verified
+    slines = [
+        "---", "catalog: entries_verified", f"updated: \"{now_str}\"", "---",
+        "", "# L2 Status Index — Verified Entries Only",
+        "", "Bootstrap-only index. Contains only entries with status=verified.",
+    ]
+    for r in role_order:
+        entries = verified_by_role.get(r, [])
+        if entries:
+            slines.append(f"\n## {role_labels.get(r, r)}")
+            for e in entries:
+                slines.append(f"- {e['entry_id']}: {e['title']} [{e['lane']}]")
+    if not any(verified_by_role.values()):
+        slines.append("\n*No verified entries yet. Run the full L0→L4→L2 pipeline to promote claims.*")
+    _atomic_write_text(entries_dir / "INDEX_status.md", "\n".join(slines) + "\n")
+
+    # --- INDEX_pitfalls.md (all pitfalls with symptoms) ---
+    pitfalls = by_role.get("pitfall", [])
+    plines = [
+        "---", "catalog: entries_pitfalls", f"updated: \"{now_str}\"", "---",
+        "", "# L2 Pitfalls Index",
+    ]
+    if pitfalls:
+        plines.append("\n## By Symptom")
+        for e in pitfalls:
+            plines.append(f"- **{e['entry_id']}**: {e['title']} [{e['status']}]")
+    else:
+        plines.append("\n*No pitfalls recorded yet. Use `aitp_create_entry(role=\"pitfall\")` to add one.*")
+    _atomic_write_text(entries_dir / "INDEX_pitfalls.md", "\n".join(plines) + "\n")
 
 
 @mcp.tool()
