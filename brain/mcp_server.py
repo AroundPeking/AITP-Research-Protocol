@@ -3837,8 +3837,12 @@ def aitp_fork_topic(
 # ---------------------------------------------------------------------------
 
 
-def _append_to_topic_log(root: Path, event: str) -> None:
+def _append_to_topic_log(root: Path, event: str, *args, **kwargs) -> None:
     """Append a dated event to the topic runtime log."""
+    if args:
+        import sys
+        print(f"WARNING: _append_to_topic_log received extra args: {args} {kwargs}", file=sys.stderr)
+        event = f"{event} {' '.join(str(a) for a in args)}"
     log_path = root / "runtime" / "log.md"
     if log_path.exists():
         existing = log_path.read_text(encoding="utf-8")
