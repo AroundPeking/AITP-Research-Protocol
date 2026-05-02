@@ -6331,12 +6331,8 @@ def _auto_refresh_flow_notebook(root: Path, fm: dict) -> None:
         tex_content = _build_flow_notebook_content(root, title, question, lane)
         tex_dir = root / "L3" / "tex"
         tex_dir.mkdir(parents=True, exist_ok=True)
-        _write_md(tex_dir / "flow_notebook.tex", {
-            "artifact_kind": "l3_flow_notebook",
-            "stage": "L3",
-            "generated_at": _now(),
-            "topic_slug": fm.get("topic_slug", ""),
-        }, tex_content)
+        # Write as raw LaTeX — NOT via _write_md which would prepend YAML frontmatter
+        _atomic_write_text(tex_dir / "flow_notebook.tex", tex_content)
     except Exception:
         pass  # Never block normal operations
 
@@ -6364,16 +6360,11 @@ def aitp_generate_flow_notebook(
 
     tex_content = _build_flow_notebook_content(root, title, question, lane)
 
-    # Write to L3/tex/
+    # Write to L3/tex/ — raw LaTeX, not Markdown (no YAML frontmatter)
     tex_dir = root / "L3" / "tex"
     tex_dir.mkdir(parents=True, exist_ok=True)
     tex_path = tex_dir / "flow_notebook.tex"
-    _write_md(tex_path, {
-        "artifact_kind": "l3_flow_notebook",
-        "stage": "L3",
-        "generated_at": _now(),
-        "topic_slug": topic_slug,
-    }, tex_content)
+    _atomic_write_text(tex_path, tex_content)
 
     _append_to_topic_log(root, "generated flow_notebook.tex")
 
