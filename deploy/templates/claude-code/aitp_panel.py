@@ -6,6 +6,7 @@ Provides clean box-drawing dashboard panels for both HUD statusline
 import os
 import re
 import sys
+import json as _json
 from pathlib import Path
 
 # ── ANSI color helpers ──────────────────────────────────────────
@@ -42,8 +43,48 @@ def _resolve_topics_root():
     return _TOPICS_ROOT
 
 
+def _read_session_map(root):
+    smap_file = root / ".session_map.json"
+    if smap_file.exists():
+        try:
+            return _json.loads(smap_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+def _write_session_map(root, smap):
+    smap_file = root / ".session_map.json"
+    try:
+        smap_file.write_text(_json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+_SESSION_ID = None
+
+def set_session_id(sid):
+    global _SESSION_ID
+    _SESSION_ID = sid
+
+def get_session_id():
+    global _SESSION_ID
+    if _SESSION_ID:
+        return _SESSION_ID
+    env = os.environ.get("AITP_SESSION_ID", "")
+    if env:
+        _SESSION_ID = env
+        return env
+    return None
+
 def get_active_topic():
     root = _resolve_topics_root()
+    sid = get_session_id()
+    # Per-session mapping takes priority
+    if sid:
+        smap = _read_session_map(root)
+        slug = smap.get(sid, "")
+        if slug and (root / slug / "state.md").exists():
+            return slug
+    # Global marker
     marker = root / ".current_topic"
     if marker.exists():
         slug = marker.read_text(encoding="utf-8").strip()
@@ -75,6 +116,22 @@ def parse_frontmatter(text):
                     k, _, v = s.partition(":")
                     fm[k.strip()] = v.strip().strip("\"'")
     return fm
+
+
+def record_session_topic(sid, topic_slug):
+    """Record that a session is working on a specific topic."""
+    if not sid or not topic_slug:
+        return
+    root = _resolve_topics_root()
+    smap = _read_session_map(root)
+    smap[sid] = topic_slug
+    _write_session_map(root, smap)
+    # Also update global marker for backwards compatibility
+    marker = root / ".current_topic"
+    try:
+        marker.write_text(topic_slug, encoding="utf-8")
+    except Exception:
+        pass
 
 
 def read_topic_state(topic_slug):

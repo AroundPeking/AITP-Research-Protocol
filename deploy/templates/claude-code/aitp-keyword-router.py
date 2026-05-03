@@ -37,7 +37,7 @@ AITP_KEYWORDS = [
     "格林函数",
 ]
 
-AITP_TOPICS_ROOT = Path("{{TOPICS_ROOT}}")
+AITP_TOPICS_ROOT = Path("C:/Users/samur/aitp-test-workspace/research/aitp-topics")
 
 
 def parse_yaml_frontmatter(text: str) -> dict:
@@ -117,6 +117,37 @@ def main() -> int:
 
     topics = scan_topics()
 
+    # Try to match a specific topic and record per-session binding
+    sid = data.get("session_id", "") or data.get("transcript_path", "")
+    if sid and topics:
+        # Score each topic by how many slug/title words appear in the message
+        best_score = 0
+        best_slug = ""
+        for t in topics:
+            score = 0
+            slug_words = t["slug"].lower().replace("-", " ").split()
+            for w in slug_words:
+                if len(w) > 2 and w in msg_lower:
+                    score += 1
+            if score > best_score:
+                best_score = score
+                best_slug = t["slug"]
+        # Record binding if we found a clear match (score >= 2)
+        if best_score >= 2 and best_slug:
+            try:
+                record_path = Path(__file__).resolve().parent / "aitp_panel.py"
+                # Inline the session map write to avoid cross-module import
+                smap_file = AITP_TOPICS_ROOT / ".session_map.json"
+                smap = {}
+                if smap_file.exists():
+                    smap = json.loads(smap_file.read_text(encoding="utf-8"))
+                smap[sid] = best_slug
+                smap_file.write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
+                # Also update .current_topic for backwards compat
+                (AITP_TOPICS_ROOT / ".current_topic").write_text(best_slug, encoding="utf-8")
+            except Exception:
+                pass
+
     topic_lines = []
     topic_memories = []
     for t in topics:
@@ -145,7 +176,7 @@ def main() -> int:
         "INSTRUCTIONS (follow exactly):\n"
         "1. Match the user's request to ONE of the topics above by comparing title/question.\n"
         "2. If a match is found, call mcp__aitp__aitp_get_execution_brief("
-        "topics_root='{{TOPICS_ROOT}}', "
+        "topics_root='C:/Users/samur/aitp-test-workspace/research/aitp-topics', "
         "topic_slug='<matched_slug>') to get current state.\n"
         "3. If NO match, call mcp__aitp__aitp_bootstrap_topic to create a new topic.\n"
         "4. Do NOT create a duplicate topic if one already matches.\n"

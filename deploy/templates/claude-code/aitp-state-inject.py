@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from aitp_panel import get_active_topic, read_topic_state, render_dashboard
+from aitp_panel import get_active_topic, read_topic_state, render_dashboard, set_session_id
 
 
 def safe_json_loads(raw_text):
@@ -37,6 +37,11 @@ def main():
     data = safe_json_loads(raw)
     if not data:
         return 0
+
+    # Bind session to topic for multi-session support
+    sid = data.get("session_id", "") or data.get("transcript_path", "")
+    if sid:
+        set_session_id(sid)
 
     topic_slug = get_active_topic()
     if not topic_slug:
