@@ -18,11 +18,11 @@ _NOTEBOOK_PREAMBLE = r"""\documentclass[a4paper,11pt]{article}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{longtable}
+\usepackage{array}
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{enumitem}
-\usepackage{physics}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{fancyhdr}
 \usepackage{titlesec}
@@ -77,202 +77,94 @@ _NOTEBOOK_POSTAMBLE = r"""
 \end{document}
 """
 
+# ── Preprocessor: sanitize Unicode before conversion ──────────────────
+
+def _preprocess_body(text: str) -> str:
+    """Clean and normalize Markdown body text before LaTeX conversion.
+
+    1. Remove box-drawing characters (table borders)
+    2. Remove combining diacritical marks
+    3. Wrap bare Unicode Greek/math symbols in $...$ ONLY where not already in math mode
+    """
+    # Step 1 & 2: remove box-drawing and combining chars
+    result = []
+    for ch in text:
+        cp = ord(ch)
+        if 0x2500 <= cp <= 0x257F:
+            continue
+        if 0x0300 <= cp <= 0x036F:
+            continue
+        result.append(ch)
+    cleaned = "".join(result)
+
+    # Step 3: wrap bare Unicode math in $ only outside existing $...$ spans
+    math_chars = set(
+        "αβγδεζηθικλμνξπρστυφχψω"
+        "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΠΡΣΤΥΦΧΨΩ"
+        "∂∇∫∏∑√∞≈≡≠≤≥±×·ħℏ→←↔⇒⇐⇔∈∉⊂⊃∪∩∧∨∀∃∄"
+    )
+    # Step 3: wrap math expressions in $...$
+    # A math expression is: Greek chars + optional subscripts/superscripts + operators
+    math_chars = set(
+        "αβγδεζηθικλμνξπρστυφχψω"
+        "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΠΡΣΤΥΦΧΨΩ"
+        "∂∇∫∏∑√∞≈≡≠≤≥±×·ħℏ→←↔⇒⇐⇔∈∉⊂⊃∪∩∧∨∀∃∄"
+    )
+    math_continuation = set("^_{}[]()+-*/=→·∣‖0123456789αβγδεζηθικλμνξπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΠΡΣΤΥΦΧΨΩ∂∇∫∏∑√∞≈≡≠≤≥±×·ħℏ")
+    out = []
+    in_dollar = False
+    math_buf = []
+    for ch in cleaned:
+        if ch == '$':
+            if math_buf:
+                out.append("$" + "".join(math_buf) + "$")
+                math_buf = []
+            in_dollar = not in_dollar
+            out.append(ch)
+        elif in_dollar:
+            out.append(ch)
+        elif ch in math_chars:
+            math_buf.append(ch)
+        elif math_buf and ch in math_continuation and math_buf:
+            math_buf.append(ch)  # continue the math block
+        else:
+            if math_buf:
+                out.append("$" + "".join(math_buf) + "$")
+                math_buf = []
+            out.append(ch)
+    if math_buf:
+        out.append("$" + "".join(math_buf) + "$")
+    return "".join(out)
+
+
 # ── Markdown to LaTeX converter ───────────────────────────────────────
 
 def _md_to_latex(text: str) -> list[str]:
-    """Convert Markdown body text to LaTeX with proper rendering.
+    """Convert Markdown body text to LaTeX using pandoc.
 
-    Handles: headings, code blocks, inline code, tables, lists,
-    bold/italic, display math, inline math.
+    Pandoc handles code blocks, tables, inline/display math, lists,
+    and all edge cases correctly — no need for manual parsing.
     """
-    lines = text.split("\n")
-    out: list[str] = []
-    i = 0
-    in_code_block = False
-    code_lang = ""
-    code_lines: list[str] = []
-    in_table = False
-    table_rows: list[str] = []
+    import subprocess
+    import tempfile
 
-    def flush_code():
-        nonlocal code_lines
-        if code_lines:
-            out.append(r"\begin{lstlisting}")
-            for cl in code_lines:
-                out.append(cl)
-            out.append(r"\end{lstlisting}")
-            out.append("")
-            code_lines = []
+    # Preprocess: remove box-drawing chars and combining accents
+    cleaned = _preprocess_body(text)
 
-    def flush_table():
-        nonlocal table_rows
-        if table_rows:
-            out.append(r"\begin{table}[htbp]")
-            out.append(r"\centering\small")
-            ncols = max(len([c for c in r.split("|") if c.strip()]) for r in table_rows) if table_rows else 2
-            out.append(r"\begin{tabular}{" + "l" * ncols + r"}")
-            out.append(r"\toprule")
-            for ri, row in enumerate(table_rows):
-                cells = [c.strip() for c in row.split("|") if c.strip()]
-                out.append(" & ".join(_inline_tex(c) for c in cells) + r" \\")
-                if ri == 0:
-                    out.append(r"\midrule")
-            out.append(r"\bottomrule")
-            out.append(r"\end{tabular}")
-            out.append(r"\end{table}")
-            out.append("")
-            table_rows = []
+    try:
+        result = subprocess.run(
+            ["pandoc", "--from", "markdown", "--to", "latex",
+             "--no-highlight", "--wrap=none"],
+            input=cleaned, capture_output=True, text=True, timeout=30,
+            encoding="utf-8",
+        )
+        if result.returncode == 0:
+            return result.stdout.split("\n")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
 
-    while i < len(lines):
-        line = lines[i]
-
-        # Code block start/end
-        if line.strip().startswith("```"):
-            if in_code_block:
-                flush_code()
-                in_code_block = False
-            else:
-                code_lang = line.strip()[3:].strip()
-                in_code_block = True
-            i += 1
-            continue
-
-        if in_code_block:
-            code_lines.append(line)
-            i += 1
-            continue
-
-        # Table row
-        if line.strip().startswith("|") and line.strip().endswith("|"):
-            stripped = line.strip()
-            if not all(c in "|-: " for c in stripped):  # skip separator rows
-                flush_code()
-                table_rows.append(stripped)
-                in_table = True
-                i += 1
-                continue
-            else:
-                # Separator row — skip but keep collecting
-                i += 1
-                continue
-        elif in_table:
-            flush_table()
-            in_table = False
-
-        # Headings
-        if line.startswith("#### "):
-            flush_code()
-            out.append(r"\paragraph{" + _inline_tex(line[5:].strip()) + "}")
-            out.append("")
-        elif line.startswith("### "):
-            flush_code()
-            out.append(r"\subsubsection*{" + _inline_tex(line[4:].strip()) + "}")
-            out.append("")
-        elif line.startswith("## "):
-            flush_code()
-            out.append(r"\subsection{" + _inline_tex(line[3:].strip()) + "}")
-            out.append("")
-        elif line.startswith("# "):
-            flush_code()
-            out.append(r"\section{" + _inline_tex(line[2:].strip()) + "}")
-            out.append("")
-
-        # Display math $$ ... $$
-        elif line.strip().startswith("$$"):
-            flush_code()
-            out.append(r"\begin{equation*}")
-            math_lines = []
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith("$$"):
-                math_lines.append(lines[i])
-                i += 1
-            out.append(" ".join(math_lines))
-            out.append(r"\end{equation*}")
-            out.append("")
-
-        # Inline math $...$ — preserve as-is
-        elif line.strip().startswith("```math"):
-            flush_code()
-            out.append(r"\begin{equation}")
-            math_lines = []
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith("```"):
-                math_lines.append(lines[i])
-                i += 1
-            out.append(" ".join(math_lines))
-            out.append(r"\end{equation}")
-            out.append("")
-
-        # Bullet list
-        elif line.strip().startswith("- ") or line.strip().startswith("* "):
-            flush_code()
-            list_lines = []
-            while i < len(lines) and (lines[i].strip().startswith("- ") or lines[i].strip().startswith("* ")):
-                list_lines.append(_inline_tex(lines[i].strip()[2:]))
-                i += 1
-            out.append(r"\begin{itemize}")
-            for ll in list_lines:
-                out.append(r"\item " + ll)
-            out.append(r"\end{itemize}")
-            out.append("")
-            continue
-
-        # Numbered list
-        elif re.match(r"^\d+\.\s", line.strip()):
-            flush_code()
-            list_lines = []
-            while i < len(lines) and re.match(r"^\d+\.\s", lines[i].strip()):
-                list_lines.append(_inline_tex(re.sub(r"^\d+\.\s", "", lines[i].strip())))
-                i += 1
-            out.append(r"\begin{enumerate}")
-            for ll in list_lines:
-                out.append(r"\item " + ll)
-            out.append(r"\end{enumerate}")
-            out.append("")
-            continue
-
-        # Bold text **...**
-        elif "**" in line:
-            flush_code()
-            text = _inline_tex(line)
-            out.append(text + r"\\")
-            out.append("")
-
-        # Empty line
-        elif not line.strip():
-            flush_code()
-            out.append("")
-
-        # Regular text
-        else:
-            flush_code()
-            out.append(_inline_tex(line) + r"\\")
-            out.append("")
-
-        i += 1
-
-    flush_code()
-    flush_table()
-    return out
-
-
-def _inline_tex(text: str) -> str:
-    """Convert inline Markdown to LaTeX, preserving math mode."""
-    # Bold **text** → \textbf{text}
-    text = re.sub(r"\*\*(.+?)\*\*", r"\\textbf{\1}", text)
-    # Italic *text* → \textit{text}
-    text = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"\\textit{\1}", text)
-    # Inline code `code` → \texttt{code}
-    text = re.sub(r"`([^`]+)`", r"\\texttt{\1}", text)
-    # Split on $...$ math blocks and escape non-math parts
-    parts = re.split(r"(\$[^$]+\$)", text)
-    result = []
-    for p in parts:
-        if p.startswith("$") and p.endswith("$"):
-            result.append(p)  # Preserve math as-is
-        else:
-            result.append(_esc(p))
-    return "".join(result)
+    # Fallback: simple text conversion
+    return [r"\begin{verbatim}", text, r"\end{verbatim}"]
 
 
 def _esc(text: str) -> str:
@@ -336,7 +228,21 @@ def _esc(text: str) -> str:
         elif ch == '>':
             result.append(r"\textgreater{}")
         else:
-            result.append(ch)
+            cp = ord(ch)
+            if 0x2500 <= cp <= 0x257F:  # box-drawing chars — skip
+                pass
+            elif 0x0300 <= cp <= 0x036F:  # combining diacritics — skip
+                pass
+            elif cp == 0x2014:  # em dash
+                result.append("---")
+            elif cp == 0x2013:  # en dash
+                result.append("--")
+            elif cp in (0x2018, 0x2019):  # smart quotes
+                result.append("'")
+            elif cp in (0x201C, 0x201D):
+                result.append('"')
+            else:
+                result.append(ch)
         i += 1
     return "".join(result)
 
