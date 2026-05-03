@@ -1,7 +1,7 @@
 """Shared panel rendering for AITP status displays.
 
 Provides clean box-drawing dashboard panels for both HUD statusline
-(compact 3-line) and context injection (full dashboard).
+(compact panel) and context injection (full dashboard).
 """
 import os
 import re
@@ -52,6 +52,7 @@ def _read_session_map(root):
             pass
     return {}
 
+
 def _write_session_map(root, smap):
     smap_file = root / ".session_map.json"
     try:
@@ -59,11 +60,13 @@ def _write_session_map(root, smap):
     except Exception:
         pass
 
+
 _SESSION_ID = None
 
 def set_session_id(sid):
     global _SESSION_ID
     _SESSION_ID = sid
+
 
 def get_session_id():
     global _SESSION_ID
@@ -75,34 +78,22 @@ def get_session_id():
         return env
     return None
 
+
 def get_active_topic():
+    """Resolve the active topic for the current session.
+
+    ONLY uses per-session mapping (.session_map.json).
+    No global fallback — sessions not explicitly bound to an AITP
+    topic will return None, keeping non-AITP conversations clean.
+    """
     root = _resolve_topics_root()
     sid = get_session_id()
-    # Per-session mapping takes priority
     if sid:
         smap = _read_session_map(root)
         slug = smap.get(sid, "")
         if slug and (root / slug / "state.md").exists():
             return slug
-    # Global marker
-    marker = root / ".current_topic"
-    if marker.exists():
-        slug = marker.read_text(encoding="utf-8").strip()
-        if slug and (root / slug / "state.md").exists():
-            return slug
-    best = None; best_mtime = 0
-    try:
-        for d in root.iterdir():
-            if not d.is_dir() or d.name.startswith("."):
-                continue
-            sf = d / "state.md"
-            if sf.exists():
-                mtime = sf.stat().st_mtime
-                if mtime > best_mtime:
-                    best_mtime = mtime; best = d.name
-    except OSError:
-        pass
-    return best
+    return None
 
 
 def parse_frontmatter(text):
@@ -130,13 +121,11 @@ def _parse_md_yaml(path):
     return yaml.safe_load(m.group(1)) or {}, m.group(2)
 
 
-_GATE_CACHE = {}  # {topic_slug: (state_mtime, result)}
+_GATE_CACHE = {}
 
 def evaluate_topic_gate(topic_slug):
     """Run state model evaluation for real-time gate status.
 
-    Returns detailed gate info including required artifacts, missing
-    fields, domain constraints, and specific next steps.
     Cached by state.md mtime — only re-evaluates when state changes.
     """
     root = _resolve_topics_root()
@@ -149,13 +138,11 @@ def evaluate_topic_gate(topic_slug):
     except OSError:
         return None
 
-    # Check cache
     if topic_slug in _GATE_CACHE:
         cached_mtime, cached_result = _GATE_CACHE[topic_slug]
         if cached_mtime == mtime:
             return cached_result
 
-    # Import state model (module cached by Python after first import)
     _aitp_repo = "C:/Users/samur/aitp-test-workspace/AITP-Research-Protocol"
     if _aitp_repo not in sys.path:
         sys.path.insert(0, _aitp_repo)
@@ -165,20 +152,17 @@ def evaluate_topic_gate(topic_slug):
     except ImportError:
         return None
 
-    # Parse state.md frontmatter
     fm = parse_frontmatter(state_file.read_text(encoding="utf-8"))
     stage = fm.get("stage", "L1")
     lane = fm.get("lane", "unspecified")
     topic_dir = root / topic_slug
 
-    # Run stage evaluation
     try:
         if stage == "L3":
             snapshot = evaluate_l3_stage(_parse_md_yaml, topic_dir, lane=lane)
         elif stage == "L4":
             snapshot = evaluate_l4_stage(_parse_md_yaml, topic_dir, lane=lane)
         else:
-            # L0/L1 — use basic state eval
             from brain.state_model import evaluate_l0_stage, evaluate_l1_stage
             if stage == "L0":
                 snapshot = evaluate_l0_stage(_parse_md_yaml, topic_dir, lane=lane)
@@ -187,7 +171,6 @@ def evaluate_topic_gate(topic_slug):
     except Exception:
         return None
 
-    # Extract actionable details
     result = {
         "stage": getattr(snapshot, "stage", stage),
         "posture": getattr(snapshot, "posture", ""),
@@ -197,7 +180,6 @@ def evaluate_topic_gate(topic_slug):
         "domain_constraints": getattr(snapshot, "domain_constraints", {}),
     }
 
-    # Derive what's missing from gate_status
     if result["gate_status"].startswith("blocked"):
         missing = result["gate_status"].replace("blocked_", "").replace("_", " ")
         result["gate_detail"] = missing
@@ -294,10 +276,9 @@ def _width():
 def render_hud_panel(fm, topic_slug, gate_info=None):
     w = min(_width(), 100)
     inner = w - 2
-    rpad = inner // 2 + 3  # right column start
+    rpad = inner // 2 + 3
 
     stage = _stage_str(fm)
-    # Use real-time gate status from state model if available
     if gate_info:
         gate_status = gate_info.get("gate_status", fm.get("gate_status", ""))
         gate_detail = gate_info.get("gate_detail", "")
@@ -315,7 +296,6 @@ def render_hud_panel(fm, topic_slug, gate_info=None):
     l4_host = fm.get("l4_job_host", compute)
 
     def _row(left, right=""):
-        """Build a single content row: left label + value, optionally right column."""
         if right:
             return _pad(f"{left}{' ' * max(2, rpad - _vislen(left))}{right}", inner)
         return _pad(left, inner)
@@ -327,13 +307,13 @@ def render_hud_panel(fm, topic_slug, gate_info=None):
     lines = []
     lines.append(f"{C}{_TL}{_HZ}{Z} {W}{title}{Z} {C}{_HZ * max(1, inner - _vislen(title) - 2)}{_TR}{Z}")
 
-    # Row 1: Stage (left) + Gate (right, with detail if available)
-    gate_right = f'Gate {D}......{Z} {gate_icon} {D}{gate_label}{Z}'
+    # Row 1: Stage + Gate
+    gate_right = f"Gate {D}......{Z} {gate_icon} {D}{gate_label}{Z}"
     if gate_detail:
-        gate_right += f' {D}— {gate_detail}{Z}'
+        gate_right += f" {D}— {gate_detail}{Z}"
     lines.append(f"{C}{_VT}{Z} {_row(f'Stage {D}.....{Z} {W}{stage}{Z}', gate_right)} {C}{_VT}{Z}")
 
-    # Row 2: Lane (left) + Info: status · sources · @compute (right)
+    # Row 2: Lane + Info
     meta_parts = []
     if status:
         meta_parts.append(f"{status}")
@@ -345,7 +325,7 @@ def render_hud_panel(fm, topic_slug, gate_info=None):
     lines.append(f"{C}{_VT}{Z} {_row(f'Lane {D}......{Z} {B}{lane}{Z}',
                                      f'Info {D}......{Z} {meta}')} {C}{_VT}{Z}")
 
-    # Row 3: L4 job (if active)
+    # Row 3: L4 job
     if l4s and l4s != "idle":
         j = l4_job if l4_job and len(l4_job) <= 10 else (l4_job[-8:] if l4_job else "?")
         l4_str = f"{M}#{j}{Z}  {_l4_display(l4s)}"
@@ -355,7 +335,7 @@ def render_hud_panel(fm, topic_slug, gate_info=None):
             l4_str += f"  {D}on{Z} {l4_host}"
         lines.append(f"{C}{_VT}{Z} {_row(f'L4 {D}.......{Z} {l4_str}')} {C}{_VT}{Z}")
 
-    # Row last: Next action (use gate detail if available)
+    # Row last: Next
     next_action = gate_detail if gate_detail else _get_next_action(fm, gate_info)
     lines.append(f"{C}{_VT}{Z} {_row(f'{Y}{_ARR} Next{Z}  {D}...{Z} {next_action}')} {C}{_VT}{Z}")
 
@@ -385,7 +365,7 @@ def render_dashboard(fm, topic_slug, gate_info=None):
     compute = fm.get("compute", "")
     status = fm.get("status", "")
     sources = fm.get("sources_count", "")
-    rpad = inner // 2 + 5  # right column start
+    rpad = inner // 2 + 5
 
     def row(text=""):
         return f"{C}{_DV}{Z}{S}{text}" + " " * max(0, inner - _vislen(text) - 1) + f"{C}{_DV}{Z}"
@@ -400,14 +380,12 @@ def render_dashboard(fm, topic_slug, gate_info=None):
     lines.append(f"{C}{_D_xl}{_DL * inner}{_DV}{Z}")
     lines.append(row())
 
-    # Identity
     lines.append(row(f"Topic {D}:{Z} {W}{topic_slug}{Z}"))
     if title:
         t_max = inner - 17
         lines.append(row(f"Title {D}:{Z} {title[:t_max] + '..' if len(title) > t_max else title}"))
     lines.append(row())
 
-    # Status section
     lines.append(section("Status"))
     sc = f"Stage {D}....{Z} {stage} {gate_icon}"
     gc = f"Gate {D}......{Z} {gate_label}"
@@ -423,7 +401,6 @@ def render_dashboard(fm, topic_slug, gate_info=None):
         lines.append(row(_pad(f"{sc2}{' ' * max(2, rpad - _vislen(sc2))}{src}", inner)))
     lines.append(row())
 
-    # L4 section
     if l4s and l4s != "idle":
         lines.append(section("L4 Background Job"))
         jc = f"Job {D}.......{Z} {M}#{l4_job}{Z}" if l4_job else f"Job {D}.......{Z} --"
@@ -434,7 +411,6 @@ def render_dashboard(fm, topic_slug, gate_info=None):
         lines.append(row(_pad(f"{hc}{' ' * max(2, rpad - _vislen(hc))}{ec}", inner)))
         lines.append(row())
 
-    # Next action (use gate detail if available, otherwise fall back to hints)
     if gate_detail:
         next_action = gate_detail
     elif required:
@@ -453,7 +429,6 @@ def _get_next_action(fm, gate_info=None):
     activity = fm.get("l3_activity", fm.get("posture", ""))
     gate = gate_info.get("gate_status", fm.get("gate_status", "")) if gate_info else fm.get("gate_status", "")
     if gate.startswith("blocked"):
-        # Use detailed gate info if available
         if gate_info and gate_info.get("gate_detail"):
             return gate_info["gate_detail"]
         field = gate.replace("blocked_", "").replace("_", " ")

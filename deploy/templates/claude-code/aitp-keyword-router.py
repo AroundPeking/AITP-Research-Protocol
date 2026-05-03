@@ -132,19 +132,26 @@ def main() -> int:
             if score > best_score:
                 best_score = score
                 best_slug = t["slug"]
-        # Record binding if we found a clear match (score >= 2)
-        if best_score >= 2 and best_slug:
+        # Record per-session binding for AITP-triggered sessions.
+        # Strategy: if any topic matches (score >= 1), bind to it.
+        # Otherwise fall back to .current_topic if it exists.
+        # Non-AITP conversations won't trigger this code at all
+        # (no AITP keywords detected), so the session stays unbound.
+        bind_slug = ""
+        if best_score >= 1 and best_slug:
+            bind_slug = best_slug
+        elif (AITP_TOPICS_ROOT / ".current_topic").exists():
+            bind_slug = (AITP_TOPICS_ROOT / ".current_topic").read_text(encoding="utf-8").strip()
+
+        if bind_slug and sid:
             try:
-                record_path = Path(__file__).resolve().parent / "aitp_panel.py"
-                # Inline the session map write to avoid cross-module import
                 smap_file = AITP_TOPICS_ROOT / ".session_map.json"
                 smap = {}
                 if smap_file.exists():
                     smap = json.loads(smap_file.read_text(encoding="utf-8"))
-                smap[sid] = best_slug
+                smap[sid] = bind_slug
                 smap_file.write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
-                # Also update .current_topic for backwards compat
-                (AITP_TOPICS_ROOT / ".current_topic").write_text(best_slug, encoding="utf-8")
+                (AITP_TOPICS_ROOT / ".current_topic").write_text(bind_slug, encoding="utf-8")
             except Exception:
                 pass
 
