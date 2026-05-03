@@ -11,7 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from aitp_panel import get_active_topic, read_topic_state, render_dashboard, set_session_id
+from aitp_panel import (
+    get_active_topic, read_topic_state, render_dashboard,
+    set_session_id, evaluate_topic_gate
+)
 
 
 def safe_json_loads(raw_text):
@@ -52,7 +55,10 @@ def main():
         if not fm:
             return 0
 
-        dashboard = render_dashboard(fm, topic_slug)
+        # Real-time gate evaluation from state model
+        gate_info = evaluate_topic_gate(topic_slug)
+
+        dashboard = render_dashboard(fm, topic_slug, gate_info=gate_info)
 
         payload = {
             "hookSpecificOutput": {

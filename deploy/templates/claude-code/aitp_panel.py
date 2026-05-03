@@ -118,6 +118,98 @@ def parse_frontmatter(text):
     return fm
 
 
+def _parse_md_yaml(path):
+    """Parse markdown with YAML frontmatter (for state model)."""
+    import yaml
+    if not path.exists():
+        return {}, ""
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", text, re.DOTALL)
+    if not m:
+        return {}, text
+    return yaml.safe_load(m.group(1)) or {}, m.group(2)
+
+
+_GATE_CACHE = {}  # {topic_slug: (state_mtime, result)}
+
+def evaluate_topic_gate(topic_slug):
+    """Run state model evaluation for real-time gate status.
+
+    Returns detailed gate info including required artifacts, missing
+    fields, domain constraints, and specific next steps.
+    Cached by state.md mtime — only re-evaluates when state changes.
+    """
+    root = _resolve_topics_root()
+    state_file = root / topic_slug / "state.md"
+    if not state_file.exists():
+        return None
+
+    try:
+        mtime = state_file.stat().st_mtime
+    except OSError:
+        return None
+
+    # Check cache
+    if topic_slug in _GATE_CACHE:
+        cached_mtime, cached_result = _GATE_CACHE[topic_slug]
+        if cached_mtime == mtime:
+            return cached_result
+
+    # Import state model (module cached by Python after first import)
+    _aitp_repo = "C:/Users/samur/aitp-test-workspace/AITP-Research-Protocol"
+    if _aitp_repo not in sys.path:
+        sys.path.insert(0, _aitp_repo)
+
+    try:
+        from brain.state_model import evaluate_l3_stage, evaluate_l4_stage
+    except ImportError:
+        return None
+
+    # Parse state.md frontmatter
+    fm = parse_frontmatter(state_file.read_text(encoding="utf-8"))
+    stage = fm.get("stage", "L1")
+    lane = fm.get("lane", "unspecified")
+    topic_dir = root / topic_slug
+
+    # Run stage evaluation
+    try:
+        if stage == "L3":
+            snapshot = evaluate_l3_stage(_parse_md_yaml, topic_dir, lane=lane)
+        elif stage == "L4":
+            snapshot = evaluate_l4_stage(_parse_md_yaml, topic_dir, lane=lane)
+        else:
+            # L0/L1 — use basic state eval
+            from brain.state_model import evaluate_l0_stage, evaluate_l1_stage
+            if stage == "L0":
+                snapshot = evaluate_l0_stage(_parse_md_yaml, topic_dir, lane=lane)
+            else:
+                snapshot = evaluate_l1_stage(_parse_md_yaml, topic_dir, lane=lane)
+    except Exception:
+        return None
+
+    # Extract actionable details
+    result = {
+        "stage": getattr(snapshot, "stage", stage),
+        "posture": getattr(snapshot, "posture", ""),
+        "gate_status": getattr(snapshot, "gate_status", ""),
+        "l3_subplane": getattr(snapshot, "l3_subplane", ""),
+        "required_artifact": getattr(snapshot, "required_artifact_path", ""),
+        "domain_constraints": getattr(snapshot, "domain_constraints", {}),
+    }
+
+    # Derive what's missing from gate_status
+    if result["gate_status"].startswith("blocked"):
+        missing = result["gate_status"].replace("blocked_", "").replace("_", " ")
+        result["gate_detail"] = missing
+        if result["required_artifact"]:
+            result["gate_detail"] = f"{missing} — fill {result['required_artifact']}"
+    else:
+        result["gate_detail"] = ""
+
+    _GATE_CACHE[topic_slug] = (mtime, result)
+    return result
+
+
 def record_session_topic(sid, topic_slug):
     """Record that a session is working on a specific topic."""
     if not sid or not topic_slug:
@@ -199,13 +291,19 @@ def _width():
 
 # ── HUD panel (5-line detailed dashboard) ───────────────────────
 
-def render_hud_panel(fm, topic_slug):
+def render_hud_panel(fm, topic_slug, gate_info=None):
     w = min(_width(), 100)
     inner = w - 2
     rpad = inner // 2 + 3  # right column start
 
     stage = _stage_str(fm)
-    gate_status = fm.get("gate_status", "")
+    # Use real-time gate status from state model if available
+    if gate_info:
+        gate_status = gate_info.get("gate_status", fm.get("gate_status", ""))
+        gate_detail = gate_info.get("gate_detail", "")
+    else:
+        gate_status = fm.get("gate_status", "")
+        gate_detail = ""
     gate_icon, gate_label = _gate_icon(gate_status)
     lane = _lane_short(fm.get("lane", ""))
     status = fm.get("status", "")
@@ -229,9 +327,11 @@ def render_hud_panel(fm, topic_slug):
     lines = []
     lines.append(f"{C}{_TL}{_HZ}{Z} {W}{title}{Z} {C}{_HZ * max(1, inner - _vislen(title) - 2)}{_TR}{Z}")
 
-    # Row 1: Stage (left) + Gate (right)
-    lines.append(f"{C}{_VT}{Z} {_row(f'Stage {D}.....{Z} {W}{stage}{Z}',
-                                     f'Gate {D}......{Z} {gate_icon} {D}{gate_label}{Z}')} {C}{_VT}{Z}")
+    # Row 1: Stage (left) + Gate (right, with detail if available)
+    gate_right = f'Gate {D}......{Z} {gate_icon} {D}{gate_label}{Z}'
+    if gate_detail:
+        gate_right += f' {D}— {gate_detail}{Z}'
+    lines.append(f"{C}{_VT}{Z} {_row(f'Stage {D}.....{Z} {W}{stage}{Z}', gate_right)} {C}{_VT}{Z}")
 
     # Row 2: Lane (left) + Info: status · sources · @compute (right)
     meta_parts = []
@@ -255,8 +355,8 @@ def render_hud_panel(fm, topic_slug):
             l4_str += f"  {D}on{Z} {l4_host}"
         lines.append(f"{C}{_VT}{Z} {_row(f'L4 {D}.......{Z} {l4_str}')} {C}{_VT}{Z}")
 
-    # Row 4: Next action
-    next_action = _get_next_action(fm)
+    # Row last: Next action (use gate detail if available)
+    next_action = gate_detail if gate_detail else _get_next_action(fm, gate_info)
     lines.append(f"{C}{_VT}{Z} {_row(f'{Y}{_ARR} Next{Z}  {D}...{Z} {next_action}')} {C}{_VT}{Z}")
 
     lines.append(f"{C}{_BL}{_HZ * inner}{_BR}{Z}")
@@ -265,10 +365,17 @@ def render_hud_panel(fm, topic_slug):
 
 # ── Dashboard panel (context injection) ─────────────────────────
 
-def render_dashboard(fm, topic_slug):
+def render_dashboard(fm, topic_slug, gate_info=None):
     w = 64; inner = w - 2; S = " "
     stage = _stage_str(fm)
-    gate_icon, gate_label = _gate_icon(fm.get("gate_status", ""))
+    if gate_info:
+        gate_status = gate_info.get("gate_status", fm.get("gate_status", ""))
+        gate_detail = gate_info.get("gate_detail", "")
+        required = gate_info.get("required_artifact", "")
+    else:
+        gate_status = fm.get("gate_status", "")
+        gate_detail = ""; required = ""
+    gate_icon, gate_label = _gate_icon(gate_status)
     lane = _lane_short(fm.get("lane", ""))
     title = fm.get("title", topic_slug)
     l4s = fm.get("l4_background_status", "")
@@ -304,6 +411,8 @@ def render_dashboard(fm, topic_slug):
     lines.append(section("Status"))
     sc = f"Stage {D}....{Z} {stage} {gate_icon}"
     gc = f"Gate {D}......{Z} {gate_label}"
+    if gate_detail:
+        gc += f" {D}({gate_detail}){Z}"
     lines.append(row(_pad(f"{sc}{' ' * max(2, rpad - _vislen(sc))}{gc}", inner)))
     lc = f"Lane {D}......{Z} {lane}"
     cc = f"Compute {D}...{Z} {compute or '--'}"
@@ -325,8 +434,13 @@ def render_dashboard(fm, topic_slug):
         lines.append(row(_pad(f"{hc}{' ' * max(2, rpad - _vislen(hc))}{ec}", inner)))
         lines.append(row())
 
-    # Next action
-    next_action = _get_next_action(fm)
+    # Next action (use gate detail if available, otherwise fall back to hints)
+    if gate_detail:
+        next_action = gate_detail
+    elif required:
+        next_action = f"Fill required: {required}"
+    else:
+        next_action = _get_next_action(fm, gate_info)
     lines.append(row(f"{Y}{_ARR}{Z} Next: {next_action}"))
     lines.append(row())
     lines.append(f"{C}{_D_bl}{_DL * inner}{_D_br}{Z}")
@@ -334,11 +448,14 @@ def render_dashboard(fm, topic_slug):
     return "\n".join(lines)
 
 
-def _get_next_action(fm):
+def _get_next_action(fm, gate_info=None):
     stage = fm.get("stage", "")
     activity = fm.get("l3_activity", fm.get("posture", ""))
-    gate = fm.get("gate_status", "")
+    gate = gate_info.get("gate_status", fm.get("gate_status", "")) if gate_info else fm.get("gate_status", "")
     if gate.startswith("blocked"):
+        # Use detailed gate info if available
+        if gate_info and gate_info.get("gate_detail"):
+            return gate_info["gate_detail"]
         field = gate.replace("blocked_", "").replace("_", " ")
         return f"Complete required: {field}"
     hints = {
