@@ -143,13 +143,18 @@ def main() -> int:
         elif (AITP_TOPICS_ROOT / ".current_topic").exists():
             bind_slug = (AITP_TOPICS_ROOT / ".current_topic").read_text(encoding="utf-8").strip()
 
-        if bind_slug and sid:
+        if bind_slug:
             try:
                 smap_file = AITP_TOPICS_ROOT / ".session_map.json"
                 smap = {}
                 if smap_file.exists():
                     smap = json.loads(smap_file.read_text(encoding="utf-8"))
-                smap[sid] = bind_slug
+                # Write both keys: session_id (hooks) and transcript basename (HUD)
+                if sid:
+                    smap[sid] = bind_slug
+                tpath = data.get("transcript_path", "")
+                if tpath:
+                    smap[Path(tpath).stem] = bind_slug
                 smap_file.write_text(json.dumps(smap, indent=2, ensure_ascii=False), encoding="utf-8")
                 (AITP_TOPICS_ROOT / ".current_topic").write_text(bind_slug, encoding="utf-8")
             except Exception:
