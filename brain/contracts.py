@@ -1,4 +1,7 @@
 """Artifact templates, required fields, required headings for all stages.
+
+NOTE: Pydantic runtime validation models live in brain.cli.contracts.
+This module provides template constants used by state_model.py and gates.py.
 """
 
 from __future__ import annotations

@@ -6,6 +6,32 @@
 
 AITP is a protocol layer that gives your AI agent the discipline of a good research collaborator: show your sources, justify your claims, don't skip steps, and only call something "known" after it passes gates.
 
+## Architecture: Four-Layer Harness
+
+```
+CLI 强制、MCP 便利、Skill 指导、Hook 监视
+```
+
+| Layer | Role | Can block? |
+|-------|------|:---:|
+| **CLI** (`brain/cli/`) | Enforcement engine. Preflight + state validator + Pydantic contracts. Sole path that can change topic state. | Hard block |
+| **MCP** (`brain/mcp_server.py`) | Convenience layer. Parameter parsing + dispatch. 76 tools, 29 with `@require_stage`. | Forwards to CLI |
+| **Skill** (`skills/*.md`, `deploy/skills/`) | Guidance. Pure text injection. Red flags, CLI command mappings, domain constraints. | Advisory only |
+| **Hook** (`hooks/`) | Surveillance. SessionStart: injects gateway skill. Stop: writes HUD state + logs. | Post-hoc detection |
+
+### Harness components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Preflight engine | `brain/cli/preflight.py` | 10 registered checks. Stage/gate/activity validation. Conditional preflight (`when` dict matching). |
+| State manager | `brain/cli/state.py` | Authoritative source for stage/lane/activity/gate. Atomic writes (tempfile + os.replace). Validated transitions (L0→L1→L3→L4⇄L3→promotion→L2). |
+| Pydantic contracts | `brain/cli/contracts.py` | `CandidateContract` (extra="forbid", chain validation). `ReviewContract` (5 required physics checks for pass). |
+| Stage decorators | `brain/cli/decorators.py` | `@require_stage` (STAGE_PERMISSIONS + LANE_OVERRIDES). `@with_preflight` (command policy enforcement). |
+| Command policies | `brain/commands/*.md` (21 files) | YAML frontmatter: stage, gate, preflight checks, allowed tools, blocking conditions. |
+| Agent templates | `brain/agents/*.md` (4 files) | Algebraic/Physical/Numerical Verifier + Skeptic. YAML frontmatter with tool allowlists. |
+| HUD | `~/.aitp/hud_state.json` | Written by Stop hook. Real-time status panel. |
+| Observability | `brain/cli/observability.py` | JSONL event logging per session. |
+
 ## Quick start
 
 **One-liner (Claude Code):**
@@ -14,7 +40,7 @@ AITP is a protocol layer that gives your AI agent the discipline of a good resea
 git clone git@github.com:bhjia-phys/AITP-Research-Protocol.git && cd AITP-Research-Protocol && AITP_TOPICS_ROOT=~/research/aitp-topics python scripts/aitp-pm.py install
 ```
 
-This auto-detects your AI agents, deploys all hooks/skills/config, and registers a global `aitp` CLI command. No interactive prompts needed when `AITP_TOPICS_ROOT` is set.
+This auto-detects your AI agents, deploys all hooks/skills/config, and registers a global `aitp` CLI command.
 
 Step by step:
 
@@ -59,56 +85,6 @@ If you prefer to wire the MCP server yourself, add to `~/.claude/mcp.json` or pr
 
 Then run `/reload-plugins` in Claude Code.
 
-### Other agents
-
-AITP is agent-agnostic. Any MCP-compatible agent can use it. See `adapters/` for specific setups. Run `python scripts/aitp-pm.py install --agent kimi-code` for Kimi Code support.
-
-## How to use
-
-### Your first research topic
-
-Once AITP is installed, tell your AI agent what you want to study in plain language. For example:
-
-> "I want to understand how the GW approximation relates to the Kadanoff-Baym equations. Start by checking what's already known, then find the key papers."
-
-The agent (equipped with the `using-aitp` skill) will:
-
-1. **Check existing knowledge** — calls `aitp_query_entries` (v5 faceted entries) and `aitp_query_l2` (promoted candidates) to see what the L2 knowledge base already knows about this domain
-2. **Create the topic** — calls `aitp_bootstrap_topic` to set up the directory structure
-3. **Walk through the stages** — guided by `aitp_get_execution_brief` at each step
-
-### Stage-by-stage workflow
-
-**L0 — Discover sources.** The agent searches for papers, registers them (`aitp_register_source`), fills the source registry with coverage assessment. This stage answers: *Do I have enough to answer the question?*
-
-**L1 — Read and frame.** TOC-first reading for every source. Skim all sections (Phase A), deep-extract the relevant ones (Phase B). Each extracted section immediately contributes concepts and obvious edges to L2. This stage answers: *What exactly are we trying to figure out?*
-
-**L3 — Derive.** Flexible workspace with 8 activities: ideate, plan, derive, trace-derivation, gap-audit, connect, integrate, distill. Switch between them freely — no forced sequence. Submit candidates when claims are ready.
-
-**L4 — Validate.** Adversarial review with mandatory counterargument. Dimensional analysis, symmetry checks, limiting cases. Non-pass outcomes return to L3 for revision. This is the trust gate.
-
-**L2 — Knowledge persists.** Promoted results enter the global L2 knowledge graph. L2 is both the endpoint of every topic and the starting point of the next.
-
-### Two paths to L2
-
-- **Path A (Lightweight):** L0 → L2 directly. For well-understood concepts with clear sources. Use `aitp_quick_l2_concept` to create concept + theorem nodes with edges in one call.
-- **Path B (Deep):** L0 → L1 → L3 → L4 → L2. For novel or uncertain claims requiring derivation and adversarial review.
-
-### Checking progress
-
-Ask your AI: *"What's the status of this topic?"* — the AI calls `aitp_get_execution_brief` which returns gate status, missing requirements, and the next action.
-
-### Resuming after a break
-
-Just open the topic again. State is stored in plain Markdown files. No database. No session dependency. Call `aitp_session_resume` to restore full context.
-
-### Best practices
-
-- **Push after every feature.** See `skills/aitp-push-after-feature.md` — this exists because we learned the hard way.
-- **Start from L2.** Every new topic should call `aitp_query_entries` first to discover verified claims, known methods, pitfalls, and open questions that already exist for this domain.
-- **Source everything.** Every L2 node and edge requires a `source_ref`. Provenance is mandatory.
-- **Let the brief guide you.** Always call `aitp_get_execution_brief` before deciding what to do next. It tells you gates, blockers, and the next allowed action.
-
 ## Protocol stages (v4.1)
 
 ```
@@ -119,189 +95,169 @@ L0 (discover) → L1 (read → frame) → L3 (derive) ⇄ L4 (validate) → L2 (
 |-------|-------------|--------------|
 | **L0** | Find and register sources | `source_registry.md`, `L0/sources/*.md` |
 | **L1** | TOC-first reading, bounded question, section intake | `source_toc_map.md`, `question_contract.md`, `L1/intake/` |
-| **L3** | Derivation (research) or literature study | Subplane artifacts, candidates |
-| **L4** | Adversarial validation with mandatory counterargument | Validation contracts, reviews |
+| **L3** | Derivation (research) or literature study. 8 activities: ideate, plan, derive, trace-derivation, gap-audit, connect, integrate, distill | Subplane artifacts, candidates |
+| **L4** | Adversarial validation (3 Verifiers + Skeptic) + independent execution | Reviews, computational reports |
 | **L2** | Persistent, cross-topic knowledge graph | Nodes, edges, EFT towers |
 
-**L5 (writing/publication) is removed in v4.1.** L2 is the endpoint. The knowledge graph itself is the output. Paper writing is the human's work.
+**L5 (writing/publication) is removed in v4.1.** L2 is the endpoint. The knowledge graph itself is the output.
 
-## Expanding the L2 Knowledge Graph
+## Two-speed design
 
-L2 is the protocol's persistent memory — it grows with every topic. Here's how to expand it:
+| | Lightweight | Heavyweight |
+|---|:---:|:---:|
+| **Preflight** | None (advisory only) | Hard block (stage + gate + checks) |
+| **Commands** | `sympy check`, `l2 ask`, `source discover`, `quick compute`, `session resume` | `source registry`, `question frame`, `derive pack`, `candidate submit`, `verify run/results`, `promote` |
+| **Use case** | Exploration, quick checks, reading | Stage boundaries, claims, promotion |
 
-### Path A — Lightweight (L0 → L2 directly)
+## Lane differentiation
 
-For concepts you already understand well and have clear sources for:
+| | code_method | formal_theory |
+|---|:---:|:---:|
+| **Bash:remote (SSH/HPC)** | Yes | No |
+| **Domain invariants** | Mandatory | Skipped |
+| **SymPy verification** | N/A | Core |
+| **L4 execution** | compute prepare→submit→check→validate→report | sympy execute + l2 cross-check |
+| **Compute target** | local / fisher / dongfang / kouxiang | local / fisher |
 
-1. **Check what exists:** The agent calls `aitp_query_l2_index` to see domains and existing nodes
-2. **Create nodes:** The agent calls `aitp_quick_l2_concept` which creates a concept node, a theorem/technique node, and an edge between them — all in one call. Every node requires `source_ref` (where the knowledge comes from).
-3. **Add edges:** Call `aitp_create_l2_edge` to link related nodes across domains
+## Study vs Research mode
 
-Example: *"Add the Kramers-Kronig relations to L2 from this optics textbook chapter 3"* — the agent registers the source, creates the concept node, and links it to existing nodes like "Green's Function" and "Linear Response Theory".
+Set via `candidate_type` on `aitp candidate submit`:
 
-### Path B — Deep (full pipeline)
+| | Study Mode | Research Mode |
+|---|---|---|
+| **candidate_type** | `atomic_concept` / `derivation_chain` | `research_claim` |
+| **L4 verification** | 1 adversarial reader + source anchoring + coverage | 3 Verifiers + Skeptic |
+| **Use case** | Understanding known results | Producing new claims |
 
-For novel claims that need derivation and validation:
+## Agent Team (L4 Verification)
 
-1. **Complete the full pipeline:** L0 → L1 → L3 → L4
-2. **Request promotion:** `aitp_request_promotion` — you (the human) approve what enters L2
-3. **Resolve conflicts:** If a new claim contradicts an existing L2 node, the protocol flags it. You decide: update the existing node (version bump), reject the new claim, or mark both as regime-dependent.
+Four specialized agents with worktree isolation:
 
-### What makes good L2 content
+| Agent | Role | Strategy |
+|-------|------|----------|
+| **Algebraic Verifier** | Step-by-step algebra, dimensional consistency, source anchoring | Derivation chain audit |
+| **Physical Verifier** | Limits, symmetries, conservation laws, L2 cross-reference | Physics sanity checks |
+| **Numerical Verifier** | Tier-1 (param consistency) + Tier-2 (HPC output) | Computational audit |
+| **Skeptic** | Claim-only blind review, L2 access only, contradiction-first | Adversarial: find what's wrong |
 
-- **Concepts** — well-defined physical ideas (e.g., "Quasiparticle", "Spectral Function")
-- **Theorems** — precise mathematical statements (e.g., "Wick's Theorem", "Fluctuation-Dissipation Theorem")
-- **Relations** — typed edges between nodes: `derives_from`, `generalizes`, `approximates`, `contradicts`, `depends_on`, `is_dual_to`
-- **Regime boundaries** — where approximations break down (e.g., "GW approximation fails for strongly correlated systems")
-- **EFT towers** — organize approximations by energy scale
+Disagreement matrix: `unanimous_pass` → promote. `divergent` → human decides. `incomplete` → retry. Non-pass returns to L3 with structured feedback (≤3 cycles).
 
-### Querying L2
+## Research loop (L3⇄L4)
 
-Before starting any new topic, the agent should call `aitp_query_entries` (the primary v5 faceted entry query tool) to find relevant knowledge:
-
-```bash
-aitp_query_entries(role="claim", system="<system-slug>")  # What's known about this system?
-aitp_query_entries(role="claim", status="verified")        # All verified claims
-aitp_query_entries(role="method")                          # Available methods/workflows
-aitp_query_entries(role="pitfall")                         # Known failure modes
-aitp_query_entries(role="question")                        # Open research questions
+```
+L3: derive → candidate submit
+    ↓
+L4: execute + verify (3 Verifiers + Skeptic)
+    ↓
+    ├── pass → promotion → L2
+    ├── fail → structured feedback → L3 (gap-audit), cycle++
+    └── ≤3 cycles → human escalation
 ```
 
-For domain taxonomy and graph relationships, use `aitp_query_l2_index` and `aitp_query_l2_graph`. Use `aitp_query_l2` to search across both v5 entries and promoted candidates. Source provenance is hidden by default (to keep context lean) but available via `aitp_get_l2_provenance`.
-
-### Trust levels
-
-Nodes evolve through trust levels as evidence accumulates:
-`source_grounded` → `multi_source_confirmed` → `validated` → `independently_verified`
-
-You control promotion. The protocol provides evidence; you decide what enters the knowledge graph.
-
-## Install / Update / Uninstall
-
-See [Quick start](#quick-start) above for one-liner install. After initial setup, use the `aitp` command from anywhere.
-
-The installer:
-- Detects installed AI agents (Claude Code, Kimi Code)
-- Sets `topics_root` from `AITP_TOPICS_ROOT` env var or prompts interactively (default: `~/aitp-topics`)
-- Auto-discovers and deploys ALL skills, hooks, runners, and config
-- Registers MCP server config and creates a global `aitp` CLI wrapper
-
-Options:
-```bash
-aitp install                          # All agents, user scope
-aitp install --agent claude-code      # Claude Code only
-aitp install --scope project          # Project-level install (writes to .claude/)
-aitp install --topics-root /path/to/topics  # Custom topics directory
-```
-
-### Update
-
-Re-sync deployed files from the current repo state (no git pull). Auto-discovers all deployable assets:
+## CLI commands (20+)
 
 ```bash
-aitp update
+# Session management
+aitp session resume <slug>        # Restore topic context
+aitp session list                 # All active topics
+
+# L0 — Source discovery
+aitp source add --id <id> --title <title> --type paper|code|data
+aitp source discover              # arXiv/InspireHEP (stub)
+aitp source registry              # Coverage assessment
+
+# L1 — Reading & framing
+aitp source parse-toc --source <id> --sections "..."
+aitp source extract --source <id> --section <name> --content "..."
+aitp question frame --question "..."
+aitp convention lock --add "convention: ..."
+aitp anchor map --add "Eq.X ← source:<id>"
+aitp contradiction register --source-a <id1> --source-b <id2> --description "..."
+aitp source cross-map
+
+# L3 — Derivation workspace
+aitp derive record --step D1 --input "..." --output "..." --source "..."
+aitp derive pack --candidate-id <id>
+aitp candidate submit --type research_claim|atomic_concept --candidate-id <id>
+aitp sympy check dim|alg|limit "<expr>"
+aitp switch-activity ideate|plan|derive|trace-derivation|gap-audit|connect|integrate|distill
+aitp quick compute --expr "<python code>"
+aitp memory steer|decide --content "..."
+
+# L4 — Verification
+aitp verify run --candidate <id>       # Outputs JSON for orchestrator
+aitp verify results --candidate <id>   # Builds disagreement matrix
+aitp promote --candidate <id>          # Promote to L2
+
+# L4 — Computation (code_method lane)
+aitp compute prepare --candidate <id>
+aitp compute submit
+aitp compute check
+aitp compute validate
+aitp compute report
+
+# L2 — Knowledge graph
+aitp l2 node create --node-id <id> --type concept|theorem|...
+aitp l2 edge create --from <id> --to <id> --type derives_from|...
+aitp l2 merge
+aitp l2 query "<substring>"
+
+# State management
+aitp state show
+aitp state advance <stage>
+aitp gate override --reason "..." --scope current_gate|this_session|permanent
 ```
 
-**What gets deployed automatically:**
-| Asset type | Source directory | Deployed to |
-|-----------|-----------------|-------------|
-| Gateway skills | `deploy/skills/*.md` | `~/.claude/skills/<name>/SKILL.md` |
-| Protocol skills | `skills/*.md` | `~/.claude/skills/<name>/SKILL.md` + workspace `skills-shared/` |
-| Hook scripts | `deploy/hooks/*.py`, `hooks/*.{py,cmd,sh}` | `~/.claude/hooks/` |
-| Runners | `deploy/runners/*.{cmd,sh}` | `~/.claude/hooks/` |
-| Hook config | `deploy/config/hooks.json` | `~/.claude/hooks/hooks.json` + `settings.json` |
-| MCP server | `brain/mcp_server.py` (FastMCP) or `brain/native_mcp.py` (stdlib) | Configured in `settings.json` (runs in-place) |
-
-To add a new skill, just drop a `.md` file in `skills/` or `deploy/skills/`. No code changes needed.
-Stale files (renamed/removed skills or hooks) are cleaned up automatically.
-
-Options: `--agent claude-code`, `--topics-root <path>`
-
-### Upgrade
-
-Git pull latest + automatic re-deploy of all agents:
-
-```bash
-aitp upgrade
-aitp upgrade --force    # Auto-stash local changes and proceed
-```
-
-### Uninstall
-
-Remove hooks, skills, MCP configs, and CLI wrapper from all detected agents:
-
-```bash
-aitp uninstall
-```
-
-Options: `--agent claude-code`, `--scope project`
-
-### Verify
-
-```bash
-aitp doctor     # Full health check (Python, deps, MCP, hooks, skills, topics)
-aitp status     # Show install state and file health per agent
-```
-
-The `doctor` command checks: Python version, dependencies, repo integrity, topics root, Claude Code hooks/skills/settings, Kimi Code MCP/config.
-
-## Architecture
+## Repository structure
 
 ```
 AITP-Research-Protocol/
 ├── brain/
-│   ├── mcp_server.py          # MCP server — 75+ tools, HTTP transport
-│   ├── native_mcp.py          # Stdio-native MCP wrapper (zero-dependency)
-│   ├── state.py               # Protocol constants, node/edge types, activities
-│   ├── gates.py               # Stage gate evaluation (L0/L1/L3/L4)
-│   ├── checks.py              # Content validation, derivation verification
-│   ├── contracts.py           # Artifact templates, required headings
-│   ├── physicist.py           # AI physicist check at stage transitions
-│   ├── domains.py             # Domain detection, skill mapping, path resolution
-│   ├── semantic.py            # TF-IDF semantic search for L2 queries
-│   ├── tool_catalog.py        # Progressive-disclosure tool registry
-│   ├── state_model.py         # Backward-compatible re-export layer
-│   ├── L2_ARCHITECTURE_v5.md  # L2 v5 faceted knowledge base design
-│   └── PROTOCOL.md            # Protocol operating manual v4.1
-├── deploy/                    # Unified deployment source (auto-discovered)
-│   ├── skills/                # Gateway skills: using-aitp, aitp-runtime, aitp-mcp-setup
-│   ├── hooks/                 # Generated hooks: keyword-router, routing-guard
-│   ├── runners/               # Shell/batch runners: run-hook.cmd, session-start.sh
-│   ├── config/                # Hook configuration: hooks.json (single source of truth)
-│   └── templates/             # Agent-specific template overrides (claude-code, kimi-code)
-├── skills/                    # Protocol skills (auto-discovered + deployed)
-│   ├── skill-discover.md      # L0: source discovery
-│   ├── skill-read.md          # L1: TOC-first reading workflow
-│   ├── skill-frame.md         # L1: framing — lock conventions and contradictions
-│   ├── skill-init.md          # First-run workspace setup
-│   ├── skill-l2-entry.md      # L2 knowledge entry and retrieval
-│   ├── skill-physicist-check.md  # AI physicist at every stage transition
-│   ├── skill-l3-ideate.md     # L3: idea generation
-│   ├── skill-l3-plan.md       # L3: derivation route planning
-│   ├── skill-l3-analyze.md    # L3: derivation execution
-│   ├── skill-l3-gap-audit.md  # L3: hidden assumption and gap detection
-│   ├── skill-l3-integrate.md  # L3: cross-activity synthesis
-│   ├── skill-l3-distill.md    # L3: final claim extraction
-│   ├── skill-validate.md      # L4: adversarial validation
-│   ├── skill-promote.md       # L2 promotion gate
-│   ├── skill-continuous.md    # Resume after session break
-│   ├── skill-librpa.md        # Domain skill: ABACUS+LibRPA
-│   └── aitp-push-after-feature.md  # Push discipline
-├── hooks/                     # Agent hook scripts (auto-discovered + deployed)
-│   ├── aitp_event.py          # Offline event recording (no MCP dependency)
-│   ├── session_start.py       # Session start handler
-│   ├── compact.py, stop.py    # Context compaction and stop handlers
-│   └── hook_utils.py          # Shared hook utilities
+│   ├── cli/                     # CLI enforcement engine (Phase 0-5)
+│   │   ├── __init__.py          # argparse router, 20+ commands
+│   │   ├── state.py             # Stage transitions, atomic writes
+│   │   ├── preflight.py         # Preflight engine, 10 registered checks
+│   │   ├── contracts.py         # Pydantic CandidateContract, ReviewContract
+│   │   ├── decorators.py        # @require_stage, @with_preflight
+│   │   ├── observability.py     # JSONL event logging
+│   │   └── commands/            # 9 command modules (source, reading, framing, l3_workflow, sympy, memory, verify, compute, l2)
+│   ├── commands/                # 21 command policy files (YAML frontmatter)
+│   ├── agents/                  # 4 verifier agent templates
+│   ├── mcp_server.py            # MCP server — 76 tools, HTTP transport
+│   ├── state_model.py           # Backward-compatible re-export layer
+│   ├── gates.py                 # Stage gate evaluation (L0/L1/L3/L4)
+│   ├── contracts.py             # Artifact templates, required headings (legacy)
+│   ├── PROTOCOL.md              # Protocol operating manual v4.1
+│   └── L2_ARCHITECTURE_v5.md    # L2 v5 faceted knowledge base design
+├── hooks/                       # Agent hook scripts
+│   ├── session_start.py         # Injects gateway skill + topic context
+│   ├── stop.py                  # Writes hud_state.json + session logs
+│   ├── compact.py               # Context compaction handler
+│   ├── aitp_event.py            # Offline event recording (no MCP dependency)
+│   └── hook_utils.py            # Shared hook utilities
+├── skills/                      # Protocol skills (auto-discovered + deployed)
+│   ├── skill-discover.md        # L0: source discovery
+│   ├── skill-read.md            # L1: TOC-first reading workflow
+│   ├── skill-frame.md           # L1: framing — conventions and contradictions
+│   ├── skill-l3-*.md            # L3 activities (ideate, plan, analyze, gap-audit, integrate, distill)
+│   ├── skill-validate.md        # L4: adversarial validation
+│   ├── skill-promote.md         # L2 promotion gate
+│   ├── skill-l2-entry.md        # L2 knowledge entry and retrieval
+│   ├── skill-librpa.md          # Domain skill: ABACUS+LibRPA
+│   └── skill-continuous.md      # Resume after session break
+├── deploy/                      # Unified deployment source
+│   ├── skills/                  # Gateway skills: using-aitp, aitp-runtime
+│   ├── hooks/                   # Generated hooks
+│   ├── runners/                 # Shell/batch runners
+│   ├── config/                  # Hook configuration (hooks.json)
+│   └── templates/               # Agent-specific template overrides
 ├── scripts/
-│   ├── aitp-pm.py             # Package manager (install/update/upgrade/uninstall)
-│   ├── aitp / aitp.cmd        # CLI entry wrappers
-│   └── generate_l2_viz.py     # L2 graph visualization
-├── tests/                     # Test suite (141 passing)
-├── docs/                      # Specs, guides, design documents
-├── adapters/                  # Agent-specific integrations
-├── contracts/                 # Artifact templates
-├── schemas/                   # JSON Schema definitions
-└── templates/                 # LaTeX templates
+│   ├── aitp-pm.py               # Package manager (install/update/upgrade/uninstall)
+│   ├── aitp / aitp.cmd          # CLI entry wrappers
+│   └── generate_l2_viz.py       # L2 graph visualization
+├── docs/                        # Specs, guides, design documents
+├── tests/                       # Test suite (141 passing)
+└── schemas/                     # JSON Schema definitions
 ```
 
 ## Design principles
@@ -311,15 +267,50 @@ AITP-Research-Protocol/
 - **Humans own trust.** The promotion gate exists because "the AI seems confident" is not a valid reason.
 - **Durable by default.** Research state lives in your filesystem (plain Markdown), not in chat sessions.
 - **Agent-agnostic.** Any MCP-speaking agent can drive the protocol.
-- **Compiled, not raw.** L2 stores distilled knowledge. Source provenance is stored for auditing but hidden from default queries to prevent context bloat.
+- **Compiled, not raw.** L2 stores distilled knowledge. Source provenance is stored for auditing but hidden from default queries.
+
+## Implementation status
+
+| Phase | Status | Key deliverables |
+|:---:|:---:|------|
+| Phase 0 | 🟡 75% | CLI entry + gate_override + conditional preflight + session resume/list + `@require_stage` on 29 tools + research_loop_active + l4_cycle_count |
+| Phase 1 | 🟡 90% | 11 L0-L1 commands + 20 policy files (source discover is stub) |
+| Phase 2 | 🟡 95% | 6 L3 commands + HUD stop hook + memory steer/decide |
+| Phase 3 | 🟡 95% | 4 agent templates (complete) + verify-run/results/promote |
+| Phase 4 | 🟡 40% | `@require_stage` on 29 tools. MCP thinning not done (76 tools). MCP/CLI are independent implementations. |
+| Phase 5 | 🟡 60% | L2 node/edge/merge/query + notebook scaffold. Compute commands are all stubs. |
+
+**Last audited**: 2026-05-05 by 5 independent review agents (architecture consistency, protocol correctness, implementation completeness, physics workflow realism, code quality & integration). 28 findings: 9 critical, 9 high, 7 medium, 3 low.
+
+Full audit details in [aitp-harness-final.md](D:/BaiduSyncdisk/Theoretical-Physics/obsidian-markdown/07 Share_work/aitp-harness-final.md).
+
+## Known issues (from 5-agent audit)
+
+### Critical (would crash or corrupt data)
+- `brain.hook_utils` import error in `contracts.py` and `decorators.py` — module doesn't exist
+- `parse_md()` NameError in `preflight.py` — should be `_parse_md_local()`
+- Stage transition bypass in `cmd_candidate_submit` and `cmd_promote` — directly writes state.md
+- Non-atomic writes in `l3_workflow.py` and `verify.py` — no tempfile+replace
+- MCP and CLI are fully independent implementations with zero dispatch relationship
+- All 5 L4 compute commands are `print()` stubs
+- CLI commands have no stage gate enforcement — `@require_stage` only on MCP tools
+- `aitp topic init` doesn't exist — no CLI topic creation path
+
+### High
+- `@with_preflight` applied to only 1 of 76 MCP tools
+- verify/promote commands never call `run_preflight`
+- Two-speed design exists as field only, not wired to enforcement
+- Study vs Research mode doesn't change L4 verification behavior
+- `cmd_source_add` crashes with `Path(None)` TypeError from CLI
+- `quick compute` executes arbitrary user code without sandboxing
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [brain/PROTOCOL.md](brain/PROTOCOL.md) | Protocol operating manual (the AI reads this) |
-| [docs/superpowers/specs/](docs/superpowers/specs/) | Feature specs |
-| [research/knowledge-hub/](research/knowledge-hub/) | Protocol playbooks and contracts |
+| [brain/PROTOCOL.md](brain/PROTOCOL.md) | Protocol operating manual |
+| [aitp-harness-final.md](D:/BaiduSyncdisk/Theoretical-Physics/obsidian-markdown/07 Share_work/aitp-harness-final.md) | Complete architecture plan + audit findings |
+| [docs/](docs/) | Feature specs, design documents |
 
 ## License
 

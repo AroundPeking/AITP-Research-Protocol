@@ -69,6 +69,43 @@ def stop_for_topic(topics_root: str) -> None:
     _atomic_write_text(log_path, log_text + f"- {now} session ended\n")
 
 
+def _write_hud_state(current_topic: str, topic_root: Path):
+    """Write HUD state file for the Claude HUD panel."""
+    import json
+    hud_dir = Path.home() / ".aitp"
+    hud_dir.mkdir(parents=True, exist_ok=True)
+    hud_path = hud_dir / "hud_state.json"
+
+    data = {
+        "active_topic": current_topic,
+        "stage": "", "activity": "", "gate_status": "",
+        "l4_cycle_count": 0, "notebook_fresh": True,
+        "last_action": "", "last_action_time": "",
+        "background_jobs": [],
+    }
+
+    state_path = topic_root / "state.md"
+    if state_path.exists():
+        try:
+            fm, _ = _parse_md(state_path)
+            data["stage"] = fm.get("stage", "")
+            data["activity"] = fm.get("l3_activity", "")
+            data["gate_status"] = fm.get("gate_status", "")
+            data["l4_cycle_count"] = int(fm.get("l4_cycle_count", 0))
+            data["notebook_fresh"] = fm.get("notebook_fresh", True)
+            if fm.get("l4_background_status") == "submitted":
+                data["background_jobs"].append({
+                    "id": fm.get("l4_job_id", "?"),
+                    "host": fm.get("l4_job_host", "?"),
+                    "status": "running",
+                })
+            data["compute_target"] = fm.get("compute_target", "local")
+        except Exception:
+            pass
+
+    _atomic_write_text(hud_path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+
 def main():
     workspace = _find_workspace_root()
     if _hooks_disabled(workspace):
@@ -77,6 +114,21 @@ def main():
     if not topics_root:
         return
     stop_for_topic(topics_root)
+
+    # Write HUD state for the active topic
+    try:
+        sessions_path = Path.home() / ".aitp" / "sessions.json"
+        if sessions_path.exists():
+            import json
+            sess = json.loads(sessions_path.read_text(encoding="utf-8"))
+            current = sess.get("current", "")
+            if current:
+                for candidate in [Path(topics_root) / current, Path(topics_root) / "topics" / current]:
+                    if (candidate / "state.md").exists():
+                        _write_hud_state(current, candidate)
+                        break
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

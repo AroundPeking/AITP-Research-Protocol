@@ -174,6 +174,40 @@ def _build_context_injection(
     return context
 
 
+def _build_l4_notification(topic_root: Path, fm: dict) -> str:
+    """Build L4 background job completion notification for session injection."""
+    l4_status = fm.get("l4_background_status", "")
+    if l4_status != "completed":
+        return ""
+
+    job_id = fm.get("l4_job_id", "?")
+    job_host = fm.get("l4_job_host", "?")
+    job_result = fm.get("l4_job_result", "unknown")
+    completed_at = fm.get("l4_job_completed_at", "")
+    summary = fm.get("l4_job_output_summary", "")
+
+    lines = [
+        "## L4 Background Job Completed",
+        f"**Job {job_id}** on **{job_host}** finished with status: **{job_result}**",
+    ]
+    if completed_at:
+        lines.append(f"Completed at: {completed_at}")
+    if summary:
+        lines.append(f"Summary: {summary}")
+    lines.extend([
+        "",
+        "**Next steps**:",
+        "1. Call `aitp_l4_check_results` to update topic state",
+        "2. Read job output files from the run directory",
+        "3. Record numerical results via `aitp_record_numerical_result`",
+        "4. File L4 reviews for candidates",
+        "5. If job failed, diagnose and re-submit",
+        "",
+        "Do NOT ignore this — the L4 loop is waiting for review.",
+    ])
+    return "\n".join(lines)
+
+
 def _record_session_start(
     topic_root: Path, topic_slug: str, stage: str, posture: str, subplane: str = "",
 ) -> str:
@@ -309,6 +343,11 @@ def main():
         idea_context = _build_idea_context(ideas)
         context += f"\n{idea_context}\n"
         subplane_info += ", multi-idea: selection required"
+
+    # Inject L4 background job completion notification if applicable
+    l4_notification = _build_l4_notification(root, fm)
+    if l4_notification:
+        context += f"\n{l4_notification}\n"
 
     _output_json(context)
 

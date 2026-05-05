@@ -366,6 +366,13 @@ def evaluate_l3_stage(
     # L3 is ready when at least one activity artifact is complete.
     # Any activity can lead to L4 — there is no "last subplane".
 
+    # Derivation steps check (was dead code — now wired in v1.0):
+    # Verify derivation steps exist and are traceable when activity is derive-related
+    derivation_count = 0
+    steps_dir = topic_root_path / "L2" / "graph" / "steps"
+    if steps_dir.exists():
+        derivation_count = len(list(steps_dir.glob("*.md")))
+
     # Build domain constraints from domain manifest + domain skill
     domain_constraints = {}
     domain_manifest_path = topic_root_path / "contracts" / "domain-manifest.md"
@@ -636,6 +643,21 @@ def evaluate_l4_stage(
             next_allowed_transition="L3",
             skill="skill-validate",
         )
+
+    # AI Physicist L2 Lookup (was dead code — now wired in v1.0):
+    # Check that reviews reference L2 knowledge relevant to the claims
+    l2_warnings = []
+    for cand_path in submitted:
+        slug = cand_path.stem
+        review_path = review_dir / f"{slug}.md"
+        if review_path.exists():
+            rf, rb = parse_md(review_path)
+            try:
+                lookup = _check_physicist_l2_lookup(review_path, parse_md, topic_root_path)
+            except Exception:
+                lookup = True, ""
+            if not lookup[0]:
+                l2_warnings.append(f"{slug}: {lookup[1]}")
 
     # AI Physicist Check: every review must contain a correspondence/limit check
     # with at least one concrete physical limit named

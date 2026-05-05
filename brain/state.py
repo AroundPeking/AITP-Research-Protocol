@@ -30,6 +30,10 @@ class StageSnapshot:
     l4_background_status: str = ""
     research_intensity: str = "standard"
     interaction_level: str = "collaborative"
+    # Memory layer fields (v1.0)
+    memory_gate_enabled: bool = False
+    memory_status: str = "not_evaluated"
+    memory_summary: str = ""
 
 
 # -- Re-exported from state_model for backward compat --

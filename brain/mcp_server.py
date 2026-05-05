@@ -5,6 +5,11 @@ All storage is Markdown with YAML frontmatter. No JSON, no JSONL.
 
 Dependencies: fastmcp, pyyaml
 Install: pip install fastmcp pyyaml
+
+DISPATCH STATUS (C6+H4 migration):
+  Tools with CLI equivalents marked `# dispatch: <cli-command>`.
+  Gradual migration: replace MCP tool body with dispatch to brain.cli.
+  Tools without CLI equivalents remain MCP-native.
 """
 
 from __future__ import annotations
@@ -70,6 +75,8 @@ from brain.sympy_verify import (
     INFERENCE_RULE_DESCRIPTIONS,
 )
 
+from brain.cli.decorators import require_stage, with_preflight
+
 mcp = FastMCP("aitp-brain")
 
 
@@ -131,7 +138,8 @@ def _get_protocol_version() -> str:
 
 
 def _topic_root(topics_root: str, topic_slug: str) -> Path:
-    return resolve_topic_root(topics_root, topic_slug)
+    from brain.cli.state import resolve_topic_root as _resolve
+    return _resolve(topics_root, topic_slug)
 
 
 def _parse_md(path: Path) -> tuple[dict[str, Any], str]:
@@ -494,6 +502,7 @@ def aitp_update_status(
 
 
 @mcp.tool()
+@require_stage
 def aitp_bootstrap_topic(
     topics_root: str,
     topic_slug: str,
@@ -635,6 +644,7 @@ def aitp_load_domain_manifest(
 
 
 @mcp.tool()
+@require_stage
 def aitp_bind_repo(
     topics_root: str,
     topic_slug: str,
@@ -729,6 +739,7 @@ def aitp_bind_repo(
     }
 
 
+# dispatch: aitp source add
 @mcp.tool()
 def aitp_register_source(
     topics_root: str,
@@ -745,42 +756,31 @@ def aitp_register_source(
     source_role: str = "direct_dependency",
     epistemic_tier: str = "",
 ) -> str:
-    """Register a source in L0. Creates a Markdown file with frontmatter.
+    """Register a source in L0. Dispatches to CLI source add."""
+    from brain.cli._dispatch_helpers import dispatch
+    from brain.cli.commands.source import cmd_source_add
 
-    Physical metadata fields help L1 prioritise reading and L3 trace derivations:
-    - physical_system: what system does this study? (e.g. "Hubbard model", "QED")
-    - method_category: analytic, perturbative, numerical, RG, variational, etc.
-    - regime: weak coupling, large N, 1+1D, T=0, etc.
-    - source_role: foundational, direct_dependency, contrast_reference, background
-    - epistemic_tier: peer_reviewed, community_reviewed, preprint, textbook, lecture, unvetted
-    """
-    root = _topic_root(topics_root, topic_slug)
-    slug = _slugify(source_id)
-    path = root / "L0" / "sources" / f"{slug}.md"
-    if path.exists():
-        return f"Source {slug} already registered."
-    fm = {
-        "source_id": slug,
-        "type": source_type,
-        "title": title or source_id,
-        "arxiv_id": arxiv_id,
-        "fidelity": fidelity,
-        "registered": _now(),
-        "physical_system": physical_system,
-        "method_category": method_category,
-        "regime": regime,
-        "source_role": source_role,
-        "epistemic_tier": epistemic_tier,
-    }
-    body = f"# {title or source_id}\n\n{notes}\n" if notes else f"# {title or source_id}\n"
-    _write_md(path, fm, body)
-    # Update sources_count in state.md
-    state_path = root / "state.md"
-    sfm, sbody = _parse_md(state_path)
-    sfm["sources_count"] = int(sfm.get("sources_count", 0)) + 1
-    sfm["updated_at"] = _now()
-    _write_md(state_path, sfm, sbody)
-    return f"Registered source {slug}"
+    result = dispatch(cmd_source_add,
+        topic=topic_slug, id=source_id, title=title or source_id,
+        type=source_type, role=source_role, notes=notes,
+        success_msg=f"Registered source {_slugify(source_id)}")
+
+    # Enrich with extra metadata fields (CLI doesn't handle these yet)
+    if arxiv_id or fidelity or physical_system or method_category or regime or epistemic_tier:
+        root = _topic_root(topics_root, topic_slug)
+        slug = _slugify(source_id)
+        path = root / "L0" / "sources" / f"{slug}.md"
+        if path.exists():
+            fm, body = _parse_md(path)
+            if arxiv_id: fm["arxiv_id"] = arxiv_id
+            if fidelity != "arxiv_preprint": fm["fidelity"] = fidelity
+            if physical_system: fm["physical_system"] = physical_system
+            if method_category: fm["method_category"] = method_category
+            if regime: fm["regime"] = regime
+            if epistemic_tier: fm["epistemic_tier"] = epistemic_tier
+            _write_md(path, fm, body)
+
+    return result
 
 
 @mcp.tool()
@@ -798,6 +798,7 @@ def aitp_list_sources(topics_root: str, topic_slug: str) -> list[dict[str, Any]]
 
 
 @mcp.tool()
+@require_stage
 def aitp_parse_source_toc(
     topics_root: str,
     topic_slug: str,
@@ -979,6 +980,7 @@ def aitp_update_section_status(
 
 
 @mcp.tool()
+@require_stage
 def aitp_batch_extract_section(
     topics_root: str,
     topic_slug: str,
@@ -1127,6 +1129,7 @@ def _suggest_related_concepts(
 
 
 @mcp.tool()
+@require_stage
 def aitp_write_section_intake(
     topics_root: str,
     topic_slug: str,
@@ -1229,6 +1232,8 @@ def aitp_write_section_intake(
     )
 
 
+# dispatch: partial — core file creation differs from CLI (MCP creates candidate directly,
+# CLI requires pre-existing file from derive_pack). Preflight dispatched to CLI.
 @mcp.tool()
 def aitp_submit_candidate(
     topics_root: str,
@@ -1283,6 +1288,16 @@ def aitp_submit_candidate(
         f"## Validation Criteria\n{validation_criteria}\n"
     )
     _write_md(path, fm, body)
+
+    # Increment l4_cycle_count on re-submission (research loop tracking)
+    # If the topic was already at L4 or has previously had cycle_count > 0,
+    # this is a re-submission after L4 feedback.
+    if state_fm.get("stage") == "L4" or int(state_fm.get("l4_cycle_count", 0)) > 0:
+        current_cycle = int(state_fm.get("l4_cycle_count", 0))
+        state_fm["l4_cycle_count"] = current_cycle + 1
+        state_fm["research_loop_active"] = True
+        _append_to_topic_log(root, f"candidate re-submitted (cycle {current_cycle + 1})")
+
     _auto_refresh_flow_notebook(root, state_fm)
     return _GateResult({
         "message": f"Submitted candidate {slug}",
@@ -1305,6 +1320,7 @@ _IDEA_STATUSES = {"active", "failed", "succeeded", "abandoned", "superseded"}
 
 
 @mcp.tool()
+@require_stage
 def aitp_submit_idea(
     topics_root: str,
     topic_slug: str,
@@ -1474,6 +1490,7 @@ def aitp_list_ideas(
 
 
 @mcp.tool()
+@require_stage
 def aitp_promote_idea_to_candidate(
     topics_root: str,
     topic_slug: str,
@@ -1597,6 +1614,8 @@ _PROMOTION_TRANSITIONS = {
 
 
 @mcp.tool()
+@with_preflight("promote")
+@require_stage
 def aitp_request_promotion(
     topics_root: str,
     topic_slug: str,
@@ -1661,6 +1680,7 @@ def aitp_request_promotion(
 
 
 @mcp.tool()
+@require_stage
 def aitp_resolve_promotion_gate(
     topics_root: str,
     topic_slug: str,
@@ -1700,6 +1720,8 @@ def aitp_resolve_promotion_gate(
 
 
 @mcp.tool()
+@with_preflight("promote")
+@require_stage
 def aitp_promote_candidate(
     topics_root: str,
     topic_slug: str,
@@ -1860,6 +1882,12 @@ def aitp_promote_candidate(
 
     _append_to_topic_log(root, f"promoted {slug} to global L2 (v{fm['version']})")
 
+    # Clear research loop on successful promotion
+    sf, sb = _parse_md(root / "state.md")
+    sf["research_loop_active"] = False
+    sf["updated_at"] = _now()
+    _write_md(root / "state.md", sf, sb)
+
     # EFT tower auto-matching: check if this result naturally fits into
     # existing EFT towers based on energy scale or regime proximity.
     eft_hints: list[str] = []
@@ -1960,6 +1988,7 @@ def aitp_promote_candidate(
 
 
 @mcp.tool()
+@require_stage
 def aitp_fast_track_claim(
     topics_root: str,
     topic_slug: str,
@@ -2436,6 +2465,7 @@ def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict[str, Any
 
 
 @mcp.tool()
+@require_stage
 def aitp_l4_background_submit(
     topics_root: str,
     topic_slug: str,
@@ -2476,20 +2506,44 @@ def aitp_l4_background_submit(
 
     _auto_refresh_flow_notebook(root, fm)
 
+    # Build cron setup instructions for autonomous L4 polling
+    poll_interval = _estimate_poll_interval(estimated_wall_time)
+    watchdog_script = str(
+        Path(__file__).resolve().parent.parent / "hooks" / "aitp_l4_watchdog.py"
+    )
+    cron_prompt = (
+        f"Run `python {watchdog_script} {topics_root} --topic {topic_slug}`. "
+        f"If exit code is 1 (job completed), call aitp_l4_check_results with the job result. "
+        f"If exit code is 0 (still running), do nothing. "
+        f"If exit code is 2 (error), record the error and cancel this cron job."
+    )
+    cron_setup = {
+        "poll_interval": poll_interval,
+        "watchdog_script": watchdog_script,
+        "prompt": cron_prompt,
+        "durable": True,
+        "cron_expression": _to_cron_expression(poll_interval),
+    }
+
     return {
         "status": "submitted",
         "job_id": job_id,
         "host": host,
         "estimated_wall_time": estimated_wall_time,
+        "cron_setup": cron_setup,
         "message": (
             "L4 validation is now running in background. "
+            "The agent SHOULD set up a durable cron job to poll this job "
+            f"every {poll_interval}min using the watchdog script. "
             "Use aitp_switch_l3_activity to return to L3 for ideation/planning/derivation "
-            "while the test runs. When the job completes, use aitp_l4_check_results to review."
+            "while the test runs. When the job completes, the watchdog will auto-update "
+            "state.md and the SessionStart hook will surface it on next session."
         ),
     }
 
 
 @mcp.tool()
+@require_stage
 def aitp_l4_check_results(
     topics_root: str,
     topic_slug: str,
@@ -2539,6 +2593,7 @@ def aitp_l4_check_results(
 
 
 @mcp.tool()
+@require_stage
 def aitp_record_numerical_result(
     topics_root: str,
     topic_slug: str,
@@ -2820,6 +2875,7 @@ def aitp_advance_to_l3(
     })
 
 
+# dispatch: aitp switch-activity (partial — L4→L3 bg job logic is MCP-native)
 @mcp.tool()
 def aitp_switch_l3_activity(
     topics_root: str, topic_slug: str, activity: str, reason: str = "",
@@ -3017,15 +3073,65 @@ def aitp_advance_to_l4(
 
     fm["stage"] = "L4"
     fm["posture"] = "verify"
+    fm["research_loop_active"] = True
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
-    _append_to_topic_log(root, "advanced to L4 validation")
+    _append_to_topic_log(root, "advanced to L4 validation (research loop activated)")
     return _GateResult({
         "message": (
-            "Advanced to L4. Submit validation reviews via aitp_submit_l4_review. "
-            "When candidates pass validation, use aitp_request_promotion to begin the promotion gate."
+            "Advanced to L4. Research loop activated. "
+            "Submit validation reviews via aitp_submit_l4_review. "
+            "When candidates pass validation, use aitp_request_promotion."
         ),
     })
+
+
+# ---------------------------------------------------------------------------
+# Gate override
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+# dispatch: aitp gate override
+def aitp_gate_override(
+    topics_root: str,
+    topic_slug: str,
+    reason: str = "",
+    scope: str = "current_gate",
+) -> dict[str, Any]:
+    """Override a blocked gate. Dispatches to CLI gate override.
+
+    Args:
+        topics_root: Path to AITP topics directory
+        topic_slug: Topic identifier
+        reason: Human-readable reason for the override (required)
+        scope: 'current_gate' (one-time), 'this_session' (session duration),
+               or 'permanent' (never block this gate again)
+    """
+    if not reason.strip():
+        return {"error": "Reason is required for gate override. Use --reason to explain why."}
+
+    from argparse import Namespace
+    from brain.cli.__init__ import cmd_gate_override, _resolve_topic_root
+    args = Namespace(
+        topic=topic_slug, reason=reason, scope=scope,
+        topics_root=topics_root,
+    )
+    root = _resolve_topic_root(topic_slug)
+    state_path = root / "state.md"
+    _, prev_body = _parse_md(state_path)
+    prev_fm, _ = _parse_md(state_path) if state_path.exists() else ({}, "")
+    gs = prev_fm.get("gate_status", "")
+
+    # CLI function handles the state mutation and atomic write
+    cmd_gate_override(args)
+
+    return {
+        "status": "overridden",
+        "scope": scope,
+        "previous_gate": gs,
+        "message": f"Gate overridden: {gs} → ready_override. Scope: {scope}.",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -3146,6 +3252,7 @@ def aitp_estimate_order(
 
 
 @mcp.tool()
+@require_stage
 def aitp_submit_l4_review(
     topics_root: str,
     topic_slug: str,
@@ -3379,6 +3486,7 @@ def aitp_submit_l4_review(
 
 
 @mcp.tool()
+@require_stage
 def aitp_archive_topic(
     topics_root: str,
     topic_slug: str,
@@ -3425,6 +3533,7 @@ def aitp_archive_topic(
 
 
 @mcp.tool()
+@require_stage
 def aitp_restore_topic(
     topics_root: str,
     topic_slug: str,
@@ -3777,6 +3886,7 @@ def aitp_set_interaction_level(
 
 
 @mcp.tool()
+@require_stage
 def aitp_fork_topic(
     topics_root: str,
     parent_slug: str,
@@ -3833,6 +3943,32 @@ def aitp_fork_topic(
 
 
 # ---------------------------------------------------------------------------
+# L4 watchdog helpers
+# ---------------------------------------------------------------------------
+
+
+def _estimate_poll_interval(wall_time: str) -> int:
+    """Estimate polling interval in minutes from wall time string like '2h', '30m'."""
+    if not wall_time:
+        return 5
+    wall = wall_time.lower().strip()
+    match = re.match(r"(\d+)\s*(h|m|hour|min)", wall)
+    if not match:
+        return 5
+    value, unit = int(match.group(1)), match.group(2)[0]
+    total_minutes = value * 60 if unit == "h" else value
+    # Poll at ~1/10 of estimated wall time, min 2min, max 15min
+    interval = max(2, min(15, total_minutes // 10))
+    return interval
+
+
+def _to_cron_expression(interval_minutes: int) -> str:
+    """Convert poll interval to cron expression."""
+    if interval_minutes <= 1:
+        return "*/1 * * * *"
+    return f"*/{interval_minutes} * * * *"
+
+
 # Knowledge-base operations
 # ---------------------------------------------------------------------------
 
@@ -4292,6 +4428,7 @@ def _ensure_l2_graph_dirs(topics_root: str) -> Path:
 
 
 @mcp.tool()
+@require_stage
 def aitp_create_l2_node(
     topics_root: str,
     node_id: str,
@@ -4472,6 +4609,7 @@ def aitp_create_l2_node(
 
 
 @mcp.tool()
+@require_stage
 def aitp_update_l2_node(
     topics_root: str,
     node_id: str,
@@ -4549,6 +4687,7 @@ def aitp_update_l2_node(
 
 
 @mcp.tool()
+@require_stage
 def aitp_create_entry(
     topics_root: str,
     entry_id: str,
@@ -4781,6 +4920,7 @@ def _rebuild_entry_index(global_l2: Path) -> None:
     _atomic_write_text(entries_dir / "INDEX_pitfalls.md", "\n".join(plines) + "\n")
 
 
+# dispatch: l2 edge-create (pending CLI alignment — currently writes to global L2 vs topic subgraph)
 @mcp.tool()
 def aitp_create_l2_edge(
     topics_root: str,
@@ -4794,66 +4934,19 @@ def aitp_create_l2_edge(
     correspondence_verified: bool = False,
 ) -> str:
     """Create a typed edge between two L2 graph nodes.
-
-    edge_type: limits_to | derives_from | uses | assumes | matches_onto | decouples_at |
-               emerges_from | specializes | generalizes | approximates | component_of |
-               equivalent_to | contradicts | refines | motivates | proven_by
-    source_ref: REQUIRED. Traceable reference (e.g. 'raw/paper.md L42' or
-        'topic:crpa-librpa'). Stored for auditing, hidden from default query output.
+    TODO: align with CLI l2 edge-create (global L2 vs topic subgraph path).
     """
-    if edge_type not in L2_EDGE_TYPES:
-        return f"Invalid edge_type '{edge_type}'. Valid: {L2_EDGE_TYPES}"
-
-    if not source_ref and not evidence:
-        return (
-            "source_ref is REQUIRED for L2 edges. Every relation must have provenance. "
-            "Provide source_ref (e.g. 'raw/paper.md L42') or evidence."
-        )
-
-    global_l2 = _ensure_l2_graph_dirs(topics_root)
-    slug = _slugify(edge_id)
-    edge_path = global_l2 / "graph" / "edges" / f"{slug}.md"
-
-    # Verify both nodes exist  --  refuse to create dangling edges
-    from_slug = _slugify(from_node)
-    to_slug = _slugify(to_node)
-    from_path = global_l2 / "graph" / "nodes" / f"{from_slug}.md"
-    to_path = global_l2 / "graph" / "nodes" / f"{to_slug}.md"
-    missing = []
-    if not from_path.exists():
-        missing.append(f"from_node '{from_slug}'")
-    if not to_path.exists():
-        missing.append(f"to_node '{to_slug}'")
-    if missing:
-        return (
-            f"Cannot create edge: node(s) not found in L2 graph: {', '.join(missing)}. "
-            f"Create the missing node(s) with aitp_create_l2_node first."
-        )
-
-    fm: dict[str, Any] = {
-        "edge_id": slug,
-        "from_node": from_slug,
-        "to_node": to_slug,
-        "type": edge_type,
-        "regime_condition": regime_condition,
-        "correspondence_verified": correspondence_verified,
-        "evidence": evidence,
-        "source_ref": source_ref,
-        "created_at": _now(),
-    }
-
-    body = (
-        f"# Edge: {from_slug} --[{edge_type}]--> {to_slug}\n\n"
-        f"## Regime Condition\n{regime_condition}\n\n"
-        f"## Evidence\n{evidence}\n\n"
-        f"## Source\n{source_ref}\n\n"
-        f"## Verification\n{'Verified' if correspondence_verified else 'Not yet verified'}\n"
-    )
-    _write_md(edge_path, fm, body)
-    return f"Created L2 edge {slug} ({from_slug} --[{edge_type}]--> {to_slug})"
+    from brain.cli._dispatch_helpers import dispatch
+    from brain.cli.commands.l2 import cmd_l2_edge_create
+    return dispatch(cmd_l2_edge_create,
+        edge_id=edge_id, from_node=from_node, to_node=to_node,
+        edge_type=edge_type, source_ref=source_ref,
+        topics_root=topics_root,
+        success_msg=f"Created L2 edge {_slugify(edge_id)} ({_slugify(from_node)} --[{edge_type}]--> {_slugify(to_node)})")
 
 
 @mcp.tool()
+@require_stage
 def aitp_quick_l2_concept(
     topics_root: str,
     concept_id: str,
@@ -4992,6 +5085,7 @@ def aitp_get_l2_provenance(
 
 
 @mcp.tool()
+@require_stage
 def aitp_create_diagram(
     topics_root: str,
     diagram_id: str,
@@ -5077,6 +5171,8 @@ def aitp_list_diagrams(
 
 
 @mcp.tool()
+@with_preflight("derive-record")
+@require_stage
 def aitp_create_derivation_step(
     topics_root: str,
     step_id: str,
@@ -5352,6 +5448,7 @@ def aitp_query_l2_graph(
 
 
 @mcp.tool()
+@require_stage
 def aitp_merge_subgraph_delta(
     topics_root: str,
     topic_slug: str,
@@ -5470,6 +5567,7 @@ def aitp_merge_subgraph_delta(
 
 
 @mcp.tool()
+@require_stage
 def aitp_create_l2_tower(
     topics_root: str,
     tower_id: str,
