@@ -1,14 +1,14 @@
-# AITP — AI-assisted Theoretical Physics
+# AITP — AI Theoretical Physicist
 
 > 追求真理而非沽名钓誉 · *Pursue truth, not fame.*
 
-AITP gives an AI agent the discipline of a good research collaborator: **show your sources, justify every step, don't skip gates, and only call something "known" after adversarial review.**
+AITP is building an AI theoretical physicist. **Phase 1** (current): a correctness harness that enforces research discipline — source anchoring, step-by-step derivation, adversarial review. **Phase 2**: autonomous judgment via cron/openclaw, less discussion, more reliability. **Phase 3**: an ideas-bubble that generates novel research directions, producing a true AI theoretician. The human's role: audit ideas for validity and value, understand the physics, verify the derivations.
 
 ---
 
 ## Why
 
-LLMs can discuss physics fluently but have no built-in discipline: they skip derivations, forget sources, and state conjectures as facts. A human postdoc keeps a lab notebook, traces every equation to its source, and subjects claims to adversarial review. AITP is that discipline, encoded as a protocol.
+Current LLMs can discuss physics fluently but lack research discipline: they skip derivations, forget sources, state conjectures as facts. AITP is building toward an AI that can do theoretical physics — not just chat about it.
 
 ## What it does
 
