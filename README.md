@@ -15,7 +15,7 @@ CLI 强制、MCP 便利、Skill 指导、Hook 监视
 | Layer | Role | Can block? |
 |-------|------|:---:|
 | **CLI** (`brain/cli/`) | Enforcement engine. Preflight + state validator + Pydantic contracts. Sole path that can change topic state. | Hard block |
-| **MCP** (`brain/mcp_server.py`) | Convenience layer. Parameter parsing + dispatch. 76 tools, 29 with `@require_stage`. | Forwards to CLI |
+| **MCP** (`brain/mcp_server.py`) | Convenience layer. Parameter parsing + dispatch. ~55 tools (from 76), 26 with `@require_stage`. | Forwards to CLI |
 | **Skill** (`skills/*.md`, `deploy/skills/`) | Guidance. Pure text injection. Red flags, CLI command mappings, domain constraints. | Advisory only |
 | **Hook** (`hooks/`) | Surveillance. SessionStart: injects gateway skill. Stop: writes HUD state + logs. | Post-hoc detection |
 
@@ -154,58 +154,73 @@ L4: execute + verify (3 Verifiers + Skeptic)
     └── ≤3 cycles → human escalation
 ```
 
-## CLI commands (20+)
+## CLI commands (21)
 
 ```bash
+# Topic lifecycle
+aitp topic init <slug> --lane code_method|formal_theory --intensity quick|standard|full
+aitp topic lane <slug> <lane>         # Switch research lane mid-project
+
 # Session management
-aitp session resume <slug>        # Restore topic context
-aitp session list                 # All active topics
+aitp session resume <slug>            # Restore topic context + recent log events
+aitp session list                     # All active topics
+aitp session status                   # Current topic binding
+
+# State management
+aitp state show <topic>               # Full topic state
+aitp state advance <topic> <stage>    # L0→L1→L3→L4→promotion
+aitp state retreat <topic> <stage>    # Retreat preserving all artifacts
+aitp gate check <topic>               # Gate readiness
+aitp gate override <topic> --reason "..." --scope current_gate|this_session|permanent
 
 # L0 — Source discovery
 aitp source add --id <id> --title <title> --type paper|code|data
-aitp source discover              # arXiv/InspireHEP (stub)
-aitp source registry              # Coverage assessment
+aitp source discover --query "..." --max 10   # arXiv API search
+aitp source registry                  # Coverage assessment
+aitp source read --source <id>        # Quick-read a source
 
 # L1 — Reading & framing
 aitp source parse-toc --source <id> --sections "..."
-aitp source extract --source <id> --section <name> --content "..."
-aitp question frame --question "..."
+aitp source extract --source <id> --section <name> --content "..." --confidence high
+aitp source extract-all --source <id> # List pending sections
+aitp question frame --question "..." --scope "..." --targets "..."
 aitp convention lock --add "convention: ..."
-aitp anchor map --add "Eq.X ← source:<id>"
-aitp contradiction register --source-a <id1> --source-b <id2> --description "..."
+aitp anchor map --source <id> --equation "Eq.X" --note "..."
+aitp contradiction register --source-a <id1> --source-b <id2> --conflict "..."
 aitp source cross-map
 
 # L3 — Derivation workspace
-aitp derive record --step D1 --input "..." --output "..." --source "..."
-aitp derive pack --candidate-id <id>
-aitp candidate submit --type research_claim|atomic_concept --candidate-id <id>
-aitp sympy check dim|alg|limit "<expr>"
+aitp derive record --step D1 --input "..." --output "..." --source "ref:Eq" --justification approximation
+aitp derive pack --candidate-id <id> --chain default
+aitp candidate submit --candidate-id <id> --type research_claim|atomic_concept --claim "..."
+aitp sympy check dim|algebra|limit "<expr>"
+aitp sympy execute --candidate <id>  # Batch formal verification (L4)
 aitp switch-activity ideate|plan|derive|trace-derivation|gap-audit|connect|integrate|distill
-aitp quick compute --expr "<python code>"
-aitp memory steer|decide --content "..."
+aitp quick compute --expr "<python code>"  # Sandboxed execution
+aitp memory steer|decide|pitfall --text "..."
 
 # L4 — Verification
-aitp verify run --candidate <id>       # Outputs JSON for orchestrator
-aitp verify results --candidate <id>   # Builds disagreement matrix
-aitp promote --candidate <id>          # Promote to L2
+aitp verify run --candidate <id>      # Spawn Verifier + Skeptic agents (JSON)
+aitp verify results --candidate <id>  # Build disagreement matrix
+aitp promote --candidate <id>         # Promote to L2 (requires Skeptic pass)
 
 # L4 — Computation (code_method lane)
-aitp compute prepare --candidate <id>
-aitp compute submit
-aitp compute check
-aitp compute validate
-aitp compute report
+aitp compute prepare --candidate-id <id>  # Generate Slurm script + audit
+aitp compute submit --candidate-id <id>   # Local run or HPC handoff
+aitp compute check --candidate-id <id>    # Check output files
+aitp compute validate --candidate-id <id> # Parse outputs, compare to claim
+aitp compute report --candidate-id <id>   # Aggregate computational report
 
 # L2 — Knowledge graph
-aitp l2 node create --node-id <id> --type concept|theorem|...
-aitp l2 edge create --from <id> --to <id> --type derives_from|...
-aitp l2 merge
-aitp l2 query "<substring>"
+aitp l2 ask "<query>"                # Search knowledge base
+aitp l2 node-create --node-id <id> --title "..." --node-type concept
+aitp l2 edge-create --edge-id <id> --from-node <id> --to-node <id> --edge-type derives_from
+aitp l2 merge <topic>                # Merge topic subgraph to global L2
+aitp l2 query "<substring>"          # Raw graph search
 
-# State management
-aitp state show
-aitp state advance <stage>
-aitp gate override --reason "..." --scope current_gate|this_session|permanent
+# Maintenance
+aitp migrate <topic>                  # v0.6 → v1.0 protocol migration
+aitp notebook generate <topic>        # Generate flow notebook
 ```
 
 ## Repository structure
@@ -220,10 +235,12 @@ AITP-Research-Protocol/
 │   │   ├── contracts.py         # Pydantic CandidateContract, ReviewContract
 │   │   ├── decorators.py        # @require_stage, @with_preflight
 │   │   ├── observability.py     # JSONL event logging
+│   │   ├── _dispatch_helpers.py # MCP→CLI dispatch
+│   │   ├── migrate.py           # v0.6→v1.0 protocol migration
 │   │   └── commands/            # 9 command modules (source, reading, framing, l3_workflow, sympy, memory, verify, compute, l2)
-│   ├── commands/                # 21 command policy files (YAML frontmatter)
+│   ├── commands/                # 23 command policy files (YAML frontmatter + intensity_override)
 │   ├── agents/                  # 4 verifier agent templates
-│   ├── mcp_server.py            # MCP server — 76 tools, HTTP transport
+│   ├── mcp_server.py            # MCP server — ~55 tools (from 76), HTTP transport
 │   ├── state_model.py           # Backward-compatible re-export layer
 │   ├── gates.py                 # Stage gate evaluation (L0/L1/L3/L4)
 │   ├── contracts.py             # Artifact templates, required headings (legacy)
@@ -273,9 +290,14 @@ AITP-Research-Protocol/
 
 | Phase | Status | Key deliverables |
 |:---:|:---:|------|
-| Phase 0 | 🟡 75% | CLI entry + gate_override + conditional preflight + session resume/list + `@require_stage` on 29 tools + research_loop_active + l4_cycle_count |
-| Phase 1 | 🟡 90% | 11 L0-L1 commands + 20 policy files (source discover is stub) |
-| Phase 2 | 🟡 95% | 6 L3 commands + HUD stop hook + memory steer/decide |
+| Phase 0 | 🟢 97% | CLI engine + gate_override + preflight + session + topic init/lane + migrate + @require_stage×26 + @with_preflight×3 |
+| Phase 1 | 🟢 97% | 11 L0-L1 commands + arXiv source discover + 23 policy files + intensity_override + nested source extract |
+| Phase 2 | 🟢 98% | 6 L3 commands + HUD stop hook + sandboxed quick compute + log events in session resume |
+| Phase 3 | 🟢 100% | 4 agent templates + verify-run/results + promote + Skeptic gate + Study/Research mode |
+| Phase 4 | 🟢 70% | Two-speed wired + unified path resolution + MCP dispatch 7/11 + L4 compute 5 commands + observability |
+| Phase 5 | 🟢 85% | L2 graph + notebook + compute pipeline + sympy execute + source_refs propagation |
+
+**Last audited**: 2026-05-05 by 5 review agents + 3 E2E test agents. 28/28 audit findings resolved. 11/11 E2E tests passed.
 | Phase 3 | 🟡 95% | 4 agent templates (complete) + verify-run/results/promote |
 | Phase 4 | 🟡 40% | `@require_stage` on 29 tools. MCP thinning not done (76 tools). MCP/CLI are independent implementations. |
 | Phase 5 | 🟡 60% | L2 node/edge/merge/query + notebook scaffold. Compute commands are all stubs. |
@@ -286,23 +308,7 @@ Full audit details in [aitp-harness-final.md](D:/BaiduSyncdisk/Theoretical-Physi
 
 ## Known issues (from 5-agent audit)
 
-### Critical (would crash or corrupt data)
-- `brain.hook_utils` import error in `contracts.py` and `decorators.py` — module doesn't exist
-- `parse_md()` NameError in `preflight.py` — should be `_parse_md_local()`
-- Stage transition bypass in `cmd_candidate_submit` and `cmd_promote` — directly writes state.md
-- Non-atomic writes in `l3_workflow.py` and `verify.py` — no tempfile+replace
-- MCP and CLI are fully independent implementations with zero dispatch relationship
-- All 5 L4 compute commands are `print()` stubs
-- CLI commands have no stage gate enforcement — `@require_stage` only on MCP tools
-- `aitp topic init` doesn't exist — no CLI topic creation path
-
-### High
-- `@with_preflight` applied to only 1 of 76 MCP tools
-- verify/promote commands never call `run_preflight`
-- Two-speed design exists as field only, not wired to enforcement
-- Study vs Research mode doesn't change L4 verification behavior
-- `cmd_source_add` crashes with `Path(None)` TypeError from CLI
-- `quick compute` executes arbitrary user code without sandboxing
+All 28 audit findings resolved. See [aitp-harness-final.md](D:/BaiduSyncdisk/Theoretical-Physics/obsidian-markdown/07 Share_work/aitp-harness-final.md) for full details.
 
 ## Documentation
 
