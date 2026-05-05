@@ -1,7 +1,8 @@
 """Protocol version migration: v0.6 → v1.0.
 
-Adds missing v1.0 state.md fields to topics created with older protocol versions.
-Idempotent — safe to run multiple times.
+Idempotent — safe to run on already-migrated topics.
+Updates state.md, creates missing directories, scaffolds missing files,
+removes deprecated fields, fixes renamed activity names.
 """
 from __future__ import annotations
 from pathlib import Path
@@ -14,9 +15,23 @@ DEFAULT_TOPICS_ROOT = os.environ.get(
 
 _POSTURE_MAP = {"L0": "discover", "L1": "read", "L3": "derive", "L4": "verify"}
 
+_V10_DIRS = [
+    "L0/sources", "L1/intake", "L2/graph/steps", "L2/graph/edges",
+    "L3/candidates", "L3/ideate", "L4/reviews", "L4/reports",
+    "L4/scripts", "L4/outputs", "compute", "runtime", "notebook/sections",
+    "notebook/figures", "contracts",
+]
+
+_ACTIVITY_RENAMES = {
+    "planning": "plan", "ideation": "ideate", "analysis": "derive",
+    "synthesis": "integrate",
+}
+
+_DEPRECATED_KEYS = ["mode", "migrated_from"]
+
 
 def migrate_topic(topic_root: Path) -> dict[str, str]:
-    """Add missing v1.0 fields to a topic's state.md. Returns {field: new_value}."""
+    """Full v1.0 migration: state.md + directories + scaffold files + cleanup."""
     from brain.cli.state import _parse_md_local, _write_md_local
 
     state_path = topic_root / "state.md"
@@ -24,16 +39,57 @@ def migrate_topic(topic_root: Path) -> dict[str, str]:
         return {"error": "state.md not found"}
 
     fm, body = _parse_md_local(state_path)
-    protocol = fm.get("protocol_version", "v0.6")
-    if protocol == "v1.0":
-        return {"status": "already v1.0"}
+    result = {}
 
-    added = {}
+    # ── Phase 1: Directories ──────────────────────────────────────────
+    dirs_created = 0
+    for d in _V10_DIRS:
+        p = topic_root / d
+        if not p.exists():
+            p.mkdir(parents=True, exist_ok=True)
+            dirs_created += 1
+    if dirs_created:
+        result["directories_created"] = str(dirs_created)
 
-    # v1.0 required fields — always set protocol_version
+    # ── Phase 2: Scaffold files ───────────────────────────────────────
+    now = _now_iso()
+    scaffolds = {
+        "research.md": f"# Research Trail\n\n- {now} [L0] Topic initialized\n",
+        "MEMORY.md": "# Memory\n\n## Steering\n\n## Decisions\n\n## Dead Ends\n\n## Pitfalls\n",
+        "compute/targets.yaml": (
+            "targets:\n"
+            "  local:\n"
+            "    type: local\n"
+            "    python: python\n"
+            "    sympy: available\n"
+        ),
+        "runtime/log.md": f"# Topic Log\n\n## Events\n\n- {now} log initialized\n",
+        "L0/source_registry.md": (
+            "---\nkind: source_registry\ncoverage: initial\n---\n"
+            "# Source Registry\n\n## Sources by Role\n\n## Coverage Assessment\n"
+        ),
+        "L1/source_toc_map.md": (
+            "---\nsources_with_toc: ''\ntotal_sections: 0\ncoverage_status: incomplete\n---\n"
+            "# Source TOC Map\n"
+        ),
+    }
+    files_created = 0
+    for fname, content in scaffolds.items():
+        fp = topic_root / fname
+        if not fp.exists():
+            fp.parent.mkdir(parents=True, exist_ok=True)
+            fp.write_text(content, encoding="utf-8")
+            files_created += 1
+    if files_created:
+        result["scaffold_files_created"] = str(files_created)
+
+    # ── Phase 3: State.md frontmatter ─────────────────────────────────
+    state_changes = {}
+
+    # Always set protocol_version
     fm["protocol_version"] = "v1.0"
-    added["protocol_version"] = "v1.0"
 
+    # Add missing v1.0 fields
     defaults = {
         "research_intensity": "standard",
         "memory_gate_enabled": False,
@@ -43,25 +99,54 @@ def migrate_topic(topic_root: Path) -> dict[str, str]:
     for key, default in defaults.items():
         if key not in fm:
             fm[key] = default
-            added[key] = str(default)
+            state_changes[key] = str(default)
 
-    # posture if missing
+    # Posture
     if "posture" not in fm:
         stage = fm.get("stage", "L0")
         fm["posture"] = _POSTURE_MAP.get(stage, "discover")
-        added["posture"] = fm["posture"]
+        state_changes["posture"] = fm["posture"]
 
-    # l3_activity if missing and stage is L3
+    # l3_activity
     if "l3_activity" not in fm and fm.get("stage") == "L3":
         fm["l3_activity"] = "derive"
-        added["l3_activity"] = "derive"
+        state_changes["l3_activity"] = "derive"
 
-    fm["updated_at"] = _now_iso()
-    _write_md_local(state_path, fm, body)
+    # ── Phase 4: Cleanup deprecated ───────────────────────────────────
+    cleanup_done = []
+    for key in _DEPRECATED_KEYS:
+        if key in fm:
+            del fm[key]
+            cleanup_done.append(key)
 
-    if added:
-        added["status"] = f"migrated v0.6 → v1.0 ({len(added)} fields)"
-    return added
+    # Fix renamed activities
+    for key in ("l3_activity", "l3_subplane"):
+        old_val = fm.get(key, "")
+        if old_val in _ACTIVITY_RENAMES:
+            fm[key] = _ACTIVITY_RENAMES[old_val]
+            cleanup_done.append(f"{key}:{old_val}→{fm[key]}")
+
+    # Fix deprecated lane
+    if fm.get("lane") == "toy_numeric":
+        fm["lane"] = "code_method"
+        cleanup_done.append("lane:toy_numeric→code_method")
+
+    fm["updated_at"] = now
+
+    if state_changes or cleanup_done:
+        _write_md_local(state_path, fm, body)
+        if state_changes:
+            for k, v in state_changes.items():
+                result[k] = v
+        if cleanup_done:
+            result["cleanup"] = ", ".join(cleanup_done)
+
+    total = dirs_created + files_created + len(state_changes) + len(cleanup_done)
+    if total == 0:
+        result["status"] = "already v1.0 — nothing to migrate"
+    else:
+        result["status"] = f"migrated v0.6 → v1.0 ({total} changes)"
+    return result
 
 
 def _now_iso() -> str:
@@ -70,7 +155,7 @@ def _now_iso() -> str:
 
 
 def cmd_migrate(args):
-    """Migrate a topic from v0.6 to v1.0 protocol."""
+    """Migrate a topic from v0.6 to v1.0 protocol (idempotent)."""
     base = Path(DEFAULT_TOPICS_ROOT)
     slug = args.topic
     for candidate in [base / slug, base / "topics" / slug]:
