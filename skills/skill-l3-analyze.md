@@ -66,9 +66,9 @@ The human may add more discussion rounds at any time. Do NOT rush to fill the ar
 
 At ANY point during analysis, you may offer these back-paths via AskUserQuestion:
 
-- **Back to planning** (`aitp_switch_l3_activity(target="plan")`): if analysis
+- **Back to plan** (`aitp_switch_l3_activity(target="plan")`): if the derivation
   reveals the plan needs adjustment
-- **Back to ideation** (`aitp_switch_l3_activity(target="ideate")`): if analysis
+- **Back to ideate** (`aitp_switch_l3_activity(target="ideate")`): if the derivation
   reveals the idea itself is flawed
 - **Retreat to L1** (`aitp_retreat_to_l1`): if analysis reveals missing sources
   or wrong conventions

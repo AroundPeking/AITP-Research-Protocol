@@ -863,18 +863,32 @@ def _v_series_expand(inp, out, arg, ns):
 def _v_commutator_eval(inp, out, arg, ns):
     """Evaluate a commutator with non-commutative operator support.
 
-    Detects operator-like symbols and declares them non-commutative.
-    Falls back to commutative simplification for scalar expressions.
+    Uses naming convention heuristic for non-commutative detection:
+    - Single-letter or two-letter symbols (e.g. p, x, H, xi) → non-commuting
+    - Symbols with underscores (e.g. sigma_x) → non-commuting
+    - Longer names without underscores (e.g. alpha, mass) → commuting
+
+    LIMITATION: This is a heuristic, not an algebraic check. Whether two
+    operators commute is determined by their algebraic properties, not
+    their names. If you have a three-letter operator (e.g. 'Ham') that
+    does NOT commute, declare it explicitly via the `noncommutative`
+    key in the namespace dict passed as `ns`.
     """
     import sympy
     try:
         all_syms = set(inp.free_symbols) | set(out.free_symbols)
     except Exception:
         all_syms = set()
+    # Explicit non-commutative declarations from namespace
+    explicit_nc = set()
+    if isinstance(ns, dict):
+        nc_list = ns.get("noncommutative", [])
+        if isinstance(nc_list, (list, tuple, set)):
+            explicit_nc = set(str(s) for s in nc_list)
     ncs = {}
     for s in all_syms:
         name = str(s)
-        if len(name) <= 2 or '_' in name:
+        if name in explicit_nc or len(name) <= 2 or '_' in name:
             ncs[name] = sympy.Symbol(name, commutative=False)
     if ncs:
         try:
