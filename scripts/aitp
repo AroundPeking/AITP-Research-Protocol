@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Thin wrapper: `aitp install` / `aitp uninstall` / `aitp update` / `aitp status` / `aitp doctor`."""
+"""AITP CLI — routes to package manager (install/update/...) or research CLI (topic/state/...)."""
+import os
 import runpy
 import sys
 from pathlib import Path
@@ -7,9 +8,57 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PM_SCRIPT = REPO_ROOT / "scripts" / "aitp-pm.py"
 
-if not PM_SCRIPT.exists():
-    print(f"ERROR: cannot find {PM_SCRIPT}", file=sys.stderr)
-    sys.exit(1)
+# Install-time PM subcommands (these always go to aitp-pm.py)
+PM_COMMANDS = {"install", "uninstall", "update", "upgrade", "status", "doctor", "pm"}
 
-sys.argv = [str(PM_SCRIPT)] + sys.argv[1:]
-runpy.run_path(str(PM_SCRIPT), run_name="__main__")
+def _run_pm():
+    if not PM_SCRIPT.exists():
+        print(f"ERROR: cannot find {PM_SCRIPT}", file=sys.stderr)
+        sys.exit(1)
+    sys.argv = [str(PM_SCRIPT)] + sys.argv[1:]
+    runpy.run_path(str(PM_SCRIPT), run_name="__main__")
+
+def _run_cli():
+    # Ensure brain/ is importable
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    # Route to the CLI enforcement engine
+    from brain.cli import main
+    sys.exit(main() or 0)
+
+if __name__ == "__main__":
+    if len(sys.argv) <= 1:
+        # No subcommand — show available commands
+        print("AITP — AI-assisted Theoretical Physics")
+        print()
+        print("Package management:")
+        print("  aitp install        Install AITP (hooks, skills, MCP)")
+        print("  aitp update         Re-sync deployed files")
+        print("  aitp upgrade        Git pull + re-deploy")
+        print("  aitp uninstall      Remove everything")
+        print("  aitp status         Show install state")
+        print("  aitp doctor         Full health check")
+        print()
+        print("Research (CLI enforcement engine):")
+        print("  aitp topic init/lane         Create topic, switch research lane")
+        print("  aitp state show/advance/retreat   Topic state management")
+        print("  aitp gate check/override     Gate operations")
+        print("  aitp session resume/list/status   Session management")
+        print("  aitp source add/discover/... Source registration")
+        print("  aitp derive record/pack      Derivation recording")
+        print("  aitp candidate submit        Submit research claims")
+        print("  aitp sympy check/execute     Formal verification")
+        print("  aitp verify run/results      Adversarial review")
+        print("  aitp promote                 Promote to L2 knowledge graph")
+        print("  aitp compute prepare/submit/check/validate/report  HPC execution")
+        print("  aitp l2 node-create/edge-create/merge/query  Knowledge graph")
+        print("  aitp migrate                 Migrate topic to v1.0")
+        print()
+        print("Run 'aitp <command> --help' for details.")
+        sys.exit(0)
+
+    subcommand = sys.argv[1]
+    if subcommand in PM_COMMANDS or subcommand in ("-h", "--help"):
+        _run_pm()
+    else:
+        _run_cli()
