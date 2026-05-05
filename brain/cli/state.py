@@ -25,8 +25,8 @@ from typing import Any
 VALID_TRANSITIONS: dict[str, list[str]] = {
     "L0":  ["L1"],
     "L1":  ["L3"],
-    "L3":  ["L4", "L1"],
-    "L4":  ["L3", "L1", "promotion"],
+    "L3":  ["L4", "L1", "L0"],
+    "L4":  ["L3", "L1", "L0", "promotion"],
     "promotion": ["L2"],
 }
 

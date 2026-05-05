@@ -23,41 +23,27 @@ Every step is enforced — you can't submit a claim without derivation steps, ca
 ## Workflow
 
 ```
-                  ┌──────────────┐
-                  │  L0: SOURCE  │  找论文、注册源、评估覆盖
-                  │   discover   │  aitp source add / discover
-                  └──────┬───────┘
-                         │ advance
-                  ┌──────▼───────┐
-                  │  L1: READ    │  拆 TOC、提取章节、锁定约定
-                  │   & frame    │  aitp source extract / convention lock
-                  └──────┬───────┘
-                         │ advance
-                  ┌──────▼───────┐
-                  │  L3: DERIVE  │  推导、SymPy 检查、生成候选
-                  │   flexible   │  aitp derive record → pack → submit
-                  └──────┬───────┘
-                         │ candidate submit
-           ┌─────────────▼─────────────┐
-           │     L4: VERIFY            │
-           │                           │
-           │  ┌─────────────────────┐  │
-           │  │ Algebraic Verifier  │  │  代数逐步验证
-           │  │ Physical Verifier   │  │  物理极限/对称性
-           │  │ Numerical Verifier  │  │  HPC 输出校验
-           │  │ Skeptic (盲审)      │  │  只看结论，找矛盾
-           │  └─────────────────────┘  │
-           │           ↓               │
-           │    分歧矩阵 → 判决        │
-           └─────────────┬─────────────┘
-                         │ promote
-                  ┌──────▼───────┐
-                  │  L2: MEMORY  │  全局知识图，跨课题积累
-                  │  knowledge   │
-                  └──────────────┘
+   L0: SOURCE ──→ L1: READ ──→ L3: DERIVE ──→ L4: VERIFY ──→ L2: MEMORY
+     ↑ 发现        ↑ 拆解        ↑ 推导          │  审查          ↑  晋升
+     │             │             │               │               │
+     └─── retreat ──────────────┴───────────────┘               │
+          任何阶段可退回 L0/L1 重新读源/修正推导                   │
 ```
 
-**L3 ⇄ L4 是一个循环**：验证失败 → 返回 L3 修正 → 重新提交。最多 3 轮，之后人工裁决。
+```
+           ┌─────────────────────────────────┐
+           │          L4: VERIFY             │
+           │                                 │
+           │  Algebraic  │  逐步代数验证     │
+           │  Physical   │  极限/对称性/守恒  │
+           │  Numerical  │  HPC 输出校验     │
+           │  Skeptic    │  盲审，只看结论   │
+           │             ↓                   │
+           │  分歧矩阵 → 判决 → promote/L3   │
+           └─────────────────────────────────┘
+```
+
+**L3 ⇄ L4 是核心循环**：验证失败 → 退回 L3 修正 → 重新提交。最多 3 轮。任何阶段可 retreat 到 L0/L1 重新读源。
 
 ## Architecture
 
