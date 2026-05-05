@@ -10,22 +10,34 @@
 
 ## Why
 
-Agent + Skill 已经能做不少事——告诉它协议规则，它会遵循。**问题是 Skill 只是文本注入，是 advisory，不是 enforcement。** Agent 可以用 Write 直接绕过 MCP 写文件，可以跳过推导直接声称结论，可以编造 source reference。Skill 说"你应该溯源"——但 Agent 不听的时候，Skill 拦不住。
+Agent + Skill 已经能做不少事——告诉它协议规则，它会遵循。但仅靠 Skill 有几个根本问题：
 
-AITP 在 Agent 之上加了一层 **硬拦截**：
+**1. 没有强制力。** Skill 是文本注入。Agent 可以 Write 绕过 MCP 直接写文件，跳过推导声称结论，编造 source reference。Skill 说"请溯源"——Agent 不听的时候，Skill 拦不住。
+
+**2. 没有状态持久化。** Chat 会话压缩后，Agent 忘了推导到哪一步。上下文窗口是易失的——你今天讨论的物理，明天可能被截断。人类博士后靠 lab notebook 解决这个问题，Agent 需要等价物。
+
+**3. 没有可复现性。** 另一名物理学家能追溯你的工作吗？L0 的源 → L1 的提取 → L3 的推导步 → L4 的验证结果 → L2 的知识积累——这条链必须在文件系统里完整存在，不是藏在某次 chat 的上下文里。
+
+**4. 没有对抗性审查。** Agent 对自己的推导有确认偏误。需要不同策略的审查者（代数、物理、数值、盲审 Skeptic）各自独立验证，分歧矩阵决定是否通过。
+
+**5. 没有跨会话记忆。** 今天在 QSGW 课题里验证了一个 pitfall，明天开新课题时应该自动可查。L2 知识图让已验证的事实跨课题积累，而不是每次都从零开始。
+
+AITP harness 解决这五个问题：
 
 ```
-Agent (Claude Code / OpenClaw / ...)
-  ↓ 想写 state.md？想提交 candidate？
-CLI 强制执行层 (brain/cli/)
-  ├── preflight: 推导链非空？每步有 source_ref？gate ready？
-  ├── contracts: Pydantic extra="forbid"，source_refs ≥ 1，claim ≥ 20 字符
-  ├── stage gate: L0 不能 submit，L1 不能 derive
-  └── atomic write: 写不坏，crash 不掉
-  ↓ 通过？→ 写入。不通过？→ 硬拦截 + 告诉你怎么修
+                  纯 Agent + Skill        Agent + AITP Harness
+─────────────────────────────────────────────────────────────────
+强制力           advisory 文本           硬拦截 (preflight + contracts + stage gate)
+状态持久化      上下文窗口 (易失)        Markdown 文件系统 (永久)
+可复现性        藏在 chat 历史里         L0→L1→L3→L4→L2 完整文件链
+对抗性审查      无                       4-agent 独立审查 + 分歧矩阵 + Skeptic gate
+跨会话记忆      每次从零开始              L2 知识图自动累积，新课题继承旧发现
+crash 恢复      上下文丢失                session resume 恢复完整上下文
+研究轨迹        chat log (不可查询)      research.md + runtime/log.md 自动追加
+错误指引        "something went wrong"   "Step d1 缺 source_ref。aitp derive record --source ..."
 ```
 
-Skill 说规则，CLI 执行规则。这就是 AITP 和纯 Skill-based agent 的区别。
+Skill 告诉 Agent **应该怎么做**。Harness 保证 Agent **确实这么做了**——并且留下完整的、可审查的、跨会话的物证。
 
 ## What it does
 
