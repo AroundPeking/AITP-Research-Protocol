@@ -2,13 +2,30 @@
 
 > 追求真理而非沽名钓誉 · *Pursue truth, not fame.*
 
-AITP is building an AI theoretical physicist. **Phase 1** (current): a correctness harness that enforces research discipline — source anchoring, step-by-step derivation, adversarial review. **Phase 2**: autonomous judgment via cron/openclaw, less discussion, more reliability. **Phase 3**: an ideas-bubble that generates novel research directions, producing a true AI theoretician. The human's role: audit ideas for validity and value, understand the physics, verify the derivations.
+**AITP 是一个研究协议**——为 AI 理论物理学家设定纲领、研究规范和 harness 约束。当前仓库是协议在 Claude Code 等 agent 平台上的一种实现：在已有 agent 能力之上叠加一层强制执行层。未来协议可能有更高效的载体，但规范本身是持久的。
+
+路线图：**Phase 1** (当前) — 正确性 harness，用硬拦截保证研究纪律。**Phase 2** — cron/openclaw 自主判断，更少讨论，更高可靠性。**Phase 3** — ideas-bubble 产生新研究方向，真正的 AI 理论物理学家。人的角色：审核 idea 的合理性与价值，把背后的物理搞懂，把推导做对。
 
 ---
 
 ## Why
 
-Current LLMs can discuss physics fluently but lack research discipline: they skip derivations, forget sources, state conjectures as facts. AITP is building toward an AI that can do theoretical physics — not just chat about it.
+Agent + Skill 已经能做不少事——告诉它协议规则，它会遵循。**问题是 Skill 只是文本注入，是 advisory，不是 enforcement。** Agent 可以用 Write 直接绕过 MCP 写文件，可以跳过推导直接声称结论，可以编造 source reference。Skill 说"你应该溯源"——但 Agent 不听的时候，Skill 拦不住。
+
+AITP 在 Agent 之上加了一层 **硬拦截**：
+
+```
+Agent (Claude Code / OpenClaw / ...)
+  ↓ 想写 state.md？想提交 candidate？
+CLI 强制执行层 (brain/cli/)
+  ├── preflight: 推导链非空？每步有 source_ref？gate ready？
+  ├── contracts: Pydantic extra="forbid"，source_refs ≥ 1，claim ≥ 20 字符
+  ├── stage gate: L0 不能 submit，L1 不能 derive
+  └── atomic write: 写不坏，crash 不掉
+  ↓ 通过？→ 写入。不通过？→ 硬拦截 + 告诉你怎么修
+```
+
+Skill 说规则，CLI 执行规则。这就是 AITP 和纯 Skill-based agent 的区别。
 
 ## What it does
 
