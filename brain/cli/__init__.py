@@ -404,18 +404,22 @@ def _now_iso():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="aitp", description="AITP CLI — enforcement engine")
+    p = argparse.ArgumentParser(prog="aitp",
+        description="AITP CLI — enforcement engine for AI-assisted theoretical physics",
+        epilog="Typical workflow: topic init → session resume → source add → state advance → derive record → derive pack → candidate submit")
     sub = p.add_subparsers(dest="command")
 
     # topic init
     p_topic = sub.add_parser("topic", help="Topic lifecycle")
     p_topic_sub = p_topic.add_subparsers(dest="subcommand")
     p_ti = p_topic_sub.add_parser("init", help="Initialize a new research topic")
-    p_ti.add_argument("slug", help="Topic slug (lowercase-hyphenated)")
+    p_ti.add_argument("slug", help="Short name for the topic (lowercase, hyphens for spaces)")
     p_ti.add_argument("--lane", "-l", default="unspecified",
-                      choices=["code_method", "formal_theory", "unspecified"])
+                      choices=["code_method", "formal_theory", "unspecified"],
+                      help="Research approach: code_method (numerical/HPC), formal_theory (analytic/SymPy)")
     p_ti.add_argument("--intensity", "-i", default="standard",
-                      choices=["quick", "standard", "full"])
+                      choices=["quick", "standard", "full"],
+                      help="Gate strictness: quick (advisory only), standard (normal), full (extra checks)")
     p_ti.set_defaults(func=cmd_topic_init)
     p_tl = p_topic_sub.add_parser("lane", help="Switch research lane")
     p_tl.add_argument("topic")
@@ -428,9 +432,9 @@ def build_parser():
     p_show = p_state_sub.add_parser("show", help="Show topic state")
     p_show.add_argument("topic")
     p_show.set_defaults(func=cmd_state_show)
-    p_adv = p_state_sub.add_parser("advance", help="Advance topic stage")
-    p_adv.add_argument("topic")
-    p_adv.add_argument("to_stage")
+    p_adv = p_state_sub.add_parser("advance", help="Advance topic to next stage (L0→L1→L3→L4→promotion)")
+    p_adv.add_argument("topic", help="Topic slug")
+    p_adv.add_argument("to_stage", help="Target stage: L1, L3, L4, or promotion")
     p_adv.set_defaults(func=cmd_state_advance)
     p_ret = p_state_sub.add_parser("retreat", help="Retreat to an earlier stage")
     p_ret.add_argument("topic")
@@ -465,17 +469,17 @@ def build_parser():
     # derive
     p_derive = sub.add_parser("derive", help="Derivation operations")
     p_derive_sub = p_derive.add_subparsers(dest="subcommand")
-    p_dr = p_derive_sub.add_parser("record", help="Record a derivation step")
-    p_dr.add_argument("topic")
-    p_dr.add_argument("--step", required=True)
-    p_dr.add_argument("--chain")
-    p_dr.add_argument("--order")
-    p_dr.add_argument("--input")
-    p_dr.add_argument("--output")
-    p_dr.add_argument("--transform")
-    p_dr.add_argument("--justification")
-    p_dr.add_argument("--source")
-    p_dr.add_argument("--rigor")
+    p_dr = p_derive_sub.add_parser("record", help="Record a derivation step (L3)")
+    p_dr.add_argument("topic", help="Topic slug")
+    p_dr.add_argument("--step", required=True, help="Step ID (e.g. D1, D2)")
+    p_dr.add_argument("--chain", help="Derivation chain ID (default: 'default')")
+    p_dr.add_argument("--order", help="Step order in chain (1, 2, ...)")
+    p_dr.add_argument("--input", help="Input expression (LaTeX or SymPy)")
+    p_dr.add_argument("--output", help="Output expression (LaTeX or SymPy)")
+    p_dr.add_argument("--transform", help="What transform was applied?")
+    p_dr.add_argument("--justification", help="Justification type: definition, theorem, approximation, physical_principle, algebraic_identity, limit, assumption, conjecture, gap, numerical_evidence")
+    p_dr.add_argument("--source", help="Source reference (e.g. 'hedin1965:Eq20')")
+    p_dr.add_argument("--rigor", help="Rigor level: rigorous, heuristic, conjectural")
     p_dr.set_defaults(func=cmd_derive_record)
 
     # ── Phase 1: L0-L1 commands ────────────────────────────────────────
@@ -588,13 +592,13 @@ def build_parser():
 
     p_cand = sub.add_parser("candidate", help="Candidate management")
     p_cand_sub = p_cand.add_subparsers(dest="subcommand")
-    p_cs = p_cand_sub.add_parser("submit", help="Submit candidate with preflight")
-    p_cs.add_argument("topic")
-    p_cs.add_argument("--candidate-id", required=True)
-    p_cs.add_argument("--type", default="research_claim")
-    p_cs.add_argument("--chain")
-    p_cs.add_argument("--claim")
-    p_cs.add_argument("--source-refs")
+    p_cs = p_cand_sub.add_parser("submit", help="Submit candidate for L4 verification (L3→L4)")
+    p_cs.add_argument("topic", help="Topic slug")
+    p_cs.add_argument("--candidate-id", required=True, help="Candidate ID from derive pack")
+    p_cs.add_argument("--type", default="research_claim", help="Candidate type: research_claim (new result) or atomic_concept (study mode)")
+    p_cs.add_argument("--chain", help="Derivation chain ID (default: 'default')")
+    p_cs.add_argument("--claim", help="One-sentence claim statement (≥20 chars required)")
+    p_cs.add_argument("--source-refs", help="Comma-separated source references")
     p_cs.set_defaults(func=cmd_candidate_submit)
 
     # sympy
@@ -758,6 +762,13 @@ def _cli_stage_check(args) -> bool:
     stages = required if isinstance(required, list) else [required]
     if current not in stages:
         print(f"Stage gate: '{cmd_name}' requires stage {stages}, currently {current}")
+        # Suggest how to advance
+        stage_order = ["L0", "L1", "L3", "L4"]
+        if current in stage_order:
+            target = min(stages, key=lambda s: stage_order.index(s) if s in stage_order else 99)
+            if target in stage_order and stage_order.index(target) > stage_order.index(current):
+                steps = " → ".join(stage_order[stage_order.index(current):stage_order.index(target)+1])
+                print(f"Advance: aitp state advance <topic> {target}  ({steps})")
         return True  # Blocked
 
     # L3 lateral L0-L1 access: log advisory trail entry

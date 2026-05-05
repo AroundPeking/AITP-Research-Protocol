@@ -117,6 +117,9 @@ def cmd_derive_pack(args):
         _atomic_write(rp, f"# Research Trail\n\n{line}")
 
     print(f"Candidate '{cand_id}' drafted with {len(step_ids)} steps in chain '{chain_id}'")
+    if not source_refs:
+        print("Warning: no source_refs found in derivation steps. Candidate will fail Pydantic contract validation.")
+        print("Add --source to each 'aitp derive record' call.")
     return 0
 
 
