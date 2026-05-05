@@ -1,15 +1,26 @@
 """AITP Brain MCP Server v2  --  Minimal skill-driven research protocol.
 
-Provides ~12 tools for the agent to read/write topic state.
+Provides ~55 tools for the agent to read/write topic state.
 All storage is Markdown with YAML frontmatter. No JSON, no JSONL.
 
 Dependencies: fastmcp, pyyaml
 Install: pip install fastmcp pyyaml
 
-DISPATCH STATUS (C6+H4 migration):
-  Tools with CLI equivalents marked `# dispatch: <cli-command>`.
-  Gradual migration: replace MCP tool body with dispatch to brain.cli.
-  Tools without CLI equivalents remain MCP-native.
+DISPATCH STATUS (C6+H4 migration — 7/11 tools dispatched):
+  Dispatched (MCP→CLI):
+    - aitp_register_source       → source add        (with extra-metadata enrichment)
+    - aitp_create_l2_edge        → l2 edge-create    (full dispatch)
+    - aitp_submit_candidate      → candidate submit  (core dispatch + _GateResult popup)
+    - aitp_switch_l3_activity    → switch-activity   (normal case; L4→L3 bg job MCP-only)
+    - aitp_write_section_intake  → source extract    (core write; TOC update MCP-only)
+    - aitp_request_promotion     → promote           (preflight dispatch + _GateResult popup)
+    - aitp_gate_override         → gate override     (direct dispatch)
+
+  MCP-native (global L2 direct write — no CLI equivalent by design):
+    - aitp_bootstrap_topic       — creates global L2 surfaces
+    - aitp_promote_candidate     — writes to global L2 graph
+    - aitp_create_l2_node        — writes to global L2/nodes/
+    - aitp_merge_subgraph_delta  — bulk merge to global L2
 """
 
 from __future__ import annotations
@@ -503,6 +514,7 @@ def aitp_update_status(
 
 @mcp.tool()
 @require_stage
+# MCP-native: global L2 direct write — creates global L2 surfaces, no CLI equivalent
 def aitp_bootstrap_topic(
     topics_root: str,
     topic_slug: str,
@@ -1130,6 +1142,7 @@ def _suggest_related_concepts(
 
 @mcp.tool()
 @require_stage
+# dispatch: source extract — core write dispatched to CLI; TOC update + log MCP-only
 def aitp_write_section_intake(
     topics_root: str,
     topic_slug: str,
@@ -1154,63 +1167,45 @@ def aitp_write_section_intake(
     completeness_confidence: high | medium | low  --  honest self-assessment.
     """
     root = _topic_root(topics_root, topic_slug)
-    intake_dir = root / "L1" / "intake" / _slugify(source_id)
-    intake_dir.mkdir(parents=True, exist_ok=True)
-    intake_path = intake_dir / f"{_slugify(section_id)}.md"
 
-    status = "extracted" if completeness_confidence in ("high", "medium") else "skimming"
-
-    fm = {
-        "artifact_kind": "l1_section_intake",
-        "source_id": source_id,
-        "section_id": section_id,
-        "section_title": section_title,
-        "extraction_status": status,
-        "completeness_confidence": completeness_confidence,
-        "updated_at": _now(),
-    }
-
+    # Compose rich body from structured MCP fields
     body_parts = [f"# {section_title or section_id}"]
     if summary:
         body_parts.append(f"\n## Section Summary (skim)\n\n{summary}")
-    else:
-        body_parts.append("\n## Section Summary (skim)\n")
     if key_concepts:
         body_parts.append(f"\n## Key Concepts\n\n{key_concepts}")
-    else:
-        body_parts.append("\n## Key Concepts\n")
     if equations_found:
         body_parts.append(f"\n## Equations Found\n\n{equations_found}")
-    else:
-        body_parts.append("\n## Equations Found\n")
     if physical_claims:
         body_parts.append(f"\n## Physical Claims\n\n{physical_claims}")
-    else:
-        body_parts.append("\n## Physical Claims\n")
     if prerequisites:
         body_parts.append(f"\n## Prerequisites\n\n{prerequisites}")
-    else:
-        body_parts.append("\n## Prerequisites\n")
     if cross_references:
         body_parts.append(f"\n## Cross-References\n\n{cross_references}")
-    else:
-        body_parts.append("\n## Cross-References\n")
     if completeness_confidence:
         body_parts.append(
             f"\n## Completeness Self-Assessment\n\n"
             f"Confidence: **{completeness_confidence}**\n"
         )
-    else:
-        body_parts.append("\n## Completeness Self-Assessment\n")
+    composed_body = "\n".join(body_parts)
 
-    _write_md(intake_path, fm, "\n".join(body_parts))
+    # Dispatch core write to CLI (already nests by source: L1/intake/{source}/{section}.md)
+    from brain.cli._dispatch_helpers import dispatch
+    from brain.cli.commands.reading import cmd_source_extract
 
-    # Update TOC map entry to link to this intake note
+    os.environ["AITP_TOPICS_ROOT"] = topics_root
+    result = dispatch(cmd_source_extract,
+        topic=topic_slug, source=source_id, section=section_id,
+        content=composed_body, confidence=completeness_confidence or "medium",
+        success_msg=f"Intake written: L1/intake/{_slugify(source_id)}/{_slugify(section_id)}.md")
+
+    status = "extracted" if completeness_confidence in ("high", "medium") else "skimming"
+
+    # TOC map update (MCP-only — richer than CLI currently handles)
     toc_path = root / "L1" / "source_toc_map.md"
     if toc_path.exists():
         t_fm, t_body = _parse_md(toc_path)
         old_marker = f"[{section_id}]"
-        # Add intake link to the TOC entry line
         intake_link = f"L1/intake/{_slugify(source_id)}/{_slugify(section_id)}.md"
         lines = t_body.split("\n")
         for i, line in enumerate(lines):
@@ -1227,14 +1222,14 @@ def aitp_write_section_intake(
         f"(confidence: {completeness_confidence or 'unset'})",
     )
     return (
-        f"Intake note written: {intake_link}. "
-        f"Status: {status}, confidence: {completeness_confidence or 'unset'}."
+        f"{result} Status: {status}, confidence: {completeness_confidence or 'unset'}."
     )
 
 
 # dispatch: partial — core file creation differs from CLI (MCP creates candidate directly,
 # CLI requires pre-existing file from derive_pack). Preflight dispatched to CLI.
 @mcp.tool()
+# dispatch: candidate submit — core validation dispatched to CLI; _GateResult popup MCP-only
 def aitp_submit_candidate(
     topics_root: str,
     topic_slug: str,
@@ -1266,14 +1261,19 @@ def aitp_submit_candidate(
     if candidate_type == "research_claim" and l3_mode == "study":
         candidate_type = "atomic_concept"
 
+    source_refs_list = depends_on or []
+
     fm = {
         "candidate_id": slug,
         "title": title,
         "claim": claim,
+        "claim_statement": claim,      # CLI/contract compat (min_length=20 enforced by Pydantic)
         "status": "submitted",
         "mode": "candidate",
         "candidate_type": candidate_type,
         "l3_mode": l3_mode,
+        "derivation_chain_id": "default",
+        "source_refs": source_refs_list,
         "depends_on": depends_on or [],
         "created_at": _now(),
         "updated_at": _now(),
@@ -1289,14 +1289,18 @@ def aitp_submit_candidate(
     )
     _write_md(path, fm, body)
 
-    # Increment l4_cycle_count on re-submission (research loop tracking)
-    # If the topic was already at L4 or has previously had cycle_count > 0,
-    # this is a re-submission after L4 feedback.
-    if state_fm.get("stage") == "L4" or int(state_fm.get("l4_cycle_count", 0)) > 0:
-        current_cycle = int(state_fm.get("l4_cycle_count", 0))
-        state_fm["l4_cycle_count"] = current_cycle + 1
-        state_fm["research_loop_active"] = True
-        _append_to_topic_log(root, f"candidate re-submitted (cycle {current_cycle + 1})")
+    # Dispatch to CLI for preflight + contract validation + stage transition
+    from brain.cli._dispatch_helpers import dispatch
+    from brain.cli.commands.l3_workflow import cmd_candidate_submit
+
+    os.environ["AITP_TOPICS_ROOT"] = topics_root
+    result = dispatch(cmd_candidate_submit,
+        topic=topic_slug, candidate_id=slug, type=candidate_type,
+        chain="default",
+        success_msg=f"Submitted candidate {slug}")
+
+    if "CLI command failed" in result:
+        return result
 
     _auto_refresh_flow_notebook(root, state_fm)
     return _GateResult({
@@ -1616,6 +1620,7 @@ _PROMOTION_TRANSITIONS = {
 @mcp.tool()
 @with_preflight("promote")
 @require_stage
+# dispatch: promote — preflight dispatched to CLI; _GateResult popup MCP-only
 def aitp_request_promotion(
     topics_root: str,
     topic_slug: str,
@@ -1629,10 +1634,19 @@ def aitp_request_promotion(
     """
     root = _topic_root(topics_root, topic_slug)
 
+    # Dispatch preflight to CLI (contract validation, source coverage, etc.)
+    from brain.cli.preflight import run_preflight
+    os.environ["AITP_TOPICS_ROOT"] = topics_root
+    preflight_failures = run_preflight("promote", root, candidate_id=candidate_id)
+    if preflight_failures:
+        return _GateResult({
+            "message": f"Preflight blocked promotion: {'; '.join(preflight_failures[:3])}",
+        })
+
     # L1->L2 bypass guard: topic must be at L4 or L2 stage
     state_fm, _ = _parse_md(root / "state.md")
     current_stage = str(state_fm.get("stage", "")).strip()
-    if current_stage not in ("L4", "L2"):
+    if current_stage not in ("L4", "L2", "promotion"):
         return _GateResult({
             "message": (
                 f"Promotion blocked: topic is at stage {current_stage or 'L0'}, "
@@ -1719,6 +1733,7 @@ def aitp_resolve_promotion_gate(
     return f"Candidate {slug} resolved: {decision}."
 
 
+# MCP-native: writes to global L2 graph — promoted candidate → global L2 surface
 @mcp.tool()
 @with_preflight("promote")
 @require_stage
@@ -2893,6 +2908,7 @@ def aitp_advance_to_l3(
 
 
 # dispatch: aitp switch-activity (partial — L4→L3 bg job logic is MCP-native)
+# dispatch: switch-activity — normal case dispatched to CLI; L4→L3 bg job MCP-only
 @mcp.tool()
 def aitp_switch_l3_activity(
     topics_root: str, topic_slug: str, activity: str, reason: str = "",
@@ -2909,6 +2925,7 @@ def aitp_switch_l3_activity(
         return f"Unknown activity '{activity}'. Valid: {L3_ACTIVITIES}"
 
     # Allow switching from L4 back to L3 when background validation is running
+    # (MCP-only — no CLI equivalent for L4→L3 bg job transition)
     current_stage = fm.get("stage", "L3")
     if current_stage == "L4":
         l4_bg = fm.get("l4_background_status", "")
@@ -2939,8 +2956,16 @@ def aitp_switch_l3_activity(
 
     old = fm.get("l3_activity", "ideate")
 
-    # Minimal guard: warn if the old activity's artifact was never written.
-    # The gate checks artifact existence; this provides early feedback.
+    # Dispatch normal case to CLI
+    from brain.cli._dispatch_helpers import dispatch
+    from brain.cli.commands.l3_workflow import cmd_switch_activity
+
+    os.environ["AITP_TOPICS_ROOT"] = topics_root
+    result = dispatch(cmd_switch_activity,
+        topic=topic_slug, activity=activity,
+        success_msg=f"Switched L3 activity: {old} → {activity}")
+
+    # MCP-only artifact warning (CLI doesn't do this)
     if old and old in L3_ACTIVITY_ARTIFACT_NAMES:
         artifact_name = L3_ACTIVITY_ARTIFACT_NAMES[old]
         old_artifact = root / "L3" / old / artifact_name
@@ -2951,18 +2976,11 @@ def aitp_switch_l3_activity(
                 f"Gate will block advance if this activity is needed."
             )
 
-    fm["l3_activity"] = activity
-    fm["l3_subplane"] = activity  # compat: skill triggers check l3_subplane
-    fm["updated_at"] = _now()
-    _write_md(state_path, fm, body)
-
-    log_msg = f"L3 activity: {old} → {activity}"
-    if reason:
-        log_msg += f" ({reason})"
-    _append_to_topic_log(root, log_msg)
+    _append_to_topic_log(root,
+        f"L3 activity: {old} → {activity}" + (f" ({reason})" if reason else ""))
 
     skill = L3_ACTIVITY_SKILL_MAP.get(activity, "skill-l3-ideate")
-    return f"Switched L3 activity: {old} → {activity}. Follow {skill}."
+    return f"{result}. Follow {skill}."
 
 
 @mcp.tool()
@@ -4446,6 +4464,7 @@ def _ensure_l2_graph_dirs(topics_root: str) -> Path:
 
 @mcp.tool()
 @require_stage
+# MCP-native: writes to global L2/nodes/ — no CLI equivalent by design
 def aitp_create_l2_node(
     topics_root: str,
     node_id: str,
@@ -5466,6 +5485,7 @@ def aitp_query_l2_graph(
 
 @mcp.tool()
 @require_stage
+# MCP-native: bulk merge to global L2 — no CLI equivalent by design
 def aitp_merge_subgraph_delta(
     topics_root: str,
     topic_slug: str,
