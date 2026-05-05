@@ -30,9 +30,11 @@ def migrate_topic(topic_root: Path) -> dict[str, str]:
 
     added = {}
 
-    # v1.0 required fields with defaults
+    # v1.0 required fields — always set protocol_version
+    fm["protocol_version"] = "v1.0"
+    added["protocol_version"] = "v1.0"
+
     defaults = {
-        "protocol_version": "v1.0",
         "research_intensity": "standard",
         "memory_gate_enabled": False,
         "research_loop_active": False,
