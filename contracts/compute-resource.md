@@ -1,6 +1,6 @@
 # Compute Resource Contract
 
-**Frontmatter schema**: [`compute-resource.schema.json`](../schemas/compute-resource.schema.json)
+**Frontmatter schema**: *(deprecated — schema removed in v1.0)*
 
 ## Purpose
 

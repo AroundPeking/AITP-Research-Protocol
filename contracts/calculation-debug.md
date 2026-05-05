@@ -1,6 +1,6 @@
 # Calculation Debug Contract
 
-**Frontmatter schema**: [`calculation-debug.schema.json`](../schemas/calculation-debug.schema.json)
+**Frontmatter schema**: *(deprecated — schema removed in v1.0)*
 
 ## Purpose
 

@@ -10,11 +10,11 @@ The current public contract family is:
 - `validation`
 - `operation`
 - `promotion-or-reject`
-- `development-task`
-- `computation-workflow`
-- `compute-resource`
-- `benchmark-report`
-- `calculation-debug`
+
+
+
+
+
 
 Each contract has:
 

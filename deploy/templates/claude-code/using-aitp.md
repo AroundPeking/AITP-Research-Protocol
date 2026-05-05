@@ -13,6 +13,7 @@ You MUST follow these rules in this exact order. Violating ANY of them is a prot
 2. **NEVER manually read or edit files under the AITP topics directory.** Always use `mcp__aitp__*` tools.
 3. **NEVER type out questions as plain text.** Use `AskUserQuestion` tool for ALL questions to the user.
 4. **NEVER guess the topics_root path.** It is always: `{{TOPICS_ROOT}}`
+5. **ALWAYS load domain skills when listed.** Check `brief.domain_prerequisites` after getting the execution brief. If it lists domain skill files (e.g. `skill-librpa`), load them BEFORE the stage skill. Domain skills contain hard invariants that will produce physically wrong results if ignored.
 
 ## Environment
 

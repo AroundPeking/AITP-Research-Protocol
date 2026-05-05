@@ -1,6 +1,6 @@
 # Development Task Contract
 
-**Frontmatter schema**: [`development-task.schema.json`](../schemas/development-task.schema.json)
+**Frontmatter schema**: *(deprecated — schema removed in v1.0)*
 
 ## Purpose
 

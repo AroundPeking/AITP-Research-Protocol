@@ -2033,7 +2033,23 @@ def aitp_fast_track_claim(
     slug = _slugify(claim)[:60]
     candidate_id = f"fast-{slug}"
 
-    # Write candidate
+    # Verify source_ref resolves to a registered L0 source
+    sources_dir = root / "L0" / "sources"
+    registered_sources = set()
+    if sources_dir.exists():
+        for sf in sources_dir.glob("*.md"):
+            sf_fm, _ = _parse_md(sf)
+            if sf_fm.get("source_id"):
+                registered_sources.add(sf_fm["source_id"])
+    source_id = source_ref.split(":")[0].strip() if ":" in source_ref else source_ref.strip()
+    if registered_sources and source_id not in registered_sources:
+        return _GateResult({
+            "message": f"source_ref '{source_id}' does not match any registered L0 source. "
+                       f"Register the source first with aitp source add."
+        })
+
+    # Write candidate — status "submitted" (not "approved_for_promotion")
+    # Fast-tracked claims still go through the normal promotion gate
     cand_fm = {
         "candidate_id": candidate_id,
         "claim": claim,
@@ -2041,8 +2057,9 @@ def aitp_fast_track_claim(
         "source_ref": source_ref,
         "regime_of_validity": regime_of_validity,
         "candidate_type": node_type if node_type in L2_NODE_TYPES else "result",
-        "status": "approved_for_promotion",
+        "status": "submitted",
         "confidence": "source_grounded",
+        "fast_tracked": True,
         "created_at": _now(),
         "domain": domain,
     }
