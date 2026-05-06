@@ -42,6 +42,17 @@ def cmd_source_extract(args):
     }
     if hasattr(args, 'source_file') and args.source_file:
         fm["source_file"] = args.source_file
+    # Structured equation data (JSON string, silent fail on malformed)
+    eq_json = getattr(args, 'equations_json', '') or ''
+    if eq_json:
+        import json
+        try:
+            eq_list = json.loads(eq_json)
+            if isinstance(eq_list, list):
+                fm["equations"] = eq_list
+                fm["equation_count"] = len(eq_list)
+        except (json.JSONDecodeError, ValueError):
+            pass  # free-text ## Equations Found still works
     body = f"# {args.source} — {args.section}\n\n{args.content or ''}\n"
     _write_md(path, fm, body)
     _append_research_md(root, "L1", f"Extracted {args.source}/{args.section}")

@@ -1349,6 +1349,7 @@ def aitp_write_section_intake(
     completeness_confidence: str = "",
     cross_references: str = "",
     source_file: str = "",
+    equations: str = "",
 ) -> str:
     """Write a structured per-section intake note after reading a source.
 
@@ -1361,6 +1362,9 @@ def aitp_write_section_intake(
       (e.g. "driver/task_qsgw_band_0.cpp").
 
     completeness_confidence: high | medium | low  --  honest self-assessment.
+    equations: optional JSON list of structured equation objects,
+      each with: latex, physical_meaning, variables, source_location.
+      Stored in frontmatter for machine consumption (L2/L4 verification).
     """
     root = _topic_root(topics_root, topic_slug)
 
@@ -1393,7 +1397,7 @@ def aitp_write_section_intake(
     result = dispatch(cmd_source_extract,
         topic=topic_slug, source=source_id, section=section_id,
         content=composed_body, confidence=completeness_confidence or "medium",
-        source_file=source_file,
+        source_file=source_file, equations_json=equations,
         success_msg=f"Intake written: L1/intake/{_slugify(source_id)}/{_slugify(section_id)}.md")
 
     status = "extracted" if completeness_confidence in ("high", "medium") else "skimming"
@@ -7476,6 +7480,14 @@ def aitp_find_cross_topic_bridges(
                 eqs = str(ifm.get("equations_found", ""))
                 if eqs:
                     source_expressions.append(eqs[:300])
+                # Also scan structured equations for LaTeX expressions
+                struct_eqs = ifm.get("equations", [])
+                if isinstance(struct_eqs, list):
+                    for eq in struct_eqs:
+                        if isinstance(eq, dict):
+                            latex = eq.get("latex", "")
+                            if latex:
+                                source_expressions.append(latex)
 
     if expression:
         source_expressions.append(expression)

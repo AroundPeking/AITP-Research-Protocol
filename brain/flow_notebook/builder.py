@@ -265,6 +265,35 @@ def generate_l1_index(topic_root: Path) -> str:
                     break
             lines.append("")
 
+    # ── §4.5 Equation Inventory (structured) ─────────────────────────────
+    intake_root = topic_root / "L1" / "intake"
+    eq_inventory: list[dict] = []
+    if intake_root.is_dir():
+        for ip in sorted(intake_root.rglob("*.md")):
+            ifm, _ = _parse_md(ip)
+            struct_eqs = ifm.get("equations", [])
+            if isinstance(struct_eqs, list) and struct_eqs:
+                source_id = ifm.get("source_id", "")
+                section_id = ifm.get("section", ip.stem)
+                for eq in struct_eqs:
+                    if isinstance(eq, dict):
+                        eq["_source"] = source_id
+                        eq["_section"] = section_id
+                        eq_inventory.append(eq)
+    if eq_inventory:
+        lines.append("## 4.5 Structured Equation Inventory")
+        lines.append("")
+        lines.append(f"**{len(eq_inventory)} equations** extracted from intake notes.")
+        lines.append("")
+        lines.append("| LaTeX | Meaning | Source:Section |")
+        lines.append("|-------|---------|----------------|")
+        for eq in eq_inventory[:30]:  # cap at 30 to avoid index bloat
+            latex = _esc(str(eq.get("latex", "")))[:80]
+            meaning = _esc(str(eq.get("physical_meaning", "")))[:60]
+            src = f"{eq.get('_source', '')}:{eq.get('_section', '')}"[:40]
+            lines.append(f"| ${latex}$ | {meaning} | {src} |")
+        lines.append("")
+
     # ── §5 Notation ───────────────────────────────────────────────────
     cs_path = topic_root / "L1" / "convention_snapshot.md"
     if cs_path.exists():

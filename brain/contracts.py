@@ -225,6 +225,8 @@ L1_INTAKE_TEMPLATE: tuple[dict[str, Any], str] = (
         "regime": "",
         "validity_conditions": "",
         "figure_refs": "",
+        "equation_count": 0,
+        "equations": [],
     },
     "# Section Intake\n\n## Section Summary (skim)\n\n"
     "## Key Concepts\n\n## Equations Found\n\n"
