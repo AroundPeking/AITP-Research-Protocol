@@ -93,7 +93,7 @@ The protocol is NOT strictly linear. You can:
 
 2. **Retreat L3 → L1**: If analysis reveals insufficient sources or wrong framing, call `aitp_retreat_to_l1`. This preserves all L3 work but lets you re-read and re-frame.
 
-3. **Switch L3 activity**: L3 allows any activity at any time. Use `aitp_switch_l3_activity` with any valid target (ideate, derive, trace-derivation, gap-audit, connect, integrate, distill).
+3. **Switch L3 activity**: L3 allows any activity at any time. Use `aitp_switch_l3_activity` with any valid target (ideate, plan, derive, trace-derivation, gap-audit, integrate, distill).
 
 4. **Return L4 → L3**: After submitting L4 review, call `aitp_return_to_l3_from_l4` to analyze results before promoting. Required by SPEC S3.
 

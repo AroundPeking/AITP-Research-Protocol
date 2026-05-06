@@ -1,6 +1,6 @@
 ---
 name: skill-l3-analyze
-description: L3 Derivation — execute derivations, trace source derivations, run calculations.
+description: L3 Derivation — execute derivations, trace source derivations, run calculations. trace-derivation is derive-equivalent — both share the same gate and candidate-submission path.
 trigger: l3_activity == "derive" or l3_activity == "trace-derivation"
 ---
 
@@ -15,13 +15,15 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
-This skill covers two L3 activities:
+This skill covers two derive-equivalent activities (they share the same gate and
+candidate-submission path — both artifacts are checked for `## Derivation Chains`):
 
 **`derive`** — execute your own derivations, calculations, and analysis.
 
-**`trace-derivation`** (replaces deprecated study mode `step_derive`) —
-step-by-step tracing of a source paper's derivation. Use this when studying
-existing literature: reproduce each step, verify each justification, flag gaps.
+**`trace-derivation`** (derive-equivalent, replaces deprecated study mode
+`step_derive`) — step-by-step tracing of a source paper's derivation. The harness
+treats derive and trace-derivation as equivalent: gate checks and candidate-submission
+content checks accept either artifact.
 Every step must record:
 - `source_ref`: exact equation/page where this step lives in the source
 - `justification_type`: definition | theorem | approximation | physical_principle |
@@ -201,14 +203,17 @@ If you are returning to analysis after L4 validation (post-L4 return), your anal
 ## Exit condition
 
 Advance to **integrate** when `active_derivation.md` has filled frontmatter fields
-`derivation_count` and `all_steps_justified`, plus headings `## Derivation Chains` and `## Step-by-Step Trace`.
+`derivation_count`, `all_steps_justified`, and `completion_status`, plus headings
+`## Derivation Chains` and `## Step-by-Step Trace`.
 
-**Or submit candidate directly** if the derivation produced a clear, verifiable claim
-(use `aitp_submit_candidate` from derive activity without going through integrate/distill).
-This is the right path for focused derivations (e.g., "verify that this formula reproduces
-the known limit") that don't need the full integration/distillation pipeline.
+**Gate note:** The L3 gate reports `blocked_incomplete` until `completion_status`
+is set to `complete`. Advancing to integrate also requires gap-audit completion
+(the integrate gate checks for gap-audit content as a cross-activity prerequisite).
+
+Candidate submission is **not allowed from derive** — derive was removed from
+`_DIRECT_SUBMIT_ACTIVITIES`. Use integrate or distill to submit candidates.
 
 ## Allowed transitions
 
-- Forward: `integrate`, candidate submission
+- Forward: `integrate`, `gap-audit` (candidate submission from derive is not allowed)
 - Backedges: `ideate`, `plan`

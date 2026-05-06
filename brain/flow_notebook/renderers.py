@@ -35,7 +35,6 @@ def _is_substantive(md_body: str, min_lines: int = 2) -> bool:
 def _placeholder_for(subplane: str) -> str:
     placeholders = {
         "gap-audit": r"\textit{No formal gap audit has been recorded at this stage.}",
-        "connect": r"\textit{No cross-topic connections have been recorded at this stage.}",
         "trace-derivation": r"\textit{No source derivation trace has been recorded.}",
         "ideate": r"\textit{No idea has been recorded yet.}",
         "plan": r"\textit{No plan has been recorded yet.}",
