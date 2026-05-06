@@ -29,6 +29,23 @@ does it expect? Are there internal inconsistencies or regime mismatches?
 
 `L3/gap-audit/active_gaps.md`
 
+## Pre-Audit: Map the derivation
+
+Before auditing, understand the current state:
+
+1. Check available inference rules:
+   ```
+   aitp_list_inference_rules(topics_root)
+   ```
+   Steps using rules not in the registry are automatically gapped.
+
+2. Traverse the derivation to find blocking steps:
+   ```
+   aitp_traverse_derivation(topics_root, topic_slug)
+   ```
+   Steps marked as `non_auditable` or with missing dependencies are your
+   audit starting points.
+
 ## What to do
 
 Run the following audit checklist:
@@ -73,11 +90,31 @@ Fill the artifact:
 - `## Prerequisite Gaps`: missing prerequisites with L2 status
 - `## Severity Assessment`: summary table
 
+## Requesting Missing Evidence
+
+If a gap can only be filled with additional source material (a paper section
+you haven't downloaded, a code file you haven't traced, a derivation step
+the source handwaves):
+
+```
+aitp_request_source_evidence(
+    topics_root, topic_slug,
+    required_claim="<what equation/statement needs support>",
+    required_regime="<under what conditions>",
+    reason="<why this gap is blocking>",
+)
+```
+
+This creates a pending request in `L0/pending_requests/` that will be picked
+up on the next L0 pass. The execution brief shows pending requests so the
+agent knows to resolve them.
+
 ## Quality gate
 
 - All five checklist items are addressed (even if empty)
 - Every gap has a severity level
 - Correspondence check is attempted for every major result
+- Blocking gaps that need source evidence have requests filed
 
 ## L3→L1 Feedback (MANDATORY)
 

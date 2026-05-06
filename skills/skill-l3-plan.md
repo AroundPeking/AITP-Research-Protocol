@@ -61,6 +61,26 @@ At ANY point during discussion, you may offer these back-paths via AskUserQuesti
 3. List expected outcomes and milestones.
 4. Do not start calculation or analysis yet.
 
+## Pre-Execution Checks
+
+Before advancing to derive, run these to validate the plan:
+
+1. **Order-of-magnitude estimation**: does the target quantity even make sense?
+   ```
+   aitp_estimate_order(topics_root, topic_slug, quantity="<name>", expression="<LaTeX>")
+   ```
+   This catches dimensional errors and physically impossible values before
+   you invest in a full derivation.
+
+2. **Check available inference rules**: what proof techniques are available?
+   ```
+   aitp_list_inference_rules(topics_root)
+   ```
+   Returns all registered inference rules (substitution, integration by parts,
+   residue theorem, Wick's theorem, etc.). Your derivation steps will be
+   verified against these rules. If you need a rule that doesn't exist,
+   plan to add it.
+
 ## Computational Environment (MANDATORY for toy_numeric and code_method lanes)
 
 If the topic lane is `toy_numeric` or `code_method`, or if the plan includes ANY

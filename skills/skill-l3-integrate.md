@@ -126,13 +126,33 @@ Under `## Open Obligations`, list every missing obligation that blocks claim use
 These flow into distillation as a quality gate — distillation must acknowledge
 all open obligations before submitting a candidate.
 
+## Proposing Experiments
+
+If your integrated findings suggest a concrete experiment or numerical test
+that would validate (or falsify) the claim:
+
+```
+aitp_propose_experiment(
+    topics_root, topic_slug,
+    experiment_id="<slug>",
+    description="<what to measure/calculate>",
+    expected_outcome="<what the claim predicts>",
+    falsification_condition="<what outcome would disprove the claim>",
+)
+```
+
+This records the experimental design in L3 for potential L4 execution.
+A well-posed experiment with a clear falsification condition is stronger
+evidence than a claim alone.
+
 ## What to do
 
 1. Combine analysis results into coherent findings.
 2. Run consistency checks against L1 conventions and anchors.
 3. Assess claim readiness (blocked/qualified/stable) for each finding.
 4. List open obligations with blocking status.
-5. Do not distill yet.
+5. If applicable, propose experiments via `aitp_propose_experiment`.
+6. Do not distill yet.
 
 ## Exit condition
 

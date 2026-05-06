@@ -23,15 +23,31 @@ Do NOT register sources the researcher hasn't explicitly asked for.
 Do NOT search/read code or papers directly — register them as sources first.
 </HARD-GATE>
 
+## Source Registration Tools
+
+Choose the right registration tool for each source type:
+
+| Source type | Tool | When |
+|-------------|------|------|
+| Paper (arXiv) | `aitp_search_and_register(topics_root, topic_slug, query=..., register_top_n=N)` | Search arXiv and auto-register top results |
+| Paper (manual) | `aitp_register_source(topics_root, topic_slug, source_id=..., source_type="paper", ...)` | Single paper with known metadata |
+| Git repository | `aitp_bind_repo(topics_root, topic_slug, repo_url=..., branch=...)` | Clone and register a code repo as a source |
+| Local file/dir | `aitp_register_source(..., source_path=...)` | Preserve local derivations, PDFs, data |
+
+**Always verify registration** with:
+```
+aitp_list_sources(topics_root, topic_slug)
+```
+
 ## Checklist
 You MUST create a task for each item and complete them in order:
 
 1. **Check L2 first** — `aitp_query_l2_index(topics_root)`. Report: what's already known? What domains are populated? This prevents re-deriving known results.
 2. **Ask: what is the single most important source?** — ONE question via AskUserQuestion. Target the most central reference first (paper, codebase, dataset). Do NOT ask "what sources do you need?" (invites vague lists). Ask specifically: "What's the primary reference for this topic?"
-3. **Register that source** — `aitp_register_source(...)`. Fill all metadata fields: source_type, title, fidelity, physical_system, method_category, source_role, epistemic_tier. Show the result.
-4. **Record in registry** — update `L0/source_registry.md` with: Prior L2 Knowledge (from step 1), the registered source, and gaps you notice.
+3. **Register that source** — use the appropriate tool from the table above. For arXiv papers, `aitp_search_and_register` with `register_top_n=1` handles search + registration in one call. For manual registration, use `aitp_register_source` with all metadata fields (source_type, title, fidelity, physical_system, method_category, source_role, epistemic_tier). For git repos, use `aitp_bind_repo`. Show the result.
+4. **Verify and record in registry** — call `aitp_list_sources(topics_root, topic_slug)` to confirm registration. Update `L0/source_registry.md` with: Prior L2 Knowledge (from step 1), the registered source, and gaps you notice.
 5. **Ask: what next?** — ONE question: "Is there another key source, or is coverage adequate?" Repeat steps 3-4 for each source the researcher names.
-6. **Present coverage summary** — state: total sources, areas covered, identified gaps. Ask: "Ready to advance to L1, or should we hunt for sources in these gap areas?"
+6. **Present coverage summary** — call `aitp_list_sources` for the full inventory. State: total sources, areas covered, identified gaps. Ask: "Ready to advance to L1, or should we hunt for sources in these gap areas?"
 7. **Advance** — `aitp_advance_to_l1(topics_root, topic_slug)` only after researcher confirms.
 
 ## One Question At A Time

@@ -165,14 +165,55 @@ Same as code_method for verification: source anchoring + numerical validation at
 Additionally check: dimensional consistency of inputs/outputs, reproducibility across
 random seeds, behavior at known limits.
 
+## Derivation Navigation and Visualization
+
+### Traversing the derivation DAG
+
+As your derivation grows, navigate the dependency graph:
+
+```
+aitp_traverse_derivation(topics_root, topic_slug, chain_id="default")
+```
+
+Returns the full derivation tree — which steps depend on which, where
+cycles exist, and which steps are blocking downstream progress.
+
+### Visualizing the chain
+
+```
+aitp_visualize_derivation_chain(topics_root, topic_slug, chain_id="default")
+```
+
+Renders the derivation as a directed graph. Use when the human asks
+"show me the derivation structure" or when debugging complex dependencies.
+
+### Pre-derivation estimation
+
+Before executing a derivation step, sanity-check with order-of-magnitude:
+
+```
+aitp_estimate_order(topics_root, topic_slug, quantity="<name>", expression="<LaTeX>")
+```
+
+### Checking available inference rules
+
+Know what proof techniques are registered:
+
+```
+aitp_list_inference_rules(topics_root)
+```
+
+If a step uses a rule not in the registry, the verification tools can't validate it.
+
 ## What to do
 
 1. Set `round_type` in frontmatter.
 2. Execute the planned derivation steps with step-level discipline.
 3. Record the method used, results so far, and source anchors.
-4. Flag any anomalies or unexpected findings.
-5. For failed routes, use the Failure Route Template below.
-6. Do not finalize claims yet.
+4. Use `aitp_traverse_derivation` to check dependencies and blocking steps.
+5. Flag any anomalies or unexpected findings.
+6. For failed routes, use the Failure Route Template below.
+7. Do not finalize claims yet.
 
 ## Failure Route Template
 

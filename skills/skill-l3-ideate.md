@@ -98,6 +98,30 @@ These are not just for this subplane — they are available throughout ALL L3 su
 
 `L3/ideate/active_idea.md`
 
+## Recording Ideas
+
+When you identify a concrete research idea, record it:
+
+```
+aitp_submit_idea(
+    topics_root, topic_slug,
+    idea_slug="<slug>",
+    title="<one-liner>",
+    approach="<how to pursue this idea>",
+    outcome="active",  # active | failed | succeeded | abandoned | superseded
+    inspired_by=[<related idea slugs>],
+)
+```
+
+To review existing ideas (including failed ones — they contain lessons):
+
+```
+aitp_list_ideas(topics_root, topic_slug)
+```
+
+Ideas are branching. You may have multiple active ideas in parallel.
+Failed ideas stay visible — their lessons help other approaches succeed.
+
 ## What to do
 
 1. Record the central idea statement.

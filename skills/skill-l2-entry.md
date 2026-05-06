@@ -169,3 +169,173 @@ updated: YYYY-MM-DD
 3. **Methods must have templates.** If it's a code method and there's a working INPUT/librpa.in, embed or link it.
 4. **Provenance mandatory.** Every entry must record `source_ref`.
 5. **One file per fact.** Don't put unrelated claims in one file. Atomic entries are queryable; long documents are buried.
+
+---
+
+## Part C: Graph Operations
+
+Beyond entries, L2 maintains a concept graph with nodes, edges, and towers.
+Use these when you need structured relationships between concepts.
+
+### Creating and updating graph nodes
+
+For a single concept node (physics concept, theorem, technique):
+
+```
+aitp_create_l2_node(
+    topics_root=...,
+    node_id="<domain>-<slug>",
+    title="...",
+    node_type="concept",  # concept | theorem | technique | result | approximation | ...
+    domain="electronic-structure",
+    mathematical_expression="<LaTeX>",
+    physical_meaning="...",
+    source_ref="topic:<topic-slug>:L3/candidates/<slug>",
+)
+```
+
+For quick concept creation when the full node metadata isn't needed yet:
+
+```
+aitp_quick_l2_concept(topics_root, title="...", domain="...")
+```
+
+To update an existing node (e.g., after L4 validation provides more evidence):
+
+```
+aitp_update_l2_node(topics_root, node_id="...", field="mathematical_expression", value="...")
+```
+
+### Creating edges
+
+Connect nodes with typed relationships:
+
+```
+aitp_create_l2_edge(
+    topics_root=...,
+    source_id="<node-a>",
+    target_id="<node-b>",
+    edge_type="derives_from",  # see L2_EDGE_TYPES for full list
+    evidence="...",
+)
+```
+
+Common edge types: `derives_from`, `generalizes`, `limits_to`, `contradicts`,
+`refines`, `motivates`, `dual_to`, `conjugate_to`, `falsifies`.
+
+### EFT/Concept towers
+
+When concepts form a hierarchy across energy/length scales:
+
+```
+aitp_create_l2_tower(
+    topics_root=...,
+    tower_id="<id>",
+    name="...",
+    energy_range="eV to GeV",
+    layers=[...],
+)
+aitp_visualize_eft_tower(topics_root, tower_id="<id>")
+```
+
+### Merging topic subgraphs
+
+After completing a topic phase, extract entries and merge subgraphs into global L2:
+
+```
+aitp_extract_topic_entries(topics_root, topic_slug)
+```
+
+This reads L3 candidates and L0 sources, creates draft L2 entries, and returns
+what was extracted. Review each entry before merging.
+
+```
+aitp_merge_subgraph_delta(topics_root, topic_slug)
+```
+
+This merges the topic's L2 subgraph (nodes + edges + towers) into the global
+L2 graph. Run after `aitp_extract_topic_entries` and human review.
+
+---
+
+## Part D: Provenance and Impact Analysis
+
+### Tracing provenance
+
+To understand where a claim came from — its full chain of derivation,
+validation, and promotion:
+
+```
+aitp_get_l2_provenance(topics_root, slug="<entry-slug>")
+```
+
+Returns: source candidate, source topic, trust basis, trust scope, version history.
+
+### Impact analysis
+
+Before modifying or deleting an L2 node, check what depends on it:
+
+```
+aitp_query_impact(topics_root, node_id="<id>")
+```
+
+Returns: downstream nodes, edges that would break, topics that reference it.
+
+Always run this before `aitp_update_l2_node` or manual deletion.
+
+---
+
+## Part E: Visualization and Cross-Reference
+
+### Visualizing the knowledge graph
+
+```
+aitp_visualize_knowledge_graph(topics_root, domain="<domain>", query="<concept>")
+```
+
+Renders the L2 graph (or a filtered subgraph) showing nodes and edges.
+Use when the human asks "show me what we know" or before presenting a
+research summary.
+
+### Finding cross-topic bridges
+
+Search for structural isomorphisms — the same mathematical structure
+appearing in different physics domains:
+
+```
+aitp_find_cross_topic_bridges(
+    topics_root, topic_slug,
+    expression="<LaTeX>",
+    concept_name="<concept>",
+)
+```
+
+A Green's function in condensed matter may have the same form as a
+propagator in QFT. This tool flags these deep connections.
+
+### Diagrams
+
+Create and list diagrams tied to L2 nodes:
+
+```
+aitp_create_diagram(topics_root, title="...", what_it_shows="...",
+    related_nodes=["<id1>", "<id2>"], source_ref="...")
+aitp_list_diagrams(topics_root)
+```
+
+Diagrams are evidence attachments — they don't replace text explanations
+but provide visual grounding for complex relationships.
+
+---
+
+## When to Use Each Part
+
+| Phase | What to do |
+|-------|-----------|
+| Topic bootstrap / session resume | Part A: Query L2 for prior knowledge |
+| After L4 validation (pass) | Part B: Create entries for validated claims |
+| During L3 derivation | Part C: Create nodes + edges for new concepts |
+| After topic phase completion | Part C: Extract entries + merge subgraph |
+| Before modifying L2 | Part D: Check provenance + impact |
+| Cross-domain discovery | Part E: Find cross-topic bridges |
+| Research presentation | Part E: Visualize knowledge graph |

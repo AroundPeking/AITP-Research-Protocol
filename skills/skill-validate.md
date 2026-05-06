@@ -31,6 +31,10 @@ Read `L3/candidates/<id>.md`. Then explicitly answer:
 ### Step 2: Check compute_target and L2 for contradictions
 
 1. Call `aitp_get_execution_brief` → read `compute_target`. Confirm you are on the right machine.
+   If the compute target needs to change:
+   ```
+   aitp_set_compute_target(topics_root, topic_slug, host="<hostname>", work_dir="<path>")
+   ```
 2. Call `aitp_query_l2` with the candidate's key concepts → search for conflicting claims.
 3. Call `aitp_query_l2_graph` to check for contradictory edges.
 4. If ANY contradiction found: record it, submit outcome="contradiction", do NOT pass.
@@ -64,9 +68,30 @@ For Lean formal verification (optional, highest assurance):
 #### For toy_numeric / code_method lanes — executed scripts (MANDATORY for pass)
 
 1. Write validation scripts in `L4/scripts/validate_<check>.py`
-2. Execute them on the declared compute_target
+2. Execute them on the declared compute_target:
+   - For HPC/long-running jobs, use:
+     ```
+     aitp_l4_background_submit(topics_root, topic_slug, candidate_id="<id>",
+         job_script="L4/scripts/validate_<check>.py",
+         compute_host="<host>", work_dir="<path>")
+     ```
+   - Check results when the job completes:
+     ```
+     aitp_l4_check_results(topics_root, topic_slug, candidate_id="<id>")
+     ```
 3. Save outputs to `L4/outputs/`
-4. Record data_provenance for every data point
+4. For numerical results, record structured data:
+   ```
+   aitp_record_numerical_result(
+       topics_root, topic_slug,
+       observable="<name>",
+       computed_value=<float>,
+       expected_value=<float or null>,
+       uncertainty=<float>,
+       source_script="L4/scripts/validate_<check>.py",
+   )
+   ```
+5. Record data_provenance for every data point
 
 ### Step 4: Devil's advocate assessment (MANDATORY for pass)
 
@@ -146,7 +171,12 @@ The MCP server will BLOCK submission if:
 
 - pass → candidate status auto-set to "validated". Ask human about promotion.
 - partial_pass → candidate status "partial_validated". Discuss what's useful.
-- fail/contradiction/stuck/timeout → return to L3 analysis for revision.
+- fail/contradiction/stuck/timeout → return to L3 analysis for revision:
+  ```
+  aitp_return_to_l3_from_l4(topics_root, topic_slug, reason="<specific findings>")
+  ```
+  This preserves all L4 review artifacts and sets L3 activity to `integrate`
+  for post-validation analysis. The agent resumes with `skill-l3-analyze`.
 
 ## Rules
 

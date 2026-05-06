@@ -75,6 +75,18 @@ This is the LAST chance to feed discoveries back to L1 before the candidate
 goes to L4 validation. If the candidate itself represents a discovery that
 changes L1 framing, record it now.
 
+If you need to record feedback separately (not as part of candidate submission),
+or if the feedback spans multiple kinds, use the standalone tool:
+```
+aitp_feedback_to_l1(
+    topics_root, topic_slug,
+    feedback_kind="convention",  # or contradiction, cross_edge
+    content="...",
+    source_l3_activity="distill",
+    source_candidate_id="<slug>",
+)
+```
+
 ## Pre-Submission Hard Checks (MANDATORY)
 
 Candidate submission now enforces **3-layer hard checks** in the harness
