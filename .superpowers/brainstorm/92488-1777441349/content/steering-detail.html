@@ -1,0 +1,116 @@
+<h2>Approach C: Steering Layer — 具体长什么样</h2>
+<p class="subtitle">用一个真实研究场景走一遍：假设你在研究"GW 自能对拓扑不变量的修正"</p>
+
+<div class="section">
+  <h3>核心思路：在现有 L0-L4 上加一个 Steering 层</h3>
+  <pre style="background:#1a1a2e;color:#e0e0e0;padding:16px;border-radius:6px;font-size:0.8em;line-height:1.8;">
+  ┌─────────────────────────────────────────────┐
+  │  Steering Layer (新增)                       │
+  │  steering/directives.md  人的指令队列         │
+  │  steering/decisions.md   关键决策 + 理由      │
+  │  steering/contribs.md    人直接写的推导/idea  │
+  └──────────────┬──────────────────────────────┘
+                 │ LLM 每次行动前必须读
+  ┌──────────────▼──────────────────────────────┐
+  │  现有 L0-L4 协议 (几乎不变)                   │
+  │  L0 discover → L1 read → L3 derive → L4 validate → L2 │
+  └─────────────────────────────────────────────┘
+  </pre>
+</div>
+
+<div class="section">
+  <h3>场景演示：一次典型的协作 Session</h3>
+
+  <div style="background:#f8f9fa;padding:16px;border-radius:8px;margin-bottom:16px;border-left:4px solid #e74c3c;">
+    <p style="margin:0;"><strong>人：</strong>"上次 L3 推导 GW 自能的时候，我觉得准粒子权重 Z 的处理有问题。你去读一下 Holm & Aryasetiawan 2000 那篇，看他们怎么处理 Z 因子的 renormalization。读完后告诉我关键结论，我们讨论下一步。"</p>
+  </div>
+  <p style="font-size:0.8em;color:#888;margin:4px 0 16px 0;">→ LLM 调用 <code>aitp_record_steering(directive="read HA2000 on Z-factor renormalization", context="GW self-energy derivation, Z might be incorrect")</code></p>
+
+  <div style="background:#f0f7ff;padding:16px;border-radius:8px;margin-bottom:16px;border-left:4px solid #3498db;">
+    <p style="margin:0;"><strong>LLM：</strong>"读完了。HA2000 的 Z 因子用了 full-frequency 积分而非 plasmon-pole 近似。我们目前用的是 plasmon-pole，这可能导致 Z 被高估。我的建议是：<strong>切换到 full-frequency 方法重新算 Z</strong>，但代价是计算量增大约 10 倍。你怎么看？"</p>
+  </div>
+  <p style="font-size:0.8em;color:#888;margin:4px 0 16px 0;">→ LLM 调用 <code>aitp_request_human_decision(question="Switch from plasmon-pole to full-frequency for Z?", options=["switch to full-frequency", "keep plasmon-pole but flag as approximation", "estimate error first before switching"])</code></p>
+
+  <div style="background:#f8f9fa;padding:16px;border-radius:8px;margin-bottom:16px;border-left:4px solid #e74c3c;">
+    <p style="margin:0;"><strong>人：</strong>"先估算误差。你跑一个 toy model 对比两种方法的 Z，如果差异超过 10% 就切换。另外，我自己推了一下——这是我在纸上的推导关键步骤，你帮我录入并检查。"</p>
+    <p style="margin:8px 0 0 0;font-style:italic;color:#555;">[人附上推导照片或手写 LaTeX 片段]</p>
+  </div>
+  <p style="font-size:0.8em;color:#888;margin:4px 0 16px 0;">→ LLM 调用 <code>aitp_record_steering(directive="estimate plasmon-pole vs full-frequency error on toy model")</code> 然后 <code>aitp_human_contribute(content=人的推导, target="L3/derive")</code></p>
+
+  <div style="background:#f0f7ff;padding:16px;border-radius:8px;border-left:4px solid #3498db;">
+    <p style="margin:0;"><strong>LLM：</strong>"已录入你的推导，SymPy 验证通过。toy model 跑完了：差异 18%，超过了 10% 阈值。我建议按你说的切换到 full-frequency。现在去改 L3/derive 的代码和推导链。"</p>
+  </div>
+</div>
+
+<div class="section">
+  <h3>新增的 4 个工具</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+    <tr style="background:#f0f0f0;">
+      <th style="padding:8px;text-align:left;border:1px solid #ddd;">工具</th>
+      <th style="padding:8px;text-align:left;border:1px solid #ddd;">谁用</th>
+      <th style="padding:8px;text-align:left;border:1px solid #ddd;">做什么</th>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;"><code>aitp_record_steering</code></td>
+      <td style="padding:8px;border:1px solid #ddd;">LLM (代人行令)</td>
+      <td style="padding:8px;border:1px solid #ddd;">把人的方向性指令持久化写入 steering/</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;"><code>aitp_request_decision</code></td>
+      <td style="padding:8px;border:1px solid #ddd;">LLM 主动调用</td>
+      <td style="padding:8px;border:1px solid #ddd;">在分叉点请人做决策，决策写入 decisions.md</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;"><code>aitp_human_contribute</code></td>
+      <td style="padding:8px;border:1px solid #ddd;">LLM (代笔) 或人</td>
+      <td style="padding:8px;border:1px solid #ddd;">人贡献的推导/idea 直接写入 topic artifact</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;"><code>aitp_read_steering</code></td>
+      <td style="padding:8px;border:1px solid #ddd;">LLM (自动)</td>
+      <td style="padding:8px;border:1px solid #ddd;">每次行动前读 steering log，知道人的方向和判断</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>Session Resume 的改进</h3>
+  <p>当前 <code>session_resume</code> 只返回 10 条 event log。改进后：</p>
+  <ul>
+    <li><strong>完整 steering log</strong> — 所有人类指令和决策，按时间排列</li>
+    <li><strong>上次 session 的待办</strong> — 哪些 directive 还没执行完</li>
+    <li><strong>pending decisions</strong> — 哪些决策点 LLM 已经提出但人还没回答</li>
+    <li><strong>当前 artifact 的"人写部分"</strong> — 标记哪些内容来自人（不可被 LLM 覆盖）</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>改动范围</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+    <tr style="background:#f0f0f0;">
+      <th style="padding:8px;text-align:left;border:1px solid #ddd;">文件</th>
+      <th style="padding:8px;text-align:left;border:1px solid #ddd;">改动程度</th>
+      <th style="padding:8px;text-align:left;border:1px solid #ddd;">说明</th>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;">brain/mcp_server.py</td>
+      <td style="padding:8px;border:1px solid #ddd;">+150 lines</td>
+      <td style="padding:8px;border:1px solid #ddd;">新增 4 个工具 + 增强 session_resume/get_execution_brief</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;">brain/state_model.py</td>
+      <td style="padding:8px;border:1px solid #ddd;">+80 lines</td>
+      <td style="padding:8px;border:1px solid #ddd;">Steering 模板、决策点状态机</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;">skills/skill-l3-*.md</td>
+      <td style="padding:8px;border:1px solid #ddd;">小幅修改</td>
+      <td style="padding:8px;border:1px solid #ddd;">LLM 被引导在分叉点调用 request_decision</td>
+    </tr>
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;">hooks/</td>
+      <td style="padding:8px;border:1px solid #ddd;">+20 lines</td>
+      <td style="padding:8px;border:1px solid #ddd;">session_start 时注入 steering context</td>
+    </tr>
+  </table>
+</div>

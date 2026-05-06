@@ -1,0 +1,10 @@
+[23:24:15] pid=254804 native_mcp.py loaded, python=C:\Program Files\Python312\python.exe, cwd=D:\BaiduSyncdisk\repos\AITP-Research-Protocol
+[23:24:15] pid=254804 importing brain.mcp_server, AITP_TOPICS_ROOT=
+[23:24:16] pid=254804 brain.mcp_server imported in 1.50s
+[23:24:16] pid=254804 main() entered, waiting for messages
+[23:24:16] pid=254804 received: initialize
+[23:24:16] pid=254804 sending response for method=initialize
+[23:24:16] pid=254804 received: notifications/initialized
+[23:24:16] pid=254804 received: tools/list
+[23:24:16] pid=254804 sending response for method=tools/list
+[23:24:16] pid=254804 received: None

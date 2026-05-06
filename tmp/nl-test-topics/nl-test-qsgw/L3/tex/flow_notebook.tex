@@ -1,0 +1,200 @@
+---
+artifact_kind: l3_flow_notebook
+generated_at: '2026-04-28T16:33:55+08:00'
+stage: L3
+topic_slug: nl-test-qsgw
+---
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{physics}
+\usepackage{bm}
+\usepackage[margin=2.5cm]{geometry}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em plus 0.2em minus 0.1em}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!60!black}
+
+\definecolor{passgreen}{RGB}{34,139,34}
+\definecolor{failred}{RGB}{178,34,34}
+\definecolor{warnorange}{RGB}{204,119,34}
+\definecolor{infoblue}{RGB}{47,85,151}
+\definecolor{lightbg}{RGB}{245,245,250}
+
+\newcommand{\statuspass}{\textcolor{passgreen}{\textbf{PASS}}}
+\newcommand{\statusfail}{\textcolor{failred}{\textbf{FAIL}}}
+\newcommand{\statusactive}{\textcolor{warnorange}{\textbf{ACTIVE}}}
+\newcommand{\statusdeferred}{\textcolor{gray}{\textbf{DEFERRED}}}
+
+\newtcolorbox{resultbox}[1][]{colback=infoblue!4,colframe=infoblue!70,
+  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}
+\newtcolorbox{warningbox}[1][]{colback=warnorange!4,colframe=warnorange!70,
+  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}
+\newtcolorbox{valbox}[1][]{colback=passgreen!4,colframe=passgreen!70,
+  fonttitle=\bfseries,boxrule=0.6pt,arc=2pt,breakable,title={#1}}
+
+\title{\textbf{Research Flow Notebook}\\[0.4em]
+  \large Systematic Improvements of qsGW for Correlated Materials
+  \quad \texttt{formal\_theory lane}
+}
+\author{AITP Protocol v3}
+\date{2026-04-28}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+This notebook records the complete research trajectory: sources, conventions,
+derivation attempts, validated results, and open questions.
+Mode: \texttt{explore}.
+\end{abstract}
+
+\tableofcontents
+\newpage
+\section{Research Question}
+
+\begin{resultbox}[Bounded Question]
+How do vertex corrections beyond the GW approximation systematically modify the quasi-particle band gap predicted by qsGW in moderately correlated materials?
+\end{resultbox}
+
+\noindent
+\textbf{Scope:} One-shot vertex corrections (Gamma != 1) to the self-energy within the GW framework. Does NOT consider: finite-temperature effects, spin-orbit coupling, magnetic ordering, or full self-consistent vertex corrections. \quad
+\textbf{Target quantities:} Direct band gap at Gamma point (eV), quasi-particle weight Z, self-energy correction Delta\_Sigma
+
+\section{Source Landscape}
+
+\begin{longtable}{>{\raggedright}p{3cm} p{5cm} p{2.5cm} p{2.5cm}}
+\toprule
+\textbf{Source} & \textbf{Title} & \textbf{Fidelity} & \textbf{Relation} \\
+\midrule
+\endhead
+gruneis2014 & Gruneis A, Kresse G, Hinuma Y, Oba F (2014) Ionization poten & arxiv\_preprint &  \\
+hedin1965 & Hedin L (1965) New Method for Calculating the One-Particle G & arxiv\_preprint &  \\
+kotani2007 & Kotani T, van Schilfgaarde M, Faleev SV (2007) Quasiparticle & arxiv\_preprint &  \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Source Basis Analysis}
+\subsection*{Source Basis}
+
+\subsubsection*{Core Sources}
+\begin{itemize}
+\item hedin1965: Hedin 1965 foundational GW paper
+\item kotani2007: qsGW method
+\item gruneis2014: Vertex corrections
+\end{itemize}
+
+\subsubsection*{Peripheral Sources}
+\begin{itemize}
+\item biermann2015: DMFT+GW combination (deferred for now)
+\end{itemize}
+
+\subsubsection*{Source Roles}
+hedin1965: Foundational. kotani2007: Direct dependency. gruneis2014: Direct dependency.
+
+\subsubsection*{Reading Depth}
+Full read for all core sources.
+
+\subsubsection*{Why Each Source Matters}
+Each provides one piece of the qsGW+vertex puzzle.
+
+
+
+\section{Conventions \& Notation}
+
+\subsection*{Convention Snapshot}
+
+\subsubsection*{Notation Choices}
+Hedin 1965 conventions as canonical:
+\begin{itemize}
+\item G(1,2): single-particle Green function
+\item W(1,2): dynamically screened Coulomb interaction
+\item Sigma(1,2): electron self-energy Sigma = iGW
+\item Gamma(1,2;3): irreducible vertex function
+\end{itemize}
+
+\subsubsection*{Unit Conventions}
+Atomic units. eV for reporting.
+
+\subsubsection*{Sign Conventions}
+\begin{itemize}
+\item Time-ordered Greens functions
+\item Self-energy: Sigma = iGW (Hedin convention)
+\item Fourier: int domega/(2pi)
+\end{itemize}
+
+\subsubsection*{Metric Or Coordinate Conventions}
+Real space, plane-wave basis.
+
+\subsubsection*{Categorized Assumptions}
+\paragraph{Mathematical assumptions}
+Translational invariance, single Slater determinant reference.
+\paragraph{Physical assumptions}
+T=0, no SOC, weak-to-moderate correlation.
+\paragraph{Notational assumptions}
+Spin sum implicit, 1+ = t1+eta.
+
+\subsubsection*{Canonical Notation}
+Hedin 1965 canonical. All GW literature derives from it.
+
+\subsubsection*{Unresolved Tensions}
+Time-ordered vs retarded G for spectral properties.
+
+\subsubsection*{L3 Discoveries}
+(To be appended during derivation)
+
+
+
+\noindent\textbf{Notation:} Hedin 1965: G=Green function, W=screened Coulomb, Sigma=self-energy, Gamma=vertex, P=polarizability
+
+\noindent\textbf{Units:} Atomic units (Hartree/Bohr). eV for band gap reporting.
+
+\section{Mode \& Session History}
+
+\noindent
+\begin{tabular}{ll}
+\toprule
+\textbf{Axis} & \textbf{Value} \\
+\midrule
+Topic slug & \texttt{nl-test-qsgw} \\
+Status & \texttt{new} \\
+Mode & \texttt{explore} \\
+Lane & \texttt{formal\_theory} \\
+L3 mode & \texttt{research} \\
+L3 subplane & \texttt{derive} \\
+\bottomrule
+\end{tabular}
+
+\subsection*{Session Log}
+\subsection*{Session Log: Systematic Improvements of qsGW for Correlated Materials}
+
+\subsubsection*{Sessions}
+
+
+
+\section{Derivation Journey}
+
+\noindent (No structured derivation recorded.)
+
+\section{Synthesis \& Claims}
+
+\section{Validation}
+
+\begin{valbox}[cand-qsgw-vertex \quad partial\_pass]
+\end{valbox}
+
+\begin{valbox}[cand-qsgw-vertex\_v1 \quad partial\_pass]
+\end{valbox}
+
+\section{Negative Results \& Open Questions}
+
+\noindent (No negative results or open questions formally recorded.)
+
+
+\end{document}

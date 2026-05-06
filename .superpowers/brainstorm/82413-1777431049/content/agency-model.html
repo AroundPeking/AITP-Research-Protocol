@@ -1,0 +1,63 @@
+<h2>Current vs Desired: Who's Doing the Research?</h2>
+<p class="subtitle">Left: AITP v4.0 today. Right: Your vision (as I understand it so far). Click to select which matches your intent.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Model A: Current AITP v4.0</div>
+    <div class="mockup-body" style="font-size:0.9em;line-height:1.6;">
+      <p><strong>LLM as Primary Researcher</strong></p>
+      <p>LLM reads papers → LLM frames questions → LLM does derivations → LLM self-verifies → LLM writes conclusions</p>
+      <p style="color:#e74c3c;margin-top:12px;"><strong>Human role:</strong> Approve/reject at gates</p>
+      <hr style="margin:16px 0;">
+      <p style="font-size:0.85em;">Human interactions:</p>
+      <ul style="padding-left:18px;margin:4px 0;">
+        <li>Pick from multiple-choice popups</li>
+        <li>Approve or reject promotion to L2</li>
+        <li>Switch lanes when stuck</li>
+      </ul>
+      <p style="font-size:0.85em;color:#999;margin-top:12px;">Human cannot: submit derivations, contribute ideas, annotate artifacts, co-derive step-by-step</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Model B: LLM as Equal Collaborator</div>
+    <div class="mockup-body" style="font-size:0.9em;line-height:1.6;">
+      <p><strong>Human and LLM as Co-Researchers</strong></p>
+      <p>Human sets direction → LLM does heavy-lift derivations/tests → Human reviews each step → Both iterate → Both record</p>
+      <p style="color:#27ae60;margin-top:12px;"><strong>Human role:</strong> Active participant at every stage</p>
+      <hr style="margin:16px 0;">
+      <p style="font-size:0.85em;">Human must be able to:</p>
+      <ul style="padding-left:18px;margin:4px 0;">
+        <li>Submit their own derivations and ideas</li>
+        <li>Direct LLM to derive specific steps</li>
+        <li>Review and challenge intermediate results</li>
+        <li>Annotate, correct, and extend LLM output</li>
+      </ul>
+      <p style="font-size:0.85em;color:#999;margin-top:12px;">LLM does: heavy derivations, numerical experiments, literature cross-check, adversarial review</p>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="b-confirm" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Model B is correct — LLM as collaborator, human in the loop at each step</h3>
+      <p>LLM handles the heavy lifting but human reviews, contributes, and decides at every intermediate stage.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b-but-more" onclick="toggleSelect(this)">
+    <div class="letter">B+</div>
+    <div class="content">
+      <h3>Model B, but human should be able to delegate entire sub-tasks to LLM without step-by-step oversight</h3>
+      <p>When trust is earned on a subtask, let LLM run autonomously and report back.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="different" onclick="toggleSelect(this)">
+    <div class="letter">?</div>
+    <div class="content">
+      <h3>Neither captures it fully — I'll explain in the terminal</h3>
+      <p>Select this and describe what's different about your vision.</p>
+    </div>
+  </div>
+</div>

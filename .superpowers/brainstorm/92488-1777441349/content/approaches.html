@@ -1,0 +1,86 @@
+<h2>Three Approaches: From Patch to Refactor</h2>
+<p class="subtitle">All three preserve: file-based persistence, MCP transport, L2 knowledge graph. The difference is how much changes.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Minimal Patch — 在当前 AITP 上修补</h3>
+      <p>保持 L0-L4 架构不变，加几个新工具填补 gap。</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4>
+          <ul>
+            <li>改动小，风险低</li>
+            <li>完全向后兼容</li>
+            <li>1-2 天可完成</li>
+            <li>现有 topic 不受影响</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>修补可能不彻底</li>
+            <li>LLM 自主性本质不变</li>
+            <li>人的引导仍然不是 structured state</li>
+            <li>patch 越积越多可能变丑</li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:0.85em;color:#666;margin-top:12px;"><strong>新增工具：</strong>aitp_request_human_decision, aitp_human_contribute, aitp_record_steering<br>
+      <strong>增强：</strong>session_resume 读 steering log, execution_brief 显示待决策点</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Conversation-Centric — 对话本身就是研究过程</h3>
+      <p>将 NL 对话提升为一级 artifact，L0-L4 变得更轻量。</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4>
+          <ul>
+            <li>对话即记录，不丢上下文</li>
+            <li>人和 LLM 的交互自然就构成研究过程</li>
+            <li>session resume 可以读到完整对话历史</li>
+            <li>最接近"人的合作者"的体验</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>需要较大的架构改动</li>
+            <li>token 消耗巨大</li>
+            <li>对话 transcript 如何结构化？</li>
+            <li>和现有 AITP 兼容性差</li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:0.85em;color:#666;margin-top:12px;"><strong>核心变更：</strong>每个 session 的 transcript 自动保存，decision point 在对话中内联标记，L0-L4 stage 变为可选标签而非强制门控</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Steering Layer — 在现有骨架上加一个"人的操控层"</h3>
+      <p>保持 L0-L4 文件结构，但在人和 LLM 之间加一个轻量的 steering interface。</p>
+      <div class="pros-cons" style="margin-top:12px;">
+        <div class="pros"><h4>Pros</h4>
+          <ul>
+            <li>基础架构不变，改动集中在新增模块</li>
+            <li>人的意图、决策、方向成为结构化 state</li>
+            <li>session resume 能读到完整 steering context</li>
+            <li>向后兼容，不破坏现有 topic</li>
+            <li>中等工作量（~3-5 天）</li>
+          </ul>
+        </div>
+        <div class="cons"><h4>Cons</h4>
+          <ul>
+            <li>新抽象层增加了复杂度</li>
+            <li>需要 LLM skill 配合才能有效利用</li>
+            <li>不是完全重写，部分历史设计约束保留</li>
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:0.85em;color:#666;margin-top:12px;"><strong>核心变更：</strong>steering/ 目录存储人的指导和决策，LLM 在执行前读 steering log，decision point 机制嵌入 L3 activities</p>
+    </div>
+  </div>
+</div>

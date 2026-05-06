@@ -5191,6 +5191,13 @@ def _rebuild_entry_index(global_l2: Path) -> None:
         rlines.append("\n*No dependency links recorded yet.*")
     _atomic_write_text(entries_dir / "INDEX_reverse.md", "\n".join(rlines) + "\n")
 
+    # Phase 5: Rebuild graph projection from entries
+    try:
+        from brain.l2_graph_rebuild import _rebuild_graph_from_entries
+        _rebuild_graph_from_entries(global_l2)
+    except Exception:
+        pass  # Never block entry writes for graph rebuild
+
 
 # dispatch: l2 edge-create (pending CLI alignment — currently writes to global L2 vs topic subgraph)
 @mcp.tool()
