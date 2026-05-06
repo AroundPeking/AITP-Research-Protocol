@@ -118,5 +118,13 @@ Because Kimi Code loads all skills into context, stage-specific details are kept
 - "This topic change is small enough to skip routing."
 - "I will read files first and decide later whether AITP applies."
 - "Let me search the codebase to see what already exists."
+- "The notebook was auto-generated, no need to check it."
 
 If one of these is true, stop and enter AITP first.
+
+## Flow Notebook
+
+After `aitp_submit_candidate`, the notebook at the topic root (`flow_notebook.tex`)
+is regenerated. Read the changed section and polish for readability:
+remove pandoc artifacts, condense verbose tables, add narrative context.
+Python builds correct data — AI makes it readable.

@@ -141,6 +141,26 @@ After getting the execution brief, load the matching skill:
 - L4 verify → `skill-validate.md`
 - Promote → `skill-promote.md`
 
+## Flow Notebook
+
+The research notebook (`flow_notebook.tex` at the topic root) is generated automatically
+when a candidate is submitted (`aitp_submit_candidate`). Each L3→L4 cycle triggers one
+incremental regeneration.
+
+**Two-layer quality model:**
+- **Python** (correctness): Extracts data from L0--L4 artifacts, fills sections, renders tables
+- **AI** (readability): Polishes pandoc output, adds narrative transitions, condenses bloat
+
+**After every `aitp_submit_candidate`:**
+1. Check which sections were regenerated (returned in the tool response)
+2. Read those sections in `flow_notebook.tex`
+3. Polish for human readability:
+   - Remove pandoc artifacts (stray `\def\LTcaptype`, over-escaped symbols)
+   - Condense verbose tables to show key rows only
+   - Add one-sentence context before each derivation subsection
+   - Ensure formulas render cleanly
+4. Write the polished content back to the notebook (use the `% BEGIN/END` markers to target edits)
+
 ## Domain skills
 
 Check `brief.domain_prerequisites` — if it lists domain skill files (e.g. `skill-librpa`),
@@ -160,6 +180,7 @@ observed in live research sessions:
 | "Domain skill is optional background reading" | Domain constraints from `brief.domain_prerequisites` are mandatory. Load domain skills BEFORE the stage skill. |
 | "The gate just checks headings exist, empty content passes" | Gates check heading presence AND content completeness. Fill all required sections with substantive content. |
 | "I can write the artifact directly with Write tool" | Use AITP MCP tools to write artifacts. They ensure state consistency and auto-refresh the flow notebook. |
+| "The notebook was auto-generated, no need to check it" | After `aitp_submit_candidate`, the notebook is regenerated with one section updated. Open `flow_notebook.tex` at the topic root, read the changed section, and polish for human readability: clean pandoc artifacts, add narrative transitions, condense verbose tables. Python builds the data — AI makes it readable. |
 | "Discussion rounds are just protocol overhead" | Each round must eliminate ONE specific uncertainty. Ask one question per round. If the user says "直接做", proceed — but record what was deferred. |
 | "This is just a simple code/config check" | Code reading for AITP topics IS research. Follow the pipeline — register sources, trace functions, record derivation steps. |
 | "I already understand the physics, let me skip to implementation" | Understanding ≠ recording. Recorded claims persist across sessions and feed L2 knowledge. Unrecorded understanding is lost when context compacts. |
