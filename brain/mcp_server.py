@@ -769,23 +769,29 @@ def aitp_register_source(
     epistemic_tier: str = "",
     source_url: str = "",
     source_path: str = "",
-    commit: str = "",
-    repo: str = "",
-    branch: str = "",
+    clone_repo: str = "",
+    repo_branch: str = "",
+    repo_commit: str = "",
 ) -> str:
-    """Register a source in L0. Creates per-source directory with original/ subdir.
+    """Register a source in L0. Creates per-source directory.
 
-    The source directory structure:
-      L0/sources/<source_id>/
-        source.md          ← metadata + reading notes
-        original/          ← preserved original files (downloaded or copied)
+    All sources are peer-level in L0/sources/<source_id>/:
+      source.md   — pure metadata
+      notes.md    — initial reading notes template
+      original/   — preserved original files (papers, code, user derivations)
+
+    Source types:
+      paper:       arXiv tarball, user PDF/md/tex → original/
+      code:        .cpp/.h/.py files → original/
+      repo:        git clone entire repository into source dir
+      derivation:  user's own derivation PDF/md → original/
 
     Args:
-        source_url: Download URL for the original source file (arxiv tarball, etc.)
-        source_path: Local file/directory path to copy into original/
-        commit: Git commit hash (for code sources — locks exact version reviewed)
-        repo: Repository URL (for code sources)
-        branch: Branch name (for code sources)
+        source_url: Download URL (arxiv e-print, raw file)
+        source_path: Local file/directory to copy into original/
+        clone_repo: Git URL — clones entire repo into source directory
+        repo_branch: Branch name for clone
+        repo_commit: Commit hash to record
     """
     from brain.cli._dispatch_helpers import dispatch
     from brain.cli.commands.source import cmd_source_add
@@ -794,6 +800,7 @@ def aitp_register_source(
         topic=topic_slug, id=source_id, title=title or source_id,
         type=source_type, role=source_role, notes=notes,
         url=source_url, path=source_path,
+        repo=clone_repo, branch=repo_branch, commit=repo_commit,
         success_msg=f"Registered source {_slugify(source_id)}")
 
     # Enrich with extra metadata fields
@@ -814,9 +821,7 @@ def aitp_register_source(
             if method_category: fm["method_category"] = method_category
             if regime: fm["regime"] = regime
             if epistemic_tier: fm["epistemic_tier"] = epistemic_tier
-            if commit: fm["commit"] = commit
-            if repo: fm["repo"] = repo
-            if branch: fm["branch"] = branch
+            if repo_commit: fm["commit"] = repo_commit
             _write_md(path, fm, body)
 
     return result

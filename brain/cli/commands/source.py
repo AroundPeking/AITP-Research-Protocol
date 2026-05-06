@@ -80,76 +80,150 @@ def cmd_source_add(args):
         root = Path(args.topics_root)
     else:
         root = _resolve_topic_root(args.topic)
-    source_id = _slugify(args.id or args.title or args.path or "untitled")
+    source_id = _slugify(args.id or args.title or args.path or args.url or args.repo or "untitled")
 
-    # New: per-source directory structure
-    #   L0/sources/<source_id>/
-    #     source.md          ← metadata + reading notes
-    #     original/          ← preserved original files
+    # Auto-detect type if not given
+    stype = args.type or "paper"
+    if not args.type:
+        if args.repo:
+            stype = "repo"
+        elif args.path:
+            ext = Path(args.path).suffix.lower()
+            if ext in (".cpp", ".h", ".py", ".f90", ".c", ".cu"):
+                stype = "code"
+            elif ext in (".pdf", ".tex", ".md"):
+                stype = "paper"
+
+    # Per-source directory: L0/sources/<source_id>/
     source_dir = root / "L0" / "sources" / source_id
     original_dir = source_dir / "original"
     source_dir.mkdir(parents=True, exist_ok=True)
     original_dir.mkdir(parents=True, exist_ok=True)
 
-    source_path = source_dir / "source.md"
-
-    # Track which original files were stored
     original_files: list[str] = []
 
-    # Copy local file if --path given and exists
+    # ── git clone if --repo given ──────────────────────────────────────
+    if args.repo:
+        import subprocess
+        repo_url = args.repo
+        branch = getattr(args, "branch", None) or ""
+        commit = getattr(args, "commit", "") or ""
+        print(f"  Cloning {repo_url} ...")
+        # Clone into source_dir directly (not into original/)
+        clone_cmd = ["git", "clone"]
+        if branch:
+            clone_cmd += ["--branch", branch, "--single-branch"]
+        clone_cmd += [repo_url, str(source_dir)]
+        result = subprocess.run(clone_cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            # Move source.md and notes.md if they already exist, then recreate
+            # (clone would have created them from template, no — clone creates dir)
+            # Clone creates source_dir; source.md/notes.md written after
+            print(f"  Cloned: {repo_url}")
+            original_files.append("(git repository)")
+        else:
+            print(f"  Clone failed: {result.stderr[:200]}")
+            return 1
+
+    # ── Copy local files if --path given ───────────────────────────────
     if args.path:
         p = Path(args.path)
         if p.exists() and p.is_file():
             dest = original_dir / p.name
             shutil.copy2(p, dest)
             original_files.append(p.name)
-            print(f"  Copied: {p} → {dest}")
+            print(f"  Copied: {p.name} → original/")
         elif p.exists() and p.is_dir():
             for f in p.rglob("*"):
-                if f.is_file():
+                if f.is_file() and ".git" not in f.parts:
                     rel = f.relative_to(p)
                     dest = original_dir / rel
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
             original_files.append(f"{p.name}/ (directory)")
-            print(f"  Copied directory: {p} → {original_dir}")
+            print(f"  Copied directory: {p.name}/ → original/")
         else:
             print(f"  Path not found: {args.path}")
 
-    # Download from URL if --url given
+    # ── Download from URL if --url given ───────────────────────────────
     if args.url:
-        # Derive filename from URL
-        url_path = args.url.split("/")[-1].split("?")[0]
-        if not url_path:
-            url_path = "downloaded"
-        dest = original_dir / url_path
-        if _download_file(args.url, dest):
-            original_files.append(url_path)
-            print(f"  Downloaded: {args.url} → {dest}")
+        url_path = args.url.split("/")[-1].split("?")[0] or "downloaded"
+        if args.url.endswith(".tar.gz") or args.url.endswith(".tgz"):
+            # arXiv e-print: download + extract LaTeX source
+            tarball = original_dir / url_path
+            if _download_file(args.url, tarball):
+                original_files.append(url_path)
+                import tarfile
+                try:
+                    with tarfile.open(tarball) as tf:
+                        tf.extractall(original_dir)
+                    print(f"  Extracted LaTeX source to original/")
+                except Exception as e:
+                    print(f"  Extract failed: {e}")
+        else:
+            dest = original_dir / url_path
+            if _download_file(args.url, dest):
+                original_files.append(url_path)
+                print(f"  Downloaded: {url_path} → original/")
 
+    # ── Write source.md (pure metadata) ───────────────────────────────
     fm = {
         "source_id": source_id,
-        "title": args.title or args.path or args.url or "Untitled",
-        "type": args.type or "paper",
+        "title": args.title or args.path or args.url or args.repo or "Untitled",
+        "type": stype,
         "role": args.role or "direct_dependency",
         "created_at": _now_iso(),
         "original_files": original_files,
     }
-
-    body = f"# {fm['title']}\n\n"
-    if args.path:
-        body += f"Local path: {args.path}\n\n"
+    if args.repo:
+        fm["repo"] = args.repo
+        if branch:
+            fm["branch"] = branch
+        if commit:
+            fm["commit"] = commit
     if args.url:
-        body += f"Source URL: {args.url}\n\n"
-    if original_files:
-        body += f"Original files preserved: {', '.join(original_files)}\n\n"
-    body += f"## Notes\n{args.notes or ''}\n"
+        fm["source_url"] = args.url
 
-    _write_md(source_path, fm, body)
-    _append_research_md(root, "L0", f"Registered source: {source_id}")
-    print(f"Source '{source_id}' registered → {source_dir}")
+    metadata_lines = [
+        f"# Source: {fm['title']}",
+        "",
+        f"**Type**: {fm['type']}",
+        f"**Role**: {fm['role']}",
+        f"**Registered**: {fm['created_at']}",
+        "",
+    ]
     if original_files:
-        print(f"  Original files in {original_dir}")
+        metadata_lines.append(f"**Original files**: {', '.join(original_files)}")
+    if args.repo:
+        metadata_lines.append(f"**Repo**: {args.repo}")
+    if args.url:
+        metadata_lines.append(f"**URL**: {args.url}")
+
+    _write_md(source_dir / "source.md", fm, "\n".join(metadata_lines))
+
+    # ── Write notes.md (initial reading notes template) ───────────────
+    notes_fm = {
+        "kind": "source_notes",
+        "source_id": source_id,
+        "created_at": _now_iso(),
+    }
+    notes_body = (
+        "# Reading Notes\n\n"
+        "## Key Claims / Equations\n\n"
+        "*(Extract the main physical claims, key equations, and argument structure.)*\n\n"
+        "## Structure / Coverage\n\n"
+        "*(Sections read, what each section contributes.)*\n\n"
+        "## Observations\n\n"
+        "*(Anything surprising, unclear, or worth following up.)*\n"
+    )
+    _write_md(source_dir / "notes.md", notes_fm, notes_body)
+
+    _append_research_md(root, "L0", f"Registered source: {source_id} ({stype})")
+    print(f"Source '{source_id}' ({stype}) registered → {source_dir}")
+    print(f"  source.md  — metadata")
+    print(f"  notes.md   — reading notes template")
+    if original_files:
+        print(f"  original/  — {len(original_files)} file(s)")
 
 
 def cmd_source_discover(args):
