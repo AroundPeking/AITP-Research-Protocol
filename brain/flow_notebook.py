@@ -74,7 +74,10 @@ def _parse_md(path: Path) -> tuple[dict[str, Any], str]:
     if not m:
         return {}, text
     import yaml
-    fm = yaml.safe_load(m.group(1)) or {}
+    try:
+        fm = yaml.safe_load(m.group(1)) or {}
+    except yaml.YAMLError:
+        fm = {}
     return fm, m.group(2)
 
 
