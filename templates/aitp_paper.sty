@@ -1,0 +1,153 @@
+% ===========================================================================
+% AITP Research Paper Style  (v1.0)
+% ===========================================================================
+% Load after jheppub.sty. Provides AITP-specific environments for recording
+% the research process: derivations, source anchors, gap flags, validation
+% tables, status badges.
+%
+% Usage:
+%   \usepackage[research]{aitp_paper}   -- show all process markers
+%   \usepackage[final]{aitp_paper}      -- hide process markers (for submission)
+% ===========================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{aitp_paper}[2026/05/07 AITP Research Process Environments]
+
+% ── Package options ──────────────────────────────────────────────────────
+\newif\if@aitp@research
+\@aitp@researchfalse
+\DeclareOption{research}{\@aitp@researchtrue}
+\DeclareOption{final}{\@aitp@researchfalse}
+\ProcessOptions\relax
+
+% ── Required packages ────────────────────────────────────────────────────
+\RequirePackage{xcolor}
+\RequirePackage[most]{tcolorbox}
+\RequirePackage{array}
+\RequirePackage{enumitem}
+\RequirePackage{marginnote}
+\RequirePackage{hyperref}
+
+% ── Colors ───────────────────────────────────────────────────────────────
+\definecolor{aitpblue}{RGB}{47,85,151}
+\definecolor{aitpgreen}{RGB}{34,139,34}
+\definecolor{aitpred}{RGB}{178,34,34}
+\definecolor{aitporange}{RGB}{204,119,34}
+\definecolor{aitpgray}{RGB}{128,128,128}
+
+% ── Status badges ────────────────────────────────────────────────────────
+\newcommand{\statuspass}{\textcolor{aitpgreen}{\textbf{PASS}}}
+\newcommand{\statusfail}{\textcolor{aitpred}{\textbf{FAIL}}}
+\newcommand{\statusactive}{\textcolor{aitporange}{\textbf{ACTIVE}}}
+\newcommand{\statusdeferred}{\textcolor{aitpgray}{\textbf{DEFERRED}}}
+\newcommand{\statusblocked}{\textcolor{aitpred}{\textbf{BLOCKED}}}
+
+% ── Colored boxes ────────────────────────────────────────────────────────
+\newtcolorbox{resultbox}[1][]{
+    colback=aitpblue!4, colframe=aitpblue!70,
+    fonttitle=\bfseries, boxrule=0.6pt, arc=2pt, breakable,
+    title={#1}
+}
+\newtcolorbox{warningbox}[1][]{
+    colback=aitporange!4, colframe=aitporange!70,
+    fonttitle=\bfseries, boxrule=0.6pt, arc=2pt, breakable,
+    title={#1}
+}
+\newtcolorbox{valbox}[1][]{
+    colback=aitpgreen!4, colframe=aitpgreen!70,
+    fonttitle=\bfseries, boxrule=0.6pt, arc=2pt, breakable,
+    title={#1}
+}
+
+% ── Derivation box (numbered step) ───────────────────────────────────────
+\newcounter{derivationstep}
+\newtcolorbox{derivationbox}[2][]{
+    colback=aitpblue!3, colframe=aitpblue!50,
+    fonttitle=\bfseries, boxrule=0.5pt, arc=2pt, breakable,
+    title={Step \thederivationstep: #2},
+    before skip=1em, after skip=1em,
+    #1
+}
+
+\newcommand{\derivationstep}[2]{%
+    \refstepcounter{derivationstep}%
+    \begin{derivationbox}{#1}%
+    #2%
+    \end{derivationbox}%
+}
+
+% ── Source anchor (links to L0 source registry) ──────────────────────────
+\newcommand{\sourceanchor}[2]{%
+    \if@aitp@research
+        \textsuperscript{\textcolor{aitpblue}{\texttt{[S:#1]}}}%
+        \marginnote{\footnotesize\color{aitpgray}#2}%
+    \fi
+}
+
+% ── Gap flag (marks unverified assumptions) ──────────────────────────────
+\newcommand{\gapflag}[2][]{%
+    \if@aitp@research
+        \textcolor{aitporange}{\textbf{\Large[GAP#1]}}%
+        \marginnote{\footnotesize\color{aitporange}#2}%
+    \fi
+}
+
+% ── Formula box (key equations) ──────────────────────────────────────────
+\newtcolorbox{formulabox}[1][]{
+    colback=aitpblue!5, colframe=aitpblue!30,
+    fonttitle=\bfseries, boxrule=0.4pt, arc=2pt, breakable,
+    before skip=0.8em, after skip=0.8em,
+    title={#1}
+}
+
+% ── Validation table ─────────────────────────────────────────────────────
+\newenvironment{validationtable}[1]{%
+    \par\medskip\noindent
+    \begin{tcolorbox}[colback=aitpgreen!3, colframe=aitpgreen!60,
+                      fonttitle=\bfseries, boxrule=0.5pt, arc=2pt,
+                      title={Validation: #1}]
+    \begin{tabular}{l p{5cm} l}
+    \toprule
+    \textbf{Check} & \textbf{Result} & \textbf{Status} \\
+    \midrule
+}{%
+    \bottomrule
+    \end{tabular}
+    \end{tcolorbox}
+    \medskip\par
+}
+
+% ── Numerical result box ─────────────────────────────────────────────────
+\newcommand{\numericalresult}[6]{%
+    \begin{valbox}[#1]
+    \textbf{System:} #2 \quad \textbf{Method:} #3 \\[0.3em]
+    Computed: $\mathbf{#4 \pm #5}$ #6
+    \end{valbox}
+}
+
+% ── Source table ─────────────────────────────────────────────────────────
+\newenvironment{sourcetable}{%
+    \begin{tcolorbox}[colback=aitpgray!3, colframe=aitpgray!40,
+                      fonttitle=\bfseries, boxrule=0.5pt, arc=2pt,
+                      title={Source Registry}]
+    \begin{tabular}{>{\raggedright}p{2.5cm} p{4cm} p{1.5cm} p{1.5cm} p{2cm}}
+    \toprule
+    \textbf{Source ID} & \textbf{Title} & \textbf{Type} & \textbf{Role} & \textbf{Fidelity} \\
+    \midrule
+}{%
+    \bottomrule
+    \end{tabular}
+    \end{tcolorbox}
+}
+
+% ── Research mode: show/hide markers ─────────────────────────────────────
+\if@aitp@research
+    % In research mode, make gap markers visible
+    \newcommand{\ifresearch}[1]{#1}
+\else
+    % In final mode, hide process markers
+    \renewcommand{\sourceanchor}[2]{}
+    \renewcommand{\gapflag}[2][]{}
+    \newcommand{\ifresearch}[1]{}
+\fi
+
+\endinput
