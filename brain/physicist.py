@@ -20,9 +20,13 @@ from typing import Any
 def _check_physicist_l2_lookup(body: str, stage: str) -> list[str]:
     """Verify the AI queried L2 at this stage and recorded findings.
 
-    Each stage must reference L2 knowledge in its artifacts. Not just at L0.
+    Each stage must reference L2 knowledge in its artifacts, and the
+    reference must cite at least one concrete L2 entry ID (e.g. claim-xxx,
+    system-xxx). A bare heading with no entry references is insufficient.
+
     Returns list of missing items (empty = valid).
     """
+    import re
     issues = []
     heading_map = {
         "L0": "## Prior L2 Knowledge",
@@ -33,6 +37,27 @@ def _check_physicist_l2_lookup(body: str, stage: str) -> list[str]:
     heading = heading_map.get(stage)
     if heading and heading not in body:
         issues.append(f"Missing {heading} — must record what L2 already knows about this")
+        return issues
+
+    # Extract content between this heading and the next
+    idx = body.find(heading)
+    content_start = body.find("\n", idx) + 1
+    remaining = body[content_start:]
+    next_section = remaining.find("\n## ")
+    section = remaining[:next_section] if next_section != -1 else remaining
+
+    # Require at least one L2 entry ID reference
+    entry_refs = re.findall(
+        r'(?:claim|system|method|pitfall|question)-[a-z][a-z0-9-]+',
+        section
+    )
+    if not entry_refs:
+        issues.append(
+            f"{heading} must reference at least one L2 entry ID "
+            "(e.g. claim-headwing-formula, system-si-bulk). "
+            "Run aitp_query_l2 or aitp_query_entries before filling this section."
+        )
+
     return issues
 
 

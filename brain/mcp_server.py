@@ -629,11 +629,30 @@ def aitp_bootstrap_topic(
     # `l3_activity` starts at "ideate" — the default L3 subplane activity.
     body = f"# {title}\n\n## Research Question\n{question}\n"
     _write_md(root / "state.md", fm, body)
+
+    # C2: Auto-query L2 for relevant existing knowledge
+    l2_hint = ""
+    try:
+        l2_results = aitp_query_l2(topics_root=topics_root, query=title)
+        if l2_results.get("count", 0) > 0:
+            hints = [
+                f"  [{r.get('entry_role', '?')}] {r.get('title', '?')} ({r.get('trust_basis', '?')})"
+                for r in l2_results["results"][:5]
+            ]
+            l2_hint = (
+                f"\n\n## L2 Knowledge Available ({l2_results['count']} entries)\n"
+                + "\n".join(hints)
+                + f"\n\nUse aitp_query_l2 to explore, aitp_query_entries for details."
+            )
+    except Exception:
+        pass
+
     return (
         f"Bootstrapped topic '{safe_slug}' at {root}\n"
         f"  research_intensity: {research_intensity}\n"
         f"  interaction_level: {interaction_level}\n"
         f"  lane: {lane}"
+        + l2_hint
     )
 
 
@@ -2560,6 +2579,8 @@ def aitp_l4_background_submit(
     host: str = "",
     estimated_wall_time: str = "",
     notes: str = "",
+    source_commit_hash: str = "",
+    source_repo_url: str = "",
 ) -> dict[str, Any]:
     """Submit L4 validation as a background HPC job and return to L3.
 
@@ -2574,6 +2595,9 @@ def aitp_l4_background_submit(
         host: Host where the job is running
         estimated_wall_time: Expected duration (e.g. "2h", "30m")
         notes: What this test is validating
+        source_commit_hash: Git commit hash of the source code being validated
+            (required for code_method lane — ensures binary/source provenance)
+        source_repo_url: Repository URL for the source code
     """
     root = _topic_root(topics_root, topic_slug)
     state_path = root / "state.md"
@@ -2581,11 +2605,46 @@ def aitp_l4_background_submit(
         return {"error": f"Topic {topic_slug} not found"}
 
     fm, body = _parse_md(state_path)
+
+    # GUARD: Block new submission if previous job completed but no review filed
+    prev_status = fm.get("l4_background_status", "")
+    if prev_status == "completed":
+        review_dir = root / "L4" / "reviews"
+        has_reviews = review_dir.is_dir() and list(review_dir.glob("*.md"))
+        if not has_reviews:
+            return {
+                "error": "blocked_unreviewed_completion",
+                "message": (
+                    f"Previous background job ({fm.get('l4_job_id', 'unknown')}) "
+                    f"completed at {fm.get('l4_job_completed_at', 'unknown')} "
+                    f"but no L4 review has been submitted. "
+                    f"Call aitp_l4_check_results to process the results, "
+                    f"then aitp_submit_l4_review BEFORE submitting a new job."
+                ),
+                "popup_gate": {
+                    "question": "Previous job completed but not reviewed. What now?",
+                    "header": "L4: Unreviewed Results",
+                    "options": [
+                        {"label": "Review results",
+                         "description": "Call aitp_l4_check_results to process completed job."},
+                        {"label": "Override & resubmit",
+                         "description": "Acknowledge previous results are stale and submit new job anyway."},
+                    ],
+                },
+            }
+
     fm["l4_background_status"] = "submitted"
     fm["l4_job_id"] = job_id
     fm["l4_job_host"] = host
     fm["l4_job_estimated_time"] = estimated_wall_time
     fm["l4_job_submitted_at"] = _now()
+    fm["l4_job_attempt_count"] = int(fm.get("l4_job_attempt_count", 0)) + 1
+    if not fm.get("l4_first_entered_at"):
+        fm["l4_first_entered_at"] = _now()
+    if source_commit_hash:
+        fm["l4_source_commit_hash"] = source_commit_hash
+    if source_repo_url:
+        fm["l4_source_repo_url"] = source_repo_url
     fm["updated_at"] = _now()
 
     _write_md(state_path, fm, body)
@@ -3118,6 +3177,30 @@ def aitp_return_to_l3_from_l4(
             ),
         })
 
+    # Warn if a background job is still running — returning to L3
+    # gives a false sense of completeness.
+    bg_status = fm.get("l4_background_status", "")
+    if bg_status in ("submitted", "running"):
+        return _GateResult({
+            "message": (
+                f"WARNING: Background job {fm.get('l4_job_id', 'unknown')} "
+                f"is still {bg_status} on {fm.get('l4_job_host', 'unknown')}. "
+                f"Returning to L3 now may give a false sense of completeness."
+            ),
+            "popup_gate": {
+                "question": "Background job still running. Return to L3 anyway?",
+                "header": "L4→L3: Job Running",
+                "options": [
+                    {"label": "Return anyway",
+                     "description": "Go to L3/integrate. The running job will complete independently."},
+                    {"label": "Wait for job",
+                     "description": "Stay in L4 until the background job completes."},
+                    {"label": "Cancel & return",
+                     "description": "Cancel the Slurm job, then return to L3."},
+                ],
+            },
+        })
+
     fm["stage"] = "L3"
     fm["posture"] = "derive"
     fm["l3_activity"] = "integrate"
@@ -3409,6 +3492,53 @@ def aitp_submit_l4_review(
                         f"(aitp_verify_dimensions, aitp_verify_algebra, aitp_verify_derivation_step).\n"
                         f"Python cannot certify physics  --  you must provide the evidence."
                     ),
+                }
+
+    # ---- Evidence content validation ----
+    # Check that evidence_scripts contain actual execution content (not placeholders)
+    # and that evidence_outputs reference files that actually exist on disk.
+    if evidence_scripts:
+        for script_path_str in evidence_scripts:
+            script_full_path = root / script_path_str
+            if not script_full_path.exists():
+                return {
+                    "error": "evidence_script_missing",
+                    "message": f"Evidence script not found: {script_path_str}"
+                }
+            script_content = script_full_path.read_text(encoding="utf-8")
+            if len(script_content.strip()) < 200:
+                return {
+                    "error": "evidence_script_too_short",
+                    "message": (
+                        f"Evidence script {script_path_str} is only "
+                        f"{len(script_content.strip())} bytes. "
+                        f"It must contain actual execution commands, "
+                        f"not a placeholder."
+                    )
+                }
+            has_exec = any(
+                keyword in script_content
+                for keyword in ["mpirun", "srun", "ibrun", "mpiexec",
+                              "python", "python3", "abacus", "librpa",
+                              "vasp", "qe", "pw.x", "yambo", "octopus",
+                              "/", "#!/"]
+            )
+            if not has_exec:
+                return {
+                    "error": "evidence_script_no_exec",
+                    "message": (
+                        f"Evidence script {script_path_str} contains no "
+                        f"recognized execution command or shebang."
+                    )
+                }
+
+    if evidence_outputs:
+        for output_path_str in evidence_outputs:
+            output_full_path = root / output_path_str
+            if not output_full_path.exists():
+                return {
+                    "error": "evidence_output_missing",
+                    "message": f"Evidence output not found: {output_path_str}"
                 }
 
     (root / "L4" / "reviews").mkdir(parents=True, exist_ok=True)
@@ -4502,6 +4632,9 @@ def aitp_query_entries(
             "source_ref": fm.get("source_ref", ""),
             "updated": fm.get("updated", ""),
             "relevance": relevance,
+            # B1: Evidence trust fields exposed for all roles
+            "evidence_type": fm.get("evidence_type", ""),
+            "trust_source": fm.get("source_ref", "")[:120],
         }
 
         # Role-specific facet exposure
@@ -4876,6 +5009,34 @@ def aitp_update_l2_node(
             efm["updated"] = _now()
             efm["version"] = int(efm.get("version", 1)) + 1
             _write_md(entry_path, efm, ebody)
+
+            # B2: Trust downgrade propagation
+            # When trust is downgraded, propagate to dependent entries
+            if trust_level is not None and efm.get("status") == "unverified":
+                old_status = str(efm.get("status", ""))
+                if old_status in ("verified", "consistent"):
+                    # Downgrade detected: find impacted entries
+                    rev_path = global_l2 / "entries" / "INDEX_reverse.md"
+                    if rev_path.exists():
+                        import re
+                        rev_text = rev_path.read_text(encoding="utf-8")
+                        for line in rev_text.split("\n"):
+                            match = re.match(r'- \*\*([^*]+)\*\* ← (.+)', line)
+                            if match and match.group(1).strip() == slug:
+                                impacted = [d.strip() for d in match.group(2).split(",")]
+                                for imp in impacted:
+                                    imp_path = global_l2 / "entries" / f"{imp}.md"
+                                    if imp_path.exists():
+                                        imp_fm, imp_body = _parse_md(imp_path)
+                                        if imp_fm.get("status") == "verified":
+                                            imp_fm["status"] = "consistent"
+                                            imp_fm["trust_downgraded_due_to"] = slug
+                                            imp_fm["updated"] = _now()
+                                            _write_md(imp_path, imp_fm, imp_body)
+                                            warnings.append(
+                                                f"Propagated downgrade: '{imp}' status verified→consistent "
+                                                f"(depends on downgraded '{slug}')"
+                                            )
     except Exception:
         pass
 
@@ -5655,6 +5816,140 @@ def aitp_find_cross_topic_bridges(
         "bridges": unique_bridges,
         "count": len(unique_bridges),
         "authority_level": "L2_cross_topic",
+    }
+
+
+@mcp.tool()
+@require_stage
+def aitp_extract_topic_entries(
+    topics_root: str,
+    topic_slug: str,
+) -> dict[str, Any]:
+    """Auto-extract L2 entries from a topic's L3/L0 artifacts.
+
+    Reads topic artifacts and identifies extractable knowledge:
+    - Systems: from STRU files, chemical formulas, physical parameters
+    - Methods: from workflow descriptions, toolchains
+    - Pitfalls: from error messages in logs
+    - Numerical results: from benchmark tables
+
+    Creates draft entries with status=unverified and source_ref pointing
+    to the topic. Review and edit each entry before promoting to verified.
+    """
+    root = _topic_root(topics_root, topic_slug)
+    extracted: dict[str, list[str]] = {"system": [], "method": [], "pitfall": [], "claim": []}
+
+    # Collect source text from topic artifacts
+    source_texts: list[str] = []
+    for artifact_dir in ["L0", "L3"]:
+        art_path = root / artifact_dir
+        if art_path.is_dir():
+            for md_file in art_path.rglob("*.md"):
+                try:
+                    source_texts.append(md_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+
+    if not source_texts:
+        return {"message": "No topic artifacts found to extract from.", "extracted": extracted}
+
+    combined = "\n".join(source_texts)
+
+    # Extract molecule systems from chemical formulas
+    import re
+    mol_patterns = [
+        (r'\bSi\b', 'Si', 'Silicon'),
+        (r'\bCH[_4]\b', 'CH4', 'Methane'),
+        (r'\bN[_2]\b', 'N2', 'Dinitrogen'),
+        (r'\bCO\b(?!2)', 'CO', 'Carbon Monoxide'),
+        (r'\bC[2_]H[_2]\b', 'C2H2', 'Acetylene'),
+        (r'\bCO[_2]\b', 'CO2', 'Carbon Dioxide'),
+        (r'\bH[_2]O\b', 'H2O', 'Water'),
+    ]
+    found_mols = set()
+    for pattern, slug_formula, _name in mol_patterns:
+        if re.search(pattern, combined):
+            found_mols.add((slug_formula, _name))
+
+    global_l2 = _ensure_l2_graph_dirs(topics_root)
+
+    for formula, name in found_mols:
+        sys_slug = f"system-{formula.lower()}-auto"
+        sys_path = global_l2 / "entries" / f"{sys_slug}.md"
+        if not sys_path.exists():
+            sys_fm = {
+                "entry_id": sys_slug,
+                "role": "system",
+                "title": f"{formula} {name} (auto-extracted from topic)",
+                "lane": ["code_method"],
+                "status": "unverified",
+                "regime": "DFT-GW level, isolated molecule",
+                "system_type": "molecule",
+                "formula_or_identifier": formula,
+                "parameters": "",
+                "source_ref": f"topic:{topic_slug} (auto-extracted)",
+                "updated": _now(),
+                "version": 1,
+                "created_at": _now(),
+            }
+            sys_body = (
+                f"# {formula} {name}\n\n"
+                f"Auto-extracted from topic `{topic_slug}`.\n"
+                f"Review and fill in reference values and calculation records.\n\n"
+                f"## Relationships\n- studied_by: method-abacus-librpa-qsgw\n"
+            )
+            _write_md(sys_path, sys_fm, sys_body)
+            extracted["system"].append(sys_slug)
+
+    # Extract pitfalls from error patterns
+    error_patterns = [
+        (r'ValueError.*not enough values to unpack', "pyatb-api-mismatch-auto",
+         "pyatb API version mismatch", "code_method"),
+        (r'Floating point exception', "fp-exception-auto",
+         "Floating point exception in numerical code", "code_method"),
+        (r'Can\'?t find even an electron', "scf-failure-auto",
+         "SCF convergence failure", "code_method"),
+        (r'divide.by.zero', "div-by-zero-auto",
+         "Division by zero in numerical computation", "code_method"),
+    ]
+    for pattern, pf_slug_base, pf_title_base, pf_lane in error_patterns:
+        if re.search(pattern, combined, re.IGNORECASE):
+            pf_slug = pf_slug_base
+            pf_path = global_l2 / "entries" / f"{pf_slug}.md"
+            if not pf_path.exists():
+                pf_fm = {
+                    "entry_id": pf_slug,
+                    "role": "pitfall",
+                    "title": f"{pf_title_base} (auto-extracted)",
+                    "lane": [pf_lane],
+                    "status": "unverified",
+                    "regime": "topic artifacts",
+                    "symptom": f"Pattern: {pattern}",
+                    "cause": "Auto-extracted — fill in from topic context",
+                    "fix": "Auto-extracted — fill in from topic context",
+                    "source_ref": f"topic:{topic_slug} (auto-extracted)",
+                    "updated": _now(),
+                    "version": 1,
+                    "created_at": _now(),
+                }
+                pf_body = (
+                    f"# {pf_title_base}\n\n"
+                    f"Auto-extracted from topic `{topic_slug}`.\n"
+                    f"Review and fill in symptom/cause/fix details.\n\n"
+                    f"## Relationships\n"
+                )
+                _write_md(pf_path, pf_fm, pf_body)
+                extracted["pitfall"].append(pf_slug)
+
+    # Rebuild indexes
+    _rebuild_entry_index(global_l2)
+    _append_to_topic_log(root, f"auto-extracted L2 entries: {extracted}")
+
+    return {
+        "topic": topic_slug,
+        "extracted": extracted,
+        "total": sum(len(v) for v in extracted.values()),
+        "message": "Extracted entries created with status=unverified. Review before promoting.",
     }
 
 

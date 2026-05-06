@@ -21,28 +21,32 @@ def _bootstrap_with_candidate(tmp: str) -> tuple[Path, str]:
     tr = repo_root / "topics" / "demo-topic"
 
     # Fill ideate and advance through to distill for completeness
+    _long = "X" * 60  # satisfy minimum content length checks in preflight
     activity_sequence = [
         ("ideate", "active_idea.md",
          {"idea_statement": "Idea", "motivation": "Motivation"},
-         ["## Idea Statement", "## Motivation"]),
+         [("## Idea Statement", _long), ("## Motivation", _long)]),
         ("plan", "active_plan.md",
          {"plan_statement": "Plan", "derivation_route": "Route"},
-         ["## Plan Statement", "## Derivation Route"]),
+         [("## Plan Statement", _long), ("## Derivation Route", _long)]),
         ("derive", "active_derivation.md",
          {"derivation_count": 1, "all_steps_justified": "yes"},
-         ["## Derivation Chains", "## Step-by-Step Trace"]),
+         [("## Derivation Chains", _long), ("## Step-by-Step Trace", _long)]),
+        ("gap-audit", "active_gaps.md",
+         {"gap_audit_count": 1},
+         [("## Correspondence Check", _long), ("## Gap Report", _long)]),
         ("integrate", "active_integration.md",
          {"integration_statement": "Integration", "findings": "Findings"},
-         ["## Integration Statement", "## Findings"]),
+         [("## Integration Statement", _long), ("## Findings", _long)]),
         ("distill", "active_distillation.md",
          {"distilled_claim": "Claim", "evidence_summary": "Evidence"},
-         ["## Distilled Claim", "## Evidence Summary"]),
+         [("## Distilled Claim", _long), ("## Evidence Summary", _long)]),
     ]
     for i, (act, artifact_name, fields, headings) in enumerate(activity_sequence):
         mcp_server._write_md(
             tr / "L3" / act / artifact_name,
             {"artifact_kind": f"l3_active_{act}", "activity": act, **fields},
-            "# Active\n\n" + "\n".join(f"{h}\nContent" for h in headings) + "\n",
+            "# Active\n\n" + "\n".join(f"{h}\n{body}" for h, body in headings) + "\n",
         )
         if i < len(activity_sequence) - 1:
             next_act = activity_sequence[i + 1][0]
@@ -55,10 +59,45 @@ def _bootstrap_with_candidate(tmp: str) -> tuple[Path, str]:
         evidence="Supporting evidence",
     )
 
-    # Set topic stage to L4 so promotion gate allows it
-    state_fm, state_body = mcp_server._parse_md(tr / "state.md")
-    state_fm["stage"] = "L4"
-    mcp_server._write_md(tr / "state.md", state_fm, state_body)
+    # Create minimal derivation steps at the resolved topic root
+    # (resolve_topic_root prefers <tmp>/<slug> over <tmp>/topics/<slug>)
+    resolved_root = mcp_server._topic_root(str(repo_root), "demo-topic")
+    steps_dir = resolved_root / "L2" / "graph" / "steps"
+    steps_dir.mkdir(parents=True, exist_ok=True)
+    (steps_dir / "step-01.md").write_text("""---
+step_id: step-01
+claim: Test derivation step
+status: completed
+---
+# Step 01
+Test derivation step content for preflight validation.
+""", encoding="utf-8")
+
+    # Also create at the tr path for test assertions that use tr directly
+    steps_dir2 = tr / "L2" / "graph" / "steps"
+    steps_dir2.mkdir(parents=True, exist_ok=True)
+    (steps_dir2 / "step-01.md").write_text("""---
+step_id: step-01
+claim: Test derivation step
+status: completed
+---
+# Step 01
+Test derivation step content for preflight validation.
+""", encoding="utf-8")
+
+    # Set topic stage to L4 and pre-approve promotion preflight checks
+    # Note: gate_override_scope must be "current_gate" or "this_session"
+    # for current_gate_status() to recognize it (cli/state.py:68)
+    for state_path in (resolved_root / "state.md", tr / "state.md"):
+        if state_path.exists():
+            state_fm, state_body = mcp_server._parse_md(state_path)
+            state_fm["stage"] = "L4"
+            state_fm["gate_override"] = True
+            state_fm["gate_override_reason"] = "test fixture"
+            state_fm["gate_override_scope"] = "current_gate"
+            state_fm["l4_human_reviewed"] = True
+            state_fm["l4_human_decision"] = "approved"
+            mcp_server._write_md(state_path, state_fm, state_body)
 
     return repo_root, "cand-1"
 
@@ -68,8 +107,9 @@ class L4ReviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             result = mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "partial_pass",
-                "Dimensional check passed but symmetry check inconclusive.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="partial_pass",
+                notes="Dimensional check passed but symmetry check inconclusive.",
             )
             self.assertIn("partial_pass", result)
             tr = repo_root / "topics" / "demo-topic"
@@ -82,8 +122,9 @@ class L4ReviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             result = mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "contradiction",
-                "Claim contradicts eq.12 in source.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="contradiction",
+                notes="Claim contradicts eq.12 in source.",
             )
             self.assertIn("contradiction", result)
 
@@ -91,8 +132,9 @@ class L4ReviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             result = mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "stuck",
-                "Cannot resolve sign ambiguity without further data.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="stuck",
+                notes="Cannot resolve sign ambiguity without further data.",
             )
             self.assertIn("stuck", result)
 
@@ -116,13 +158,24 @@ class GlobalL2MemoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "pass", "All checks passed.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="pass",
+                notes="All checks passed.",
                 check_results={"dimensional_consistency": "pass"},
                 devils_advocate="Test fixture review.",
             )
-            mcp_server.aitp_request_promotion(tmp, "demo-topic", cand_id)
-            mcp_server.aitp_resolve_promotion_gate(tmp, "demo-topic", cand_id, "approve")
-            result = mcp_server.aitp_promote_candidate(tmp, "demo-topic", cand_id)
+            mcp_server.aitp_request_promotion(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
+            mcp_server.aitp_resolve_promotion_gate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, decision="approve",
+            )
+            result = mcp_server.aitp_promote_candidate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
             self.assertIn("Promoted", result)
 
             from brain.mcp_server import _global_l2_path
@@ -133,13 +186,24 @@ class GlobalL2MemoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "pass", "All checks passed.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="pass",
+                notes="All checks passed.",
                 check_results={"dimensional_consistency": "pass"},
                 devils_advocate="Test fixture review.",
             )
-            mcp_server.aitp_request_promotion(tmp, "demo-topic", cand_id)
-            mcp_server.aitp_resolve_promotion_gate(tmp, "demo-topic", cand_id, "approve")
-            mcp_server.aitp_promote_candidate(tmp, "demo-topic", cand_id)
+            mcp_server.aitp_request_promotion(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
+            mcp_server.aitp_resolve_promotion_gate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, decision="approve",
+            )
+            mcp_server.aitp_promote_candidate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
 
             # Submit same candidate with different claim
             tr = repo_root / "topics" / "demo-topic"
@@ -155,9 +219,18 @@ class GlobalL2MemoryTests(unittest.TestCase):
             cand_fm_new["status"] = "validated"
             mcp_server._write_md(cand_path, cand_fm_new, cand_body_new)
 
-            mcp_server.aitp_request_promotion(tmp, "demo-topic", "cand-1")
-            mcp_server.aitp_resolve_promotion_gate(tmp, "demo-topic", "cand-1", "approve")
-            result = mcp_server.aitp_promote_candidate(tmp, "demo-topic", "cand-1")
+            mcp_server.aitp_request_promotion(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id="cand-1",
+            )
+            mcp_server.aitp_resolve_promotion_gate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id="cand-1", decision="approve",
+            )
+            result = mcp_server.aitp_promote_candidate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id="cand-1",
+            )
             self.assertTrue(
                 "Conflict" in result or "conflict" in result.lower()
                 or "v2" in result.lower() or "Promoted" in result
@@ -167,14 +240,25 @@ class GlobalL2MemoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "pass", "All checks passed.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="pass",
+                notes="All checks passed.",
                 check_results={"dimensional_consistency": "pass"},
                 devils_advocate="Test fixture review.",
             )
             tr = repo_root / "topics" / "demo-topic"
-            mcp_server.aitp_request_promotion(tmp, "demo-topic", cand_id)
-            mcp_server.aitp_resolve_promotion_gate(tmp, "demo-topic", cand_id, "approve")
-            result = mcp_server.aitp_promote_candidate(tmp, "demo-topic", cand_id)
+            mcp_server.aitp_request_promotion(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
+            mcp_server.aitp_resolve_promotion_gate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, decision="approve",
+            )
+            result = mcp_server.aitp_promote_candidate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
             self.assertTrue(
                 "Promoted" in result or "v" in result.lower()
             )
@@ -185,13 +269,24 @@ class TrustClassificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo_root, cand_id = _bootstrap_with_candidate(tmp)
             mcp_server.aitp_submit_l4_review(
-                tmp, "demo-topic", cand_id, "pass", "All checks passed.",
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, outcome="pass",
+                notes="All checks passed.",
                 check_results={"dimensional_consistency": "pass"},
                 devils_advocate="Test fixture review.",
             )
-            mcp_server.aitp_request_promotion(tmp, "demo-topic", cand_id)
-            mcp_server.aitp_resolve_promotion_gate(tmp, "demo-topic", cand_id, "approve")
-            mcp_server.aitp_promote_candidate(tmp, "demo-topic", cand_id)
+            mcp_server.aitp_request_promotion(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
+            mcp_server.aitp_resolve_promotion_gate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id, decision="approve",
+            )
+            mcp_server.aitp_promote_candidate(
+                topics_root=tmp, topic_slug="demo-topic",
+                candidate_id=cand_id,
+            )
             from brain.mcp_server import _global_l2_path
             g2 = _global_l2_path(tmp)
             l2_fm, _ = mcp_server._parse_md(g2 / "cand-1.md")

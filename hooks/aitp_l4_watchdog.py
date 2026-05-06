@@ -181,6 +181,15 @@ def record_completion(topic_root: Path, job_status: str, job_result_raw: str = "
     fm["l4_background_status"] = "completed"
     fm["l4_job_result"] = job_status
     fm["l4_job_completed_at"] = _now()
+
+    # Consecutive failure tracking: increment on failure, reset on success.
+    # The L4 gate uses this to detect infrastructure/environment issues that
+    # are not verification issues and should trigger retreat to L1.
+    if job_status in ("failed", "timeout", "oom", "cancelled", "completed_with_errors"):
+        fm["l4_consecutive_failures"] = int(fm.get("l4_consecutive_failures", 0)) + 1
+    elif job_status == "completed":
+        fm["l4_consecutive_failures"] = 0
+
     if job_result_raw:
         fm.setdefault("l4_job_output_summary", job_result_raw[:200])
     fm["updated_at"] = _now()

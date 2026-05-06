@@ -353,9 +353,15 @@ PHYSICS_CHECK_FIELDS = [
 
 # Lane-dependent required check fields.
 # formal_theory requires all 8 physics checks.
-# Other lanes require only the original 5 (heavy-topological checks like
-# unitarity/causality are less relevant to numerical/material workflows).
+# code_method and toy_numeric require the first 6 (includes
+# approximation_validity_check — the single most important check
+# for numerical workflows: k-point convergence, basis set quality,
+# pseudopotential validity, functional choice).
+# Other lanes require only the original 5 (unitarity/causality are
+# less relevant to non-field-theory workflows).
 _LANE_PHYSICS_CHECK_FIELDS: dict[str, list[str]] = {
     "formal_theory": PHYSICS_CHECK_FIELDS,
+    "code_method": PHYSICS_CHECK_FIELDS[:6],
+    "toy_numeric": PHYSICS_CHECK_FIELDS[:6],
 }
 

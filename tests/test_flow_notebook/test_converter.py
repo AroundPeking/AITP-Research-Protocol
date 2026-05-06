@@ -73,11 +73,13 @@ class TestHeadings:
     def test_h2_to_subsubsection(self):
         assert r"\subsubsection*{Title}" in md_body_to_latex("## Title")
 
-    def test_h3_to_paragraph(self):
-        assert r"\paragraph*{Title}" in md_body_to_latex("### Title")
+    def test_h3_to_bold_heading(self):
+        result = md_body_to_latex("### Title")
+        assert r"\textbf{Title}" in result
 
-    def test_h4_to_subparagraph(self):
-        assert r"\subparagraph*{Title}" in md_body_to_latex("#### Title")
+    def test_h4_to_bold_heading(self):
+        result = md_body_to_latex("#### Title")
+        assert r"\textbf{Title}" in result
 
 
 class TestLists:
