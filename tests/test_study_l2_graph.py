@@ -44,7 +44,7 @@ def _bootstrap(td):
     """Bootstrap topic and advance past L0."""
     aitp_bootstrap_topic.__wrapped__(td, TOPIC, "Test Topic", "What is X?")
     _fill_l0_gate(td)
-    aitp_advance_to_l1(td, TOPIC)
+    aitp_advance_to_l1(topics_root=td, topic_slug=TOPIC)
 
 
 def _fill_l0_gate(td):
@@ -157,25 +157,25 @@ class TestL3Workspace:
         _bootstrap(td)
         _fill_l1_gate(td)
 
-        r = aitp_advance_to_l3(td, TOPIC)
+        r = aitp_advance_to_l3(topics_root=td, topic_slug=TOPIC)
         assert "L3" in str(r)
 
-        s = aitp_get_status(td, TOPIC)
+        s = aitp_get_status(topics_root=td, topic_slug=TOPIC)
         assert s["stage"] == "L3"
 
-        brief = aitp_get_execution_brief(td, TOPIC)
+        brief = aitp_get_execution_brief(topics_root=td, topic_slug=TOPIC)
         assert brief.get("l3_subplane") == "ideate"
 
     def test_activity_switch(self, tmp_path):
         td = _setup_td(tmp_path)
         _bootstrap(td)
         _fill_l1_gate(td)
-        aitp_advance_to_l3(td, TOPIC)
+        aitp_advance_to_l3(topics_root=td, topic_slug=TOPIC)
 
-        r = aitp_switch_l3_activity(td, TOPIC, "derive")
+        r = aitp_switch_l3_activity(topics_root=td, topic_slug=TOPIC, activity="derive")
         assert "derive" in r
 
-        brief = aitp_get_execution_brief(td, TOPIC)
+        brief = aitp_get_execution_brief(topics_root=td, topic_slug=TOPIC)
         assert brief.get("l3_subplane") == "derive"
 
     def test_any_activity_switch_allowed(self, tmp_path):
@@ -183,31 +183,31 @@ class TestL3Workspace:
         td = _setup_td(tmp_path)
         _bootstrap(td)
         _fill_l1_gate(td)
-        aitp_advance_to_l3(td, TOPIC)
+        aitp_advance_to_l3(topics_root=td, topic_slug=TOPIC)
 
         # Jump directly from ideate to distill
-        r = aitp_switch_l3_activity(td, TOPIC, "distill")
+        r = aitp_switch_l3_activity(topics_root=td, topic_slug=TOPIC, activity="distill")
         assert "distill" in r
 
-        brief = aitp_get_execution_brief(td, TOPIC)
+        brief = aitp_get_execution_brief(topics_root=td, topic_slug=TOPIC)
         assert brief.get("l3_subplane") == "distill"
 
     def test_invalid_activity_rejected(self, tmp_path):
         td = _setup_td(tmp_path)
         _bootstrap(td)
         _fill_l1_gate(td)
-        aitp_advance_to_l3(td, TOPIC)
+        aitp_advance_to_l3(topics_root=td, topic_slug=TOPIC)
 
-        r = aitp_switch_l3_activity(td, TOPIC, "nonexistent")
+        r = aitp_switch_l3_activity(topics_root=td, topic_slug=TOPIC, activity="nonexistent")
         assert "Unknown activity" in r
 
     def test_execution_brief_includes_l3_info(self, tmp_path):
         td = _setup_td(tmp_path)
         _bootstrap(td)
         _fill_l1_gate(td)
-        aitp_advance_to_l3(td, TOPIC)
+        aitp_advance_to_l3(topics_root=td, topic_slug=TOPIC)
 
-        brief = aitp_get_execution_brief(td, TOPIC)
+        brief = aitp_get_execution_brief(topics_root=td, topic_slug=TOPIC)
         assert isinstance(brief, dict)
         assert "l3_subplane" in brief
         assert "l3_mode" in brief
@@ -219,8 +219,8 @@ class TestL2GraphNodes:
 
     def test_create_node(self, tmp_path):
         td = _setup_td(tmp_path)
-        r = aitp_create_l2_node(
-            td, "qho-hamiltonian", "concept",
+        r = aitp_create_l2_node.__wrapped__(td,
+            "qho-hamiltonian", "concept",
             "QHO Hamiltonian",
             source_ref="ref:griffiths-ch2",
             domain="quantum-many-body",
@@ -236,20 +236,20 @@ class TestL2GraphNodes:
         td = _setup_td(tmp_path)
         for ntype in L2_NODE_TYPES:
             nid = f"test-{ntype.replace('_', '-')}"
-            r = aitp_create_l2_node(
-                td, nid, ntype, f"Test {ntype}",
+            r = aitp_create_l2_node.__wrapped__(td,
+            nid, ntype, f"Test {ntype}",
                 source_ref="ref:test", domain="quantum-many-body",
             )
             assert "Created" in r, f"Failed for type {ntype}"
 
     def test_update_node(self, tmp_path):
         td = _setup_td(tmp_path)
-        aitp_create_l2_node(
-            td, "test-node", "concept", "Test Node",
+        aitp_create_l2_node.__wrapped__(td,
+            "test-node", "concept", "Test Node",
             source_ref="ref:test", domain="quantum-many-body",
         )
-        r = aitp_update_l2_node(
-            td, "test-node",
+        r = aitp_update_l2_node.__wrapped__(td,
+            "test-node",
             physical_meaning="Updated meaning",
             mathematical_expression="H = E",
         )
@@ -257,15 +257,15 @@ class TestL2GraphNodes:
 
     def test_node_merge_preserves_trust(self, tmp_path):
         td = _setup_td(tmp_path)
-        aitp_create_l2_node(
-            td, "merge-node", "concept", "Merge Node",
+        aitp_create_l2_node.__wrapped__(td,
+            "merge-node", "concept", "Merge Node",
             source_ref="ref:A", domain="quantum-many-body",
         )
         # Update trust to validated
         aitp_update_l2_node.__wrapped__(td, "merge-node", trust_level="validated")
         # Re-create with same id -- node already exists
-        r = aitp_create_l2_node(
-            td, "merge-node", "concept", "Merge Node",
+        r = aitp_create_l2_node.__wrapped__(td,
+            "merge-node", "concept", "Merge Node",
             source_ref="ref:A", domain="quantum-many-body",
         )
         # Should still exist as updated
@@ -280,8 +280,7 @@ class TestL2GraphEdges:
         td = _setup_td(tmp_path)
         aitp_create_l2_node.__wrapped__(td, "node-a", "concept", "Node A", source_ref="ref:test", domain="quantum-many-body")
         aitp_create_l2_node.__wrapped__(td, "node-b", "concept", "Node B", source_ref="ref:test", domain="quantum-many-body")
-        r = aitp_create_l2_edge(td, "edge-ab", "node-a", "node-b", "uses",
-                                source_ref="ref:test")
+        r = aitp_create_l2_edge(topics_root=td, edge_id="edge-ab", from_node="node-a", to_node="node-b", edge_type="uses", source_ref="ref:test")
         assert "Created" in r
 
     def test_create_edge_all_types(self, tmp_path):
@@ -290,7 +289,7 @@ class TestL2GraphEdges:
         aitp_create_l2_node.__wrapped__(td, "nb", "concept", "NB", source_ref="ref:test", domain="quantum-many-body")
         for etype in L2_EDGE_TYPES:
             eid = f"edge-{etype.replace('_', '-')}"
-            r = aitp_create_l2_edge(td, eid, "na", "nb", etype, source_ref="ref:test")
+            r = aitp_create_l2_edge(topics_root=td, edge_id=eid, from_node="na", to_node="nb", edge_type=etype, source_ref="ref:test")
             assert "Created" in r, f"Failed for edge type {etype}"
 
     def test_edge_rejects_dangling_nodes(self, tmp_path):
@@ -308,7 +307,7 @@ class TestL2GraphQuery:
         aitp_create_l2_node.__wrapped__(td, "propagator-func", "concept", "Propagator",
                             source_ref="ref:test", domain="quantum-many-body",
                             physical_meaning="Green function propagator of the many-body system")
-        graph = aitp_query_l2_graph(td, query="propagator")
+        graph = aitp_query_l2_graph(topics_root=td, query="propagator")
         assert len(graph["nodes"]) >= 1
         titles = [n["title"] for n in graph["nodes"]]
         assert any("Propagator" in t for t in titles)
@@ -317,7 +316,7 @@ class TestL2GraphQuery:
         td = _setup_td(tmp_path)
         aitp_create_l2_node.__wrapped__(td, "t1", "concept", "Concept", source_ref="ref:test", domain="quantum-many-body")
         aitp_create_l2_node.__wrapped__(td, "t2", "theorem", "Theorem", source_ref="ref:test", domain="quantum-many-body")
-        graph = aitp_query_l2_graph(td, node_type="concept")
+        graph = aitp_query_l2_graph(topics_root=td, node_type="concept")
         types = {n["type"] for n in graph["nodes"]}
         assert "concept" in types
 
@@ -325,8 +324,8 @@ class TestL2GraphQuery:
         td = _setup_td(tmp_path)
         aitp_create_l2_node.__wrapped__(td, "from-a", "concept", "From A", source_ref="ref:test", domain="quantum-many-body")
         aitp_create_l2_node.__wrapped__(td, "to-b", "concept", "To B", source_ref="ref:test", domain="quantum-many-body")
-        aitp_create_l2_edge(td, "e1", "from-a", "to-b", "uses", source_ref="ref:test")
-        graph = aitp_query_l2_graph(td, from_node="from-a")
+        aitp_create_l2_edge(topics_root=td, edge_id="e1", from_node="from-a", to_node="to-b", edge_type="uses", source_ref="ref:test")
+        graph = aitp_query_l2_graph(topics_root=td, from_node="from-a")
         assert len(graph["edges"]) >= 1
 
 
