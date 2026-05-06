@@ -847,6 +847,121 @@ def aitp_register_source(
 
 
 @mcp.tool()
+def aitp_search_and_register(
+    topics_root: str,
+    topic_slug: str,
+    query: str,
+    source_role: str = "direct_dependency",
+    max_results: int = 10,
+    auto_register: bool = False,
+    register_top_n: int = 0,
+) -> dict[str, Any]:
+    """Search arXiv and optionally register results as L0 sources.
+
+    Combines discovery and registration into a single call. When auto_register
+    or register_top_n is set, the top results are automatically registered
+    as source directories with source.md (metadata only — no tarball download).
+
+    Args:
+        query: arXiv search query (same syntax as arxiv.org)
+        source_role: role for auto-registered sources (default: direct_dependency)
+        max_results: max results to return (1-50, default 10)
+        auto_register: if True, register ALL returned results
+        register_top_n: auto-register only the top N results
+
+    Returns:
+        {query, total_found, registered: [arxiv_id, ...],
+         results: [{arxiv_id, title, authors, year, summary}]}
+    """
+    import urllib.parse
+    import xml.etree.ElementTree as ET
+
+    max_results = max(1, min(max_results, 50))
+    register_top_n = max(0, min(register_top_n, max_results))
+
+    url = "http://export.arxiv.org/api/query?" + urllib.parse.urlencode({
+        "search_query": query,
+        "max_results": str(max_results),
+        "sortBy": "relevance",
+        "start": "0",
+    })
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "AITP/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = resp.read().decode("utf-8")
+    except Exception as e:
+        return {"query": query, "error": str(e), "total_found": 0, "registered": [], "results": []}
+
+    ns = {"atom": "http://www.w3.org/2005/Atom",
+          "arxiv": "http://arxiv.org/schemas/atom"}
+    root_el = ET.fromstring(data)
+
+    entries = root_el.findall("atom:entry", ns)
+    results: list[dict[str, str]] = []
+
+    for entry in entries:
+        title = entry.findtext("atom:title", "", ns).strip().replace("\n", " ")
+        arxiv_id_full = entry.findtext("atom:id", "", ns).strip()
+        arxiv_short = arxiv_id_full.split("/abs/")[-1] if "/abs/" in arxiv_id_full else arxiv_id_full
+        authors = [
+            a.findtext("atom:name", "", ns).strip()
+            for a in entry.findall("atom:author", ns)
+        ]
+        summary = entry.findtext("atom:summary", "", ns).strip()[:300].replace("\n", " ")
+        published = entry.findtext("atom:published", "", ns)[:10]
+        results.append({
+            "arxiv_id": arxiv_short,
+            "title": title,
+            "authors": authors,
+            "year": published[:4] if published else "",
+            "published": published,
+            "summary": summary,
+        })
+
+    if not results:
+        return {"query": query, "total_found": 0, "registered": [], "results": []}
+
+    # Auto-register if requested
+    registered: list[str] = []
+    n_to_register = register_top_n if register_top_n > 0 else (len(results) if auto_register else 0)
+
+    if n_to_register > 0:
+        import os as _os
+        from brain.cli._dispatch_helpers import dispatch
+        from brain.cli.commands.source import cmd_source_add
+
+        _os.environ["AITP_TOPICS_ROOT"] = topics_root
+        for r in results[:n_to_register]:
+            sid = _slugify(r["arxiv_id"])
+            try:
+                dispatch(cmd_source_add,
+                    topic=topic_slug, id=sid,
+                    title=r["title"],
+                    type="paper", role=source_role,
+                    url="", path="", repo="", branch="", commit="",
+                    success_msg=f"Auto-registered {sid}")
+                # Enrich with arxiv_id
+                root = _topic_root(topics_root, topic_slug)
+                sf = root / "L0" / "sources" / sid / "source.md"
+                if sf.exists():
+                    fm, body = _parse_md(sf)
+                    fm["arxiv_id"] = r["arxiv_id"]
+                    fm["fidelity"] = "arxiv_preprint"
+                    _write_md(sf, fm, body)
+                registered.append(sid)
+            except Exception as e:
+                logger.warning(f"Auto-register {sid} failed: {e}")
+
+    return {
+        "query": query,
+        "total_found": len(results),
+        "registered": registered,
+        "results": results,
+    }
+
+
+@mcp.tool()
 def aitp_list_sources(topics_root: str, topic_slug: str) -> list[dict[str, Any]]:
     """List all registered sources for a topic."""
     root = _topic_root(topics_root, topic_slug)
@@ -1483,8 +1598,21 @@ def aitp_submit_candidate(
         return result
 
     _auto_refresh_flow_notebook(root, state_fm)
+
+    # Physicist check: verify L3 derivation artifacts reference L2 knowledge
+    l2_warnings = _physicist_check_at_checkpoint(root, "L3")
+
+    message = f"Submitted candidate {slug}"
+    if l2_warnings:
+        message += (
+            "\n\n[PHYSICIST CHECK] L3 artifacts should reference L2 knowledge:\n"
+            + "\n".join(f"  - {w}" for w in l2_warnings)
+            + "\n\nRun aitp_query_l2 or aitp_query_entries to check your derivation "
+            "against known results before validating."
+        )
+
     return _GateResult({
-        "message": f"Submitted candidate {slug}",
+        "message": message,
         "popup_gate": {
             "question": f"Submit candidate '{title}' ({slug}) for validation?",
             "header": "Submit",
@@ -3111,8 +3239,20 @@ def aitp_advance_to_l3(
             if not artifact_path.exists():
                 _write_md(artifact_path, template_fm, template_body)
 
+    # Physicist check: verify L1 artifacts reference L2 knowledge
+    l2_warnings = _physicist_check_at_checkpoint(root, "L1")
+
+    message = "Advanced to L3 flexible workspace. All activities available. Default: ideate."
+    if l2_warnings:
+        message += (
+            "\n\n[PHYSICIST CHECK] L1 artifacts should reference L2 knowledge:\n"
+            + "\n".join(f"  - {w}" for w in l2_warnings)
+            + "\n\nRun aitp_query_l2 or aitp_query_entries and update your L1 artifacts "
+            "before starting derivation."
+        )
+
     return _GateResult({
-        "message": "Advanced to L3 flexible workspace. All activities available. Default: ideate.",
+        "message": message,
         "popup_gate": {
             "question": "L1 complete. Enter L3 flexible workspace?",
             "header": "L1→L3",
@@ -3122,6 +3262,56 @@ def aitp_advance_to_l3(
             ],
         },
     })
+
+
+def _physicist_check_at_checkpoint(topic_root: Path, stage: str) -> list[str]:
+    """Run physicist L2 lookup check on all artifacts for a given stage.
+
+    Scans the topic's artifacts directory for the expected heading and
+    validates that L2 was queried (entry IDs referenced or query evidence).
+
+    Returns list of warnings (empty = valid).
+    """
+    from brain.physicist import _check_physicist_l2_lookup
+
+    artifact_dir_map = {
+        "L1": topic_root / "L1",
+        "L3": topic_root / "L3",
+    }
+    heading_stage_map = {
+        "L1": "L1",
+        "L3": "L3",
+    }
+
+    artifacts_dir = artifact_dir_map.get(stage)
+    if not artifacts_dir or not artifacts_dir.is_dir():
+        return []
+
+    check_stage = heading_stage_map.get(stage, stage)
+    warnings: list[str] = []
+
+    for md_file in artifacts_dir.glob("*.md"):
+        try:
+            body = md_file.read_text(encoding="utf-8")
+            issues = _check_physicist_l2_lookup(body, check_stage)
+            if issues:
+                warnings.append(f"{md_file.name}: {issues[0]}")
+        except Exception:
+            pass
+
+    # Also check subdirectories (L3 has activity dirs)
+    for sub in artifacts_dir.iterdir():
+        if sub.is_dir():
+            for md_file in sub.glob("*.md"):
+                try:
+                    body = md_file.read_text(encoding="utf-8")
+                    issues = _check_physicist_l2_lookup(body, check_stage)
+                    if issues:
+                        warnings.append(f"{sub.name}/{md_file.name}: {issues[0]}")
+                except Exception:
+                    pass
+
+    return warnings
 
 
 # dispatch: aitp switch-activity (partial — L4→L3 bg job logic is MCP-native)

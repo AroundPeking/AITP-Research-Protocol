@@ -523,6 +523,8 @@ def build_parser():
     p_sd.add_argument("topic", help="Topic slug")
     p_sd.add_argument("--query", required=True, help="arXiv search query")
     p_sd.add_argument("--max", type=int, default=10, help="Max results (default 10)")
+    p_sd.add_argument("--register", type=int, default=0, metavar="N",
+                      help="Auto-register top N results as L0 sources")
     p_sd.set_defaults(func=cmd_source_discover)
     p_sr = p_src_sub.add_parser("registry", help="Synthesize source coverage assessment")
     p_sr.add_argument("topic", help="Topic slug")

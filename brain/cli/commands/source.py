@@ -1,5 +1,6 @@
 """L0 source management CLI commands."""
 from __future__ import annotations
+import argparse
 from pathlib import Path
 import shutil
 import urllib.request
@@ -275,7 +276,37 @@ def cmd_source_discover(args):
         print(f"   Published: {published}  |  {summary[:120]}...")
         print()
 
-    print(f"Register with: aitp source add {args.topic} --id <arxiv_id> --title \"...\" --type paper")
+    register_n = getattr(args, "register", 0) or 0
+    if register_n > 0:
+        n = min(register_n, len(entries))
+        print(f"\nAuto-registering top {n} result(s)...")
+        registered = 0
+        for i, entry in enumerate(entries[:n], 1):
+            title = entry.findtext("atom:title", "", ns).strip().replace("\n", " ")
+            arxiv_id_full = entry.findtext("atom:id", "", ns).strip()
+            arxiv_short = arxiv_id_full.split("/abs/")[-1] if "/abs/" in arxiv_id_full else arxiv_id_full
+            sid = _slugify(arxiv_short)
+            try:
+                cmd_source_add(argparse.Namespace(
+                    topic=args.topic, id=sid, type="paper", role="direct_dependency",
+                    title=title, url="", path="", repo="", branch="", commit="",
+                    notes="",
+                ))
+                # Enrich with arxiv_id
+                topic_root = _resolve_topic_root(args.topic)
+                src_path = topic_root / "L0" / "sources" / sid / "source.md"
+                if src_path.exists():
+                    fm, body = _parse_md(src_path)
+                    fm["arxiv_id"] = arxiv_short
+                    fm["fidelity"] = "arxiv_preprint"
+                    _write_md(src_path, fm, body)
+                registered += 1
+                print(f"  {i}. [{arxiv_short}] {title[:60]}...  REGISTERED")
+            except Exception as e:
+                print(f"  {i}. [{arxiv_short}] FAILED: {e}")
+        print(f"\nRegistered {registered}/{n}. Use 'aitp source registry {args.topic}' to view.")
+    else:
+        print(f"Register with: aitp source add {args.topic} --id <arxiv_id> --title \"...\" --type paper")
     return 0
 
 
