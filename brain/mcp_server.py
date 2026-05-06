@@ -1214,14 +1214,18 @@ def aitp_write_section_intake(
     prerequisites: str = "",
     completeness_confidence: str = "",
     cross_references: str = "",
+    source_file: str = "",
 ) -> str:
-    """Write a structured per-section intake note after reading a source section.
+    """Write a structured per-section intake note after reading a source.
 
-    Creates L1/intake/{source_id}/{section_id}.md with frontmatter and body
-    capturing the atomic extraction from a single section. Also updates the
-    corresponding TOC map entry with a link to this intake note.
+    Creates L1/intake/{source_id}/{section_id}.md with frontmatter and body.
+    Also updates the TOC map entry with a link to this intake note.
 
-    Call this after reading each section during Step 3 of the read workflow.
+    For paper sources: section_id = chapter/section slug (e.g. "sec2-1")
+    For repo sources: section_id = file path slug (e.g. "task-qsgw-band-0-cpp"),
+      and source_file = the actual file path within the repo
+      (e.g. "driver/task_qsgw_band_0.cpp").
+
     completeness_confidence: high | medium | low  --  honest self-assessment.
     """
     root = _topic_root(topics_root, topic_slug)
@@ -1255,6 +1259,7 @@ def aitp_write_section_intake(
     result = dispatch(cmd_source_extract,
         topic=topic_slug, source=source_id, section=section_id,
         content=composed_body, confidence=completeness_confidence or "medium",
+        source_file=source_file,
         success_msg=f"Intake written: L1/intake/{_slugify(source_id)}/{_slugify(section_id)}.md")
 
     status = "extracted" if completeness_confidence in ("high", "medium") else "skimming"

@@ -300,6 +300,45 @@ def evaluate_l1_stage(
                 research_intensity=research_intensity,
             )
 
+    # L0→L1 traceability: each L1 artifact must cite which L0 sources it draws from.
+    # Read actual L0 source IDs and verify that at least source_basis and
+    # derivation_anchor_map have source_refs pointing to real L0 sources.
+    l0_sources_dir = topic_root_path / "L0" / "sources"
+    actual_l0_ids: set[str] = set()
+    if l0_sources_dir.is_dir():
+        for d in l0_sources_dir.iterdir():
+            if d.is_dir():
+                actual_l0_ids.add(d.name)
+    if actual_l0_ids:
+        traceability_gaps: list[str] = []
+        for art_name in ["source_basis.md", "derivation_anchor_map.md",
+                          "convention_snapshot.md", "contradiction_register.md"]:
+            art_path = topic_root_path / "L1" / art_name
+            if not art_path.exists():
+                continue
+            fm, _ = parse_md(art_path)
+            refs = fm.get("source_refs", [])
+            if not isinstance(refs, list):
+                refs = []
+            matched = [r for r in refs if r in actual_l0_ids]
+            if not matched:
+                traceability_gaps.append(
+                    f"{art_name}: source_refs={refs} does not reference any known "
+                    f"L0 source {sorted(actual_l0_ids)}"
+                )
+        if traceability_gaps:
+            return StageSnapshot(
+                stage="L1",
+                posture="frame",
+                lane=lane,
+                gate_status="blocked_missing_field",
+                required_artifact_path=str(topic_root_path / "L1"),
+                missing_requirements=traceability_gaps,
+                next_allowed_transition="L1",
+                skill="skill-frame",
+                research_intensity=research_intensity,
+            )
+
     return StageSnapshot(
         stage="L1",
         posture="frame",
