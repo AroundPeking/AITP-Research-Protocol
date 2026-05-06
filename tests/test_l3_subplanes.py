@@ -274,7 +274,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "distill",
                 {"artifact_kind": "l3_active_distillation", "activity": "distill",
-                 "distilled_claim": "Claim", "evidence_summary": "Evidence"},
+                 "distilled_claim": "Claim", "evidence_summary": "Evidence",
+                 "completion_status": "complete"},
                 "# Active Distillation\n\n## Distilled Claim\nClaim\n\n"
                 "## Evidence Summary\nEvidence\n",
             )
@@ -305,7 +306,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "distill",
                 {"artifact_kind": "l3_active_distillation", "activity": "distill",
-                 "distilled_claim": "Claim", "evidence_summary": "Evidence"},
+                 "distilled_claim": "Claim", "evidence_summary": "Evidence",
+                 "completion_status": "complete"},
                 "# Active Distillation\n\n## Distilled Claim\nClaim\n\n"
                 "## Evidence Summary\nEvidence\n",
             )
@@ -337,7 +339,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "integrate",
                 {"artifact_kind": "l3_active_integration", "activity": "integrate",
-                 "integration_statement": "Integrated", "findings": "F1"},
+                 "integration_statement": "Integrated", "findings": "F1",
+                 "completion_status": "complete"},
                 "# Active Integration\n\n## Integration Statement\nIntegrated\n\n"
                 "## Findings\nFindings here.\n",
             )
@@ -358,7 +361,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "derive",
                 {"artifact_kind": "l3_active_derivation", "activity": "derive",
-                 "derivation_count": 1, "all_steps_justified": "no"},
+                 "derivation_count": 1, "all_steps_justified": "no",
+                 "completion_status": "complete"},
                 "# Active Derivation\n\n## Derivation Chains\nD1 start.\n"
                 "## Step-by-Step Trace\nStep 1.\n",
             )
@@ -379,7 +383,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "derive",
                 {"artifact_kind": "l3_active_derivation", "activity": "derive",
-                 "derivation_count": 5, "all_steps_justified": "yes"},
+                 "derivation_count": 5, "all_steps_justified": "yes",
+                 "completion_status": "complete"},
                 "# Active Derivation\n\n## Derivation Chains\n"
                 "D1: Full derivation from Hamiltonian to observable. "
                 "Step 1: Define the partition function in the path-integral "
@@ -407,7 +412,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "integrate",
                 {"artifact_kind": "l3_active_integration", "activity": "integrate",
-                 "integration_statement": "Integrated results", "findings": "F1, F2, F3"},
+                 "integration_statement": "Integrated results", "findings": "F1, F2, F3",
+                 "completion_status": "complete"},
                 "# Active Integration\n\n## Integration Statement\nResults integrated.\n\n"
                 "## Findings\nFinding 1: derivation is self-consistent. "
                 "Finding 2: all correspondence limits pass. "
@@ -479,7 +485,8 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "distill",
                 {"artifact_kind": "l3_active_distillation", "activity": "distill",
-                 "distilled_claim": "Final claim", "evidence_summary": "Evidence done"},
+                 "distilled_claim": "Final claim", "evidence_summary": "Evidence done",
+                 "completion_status": "complete"},
                 "# Active Distillation\n\n## Distilled Claim\nFinal claim.\n\n"
                 "## Evidence Summary\nAll evidence supports the claim.\n",
             )
@@ -495,12 +502,13 @@ class L3CrossActivityPrerequisiteTests(unittest.TestCase):
             _write_filled_artifact(
                 tr, "ideate",
                 {"artifact_kind": "l3_active_idea", "activity": "ideate",
-                 "idea_statement": "Idea", "motivation": "Motivation"},
+                 "idea_statement": "Idea", "motivation": "Motivation",
+                 "completion_status": "complete"},
                 "# Active Idea\n\n## Idea Statement\nIdea\n\n## Motivation\nMotivation\n",
             )
             snapshot = evaluate_l3_stage(self._parse_md, tr)
             # ideate has no prerequisites — should be ready once its own
-            # artifact is filled
+            # artifact is filled and marked complete
             self.assertEqual(snapshot.gate_status, "ready")
 
 
@@ -614,6 +622,260 @@ class L3L4InterfaceTests(unittest.TestCase):
             # Verify flag is cleared
             fm2, _ = self._parse_md(state_path)
             self.assertNotIn("l4_review_needed", fm2)
+
+
+# ── P0: trace-derivation as derive-equivalent ──────────────────────────────
+
+
+class P0TraceDerivationEquivalenceTests(unittest.TestCase):
+    """trace-derivation satisfies the same gate prerequisites as derive."""
+
+    def _parse_md(self, path):
+        import yaml
+        if not path.exists():
+            return {}, ""
+        text = path.read_text(encoding="utf-8")
+        if text.startswith("---"):
+            parts = text.split("---", 2)
+            if len(parts) >= 3:
+                try:
+                    return yaml.safe_load(parts[1]) or {}, parts[2] if len(parts) > 2 else ""
+                except Exception:
+                    return {}, parts[2] if len(parts) > 2 else ""
+        return {}, text
+
+    def test_trace_derivation_satisfies_gap_audit_prerequisite(self):
+        """gap-audit gate should pass when trace-derivation has Derivation Chains."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            # Fill trace-derivation (NOT derive) with real content
+            _write_filled_artifact(
+                tr, "trace-derivation",
+                {"artifact_kind": "l3_active_trace", "activity": "trace-derivation",
+                 "source_id": "paper-a", "derivation_count": 3},
+                "# Active Trace\n\n## Source Reference\npaper-a\n\n"
+                "## Derivation Chains\nD1: Hamiltonian diagonalization. "
+                "D2: Response function derivation. D3: Correlation energy. "
+                "Full step-by-step trace with all justifications.\n"
+                "## Step-by-Step Trace\nComplete.\n",
+            )
+            mcp_server.aitp_switch_l3_activity(str(repo_root), "demo-topic", "gap-audit")
+            _write_filled_artifact(
+                tr, "gap-audit",
+                {"artifact_kind": "l3_active_gaps", "activity": "gap-audit",
+                 "gap_count": 0, "blocking_gaps": "", "completion_status": "complete"},
+                "# Active Gap Audit\n\n## Unstated Assumptions\nNone.\n\n"
+                "## Correspondence Check\nLimit check complete.\n"
+                "## Prerequisite Gaps\nNone.\n",
+            )
+            snapshot = evaluate_l3_stage(self._parse_md, tr)
+            # Should NOT complain about missing derive
+            derive_issues = [i for i in snapshot.missing_requirements if "derive" in i.lower()]
+            self.assertEqual(derive_issues, [],
+                f"Gate should not complain about missing derive: {derive_issues}")
+
+    def test_trace_derivation_satisfies_integrate_prerequisite(self):
+        """integrate gate should pass with trace-derivation + gap-audit content."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            _write_filled_artifact(
+                tr, "trace-derivation",
+                {"artifact_kind": "l3_active_trace", "activity": "trace-derivation",
+                 "source_id": "paper-a", "derivation_count": 3},
+                "# Active Trace\n\n## Source Reference\npaper-a\n\n"
+                "## Derivation Chains\nD1: Full derivation chain with all "
+                "equations and justifications. Step-by-step trace complete.\n"
+                "## Step-by-Step Trace\nAll steps documented.\n",
+            )
+            _write_filled_artifact(
+                tr, "gap-audit",
+                {"artifact_kind": "l3_active_gaps", "activity": "gap-audit",
+                 "gap_count": 0, "blocking_gaps": ""},
+                "# Active Gap Audit\n\n## Unstated Assumptions\nNone.\n\n"
+                "## Correspondence Check\nLimit q→0 recovers known RPA result. "
+                "Limit T→0 matches zero-temperature expression.\n"
+                "## Prerequisite Gaps\nNone.\n",
+            )
+            mcp_server.aitp_switch_l3_activity(str(repo_root), "demo-topic", "integrate")
+            _write_filled_artifact(
+                tr, "integrate",
+                {"artifact_kind": "l3_active_integration", "activity": "integrate",
+                 "integration_statement": "Done", "findings": "F1, F2",
+                 "completion_status": "complete"},
+                "# Active Integration\n\n## Integration Statement\nIntegrated.\n\n"
+                "## Findings\nAll results consistent. No contradictions.\n",
+            )
+            # Create a candidate so the "no candidates" check doesn't trigger
+            cand_dir = tr / "L3" / "candidates"
+            cand_dir.mkdir(parents=True, exist_ok=True)
+            mcp_server._write_md(
+                cand_dir / "test-cand.md",
+                {"candidate_id": "test-cand", "status": "submitted",
+                 "claim_statement": "A claim that needs validation."},
+                "# Candidate\n\n## Claim\nA claim.\n",
+            )
+            snapshot = evaluate_l3_stage(self._parse_md, tr)
+            derive_issues = [i for i in snapshot.missing_requirements
+                           if "derive" in i.lower() and "trace-derivation" not in i.lower()]
+            self.assertEqual(derive_issues, [],
+                f"Gate should accept trace-derivation: {derive_issues}")
+
+
+# ── P2a: completion status tests ────────────────────────────────────────────
+
+
+class P2aCompletionStatusTests(unittest.TestCase):
+    """Artifact completion_status gate behavior."""
+
+    def _parse_md(self, path):
+        import yaml
+        if not path.exists():
+            return {}, ""
+        text = path.read_text(encoding="utf-8")
+        if text.startswith("---"):
+            parts = text.split("---", 2)
+            if len(parts) >= 3:
+                try:
+                    return yaml.safe_load(parts[1]) or {}, parts[2] if len(parts) > 2 else ""
+                except Exception:
+                    return {}, parts[2] if len(parts) > 2 else ""
+        return {}, text
+
+    def test_draft_status_blocks_ready(self):
+        """Artifact with completion_status=draft → gate blocked_incomplete."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            _write_filled_artifact(
+                tr, "ideate",
+                {"artifact_kind": "l3_active_idea", "activity": "ideate",
+                 "idea_statement": "Idea", "motivation": "Why",
+                 "completion_status": "draft"},
+                "# Active Idea\n\n## Idea Statement\nIdea\n\n## Motivation\nWhy\n",
+            )
+            snapshot = evaluate_l3_stage(self._parse_md, tr)
+            self.assertEqual(snapshot.gate_status, "blocked_incomplete")
+            self.assertTrue(
+                any("completion_status" in i for i in snapshot.missing_requirements),
+            )
+
+    def test_complete_status_allows_ready(self):
+        """Artifact with completion_status=complete → gate ready."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            _write_filled_artifact(
+                tr, "ideate",
+                {"artifact_kind": "l3_active_idea", "activity": "ideate",
+                 "idea_statement": "Idea", "motivation": "Why",
+                 "completion_status": "complete"},
+                "# Active Idea\n\n## Idea Statement\nIdea\n\n## Motivation\nWhy\n",
+            )
+            snapshot = evaluate_l3_stage(self._parse_md, tr)
+            self.assertEqual(snapshot.gate_status, "ready")
+
+
+# ── P2b: retreat tracking tests ─────────────────────────────────────────────
+
+
+class P2bRetreatTrackingTests(unittest.TestCase):
+    """Unified retreat fields across all backward stage transitions."""
+
+    def _parse_md(self, path):
+        import yaml
+        if not path.exists():
+            return {}, ""
+        text = path.read_text(encoding="utf-8")
+        if text.startswith("---"):
+            parts = text.split("---", 2)
+            if len(parts) >= 3:
+                try:
+                    return yaml.safe_load(parts[1]) or {}, parts[2] if len(parts) > 2 else ""
+                except Exception:
+                    return {}, parts[2] if len(parts) > 2 else ""
+        return {}, text
+
+    def test_retreat_to_l1_sets_unified_fields(self):
+        """aitp_retreat_to_l1 sets retreated_from, retreated_to, retreat_count."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            mcp_server.aitp_retreat_to_l1(str(repo_root), "demo-topic",
+                                          reason="Need more sources")
+            fm, _ = self._parse_md(tr / "state.md")
+            self.assertEqual(fm["retreated_from"], "L3")
+            self.assertEqual(fm["retreated_to"], "L1")
+            self.assertEqual(fm["retreat_reason"], "Need more sources")
+            self.assertIsNotNone(fm.get("retreated_at"))
+            self.assertGreaterEqual(fm.get("retreat_count", 0), 1)
+            # previous_l3_activity preserved
+            self.assertIn("previous_l3_activity", fm)
+
+    def test_retreat_count_increments(self):
+        """Multiple retreats increment retreat_count."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            mcp_server.aitp_retreat_to_l1(str(repo_root), "demo-topic",
+                                          reason="First retreat")
+            mcp_server.aitp_advance_to_l1(str(repo_root), "demo-topic")
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            mcp_server.aitp_retreat_to_l1(str(repo_root), "demo-topic",
+                                          reason="Second retreat")
+            fm, _ = self._parse_md(tr / "state.md")
+            self.assertGreaterEqual(fm.get("retreat_count", 0), 2)
+
+    def test_return_from_l4_uses_unified_fields(self):
+        """aitp_return_to_l3_from_l4 uses the unified retreat fields."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = _bootstrap_l1_complete(tmp)
+            mcp_server.aitp_advance_to_l3(str(repo_root), "demo-topic")
+            tr = repo_root / "topics" / "demo-topic"
+            # Fake being at L4 with a review
+            fm, body = self._parse_md(tr / "state.md")
+            fm["stage"] = "L4"
+            fm["posture"] = "verify"
+            review_dir = tr / "L4" / "reviews"
+            review_dir.mkdir(parents=True, exist_ok=True)
+            mcp_server._write_md(
+                review_dir / "test-review.md",
+                {"outcome": "pass"}, "# Review\n\nDone.\n",
+            )
+            from brain.cli.commands.l3_workflow import _write_md
+            _write_md(tr / "state.md", fm, body)
+
+            mcp_server.aitp_return_to_l3_from_l4(str(repo_root), "demo-topic",
+                                                  reason="Post-validation analysis")
+            fm2, _ = self._parse_md(tr / "state.md")
+            self.assertEqual(fm2["retreated_from"], "L4")
+            self.assertEqual(fm2["retreated_to"], "L3")
+            self.assertIsNotNone(fm2.get("retreat_reason"))
+
+
+# ── P3: negative result tests ───────────────────────────────────────────────
+
+
+class P3NegativeResultTests(unittest.TestCase):
+    """Negative result candidate type support."""
+
+    def test_negative_result_in_candidate_types(self):
+        """negative_result is a recognized candidate type."""
+        from brain.state import CANDIDATE_TYPES
+        self.assertIn("negative_result", CANDIDATE_TYPES)
+        self.assertIn("research_claim", CANDIDATE_TYPES)
+
+    def test_negative_result_maps_to_l2_node_type(self):
+        """negative_result candidate type maps to L2 negative_result node."""
+        from brain.state import L2_NODE_TYPES
+        self.assertIn("negative_result", L2_NODE_TYPES)
 
 
 if __name__ == "__main__":

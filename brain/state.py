@@ -34,6 +34,12 @@ class StageSnapshot:
     memory_gate_enabled: bool = False
     memory_status: str = "not_evaluated"
     memory_summary: str = ""
+    # Retreat tracking (v1.1)
+    retreated_from: str = ""
+    retreated_to: str = ""
+    retreat_reason: str = ""
+    retreated_at: str = ""
+    retreat_count: int = 0
 
 
 # -- Re-exported from state_model for backward compat --
@@ -48,7 +54,8 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "ideate",
         {"artifact_kind": "l3_active_idea", "activity": "ideate",
          "required_fields": ["idea_statement", "motivation"],
-         "idea_statement": "", "motivation": ""},
+         "idea_statement": "", "motivation": "",
+         "completion_status": "draft"},
         "# Active Idea\n\n## Idea Statement\n\n## Motivation\n\n"
         "## Prior Work (L2 Check)\n\n## Risk Assessment\n",
     ),
@@ -56,7 +63,8 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "plan",
         {"artifact_kind": "l3_active_plan", "activity": "plan",
          "required_fields": ["plan_statement", "derivation_route"],
-         "plan_statement": "", "derivation_route": ""},
+         "plan_statement": "", "derivation_route": "",
+         "completion_status": "draft"},
         "# Active Plan\n\n## Plan Statement\n\n## Derivation Route\n\n"
         "## Tool And Knowledge Requirements\n\n## Risk Assessment\n",
     ),
@@ -64,15 +72,19 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "derive",
         {"artifact_kind": "l3_active_derivation", "activity": "derive",
          "required_fields": ["derivation_count", "all_steps_justified"],
-         "derivation_count": 0, "all_steps_justified": ""},
+         "derivation_count": 0, "all_steps_justified": "",
+         "completion_status": "draft"},
         "# Active Derivation\n\n## Derivation Chains\n\n"
-        "## Step-by-Step Trace\n\n## Feynman Self-Check\n\n## Unresolved Steps\n",
+        "## Step-by-Step Trace\n\n## Attempted Routes (Dead Ends)\n\n"
+        "## Dead Ends / Negative Results\n\n"
+        "## Feynman Self-Check\n\n## Unresolved Steps\n",
     ),
     "trace-derivation": (
         "trace-derivation",
         {"artifact_kind": "l3_active_trace", "activity": "trace-derivation",
          "required_fields": ["source_id", "derivation_count"],
-         "source_id": "", "derivation_count": 0},
+         "source_id": "", "derivation_count": 0,
+         "completion_status": "draft"},
         "# Active Trace\n\n## Source Reference\n\n## Derivation Chains\n\n"
         "## Step-by-Step Trace\n\n## Justification Gaps\n",
     ),
@@ -80,7 +92,8 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "gap-audit",
         {"artifact_kind": "l3_active_gaps", "activity": "gap-audit",
          "required_fields": ["gap_count", "blocking_gaps"],
-         "gap_count": 0, "blocking_gaps": ""},
+         "gap_count": 0, "blocking_gaps": "",
+         "completion_status": "draft"},
         "# Active Gap Audit\n\n## Unstated Assumptions\n\n"
         "## Approximation Regimes\n\n## Correspondence Check\n\n"
         "## Prerequisite Gaps\n\n## Severity Assessment\n",
@@ -89,7 +102,8 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "integrate",
         {"artifact_kind": "l3_active_integration", "activity": "integrate",
          "required_fields": ["integration_statement", "findings"],
-         "integration_statement": "", "findings": ""},
+         "integration_statement": "", "findings": "",
+         "completion_status": "draft"},
         "# Active Integration\n\n## Integration Statement\n\n## Findings\n\n"
         "## Consistency Checks\n\n## Gaps Remaining\n",
     ),
@@ -97,7 +111,8 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "distill",
         {"artifact_kind": "l3_active_distillation", "activity": "distill",
          "required_fields": ["distilled_claim", "evidence_summary"],
-         "distilled_claim": "", "evidence_summary": ""},
+         "distilled_claim": "", "evidence_summary": "",
+         "completion_status": "draft"},
         "# Active Distillation\n\n## Distilled Claim\n\n## Evidence Summary\n\n"
         "## Confidence Level\n\n## Open Questions\n",
     ),
@@ -155,6 +170,10 @@ STUDY_CANDIDATE_TYPES = [
     "atomic_concept", "derivation_chain", "correspondence_link",
     "regime_boundary", "open_question",
 ]
+
+CANDIDATE_TYPES = STUDY_CANDIDATE_TYPES + ["research_claim", "negative_result"]
+
+_ARTIFACT_COMPLETION_STATUSES = {"draft", "complete"}
 
 
 # ---------------------------------------------------------------------------

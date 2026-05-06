@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from brain.state import StageSnapshot, L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES, L3_ACTIVITY_REQUIRED_HEADINGS, L3_ACTIVITY_TEMPLATES, L3_ACTIVITY_SKILL_MAP, PHYSICS_CHECK_FIELDS, _LANE_PHYSICS_CHECK_FIELDS
+from brain.state import StageSnapshot, L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES, L3_ACTIVITY_REQUIRED_HEADINGS, L3_ACTIVITY_TEMPLATES, L3_ACTIVITY_SKILL_MAP, PHYSICS_CHECK_FIELDS, _LANE_PHYSICS_CHECK_FIELDS, _ARTIFACT_COMPLETION_STATUSES
 from brain.contracts import _L0_CONTRACTS, _L1_INTENSITY_CONTRACTS, _L1_CONTRACTS
 from brain.checks import _missing_frontmatter_keys, _missing_required_headings, _check_heading_content, _check_question_semantic_validity, _extract_domain_rules
 from brain.physicist import _check_physicist_l2_lookup, _check_physicist_correspondence, _check_physicist_anomalies
@@ -411,28 +411,39 @@ def _check_l3_cross_activity_prerequisites(
         _, body = parse_md(path)
         return body
 
-    # --- derive requires plan ---
-    if current_activity in ("derive",):
+    def _either_activity_has_section(activities, heading, min_chars=50):
+        """True if any activity in *activities* has *heading* with >= *min_chars* content."""
+        for act in activities:
+            if _artifact_has_section(act, heading, min_chars=min_chars):
+                return True
+        return False
+
+    # --- derive / trace-derivation require plan ---
+    if current_activity in ("derive", "trace-derivation"):
         if not _artifact_has_section("plan", "## Derivation Route", min_chars=50):
             issues.append(
                 "Plan artifact has empty or missing '## Derivation Route'. "
                 "Without a derivation route, derivation lacks strategic direction."
             )
 
-    # --- gap-audit requires derive ---
+    # --- gap-audit requires derive or trace-derivation ---
     if current_activity in ("gap-audit",):
-        if not _artifact_has_section("derive", "## Derivation Chains", min_chars=50):
+        if not _either_activity_has_section(
+            ("derive", "trace-derivation"), "## Derivation Chains", min_chars=50
+        ):
             issues.append(
-                "Derive artifact has empty or missing '## Derivation Chains'. "
-                "Gap audit requires derivation content to audit."
+                "Neither derive nor trace-derivation artifact has "
+                "'## Derivation Chains'. Gap audit requires derivation content to audit."
             )
 
-    # --- integrate requires derive AND gap-audit ---
+    # --- integrate requires (derive or trace-derivation) AND gap-audit ---
     if current_activity in ("integrate",):
-        if not _artifact_has_section("derive", "## Derivation Chains", min_chars=50):
+        if not _either_activity_has_section(
+            ("derive", "trace-derivation"), "## Derivation Chains", min_chars=50
+        ):
             issues.append(
-                "Derive artifact has empty or missing '## Derivation Chains'. "
-                "Integration requires derivation content to integrate."
+                "Neither derive nor trace-derivation artifact has "
+                "'## Derivation Chains'. Integration requires derivation content to integrate."
             )
         if not _artifact_has_section("gap-audit", "## Correspondence Check", min_chars=30):
             issues.append(
@@ -455,11 +466,13 @@ def _check_l3_cross_activity_prerequisites(
                 "results that fail known limits."
             )
 
-    # --- blocked_incomplete: derive work done but zero candidates ---
+    # --- blocked_incomplete: derivation work done but zero candidates ---
     if current_activity in ("integrate", "distill"):
         cand_dir = l3_dir / "candidates"
         candidates = list(cand_dir.glob("*.md")) if cand_dir.is_dir() else []
-        if not candidates and _artifact_has_section("derive", "## Derivation Chains", min_chars=80):
+        if not candidates and _either_activity_has_section(
+            ("derive", "trace-derivation"), "## Derivation Chains", min_chars=80
+        ):
             issues.append(
                 "Derivation work appears complete but no candidates have been "
                 "submitted. Create a candidate via 'aitp derive pack' before "
@@ -538,6 +551,22 @@ def evaluate_l3_stage(
 
     # L3 is ready when at least one activity artifact is complete.
     # Any activity can lead to L4 — there is no "last subplane".
+
+    # Completion status check: artifact must be explicitly marked "complete"
+    completion_status = str(fm.get("completion_status", "draft")).strip()
+    if completion_status not in _ARTIFACT_COMPLETION_STATUSES or completion_status != "complete":
+        return StageSnapshot(
+            stage="L3", posture="derive", lane=lane,
+            gate_status="blocked_incomplete",
+            required_artifact_path=str(artifact_path),
+            missing_requirements=[
+                f"Artifact '{artifact_name}' has completion_status='{completion_status}'. "
+                "Mark this artifact as complete (completion_status: complete) when finished."
+            ],
+            next_allowed_transition="",
+            skill=skill,
+            l3_subplane=current_activity, l3_mode="",
+        )
 
     # Derivation steps check (was dead code — now wired in v1.0):
     # Verify derivation steps exist and are traceable when activity is derive-related

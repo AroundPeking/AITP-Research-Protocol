@@ -183,7 +183,31 @@ def cmd_candidate_submit(args):
                 f"Complete the {activity} activity before submitting."
             )
 
-    _check_prereq_artifact("derive", "## Derivation Chains", "Missing derivation", min_chars=50)
+    # Derivation content: accept either derive or trace-derivation
+    def _either_artifact_has_section(activities, heading, min_chars=50):
+        name_map = {
+            "ideate": "active_idea.md", "plan": "active_plan.md",
+            "derive": "active_derivation.md", "trace-derivation": "active_trace.md",
+            "gap-audit": "active_gaps.md", "integrate": "active_integration.md",
+            "distill": "active_distillation.md",
+        }
+        for act in activities:
+            fname = name_map.get(act, f"active_{act}.md")
+            path = root / "L3" / act / fname
+            if path.exists():
+                _, body_ = _parse_md(path)
+                if _check_heading_content(body_, heading, min_chars=min_chars):
+                    return True
+        return False
+
+    if not _either_artifact_has_section(
+        ("derive", "trace-derivation"), "## Derivation Chains", min_chars=50
+    ):
+        prereq_issues.append(
+            "Missing derivation: Neither derive nor trace-derivation artifact "
+            "has filled '## Derivation Chains' (need >= 50 chars). "
+            "Complete one of these activities before submitting."
+        )
     _check_prereq_artifact("gap-audit", "## Correspondence Check",
                           "Missing correspondence check", min_chars=30)
     _check_prereq_artifact("integrate", "## Findings",

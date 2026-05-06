@@ -1330,7 +1330,8 @@ def aitp_submit_candidate(
     depends_on: list of candidate_ids that this candidate builds upon.
     candidate_type: type of candidate  --  research modes produce research_claim (default),
         study modes produce atomic_concept, derivation_chain, correspondence_link,
-        regime_boundary, or open_question.
+        regime_boundary, or open_question. Use negative_result for claims that document
+        a dead-end approach or falsified hypothesis (equal value to positive results).
     regime_of_validity: physical regime where this candidate applies (required for study candidates).
     """
     root = _topic_root(topics_root, topic_slug)
@@ -1934,6 +1935,7 @@ def aitp_promote_candidate(
         "correspondence_link": "regime_boundary",
         "regime_boundary": "regime_boundary",
         "open_question": "open_question",
+        "negative_result": "negative_result",
         "research_claim": "result",
     }
     mapped_type = _CANDIDATE_TO_L2_NODE_TYPE.get(cand_type, cand_type)
@@ -2953,7 +2955,10 @@ def aitp_retreat_to_l0(topics_root: str, topic_slug: str, reason: str = "") -> _
     fm["posture"] = "discover"
     fm["layer"] = "L0"
     fm["retreated_from"] = current_stage
+    fm["retreated_to"] = "L0"
     fm["retreat_reason"] = reason
+    fm["retreated_at"] = _now()
+    fm["retreat_count"] = fm.get("retreat_count", 0) + 1
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
     _append_to_topic_log(root, f"retreated from {current_stage} to L0: {reason}")
@@ -3113,8 +3118,12 @@ def aitp_retreat_to_l1(topics_root: str, topic_slug: str, reason: str = "") -> _
 
     fm["stage"] = "L1"
     fm["posture"] = "read"
-    fm["retreated_from_l3"] = True
+    fm["retreated_from"] = "L3"
+    fm["retreated_to"] = "L1"
+    fm["previous_l3_activity"] = fm.get("l3_activity", "")
     fm["retreat_reason"] = reason
+    fm["retreated_at"] = _now()
+    fm["retreat_count"] = fm.get("retreat_count", 0) + 1
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
     _append_to_topic_log(root, f"retreated from L3 to L1: {reason}")
@@ -3204,8 +3213,12 @@ def aitp_return_to_l3_from_l4(
     fm["stage"] = "L3"
     fm["posture"] = "derive"
     fm["l3_activity"] = "integrate"
-    fm["returned_from_l4"] = True
-    fm["l4_return_reason"] = reason
+    fm["retreated_from"] = "L4"
+    fm["retreated_to"] = "L3"
+    fm["retreat_reason"] = reason
+    fm["retreated_at"] = _now()
+    fm["retreat_count"] = fm.get("retreat_count", 0) + 1
+    fm["l4_return_reason"] = reason   # backward compat
     fm["updated_at"] = _now()
     _write_md(state_path, fm, body)
     _append_to_topic_log(root, f"returned from L4 to L3/integrate: {reason}")

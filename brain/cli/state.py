@@ -97,8 +97,10 @@ def retreat_stage(topic_root: Path, target_stage: str, reason: str = "") -> None
     fm["stage"] = target_stage
     fm["posture"] = _posture_for_stage(target_stage)
     fm["retreated_from"] = current
+    fm["retreated_to"] = target_stage
     fm["retreat_reason"] = reason
     fm["retreated_at"] = _now_iso()
+    fm["retreat_count"] = fm.get("retreat_count", 0) + 1
     fm["updated_at"] = _now_iso()
     fm["gate_status"] = "blocked_missing_artifact"
     save_state(topic_root, fm, body)
@@ -180,6 +182,11 @@ def _default_state() -> dict[str, Any]:
         "gate_status": "blocked_missing_artifact",
         "protocol_version": "v1.0",
         "memory_gate_enabled": False,
+        "retreated_from": None,
+        "retreated_to": None,
+        "retreat_reason": None,
+        "retreated_at": None,
+        "retreat_count": 0,
     }
 
 
