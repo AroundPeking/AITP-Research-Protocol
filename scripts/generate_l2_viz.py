@@ -26,6 +26,8 @@ DOMAIN_COLORS = {
     "quantum-information": "#8C8C8C",
     "statistical-mechanics": "#CCB974",
     "aitp-protocol": "#64B5CD",
+    "entries": "#5DADE2",
+    "abacus-librpa": "#E74C3C",
 }
 
 NODE_SHAPES = {
@@ -37,6 +39,12 @@ NODE_SHAPES = {
     "approximation": "hexagon",
     "open_question": "ellipse",
     "regime_boundary": "square",
+    "system": "dot",
+    "claim": "star",
+    "pitfall": "triangle",
+    "method": "box",
+    "question": "diamond",
+    "negative_result": "dot",
 }
 
 EDGE_STYLES = {
@@ -56,6 +64,17 @@ EDGE_STYLES = {
     "motivates": ("dashed", False),
     "proven_by": ("solid", True),
     "assumes": ("dotted", False),
+    "depends_on": ("solid", True),
+    "applies_to": ("solid", True),
+    "blocked_by": ("dashed", False),
+    "affects": ("dashed", False),
+    "governed_by": ("solid", True),
+    "studied_by": ("dotted", True),
+    "requires": ("solid", True),
+    "relates_to": ("dotted", False),
+    "implements": ("solid", True),
+    "derived_from": ("solid", True),
+    "applied_to": ("solid", True),
 }
 
 
@@ -141,7 +160,36 @@ def build_graph(l2_root: Path) -> dict:
                 "layers": fm.get("layers", []),
             })
 
-    return {"nodes": nodes, "edges": valid_edges, "towers": towers}
+    steps = []
+    steps_dir = l2_root / "graph" / "steps"
+    if steps_dir.is_dir():
+        for f in sorted(steps_dir.glob("*.md")):
+            fm, body = _parse_md(f)
+            steps.append({
+                "id": fm.get("step_id", f.stem),
+                "chain_id": fm.get("chain_id", ""),
+                "order": fm.get("order", ""),
+                "input_expr": fm.get("input_expr", ""),
+                "output_expr": fm.get("output_expr", ""),
+                "transform": fm.get("transform", ""),
+                "justification_type": fm.get("justification_type", ""),
+                "justification_detail": fm.get("justification_detail", ""),
+                "rigor_level": fm.get("rigor_level", ""),
+                "source_ref": fm.get("source_ref", ""),
+                "gap_marker": fm.get("gap_marker", ""),
+                "depends_on_steps": fm.get("depends_on_steps", []),
+            })
+
+    # group steps by chain
+    chains = {}
+    for s in steps:
+        cid = s["chain_id"] or "ungrouped"
+        chains.setdefault(cid, []).append(s)
+    for c in chains.values():
+        c.sort(key=lambda x: str(x.get("order", "")))
+
+    return {"nodes": nodes, "edges": valid_edges, "towers": towers,
+            "steps": steps, "chains": chains}
 
 
 def generate_html(graph: dict, output_path: Path) -> None:
@@ -159,10 +207,10 @@ def generate_html(graph: dict, output_path: Path) -> None:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AITP L2 Knowledge Graph</title>
-<script src="https://unpkg.com/vis-network@9.1.6/dist/vis-network.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/vis-network@9.1.6/dist/vis-network.min.js"></script>
+<link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://fastly.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <style>
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; display: flex; height: 100vh; }}
@@ -183,6 +231,15 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
 #filter-bar button {{ padding: 3px 10px; border: 1px solid #0f3460; border-radius: 3px; cursor: pointer; font-size: 11px; }}
 #filter-bar button.active {{ background: #e94560; color: white; border-color: #e94560; }}
 #filter-bar button {{ background: #16213e; color: #aaa; }}
+#steps-panel {{ border-top: 1px solid #0f3460; max-height: 220px; overflow-y: auto; }}
+#steps-panel h3 {{ padding: 10px 20px 6px; color: #e94560; font-size: 12px; position: sticky; top: 0; background: #16213e; }}
+.step-row {{ display: flex; gap: 8px; padding: 5px 20px; cursor: pointer; font-size: 11px; border-bottom: 1px solid #0f3460; }}
+.step-row:hover {{ background: #0f3460; }}
+.step-row .so {{ color: #888; font-size: 10px; min-width: 18px; text-align: right; }}
+.step-row .si {{ flex: 1; color: #e0e0e0; }}
+.step-row .sm {{ color: #666; font-size: 10px; }}
+.step-gap {{ background: #f8514933; color: #f85149; padding: 1px 4px; border-radius: 3px; font-size: 9px; }}
+.rigor-dot {{ display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }}
 #no-selection {{ color: #666; font-style: italic; margin-top: 40px; text-align: center; }}
 #tower-section {{ margin-top: 20px; border-top: 1px solid #0f3460; padding-top: 16px; }}
 .tower-layer {{ background: #1a1a2e; padding: 6px 10px; margin: 4px 0; border-radius: 4px; font-size: 12px; border-left: 3px solid #e94560; }}
@@ -214,14 +271,26 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
     <div class="field"><div class="field-label">Regime of Validity</div><div class="field-value" id="detail-regime"></div></div>
     <div class="field"><div class="field-label">Source</div><div class="field-value" id="detail-source" style="font-size:12px;color:#888;"></div></div>
   </div>
+  <div id="steps-panel">
+    <h3>Derivation Steps <span style="font-weight:normal;color:#888;font-size:10px;" id="steps-count"></span></h3>
+    <div id="steps-list"></div>
+  </div>
   <div id="tower-section"></div>
 </div>
 
+<script id="nodes-data" type="application/json">{nodes_json}</script>
+<script id="edges-data" type="application/json">{edges_json}</script>
+<script id="towers-data" type="application/json">{towers_json}</script>
+<script id="steps-data" type="application/json">{json.dumps(graph.get('steps', []), ensure_ascii=False)}</script>
+<script id="chains-data" type="application/json">{json.dumps(graph.get('chains', {}), ensure_ascii=False)}</script>
+<script id="domains-data" type="application/json">{domains_json}</script>
 <script>
-var nodes = new vis.DataSet({nodes_json});
-var edges = new vis.DataSet({edges_json});
-var towers = {towers_json};
-var domains = {domains_json};
+var nodes = new vis.DataSet(JSON.parse(document.getElementById('nodes-data').textContent));
+var edges = new vis.DataSet(JSON.parse(document.getElementById('edges-data').textContent));
+var towers = JSON.parse(document.getElementById('towers-data').textContent);
+var steps = JSON.parse(document.getElementById('steps-data').textContent);
+var chains = JSON.parse(document.getElementById('chains-data').textContent);
+var domains = JSON.parse(document.getElementById('domains-data').textContent);
 
 document.getElementById('stats').textContent =
   nodes.length + ' nodes · ' + edges.length + ' edges · ' +
@@ -273,7 +342,6 @@ network.on('click', function(params) {{
     document.getElementById('detail-meaning').textContent = node.meaning || '—';
     var exprEl = document.getElementById('detail-expr');
     var raw = node.expression || '—';
-    // Wrap LaTeX in $$ if it contains math but no delimiters
     if (raw !== '—' && raw.indexOf('$$') === -1 && raw.indexOf('\\\\') >= 0) {{
       raw = '$$' + raw + '$$';
     }}
@@ -296,16 +364,37 @@ network.on('click', function(params) {{
         '<div class="field" style="margin-top:16px;border-top:1px solid #0f3460;padding-top:12px;"><div class="field-label">Connections (' + edgeList.length + ')</div>' +
         edgeList.join('') + '</div>';
     }}
-    // Render LaTeX in all fields
-    renderMathInElement(document.getElementById('node-detail'), {{ throwOnError: false }});
   }}
 }});
+
+// Steps panel
+(function() {{
+  var sl = document.getElementById('steps-list');
+  document.getElementById('steps-count').textContent = '(' + steps.length + ' steps, ' + Object.keys(chains).length + ' chains)';
+  var rc = {{'rigorous':'#3fb950','heuristic':'#d29922','handwaving':'#f85149','conjectured':'#f85149'}};
+  var jl = {{'definition':'Def','theorem':'Thm','approximation':'Approx','physical_principle':'Physics','algebraic_identity':'Algebra','limit':'Limit','assumption':'Assume','conjecture':'Conj','gap':'GAP','numerical_evidence':'Num'}};
+  Object.entries(chains).forEach(function(e) {{
+    var d = document.createElement('div');
+    d.style.cssText = 'padding:4px 20px 2px;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;';
+    d.textContent = e[0];
+    sl.appendChild(d);
+    e[1].forEach(function(s) {{
+      var r = document.createElement('div');
+      r.className = 'step-row';
+      var gm = s.gap_marker ? ' <span class="step-gap">GAP</span>' : '';
+      var rd = rc[s.rigor_level] ? '<span class="rigor-dot" style="background:' + rc[s.rigor_level] + '" title="' + (s.rigor_level||'') + '"></span>' : '';
+      var jt = jl[s.justification_type] ? ' <span style="color:#999;font-size:10px;">[' + jl[s.justification_type] + ']</span>' : '';
+      r.innerHTML = '<span class="so">' + (s.order||'') + '</span><span class="si">' + rd + s.id + gm + jt + '<span class="sm">' + (s.source_ref||'').substring(0,50) + '</span></span>';
+      sl.appendChild(r);
+    }});
+  }});
+}})();
 
 // Tower visualization
 var towerSection = document.getElementById('tower-section');
 towers.forEach(function(t) {{
   var div = document.createElement('div');
-  div.innerHTML = '<h2>�� ' + t.name + '</h2><div class="field-value" style="font-size:12px;margin-bottom:8px;">' + t.energy_range + '</div>';
+  div.innerHTML = '<h2>' + t.name + '</h2><div class="field-value" style="font-size:12px;margin-bottom:8px;">' + t.energy_range + '</div>';
   (t.layers || []).forEach(function(l) {{
     div.innerHTML += '<div class="tower-layer"><b>' + (l.energy_scale || '') + '</b>: ' + (l.theories || '') + '</div>';
   }});
@@ -349,16 +438,44 @@ function resetFilter() {{
 
 
 def main():
+    l2_root = None
+    output = None
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--l2-root" and i + 1 < len(args):
+            l2_root = Path(args[i + 1])
+            i += 2
+        elif args[i] == "--output" and i + 1 < len(args):
+            output = Path(args[i + 1])
+            i += 2
+        else:
+            i += 1
+
     repo_root = Path(__file__).resolve().parent.parent
-    l2_root = repo_root / "L2"
+
+    if l2_root is None:
+        # Try typical locations in order
+        candidates = [
+            repo_root / "research" / "L2",
+            repo_root / "L2",
+            repo_root / "research" / "aitp-topics" / "L2",
+        ]
+        for c in candidates:
+            if c.is_dir():
+                l2_root = c
+                break
+
+        if l2_root is None:
+            print(f"L2 directory not found. Use --l2-root to specify path.", file=sys.stderr)
+            sys.exit(1)
 
     if not l2_root.is_dir():
         print(f"L2 directory not found at {l2_root}", file=sys.stderr)
         sys.exit(1)
 
-    output = repo_root / "L2" / "graph" / "index.html"
-    if len(sys.argv) > 1 and sys.argv[1] == "--output" and len(sys.argv) > 2:
-        output = Path(sys.argv[2])
+    if output is None:
+        output = l2_root / "graph" / "index.html"
 
     graph = build_graph(l2_root)
     generate_html(graph, output)

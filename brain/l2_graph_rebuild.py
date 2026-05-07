@@ -65,6 +65,18 @@ _STATUS_COLOR = {
 }
 
 
+def _sanitize_js_str(s: str, max_len: int = 0) -> str:
+    """Sanitize a string for embedding in JavaScript. Strips newlines, tabs, and trims."""
+    s = str(s).replace("\r\n", " ").replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    # Collapse multiple spaces
+    import re
+    s = re.sub(r" {2,}", " ", s)
+    s = s.strip()
+    if max_len and len(s) > max_len:
+        s = s[: max_len - 3] + "..."
+    return s
+
+
 def _entry_to_js_node(entry_id: str, fm: dict[str, Any]) -> dict[str, Any]:
     """Convert a v5 entry frontmatter to a vis-network node dict."""
     role = str(fm.get("role", "claim"))
@@ -73,29 +85,27 @@ def _entry_to_js_node(entry_id: str, fm: dict[str, Any]) -> dict[str, Any]:
     color = _STATUS_COLOR.get(status, "#999999")
 
     # Build label: use title, truncated for display
-    label = str(fm.get("title", entry_id))
-    if len(label) > 80:
-        label = label[:77] + "..."
+    label = _sanitize_js_str(str(fm.get("title", entry_id)), 80)
 
     # Collect expression text
     expression = ""
     if role == "claim":
-        expression = str(fm.get("mathematical_expression", ""))
+        expression = _sanitize_js_str(str(fm.get("mathematical_expression", "")))
     elif role == "system":
-        expression = str(fm.get("formula_or_identifier", ""))
+        expression = _sanitize_js_str(str(fm.get("formula_or_identifier", "")))
 
     # Collect meaning text
     meaning = ""
     if role == "claim":
-        meaning = str(fm.get("statement", ""))
+        meaning = _sanitize_js_str(str(fm.get("statement", "")))
     elif role == "pitfall":
-        meaning = str(fm.get("symptom", ""))
+        meaning = _sanitize_js_str(str(fm.get("symptom", "")))
     elif role == "question":
-        meaning = str(fm.get("question_statement", ""))
+        meaning = _sanitize_js_str(str(fm.get("question_statement", "")))
     elif role == "method":
-        meaning = ", ".join(fm.get("toolchain", [])) if fm.get("toolchain") else ""
+        meaning = _sanitize_js_str(", ".join(fm.get("toolchain", [])) if fm.get("toolchain") else "")
     elif role == "system":
-        meaning = str(fm.get("formula_or_identifier", ""))
+        meaning = _sanitize_js_str(str(fm.get("formula_or_identifier", "")))
 
     return {
         "id": entry_id,
@@ -107,8 +117,8 @@ def _entry_to_js_node(entry_id: str, fm: dict[str, Any]) -> dict[str, Any]:
         "trust": status,
         "expression": expression[:200],
         "meaning": meaning[:300],
-        "regime": str(fm.get("regime", ""))[:200],
-        "source": str(fm.get("source_ref", ""))[:120],
+        "regime": _sanitize_js_str(str(fm.get("regime", "")), 200),
+        "source": _sanitize_js_str(str(fm.get("source_ref", "")), 120),
         "energy": "",
         "version": fm.get("version", 1),
     }
