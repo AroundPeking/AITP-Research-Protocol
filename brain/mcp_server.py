@@ -1601,8 +1601,6 @@ def aitp_submit_candidate(
     if "CLI command failed" in result:
         return result
 
-    _auto_refresh_flow_notebook(root, state_fm)
-
     # Physicist check: verify L3 derivation artifacts reference L2 knowledge
     l2_warnings = _physicist_check_at_checkpoint(root, "L3")
 
@@ -6965,35 +6963,20 @@ def aitp_create_l2_tower(
     return f"Created EFT tower {slug}: {name}"
 
 
-def _auto_refresh_flow_notebook(root: Path, fm: dict) -> None:
-    """Silently regenerate flow_notebook.tex at topic root.
-
-    Only triggered on candidate submission (end of each L3→L4 cycle).
-    Uses the section-based builder for incremental regeneration.
-    Never blocks — errors are ignored.
-    """
-    try:
-        from brain.flow_notebook import build_notebook
-        tex_content, _regenerated = build_notebook(root)
-        _atomic_write_text(root / "flow_notebook.tex", tex_content)
-    except Exception:
-        pass  # Never block normal operations
-
-
 @mcp.tool()
 def aitp_generate_flow_notebook(
     topics_root: str,
     topic_slug: str,
     force_full: bool = False,
 ) -> dict[str, Any]:
-    """Generate or regenerate the flow notebook at the topic root.
+    """DEPRECATED. Use skill-notebook-generate instead — it uses parallel AI
+    agents to read L0-L4 artifacts and write LaTeX sections with physics
+    understanding, producing higher-quality output than programmatic conversion.
 
-    Uses the section-based template builder. By default, only sections
-    whose source artifacts changed are regenerated (incremental).
-    Pass force_full=True to rebuild all sections.
-
-    The notebook is written to <topic_root>/flow_notebook.tex and is
-    designed for human reading — AI should polish it after generation.
+    Legacy programmatic generator using regex-based MD→LaTeX conversion.
+    Kept for backward compatibility. The auto-refresh on candidate submit
+    has been removed — flow notebook generation is now explicitly triggered
+    via the skill, not automatically.
 
     Args:
         topics_root: Path to the topics root directory.
