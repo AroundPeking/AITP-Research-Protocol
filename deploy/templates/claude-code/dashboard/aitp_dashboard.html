@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AITP Dashboard</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --card: #16213e;
+    --border: #2a2a4a;
+    --text: #e0e0e0;
+    --text-secondary: #8888aa;
+    --accent: #7c8aff;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Top bar ──────────────────────────────── */
+  #topbar {
+    height: 44px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  #topbar h1 { font-size: 14px; font-weight: 600; color: var(--accent); }
+  #topbar .badge {
+    font-size: 11px;
+    background: var(--card);
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: var(--text-secondary);
+  }
+
+  /* ── Layout ────────────────────────────────── */
+  #app {
+    display: flex;
+    height: calc(100vh - 44px - 28px);
+  }
+
+  /* ── Sidebar ──────────────────────────────── */
+  #sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  #sidebar .section-header {
+    padding: 10px 14px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-secondary);
+  }
+  .topic-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.15s;
+  }
+  .topic-item:hover { background: var(--card); }
+  .topic-item.active {
+    background: var(--card);
+    border-left-color: var(--accent);
+  }
+  .topic-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .topic-dot.ready { background: var(--green); }
+  .topic-dot.blocked { background: var(--red); }
+  .topic-dot.pending { background: var(--yellow); }
+  .topic-dot.not_evaluated { background: var(--text-secondary); }
+  .topic-dot.clean { background: var(--green); }
+  .topic-info { flex: 1; min-width: 0; }
+  .topic-slug {
+    font-size: 12px;
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topic-meta {
+    font-size: 10px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 8px;
+  }
+  .stage-badge {
+    font-size: 10px;
+    background: var(--card);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--blue);
+  }
+  .lane-badge {
+    font-size: 10px;
+    background: var(--card);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--purple);
+  }
+
+  /* ── Main content ──────────────────────────── */
+  #main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+  #main .empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-top: 80px;
+    font-size: 14px;
+  }
+
+  /* ── Detail header ────────────────────────── */
+  .detail-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .detail-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .pill-stage { background: rgba(124,138,255,0.15); color: var(--accent); }
+  .pill-lane  { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .pill-gate-ready { background: rgba(74,222,128,0.15); color: var(--green); }
+  .pill-gate-blocked { background: rgba(248,113,113,0.15); color: var(--red); }
+  .pill-gate-pending { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+  /* ── Section cards ─────────────────────────── */
+  section { margin-bottom: 20px; }
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-title .chevron {
+    transition: transform 0.15s;
+    font-size: 10px;
+  }
+  .section-title.collapsed .chevron { transform: rotate(-90deg); }
+  .card-list { display: flex; flex-direction: column; gap: 6px; }
+  .card {
+    background: var(--card);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .card .card-id {
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+    font-size: 11px;
+    color: var(--accent);
+  }
+  .card .card-title {
+    margin-top: 4px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .card .card-meta {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 10px;
+  }
+  .card-status {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .card-status.validated { background: rgba(74,222,128,0.15); color: var(--green); }
+  .card-status.draft { background: rgba(136,136,170,0.15); color: var(--text-secondary); }
+  .card-status.pending_approval { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+  .empty-note {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 4px 0;
+  }
+
+  /* ── Next action ───────────────────────────── */
+  .next-action {
+    background: rgba(124,138,255,0.08);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  /* ── Bottom bar ────────────────────────────── */
+  #bottombar {
+    height: 28px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .legend-dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:4px; }
+  .legend-dot.l-ready { background: var(--green); }
+  .legend-dot.l-blocked { background: var(--red); }
+  .legend-dot.l-pending { background: var(--yellow); }
+
+  /* ── Scrollbar ─────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+<script>
+  MathJax = {
+    tex: {inlineMath: [['$','$'], ['\\(','\\)']]},
+    startup: {pageReady: () => MathJax.startup.defaultPageReady()}
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>AITP Dashboard</h1>
+  <span class="badge" id="topic-count">-- topics</span>
+</div>
+
+<div id="app">
+  <nav id="sidebar">
+    <div class="section-header">Topics</div>
+    <div id="topic-list"></div>
+  </nav>
+  <main id="main">
+    <div class="empty-state">Select a topic from the sidebar</div>
+  </main>
+</div>
+
+<div id="bottombar">
+  <span><span class="legend-dot l-ready"></span> ready</span>
+  <span><span class="legend-dot l-blocked"></span> blocked</span>
+  <span><span class="legend-dot l-pending"></span> pending</span>
+  <span style="margin-left: auto;" id="last-updated">loading...</span>
+</div>
+
+<script>
+/* ── State ──────────────────────────────────── */
+let topics = [];
+let activeSlug = null;
+
+/* ── Helpers ────────────────────────────────── */
+function gateClass(status) {
+  if (!status || status === 'not_evaluated') return 'not_evaluated';
+  if (status === 'ready' || status === 'clean') return 'ready';
+  if (status.startsWith('blocked')) return 'blocked';
+  return 'pending';
+}
+
+function gatePillClass(status) {
+  if (status === 'ready' || status === 'clean') return 'pill-gate-ready';
+  if (status.startsWith('blocked')) return 'pill-gate-blocked';
+  return 'pill-gate-pending';
+}
+
+function gateLabel(status) {
+  if (!status || status === 'not_evaluated') return 'pending';
+  if (status === 'clean') return 'ready';
+  return status.replace(/^blocked_/, '').replace(/_/g, ' ');
+}
+
+function stageLabel(t) {
+  if (!t.stage || t.stage === '?') return '?';
+  if (t.posture) return `L${t.stage.replace('L','')}·${t.posture}`;
+  return t.stage;
+}
+
+/* ── Render sidebar ─────────────────────────── */
+function renderSidebar() {
+  const list = document.getElementById('topic-list');
+  list.innerHTML = topics.map(t => `
+    <div class="topic-item${t.slug === activeSlug ? ' active' : ''}"
+         data-slug="${t.slug}"
+         onclick="selectTopic('${t.slug.replace(/'/g, "\\'")}')">
+      <div class="topic-dot ${gateClass(t.gate_status)}"></div>
+      <div class="topic-info">
+        <div class="topic-slug" title="${t.slug}">${t.slug}</div>
+        <div class="topic-meta">
+          <span>${stageLabel(t)}</span>
+          <span>·</span>
+          <span>${t.sources_count || 0}s / ${t.candidates_count || 0}c</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ── Render detail ──────────────────────────── */
+function renderDetail(data) {
+  const main = document.getElementById('main');
+  const err = data._error;
+  const st = data.state || {};
+
+  let nextAction = '';
+  if (data.gate && data.gate.status) {
+    if (data.gate.status === 'ready' || data.gate.status === 'clean') {
+      nextAction = '✓ All gates passed. Ready for next stage.';
+    } else {
+      nextAction = data.gate.status.replace(/^blocked_/, '').replace(/_/g, ' ');
+    }
+  }
+
+  const candidatesRows = data.candidates.length
+    ? data.candidates.map(c => `
+      <div class="card">
+        <div class="card-id">${esc(c.id)}</div>
+        <div class="card-title">${maybeMath(c.title)}</div>
+        <div class="card-meta">
+          <span>${esc(c.type)}</span>
+          <span class="card-status ${esc(c.status)}">${esc(c.status)}</span>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-note">no candidates</div>';
+
+  const sourcesRows = data.sources.length
+    ? data.sources.map(s => `
+      <div class="card">
+        <div class="card-id">${esc(s.id)}</div>
+        <div class="card-meta">
+          <span>${esc(s.type)}</span>
+          ${s.role ? `<span>· ${esc(s.role)}</span>` : ''}
+          ${s.arxiv_id ? `<span>· ${esc(s.arxiv_id)}</span>` : ''}
+        </div>
+      </div>`).join('')
+    : '<div class="empty-note">no sources</div>';
+
+  const l4Rows = (data.l4_jobs && data.l4_jobs.length)
+    ? data.l4_jobs.map(j => `
+      <div class="card">
+        <div class="card-id">#${esc(j.job_id)}</div>
+        <div class="card-meta">
+          <span>${esc(j.status)}</span>
+          ${j.host ? `<span>· ${esc(j.host)}</span>` : ''}
+          ${j.estimated_time ? `<span>· ~${esc(j.estimated_time)}</span>` : ''}
+        </div>
+      </div>`).join('')
+    : '<div class="empty-note">no running jobs</div>';
+
+  main.innerHTML = `
+    <div class="detail-title">${esc(data.title || data.slug)}</div>
+    <div class="detail-pills">
+      <span class="pill pill-stage">${st.stage || '?'} · ${st.posture || st.l3_subplane || '-'}</span>
+      <span class="pill pill-lane">${esc(st.lane || 'unspecified')}</span>
+      <span class="pill ${gatePillClass(data.gate.status)}">gate: ${gateLabel(data.gate.status)}</span>
+      ${st.protocol_version ? `<span class="pill pill-stage">${esc(st.protocol_version)}</span>` : ''}
+    </div>
+
+    <section>
+      <div class="section-title" onclick="toggleSection(this)">
+        <span class="chevron">▼</span> Candidates (${data.candidates.length})
+      </div>
+      <div class="card-list">${candidatesRows}</div>
+    </section>
+
+    <section>
+      <div class="section-title" onclick="toggleSection(this)">
+        <span class="chevron">▼</span> Sources (${data.sources.length})
+      </div>
+      <div class="card-list">${sourcesRows}</div>
+    </section>
+
+    <section>
+      <div class="section-title" onclick="toggleSection(this)">
+        <span class="chevron">▼</span> L4 Jobs
+      </div>
+      <div class="card-list">${l4Rows}</div>
+    </section>
+
+    <div class="next-action">→ ${esc(nextAction)}</div>
+  `;
+}
+
+function esc(s) {
+  if (!s) return '';
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+/* Wrap math-looking *substrings* in $...$ for MathJax, leaving plain
+   English text alone. Avoids rendering whole sentences as math italic.
+   Strategy: tag words as math/non-math, then merge adjacent math words
+   with their connecting operators into single $...$ blocks. */
+const _MATH_SYM = /[_^{]|\\[a-zA-Z]+|[∂∫∑∏√∞≈≠≤≥±ℏ→⇒×·²³αβγδεθλμπστφψωΓΔΘΛΠΣΦΨΩ]/;
+
+/* Merge short non-math gaps between math tokens (operators, parens, etc.) */
+const _OP = /^[\s=+\-*/()[\].,:;]+$/;
+
+function maybeMath(text) {
+  if (!text) return '';
+  // Normalize LaTeX: multi-char sub/superscripts without braces
+  // _eff → _{eff}, ^xy → ^{xy}, _ij^k → _{ij}^{k}
+  text = text.replace(/([_^])([a-zA-Z]{2,})/g, '$1{$2}');
+  text = text.replace(/([_^]\{[^}]+\})([a-zA-Z]{2,})/g, '$1{$2}');
+  if (!_MATH_SYM.test(text)) return esc(text);
+
+  // Tokenize: split at whitespace but capture whitespace separately
+  const tokens = text.split(/(\s+)/g).filter(Boolean);
+  const n = tokens.length;
+  const isSpace = (t) => /^\s+$/.test(t);
+
+  // Phase 1: classify each token
+  const isMath = tokens.map(t => _MATH_SYM.test(t));
+
+  // Phase 2: merge operators between math tokens (skip spaces to find neighbors)
+  for (let i = 0; i < n; i++) {
+    if (isMath[i] || isSpace(tokens[i])) continue;
+    let li = i - 1;
+    while (li >= 0 && isSpace(tokens[li])) li--;
+    let ri = i + 1;
+    while (ri < n && isSpace(tokens[ri])) ri++;
+    if (li >= 0 && ri < n && isMath[li] && isMath[ri] && _OP.test(tokens[i])) {
+      isMath[i] = true;
+    }
+  }
+
+  // Phase 2b: pull whitespace between math tokens into math runs
+  for (let i = 0; i < n; i++) {
+    if (!isSpace(tokens[i])) continue;
+    let li = i - 1, ri = i + 1;
+    while (li >= 0 && isSpace(tokens[li])) li--;
+    while (ri < n && isSpace(tokens[ri])) ri++;
+    if (li >= 0 && ri < n && isMath[li] && isMath[ri]) {
+      isMath[i] = true;
+    }
+  }
+
+  // Phase 3: build output, wrapping each math run in $...$
+  const parts = [];
+  let inMath = false;
+  let buf = '';
+
+  for (let i = 0; i < n; i++) {
+    if (isMath[i] !== inMath) {
+      if (buf) parts.push(inMath ? '$' + esc(buf) + '$' : esc(buf));
+      buf = '';
+      inMath = isMath[i];
+    }
+    buf += tokens[i];
+  }
+  if (buf) parts.push(inMath ? '$' + esc(buf) + '$' : esc(buf));
+
+  return parts.join('');
+}
+
+function toggleSection(el) {
+  el.classList.toggle('collapsed');
+  const list = el.nextElementSibling;
+  if (list) list.style.display = el.classList.contains('collapsed') ? 'none' : '';
+}
+
+/* ── Data loading ───────────────────────────── */
+async function loadHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const data = await r.json();
+    topics = data.topics || [];
+    document.getElementById('topic-count').textContent = `${data.total_topics || 0} topics`;
+    document.getElementById('last-updated').textContent = `updated: ${data.last_updated || ''}`;
+    renderSidebar();
+    // Auto-select first topic if none selected
+    if (!activeSlug && topics.length) {
+      selectTopic(topics[0].slug);
+    }
+  } catch (e) {
+    console.error('Failed to load topics:', e);
+    document.getElementById('topic-count').textContent = 'error';
+  }
+}
+
+async function selectTopic(slug) {
+  activeSlug = slug;
+  renderSidebar();
+  document.getElementById('main').innerHTML = '<div class="empty-state">Loading...</div>';
+  try {
+    const r = await fetch(`/api/topics/${encodeURIComponent(slug)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    renderDetail(data);
+    // Typeset MathJax for any LaTeX in the detail panel
+    if (window.MathJax) MathJax.typesetPromise([document.getElementById('main')]);
+    // Scroll selected topic into view
+    const el = document.querySelector(`.topic-item[data-slug="${slug}"]`);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  } catch (e) {
+    document.getElementById('main').innerHTML =
+      `<div class="empty-state">Failed to load topic: ${slug}</div>`;
+  }
+}
+
+/* ── Init ───────────────────────────────────── */
+loadHealth();
+</script>
+</body>
+</html>
