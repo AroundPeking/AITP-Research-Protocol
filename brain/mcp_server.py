@@ -160,12 +160,22 @@ def _parse_md(path: Path) -> tuple[dict[str, Any], str]:
     m = _FM_RE.match(text)
     if not m:
         return {}, text
+    raw_fm = m.group(1)
     import yaml
     try:
-        fm = yaml.safe_load(m.group(1)) or {}
+        fm = yaml.safe_load(raw_fm) or {}
     except yaml.YAMLError:
-        # Fallback: construct minimal fm with known required fields to be lenient
+        # Fallback: extract simple key: value pairs from raw frontmatter.
+        # Handles multi-line list items with special characters that trip YAML.
         fm = {}
+        for line in raw_fm.split("\n"):
+            stripped = line.strip()
+            if ":" in stripped and not stripped.startswith("#"):
+                key, _, val = stripped.partition(":")
+                key = key.strip()
+                val = val.strip().strip("\"'")
+                if key and key not in fm:
+                    fm[key] = val
     return fm, m.group(2)
 
 
@@ -780,7 +790,7 @@ def aitp_register_source(
     topics_root: str,
     topic_slug: str,
     source_id: str,
-    type: str = "paper",
+    source_type: str = "paper",
     title: str = "",
     arxiv_id: str = "",
     fidelity: str = "arxiv_preprint",
@@ -821,7 +831,7 @@ def aitp_register_source(
 
     result = dispatch(cmd_source_add,
         topic=topic_slug, id=source_id, title=title or source_id,
-        type=type, role=source_role, notes=notes,
+        type=source_type, role=source_role, notes=notes,
         url=source_url, path=source_path,
         repo=clone_repo, branch=repo_branch, commit=repo_commit,
         success_msg=f"Registered source {_slugify(source_id)}")
@@ -3111,94 +3121,6 @@ def aitp_l4_check_results(
 
 
 @mcp.tool()
-@require_stage
-def aitp_record_numerical_result(
-    topics_root: str,
-    topic_slug: str,
-    observable: str,
-    computed_value: str,
-    uncertainty: str = "",
-    units: str = "",
-    system: str = "",
-    method: str = "",
-    k_grid: str = "",
-    host: str = "",
-    job_id: str = "",
-    literature_value: str = "",
-    literature_source: str = "",
-    agreement_status: str = "",
-) -> str:
-    """Record a structured numerical result with benchmark comparison.
-
-    Creates a file in L4/outputs/ with structured frontmatter for L2 querying.
-    Each result is traceable to execution conditions and literature benchmarks.
-
-    Args:
-        topics_root: Path to AITP topics directory
-        topic_slug: Topic identifier
-        observable: What was measured (e.g. "Si indirect band gap")
-        computed_value: The computed value (e.g. "1.15")
-        uncertainty: Estimated uncertainty (e.g. "0.05")
-        units: Physical units (e.g. "eV")
-        system: Physical system (e.g. "Si bulk 2x2x2")
-        method: Method used (e.g. "QSGW band0, option_dielect_func=3")
-        k_grid: k-point grid (e.g. "4x4x4")
-        host: Execution host
-        job_id: Slurm job ID
-        literature_value: Known literature value
-        literature_source: Reference for literature value
-        agreement_status: "agrees", "deviates", "inconclusive", or empty
-    """
-    root = _topic_root(topics_root, topic_slug)
-    outputs_dir = root / "L4" / "outputs"
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-
-    slug = _slugify(observable)
-    result_path = outputs_dir / f"{slug}.md"
-
-    fm: dict[str, Any] = {
-        "artifact_kind": "numerical_result",
-        "observable": observable,
-        "computed_value": computed_value,
-        "uncertainty": uncertainty,
-        "units": units,
-        "system": system,
-        "method": method,
-        "k_grid": k_grid,
-        "host": host,
-        "job_id": job_id,
-        "literature_value": literature_value,
-        "literature_source": literature_source,
-        "agreement_status": agreement_status,
-        "recorded_at": _now(),
-    }
-
-    body = (
-        f"# Numerical Result: {observable}\n\n"
-        f"## Computed Value\n"
-        f"- **Value**: {computed_value} ± {uncertainty} {units}\n"
-        f"- **System**: {system}\n"
-        f"- **Method**: {method}\n"
-        f"- **k-grid**: {k_grid}\n\n"
-        f"## Execution\n"
-        f"- **Host**: {host}\n"
-        f"- **Job ID**: {job_id}\n\n"
-        f"## Benchmark Comparison\n"
-        f"- **Literature value**: {literature_value} {units}\n"
-        f"- **Source**: {literature_source}\n"
-        f"- **Agreement**: {agreement_status}\n"
-    )
-
-    _write_md(result_path, fm, body)
-
-    return (
-        f"Recorded numerical result '{observable}': {computed_value} ± {uncertainty} {units} "
-        f"(vs literature {literature_value} {units}, {agreement_status}). "
-        f"Saved to L4/outputs/{slug}.md"
-    )
-
-
-@mcp.tool()
 def aitp_session_resume(
     topics_root: str,
     topic_slug: str,
@@ -3594,21 +3516,6 @@ def aitp_retreat_to_l1(
         },
     })
 
-@mcp.tool()
-def aitp_advance_l3_subplane(topics_root: str, topic_slug: str, target: str = "") -> str:
-    """Deprecated alias for aitp_switch_l3_activity. Preserved for test compat."""
-    return aitp_switch_l3_activity(topics_root, topic_slug, target)
-
-@mcp.tool()
-def aitp_switch_l3_mode(topics_root: str, topic_slug: str, new_mode: str) -> str:
-    """Deprecated — L3 mode switching removed in v4.0. No-op for test compat."""
-    root = _topic_root(topics_root, topic_slug)
-    state_path = root / "state.md"
-    fm, body = _parse_md(state_path)
-    fm["l3_mode"] = new_mode
-    fm["updated_at"] = _now()
-    _write_md(state_path, fm, body)
-    return f"L3 mode set to {new_mode} (deprecated)"
 
 @mcp.tool()
 def aitp_return_to_l3_from_l4(
@@ -6186,133 +6093,6 @@ def aitp_record_numerical_result(
 
 
 @mcp.tool()
-def aitp_find_cross_topic_bridges(
-    topics_root: str,
-) -> dict[str, Any]:
-    """Find cross-topic knowledge bridges in the L2 entries catalog.
-
-    Scans all entries for shared concepts across topics/domains:
-    - Same observable (e.g. both topics measure "band gap")
-    - Similar methods (e.g. both use "Green's function")
-    - Same system_type or regime
-    - Shared mathematical expressions or concepts
-
-    Returns bridge candidates — pairs of entries that could be connected.
-    """
-    global_l2 = _global_l2_path(topics_root)
-    entries_dir = global_l2 / "entries"
-    if not entries_dir.is_dir():
-        return {"bridges": [], "count": 0, "message": "No entries directory found."}
-
-    # Load all entries with their key fields
-    entries: list[dict[str, Any]] = []
-    for ep in sorted(entries_dir.glob("*.md")):
-        if ep.stem.startswith("INDEX"):
-            continue
-        fm, body = _parse_md(ep)
-        entries.append({
-            "entry_id": fm.get("entry_id", ep.stem),
-            "title": str(fm.get("title", "")),
-            "role": str(fm.get("role", "")),
-            "observable": str(fm.get("observable", "")),
-            "system_type": str(fm.get("system_type", "")),
-            "method_type": str(fm.get("method_type", "")),
-            "regime": str(fm.get("regime", "")),
-            "body": body[:500],
-            "source_ref": str(fm.get("source_ref", "")),
-        })
-
-    bridges: list[dict[str, Any]] = []
-
-    # Bridge type 1: Shared observable
-    observables: dict[str, list[str]] = {}
-    for e in entries:
-        obs = e["observable"].strip().lower()
-        if obs:
-            observables.setdefault(obs, []).append(e["entry_id"])
-    for obs, ids in observables.items():
-        if len(ids) >= 2:
-            # Check they come from different topics
-            sources = [e["source_ref"] for e in entries if e["entry_id"] in ids]
-            if len(set(sources)) >= 2:
-                bridges.append({
-                    "type": "shared_observable",
-                    "observable": obs,
-                    "entries": ids,
-                })
-
-    # Bridge type 2: Shared method type
-    methods: dict[str, list[str]] = {}
-    for e in entries:
-        mt = e["method_type"].strip().lower()
-        if mt:
-            methods.setdefault(mt, []).append(e["entry_id"])
-    for mt, ids in methods.items():
-        if len(ids) >= 2:
-            sources = [e["source_ref"] for e in entries if e["entry_id"] in ids and e["source_ref"]]
-            if len(set(sources)) >= 2:
-                bridges.append({
-                    "type": "shared_method",
-                    "method_type": mt,
-                    "entries": ids,
-                })
-
-    # Bridge type 3: Shared regime
-    regimes: dict[str, list[str]] = {}
-    for e in entries:
-        reg = e["regime"].strip().lower()
-        if reg and len(reg) > 5:
-            # Use key phrases for matching
-            for keyword in ["weak coupling", "strong coupling", "periodic solids",
-                           "low energy", "high temperature", "2d", "3d", "q→0",
-                           "long-wavelength", "topological", "strongly correlated"]:
-                if keyword in reg:
-                    regimes.setdefault(keyword, []).append(e["entry_id"])
-    for reg, ids in regimes.items():
-        if len(ids) >= 2:
-            bridges.append({
-                "type": "shared_regime",
-                "regime_keyword": reg,
-                "entries": ids,
-            })
-
-    # Deduplicate bridges
-    seen = set()
-    unique_bridges = []
-    for b in bridges:
-        key = (b["type"], tuple(sorted(b["entries"])))
-        if key not in seen:
-            seen.add(key)
-            unique_bridges.append(b)
-
-    # Update L2/index.md cross-topic bridges section
-    try:
-        index_path = global_l2 / "index.md"
-        if index_path.exists():
-            idx_text = index_path.read_text(encoding="utf-8")
-            bridge_start = idx_text.find("## Cross-Topic Bridges")
-            bridge_section = "\n## Cross-Topic Bridges\n\n"
-            if unique_bridges:
-                for b in unique_bridges[:10]:
-                    bridge_section += f"- **{b['type']}**: {', '.join(b['entries'][:4])}\n"
-            else:
-                bridge_section += "*None detected yet.*\n"
-            if bridge_start != -1:
-                idx_text = idx_text[:bridge_start] + bridge_section
-            else:
-                idx_text = idx_text.rstrip() + "\n" + bridge_section
-            _atomic_write_text(index_path, idx_text)
-    except Exception:
-        pass
-
-    return {
-        "bridges": unique_bridges,
-        "count": len(unique_bridges),
-        "authority_level": "L2_cross_topic",
-    }
-
-
-@mcp.tool()
 @require_stage
 def aitp_extract_topic_entries(
     topics_root: str,
@@ -6757,10 +6537,14 @@ def aitp_list_steps(
             step_ref = str(fm.get("source_ref", ""))
             if not any(sid in step_ref for sid in topic_source_ids):
                 continue
+        try:
+            order_val = int(fm.get("order", 0))
+        except (ValueError, TypeError):
+            order_val = 0
         results.append({
             "step_id": fm.get("step_id", sp.stem),
             "chain_id": fm.get("chain_id", ""),
-            "order": int(fm.get("order", 0) or 0),
+            "order": order_val,
             "input_expr": fm.get("input_expr", ""),
             "output_expr": fm.get("output_expr", ""),
             "transform": fm.get("transform", ""),
@@ -7158,41 +6942,6 @@ def aitp_create_l2_tower(
     _write_md(tower_path, fm, body)
     return f"Created EFT tower {slug}: {name}"
 
-
-@mcp.tool()
-def aitp_generate_flow_notebook(
-    topics_root: str,
-    topic_slug: str,
-    force_full: bool = False,
-) -> dict[str, Any]:
-    """DEPRECATED. Use skill-notebook-generate instead — it uses parallel AI
-    agents to read L0-L4 artifacts and write LaTeX sections with physics
-    understanding, producing higher-quality output than programmatic conversion.
-
-    Legacy programmatic generator using regex-based MD→LaTeX conversion.
-    Kept for backward compatibility. The auto-refresh on candidate submit
-    has been removed — flow notebook generation is now explicitly triggered
-    via the skill, not automatically.
-
-    Args:
-        topics_root: Path to the topics root directory.
-        topic_slug: Topic identifier.
-        force_full: If True, force a full rebuild of all sections.
-    """
-    root = _topic_root(topics_root, topic_slug)
-    from brain.flow_notebook import build_notebook, SECTION_ORDER
-    tex_content, regenerated = build_notebook(root, force_full=force_full)
-    _atomic_write_text(root / "flow_notebook.tex", tex_content)
-
-    _append_to_topic_log(root, "generated flow_notebook.tex")
-
-    return {
-        "message": f"flow_notebook.tex written to topic root",
-        "path": str(root / "flow_notebook.tex"),
-        "size_bytes": len(tex_content),
-        "sections_regenerated": regenerated,
-        "sections_included": SECTION_ORDER,
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -7708,26 +7457,37 @@ def aitp_find_cross_topic_bridges(
     expression: str = "",
     concept_name: str = "",
 ) -> dict[str, Any]:
-    """Search for structural isomorphisms across topics in L2.
+    """Find cross-topic knowledge bridges in the L2 entries catalog.
 
-    Given a mathematical expression or concept name, scans L2 across all
-    domains and topics to find similar structures. A Green's function in
-    condensed matter may have the same form as a propagator in QFT —
-    this tool flags these deep connections.
+    Two modes operate simultaneously:
+    1. **Full catalog scan** (always runs): detects shared observables,
+       methods, and regimes across entries from different topics/sources.
+    2. **Targeted structural search** (when topic_slug, expression, or
+       concept_name is given): finds mathematical-structure and
+       conceptual-similarity bridges via LaTeX normalization and
+       semantic scoring.
+
+    A Green's function in condensed matter may have the same form as a
+    propagator in QFT — this tool flags these deep connections.
+
+    Side-effect: updates L2/index.md with a cross-topic bridges summary.
 
     Args:
-        topic_slug: If given, uses this topic's candidates/claims as the source.
+        topic_slug: If given, uses this topic's candidates/intake as source.
         expression: A LaTeX mathematical expression to search for.
         concept_name: A physics concept name to search for.
+        (If all three are empty, only the catalog scan runs.)
     """
     global_l2 = _global_l2_path(topics_root)
     nodes_dir = global_l2 / "graph" / "nodes"
-    edges_dir = global_l2 / "graph" / "edges"
+    entries_dir = global_l2 / "entries"
 
-    if not nodes_dir.is_dir():
-        return {"bridges": [], "message": "L2 graph is empty."}
+    if not nodes_dir.is_dir() and not entries_dir.is_dir():
+        return {"bridges": [], "bridge_count": 0, "message": "L2 is empty — no nodes or entries found."}
 
-    # Collect source references if a topic is given
+    bridges: list[dict[str, Any]] = []
+
+    # ── Mode 2: gather source expressions/concepts for targeted search ──
     source_expressions: list[str] = []
     source_concepts: list[str] = []
 
@@ -7740,7 +7500,6 @@ def aitp_find_cross_topic_bridges(
                 claim = str(cfm.get("claim", ""))
                 if claim:
                     source_concepts.append(claim[:200])
-        # Also check L1 intake for concepts
         intake_dir = root / "L1" / "intake"
         if intake_dir.is_dir():
             for ip in intake_dir.rglob("*.md"):
@@ -7748,7 +7507,6 @@ def aitp_find_cross_topic_bridges(
                 eqs = str(ifm.get("equations_found", ""))
                 if eqs:
                     source_expressions.append(eqs[:300])
-                # Also scan structured equations for LaTeX expressions
                 struct_eqs = ifm.get("equations", [])
                 if isinstance(struct_eqs, list):
                     for eq in struct_eqs:
@@ -7762,89 +7520,139 @@ def aitp_find_cross_topic_bridges(
     if concept_name:
         source_concepts.append(concept_name)
 
-    if not source_expressions and not source_concepts:
-        return {
-            "bridges": [],
-            "message": (
-                "Provide a topic_slug, expression, or concept_name to search "
-                "for cross-topic bridges."
-            ),
-        }
+    do_targeted = bool(source_expressions or source_concepts)
 
-    # Scan all L2 nodes for structural similarity
-    bridges = []
-    for np in sorted(nodes_dir.glob("*.md")):
-        fm, body = _parse_md(np)
-        node_expr = str(fm.get("mathematical_expression", ""))
-        node_meaning = str(fm.get("physical_meaning", ""))
-        node_title = str(fm.get("title", ""))
-        node_domain = str(fm.get("domain", ""))
-        node_id = fm.get("node_id", np.stem)
+    # ── Mode 2: scan legacy graph nodes for structural isomorphism ──
+    if do_targeted and nodes_dir.is_dir():
+        for np in sorted(nodes_dir.glob("*.md")):
+            fm, body = _parse_md(np)
+            node_expr = str(fm.get("mathematical_expression", ""))
+            node_meaning = str(fm.get("physical_meaning", ""))
+            node_title = str(fm.get("title", ""))
+            node_domain = str(fm.get("domain", ""))
+            node_id = fm.get("node_id", np.stem)
 
-        # Check expression similarity via LaTeX normalization
-        for src_expr in source_expressions:
-            if src_expr and node_expr:
-                src_norm = normalize_latex(src_expr)
-                node_norm = normalize_latex(node_expr)
-                if src_norm and node_norm:
-                    # Check for shared LaTeX commands as structural signature
-                    src_cmds = set(re.findall(r'\\([a-zA-Z]+)', src_norm))
-                    node_cmds = set(re.findall(r'\\([a-zA-Z]+)', node_norm))
-                    shared = src_cmds & node_cmds
-                    if len(shared) >= 2:
+            for src_expr in source_expressions:
+                if src_expr and node_expr:
+                    src_norm = normalize_latex(src_expr)
+                    node_norm = normalize_latex(node_expr)
+                    if src_norm and node_norm:
+                        src_cmds = set(re.findall(r'\\([a-zA-Z]+)', src_norm))
+                        node_cmds = set(re.findall(r'\\([a-zA-Z]+)', node_norm))
+                        shared = src_cmds & node_cmds
+                        if len(shared) >= 2:
+                            bridges.append({
+                                "node_id": node_id,
+                                "title": node_title,
+                                "domain": node_domain,
+                                "bridge_type": "mathematical_structure",
+                                "shared_structures": sorted(shared),
+                                "note": f"Shared LaTeX structures: {sorted(shared)}. Check if this is a deep correspondence or coincidental notation.",
+                            })
+
+            for src_concept in source_concepts:
+                if src_concept:
+                    score = semantic_score(src_concept, [node_title, node_meaning, body[:500]])
+                    if score > 0.3 and node_domain:
                         bridges.append({
                             "node_id": node_id,
                             "title": node_title,
                             "domain": node_domain,
-                            "bridge_type": "mathematical_structure",
-                            "shared_structures": sorted(shared),
-                            "note": (
-                                f"Shared LaTeX structures: {sorted(shared)}. "
-                                f"Check if this is a deep correspondence or "
-                                f"coincidental notation."
-                            ),
+                            "bridge_type": "conceptual_similarity",
+                            "similarity": round(score, 3),
+                            "note": f"Conceptual similarity score {score:.2f}. Consider whether the same physics appears in a different regime.",
                         })
 
-        # Check concept similarity via semantic scoring
-        for src_concept in source_concepts:
-            if src_concept:
-                score = semantic_score(
-                    src_concept,
-                    [node_title, node_meaning, body[:500]],
-                )
-                if score > 0.3 and node_domain:
-                    bridges.append({
-                        "node_id": node_id,
-                        "title": node_title,
-                        "domain": node_domain,
-                        "bridge_type": "conceptual_similarity",
-                        "similarity": round(score, 3),
-                        "note": (
-                            f"Conceptual similarity score {score:.2f}. "
-                            f"Consider whether the same physics appears "
-                            f"in a different regime."
-                        ),
-                    })
-
-    # Also scan v5 entries for structural similarity
-    entries_dir = global_l2 / "entries"
+    # ── Mode 1: load all entries for full catalog scan (always) ──
+    entries: list[dict[str, Any]] = []
     if entries_dir.is_dir():
         for ep in sorted(entries_dir.glob("*.md")):
-            if ep.stem == "INDEX":
+            if ep.stem.startswith("INDEX"):
                 continue
             fm, body = _parse_md(ep)
-            entry_expr = str(fm.get("mathematical_expression", ""))
-            entry_title = str(fm.get("title", ""))
-            entry_role = str(fm.get("role", ""))
-            entry_id = fm.get("entry_id", ep.stem)
-            # Build searchable text from entry role
+            entry_data: dict[str, Any] = {
+                "entry_id": fm.get("entry_id", ep.stem),
+                "title": str(fm.get("title", "")),
+                "role": str(fm.get("role", "")),
+                "observable": str(fm.get("observable", "")),
+                "system_type": str(fm.get("system_type", "")),
+                "method_type": str(fm.get("method_type", "")),
+                "regime": str(fm.get("regime", "")),
+                "source_ref": str(fm.get("source_ref", "")),
+                "body": body[:500],
+            }
+            if do_targeted:
+                entry_data["mathematical_expression"] = str(fm.get("mathematical_expression", ""))
+                entry_data["statement"] = str(fm.get("statement", ""))
+                entry_data["question_statement"] = str(fm.get("question_statement", ""))
+            entries.append(entry_data)
+
+    # ── Mode 1 bridge type: shared observable ──
+    observables: dict[str, list[str]] = {}
+    for e in entries:
+        obs = e["observable"].strip().lower()
+        if obs:
+            observables.setdefault(obs, []).append(e["entry_id"])
+    for obs, ids in observables.items():
+        if len(ids) >= 2:
+            sources = {e["source_ref"] for e in entries if e["entry_id"] in ids and e["source_ref"]}
+            if len(sources) >= 2:
+                bridges.append({
+                    "bridge_type": "shared_observable",
+                    "observable": obs,
+                    "entries": ids,
+                })
+
+    # ── Mode 1 bridge type: shared method ──
+    methods: dict[str, list[str]] = {}
+    for e in entries:
+        mt = e["method_type"].strip().lower()
+        if mt:
+            methods.setdefault(mt, []).append(e["entry_id"])
+    for mt, ids in methods.items():
+        if len(ids) >= 2:
+            sources = {e["source_ref"] for e in entries if e["entry_id"] in ids and e["source_ref"]}
+            if len(sources) >= 2:
+                bridges.append({
+                    "bridge_type": "shared_method",
+                    "method_type": mt,
+                    "entries": ids,
+                })
+
+    # ── Mode 1 bridge type: shared regime ──
+    _REGIME_KEYWORDS = [
+        "weak coupling", "strong coupling", "periodic solids",
+        "low energy", "high temperature", "2d", "3d", "q→0",
+        "long-wavelength", "topological", "strongly correlated",
+    ]
+    regimes: dict[str, list[str]] = {}
+    for e in entries:
+        reg = e["regime"].strip().lower()
+        if reg and len(reg) > 5:
+            for keyword in _REGIME_KEYWORDS:
+                if keyword in reg:
+                    regimes.setdefault(keyword, []).append(e["entry_id"])
+    for reg, ids in regimes.items():
+        if len(ids) >= 2:
+            bridges.append({
+                "bridge_type": "shared_regime",
+                "regime_keyword": reg,
+                "entries": ids,
+            })
+
+    # ── Mode 2: scan v5 entries for structural similarity ──
+    if do_targeted and entries:
+        for e in entries:
+            entry_expr = e.get("mathematical_expression", "")
+            entry_title = e["title"]
+            entry_role = e["role"]
+            entry_id = e["entry_id"]
             entry_text = entry_title
             if entry_role == "claim":
-                entry_text += " " + str(fm.get("statement", ""))
+                entry_text += " " + e.get("statement", "")
             elif entry_role == "question":
-                entry_text += " " + str(fm.get("question_statement", ""))
+                entry_text += " " + e.get("question_statement", "")
 
-            # Check expression similarity
             for src_expr in source_expressions:
                 if src_expr and entry_expr:
                     src_norm = normalize_latex(src_expr)
@@ -7860,20 +7668,12 @@ def aitp_find_cross_topic_bridges(
                                 "domain": f"entries/{entry_role}",
                                 "bridge_type": "mathematical_structure",
                                 "shared_structures": sorted(shared),
-                                "note": (
-                                    f"Shared LaTeX structures: {sorted(shared)}. "
-                                    f"Found in v5 entry ({entry_role}). "
-                                    f"Check if this is a deep correspondence or coincidental notation."
-                                ),
+                                "note": f"Shared LaTeX structures: {sorted(shared)}. Found in v5 entry ({entry_role}). Check if this is a deep correspondence or coincidental notation.",
                             })
 
-            # Check concept similarity
             for src_concept in source_concepts:
                 if src_concept:
-                    score = semantic_score(
-                        src_concept,
-                        [entry_title, entry_text, body[:500]],
-                    )
+                    score = semantic_score(src_concept, [entry_title, entry_text, e["body"]])
                     if score > 0.3:
                         bridges.append({
                             "node_id": entry_id,
@@ -7881,37 +7681,65 @@ def aitp_find_cross_topic_bridges(
                             "domain": f"entries/{entry_role}",
                             "bridge_type": "conceptual_similarity",
                             "similarity": round(score, 3),
-                            "note": (
-                                f"Conceptual similarity score {score:.2f} with v5 entry ({entry_role}). "
-                                f"Consider whether the same physics appears in a different regime."
-                            ),
+                            "note": f"Conceptual similarity score {score:.2f} with v5 entry ({entry_role}). Consider whether the same physics appears in a different regime.",
                         })
 
-    # Deduplicate and sort by relevance
+    # Deduplicate
     seen = set()
     unique_bridges = []
     for b in bridges:
-        key = (b["node_id"], b["bridge_type"])
+        if "entries" in b:
+            key = (b["bridge_type"], tuple(sorted(b["entries"])))
+        else:
+            key = (b.get("node_id", ""), b["bridge_type"])
         if key not in seen:
             seen.add(key)
             unique_bridges.append(b)
 
     unique_bridges.sort(
-        key=lambda b: b.get("similarity", len(b.get("shared_structures", []))),
+        key=lambda b: b.get("similarity", len(b.get("shared_structures", b.get("entries", [])))),
         reverse=True,
     )
 
+    # Update L2/index.md cross-topic bridges section
+    try:
+        index_path = global_l2 / "index.md"
+        if index_path.exists():
+            idx_text = index_path.read_text(encoding="utf-8")
+            bridge_start = idx_text.find("## Cross-Topic Bridges")
+            bridge_section = "\n## Cross-Topic Bridges\n\n"
+            if unique_bridges:
+                for b in unique_bridges[:10]:
+                    btype = b["bridge_type"]
+                    if btype == "shared_observable":
+                        bridge_section += f"- **{btype}**: {b['observable']} ({', '.join(b['entries'][:4])})\n"
+                    elif btype == "shared_method":
+                        bridge_section += f"- **{btype}**: {b['method_type']} ({', '.join(b['entries'][:4])})\n"
+                    elif btype == "shared_regime":
+                        bridge_section += f"- **{btype}**: {b['regime_keyword']} ({', '.join(b['entries'][:4])})\n"
+                    else:
+                        bridge_section += f"- **{btype}**: {b.get('title', b.get('node_id', ''))}\n"
+            else:
+                bridge_section += "*None detected yet.*\n"
+            if bridge_start != -1:
+                idx_text = idx_text[:bridge_start] + bridge_section
+            else:
+                idx_text = idx_text.rstrip() + "\n" + bridge_section
+            _atomic_write_text(index_path, idx_text)
+    except Exception:
+        pass
+
     return {
-        "bridges": unique_bridges[:10],
+        "bridges": unique_bridges[:20],
         "bridge_count": len(unique_bridges),
+        "authority_level": "L2_cross_topic",
         "message": (
-            f"Found {len(unique_bridges)} potential cross-topic bridges. "
-            f"Review each: structural similarities may indicate deep "
-            f"physical connections, or they may be coincidental."
+            f"Found {len(unique_bridges)} cross-topic bridges "
+            f"({sum(1 for b in unique_bridges if b['bridge_type'] in ('shared_observable','shared_method','shared_regime'))} catalog-level, "
+            f"{sum(1 for b in unique_bridges if b['bridge_type'] in ('mathematical_structure','conceptual_similarity'))} structural)."
         ) if unique_bridges else (
-            "No cross-topic bridges found. The mathematical structure "
-            "may be novel, or the L2 graph may not yet have enough "
-            "entries in related domains."
+            "No cross-topic bridges found. The L2 may not yet have enough "
+            "entries across multiple topics."
         ),
     }
 

@@ -225,6 +225,7 @@ def cmd_source_add(args):
     print(f"  notes.md   — reading notes template")
     if original_files:
         print(f"  original/  — {len(original_files)} file(s)")
+    return 0
 
 
 def cmd_source_discover(args):

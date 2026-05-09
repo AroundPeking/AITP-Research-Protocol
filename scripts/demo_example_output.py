@@ -75,7 +75,7 @@ def main():
                 next_sp = ["planning", "analysis", "result_integration", "distillation"][
                     ["ideation", "planning", "analysis", "result_integration"].index(sp)
                 ]
-                mcp_server.aitp_advance_l3_subplane(tmp, "demo-topic", next_sp)
+                mcp_server.aitp_switch_l3_activity(tmp, "demo-topic", next_sp)
                 print(f"  → Advanced to {next_sp}")
 
         # ── Step 6: Submit candidate ──

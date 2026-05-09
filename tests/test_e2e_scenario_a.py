@@ -331,8 +331,6 @@ def _promote_candidate_and_create_tex(tmp: str, repo_root: Path) -> None:
     )
     mcp_server.aitp_promote_candidate(tmp, TOPIC_SLUG, "cand-cs-anomaly")
 
-    # Generate flow_notebook.tex via the builder
-    mcp_server.aitp_generate_flow_notebook(tmp, TOPIC_SLUG, force_full=True)
 
 
 class ScenarioAEndToEndTest(unittest.TestCase):

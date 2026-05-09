@@ -79,5 +79,4 @@ These are available but should be used sparingly — usually at human request:
 | Archive topic | `aitp_archive_topic(topics_root, topic_slug)` | When a topic is complete or abandoned |
 | Restore topic | `aitp_restore_topic(topics_root, topic_slug)` | To resume an archived topic |
 | Set interaction | `aitp_set_interaction_level(topics_root, topic_slug, level)` | To adjust agent verbosity |
-| Generate notebook | `aitp_generate_flow_notebook(topics_root, topic_slug)` | To regenerate the LaTeX notebook |
 | Resolve conflict | `aitp_resolve_conflict(topics_root, topic_slug, conflict_id, resolution)` | To close a registered contradiction |

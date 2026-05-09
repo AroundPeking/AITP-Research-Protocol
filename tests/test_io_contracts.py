@@ -413,15 +413,6 @@ class TestFlowNotebook:
         assert hasattr(state_model, "STUDY_L3_ACTIVE_ARTIFACT_NAMES"), "STUDY_L3_ACTIVE_ARTIFACT_NAMES missing"
         assert state_model.STUDY_L3_SUBPLANES == [], "STUDY_L3_SUBPLANES should be empty (study merged into workspace)"
 
-    def test_notebook_builds_without_crash(self):
-        """Flow notebook generation must not crash."""
-        with tempfile.TemporaryDirectory() as tmp:
-            tr = _bootstrap(tmp)
-            _fill_l0(tmp, tr)
-            result = mcp_server.aitp_generate_flow_notebook(tmp, "test-topic")
-            # Should complete without error (even if mostly empty)
-            assert "generated" in str(result).lower() or "created" in str(result).lower() or \
-                   "notebook" in str(result).lower()
 
 
 class TestDoctorValidation:
