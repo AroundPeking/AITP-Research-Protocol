@@ -6,7 +6,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
 
-from brain.state import StageSnapshot, L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES, L3_ACTIVITY_REQUIRED_HEADINGS, L3_ACTIVITY_TEMPLATES, L3_ACTIVITY_SKILL_MAP, PHYSICS_CHECK_FIELDS, _LANE_PHYSICS_CHECK_FIELDS, _ARTIFACT_COMPLETION_STATUSES
+from brain.state import StageSnapshot, L3_ACTIVITIES, L3_ACTIVITY_ARTIFACT_NAMES, L3_ACTIVITY_REQUIRED_HEADINGS, L3_ACTIVITY_TEMPLATES, L3_ACTIVITY_SKILL_MAP, PHYSICS_CHECK_FIELDS, CROSS_DOMAIN_CHECK_FIELDS, _LANE_PHYSICS_CHECK_FIELDS, _ARTIFACT_COMPLETION_STATUSES
+
+# Sidecar activities: enter from any activity, return after. No gate prerequisites.
+_SIDECAR_ACTIVITIES = frozenset({"diagnose", "connect"})
 from brain.contracts import _L0_CONTRACTS, _L1_INTENSITY_CONTRACTS, _L1_CONTRACTS
 from brain.checks import _missing_frontmatter_keys, _missing_required_headings, _check_heading_content, _check_question_semantic_validity, _extract_domain_rules
 from brain.physicist import _check_physicist_l2_lookup, _check_physicist_correspondence, _check_physicist_anomalies
@@ -596,8 +599,9 @@ def evaluate_l3_stage(
     # Any activity can lead to L4 — there is no "last subplane".
 
     # Completion status check: artifact must be explicitly marked "complete"
+    # Sidecar activities (diagnose, connect) are exempt — enter/exit at any time.
     completion_status = str(fm.get("completion_status", "draft")).strip()
-    if completion_status not in _ARTIFACT_COMPLETION_STATUSES or completion_status != "complete":
+    if current_activity not in _SIDECAR_ACTIVITIES and completion_status != "complete":
         return StageSnapshot(
             stage="L3", posture="derive", lane=lane,
             gate_status="blocked_incomplete",
@@ -621,9 +625,13 @@ def evaluate_l3_stage(
     # Cross-activity prerequisite check:
     # Flexible workspace allows entering any activity, but the gate reports
     # blocked_incomplete when upstream artifacts lack real content.
-    cross_issues = _check_l3_cross_activity_prerequisites(
-        parse_md, topic_root_path, current_activity,
-    )
+    # Sidecar activities (diagnose, connect) are exempt.
+    if current_activity not in _SIDECAR_ACTIVITIES:
+        cross_issues = _check_l3_cross_activity_prerequisites(
+            parse_md, topic_root_path, current_activity,
+        )
+    else:
+        cross_issues = []
     if cross_issues:
         return StageSnapshot(
             stage="L3", posture="derive", lane=lane,
@@ -874,11 +882,19 @@ def evaluate_l4_stage(
 
     # Physics check completeness: every review must cover the required check fields.
     # formal_theory lane requires all 8; other lanes require the original 5.
+    # correspondence_link candidates use cross-domain checks (v4.2).
     _base_checks = PHYSICS_CHECK_FIELDS[:5]
-    _required_checks = _LANE_PHYSICS_CHECK_FIELDS.get(lane, _base_checks)
+    _lane_checks = _LANE_PHYSICS_CHECK_FIELDS.get(lane, _base_checks)
     for cand_path in submitted:
         slug = cand_path.stem
         review_path = review_dir / f"{slug}.md"
+        # Determine candidate_type for check routing
+        cfm, _ = parse_md(cand_path)
+        cand_type = str(cfm.get("candidate_type", "")).strip()
+        _required_checks = (
+            CROSS_DOMAIN_CHECK_FIELDS if cand_type == "correspondence_link"
+            else _lane_checks
+        )
         if review_path.exists():
             rfm, _ = parse_md(review_path)
             check_results = rfm.get("check_results", {})

@@ -33,9 +33,11 @@ Lane:     formal_theory | toy_numeric | code_method
   completed section immediately contributes concepts and obvious edges to L2. L1 can
   stay active for a long time — the `source_toc_map` tracks which sections have been
   extracted and which are still pending.
-- **L3** is a flexible workspace. No forced mode or subplane sequence. The agent
-  chooses the right activity at the right time, guided by the topic state:
-  - 📖 trace-derivation, 🧠 ideate, ✏️ derive, 🔍 gap-audit, 🔗 connect
+- **L3** is a flexible workspace with 9 activities. No forced sequence — the agent
+  chooses the right activity at the right time, guided by `entry_profile`:
+  - 🧠 ideate, 📋 plan, ✏️ derive, 📖 trace-derivation, 🔬 diagnose
+  - 🔍 gap-audit, 📊 integrate, 🔗 connect, 💎 distill
+  - diagnose and connect are **sidecar activities** — enter from any activity, return after
 - **L4** validates candidates from L3. Counterargument required.
 - **L2** is the persistent knowledge graph. L1 feeds it concepts. L3 feeds it
   relationships and derivations. L4 feeds it trust upgrades.
@@ -287,21 +289,31 @@ modes; they are activities you switch between as the work demands.
    aitp_switch_l3_activity(topics_root, topic_slug, activity, reason=...)
 ```
 
-**L3 Activities** (no forced sequence, can revisit any at any time):
+**L3 Activities** (9 activities; diagnose + connect are sidecars with no gate):
 
 | Activity | What you do | Key output |
 |----------|-------------|------------|
-| **ideate** | Propose new ideas based on L2 concepts + source material | `active_idea.md`: idea, motivation, prior work |
-| **derive** | Execute a derivation or calculation | `active_derivation.md`: step-by-step trace |
-| **trace-derivation** | Trace a source's derivation step by step | `active_derivation.md`: justification_type per step |
-| **gap-audit** | Find hidden assumptions, regime boundaries, prerequisites | `active_gaps.md`: gap count, blocking gaps |
-| **connect** | Create/refine L2 edges, deepen concept relationships | L2 edges, trust upgrades |
-| **integrate** | Combine findings, check consistency | `active_integration.md`: findings, gaps |
-| **distill** | Extract claims from completed work | `active_distillation.md`: distilled claim |
+| **ideate** | Propose new ideas or decompose a source into atomic claims | `active_idea.md` |
+| **plan** | Design derivation route; code_method adds Pre-Derive Setup | `active_plan.md` |
+| **derive** | Execute a derivation or calculation | `active_derivation.md` |
+| **trace-derivation** | Trace a source's derivation step by step | `active_trace.md` |
+| **diagnose** | Abductive hypothesis-test loop for anomalies (sidecar) | `active_diagnosis.md` |
+| **gap-audit** | Find hidden assumptions, regime boundaries, missing correspondence | `active_gaps.md` |
+| **connect** | Create L2 nodes/edges from L3 findings (sidecar) | `active_connect.md` |
+| **integrate** | Combine findings, assess claim readiness; 3 modes | `active_integration.md` |
+| **distill** | Extract claims; route candidate_type by entry_profile | `active_distillation.md` |
+
+Entry profiles guide default starting activity and preferred flow:
+- `learn_paper`: trace-derivation → gap-audit → connect → integrate → distill
+- `explore_idea`: ideate → plan → derive → gap-audit → integrate → distill
+- `continue_work`: resume last activity
+- `l4_return`: integrate → distill (revise from L4 feedback)
+
+Set via: `aitp_set_entry_profile(topics_root, topic_slug, entry_profile)`.
 
 ```
-Allowed transitions: any activity → any other activity.
-aitp_retreat_to_l1 at any time (continue reading more sections).
+Allowed transitions: any activity ↔ any other activity.
+Sidecars (diagnose, connect): enter from any activity, return after.
 ```
 
 Submit candidates at any point when a claim is ready:
@@ -452,10 +464,11 @@ while topic is not complete:
         Match on brief.stage:
             "L0" → Register sources, fill source_registry.md, advance to L1
             "L1" → Fill remaining L1 artifacts or advance to L3
-            "L3" → Check brief.l3_mode:
-                     "research" → Work on active subplane artifact (ideation...distillation)
-                     "study" → Work on active subplane artifact (source_decompose...synthesis)
-                   Then advance subplane or submit candidate
+            "L3" → Check brief.entry_profile:
+                     "learn_paper" → trace-derivation → gap-audit → connect → integrate → distill
+                     "explore_idea" → ideate → plan → derive → gap-audit → integrate → distill
+                     "continue_work" → resume last activity, follow parent DAG
+                     "l4_return" → integrate → distill (revise from L4 feedback)
             "L4" → Validate candidate with code/analysis, submit review,
                     then return to L3 via aitp_return_to_l3_from_l4
             "L2" → Request promotion from validated L4 candidate

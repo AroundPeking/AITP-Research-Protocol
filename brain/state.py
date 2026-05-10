@@ -42,13 +42,15 @@ class StageSnapshot:
     retreat_count: int = 0
     # L1 freshness tracking (v1.2)
     l1_feedback_status: str = ""  # "" = not evaluated, "has_feedback" or "missing"
+    # Entry profile for L3 routing (v4.2)
+    entry_profile: str = ""  # learn_paper | explore_idea | continue_work | l4_return
 
 
 # -- Re-exported from state_model for backward compat --
 
 L3_ACTIVITIES = [
     "ideate", "plan", "derive", "trace-derivation",
-    "gap-audit", "integrate", "distill",
+    "diagnose", "gap-audit", "integrate", "connect", "distill",
 ]
 
 L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
@@ -109,6 +111,26 @@ L3_ACTIVITY_TEMPLATES: dict[str, tuple[str, dict[str, Any], str]] = {
         "# Active Integration\n\n## Integration Statement\n\n## Findings\n\n"
         "## Consistency Checks\n\n## Gaps Remaining\n",
     ),
+    "diagnose": (
+        "diagnose",
+        {"artifact_kind": "l3_active_diagnosis", "activity": "diagnose",
+         "required_fields": ["anomaly_description", "hypothesis_count"],
+         "anomaly_description": "", "hypothesis_count": 0,
+         "completion_status": "draft"},
+        "# Active Diagnosis\n\n## Anomaly Description\n\n"
+        "## Hypothesis Stack\n\n## Tests Executed\n\n"
+        "## Excluded Hypotheses\n\n## Resolution\n",
+    ),
+    "connect": (
+        "connect",
+        {"artifact_kind": "l3_active_connect", "activity": "connect",
+         "required_fields": ["nodes_created", "edges_created"],
+         "nodes_created": "", "edges_created": "",
+         "completion_status": "draft"},
+        "# Active Connection\n\n## Concepts Being Connected\n\n"
+        "## Proposed Edges\n\n## Evidence\n\n"
+        "## Trust Assessment\n\n## Discovered Candidates\n",
+    ),
     "distill": (
         "distill",
         {"artifact_kind": "l3_active_distillation", "activity": "distill",
@@ -125,15 +147,18 @@ L3_ACTIVITY_ARTIFACT_NAMES: dict[str, str] = {
     "plan": "active_plan.md",
     "derive": "active_derivation.md",
     "trace-derivation": "active_trace.md",
+    "diagnose": "active_diagnosis.md",
     "gap-audit": "active_gaps.md",
     "integrate": "active_integration.md",
+    "connect": "active_connect.md",
     "distill": "active_distillation.md",
 }
 
 # Backwards-compat aliases for flow notebook and legacy tools.
 L3_SUBPLANES = L3_ACTIVITIES
 L3_ACTIVE_ARTIFACT_NAMES = L3_ACTIVITY_ARTIFACT_NAMES
-# Study mode merged into flexible workspace in v4.  Kept as empty for compat.
+# Study mode merged into flexible workspace in v4.0; entry_profile (v4.2)
+# replaces l3_mode for routing. Kept as empty for backward compat.
 STUDY_L3_SUBPLANES: list[str] = []
 STUDY_L3_ACTIVE_ARTIFACT_NAMES: dict[str, str] = {}
 
@@ -141,9 +166,11 @@ L3_ACTIVITY_SKILL_MAP: dict[str, str] = {
     "ideate": "skill-l3-ideate",
     "plan": "skill-l3-plan",
     "derive": "skill-l3-analyze",
-    "trace-derivation": "skill-l3-analyze",  # merged: derivation tracing covered by analyze skill
+    "trace-derivation": "skill-l3-analyze",
+    "diagnose": "skill-l3-diagnose",
     "gap-audit": "skill-l3-gap-audit",
     "integrate": "skill-l3-integrate",
+    "connect": "skill-l3-connect",
     "distill": "skill-l3-distill",
 }
 
@@ -163,8 +190,10 @@ L3_ACTIVITY_REQUIRED_HEADINGS: dict[str, list[str]] = {
     "plan": ["## Plan Statement", "## Derivation Route"],
     "derive": ["## Derivation Chains", "## Step-by-Step Trace"],
     "trace-derivation": ["## Source Reference", "## Derivation Chains"],
+    "diagnose": ["## Anomaly Description", "## Hypothesis Stack"],
     "gap-audit": ["## Unstated Assumptions", "## Correspondence Check"],
     "integrate": ["## Integration Statement", "## Findings"],
+    "connect": ["## Concepts Being Connected", "## Proposed Edges"],
     "distill": ["## Distilled Claim", "## Evidence Summary"],
 }
 
@@ -313,6 +342,9 @@ STEP_TEMPLATE: dict[str, Any] = {
     "approximation": "",
     "regime_condition": "",
     "source_ref": "",
+    "code_ref": "",             # code location: "file:line", "function_name"
+    "paper_ref": "",            # paper equation/section reference
+    "fidelity_assessment": "",  # "faithful" | "approximate" | "deviates" | "unverifiable"
 }
 
 L2_TOWER_TEMPLATE: tuple[dict[str, Any], str] = (
@@ -385,4 +417,11 @@ _LANE_PHYSICS_CHECK_FIELDS: dict[str, list[str]] = {
     "code_method": PHYSICS_CHECK_FIELDS[:6],
     "toy_numeric": PHYSICS_CHECK_FIELDS[:6],
 }
+
+CROSS_DOMAIN_CHECK_FIELDS = [
+    "structural_isomorphism_check",
+    "regime_translation_check",
+    "counterexample_search",
+    "multi_observer_triangulation",
+]
 

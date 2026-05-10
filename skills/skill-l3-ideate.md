@@ -15,6 +15,17 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
+## Entry Profile Detection
+
+Check the execution brief for `entry_profile`:
+- **`explore_idea`** → Scenario A: generate novel research ideas (default)
+- **`learn_paper`** → Scenario B: decompose a source paper into atomic claims and L2 concepts
+
+If the profile is missing or ambiguous, ask via `AskUserQuestion`:
+"Are we exploring a new research idea, or studying existing literature?"
+
+---
+
 You are in the ideation activity of the L3 flexible workspace.
 
 ## Before You Begin: Read L1 Context

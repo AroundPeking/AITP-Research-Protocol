@@ -15,15 +15,22 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
+## Entry Profile Detection
+
+Check the execution brief for `entry_profile`:
+- **`explore_idea`** → Scenario A: audit own derivation
+- **`learn_paper`** → Scenario B: audit a paper's derivation
+Both use the same 5-step checklist below, with different emphasis.
+
+---
+
 You are auditing for gaps. This applies equally to two scenarios:
 
-**A. Novel derivation** — after deriving a result, audit: what assumptions were
-used but not stated? What approximation regimes are violated? Does the result
-reduce to known limits?
+**A. Novel derivation** — after deriving a result, audit assumptions, approximations,
+regime boundaries, correspondence to known limits.
 
-**B. Source study** (replaces deprecated study mode) — after tracing a paper's
-derivation, audit: what does the paper assume without proof? What prerequisites
-does it expect? Are there internal inconsistencies or regime mismatches?
+**B. Source study** — after tracing a paper's derivation, audit unstated assumptions,
+prerequisite gaps, internal inconsistencies, regime mismatches.
 
 ## Active artifact
 
@@ -80,6 +87,20 @@ For each gap found, assign severity:
 - `important`: affects correctness of some claims
 - `minor`: cosmetic or clarity issue
 - `future_work`: interesting but not required for this study
+
+### 6. Lane-Specific Checks (explore_idea only)
+
+**formal_theory lane** — additionally audit:
+- Axiom closure: are all starting postulates listed?
+- Ward identity satisfaction: for gauge theories
+- Analytic structure preservation: does each step preserve retarded/advanced analyticity?
+- Regularization independence: does the result survive regulator removal?
+- Sign/chirality convention consistency
+
+**code_method lane** — additionally audit:
+- Compilation completeness on target machine
+- Numerical sanity (order-of-magnitude estimates)
+- Convergence with respect to all relevant parameters
 
 Fill the artifact:
 - `gap_count`: total gaps found

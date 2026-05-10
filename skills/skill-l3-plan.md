@@ -15,6 +15,36 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
+## Entry Profile Detection
+
+Check the execution brief for `entry_profile`:
+- **`explore_idea`** → Design derivation route from an idea
+- **`learn_paper`** → Skip plan — go directly to trace-derivation (the paper's structure IS the plan)
+- **`continue_work`** → Load existing plan, fill gaps
+- **`l4_return`** → Re-plan based on L4 review feedback
+
+## Pre-Derive Setup (MANDATORY for code_method lane)
+
+If the topic lane is `code_method`, fill the `## Pre-Derive Setup` checklist before completion:
+- [ ] Code builds without errors on target machine
+- [ ] Pseudopotentials / basis sets verified
+- [ ] DFT baseline passes sanity check (known system: Si PBE gap ~0.6 eV)
+- [ ] Input file templates validated
+
+If any setup item fails, switch to diagnose.
+
+## Branch Points
+
+Under `## Branch Points` in the artifact, define expected outcomes:
+```markdown
+### main → gap-audit (trigger: result within tolerance)
+### anomaly → diagnose (trigger: deviation > threshold)
+### dead_end → retreat_to_l1 (trigger: no progress after N attempts)
+```
+Execution brief will surface these when plan is ready.
+
+---
+
 You are in the planning subplane of L3 derivation.
 
 ## Collaborative Discussion (MANDATORY)

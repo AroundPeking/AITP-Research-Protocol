@@ -40,6 +40,7 @@ from brain.state import (
     TRUST_EVOLUTION,
     L4_OUTCOMES,
     PHYSICS_CHECK_FIELDS,
+    CROSS_DOMAIN_CHECK_FIELDS,
     _LANE_PHYSICS_CHECK_FIELDS,
     _get_l3_config,
 )

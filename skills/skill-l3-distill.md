@@ -15,6 +15,28 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
+## Entry Profile Detection + Candidate Type Routing
+
+Check the execution brief for `entry_profile`:
+
+**learn_paper** → use source-derived candidates:
+- Content is a single concept → `atomic_concept`
+- Content is a step-by-step derivation → `derivation_chain`
+- Content is a cross-formalism/domain mapping → `correspondence_link`
+- Content is a unresolved gap → `open_question`
+- Content is a failed reproduction → `negative_result`
+- Default → `atomic_concept`
+
+**explore_idea** → use novel research candidates:
+- Content is a novel claim → `research_claim` (default)
+- Content is a negative finding → `negative_result`
+
+**l4_return** → same as explore_idea, trust basis accounts for L4 outcome.
+
+If uncertain between two types, use `AskUserQuestion` to confirm with the human.
+
+---
+
 You are in the distillation subplane of L3 derivation.
 
 ## Collaborative Discussion (MANDATORY)

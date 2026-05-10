@@ -35,6 +35,29 @@ verify with `aitp_verify_derivation_step` / `aitp_verify_derivation_chain`.
 
 ---
 
+## Entry Profile Detection
+
+Check the execution brief for `entry_profile`:
+- **`explore_idea`** → derive (own derivation, derivation_round / numerical_or_benchmark_round)
+- **`learn_paper`** → trace-derivation (source tracing, source_restoration_round)
+- **`continue_work`** → resume whichever was in progress
+- **`l4_return`** → patch derivation gaps from L4 review
+
+In learn_paper mode, additionally track:
+- **Coverage**: which sections of the source have been traced (use `source_toc_map` from L1)
+- **Feynman self-test**: after tracing a derivation chain, cover the source and try to reconstruct blind. Differences = understanding gaps.
+
+## Anomaly Detection → Diagnose Escape Hatch
+
+If you encounter unexpected behavior (NaN, oscillations, deviation > threshold):
+1. Try 1-3 quick fixes within derive (parameter adjustment, re-run)
+2. If root cause unclear after 3 attempts, switch to diagnose:
+   ```
+   aitp_switch_l3_activity(target="diagnose", reason="anomaly: <description>")
+   ```
+
+---
+
 You are in the derivation workspace of L3.
 
 ## Collaborative Discussion (MANDATORY)

@@ -15,7 +15,21 @@ NEVER type questions or options as plain text. ALWAYS use the popup tool.
 
 ---
 
-You are in the result integration subplane of L3 derivation.
+## Entry Profile Detection + Mode Routing
+
+Check the execution brief for `entry_profile`:
+
+| entry_profile | Mode | When |
+|---------------|------|------|
+| `explore_idea` | Mode 1: Merge into Claim | Merging own derivation + gap findings |
+| `learn_paper` (1 source) | Mode 1 | Synthesizing one paper |
+| `learn_paper` (>=2 sources) | Mode 3: Comparison Table | Comparing multiple sources |
+| `learn_paper` + contradictions | Mode 2: Contradiction Analysis | Conflicting claims |
+| `l4_return` | Mode 1r: L4 Re-Integration | Re-assess after L4 feedback |
+
+---
+
+You are in the result integration subplane of L3.
 
 ## Collaborative Discussion (MANDATORY)
 
@@ -153,6 +167,24 @@ evidence than a claim alone.
 4. List open obligations with blocking status.
 5. If applicable, propose experiments via `aitp_propose_experiment`.
 6. Do not distill yet.
+
+---
+
+## Mode 2: Contradiction Analysis (learn_paper with conflicts)
+
+Additional artifact sections: `## Contradiction Register` (table), `## Resolution Proposals`.
+Discussion: "Found these contradictions <list>. Are any expected?" "Which should we trust?"
+Exit: each contradiction has resolution status (resolved / deferred / escalated).
+
+---
+
+## Mode 3: Comparison Table Synthesis (learn_paper with >=2 sources)
+
+Additional artifact sections: `## Comparison Matrix` (sources × dimensions), `## Key Differences`, `## Convergence Points`.
+Discussion: "Comparing A vs B on <dim>, difference <X> matters?" "Are methods X and Y equivalent in some limit?"
+Exit: `## Comparison Matrix` has >=2 sources and >=2 dimensions.
+
+---
 
 ## Exit condition
 
