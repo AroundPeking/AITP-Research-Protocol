@@ -627,6 +627,14 @@ ideas/{id}.md       ← per-idea state and learnings
 | **Dead ends** | "Internal velocity rotation approach abandoned — AO reconstruction rank-deficient" |
 | **Cross-idea insights** | "Both ABACUS and FHI-aims paths converge on replace_w_head=t, option_dielect_func=3" |
 
+**Provenance rule**: Every parameter, pitfall, and configuration claim in MEMORY.md
+MUST cite its source. Acceptable provenance tags:
+- `[v:<job_id>]` — verified by a passing L4 computation job
+- `[k:<source>]` — copied from a validated external reference
+- `[u]` — unverified (debug attempt, educated guess)
+Unverified `[u]` parameters MUST NOT be used as defaults for new calculations.
+Pitfalls without a specific failure trace (job ID + log line) MUST NOT be promoted to domain-skill defaults.
+
 ### Difference from global L2
 
 | | Global L2 | Topic Memory |

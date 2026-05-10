@@ -67,6 +67,13 @@ For Lean formal verification (optional, highest assurance):
 
 #### For toy_numeric / code_method lanes — executed scripts (MANDATORY for pass)
 
+**Prerequisite — Binary regression check (BLOCKING for code_method):**
+Before submitting any HPC validation job, verify the compiled binary against
+its registered regression test. If the domain skill provides a smoke check
+command, it MUST return pass before the L4 validation gate can clear.
+- Fail → L4 outcome is `blocked`, do not proceed to HPC submission
+- Evidence: record binary git commit + regression test result in review
+
 1. Write validation scripts in `L4/scripts/validate_<check>.py`
 2. Execute them on the declared compute_target:
    - For HPC/long-running jobs, use:
