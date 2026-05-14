@@ -38,7 +38,8 @@ TEMPLATES_DIR = REPO_ROOT / "deploy" / "templates"
 INSTALL_DIR = Path.home() / ".aitp"
 RECORD_PATH = INSTALL_DIR / "install-record.json"
 
-AGENT_CHOICES = ("claude-code", "kimi-code", "all")
+AGENTS = ("claude-code", "kimi-code", "codex")
+AGENT_CHOICES = (*AGENTS, "all")
 SCOPE_CHOICES = ("user", "project")
 
 # ---------------------------------------------------------------------------
@@ -166,6 +167,9 @@ def _build_variables(topics_root: str | None = None, target_root: str | None = N
         "USER_HOME": str(Path.home()).replace("\\", "/"),
         "CLAUDE_USER_DIR": str(Path.home() / ".claude").replace("\\", "/"),
         "KIMI_USER_DIR": str(Path.home() / ".kimi").replace("\\", "/"),
+        "CODEX_USER_DIR": str(Path.home() / ".codex").replace("\\", "/"),
+        "CODEX_HOME_DIR": str(Path.home() / ".codex-home").replace("\\", "/"),
+        "CODEX_SWITCHER_SKILLS_DIR": str(Path.home() / ".codex-switcher" / "skills").replace("\\", "/"),
         "AGENTS_SKILLS_DIR": str(Path.home() / ".agents" / "skills").replace("\\", "/"),
     }
 
@@ -373,7 +377,13 @@ def _merge_claude_settings(settings_path: Path, variables: dict, remove: bool = 
     _atomic_write(settings_path, json.dumps(settings, indent=2, ensure_ascii=False))
 
 
-def _write_mcp_json(mcp_path: Path, repo_root: str, topics_root: str = "", remove: bool = False) -> None:
+def _write_mcp_json(
+    mcp_path: Path,
+    repo_root: str,
+    topics_root: str = "",
+    remove: bool = False,
+    prefer_uv: bool = False,
+) -> None:
     """Add or remove AITP MCP server entry."""
     if mcp_path.exists():
         try:
@@ -390,11 +400,25 @@ def _write_mcp_json(mcp_path: Path, repo_root: str, topics_root: str = "", remov
         if not servers:
             del data["mcpServers"]
     else:
-        entry = {
-            "command": "python",
-            "args": [f"{repo_root}/brain/native_mcp.py"],
-            "cwd": repo_root,
-        }
+        if prefer_uv and shutil.which("uv"):
+            entry = {
+                "command": "uv",
+                "args": [
+                    "run",
+                    "--with", "pyyaml",
+                    "--with", "jsonschema",
+                    "--with", "fastmcp",
+                    "python",
+                    f"{repo_root}/brain/native_mcp.py",
+                ],
+                "cwd": repo_root,
+            }
+        else:
+            entry = {
+                "command": "python",
+                "args": [f"{repo_root}/brain/native_mcp.py"],
+                "cwd": repo_root,
+            }
         if topics_root:
             entry["env"] = {"AITP_TOPICS_ROOT": topics_root}
         servers["aitp"] = entry
@@ -901,12 +925,179 @@ def _deploy_kimi_code(
 
 
 # ---------------------------------------------------------------------------
+# Deploy: Codex App
+# ---------------------------------------------------------------------------
+
+
+def _discover_codex_skill_roots(scope: str, target_root: Path | None) -> list[Path]:
+    """Return Codex skill roots for user or project scope.
+
+    Codex deployments are kept in Codex-specific roots to avoid clobbering the
+    shared ~/.agents/skills root used by other agents such as Kimi Code.
+    """
+    if scope == "project":
+        base = target_root or Path.cwd()
+        return [base / ".codex" / "skills"]
+
+    candidates = [
+        Path.home() / ".codex" / "skills",
+        Path.home() / ".codex-home" / "skills",
+        Path.home() / ".codex-switcher" / "skills",
+    ]
+    roots: list[Path] = []
+    seen: set[Path] = set()
+    for p in candidates:
+        if p.exists() or p.parent.exists():
+            resolved = p.resolve() if p.exists() else p
+            if resolved not in seen:
+                roots.append(p)
+                seen.add(resolved)
+
+    return roots or [Path.home() / ".codex" / "skills"]
+
+
+def _discover_codex_gateway_skills() -> list[tuple[Path, str]]:
+    skills_dir = REPO_ROOT / "deploy" / "codex" / "skills"
+    if not skills_dir.is_dir():
+        return []
+    return [(p, p.stem) for p in sorted(skills_dir.glob("*.md"))]
+
+
+def _codex_protocol_skill_preamble(skill_name: str) -> str:
+    return f"""<!--
+Codex app adapter override for {skill_name}.
+
+If the upstream protocol text below mentions Claude/Kimi tool names, map them
+to Codex behavior:
+- AskUserQuestion: ask the user through Codex's available interaction surface.
+  If no structured question tool is active, ask a concise plain-text question
+  and wait for the user's answer.
+- ToolSearch(query="select:AskUserQuestion", ...): skip this step. Codex app
+  supplies its available tools through the active runtime.
+- mcp__aitp__aitp_*: call the AITP MCP tool under the actual Codex tool name.
+  If the tool is unavailable, stop and run doctor; do not emulate topic-state
+  writes by manually editing AITP topic files.
+- Read/Write/Grep/Glob/Bash: use Codex-equivalent file and shell tools for
+  source code or registered source material, while preserving the rule that
+  AITP topic-state mutation goes through AITP tools.
+
+These adapter overrides control over conflicting platform-specific wording
+inside the upstream skill body.
+-->
+
+"""
+
+
+def _discover_codex_skills() -> list[tuple[Path, str, bool]]:
+    """Discover Codex skill sources.
+
+    Returns (source_path, skill_name, is_gateway). Gateway skills are
+    Codex-native and replace deploy/skills copies. Protocol skills are wrapped
+    with a Codex adapter preamble at deploy time.
+    """
+    results: list[tuple[Path, str, bool]] = []
+    seen: set[str] = set()
+
+    for src, name in _discover_codex_gateway_skills():
+        results.append((src, name, True))
+        seen.add(name)
+
+    repo_skills_dir = REPO_ROOT / "skills"
+    if repo_skills_dir.is_dir():
+        for src in sorted(repo_skills_dir.glob("*.md")):
+            name = src.stem
+            if name in seen:
+                continue
+            results.append((src, name, False))
+            seen.add(name)
+
+    return results
+
+
+def _deploy_codex_app(
+    scope: str, target_root: Path | None, variables: dict, remove: bool = False
+) -> list[str]:
+    """Install or uninstall AITP for Codex app.
+
+    Codex app has native skill discovery but no Claude-style hooks. The adapter
+    therefore deploys Codex-native gateway skills plus wrapped protocol skills,
+    and writes a best-effort MCP config file next to each Codex skill root.
+    """
+    roots = _discover_codex_skill_roots(scope, target_root)
+    skills = _discover_codex_skills()
+    deployed: list[str] = []
+
+    if not skills:
+        print("  WARNING: no Codex skills found under deploy/codex/skills or skills/")
+        return deployed
+
+    if remove:
+        for root in roots:
+            for _, skill_name, _ in skills:
+                p = root / skill_name / "SKILL.md"
+                if p.exists():
+                    p.unlink()
+                    deployed.append(f"- {p}")
+                try:
+                    parent = p.parent
+                    if parent.exists() and parent != root and not list(parent.iterdir()):
+                        parent.rmdir()
+                except OSError:
+                    pass
+
+            mcp_path = root.parent / "mcp.json"
+            _write_mcp_json(
+                mcp_path,
+                variables["REPO_ROOT"],
+                variables.get("TOPICS_ROOT", ""),
+                remove=True,
+                prefer_uv=True,
+            )
+            deployed.append(f"~ {mcp_path} (aitp entry removed)")
+        return deployed
+
+    for root in roots:
+        print(f"  Deploying Codex skills to {root}/")
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+
+        for src, skill_name, is_gateway in skills:
+            if not src.exists():
+                print(f"    WARNING: skill source not found: {src}")
+                continue
+            content = src.read_text(encoding="utf-8")
+            if not is_gateway:
+                content = _codex_protocol_skill_preamble(skill_name) + content
+            content = _fill(content, variables)
+            dst = root / skill_name / "SKILL.md"
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                _atomic_write(dst, content)
+                deployed.append(str(dst))
+            except OSError:
+                print(f"    SKIP {skill_name}/SKILL.md (cannot write to {dst.parent})")
+
+        mcp_path = root.parent / "mcp.json"
+        _write_mcp_json(
+            mcp_path,
+            variables["REPO_ROOT"],
+            variables.get("TOPICS_ROOT", ""),
+            prefer_uv=True,
+        )
+        deployed.append(f"{mcp_path} (aitp entry written)")
+
+    return deployed
+
+
+# ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
 
 
 def cmd_install(args) -> None:
-    agents = AGENT_CHOICES[:-1] if args.agent == "all" else [args.agent]
+    agents = AGENTS if args.agent == "all" else [args.agent]
     scope = args.scope or "user"
     target_root = Path(args.target_root) if args.target_root else None
 
@@ -929,6 +1120,8 @@ def cmd_install(args) -> None:
             paths = _deploy_claude_code(scope, target_root, variables, remove=False)
         elif agent == "kimi-code":
             paths = _deploy_kimi_code(scope, target_root, variables, remove=False)
+        elif agent == "codex":
+            paths = _deploy_codex_app(scope, target_root, variables, remove=False)
         else:
             print(f"  Unknown agent: {agent}")
             continue
@@ -957,7 +1150,7 @@ def cmd_install(args) -> None:
 
 
 def cmd_uninstall(args) -> None:
-    agents = AGENT_CHOICES[:-1] if args.agent == "all" else [args.agent]
+    agents = AGENTS if args.agent == "all" else [args.agent]
     scope = args.scope or "user"
     target_root = Path(args.target_root) if args.target_root else None
 
@@ -970,6 +1163,8 @@ def cmd_uninstall(args) -> None:
             paths = _deploy_claude_code(scope, target_root, variables, remove=True)
         elif agent == "kimi-code":
             paths = _deploy_kimi_code(scope, target_root, variables, remove=True)
+        elif agent == "codex":
+            paths = _deploy_codex_app(scope, target_root, variables, remove=True)
         else:
             continue
 
@@ -986,7 +1181,7 @@ def cmd_uninstall(args) -> None:
 
 
 def cmd_update(args) -> None:
-    agents = AGENT_CHOICES[:-1] if args.agent == "all" else [args.agent]
+    agents = AGENTS if args.agent == "all" else [args.agent]
 
     record = _load_record()
     if not record["installs"]:
@@ -1044,6 +1239,8 @@ def cmd_update(args) -> None:
                 paths = _deploy_claude_code(scope, target_root, variables, remove=False)
             elif agent == "kimi-code":
                 paths = _deploy_kimi_code(scope, target_root, variables, remove=False)
+            elif agent == "codex":
+                paths = _deploy_codex_app(scope, target_root, variables, remove=False)
             else:
                 continue
 
@@ -1426,7 +1623,43 @@ def cmd_doctor(args) -> None:
     else:
         print("    config.toml: NOT FOUND")
 
-    # 7. Summary
+    # 7. Codex App
+    print("\n  --- Codex App ---")
+    codex_roots = _discover_codex_skill_roots("user", None)
+    required_codex_skills = ["using-aitp", "aitp-runtime"]
+    found_codex_skill = {name: False for name in required_codex_skills}
+    codex_mcp_ready = False
+
+    for root in codex_roots:
+        root_status = "OK" if root.exists() else "NOT FOUND"
+        print(f"    skill root {root}: {root_status}")
+        for skill_name in required_codex_skills:
+            p = root / skill_name / "SKILL.md"
+            status = "OK" if p.exists() else "MISSING"
+            if p.exists():
+                found_codex_skill[skill_name] = True
+            print(f"      {skill_name}/SKILL.md: {status}")
+
+        mcp_path = root.parent / "mcp.json"
+        if mcp_path.exists():
+            try:
+                data = json.loads(mcp_path.read_text(encoding="utf-8"))
+                has_aitp = "aitp" in data.get("mcpServers", {})
+                status = "OK" if has_aitp else "NOT CONFIGURED"
+                codex_mcp_ready = codex_mcp_ready or has_aitp
+            except (json.JSONDecodeError, OSError):
+                status = "PARSE ERROR"
+            print(f"      mcp.json: {status}")
+        else:
+            print("      mcp.json: NOT FOUND")
+
+    for skill_name, found in found_codex_skill.items():
+        if not found:
+            issues.append(f"Codex App skill missing: {skill_name}/SKILL.md")
+    if not codex_mcp_ready:
+        issues.append("Codex App mcp.json missing aitp entry")
+
+    # 8. Summary
     print(f"\n{'=' * 60}")
     if issues:
         print(f"  {len(issues)} issue(s) found:")
