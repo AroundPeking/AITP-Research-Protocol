@@ -429,6 +429,90 @@ def _write_mcp_json(
         mcp_path.unlink()
 
 
+def _toml_string(value: str) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _toml_array(values: list[str]) -> str:
+    return "[" + ", ".join(_toml_string(v) for v in values) + "]"
+
+
+def _strip_toml_sections(content: str, section_headers: set[str]) -> str:
+    lines = content.splitlines()
+    out: list[str] = []
+    skip = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped in section_headers:
+            skip = True
+            continue
+        if skip and stripped.startswith("["):
+            skip = False
+        if not skip:
+            out.append(line)
+    return "\n".join(out).rstrip()
+
+
+def _merge_codex_config_toml(
+    config_path: Path,
+    repo_root: str,
+    topics_root: str = "",
+    remove: bool = False,
+    prefer_uv: bool = False,
+) -> None:
+    """Add or remove [mcp_servers.aitp] from Codex config.toml."""
+    if config_path.exists():
+        content = config_path.read_text(encoding="utf-8")
+    elif remove:
+        return
+    else:
+        content = ""
+
+    content = _strip_toml_sections(
+        content,
+        {"[mcp_servers.aitp]", "[mcp_servers.aitp.env]"},
+    )
+
+    if remove:
+        if content:
+            _atomic_write(config_path, content + "\n")
+        elif config_path.exists():
+            config_path.unlink()
+        return
+
+    if prefer_uv and shutil.which("uv"):
+        command = "uv"
+        args = [
+            "run",
+            "--with", "pyyaml",
+            "--with", "jsonschema",
+            "--with", "fastmcp",
+            "python",
+            f"{repo_root}/brain/native_mcp.py",
+        ]
+    else:
+        command = "python"
+        args = [f"{repo_root}/brain/native_mcp.py"]
+
+    block = [
+        "[mcp_servers.aitp]",
+        'type = "stdio"',
+        f"command = {_toml_string(command)}",
+        f"args = {_toml_array(args)}",
+        f"cwd = {_toml_string(repo_root)}",
+        "startup_timeout_sec = 60",
+    ]
+    if topics_root:
+        block.extend([
+            "",
+            "[mcp_servers.aitp.env]",
+            f"AITP_TOPICS_ROOT = {_toml_string(topics_root)}",
+        ])
+
+    new_content = (content + "\n\n" if content else "") + "\n".join(block) + "\n"
+    _atomic_write(config_path, new_content)
+
+
 def _merge_kimi_config_toml(config_path: Path, repo_root: str, remove: bool = False) -> None:
     """Add or remove [mcp.servers.aitp] section from Kimi Code config.toml."""
     if not config_path.exists():
@@ -1021,7 +1105,8 @@ def _deploy_codex_app(
 
     Codex app has native skill discovery but no Claude-style hooks. The adapter
     therefore deploys Codex-native gateway skills plus wrapped protocol skills,
-    and writes a best-effort MCP config file next to each Codex skill root.
+    and writes MCP config into both the legacy mcp.json location and Codex's
+    config.toml [mcp_servers.aitp] surface.
     """
     roots = _discover_codex_skill_roots(scope, target_root)
     skills = _discover_codex_skills()
@@ -1054,6 +1139,16 @@ def _deploy_codex_app(
                 prefer_uv=True,
             )
             deployed.append(f"~ {mcp_path} (aitp entry removed)")
+
+            config_path = root.parent / "config.toml"
+            _merge_codex_config_toml(
+                config_path,
+                variables["REPO_ROOT"],
+                variables.get("TOPICS_ROOT", ""),
+                remove=True,
+                prefer_uv=True,
+            )
+            deployed.append(f"~ {config_path} ([mcp_servers.aitp] removed)")
         return deployed
 
     for root in roots:
@@ -1087,6 +1182,15 @@ def _deploy_codex_app(
             prefer_uv=True,
         )
         deployed.append(f"{mcp_path} (aitp entry written)")
+
+        config_path = root.parent / "config.toml"
+        _merge_codex_config_toml(
+            config_path,
+            variables["REPO_ROOT"],
+            variables.get("TOPICS_ROOT", ""),
+            prefer_uv=True,
+        )
+        deployed.append(f"{config_path} ([mcp_servers.aitp] written)")
 
     return deployed
 
@@ -1629,6 +1733,7 @@ def cmd_doctor(args) -> None:
     required_codex_skills = ["using-aitp", "aitp-runtime"]
     found_codex_skill = {name: False for name in required_codex_skills}
     codex_mcp_ready = False
+    codex_config_ready = False
 
     for root in codex_roots:
         root_status = "OK" if root.exists() else "NOT FOUND"
@@ -1653,11 +1758,27 @@ def cmd_doctor(args) -> None:
         else:
             print("      mcp.json: NOT FOUND")
 
+        config_path = root.parent / "config.toml"
+        if config_path.exists():
+            try:
+                content = config_path.read_text(encoding="utf-8")
+                has_aitp = "[mcp_servers.aitp]" in content
+                has_cwd = "cwd =" in content and "brain/native_mcp.py" in content
+                status = "OK" if has_aitp and has_cwd else "NOT CONFIGURED"
+                codex_config_ready = codex_config_ready or (has_aitp and has_cwd)
+            except OSError:
+                status = "READ ERROR"
+            print(f"      config.toml [mcp_servers.aitp]: {status}")
+        else:
+            print("      config.toml: NOT FOUND")
+
     for skill_name, found in found_codex_skill.items():
         if not found:
             issues.append(f"Codex App skill missing: {skill_name}/SKILL.md")
+    if not codex_config_ready:
+        issues.append("Codex App config.toml missing [mcp_servers.aitp]")
     if not codex_mcp_ready:
-        issues.append("Codex App mcp.json missing aitp entry")
+        issues.append("Codex App compatibility mcp.json missing aitp entry")
 
     # 8. Summary
     print(f"\n{'=' * 60}")

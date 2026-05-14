@@ -26,7 +26,8 @@ The installer deploys:
 - Codex-native gateway skills from `deploy/codex/skills/`.
 - Protocol skills from `skills/`, wrapped with a Codex adapter preamble that
   maps Claude/Kimi tool names to Codex behavior.
-- A best-effort `mcp.json` beside each Codex skill root, using `uv` when
+- A compatibility `mcp.json` beside each Codex skill root.
+- A `[mcp_servers.aitp]` entry in the adjacent `config.toml`, using `uv` when
   available so the MCP server has its Python dependencies.
 
 User-scope Codex skill roots are detected in this order when present:
@@ -59,6 +60,28 @@ Codex should discover at least:
 
 - `using-aitp`
 - `aitp-runtime`
+
+Check the Codex MCP registration:
+
+```powershell
+codex mcp get aitp
+```
+
+The `aitp` entry should show:
+
+- `command: uv` when `uv` is installed, otherwise `command: python`
+- `cwd: <AITP checkout>`
+- `startup_timeout_sec: 60`
+- `env: AITP_TOPICS_ROOT=...`
+
+Run a real Codex MCP smoke test from a workspace that has AITP topics:
+
+```powershell
+codex exec --dangerously-bypass-approvals-and-sandbox -C <workspace> "Call the read-only AITP list topics tool with topics_root='<topics-root>' and report the topic count."
+```
+
+The startup log should include `mcp: aitp ready`, and the tool call should use
+the Codex-exposed AITP tool namespace.
 
 ## Runtime Behavior
 
