@@ -1,0 +1,1296 @@
+# AITP v5 Physicist Workflow Architecture Plan
+
+Status: planning record
+
+Date: 2026-05-17
+
+Scope: theoretical physics research only
+
+Related prior record:
+
+- `docs/superpowers/specs/2026-05-16-aitp-physicist-collaborator-kernel-design.md`
+
+## Purpose
+
+This document records the current v5 design direction after reviewing the old
+AITP architecture and discussing what a more universal theoretical-physics
+research collaborator should become.
+
+The goal is not to discard the old AITP. The old system already proves that a
+research harness can enforce source grounding, stage gates, L4 validation,
+topic state, L2 memory, domain skills, and session continuity. The v5 goal is
+to rebuild the foundation around the objects that real physicists reason with:
+questions, ideas, claims, physical objects, object relations, evidence,
+attempts, failures, tools, checks, human decisions, and reusable memory.
+
+In short:
+
+- old AITP is a strong protocol harness;
+- v5 AITP should become a persistent physicist collaborator kernel;
+- old enforcement and runtime capabilities must be preserved;
+- the conceptual center should move from stage artifacts to claim-centered
+  physics understanding.
+
+## Core Position
+
+AITP should not try to replace Codex, Claude Code, OpenCode, or any future
+agent. AITP should be the theoretical-physics kernel that gives those agents:
+
+- research state,
+- trust boundaries,
+- physics-oriented next-action scaffolding,
+- tool contracts,
+- durable process memory,
+- adversarial validation gates,
+- and reusable long-term memory.
+
+The LLM performs reasoning, coding, reading, writing, and exploration. AITP
+keeps the research disciplined, recoverable, evidence-backed, and auditable.
+
+## Why Rebuild
+
+The old architecture should not simply be patched forever because its center of
+gravity is still the stage harness:
+
+- gates often validate artifact shape before claim meaning;
+- topic lanes are too coarse for mixed research;
+- `aitp_get_execution_brief` can be mechanical rather than physics-shaped;
+- code-method work was added later and is not yet first-class around
+  formula-code translation;
+- L2 contains several generations of graph and entry concepts;
+- topic state is too isolated for long-horizon research contexts;
+- MCP, CLI, skills, hooks, and adapters have accumulated overlap;
+- next-action choice still relies too much on the model's hidden intuition.
+
+The rebuild is justified only if it preserves old strengths while changing the
+foundation. The new foundation should make weak models less likely to jump
+incorrectly and let strong models spend intelligence on high-level physics
+judgment instead of reconstructing missing context.
+
+## Old Capabilities To Preserve
+
+These old AITP capabilities are not optional. They should be migrated or
+rebuilt as first-class v5 kernel services:
+
+- legal state transitions and retreat semantics;
+- stage and tool permission matrix;
+- preflight checks and gate override with audit trail;
+- L0 source registration and source roles;
+- L1 reading/intake with source refs, convention snapshots, anchor maps, and
+  contradiction registers;
+- L3 flexible workbench activities and failed idea preservation;
+- candidate submission with source/derivation preflight;
+- adversarial L4 review with counterargument and physics checks;
+- lane-aware validation requirements;
+- domain skill injection, especially LibRPA/ABACUS rules;
+- compute target state and background HPC job tracking;
+- L4 run analysis for computational physics;
+- global L2 query, entries, graph, provenance, pitfalls, questions, and bridges;
+- session start/resume/stop hooks;
+- offline event recording for remote or MCP-unavailable work;
+- adapter surfaces for Codex, Claude Code, OpenCode, and future agents;
+- notebook/report generation from durable research artifacts;
+- migration tooling for existing topics.
+
+## New Core Principles
+
+### 1. Claim-Centered Control
+
+The unit of scientific control is the claim, not the topic or stage.
+
+Each serious claim should record:
+
+- statement;
+- scope;
+- non-claims;
+- assumptions;
+- evidence profile;
+- confidence state;
+- supporting evidence;
+- missing evidence;
+- strongest failure mode;
+- relation to physical objects;
+- relation to prior claims and memory;
+- human checkpoint triggers.
+
+The topic remains the workbench. The claim is the unit that becomes trusted or
+rejected.
+
+### 2. Evidence Profile Per Claim
+
+Do not force an entire topic into a rigid type. Real topics mix modes.
+
+Each claim declares one evidence profile:
+
+- `formal_theory`;
+- `toy_numeric`;
+- `code_method`;
+- `literature_synthesis`;
+- `mixed`.
+
+The evidence profile determines required checks and tool recipes. A GW/LibRPA
+topic can contain a formal derivation claim, a formula-code translation claim,
+a benchmark claim, and a literature synthesis claim at the same time.
+
+### 3. Model Intelligence Equalizer
+
+AITP should reduce the amount of hidden physics judgment required for basic
+progress. It should provide enough state and scaffolding that less capable
+models can still choose reasonable local next steps.
+
+It should do this by exposing:
+
+- active uncertainty;
+- active claim;
+- known context;
+- failed attempts;
+- ranked next-action candidates;
+- forbidden actions;
+- required checks;
+- tool recipes;
+- trust status;
+- human checkpoint triggers.
+
+Stronger models still matter. Their intelligence should show up in better
+questions, better analogies, better route choices, better hidden-assumption
+detection, better formula-code mapping, and better failure interpretation.
+
+### 4. Process Memory Is Not Optional
+
+AITP must not only preserve final conclusions. It must preserve how the
+research got there.
+
+Process memory should include:
+
+- ideas and why they were tried;
+- route choices and alternatives;
+- attempts and their outcomes;
+- tool runs and provenance;
+- failed routes and lessons;
+- human steering;
+- validation returns;
+- reusable pitfalls;
+- confidence-state transitions.
+
+This should be enforced by kernel writes, not left to voluntary chat summaries.
+
+### 5. Physics Sense-Making Beyond Checklist Sanity
+
+Sanity checks are not enough. AITP must ask how physical objects relate, why a
+result occurs, and why a failure happened.
+
+A pass/fail table is insufficient if it does not record:
+
+- which objects are involved;
+- which relation supports the claim;
+- which relation is most likely to break;
+- what mechanism explains the result;
+- what minimal diagnostic could localize the failure.
+
+## Full Research Workflow
+
+The v5 workflow should be cyclic, not a one-way stage conveyor.
+
+Canonical flow:
+
+```text
+research context
+  -> intent / question / idea
+  -> evidence basis
+  -> understanding and translation
+  -> object-relation understanding
+  -> claim formation
+  -> route decision
+  -> attempt / tool run
+  -> physics sense-making
+  -> adversarial validation
+  -> human checkpoint
+  -> reusable memory and output
+  -> new question / new idea / retreat
+```
+
+The old `L0 -> L1 -> L3 -> L4 -> L2` remains useful, but it becomes the large
+trust flow rather than the complete ontology.
+
+## Epistemic Zones
+
+### 1. Context / Direction Zone
+
+Purpose: define the long-horizon research direction and why a topic matters.
+
+Stores:
+
+- long-term direction;
+- topic list;
+- user preferences;
+- route memory;
+- related contexts;
+- context-level inbox of questions and ideas;
+- memory references.
+
+This zone prevents topics from becoming isolated little universes.
+
+### 2. Intent / Question / Idea Zone
+
+Purpose: capture what the user and AI are trying to do before it hardens into
+a claim.
+
+This zone should exist at three levels:
+
+- context-level inbox for pre-topic seeds;
+- topic-local workbench for active execution;
+- global registry for stable IDs and cross-topic search.
+
+Context-level examples:
+
+- a vague FQHE learning direction;
+- a possible GW head-wing implementation concern;
+- a broad VNA/generalized-symmetry analogy.
+
+Topic-level files should include:
+
+- `intent/intent.md`;
+- `intent/active_focus.md`;
+- `intent/question_stack.md`;
+- `intent/idea_stack.md`;
+- `intent/steering_log.md`;
+- `intent/decision_log.md`.
+
+The rule is:
+
+```text
+pre-topic seeds live in context inbox;
+execution focus lives in topic intent;
+stable identity lives in registry.
+```
+
+### 3. Evidence Basis Zone
+
+Purpose: collect and classify evidence objects.
+
+Evidence includes:
+
+- papers;
+- books;
+- lecture notes;
+- code repositories and commits;
+- input decks;
+- run outputs;
+- benchmark references;
+- datasets;
+- local derivation notes;
+- discussion notes;
+- trusted tool recipes.
+
+This is the upgraded role of old L0.
+
+### 4. Understanding / Translation Zone
+
+Purpose: turn sources into a usable research model.
+
+Stores:
+
+- definitions;
+- assumptions;
+- conventions;
+- notation translations;
+- source-to-claim map;
+- source-to-object map;
+- contradiction register;
+- regime map;
+- derivation anchors;
+- formula-code map skeleton;
+- data-layout map for code-method work.
+
+This is the upgraded role of old L1.
+
+### 5. Object-Relation Zone
+
+Purpose: represent local physics understanding around the active claim.
+
+Nodes may include:
+
+- Hamiltonians;
+- Green functions;
+- self-energies;
+- observables;
+- symmetries;
+- topological invariants;
+- Hilbert spaces;
+- operator algebras;
+- code arrays;
+- file outputs;
+- benchmark quantities;
+- literature claims.
+
+Relations may include:
+
+- `defines`;
+- `derives_from`;
+- `approximates`;
+- `implements`;
+- `limits_to`;
+- `determines`;
+- `measures`;
+- `contradicts`;
+- `depends_on`;
+- `matches_onto`;
+- `is_dual_to`;
+- `has_convention`;
+- `has_regime`.
+
+Every relation should carry evidence. Sanity checks should inspect relations,
+not only isolated nodes.
+
+### 6. Route / Decision Zone
+
+Purpose: record why the next action is scientifically reasonable.
+
+Stores:
+
+- candidate routes;
+- selected route;
+- rejected alternatives;
+- information gain;
+- cost;
+- risk;
+- forbidden actions;
+- user steering;
+- decision provenance.
+
+This zone is critical for model-intelligence equalization.
+
+### 7. Attempt / Run Zone
+
+Purpose: preserve concrete research attempts.
+
+Attempt types:
+
+- derivation attempt;
+- literature search;
+- source reading pass;
+- toy numerical experiment;
+- formula-code trace;
+- code patch;
+- benchmark run;
+- HPC validation run;
+- failure diagnosis;
+- synthesis attempt.
+
+Attempts can fail. Failed attempts are first-class because they often become
+pitfall memory.
+
+### 8. Physics Sense-Making Zone
+
+Purpose: explain results and failures.
+
+Stores:
+
+- involved objects;
+- relevant object relations;
+- dominant mechanism;
+- scale argument;
+- known limit;
+- anomaly;
+- failure hypothesis;
+- minimal diagnostic;
+- reusable pitfall candidate.
+
+This zone upgrades simple "physics sanity checks" into real interpretation.
+
+### 9. Adversarial Validation Zone
+
+Purpose: try to falsify the claim.
+
+Stores:
+
+- validation contract;
+- required checks;
+- check evidence;
+- counterargument;
+- falsification condition;
+- remaining uncertainty;
+- confidence-state update recommendation.
+
+This is the upgraded role of old L4.
+
+### 10. Human Checkpoint Zone
+
+Purpose: record decisions that should not be silently made by the AI.
+
+Triggers:
+
+- direction or novelty fork;
+- definition or convention choice;
+- benchmark or tolerance choice;
+- expensive computation;
+- literature contradiction;
+- trusted memory conflict;
+- promotion to `human_accepted`, `promotable`, or `promoted`.
+
+### 11. Memory Governance Zone
+
+Purpose: decide what becomes reusable long-term knowledge.
+
+This is the upgraded role of old L2.
+
+It should store or govern:
+
+- promoted claims;
+- systems;
+- methods;
+- pitfalls;
+- questions;
+- formula-code maps;
+- benchmarks;
+- route memories;
+- failure modes;
+- provenance and trust scope.
+
+L2 is not abandoned. It becomes the trust-governed memory plane rather than a
+catch-all folder for every long-term artifact.
+
+### 12. Output / Communication Zone
+
+Purpose: turn research state into human-facing outputs.
+
+Outputs include:
+
+- notebooks;
+- reports;
+- paper drafts;
+- figures;
+- slides;
+- claim-to-text maps;
+- validation summaries.
+
+Old flow-notebook capability should be preserved and improved.
+
+## Proposed Filesystem Architecture
+
+The root name is intentionally neutral. It should not repeat "theoretical
+physics" because AITP already means AI Theoretical Physicist.
+
+Candidate root:
+
+```text
+.aitp/
+```
+
+Workspace-level layout:
+
+```text
+.aitp/
+  workspace.md
+  contexts/
+  topics/
+  registry/
+  memory/
+  tools/
+  runtime/
+  surfaces/
+  schemas/
+  migrations/
+```
+
+### Contexts
+
+```text
+contexts/
+  <context_slug>/
+    context.md
+    dashboard.md
+    topics.md
+    inbox/
+      questions/
+      ideas/
+      notes/
+    route_memory/
+    preferences.md
+    memory_refs.md
+    indexes/
+```
+
+Context is the natural home for long-term directions such as:
+
+- FQHE/topological order;
+- quantum gravity and von Neumann algebras;
+- generalized symmetries;
+- GW/LibRPA method development;
+- Green function topology;
+- long-range spin chains and quantum chaos.
+
+### Topics
+
+```text
+topics/
+  <topic_slug>/
+    topic.md
+    dashboard.md
+    intent/
+      intent.md
+      active_focus.md
+      question_stack.md
+      idea_stack.md
+      steering_log.md
+      decision_log.md
+    evidence/
+      sources/
+      benchmarks/
+      code_refs/
+      run_outputs/
+      notes/
+    understanding/
+      definitions.md
+      assumptions.md
+      conventions.md
+      notation_translation.md
+      source_to_claim_map.md
+      source_to_object_map.md
+      contradiction_register.md
+      regime_map.md
+      derivation_anchors.md
+      formula_code_map_skeleton.md
+    objects/
+      local_objects.md
+      relation_graph.md
+      formula_code_maps/
+    claims/
+      active_claim.md
+      ledger/
+    routes/
+      route_options.md
+      active_route.md
+      decisions/
+    attempts/
+      derivations/
+      readings/
+      toy_numerics/
+      code_traces/
+      benchmarks/
+      hpc_runs/
+      diagnoses/
+    sensemaking/
+      reports/
+      anomalies/
+      failure_analyses/
+      pitfalls/
+    validation/
+      contracts/
+      reviews/
+      evidence/
+      proposals/
+    checkpoints/
+      active.md
+      resolved/
+    outputs/
+      notebooks/
+      reports/
+      figures/
+      manuscripts/
+    runtime/
+      event_log.md
+      sessions.md
+      current_state.json
+      health.md
+    indexes/
+```
+
+Topic is the workbench. It owns active execution state but should not be the
+only identity authority for reusable objects.
+
+### Registry
+
+```text
+registry/
+  intents/
+  questions/
+  ideas/
+  claims/
+  physics_objects/
+  object_relations/
+  evidence/
+  routes/
+  attempts/
+  tool_recipes/
+  tool_runs/
+  checkpoints/
+  outputs/
+```
+
+The registry provides stable IDs and cross-topic indexing. It is not the
+primary human reading surface.
+
+### Memory
+
+```text
+memory/
+  l2/
+    entries/
+    graph/
+    conflicts/
+    indexes/
+  claims/
+  definitions/
+  methods/
+  systems/
+  benchmarks/
+  pitfalls/
+  failure_modes/
+  formula_code_maps/
+  route_memory/
+```
+
+The old L2 architecture is retained as the trust-governed core under
+`memory/l2/`. Additional memory families make route, benchmark, and
+formula-code knowledge explicit.
+
+### Tools
+
+```text
+tools/
+  recipes/
+  trust_cards/
+  domain_packs/
+  runs/
+  adapters/
+```
+
+Each trusted tool should have a trust card.
+
+Trust card fields:
+
+- what the tool checks;
+- what it cannot check;
+- required inputs;
+- expected outputs;
+- when it is mandatory;
+- failure interpretation;
+- false-positive risks;
+- false-negative risks;
+- promotion relevance.
+
+### Runtime
+
+```text
+runtime/
+  current_topic.md
+  active_context.md
+  sessions.jsonl
+  event_log.jsonl
+  background_jobs.jsonl
+  health.md
+```
+
+Runtime is workspace-level operational state, not scientific memory.
+
+## Core Object Types
+
+### Intent
+
+Represents why work is being initiated.
+
+Required fields:
+
+- intent id;
+- origin;
+- context;
+- topic if assigned;
+- user steering;
+- desired outcome;
+- current ambiguity;
+- status.
+
+### Question
+
+Represents an uncertainty that may or may not become a claim.
+
+Required fields:
+
+- question id;
+- statement;
+- context;
+- topic;
+- parent intent;
+- scope;
+- blocking status;
+- related ideas;
+- related claims;
+- evidence needed.
+
+### Idea
+
+Represents a possible route or conceptual move.
+
+Required fields:
+
+- idea id;
+- statement;
+- motivation;
+- status;
+- context;
+- topic if assigned;
+- inspired by;
+- supersedes;
+- possible claims;
+- risks;
+- lessons learned.
+
+Statuses:
+
+- `seed`;
+- `active`;
+- `parked`;
+- `succeeded`;
+- `failed`;
+- `superseded`;
+- `abandoned`.
+
+### Claim
+
+Represents the object that can be checked, accepted, rejected, or promoted.
+
+Confidence states:
+
+- `hypothesis`;
+- `coherent`;
+- `source_anchored`;
+- `locally_checked`;
+- `stress_tested`;
+- `human_accepted`;
+- `promotable`;
+- `promoted`;
+- `rejected`;
+- `deferred`.
+
+AI may advance early states when evidence supports it. AI must not enter
+`human_accepted`, `promotable`, or `promoted` without checkpoint or gate.
+
+### Physics Object
+
+Represents an entity used in reasoning.
+
+Kinds:
+
+- equation object;
+- observable;
+- operator;
+- Hamiltonian;
+- state;
+- symmetry;
+- invariant;
+- approximation;
+- code object;
+- data object;
+- benchmark object;
+- literature claim.
+
+### Object Relation
+
+Represents the connection that makes physics intelligible.
+
+Each relation must include:
+
+- from object;
+- to object;
+- relation type;
+- evidence;
+- confidence;
+- regime;
+- likely failure point.
+
+### Route Decision
+
+Represents why AITP chose a next move.
+
+Fields:
+
+- decision id;
+- active uncertainty;
+- candidate actions;
+- selected action;
+- reason;
+- cost;
+- risk;
+- expected evidence gain;
+- forbidden actions;
+- human checkpoint if any.
+
+### Attempt
+
+Represents one concrete research try.
+
+Fields:
+
+- attempt id;
+- type;
+- goal;
+- inputs;
+- method;
+- outputs;
+- result;
+- failure mode if any;
+- next implication.
+
+### Tool Run
+
+Represents one concrete tool execution or external check.
+
+Fields:
+
+- tool run id;
+- tool recipe;
+- inputs;
+- environment;
+- command or API call;
+- outputs;
+- parsed results;
+- trust card;
+- claim/evidence links.
+
+### Sense-Making Report
+
+Represents an explanation, not only a check.
+
+Fields:
+
+- active claim;
+- involved objects;
+- critical relations;
+- dominant mechanism;
+- scale or limiting argument;
+- anomaly;
+- strongest failure hypothesis;
+- recommended diagnostic;
+- pitfall candidate.
+
+### Validation Contract
+
+Represents required checks for a claim's evidence profile.
+
+The contract is generated from:
+
+- evidence profile;
+- claim scope;
+- object relations;
+- domain packs;
+- tool trust cards;
+- human steering.
+
+### Human Checkpoint
+
+Represents a required human decision.
+
+Fields:
+
+- checkpoint id;
+- trigger;
+- question;
+- options;
+- consequences;
+- selected answer;
+- resolved at;
+- claim or route affected.
+
+## Universal Physicist Questions
+
+AITP should include a question bank, but it must be triggered and filtered. It
+should not force every model to answer every question every time.
+
+### Claim Clarity
+
+- What exactly is the active claim?
+- What is its scope?
+- What does it not claim?
+- Which assumptions are load-bearing?
+- Where is the claim most likely to fail?
+
+### Evidence
+
+- Which evidence supports this claim?
+- Which part of the claim does each evidence item support?
+- Which part remains unsupported?
+- Is the evidence strong enough for the current confidence state?
+- Does evidence support a weaker claim rather than the stated claim?
+
+### Physics Sense-Making
+
+- Which physical objects are involved?
+- Which relations among them support the result?
+- Which relation is least secure?
+- Why is this result expected physically?
+- Which term, symmetry, limit, approximation, or mechanism controls the result?
+- What would change if a key object or assumption changed?
+
+### Route Choice
+
+- What is the main uncertainty right now?
+- What is the cheapest high-information check?
+- Should the next move be reading, derivation, toy numerics, code tracing,
+  benchmark, literature search, or human checkpoint?
+- What is the risk of skipping this move?
+- What should not be done yet?
+
+### Failure and Adversarial Review
+
+- What would falsify the claim?
+- What is the strongest counterargument?
+- Is there an alternative explanation?
+- If a check fails, does it point to definition, convention, derivation,
+  numerics, code translation, input regime, or tool failure?
+- Can this failure become reusable pitfall memory?
+
+### Human Checkpoint
+
+- Is this a taste, direction, or definition decision?
+- Is a benchmark, tolerance, or scope choice underdetermined?
+- Is the next action expensive or risky?
+- Is the claim approaching human acceptance or promotion?
+- Does evidence conflict with trusted memory or literature?
+
+## Next-Action Scaffold
+
+Every execution brief should eventually include a next-action scaffold.
+
+Example shape:
+
+```yaml
+current_focus:
+  active_claim: ""
+  confidence_state: ""
+  evidence_profile: ""
+  main_uncertainty: ""
+
+known_context:
+  load_bearing_sources: []
+  established_facts: []
+  assumptions: []
+  previous_failed_attempts: []
+
+next_action_candidates:
+  - action: ""
+    rank: 1
+    why: ""
+    required_tools: []
+    expected_output: ""
+    expected_evidence_gain: ""
+    risk_if_skipped: ""
+
+mandatory_reflection:
+  - question: ""
+    answer_required: true
+
+forbidden_now: []
+
+human_checkpoint:
+  needed: false
+  reason: null
+```
+
+This is the primary mechanism for making weaker models more reliable.
+
+## Evidence Profiles And Default Playbooks
+
+### Formal Theory
+
+Default checks:
+
+- definition lock;
+- assumption audit;
+- derivation trace;
+- known example;
+- limiting case;
+- symmetry or covariance;
+- counterexample search;
+- literature equivalence or contradiction;
+- object-relation consistency.
+
+### Toy Numeric
+
+Default checks:
+
+- model Hamiltonian statement;
+- observable definition;
+- exact or semi-exact limit;
+- finite-size trend;
+- convergence or sampling check;
+- random seed and environment provenance;
+- negative comparator;
+- figure/table provenance.
+
+### Code Method
+
+Default checks:
+
+- formula-code map;
+- unit and convention audit;
+- index and data-layout audit;
+- parser/input-output boundary map;
+- minimal reproducible case;
+- smoke test;
+- benchmark comparison;
+- convergence/error budget;
+- parallel consistency;
+- source commit and runtime provenance.
+
+### Literature Synthesis
+
+Default checks:
+
+- source role classification;
+- claim-source map;
+- notation translation;
+- regime comparison;
+- cross-source contradiction;
+- original-source priority;
+- unresolved claim register.
+
+### Mixed
+
+The mixed profile combines claim-local checks from multiple profiles. It must
+not become an excuse to skip checks.
+
+## L2 Role In v5
+
+The old L2 is not abandoned.
+
+The new interpretation:
+
+```text
+L2 = trust-governed reusable memory plane
+```
+
+L2 should not store all process history. Process history belongs in event logs,
+attempts, tool runs, decisions, and validation records.
+
+L2 should store or govern knowledge that is reusable beyond the immediate
+session:
+
+- verified or scoped claims;
+- definitions;
+- systems;
+- methods;
+- pitfalls;
+- open questions;
+- benchmark memories;
+- route memories;
+- formula-code maps;
+- object relations with stable relevance;
+- conflicts and contradiction resolutions.
+
+Promotion to L2 requires:
+
+- claim statement;
+- scope and regime;
+- evidence profile;
+- evidence bundle;
+- validation result;
+- non-claims;
+- known failure modes;
+- provenance;
+- trust status;
+- human checkpoint if required.
+
+## Relationship To Topic
+
+Topic is a workbench, not the only place where ideas exist.
+
+Rules:
+
+- pre-topic ideas and questions live in context inbox;
+- active research focus lives in topic intent;
+- stable identities live in registry;
+- trusted reusable knowledge lives in memory/L2;
+- process details live in attempts, runs, and logs;
+- outputs live in topic outputs and may reference promoted memory.
+
+This keeps early ideas from cluttering topic execution while preventing global
+idea pools from becoming unreadable.
+
+## Migration From Old AITP
+
+The v5 system must include an importer for existing topics.
+
+Mapping:
+
+- old `state.md` -> topic runtime state and topic metadata;
+- old `L0/sources` -> evidence source objects;
+- old `L0/source_registry.md` -> evidence basis summary;
+- old `L1/question_contract.md` -> topic intent and question stack;
+- old `L1/source_basis.md` -> evidence/source role map;
+- old `L1/convention_snapshot.md` -> understanding/conventions;
+- old `L1/derivation_anchor_map.md` -> understanding/derivation anchors;
+- old `L1/contradiction_register.md` -> understanding/contradiction register;
+- old `L1/intake` -> source intake records and source-to-object candidates;
+- old `L3/ideate` and `L3/ideas` -> idea stack and registry ideas;
+- old `L3/candidates` -> claim ledger;
+- old `L2/graph/steps` -> derivation attempts and object relations;
+- old `L4/reviews` -> validation reviews;
+- old `L4/outputs` -> evidence/run outputs;
+- old `runtime/log.md` -> event log;
+- old global `L2/entries` -> memory/L2 entries.
+
+The importer should preserve old file paths as provenance.
+
+## Implementation Plan Direction
+
+This is not the detailed code implementation plan. It is the architecture
+record that the implementation plan should follow.
+
+Suggested phases:
+
+### Phase 0: Compatibility Audit
+
+Freeze the old capability inventory and write regression cases for:
+
+- stage gates;
+- candidate submission;
+- L4 review;
+- L2 query;
+- background jobs;
+- session resume;
+- LibRPA domain checks.
+
+### Phase 1: v5 Schema And Filesystem Kernel
+
+Implement:
+
+- root workspace layout;
+- context/topic/registry/memory/runtime path helpers;
+- object schemas for intent, question, idea, claim, evidence, relation, route,
+  attempt, tool run, validation, and checkpoint;
+- migration-safe IDs.
+
+### Phase 2: State Observer And Next-Action Scaffold
+
+Implement:
+
+- state observer;
+- active focus resolver;
+- evidence profile resolver;
+- next-action candidate generator;
+- forbidden-action generator;
+- mandatory reflection selector.
+
+### Phase 3: Claim Ledger And Object-Relation Graph
+
+Implement:
+
+- claim lifecycle;
+- confidence-state transitions;
+- object registry;
+- relation graph;
+- relation evidence;
+- local sense-making reports.
+
+### Phase 4: Tool Layer And Trust Cards
+
+Implement:
+
+- tool recipe registry;
+- trust card schema;
+- tool run records;
+- mandatory tool selection by evidence profile;
+- LibRPA/ABACUS domain pack migration.
+
+### Phase 5: Validation And Human Checkpoints
+
+Implement:
+
+- validation contract builder;
+- profile-specific L4 checks;
+- checkpoint manager;
+- promotion gate;
+- L4 return payload to route/attempt/sense-making zones.
+
+### Phase 6: Memory/L2 Governance
+
+Implement:
+
+- memory/L2 entries;
+- old L2 importer;
+- promotion packet;
+- provenance query;
+- cross-topic bridge search;
+- pitfall and route memory surfaces.
+
+### Phase 7: Runtime, Adapters, And Outputs
+
+Implement:
+
+- session start/resume/stop;
+- current topic/context;
+- event log;
+- background jobs;
+- Codex/Claude/OpenCode adapters;
+- notebook/report generation.
+
+### Phase 8: Real Workflow Acceptance Tests
+
+Run end-to-end tests on real-style workflows:
+
+- FQHE from zero learning to idea to toy numerical check;
+- GW/LibRPA formula-code translation and benchmark validation;
+- quantum gravity/von Neumann algebra formal definition and derivation;
+- Green function topology literature synthesis plus toy check;
+- long-range spin-chain numerical model benchmark;
+- AITP protocol design topic using AITP itself.
+
+## Acceptance Criteria
+
+v5 is successful when a user can ask:
+
+- what are we doing now;
+- why is this the next move;
+- what claim is active;
+- what evidence supports it;
+- what is still uncertain;
+- what physical objects and relations matter;
+- why did this result occur;
+- why might it be wrong;
+- what has failed before;
+- what tool should be used next;
+- when do you need my judgment;
+- what can be promoted to reusable memory;
+- what should not be trusted yet.
+
+The system should answer from durable state, not from chat memory.
+
+## Non-Goals
+
+v5 should not:
+
+- become a general all-science framework;
+- force users to choose rigid topic types;
+- store every rough thought in trusted memory;
+- replace human taste and judgment;
+- treat tool output as automatic truth;
+- hide trust boundaries behind fluent prose;
+- abandon old topics;
+- discard old L2;
+- reduce physics reasoning to checklist completion.
+
+## Final Design Summary
+
+The v5 AITP architecture should be:
+
+```text
+L0-L4/L2 as the large trust flow;
+context/topic as the human research organization;
+registry as stable object identity;
+claim as the scientific control unit;
+object relations as local physics understanding;
+attempts and runs as process memory;
+tool recipes and trust cards as operational physics checks;
+human checkpoints as epistemic boundaries;
+memory/L2 as trust-governed reusable knowledge.
+```
+
+The guiding principle:
+
+```text
+AITP should not merely ask whether a claim passed a check.
+It should know what the claim means, what objects support it, why the result
+appears, where it could break, what evidence exists, and what a useful
+physicist would do next.
+```
