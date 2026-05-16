@@ -331,6 +331,7 @@ Evidence includes:
 - books;
 - lecture notes;
 - code repositories and commits;
+- code worktrees, branches, local patches, and upstream bases;
 - input decks;
 - run outputs;
 - benchmark references;
@@ -395,6 +396,10 @@ Relations may include:
 - `is_dual_to`;
 - `has_convention`;
 - `has_regime`.
+- `runs_on_code_state`;
+- `modifies_code_path`;
+- `differs_from_upstream`;
+- `reproduces`;
 
 Every relation should carry evidence. Sanity checks should inspect relations,
 not only isolated nodes.
@@ -429,6 +434,7 @@ Attempt types:
 - toy numerical experiment;
 - formula-code trace;
 - code patch;
+- upstream comparison;
 - benchmark run;
 - HPC validation run;
 - failure diagnosis;
@@ -595,6 +601,7 @@ topics/
       sources/
       benchmarks/
       code_refs/
+      code_states/
       run_outputs/
       notes/
     understanding/
@@ -624,6 +631,8 @@ topics/
       readings/
       toy_numerics/
       code_traces/
+      code_patches/
+      upstream_comparisons/
       benchmarks/
       hpc_runs/
       diagnoses/
@@ -650,6 +659,7 @@ topics/
       sessions.md
       current_state.json
       health.md
+      code_workspaces.md
     indexes/
 ```
 
@@ -667,6 +677,8 @@ registry/
   physics_objects/
   object_relations/
   evidence/
+  code_states/
+  code_workspaces/
   routes/
   attempts/
   tool_recipes/
@@ -695,6 +707,8 @@ memory/
   pitfalls/
   failure_modes/
   formula_code_maps/
+  code_provenance/
+  upstream_snapshots/
   route_memory/
 ```
 
@@ -904,6 +918,52 @@ Fields:
 - parsed results;
 - trust card;
 - claim/evidence links.
+- code state id if code-dependent;
+- worktree or checkout path if applicable.
+
+### Code State
+
+Represents the exact source-code state used for a claim, run, benchmark, or
+formula-code mapping.
+
+Fields:
+
+- code state id;
+- repository URL or local repository id;
+- upstream remote;
+- upstream branch;
+- upstream commit;
+- local branch;
+- worktree path;
+- dirty status;
+- patch id or diff hash;
+- build configuration;
+- compiler and dependency versions;
+- linked topic, cycle, claim, attempt, and tool run ids;
+- known divergence from upstream.
+
+Any code-dependent result without a code state should be treated as
+non-reproducible evidence.
+
+### Code Workspace
+
+Represents an isolated workspace used to modify or test a code repository.
+
+Fields:
+
+- workspace id;
+- topic id;
+- session id;
+- repository id;
+- worktree path;
+- branch name;
+- base commit;
+- upstream tracking branch;
+- purpose;
+- write scope;
+- active claim or attempt;
+- status;
+- cleanup or merge plan.
 
 ### Sense-Making Report
 
@@ -1267,6 +1327,167 @@ Rules:
   path, which may be a subagent, tool check, literature contradiction search, or
   human review.
 
+## Code Worktree And Upstream Provenance
+
+Computational-physics and code-method topics often depend on source-code state.
+AITP must therefore treat code provenance as part of scientific evidence, not
+as developer bookkeeping.
+
+### Core Principle
+
+A code-dependent conclusion is incomplete unless it records:
+
+- which repository was used;
+- which upstream remote and commit it derives from;
+- which branch or worktree executed the test;
+- which local patches were present;
+- which build options and dependencies were used;
+- which input decks and run outputs belong to that exact code state;
+- whether the conclusion is upstream-compatible, patch-specific, or
+  version-specific.
+
+Blind reproduction failures should be diagnosable as one of:
+
+- wrong physics assumption;
+- wrong input or benchmark regime;
+- wrong code version;
+- missing local patch;
+- different build or dependency environment;
+- changed upstream behavior;
+- nondeterministic or parallel-execution issue.
+
+### Worktree Strategy
+
+For code repositories such as LibRPA, ABACUS, FHI-aims adapters, or local model
+codes, AITP should prefer isolated workspaces for nontrivial modifications.
+
+Recommended binding:
+
+```text
+topic/cycle/session -> code workspace -> git worktree -> branch -> code state
+```
+
+Rules:
+
+- routine read-only inspection may use an existing clean checkout;
+- any code modification for a topic should use a topic/cycle-specific worktree
+  or an explicitly declared branch;
+- two topics should not silently share the same dirty checkout;
+- a session should record which worktree it is allowed to edit;
+- a claim should link to the code state that produced its evidence;
+- before comparing with others' results, AITP should compare code states, not
+  only numerical outputs.
+
+### Code Workspace Layout
+
+The AITP workspace should track code workspaces without owning the code
+repositories themselves.
+
+```text
+.aitp/
+  runtime/
+    code_workspaces/
+      <workspace_id>.md
+  registry/
+    code_workspaces/
+    code_states/
+  memory/
+    code_provenance/
+    upstream_snapshots/
+```
+
+Topic-local records should reference these global records:
+
+```text
+topics/<topic_slug>/
+  evidence/code_states/
+  attempts/code_patches/
+  attempts/upstream_comparisons/
+  runtime/code_workspaces.md
+```
+
+### Code State Contract
+
+```yaml
+code_state_id: ""
+repo_id: ""
+repo_url: ""
+upstream_remote: ""
+upstream_branch: ""
+upstream_commit: ""
+local_branch: ""
+worktree_path: ""
+dirty: false
+patch_id: ""
+diff_hash: ""
+build_config:
+  compiler: ""
+  flags: []
+  dependencies: []
+  cmake_options: []
+runtime_environment:
+  host: ""
+  scheduler: ""
+  mpi: ""
+  omp_threads: ""
+linked_records:
+  topics: []
+  cycles: []
+  claims: []
+  attempts: []
+  tool_runs: []
+known_divergence: ""
+```
+
+### Upstream Comparison Contract
+
+When a result differs from literature, another collaborator's run, or a known
+benchmark, AITP should ask whether the compared results share the same code
+state.
+
+```yaml
+comparison_id: ""
+target_claim: ""
+reference_result: ""
+reference_code_state: ""
+local_code_state: ""
+shared_upstream_base: ""
+local_only_patches: []
+upstream_delta_summary: ""
+input_delta_summary: ""
+build_delta_summary: ""
+result_delta_summary: ""
+most_likely_delta_source: ""
+next_diagnostic: ""
+```
+
+### Escalation Rules
+
+Autopilot code workflows should escalate when:
+
+- the checkout is dirty but no patch id is recorded;
+- the code state differs from a trusted recipe;
+- upstream has moved since the benchmark was recorded;
+- local patches touch formula-code mapped files;
+- build flags or dependencies differ from the reference;
+- parallel settings, MPI layout, or OMP threads differ for a sensitive run;
+- a reproduction attempt lacks the reference code state.
+
+### User-Facing Behavior
+
+AITP should not force the user to read git metadata every time. It should
+surface it only where it matters:
+
+- before running a trusted benchmark;
+- before modifying source code;
+- when recording a code-dependent claim;
+- when comparing against another result;
+- when reproduction fails;
+- before promoting code-method evidence to reusable memory.
+
+The user-facing message should answer: "Are we testing physics, testing a patch,
+or testing a different code version?"
+
 ## Evidence Profiles And Default Playbooks
 
 ### Formal Theory
@@ -1300,6 +1521,9 @@ Default checks:
 
 Default checks:
 
+- code state contract;
+- worktree or clean-checkout binding;
+- upstream commit and local patch audit;
 - formula-code map;
 - unit and convention audit;
 - index and data-layout audit;
@@ -1310,6 +1534,7 @@ Default checks:
 - convergence/error budget;
 - parallel consistency;
 - source commit and runtime provenance.
+- upstream comparison when reproducing external results.
 
 ### Literature Synthesis
 
@@ -1436,7 +1661,7 @@ Implement:
 - root workspace layout;
 - context/topic/registry/memory/runtime path helpers;
 - object schemas for intent, question, idea, claim, evidence, relation, route,
-  attempt, tool run, validation, and checkpoint;
+  attempt, tool run, code state, code workspace, validation, and checkpoint;
 - migration-safe IDs.
 
 ### Phase 2: State Observer And Next-Action Scaffold
@@ -1472,6 +1697,8 @@ Implement:
 - recipe fast-path execution;
 - escalation trigger evaluation;
 - tool run records;
+- code state and worktree binding records;
+- upstream comparison records;
 - mandatory tool selection by evidence profile;
 - LibRPA/ABACUS domain pack migration.
 
@@ -1497,6 +1724,7 @@ Implement:
 - provenance query;
 - cross-topic bridge search;
 - pitfall and route memory surfaces.
+- code provenance and upstream snapshot memory.
 
 ### Phase 7: Runtime, Adapters, And Outputs
 
@@ -1533,6 +1761,8 @@ v5 is successful when a user can ask:
 - why did this result occur;
 - why might it be wrong;
 - what has failed before;
+- which code state produced this result;
+- whether this reproduction uses the same upstream base and patches;
 - which questions are worth asking now;
 - why this step is light or heavy;
 - whether this is a trusted recipe or new science;
@@ -1569,6 +1799,7 @@ registry as stable object identity;
 claim as the scientific control unit;
 object relations as local physics understanding;
 attempts and runs as process memory;
+code states and worktrees as reproducibility boundaries;
 dynamic physics questions as the thinking driver;
 flow profiles as the friction controller;
 tool recipes and trust cards as operational physics checks;
