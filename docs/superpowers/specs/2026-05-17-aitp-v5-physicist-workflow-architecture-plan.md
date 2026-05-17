@@ -1703,6 +1703,9 @@ Implementation implications:
   derived summaries. This includes confidence changes, evidence/tool-run
   recording, validation, and L2 promotion when the cited basis is only
   `task_plan.md`, `findings.md`, or `progress.md`.
+- Trust-changing updates should enter through a typed `TrustUpdateRequest`
+  preflight surface before mutation, so adapters can cite evidence refs, code
+  state ids, and source kind while keeping summary files orientation-only.
 
 ## Implementation Plan Direction
 

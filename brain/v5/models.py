@@ -54,6 +54,22 @@ class ClaimRecord:
 
 
 @dataclass
+class TrustUpdateRequest:
+    request_id: str
+    action: str
+    session_id: str
+    topic_id: str
+    claim_id: str
+    requested_state: str = ""
+    source_kind: str = ""
+    source_ref: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
+    code_state_ids: list[str] = field(default_factory=list)
+    rationale: str = ""
+    kind: str = "trust_update_request"
+
+
+@dataclass
 class FlowDecision:
     profile: str
     reason: str

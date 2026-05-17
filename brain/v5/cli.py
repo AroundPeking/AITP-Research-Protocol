@@ -11,8 +11,10 @@ from typing import Any
 
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
+from brain.v5.models import TrustUpdateRequest
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
+from brain.v5.trust_updates import preflight_trust_update
 from brain.v5.workspace import (
     bind_session,
     create_claim,
@@ -86,6 +88,21 @@ def _build_parser() -> argparse.ArgumentParser:
     adapter_packet.add_argument("runtime")
     adapter_packet.add_argument("session_id")
 
+    trust_parser = subparsers.add_parser("trust")
+    trust_sub = trust_parser.add_subparsers(dest="trust_command", required=True)
+    trust_preflight = trust_sub.add_parser("preflight")
+    trust_preflight.add_argument("action")
+    trust_preflight.add_argument("--session", required=True, dest="session_id")
+    trust_preflight.add_argument("--topic", required=True, dest="topic_id")
+    trust_preflight.add_argument("--claim", required=True, dest="claim_id")
+    trust_preflight.add_argument("--requested-state", default="")
+    trust_preflight.add_argument("--source-kind", default="")
+    trust_preflight.add_argument("--source-ref", default="")
+    trust_preflight.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
+    trust_preflight.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
+    trust_preflight.add_argument("--rationale", default="")
+    trust_preflight.add_argument("--request-id", default="")
+
     return parser
 
 
@@ -140,6 +157,23 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
 
     if args.command == "adapter" and args.adapter_command == "packet":
         return {"ok": True, **build_adapter_packet(ws, args.session_id, runtime=args.runtime)}
+
+    if args.command == "trust" and args.trust_command == "preflight":
+        request_id = args.request_id or f"trust-request-{args.session_id}-{args.claim_id}-{args.action}"
+        request = TrustUpdateRequest(
+            request_id=request_id,
+            action=args.action,
+            session_id=args.session_id,
+            topic_id=args.topic_id,
+            claim_id=args.claim_id,
+            requested_state=args.requested_state,
+            source_kind=args.source_kind,
+            source_ref=args.source_ref,
+            evidence_refs=args.evidence_refs,
+            code_state_ids=args.code_state_ids,
+            rationale=args.rationale,
+        )
+        return {"ok": True, **preflight_trust_update(ws, request)}
 
     raise SystemExit(f"unsupported command: {args.command}")
 

@@ -10,11 +10,12 @@ from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.contracts import require_valid_execution_brief
 from brain.v5.evidence import record_evidence
-from brain.v5.models import CodeStateRecord
+from brain.v5.models import CodeStateRecord, TrustUpdateRequest
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tools import record_tool_run, register_tool_recipe
+from brain.v5.trust_updates import preflight_trust_update
 from brain.v5.workspace import (
     bind_session,
     create_claim,
@@ -237,6 +238,39 @@ def aitp_v5_read_summary_orientation(base: str, *, session_id: str) -> dict:
 def aitp_v5_get_adapter_packet(base: str, *, runtime: str, session_id: str) -> dict:
     ws = init_workspace(Path(base))
     return {"ok": True, **build_adapter_packet(ws, session_id, runtime=runtime)}
+
+
+def aitp_v5_preflight_trust_update(
+    base: str,
+    *,
+    action: str,
+    session_id: str,
+    topic_id: str,
+    claim_id: str,
+    requested_state: str = "",
+    source_kind: str = "",
+    source_ref: str = "",
+    evidence_refs: list[str] | None = None,
+    code_state_ids: list[str] | None = None,
+    rationale: str = "",
+    request_id: str = "",
+) -> dict:
+    ws = init_workspace(Path(base))
+    resolved_request_id = request_id or f"trust-request-{session_id}-{claim_id}-{action}"
+    request = TrustUpdateRequest(
+        request_id=resolved_request_id,
+        action=action,
+        session_id=session_id,
+        topic_id=topic_id,
+        claim_id=claim_id,
+        requested_state=requested_state,
+        source_kind=source_kind,
+        source_ref=source_ref,
+        evidence_refs=evidence_refs or [],
+        code_state_ids=code_state_ids or [],
+        rationale=rationale,
+    )
+    return {"ok": True, **preflight_trust_update(ws, request)}
 
 
 def _linked_code_states(ws, claim_id: str) -> list[CodeStateRecord]:
