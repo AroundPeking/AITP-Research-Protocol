@@ -16,6 +16,8 @@ _LAYOUT_DIRS = [
     "registry/physics_objects",
     "registry/object_relations",
     "registry/evidence",
+    "registry/artifacts",
+    "registry/benchmarks",
     "registry/code_states",
     "registry/code_workspaces",
     "registry/routes",

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from brain.v5.evidence import list_evidence_for_claim, required_output_coverage
 from brain.v5.flow import resolve_flow_profile
 from brain.v5.interaction import prioritize_questions, resolve_interaction_profile
 from brain.v5.models import ClaimRecord, CodeStateRecord
@@ -23,14 +24,20 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     flow = None
     risk = None
     questions = []
+    evidence_records = []
 
     if session.active_claim:
         claim = get_claim(ws, session.active_claim)
         risk = assess_claim_risk(claim, code_states=_linked_code_states(ws, claim.claim_id))
         flow = resolve_flow_profile(claim, assessment=risk)
         questions = generate_questions(claim, flow)
+        evidence_records = list_evidence_for_claim(ws, claim.claim_id)
 
     action_budget = risk.action_budget if risk and risk.action_budget else action_budget_for_level("guided")
+    evidence_coverage = required_output_coverage(
+        evidence_records,
+        required_outputs=action_budget.required_outputs,
+    )
     interaction = resolve_interaction_profile(
         session.interaction_profile,
         risk_level=action_budget.level,
@@ -97,6 +104,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         "flow_profile": asdict(flow) if flow else {"profile": "guided", "reason": "no active claim", "escalation_triggers": []},
         "risk_assessment": asdict(risk) if risk else _default_risk_assessment_payload(action_budget),
         "action_budget": asdict(action_budget),
+        "evidence_coverage": asdict(evidence_coverage),
         "interaction_profile": asdict(interaction),
         "known_context": {
             "topic_id": session.topic_id,

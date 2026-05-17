@@ -118,3 +118,73 @@ class CodeStateRecord:
     linked_records: dict = field(default_factory=dict)
     known_divergence: str = ""
     kind: str = "code_state"
+
+
+@dataclass
+class ToolRecipeRecord:
+    recipe_id: str
+    tool_family: str
+    tool_name: str
+    purpose: str
+    required_inputs: list[str] = field(default_factory=list)
+    expected_outputs: list[str] = field(default_factory=list)
+    invariants: list[str] = field(default_factory=list)
+    kind: str = "tool_recipe"
+
+
+@dataclass
+class ToolRunRecord:
+    run_id: str
+    recipe_id: str
+    tool_family: str
+    tool_name: str
+    topic_id: str
+    claim_id: str
+    inputs: dict = field(default_factory=dict)
+    outputs: dict = field(default_factory=dict)
+    environment: dict = field(default_factory=dict)
+    evidence_status: str = "unreviewed"
+    code_state_ids: list[str] = field(default_factory=list)
+    artifact_ids: list[str] = field(default_factory=list)
+    source_refs: list[str] = field(default_factory=list)
+    kind: str = "tool_run"
+
+
+@dataclass
+class ArtifactRecord:
+    artifact_id: str
+    topic_id: str
+    claim_id: str
+    artifact_type: str
+    uri: str
+    summary: str
+    size_bytes: int = 0
+    metadata: dict = field(default_factory=dict)
+    kind: str = "artifact"
+
+
+@dataclass
+class EvidenceRecord:
+    evidence_id: str
+    topic_id: str
+    claim_id: str
+    evidence_type: str
+    status: str
+    summary: str
+    supports_outputs: list[str] = field(default_factory=list)
+    source_refs: list[str] = field(default_factory=list)
+    tool_run_ids: list[str] = field(default_factory=list)
+    artifact_ids: list[str] = field(default_factory=list)
+    kind: str = "evidence"
+
+
+@dataclass
+class BenchmarkRecord:
+    benchmark_id: str
+    topic_id: str
+    claim_id: str
+    observable: str
+    reference_value: str
+    tolerance: str
+    source_ref: str
+    kind: str = "benchmark"
