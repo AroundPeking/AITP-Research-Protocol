@@ -556,7 +556,7 @@ Acceptance:
 - Test: `tests/test_v5_contracts.py`
 - Modify: `brain/v5/brief.py` only if needed to ensure its payload passes validation.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create tests:
 
@@ -583,7 +583,7 @@ Expected:
 FAIL: No module named 'brain.v5.contracts'
 ```
 
-- [ ] **Step 2: Implement minimal validation**
+- [x] **Step 2: Implement minimal validation**
 
 Implement:
 
@@ -596,7 +596,7 @@ validate_execution_brief(payload)
 require_valid_execution_brief(payload)
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run:
 
@@ -612,7 +612,7 @@ Expected:
 all focused tests pass
 ```
 
-- [ ] **Step 4: Commit and push**
+- [x] **Step 4: Commit and push**
 
 ```bash
 git add brain/v5/contracts.py tests/test_v5_contracts.py brain/v5/brief.py docs/superpowers/plans/2026-05-18-aitp-v5-full-implementation-roadmap.md

@@ -1,0 +1,109 @@
+from __future__ import annotations
+
+
+def test_execution_brief_contract_accepts_current_brief(tmp_path):
+    from brain.v5.brief import build_execution_brief
+    from brain.v5.contracts import validate_execution_brief
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Finite-size entanglement counting identifies the edge sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size artifact may mimic counting",
+    )
+    bind_session(
+        ws,
+        "s1",
+        topic_id="fqhe",
+        context_id="topological-order",
+        active_claim=claim.claim_id,
+    )
+
+    result = validate_execution_brief(build_execution_brief(ws, "s1"))
+
+    assert result.ok is True
+    assert result.issues == []
+
+
+def test_execution_brief_contract_rejects_missing_risk_assessment():
+    from brain.v5.contracts import validate_execution_brief
+
+    result = validate_execution_brief(
+        {
+            "session": {"session_id": "s1", "topic_id": "fqhe", "context_id": "topological-order"},
+            "current_focus": {"active_claim": "claim-1"},
+            "flow_profile": {"profile": "guided", "reason": "test", "escalation_triggers": []},
+            "action_budget": {
+                "level": "guided",
+                "max_questions": 3,
+                "required_outputs": ["scoped_claim"],
+                "allowed_actions": ["answer_dynamic_physics_questions"],
+                "requires_human_checkpoint": False,
+            },
+            "known_context": {"topic_id": "fqhe", "context_id": "topological-order"},
+            "mandatory_reflection": [],
+            "next_action_candidates": [],
+            "forbidden_now": [],
+            "human_checkpoint": {"needed": False, "reason": None},
+        }
+    )
+
+    assert result.ok is False
+    assert any(issue.path == "risk_assessment" for issue in result.issues)
+
+
+def test_action_budget_contract_rejects_unbounded_questions():
+    from brain.v5.contracts import validate_action_budget
+
+    result = validate_action_budget(
+        {
+            "level": "fluid",
+            "max_questions": 4,
+            "required_outputs": ["session_trace"],
+            "allowed_actions": ["continue_fluid_work"],
+            "requires_human_checkpoint": False,
+        },
+        path="action_budget",
+    )
+
+    assert result.ok is False
+    assert any("fluid" in issue.message and "max_questions" in issue.message for issue in result.issues)
+
+
+def test_risk_assessment_contract_rejects_signal_without_evidence_ref():
+    from brain.v5.contracts import validate_risk_assessment
+
+    result = validate_risk_assessment(
+        {
+            "level": "rigorous",
+            "score": 6,
+            "signals": [
+                {
+                    "kind": "reproducibility_risk",
+                    "severity": 3,
+                    "reason": "code state missing",
+                    "evidence_ref": "",
+                    "suggested_action": "record code state",
+                }
+            ],
+            "trust_reductions": [],
+            "action_budget": {
+                "level": "rigorous",
+                "max_questions": 3,
+                "required_outputs": ["evidence_or_provenance"],
+                "allowed_actions": ["record_evidence"],
+                "requires_human_checkpoint": False,
+            },
+            "human_checkpoint_needed": False,
+            "summary": "rigorous protocol",
+        },
+        path="risk_assessment",
+    )
+
+    assert result.ok is False
+    assert any(issue.path.endswith("evidence_ref") for issue in result.issues)
