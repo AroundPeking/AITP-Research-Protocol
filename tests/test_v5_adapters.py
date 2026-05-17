@@ -153,6 +153,21 @@ def test_adapter_packet_protocols_are_generated_from_shared_registry(tmp_path):
         assert packet[key] == value
 
 
+def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+
+    ws, _ = _seed_session(tmp_path)
+
+    packet = build_adapter_packet(ws, "s1", runtime="codex")
+
+    assert packet["adapter_protocol_registry"] == {
+        "kind": "adapter_protocol_registry",
+        "source_module": "brain.v5.adapter_protocols",
+        "protocol_version": 1,
+        "summary_inputs_trusted": False,
+    }
+
+
 def test_adapter_packet_ignores_tampered_summary_as_truth_source(tmp_path):
     from brain.v5.adapters import build_adapter_packet
     from brain.v5.markdown import write_md

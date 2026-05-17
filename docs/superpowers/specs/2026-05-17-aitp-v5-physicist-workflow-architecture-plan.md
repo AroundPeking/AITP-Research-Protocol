@@ -1733,6 +1733,8 @@ Implementation implications:
   sources, and human-checkpoint boundaries.
 - Adapter protocol definitions should live in a shared registry/builder so
   packet generation and contract validation cannot drift apart.
+- Adapter packets should include registry metadata naming the protocol source
+  module and version, making runtime-facing harness assumptions auditable.
 
 ## Implementation Plan Direction
 

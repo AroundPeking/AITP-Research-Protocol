@@ -7,6 +7,12 @@ from typing import Any
 
 
 _SUPPORTED_RUNTIMES = ("codex", "claude_code", "opencode")
+_REGISTRY_METADATA = {
+    "kind": "adapter_protocol_registry",
+    "source_module": "brain.v5.adapter_protocols",
+    "protocol_version": 1,
+    "summary_inputs_trusted": False,
+}
 _TRUST_CHANGING_ACTIONS = [
     "record_evidence",
     "record_tool_run",
@@ -128,6 +134,12 @@ def mandatory_kernel_entrypoints() -> set[str]:
     return set(_MANDATORY_KERNEL_ENTRYPOINTS)
 
 
+def adapter_protocol_registry() -> dict[str, Any]:
+    """Return metadata describing the shared protocol registry."""
+
+    return deepcopy(_REGISTRY_METADATA)
+
+
 def mandatory_trust_mutations() -> dict[str, Any]:
     """Return mandatory trust mutation entrypoint mappings."""
 
@@ -156,6 +168,7 @@ def build_adapter_protocols() -> dict[str, Any]:
     """Build the protocol fields shared by all runtime adapter packets."""
 
     return {
+        "adapter_protocol_registry": adapter_protocol_registry(),
         "trust_changing_actions": deepcopy(_TRUST_CHANGING_ACTIONS),
         "requires_kernel_call_before": deepcopy(_TRUST_CHANGING_ACTIONS),
         "required_kernel_entrypoints": deepcopy(_KERNEL_ENTRYPOINTS),

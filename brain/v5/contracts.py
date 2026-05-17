@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from brain.v5.adapter_protocols import (
+    adapter_protocol_registry,
     mandatory_gate_protocols,
     mandatory_kernel_entrypoints,
     mandatory_record_protocols,
@@ -68,6 +69,7 @@ _ADAPTER_REQUIRED_KEYS = (
     "execution_brief",
     "trusted_focus",
     "adapter_contract",
+    "adapter_protocol_registry",
     "trust_changing_actions",
     "requires_kernel_call_before",
     "required_kernel_entrypoints",
@@ -235,6 +237,13 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
 
     if "adapter_contract" in payload:
         _validate_adapter_contract(payload["adapter_contract"], f"{path}.adapter_contract", result)
+
+    if "adapter_protocol_registry" in payload:
+        _validate_adapter_protocol_registry(
+            payload["adapter_protocol_registry"],
+            f"{path}.adapter_protocol_registry",
+            result,
+        )
 
     if "execution_brief" in payload:
         result.extend(validate_execution_brief(payload["execution_brief"], path=f"{path}.execution_brief"))
@@ -533,6 +542,16 @@ def _validate_adapter_contract(payload: Any, path: str, result: ContractResult) 
     )
     if payload.get("regenerated_from") != "kernel_state":
         result.add(f"{path}.regenerated_from", "must be 'kernel_state'")
+
+
+def _validate_adapter_protocol_registry(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+
+    for key, expected_value in adapter_protocol_registry().items():
+        if payload.get(key) != expected_value:
+            result.add(f"{path}.{key}", f"must be {expected_value!r}")
 
 
 def _validate_trust_mutation_entrypoints(
