@@ -7,6 +7,7 @@ from typing import Any
 
 from brain.v5.flow import resolve_flow_profile
 from brain.v5.models import ClaimRecord, CodeStateRecord
+from brain.v5.policy import evaluate_policy
 from brain.v5.question_engine import generate_questions
 from brain.v5.risk import action_budget_for_level, assess_claim_risk
 from brain.v5.store import list_records
@@ -34,7 +35,9 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     ]
 
     next_action_candidates = []
+    policy_forbidden = []
     if claim and flow:
+        policy_forbidden = _policy_forbidden_actions(claim, _linked_code_states(ws, claim.claim_id))
         if flow.profile == "fluid":
             next_action_candidates.append(
                 {
@@ -93,7 +96,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         },
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,
-        "forbidden_now": _forbidden_actions(flow.profile if flow else "guided"),
+        "forbidden_now": _forbidden_actions(flow.profile if flow else "guided") + policy_forbidden,
         "human_checkpoint": {
             "needed": action_budget.requires_human_checkpoint,
             "reason": "risk budget requires human checkpoint" if action_budget.requires_human_checkpoint else None,
@@ -125,6 +128,29 @@ def _record_links_to_claim(linked_records: dict, claim_id: str) -> bool:
         if isinstance(value, list) and claim_id in value:
             return True
     return False
+
+
+def _policy_forbidden_actions(claim: ClaimRecord, code_states: list[CodeStateRecord]) -> list[str]:
+    decisions = [
+        evaluate_policy(action="validate_claim", claim=claim, code_states=code_states),
+        evaluate_policy(action="promote_to_l2", claim=claim, code_states=code_states, evidence_refs=[]),
+    ]
+    blocked: list[str] = []
+    for decision in decisions:
+        if decision.allowed:
+            continue
+        blocked.extend(f"policy:{reason.policy_id}" for reason in decision.reasons)
+    return _dedupe(blocked)
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen = set()
+    result = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
 
 
 def _default_risk_assessment_payload(action_budget) -> dict[str, Any]:
