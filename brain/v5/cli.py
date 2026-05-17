@@ -15,7 +15,7 @@ from brain.v5.contracts import require_valid_trust_update_preflight
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
-from brain.v5.trust_updates import preflight_trust_update
+from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
 from brain.v5.workspace import (
     bind_session,
     create_claim,
@@ -92,17 +92,9 @@ def _build_parser() -> argparse.ArgumentParser:
     trust_parser = subparsers.add_parser("trust")
     trust_sub = trust_parser.add_subparsers(dest="trust_command", required=True)
     trust_preflight = trust_sub.add_parser("preflight")
-    trust_preflight.add_argument("action")
-    trust_preflight.add_argument("--session", required=True, dest="session_id")
-    trust_preflight.add_argument("--topic", required=True, dest="topic_id")
-    trust_preflight.add_argument("--claim", required=True, dest="claim_id")
-    trust_preflight.add_argument("--requested-state", default="")
-    trust_preflight.add_argument("--source-kind", default="")
-    trust_preflight.add_argument("--source-ref", default="")
-    trust_preflight.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
-    trust_preflight.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
-    trust_preflight.add_argument("--rationale", default="")
-    trust_preflight.add_argument("--request-id", default="")
+    _add_trust_request_args(trust_preflight)
+    trust_apply = trust_sub.add_parser("apply")
+    _add_trust_request_args(trust_apply)
 
     return parser
 
@@ -160,23 +152,44 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return {"ok": True, **build_adapter_packet(ws, args.session_id, runtime=args.runtime)}
 
     if args.command == "trust" and args.trust_command == "preflight":
-        request_id = args.request_id or f"trust-request-{args.session_id}-{args.claim_id}-{args.action}"
-        request = TrustUpdateRequest(
-            request_id=request_id,
-            action=args.action,
-            session_id=args.session_id,
-            topic_id=args.topic_id,
-            claim_id=args.claim_id,
-            requested_state=args.requested_state,
-            source_kind=args.source_kind,
-            source_ref=args.source_ref,
-            evidence_refs=args.evidence_refs,
-            code_state_ids=args.code_state_ids,
-            rationale=args.rationale,
-        )
+        request = _trust_update_request_from_args(args)
         return {"ok": True, **require_valid_trust_update_preflight(preflight_trust_update(ws, request))}
 
+    if args.command == "trust" and args.trust_command == "apply":
+        return {"ok": True, **apply_trust_update(ws, _trust_update_request_from_args(args))}
+
     raise SystemExit(f"unsupported command: {args.command}")
+
+
+def _add_trust_request_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("action")
+    parser.add_argument("--session", required=True, dest="session_id")
+    parser.add_argument("--topic", required=True, dest="topic_id")
+    parser.add_argument("--claim", required=True, dest="claim_id")
+    parser.add_argument("--requested-state", default="")
+    parser.add_argument("--source-kind", default="")
+    parser.add_argument("--source-ref", default="")
+    parser.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
+    parser.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
+    parser.add_argument("--rationale", default="")
+    parser.add_argument("--request-id", default="")
+
+
+def _trust_update_request_from_args(args: argparse.Namespace) -> TrustUpdateRequest:
+    request_id = args.request_id or f"trust-request-{args.session_id}-{args.claim_id}-{args.action}"
+    return TrustUpdateRequest(
+        request_id=request_id,
+        action=args.action,
+        session_id=args.session_id,
+        topic_id=args.topic_id,
+        claim_id=args.claim_id,
+        requested_state=args.requested_state,
+        source_kind=args.source_kind,
+        source_ref=args.source_ref,
+        evidence_refs=args.evidence_refs,
+        code_state_ids=args.code_state_ids,
+        rationale=args.rationale,
+    )
 
 
 def _jsonable(value: Any) -> Any:

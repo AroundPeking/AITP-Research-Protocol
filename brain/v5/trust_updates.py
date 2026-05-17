@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from brain.v5.models import ClaimRecord, CodeStateRecord, TrustUpdateRequest
 from brain.v5.paths import WorkspacePaths
 from brain.v5.policy import evaluate_policy
-from brain.v5.store import list_records
+from brain.v5.store import list_records, write_record
 from brain.v5.workspace import get_claim
 
 _SUMMARY_SOURCE_KINDS = {
@@ -61,6 +61,51 @@ def preflight_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> d
     }
 
 
+def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
+    """Apply a trust-changing update only after policy preflight allows it."""
+
+    preflight = preflight_trust_update(ws, request)
+    claim = get_claim(ws, request.claim_id)
+    if not preflight["allowed"]:
+        return _apply_payload(
+            request,
+            preflight=preflight,
+            applied=False,
+            previous_state=claim.confidence_state,
+            new_state=claim.confidence_state,
+            required_actions=preflight["required_actions"],
+        )
+    if request.action != "change_claim_confidence":
+        return _apply_payload(
+            request,
+            preflight=preflight,
+            applied=False,
+            previous_state=claim.confidence_state,
+            new_state=claim.confidence_state,
+            required_actions=["unsupported_trust_update_action"],
+        )
+    if not request.requested_state:
+        return _apply_payload(
+            request,
+            preflight=preflight,
+            applied=False,
+            previous_state=claim.confidence_state,
+            new_state=claim.confidence_state,
+            required_actions=["set_requested_state"],
+        )
+
+    updated = replace(claim, confidence_state=request.requested_state)
+    _write_claim(ws, updated)
+    return _apply_payload(
+        request,
+        preflight=preflight,
+        applied=True,
+        previous_state=claim.confidence_state,
+        new_state=updated.confidence_state,
+        required_actions=[],
+    )
+
+
 def _resolve_code_states(
     ws: WorkspacePaths,
     claim: ClaimRecord,
@@ -71,6 +116,39 @@ def _resolve_code_states(
         wanted = set(requested_ids)
         return [state for state in states if state.code_state_id in wanted]
     return [state for state in states if _record_links_to_claim(state.linked_records, claim.claim_id)]
+
+
+def _write_claim(ws: WorkspacePaths, claim: ClaimRecord) -> None:
+    body = f"# Claim\n\n{claim.statement}\n"
+    write_record(ws.registry_dir("claims") / f"{claim.claim_id}.md", claim, body=body)
+    write_record(ws.topic_dir(claim.topic_id) / "claims" / "ledger" / f"{claim.claim_id}.md", claim, body=body)
+
+
+def _apply_payload(
+    request: TrustUpdateRequest,
+    *,
+    preflight: dict,
+    applied: bool,
+    previous_state: str,
+    new_state: str,
+    required_actions: list[str],
+) -> dict:
+    return {
+        "kind": "trust_update_apply",
+        "request": asdict(request),
+        "request_id": request.request_id,
+        "action": request.action,
+        "session_id": request.session_id,
+        "topic_id": request.topic_id,
+        "claim_id": request.claim_id,
+        "applied": applied,
+        "previous_state": previous_state,
+        "new_state": new_state,
+        "required_actions": list(required_actions),
+        "preflight": preflight,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    }
 
 
 def _record_links_to_claim(linked_records: dict, claim_id: str) -> bool:

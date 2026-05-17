@@ -1711,6 +1711,9 @@ Implementation implications:
 - Adapter packets should name `aitp_v5_preflight_trust_update` as a mandatory
   kernel entrypoint so runtimes have an explicit path for trust-changing action
   preflight.
+- Confidence-state mutation should use a controlled `trust apply
+  change_claim_confidence` path that reuses preflight and updates typed claim
+  records, never derived summary files.
 
 ## Implementation Plan Direction
 
