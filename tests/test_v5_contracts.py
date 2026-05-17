@@ -240,6 +240,36 @@ def test_adapter_packet_contract_requires_structured_trust_mutation_entrypoints(
     )
 
 
+def test_adapter_packet_contract_requires_runtime_trust_update_protocol_sequence(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+    from brain.v5.contracts import validate_adapter_packet
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Finite-size counting identifies the edge sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size artifacts",
+    )
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
+    packet = build_adapter_packet(ws, "s1", runtime="codex")
+    packet["runtime_trust_update_protocol"]["change_claim_confidence"]["sequence"].remove(
+        "preflight_trust_update"
+    )
+
+    result = validate_adapter_packet(packet)
+
+    assert result.ok is False
+    assert any(
+        issue.path == "adapter.runtime_trust_update_protocol.change_claim_confidence.sequence"
+        for issue in result.issues
+    )
+
+
 def test_summary_orientation_contract_accepts_current_payload(tmp_path):
     from brain.v5.contracts import validate_summary_orientation
     from brain.v5.summaries import read_summary_orientation, write_session_summary

@@ -1722,6 +1722,9 @@ Implementation implications:
 - Adapter packets should also expose a structured `trust_mutation_entrypoints`
   map, e.g. `change_claim_confidence -> preflight/apply`, so runtimes do not
   infer mutation sequencing from a flat entrypoint list.
+- Adapter packets should expose a structured `runtime_trust_update_protocol`
+  that spells out `refresh brief -> preflight -> apply -> refresh brief ->
+  write summary`, while marking summaries as untrusted inputs for mutation.
 
 ## Implementation Plan Direction
 

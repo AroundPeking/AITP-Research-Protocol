@@ -67,6 +67,20 @@ def test_adapter_packet_includes_orientation_summaries_and_trusted_brief(tmp_pat
         "preflight": "aitp_v5_preflight_trust_update",
         "apply": "aitp_v5_apply_trust_update",
     }
+    assert packet["runtime_trust_update_protocol"]["change_claim_confidence"] == {
+        "sequence": [
+            "refresh_execution_brief",
+            "preflight_trust_update",
+            "apply_trust_update",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "preflight": "aitp_v5_preflight_trust_update",
+        "apply": "aitp_v5_apply_trust_update",
+        "refresh": ["aitp_v5_get_execution_brief", "aitp_v5_write_session_summary"],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    }
     assert "read_for_orientation" in packet["runtime_rules"][0]
 
 

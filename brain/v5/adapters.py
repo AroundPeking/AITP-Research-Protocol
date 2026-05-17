@@ -33,6 +33,23 @@ _TRUST_MUTATION_ENTRYPOINTS = {
         "apply": "aitp_v5_apply_trust_update",
     },
 }
+_TRUST_UPDATE_SEQUENCE = [
+    "refresh_execution_brief",
+    "preflight_trust_update",
+    "apply_trust_update",
+    "refresh_execution_brief",
+    "write_session_summary",
+]
+_RUNTIME_TRUST_UPDATE_PROTOCOL = {
+    "change_claim_confidence": {
+        "sequence": list(_TRUST_UPDATE_SEQUENCE),
+        "preflight": "aitp_v5_preflight_trust_update",
+        "apply": "aitp_v5_apply_trust_update",
+        "refresh": ["aitp_v5_get_execution_brief", "aitp_v5_write_session_summary"],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+}
 
 
 def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = "codex") -> dict[str, Any]:
@@ -78,6 +95,14 @@ def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = 
         "required_kernel_entrypoints": list(_KERNEL_ENTRYPOINTS),
         "trust_mutation_entrypoints": {
             action: dict(steps) for action, steps in _TRUST_MUTATION_ENTRYPOINTS.items()
+        },
+        "runtime_trust_update_protocol": {
+            action: {
+                **protocol,
+                "sequence": list(protocol["sequence"]),
+                "refresh": list(protocol["refresh"]),
+            }
+            for action, protocol in _RUNTIME_TRUST_UPDATE_PROTOCOL.items()
         },
         "runtime_rules": _runtime_rules(normalized_runtime),
     }

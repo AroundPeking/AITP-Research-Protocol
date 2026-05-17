@@ -63,6 +63,7 @@ _ADAPTER_REQUIRED_KEYS = (
     "requires_kernel_call_before",
     "required_kernel_entrypoints",
     "trust_mutation_entrypoints",
+    "runtime_trust_update_protocol",
     "runtime_rules",
 )
 _SUMMARY_ORIENTATION_REQUIRED_KEYS = (
@@ -120,6 +121,22 @@ _ADAPTER_MANDATORY_TRUST_MUTATIONS = {
     "change_claim_confidence": {
         "preflight": "aitp_v5_preflight_trust_update",
         "apply": "aitp_v5_apply_trust_update",
+    },
+}
+_ADAPTER_MANDATORY_TRUST_UPDATE_PROTOCOL = {
+    "change_claim_confidence": {
+        "sequence": [
+            "refresh_execution_brief",
+            "preflight_trust_update",
+            "apply_trust_update",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "preflight": "aitp_v5_preflight_trust_update",
+        "apply": "aitp_v5_apply_trust_update",
+        "refresh": ["aitp_v5_get_execution_brief", "aitp_v5_write_session_summary"],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
     },
 }
 _MAX_QUESTIONS_BY_LEVEL = {
@@ -260,6 +277,14 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
         _validate_trust_mutation_entrypoints(
             payload["trust_mutation_entrypoints"],
             f"{path}.trust_mutation_entrypoints",
+            payload.get("required_kernel_entrypoints"),
+            result,
+        )
+
+    if "runtime_trust_update_protocol" in payload:
+        _validate_runtime_trust_update_protocol(
+            payload["runtime_trust_update_protocol"],
+            f"{path}.runtime_trust_update_protocol",
             payload.get("required_kernel_entrypoints"),
             result,
         )
@@ -539,6 +564,59 @@ def _validate_trust_mutation_entrypoints(
                     f"{path}.{action}.{step}",
                     "must reference a declared required kernel entrypoint",
                 )
+
+
+def _validate_runtime_trust_update_protocol(
+    payload: Any,
+    path: str,
+    required_kernel_entrypoints: Any,
+    result: ContractResult,
+) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+
+    entrypoints = set(required_kernel_entrypoints) if isinstance(required_kernel_entrypoints, list) else set()
+    for action, expected_protocol in _ADAPTER_MANDATORY_TRUST_UPDATE_PROTOCOL.items():
+        protocol = payload.get(action)
+        _require_mapping(protocol, f"{path}.{action}", result)
+        if not isinstance(protocol, dict):
+            continue
+
+        sequence = protocol.get("sequence")
+        _require_list(sequence, f"{path}.{action}.sequence", result)
+        if isinstance(sequence, list) and sequence != expected_protocol["sequence"]:
+            result.add(f"{path}.{action}.sequence", "must follow refresh->preflight->apply->refresh sequence")
+
+        refresh = protocol.get("refresh")
+        _require_list(refresh, f"{path}.{action}.refresh", result)
+        if isinstance(refresh, list) and refresh != expected_protocol["refresh"]:
+            result.add(f"{path}.{action}.refresh", "must name execution brief and summary refresh entrypoints")
+
+        for key in ("preflight", "apply"):
+            expected_entrypoint = expected_protocol[key]
+            actual_entrypoint = protocol.get(key)
+            if actual_entrypoint != expected_entrypoint:
+                result.add(f"{path}.{action}.{key}", f"must be {expected_entrypoint!r}")
+            if isinstance(actual_entrypoint, str) and entrypoints and actual_entrypoint not in entrypoints:
+                result.add(f"{path}.{action}.{key}", "must reference a declared required kernel entrypoint")
+
+        if isinstance(refresh, list) and entrypoints:
+            for index, entrypoint in enumerate(refresh):
+                if entrypoint not in entrypoints:
+                    result.add(
+                        f"{path}.{action}.refresh[{index}]",
+                        "must reference a declared required kernel entrypoint",
+                    )
+
+        if protocol.get("truth_source") != expected_protocol["truth_source"]:
+            result.add(f"{path}.{action}.truth_source", "must be 'typed_records'")
+        _require_bool_value(
+            protocol.get("summary_inputs_trusted"),
+            expected_protocol["summary_inputs_trusted"],
+            f"{path}.{action}.summary_inputs_trusted",
+            result,
+        )
 
 
 def _validate_trusted_focus(payload: Any, path: str, result: ContractResult) -> None:
