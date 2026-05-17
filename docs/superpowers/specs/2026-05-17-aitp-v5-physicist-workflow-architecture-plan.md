@@ -1719,6 +1719,9 @@ Implementation implications:
 - Adapter packets should name both `aitp_v5_preflight_trust_update` and
   `aitp_v5_apply_trust_update`, so runtimes see the complete trust mutation
   path.
+- Adapter packets should also expose a structured `trust_mutation_entrypoints`
+  map, e.g. `change_claim_confidence -> preflight/apply`, so runtimes do not
+  infer mutation sequencing from a flat entrypoint list.
 
 ## Implementation Plan Direction
 

@@ -27,6 +27,12 @@ _KERNEL_ENTRYPOINTS = [
     "aitp_v5_assess_risk",
     "aitp_v5_write_session_summary",
 ]
+_TRUST_MUTATION_ENTRYPOINTS = {
+    "change_claim_confidence": {
+        "preflight": "aitp_v5_preflight_trust_update",
+        "apply": "aitp_v5_apply_trust_update",
+    },
+}
 
 
 def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = "codex") -> dict[str, Any]:
@@ -70,6 +76,9 @@ def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = 
         "trust_changing_actions": list(_TRUST_CHANGING_ACTIONS),
         "requires_kernel_call_before": list(_TRUST_CHANGING_ACTIONS),
         "required_kernel_entrypoints": list(_KERNEL_ENTRYPOINTS),
+        "trust_mutation_entrypoints": {
+            action: dict(steps) for action, steps in _TRUST_MUTATION_ENTRYPOINTS.items()
+        },
         "runtime_rules": _runtime_rules(normalized_runtime),
     }
     return require_valid_adapter_packet(packet)

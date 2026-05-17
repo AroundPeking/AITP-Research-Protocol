@@ -62,6 +62,7 @@ _ADAPTER_REQUIRED_KEYS = (
     "trust_changing_actions",
     "requires_kernel_call_before",
     "required_kernel_entrypoints",
+    "trust_mutation_entrypoints",
     "runtime_rules",
 )
 _SUMMARY_ORIENTATION_REQUIRED_KEYS = (
@@ -114,6 +115,12 @@ _ADAPTER_MANDATORY_KERNEL_ENTRYPOINTS = {
     "aitp_v5_get_execution_brief",
     "aitp_v5_preflight_trust_update",
     "aitp_v5_apply_trust_update",
+}
+_ADAPTER_MANDATORY_TRUST_MUTATIONS = {
+    "change_claim_confidence": {
+        "preflight": "aitp_v5_preflight_trust_update",
+        "apply": "aitp_v5_apply_trust_update",
+    },
 }
 _MAX_QUESTIONS_BY_LEVEL = {
     "fluid": 1,
@@ -248,6 +255,14 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
                 f"{path}.required_kernel_entrypoints",
                 f"missing mandatory kernel entrypoints: {missing}",
             )
+
+    if "trust_mutation_entrypoints" in payload:
+        _validate_trust_mutation_entrypoints(
+            payload["trust_mutation_entrypoints"],
+            f"{path}.trust_mutation_entrypoints",
+            payload.get("required_kernel_entrypoints"),
+            result,
+        )
 
     if isinstance(payload.get("trust_changing_actions"), list) and isinstance(
         payload.get("requires_kernel_call_before"),
@@ -494,6 +509,36 @@ def _validate_adapter_contract(payload: Any, path: str, result: ContractResult) 
     )
     if payload.get("regenerated_from") != "kernel_state":
         result.add(f"{path}.regenerated_from", "must be 'kernel_state'")
+
+
+def _validate_trust_mutation_entrypoints(
+    payload: Any,
+    path: str,
+    required_kernel_entrypoints: Any,
+    result: ContractResult,
+) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+
+    entrypoints = set(required_kernel_entrypoints) if isinstance(required_kernel_entrypoints, list) else set()
+    for action, required_steps in _ADAPTER_MANDATORY_TRUST_MUTATIONS.items():
+        action_payload = payload.get(action)
+        _require_mapping(action_payload, f"{path}.{action}", result)
+        if not isinstance(action_payload, dict):
+            continue
+        for step, expected_entrypoint in required_steps.items():
+            actual_entrypoint = action_payload.get(step)
+            if actual_entrypoint != expected_entrypoint:
+                result.add(
+                    f"{path}.{action}.{step}",
+                    f"must be {expected_entrypoint!r}",
+                )
+            if isinstance(actual_entrypoint, str) and entrypoints and actual_entrypoint not in entrypoints:
+                result.add(
+                    f"{path}.{action}.{step}",
+                    "must reference a declared required kernel entrypoint",
+                )
 
 
 def _validate_trusted_focus(payload: Any, path: str, result: ContractResult) -> None:
