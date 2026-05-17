@@ -75,6 +75,9 @@ class QuestionRecord:
     target_objects: list[str] = field(default_factory=list)
     target_relations: list[str] = field(default_factory=list)
     target_uncertainty: str = ""
+    intent_id: str = ""
+    intent_type: str = ""
+    expansion_boundary: str = ""
     escalation_if_unanswered: str = ""
     kind: str = "dynamic_question"
 
