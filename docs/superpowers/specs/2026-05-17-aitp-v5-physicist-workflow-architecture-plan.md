@@ -1706,6 +1706,8 @@ Implementation implications:
 - Trust-changing updates should enter through a typed `TrustUpdateRequest`
   preflight surface before mutation, so adapters can cite evidence refs, code
   state ids, and source kind while keeping summary files orientation-only.
+- The preflight payload is a public adapter/MCP/CLI contract and should be
+  contract-validated before wrappers return it.
 
 ## Implementation Plan Direction
 

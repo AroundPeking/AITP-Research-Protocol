@@ -11,6 +11,7 @@ from typing import Any
 
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
+from brain.v5.contracts import require_valid_trust_update_preflight
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
@@ -173,7 +174,7 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             code_state_ids=args.code_state_ids,
             rationale=args.rationale,
         )
-        return {"ok": True, **preflight_trust_update(ws, request)}
+        return {"ok": True, **require_valid_trust_update_preflight(preflight_trust_update(ws, request))}
 
     raise SystemExit(f"unsupported command: {args.command}")
 

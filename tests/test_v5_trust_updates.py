@@ -35,6 +35,7 @@ def _invoke(args, capsys):
 
 
 def test_preflight_blocks_summary_sourced_confidence_change_without_mutating_claim(tmp_path):
+    from brain.v5.contracts import validate_trust_update_preflight
     from brain.v5.trust_updates import TrustUpdateRequest, preflight_trust_update
     from brain.v5.workspace import get_claim
 
@@ -62,6 +63,37 @@ def test_preflight_blocks_summary_sourced_confidence_change_without_mutating_cla
     assert "query_execution_brief_or_typed_record" in payload["required_actions"]
     assert any(reason["policy_id"] == "no_summary_surface_as_truth_source" for reason in payload["policy_reasons"])
     assert persisted.confidence_state == "hypothesis"
+    assert validate_trust_update_preflight(payload).ok is True
+
+
+def test_trust_update_preflight_contract_rejects_mutating_or_summary_trusted_payloads():
+    from brain.v5.contracts import validate_trust_update_preflight
+
+    payload = {
+        "kind": "trust_update_preflight",
+        "request": {"kind": "trust_update_request"},
+        "request_id": "trust-req-invalid",
+        "action": "change_claim_confidence",
+        "session_id": "s1",
+        "topic_id": "fqhe",
+        "claim_id": "claim-fqhe",
+        "allowed": True,
+        "mutation_allowed_after_preflight": True,
+        "policy_reasons": [],
+        "required_actions": [],
+        "evidence_refs": [],
+        "code_state_ids": [],
+        "truth_source": "summary_orientation",
+        "summary_inputs_trusted": True,
+        "can_update_kernel_state": True,
+    }
+
+    result = validate_trust_update_preflight(payload)
+
+    assert result.ok is False
+    assert any(issue.path == "trust_preflight.truth_source" for issue in result.issues)
+    assert any(issue.path == "trust_preflight.summary_inputs_trusted" for issue in result.issues)
+    assert any(issue.path == "trust_preflight.can_update_kernel_state" for issue in result.issues)
 
 
 def test_preflight_blocks_code_method_validation_without_code_state(tmp_path):
@@ -125,6 +157,8 @@ def test_preflight_allows_code_method_promotion_with_evidence_and_code_state(tmp
 
 
 def test_cli_trust_preflight_returns_policy_payload(tmp_path, capsys):
+    from brain.v5.contracts import validate_trust_update_preflight
+
     _, claim = _seed_claim(tmp_path)
 
     payload = _invoke(
@@ -154,9 +188,11 @@ def test_cli_trust_preflight_returns_policy_payload(tmp_path, capsys):
     assert payload["kind"] == "trust_update_preflight"
     assert payload["allowed"] is False
     assert payload["mutation_allowed_after_preflight"] is False
+    assert validate_trust_update_preflight(payload).ok is True
 
 
 def test_mcp_preflight_trust_update_returns_contract_payload(tmp_path):
+    from brain.v5.contracts import validate_trust_update_preflight
     from brain.v5.mcp_tools import aitp_v5_preflight_trust_update
 
     _, claim = _seed_claim(tmp_path)
@@ -176,3 +212,4 @@ def test_mcp_preflight_trust_update_returns_contract_payload(tmp_path):
     assert payload["kind"] == "trust_update_preflight"
     assert payload["allowed"] is False
     assert "query_execution_brief_or_typed_record" in payload["required_actions"]
+    assert validate_trust_update_preflight(payload).ok is True
