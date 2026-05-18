@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-MAX_V5_SOURCE_MODULE_LINES = 700
+MAX_V5_SOURCE_MODULE_LINES = 500
 
 
 def test_v5_source_modules_stay_bounded():

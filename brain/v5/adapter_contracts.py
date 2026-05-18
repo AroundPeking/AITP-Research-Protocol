@@ -23,10 +23,10 @@ from brain.v5.contracts import (
     _require_list,
     _require_mapping,
     _require_nonempty_str,
-    _validate_summary_orientation,
     validate_execution_brief,
 )
 from brain.v5.public_surfaces import describe_public_surfaces
+from brain.v5.summary_contracts import validate_summary_orientation_flags
 
 
 _ADAPTER_REQUIRED_KEYS = (
@@ -86,7 +86,7 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
                 )
 
     if "summary_orientation" in payload:
-        _validate_summary_orientation(payload["summary_orientation"], f"{path}.summary_orientation", result)
+        validate_summary_orientation_flags(payload["summary_orientation"], f"{path}.summary_orientation", result)
 
     if "adapter_contract" in payload:
         _validate_adapter_contract(payload["adapter_contract"], f"{path}.adapter_contract", result)

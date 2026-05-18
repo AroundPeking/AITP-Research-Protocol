@@ -1796,6 +1796,8 @@ trust contracts, summary contracts, risk contracts, and migration bridges.
 
 Add regression tests for source-module size. When a module crosses the soft
 limit, split by protocol responsibility instead of adding more special cases.
+The current source-module boundary test uses a 500-line limit for `brain/v5`
+modules, which is intentionally low enough to force focused protocol modules.
 
 Suggested phases:
 
