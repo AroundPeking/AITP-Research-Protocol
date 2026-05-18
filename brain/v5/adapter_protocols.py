@@ -21,7 +21,6 @@ _REGISTRY_METADATA = {
     "source_module": "brain.v5.adapter_protocols",
     "protocol_version": 1,
     "summary_inputs_trusted": False,
-    "protocol_fields": list(_PROTOCOL_FIELDS),
 }
 _TRUST_CHANGING_ACTIONS = [
     "record_evidence",
@@ -144,10 +143,19 @@ def mandatory_kernel_entrypoints() -> set[str]:
     return set(_MANDATORY_KERNEL_ENTRYPOINTS)
 
 
+def adapter_protocol_fields() -> tuple[str, ...]:
+    """Return protocol field names governed by the adapter protocol registry."""
+
+    return tuple(_PROTOCOL_FIELDS)
+
+
 def adapter_protocol_registry() -> dict[str, Any]:
     """Return metadata describing the shared protocol registry."""
 
-    return deepcopy(_REGISTRY_METADATA)
+    return {
+        **deepcopy(_REGISTRY_METADATA),
+        "protocol_fields": list(adapter_protocol_fields()),
+    }
 
 
 def mandatory_trust_mutations() -> dict[str, Any]:

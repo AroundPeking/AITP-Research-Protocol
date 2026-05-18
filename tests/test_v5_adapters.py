@@ -177,6 +177,16 @@ def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
     }
 
 
+def test_adapter_registry_protocol_fields_match_builder_keys():
+    from brain.v5.adapter_protocols import adapter_protocol_fields, build_adapter_protocols
+
+    protocols = build_adapter_protocols()
+    fields = adapter_protocol_fields()
+
+    assert tuple(protocols["adapter_protocol_registry"]["protocol_fields"]) == fields
+    assert set(fields) == set(protocols) - {"adapter_protocol_registry"}
+
+
 def test_adapter_packet_ignores_tampered_summary_as_truth_source(tmp_path):
     from brain.v5.adapters import build_adapter_packet
     from brain.v5.markdown import write_md
