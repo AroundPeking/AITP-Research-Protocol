@@ -120,6 +120,18 @@ def test_cli_adapter_registry_validates_payload_before_return(monkeypatch):
         cli.main(["adapter", "registry"])
 
 
+def test_cli_adapter_packet_validates_payload_before_return(tmp_path, monkeypatch):
+    import pytest
+
+    import brain.v5.cli as cli
+    from brain.v5.contracts import ContractError
+
+    monkeypatch.setattr(cli, "build_adapter_packet", lambda *args, **kwargs: {"kind": "adapter_packet"})
+
+    with pytest.raises(ContractError):
+        cli.main(["--base", str(tmp_path), "adapter", "packet", "codex", "s1"])
+
+
 def test_cli_does_not_import_legacy_mcp_monolith():
     import brain.v5.cli as cli
 

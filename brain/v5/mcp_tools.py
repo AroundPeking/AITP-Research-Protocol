@@ -10,6 +10,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.contracts import (
+    require_valid_adapter_packet,
     require_valid_adapter_protocol_registry,
     require_valid_execution_brief,
     require_valid_trust_update_apply,
@@ -243,7 +244,7 @@ def aitp_v5_read_summary_orientation(base: str, *, session_id: str) -> dict:
 
 def aitp_v5_get_adapter_packet(base: str, *, runtime: str, session_id: str) -> dict:
     ws = init_workspace(Path(base))
-    return {"ok": True, **build_adapter_packet(ws, session_id, runtime=runtime)}
+    return {"ok": True, **require_valid_adapter_packet(build_adapter_packet(ws, session_id, runtime=runtime))}
 
 
 def aitp_v5_get_adapter_protocol_registry() -> dict:

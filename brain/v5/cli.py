@@ -13,6 +13,7 @@ from brain.v5.adapter_protocols import adapter_protocol_registry
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.contracts import (
+    require_valid_adapter_packet,
     require_valid_adapter_protocol_registry,
     require_valid_trust_update_apply,
     require_valid_trust_update_preflight,
@@ -161,7 +162,10 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return {"ok": True, **read_summary_orientation(ws, args.session_id)}
 
     if args.command == "adapter" and args.adapter_command == "packet":
-        return {"ok": True, **build_adapter_packet(ws, args.session_id, runtime=args.runtime)}
+        return {
+            "ok": True,
+            **require_valid_adapter_packet(build_adapter_packet(ws, args.session_id, runtime=args.runtime)),
+        }
 
     if args.command == "trust" and args.trust_command == "preflight":
         request = _trust_update_request_from_args(args)
