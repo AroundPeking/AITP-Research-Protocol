@@ -16,6 +16,7 @@ from brain.v5.models import TrustUpdateRequest
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
+from brain.v5.tools import record_tool_run, register_tool_recipe
 from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
 from brain.v5.workspace import (
     bind_session,
@@ -76,6 +77,35 @@ def _build_parser() -> argparse.ArgumentParser:
     risk_sub = risk_parser.add_subparsers(dest="risk_command", required=True)
     risk_assess = risk_sub.add_parser("assess")
     risk_assess.add_argument("claim_id")
+
+    tool_parser = subparsers.add_parser("tool")
+    tool_sub = tool_parser.add_subparsers(dest="tool_command", required=True)
+    tool_recipe = tool_sub.add_parser("recipe")
+    tool_recipe_sub = tool_recipe.add_subparsers(dest="tool_recipe_command", required=True)
+    tool_recipe_register = tool_recipe_sub.add_parser("register")
+    tool_recipe_register.add_argument("recipe_id")
+    tool_recipe_register.add_argument("--family", required=True, dest="tool_family")
+    tool_recipe_register.add_argument("--name", required=True, dest="tool_name")
+    tool_recipe_register.add_argument("--purpose", required=True)
+    tool_recipe_register.add_argument("--required-input", action="append", default=[], dest="required_inputs")
+    tool_recipe_register.add_argument("--expected-output", action="append", default=[], dest="expected_outputs")
+    tool_recipe_register.add_argument("--invariant", action="append", default=[], dest="invariants")
+
+    tool_run = tool_sub.add_parser("run")
+    tool_run_sub = tool_run.add_subparsers(dest="tool_run_command", required=True)
+    tool_run_record = tool_run_sub.add_parser("record")
+    tool_run_record.add_argument("--recipe", required=True, dest="recipe_id")
+    tool_run_record.add_argument("--family", required=True, dest="tool_family")
+    tool_run_record.add_argument("--name", required=True, dest="tool_name")
+    tool_run_record.add_argument("--topic", required=True, dest="topic_id")
+    tool_run_record.add_argument("--claim", required=True, dest="claim_id")
+    tool_run_record.add_argument("--inputs-json", default="{}")
+    tool_run_record.add_argument("--outputs-json", default="{}")
+    tool_run_record.add_argument("--environment-json", default="{}")
+    tool_run_record.add_argument("--evidence-status", default="unreviewed")
+    tool_run_record.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
+    tool_run_record.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
+    tool_run_record.add_argument("--source-ref", action="append", default=[], dest="source_refs")
 
     summary_parser = subparsers.add_parser("summary")
     summary_sub = summary_parser.add_subparsers(dest="summary_command", required=True)
@@ -157,6 +187,37 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         risk = assess_claim_risk(claim)
         return {"ok": True, "claim_id": args.claim_id, "risk_assessment": asdict(risk)}
 
+    if args.command == "tool" and args.tool_command == "recipe" and args.tool_recipe_command == "register":
+        recipe = register_tool_recipe(
+            ws,
+            recipe_id=args.recipe_id,
+            tool_family=args.tool_family,
+            tool_name=args.tool_name,
+            purpose=args.purpose,
+            required_inputs=args.required_inputs,
+            expected_outputs=args.expected_outputs,
+            invariants=args.invariants,
+        )
+        return {"ok": True, **asdict(recipe)}
+
+    if args.command == "tool" and args.tool_command == "run" and args.tool_run_command == "record":
+        run = record_tool_run(
+            ws,
+            recipe_id=args.recipe_id,
+            tool_family=args.tool_family,
+            tool_name=args.tool_name,
+            topic_id=args.topic_id,
+            claim_id=args.claim_id,
+            inputs=_json_object_arg(args.inputs_json, "--inputs-json"),
+            outputs=_json_object_arg(args.outputs_json, "--outputs-json"),
+            environment=_json_object_arg(args.environment_json, "--environment-json"),
+            evidence_status=args.evidence_status,
+            code_state_ids=args.code_state_ids,
+            artifact_ids=args.artifact_ids,
+            source_refs=args.source_refs,
+        )
+        return {"ok": True, **asdict(run)}
+
     if args.command == "summary" and args.summary_command == "session":
         return {
             "ok": True,
@@ -229,6 +290,16 @@ def _trust_update_request_from_args(args: argparse.Namespace) -> TrustUpdateRequ
         code_state_ids=args.code_state_ids,
         rationale=args.rationale,
     )
+
+
+def _json_object_arg(raw: str, label: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"{label} must be a JSON object: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SystemExit(f"{label} must be a JSON object")
+    return payload
 
 
 def _jsonable(value: Any) -> Any:
