@@ -165,6 +165,15 @@ def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
         "source_module": "brain.v5.adapter_protocols",
         "protocol_version": 1,
         "summary_inputs_trusted": False,
+        "protocol_fields": [
+            "trust_changing_actions",
+            "requires_kernel_call_before",
+            "required_kernel_entrypoints",
+            "trust_mutation_entrypoints",
+            "runtime_trust_update_protocol",
+            "runtime_record_protocols",
+            "runtime_gate_protocols",
+        ],
     }
 
 

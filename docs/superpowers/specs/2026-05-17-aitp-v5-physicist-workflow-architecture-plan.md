@@ -1735,6 +1735,8 @@ Implementation implications:
   packet generation and contract validation cannot drift apart.
 - Adapter packets should include registry metadata naming the protocol source
   module and version, making runtime-facing harness assumptions auditable.
+- Adapter registry metadata should list the protocol fields it governs, so
+  runtimes and contract validators share the same boundary of responsibility.
 
 ## Implementation Plan Direction
 

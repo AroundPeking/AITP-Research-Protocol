@@ -7,11 +7,21 @@ from typing import Any
 
 
 _SUPPORTED_RUNTIMES = ("codex", "claude_code", "opencode")
+_PROTOCOL_FIELDS = [
+    "trust_changing_actions",
+    "requires_kernel_call_before",
+    "required_kernel_entrypoints",
+    "trust_mutation_entrypoints",
+    "runtime_trust_update_protocol",
+    "runtime_record_protocols",
+    "runtime_gate_protocols",
+]
 _REGISTRY_METADATA = {
     "kind": "adapter_protocol_registry",
     "source_module": "brain.v5.adapter_protocols",
     "protocol_version": 1,
     "summary_inputs_trusted": False,
+    "protocol_fields": list(_PROTOCOL_FIELDS),
 }
 _TRUST_CHANGING_ACTIONS = [
     "record_evidence",
