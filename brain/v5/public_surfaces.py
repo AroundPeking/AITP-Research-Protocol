@@ -13,12 +13,19 @@ _PUBLIC_SURFACE_NAMES = (
     "trust_update_apply",
     "trust_update_preflight",
 )
+_PUBLIC_SURFACE_VALIDATOR_REF = "brain.v5.public_surfaces.require_valid_public_surface"
 
 
 def public_surface_names() -> tuple[str, ...]:
     """Return the names of public payload surfaces with contract gates."""
 
     return _PUBLIC_SURFACE_NAMES
+
+
+def public_surface_validator_ref() -> str:
+    """Return the stable import path for validating public payload surfaces."""
+
+    return _PUBLIC_SURFACE_VALIDATOR_REF
 
 
 def require_valid_public_surface(surface_name: str, payload: dict[str, Any]) -> dict[str, Any]:

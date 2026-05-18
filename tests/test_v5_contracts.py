@@ -404,6 +404,22 @@ def test_adapter_protocol_registry_contract_rejects_tampered_public_surface_cont
     )
 
 
+def test_adapter_protocol_registry_contract_rejects_tampered_public_surface_validator():
+    from brain.v5.adapter_protocols import adapter_protocol_registry
+    from brain.v5.contracts import validate_adapter_protocol_registry
+
+    registry = adapter_protocol_registry()
+    registry["public_surface_validator"] = "brain.v5.contracts.require_valid_adapter_packet"
+
+    result = validate_adapter_protocol_registry(registry)
+
+    assert result.ok is False
+    assert any(
+        issue.path == "adapter_protocol_registry.public_surface_validator"
+        for issue in result.issues
+    )
+
+
 def test_session_summary_bundle_contract_accepts_orientation_only_bundle(tmp_path):
     from brain.v5.contracts import validate_session_summary_bundle
 

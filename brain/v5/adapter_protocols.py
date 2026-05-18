@@ -7,7 +7,7 @@ import json
 from copy import deepcopy
 from typing import Any
 
-from brain.v5.public_surfaces import public_surface_names
+from brain.v5.public_surfaces import public_surface_names, public_surface_validator_ref
 
 
 _FINGERPRINT_ALGORITHM = "sha256-canonical-json-v1"
@@ -181,6 +181,7 @@ def adapter_protocol_registry() -> dict[str, Any]:
         "protocol_fingerprint": adapter_protocol_fingerprint(),
         "protocol_fingerprint_algorithm": _FINGERPRINT_ALGORITHM,
         "public_surface_contracts": list(public_surface_names()),
+        "public_surface_validator": public_surface_validator_ref(),
     }
 
 

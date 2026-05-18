@@ -156,7 +156,7 @@ def test_adapter_packet_protocols_are_generated_from_shared_registry(tmp_path):
 def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
     from brain.v5.adapter_protocols import adapter_protocol_fingerprint
     from brain.v5.adapters import build_adapter_packet
-    from brain.v5.public_surfaces import public_surface_names
+    from brain.v5.public_surfaces import public_surface_names, public_surface_validator_ref
 
     ws, _ = _seed_session(tmp_path)
 
@@ -188,6 +188,7 @@ def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
         "protocol_fingerprint": adapter_protocol_fingerprint(),
         "protocol_fingerprint_algorithm": "sha256-canonical-json-v1",
         "public_surface_contracts": list(public_surface_names()),
+        "public_surface_validator": public_surface_validator_ref(),
     }
 
 

@@ -1704,6 +1704,8 @@ Implementation implications:
   and MCP wrappers cannot drift by importing different individual validators.
 - Adapter registry metadata should expose the public surface contract names, so
   runtimes can see which payload surfaces must pass contract validation.
+- Adapter registry metadata should also expose the stable public surface
+  validator reference, so runtimes know which helper enforces that contract set.
 - Add tests proving summaries do not become independent truth sources when
   they disagree with typed records.
 - Codex, Claude Code, OpenCode, and future adapters may read compact views for
