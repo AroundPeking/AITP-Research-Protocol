@@ -154,8 +154,14 @@ def adapter_protocol_fields() -> tuple[str, ...]:
 def adapter_protocol_fingerprint() -> str:
     """Return a stable fingerprint for the registry-governed protocol payload."""
 
+    return adapter_protocol_payload_fingerprint(_build_protocol_payload())
+
+
+def adapter_protocol_payload_fingerprint(protocol_payload: dict[str, Any]) -> str:
+    """Return a stable fingerprint for a registry-governed protocol payload."""
+
     canonical_payload = json.dumps(
-        _build_protocol_payload(),
+        protocol_payload,
         sort_keys=True,
         separators=(",", ":"),
     )

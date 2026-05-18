@@ -265,6 +265,35 @@ def test_adapter_packet_contract_requires_each_registry_protocol_field_in_packet
     )
 
 
+def test_adapter_packet_contract_recomputes_protocol_fingerprint(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+    from brain.v5.contracts import validate_adapter_packet
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Finite-size counting identifies the edge sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size artifacts",
+    )
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
+    packet = build_adapter_packet(ws, "s1", runtime="codex")
+    packet["trust_changing_actions"] = list(reversed(packet["trust_changing_actions"]))
+    packet["requires_kernel_call_before"] = list(reversed(packet["requires_kernel_call_before"]))
+
+    result = validate_adapter_packet(packet)
+
+    assert result.ok is False
+    assert any(
+        issue.path == "adapter.adapter_protocol_registry.protocol_fingerprint"
+        for issue in result.issues
+    )
+
+
 def test_adapter_packet_contract_requires_trust_apply_entrypoint(tmp_path):
     from brain.v5.adapters import build_adapter_packet
     from brain.v5.contracts import validate_adapter_packet

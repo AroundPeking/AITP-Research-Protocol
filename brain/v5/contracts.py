@@ -7,6 +7,7 @@ from typing import Any
 
 from brain.v5.adapter_protocols import (
     adapter_protocol_fields,
+    adapter_protocol_payload_fingerprint,
     adapter_protocol_registry,
     mandatory_gate_protocols,
     mandatory_kernel_entrypoints,
@@ -246,6 +247,7 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
             result,
         )
     _validate_adapter_protocol_fields_present(payload, path, result)
+    _validate_adapter_protocol_fingerprint(payload, f"{path}.adapter_protocol_registry", result)
 
     if "execution_brief" in payload:
         result.extend(validate_execution_brief(payload["execution_brief"], path=f"{path}.execution_brief"))
@@ -567,6 +569,23 @@ def _validate_adapter_protocol_fields_present(
                 f"{path}.adapter_protocol_registry.protocol_fields.{field_name}",
                 "declared protocol field missing from adapter packet",
             )
+
+
+def _validate_adapter_protocol_fingerprint(
+    payload: dict[str, Any],
+    path: str,
+    result: ContractResult,
+) -> None:
+    registry = payload.get("adapter_protocol_registry")
+    if not isinstance(registry, dict):
+        return
+    if any(field_name not in payload for field_name in adapter_protocol_fields()):
+        return
+
+    protocol_payload = {field_name: payload[field_name] for field_name in adapter_protocol_fields()}
+    actual_fingerprint = adapter_protocol_payload_fingerprint(protocol_payload)
+    if registry.get("protocol_fingerprint") != actual_fingerprint:
+        result.add(path + ".protocol_fingerprint", "must match the adapter packet protocol payload")
 
 
 def _validate_trust_mutation_entrypoints(

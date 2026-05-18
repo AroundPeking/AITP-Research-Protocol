@@ -1741,6 +1741,8 @@ Implementation implications:
   named by the shared registry is present in the adapter packet.
 - Adapter registry metadata should expose a stable fingerprint of the governed
   protocol payload, so runtimes can audit which exact harness contract they saw.
+- Contract validators should recompute the adapter protocol fingerprint from
+  the packet's actual protocol fields, not only compare registry metadata.
 
 ## Implementation Plan Direction
 
