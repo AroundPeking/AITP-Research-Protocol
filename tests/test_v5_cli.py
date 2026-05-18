@@ -99,6 +99,15 @@ def test_cli_risk_assess_returns_kernel_payload(tmp_path, capsys):
     assert payload["risk_assessment"]["signals"]
 
 
+def test_cli_adapter_registry_returns_static_protocol_metadata_without_workspace(tmp_path, capsys):
+    from brain.v5.adapter_protocols import adapter_protocol_registry
+
+    payload = _invoke(["--base", str(tmp_path), "adapter", "registry"], capsys)
+
+    assert payload == {"ok": True, "adapter_protocol_registry": adapter_protocol_registry()}
+    assert not (tmp_path / ".aitp").exists()
+
+
 def test_cli_does_not_import_legacy_mcp_monolith():
     import brain.v5.cli as cli
 

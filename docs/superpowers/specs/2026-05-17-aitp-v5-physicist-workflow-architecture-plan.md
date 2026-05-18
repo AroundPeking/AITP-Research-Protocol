@@ -1690,6 +1690,9 @@ Implementation implications:
 - The adapter entry surface is `brain/v5/adapters.py` plus CLI command
   `aitp-v5 adapter packet <runtime> <session-id>` and MCP wrapper
   `aitp_v5_get_adapter_packet`.
+- The adapter registry surface should also be directly inspectable through
+  `aitp-v5 adapter registry` and `aitp_v5_get_adapter_protocol_registry`, without
+  creating workspace state.
 - Add tests proving summaries do not become independent truth sources when
   they disagree with typed records.
 - Codex, Claude Code, OpenCode, and future adapters may read compact views for

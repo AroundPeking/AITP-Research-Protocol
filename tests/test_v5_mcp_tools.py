@@ -116,6 +116,15 @@ def test_mcp_assess_risk_and_record_code_state_are_kernel_wrappers(tmp_path):
     assert risk["risk_assessment"]["signals"]
 
 
+def test_mcp_adapter_protocol_registry_returns_static_metadata():
+    from brain.v5.adapter_protocols import adapter_protocol_registry
+    from brain.v5.mcp_tools import aitp_v5_get_adapter_protocol_registry
+
+    payload = aitp_v5_get_adapter_protocol_registry()
+
+    assert payload == {"ok": True, "adapter_protocol_registry": adapter_protocol_registry()}
+
+
 def test_mcp_tools_do_not_import_legacy_mcp_monolith():
     import brain.v5.mcp_tools as mcp_tools
 

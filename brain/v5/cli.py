@@ -9,6 +9,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
+from brain.v5.adapter_protocols import adapter_protocol_registry
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.contracts import require_valid_trust_update_apply, require_valid_trust_update_preflight
@@ -88,6 +89,7 @@ def _build_parser() -> argparse.ArgumentParser:
     adapter_packet = adapter_sub.add_parser("packet")
     adapter_packet.add_argument("runtime")
     adapter_packet.add_argument("session_id")
+    adapter_sub.add_parser("registry")
 
     trust_parser = subparsers.add_parser("trust")
     trust_sub = trust_parser.add_subparsers(dest="trust_command", required=True)
@@ -103,6 +105,9 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "init":
         ws = init_workspace(Path(args.base))
         return {"ok": True, "workspace_root": str(ws.root)}
+
+    if args.command == "adapter" and args.adapter_command == "registry":
+        return {"ok": True, "adapter_protocol_registry": adapter_protocol_registry()}
 
     ws = init_workspace(Path(args.base))
 
