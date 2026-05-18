@@ -17,3 +17,34 @@ def test_v5_source_modules_stay_bounded():
             oversized[module_path.name] = line_count
 
     assert oversized == {}
+
+
+def test_trust_update_contracts_live_behind_contracts_facade():
+    import brain.v5.contracts as contracts
+    from brain.v5 import trust_contracts
+
+    invalid_payload = {
+        "kind": "trust_update_preflight",
+        "request": {},
+        "request_id": "",
+        "action": "",
+        "session_id": "",
+        "topic_id": "",
+        "claim_id": "",
+        "allowed": False,
+        "mutation_allowed_after_preflight": False,
+        "policy_reasons": [],
+        "required_actions": [],
+        "evidence_refs": [],
+        "code_state_ids": [],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+    }
+
+    facade_result = contracts.validate_trust_update_preflight(invalid_payload)
+    focused_result = trust_contracts.validate_trust_update_preflight(invalid_payload)
+
+    assert [issue.path for issue in facade_result.issues] == [
+        issue.path for issue in focused_result.issues
+    ]
