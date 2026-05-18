@@ -24,6 +24,13 @@ def test_public_surface_validator_accepts_valid_adapter_registry():
     assert require_valid_public_surface("adapter_protocol_registry", registry) == registry
 
 
+def test_adapter_registry_exposes_public_surface_contract_names():
+    from brain.v5.adapter_protocols import adapter_protocol_registry
+    from brain.v5.public_surfaces import public_surface_names
+
+    assert adapter_protocol_registry()["public_surface_contracts"] == list(public_surface_names())
+
+
 def test_public_surface_validator_rejects_invalid_named_surface():
     import pytest
 

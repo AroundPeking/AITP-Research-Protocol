@@ -1702,6 +1702,8 @@ Implementation implications:
   `orientation_only: true`.
 - Public runtime-facing surfaces should route through a shared helper, so CLI
   and MCP wrappers cannot drift by importing different individual validators.
+- Adapter registry metadata should expose the public surface contract names, so
+  runtimes can see which payload surfaces must pass contract validation.
 - Add tests proving summaries do not become independent truth sources when
   they disagree with typed records.
 - Codex, Claude Code, OpenCode, and future adapters may read compact views for

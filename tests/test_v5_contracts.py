@@ -388,6 +388,22 @@ def test_adapter_protocol_registry_require_raises_on_invalid_registry():
         require_valid_adapter_protocol_registry(registry)
 
 
+def test_adapter_protocol_registry_contract_rejects_tampered_public_surface_contracts():
+    from brain.v5.adapter_protocols import adapter_protocol_registry
+    from brain.v5.contracts import validate_adapter_protocol_registry
+
+    registry = adapter_protocol_registry()
+    registry["public_surface_contracts"] = ["adapter_packet"]
+
+    result = validate_adapter_protocol_registry(registry)
+
+    assert result.ok is False
+    assert any(
+        issue.path == "adapter_protocol_registry.public_surface_contracts"
+        for issue in result.issues
+    )
+
+
 def test_session_summary_bundle_contract_accepts_orientation_only_bundle(tmp_path):
     from brain.v5.contracts import validate_session_summary_bundle
 
