@@ -50,14 +50,6 @@ _BRIEF_REQUIRED_KEYS = (
     "human_checkpoint",
 )
 _RISK_LEVELS = {"fluid", "guided", "rigorous", "adversarial"}
-_MAX_QUESTIONS_BY_LEVEL = {
-    "fluid": 1,
-    "guided": 3,
-    "rigorous": 3,
-    "adversarial": 3,
-}
-
-
 def validate_execution_brief(payload: dict[str, Any], *, path: str = "brief") -> ContractResult:
     """Validate the public execution-brief payload."""
 
@@ -234,68 +226,17 @@ def require_valid_trust_update_apply(payload: dict[str, Any]) -> dict[str, Any]:
 def validate_risk_assessment(payload: dict[str, Any], *, path: str = "risk_assessment") -> ContractResult:
     """Validate a risk assessment payload."""
 
-    result = ContractResult()
-    _require_mapping(payload, path, result)
-    if result.issues:
-        return result
+    from brain.v5.risk_contracts import validate_risk_assessment as _validate_risk_assessment
 
-    _require_level(payload.get("level"), f"{path}.level", result)
-    if not isinstance(payload.get("score"), int):
-        result.add(f"{path}.score", "must be an integer")
-    if payload.get("score", 0) < 0:
-        result.add(f"{path}.score", "must be non-negative")
-
-    signals = payload.get("signals")
-    _require_list(signals, f"{path}.signals", result)
-    if isinstance(signals, list):
-        for index, signal in enumerate(signals):
-            _validate_risk_signal(signal, f"{path}.signals[{index}]", result)
-
-    if "trust_reductions" in payload:
-        _require_list(payload["trust_reductions"], f"{path}.trust_reductions", result)
-
-    if "action_budget" in payload:
-        result.extend(validate_action_budget(payload["action_budget"], path=f"{path}.action_budget"))
-        if isinstance(payload["action_budget"], dict) and payload["action_budget"].get("level") != payload.get("level"):
-            result.add(f"{path}.action_budget.level", "must match risk assessment level")
-
-    if not isinstance(payload.get("human_checkpoint_needed"), bool):
-        result.add(f"{path}.human_checkpoint_needed", "must be a boolean")
-    _require_nonempty_str(payload, "summary", path, result)
-
-    return result
+    return _validate_risk_assessment(payload, path=path)
 
 
 def validate_action_budget(payload: dict[str, Any], *, path: str = "action_budget") -> ContractResult:
     """Validate an action-budget payload."""
 
-    result = ContractResult()
-    _require_mapping(payload, path, result)
-    if result.issues:
-        return result
+    from brain.v5.risk_contracts import validate_action_budget as _validate_action_budget
 
-    level = payload.get("level")
-    _require_level(level, f"{path}.level", result)
-
-    max_questions = payload.get("max_questions")
-    if not isinstance(max_questions, int):
-        result.add(f"{path}.max_questions", "must be an integer")
-    elif isinstance(level, str) and level in _MAX_QUESTIONS_BY_LEVEL:
-        allowed = _MAX_QUESTIONS_BY_LEVEL[level]
-        if max_questions > allowed:
-            result.add(f"{path}.max_questions", f"{level} budget max_questions must be <= {allowed}")
-        if max_questions < 0:
-            result.add(f"{path}.max_questions", "must be non-negative")
-
-    for key in ("required_outputs", "allowed_actions"):
-        _require_list(payload.get(key), f"{path}.{key}", result)
-        if isinstance(payload.get(key), list) and any(not isinstance(item, str) or not item for item in payload[key]):
-            result.add(f"{path}.{key}", "must contain non-empty strings")
-
-    if not isinstance(payload.get("requires_human_checkpoint"), bool):
-        result.add(f"{path}.requires_human_checkpoint", "must be a boolean")
-
-    return result
+    return _validate_action_budget(payload, path=path)
 
 
 def _validate_flow_profile(payload: Any, path: str, result: ContractResult) -> None:
@@ -308,19 +249,6 @@ def _validate_flow_profile(payload: Any, path: str, result: ContractResult) -> N
     risk_level = payload.get("risk_level")
     if risk_level:
         _require_level(risk_level, f"{path}.risk_level", result)
-
-
-def _validate_risk_signal(payload: Any, path: str, result: ContractResult) -> None:
-    _require_mapping(payload, path, result)
-    if not isinstance(payload, dict):
-        return
-    for key in ("kind", "reason", "evidence_ref", "suggested_action"):
-        _require_nonempty_str(payload, key, path, result)
-    severity = payload.get("severity")
-    if not isinstance(severity, int):
-        result.add(f"{path}.severity", "must be an integer")
-    elif severity <= 0:
-        result.add(f"{path}.severity", "must be positive")
 
 
 def _require_mapping(value: Any, path: str, result: ContractResult) -> None:

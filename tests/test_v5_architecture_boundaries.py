@@ -48,3 +48,38 @@ def test_trust_update_contracts_live_behind_contracts_facade():
     assert [issue.path for issue in facade_result.issues] == [
         issue.path for issue in focused_result.issues
     ]
+
+
+def test_risk_contracts_live_behind_contracts_facade():
+    import brain.v5.contracts as contracts
+    from brain.v5 import risk_contracts
+
+    invalid_payload = {
+        "level": "fluid",
+        "score": -1,
+        "signals": [
+            {
+                "kind": "finite_size",
+                "severity": 0,
+                "reason": "",
+                "evidence_ref": "",
+                "suggested_action": "",
+            }
+        ],
+        "action_budget": {
+            "level": "guided",
+            "max_questions": 4,
+            "required_outputs": [""],
+            "allowed_actions": [""],
+            "requires_human_checkpoint": "no",
+        },
+        "human_checkpoint_needed": "no",
+        "summary": "",
+    }
+
+    facade_result = contracts.validate_risk_assessment(invalid_payload)
+    focused_result = risk_contracts.validate_risk_assessment(invalid_payload)
+
+    assert [issue.path for issue in facade_result.issues] == [
+        issue.path for issue in focused_result.issues
+    ]
