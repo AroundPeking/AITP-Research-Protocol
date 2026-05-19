@@ -18,6 +18,10 @@ class ToolExecutorSpec:
     tool_name: str
     execution_mode: str
     version: str
+    purpose: str
+    evidence_profiles: tuple[str, ...]
+    input_schema: dict[str, Any]
+    output_schema: dict[str, Any]
     run: Callable[[dict[str, Any]], dict[str, Any]]
 
 
@@ -37,6 +41,26 @@ def builtin_tool_executors() -> dict[str, ToolExecutorSpec]:
             tool_name="scalar_tolerance_check",
             execution_mode="safe_builtin",
             version="1",
+            purpose="Check one scalar observable against an expected value and tolerance.",
+            evidence_profiles=("toy_numeric", "code_method", "mixed"),
+            input_schema={
+                "type": "object",
+                "required": ["observed", "expected", "tolerance"],
+                "properties": {
+                    "observed": {"type": "number"},
+                    "expected": {"type": "number"},
+                    "tolerance": {"type": "number", "minimum": 0},
+                    "quantity": {"type": "string"},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["absolute_error", "within_tolerance"],
+                "properties": {
+                    "absolute_error": {"type": "number"},
+                    "within_tolerance": {"type": "boolean"},
+                },
+            },
             run=_run_scalar_tolerance_check,
         ),
         ToolExecutorSpec(
@@ -45,10 +69,68 @@ def builtin_tool_executors() -> dict[str, ToolExecutorSpec]:
             tool_name="metric_table_check",
             execution_mode="safe_builtin",
             version="1",
+            purpose="Check a table of scalar metrics against expected values and tolerances.",
+            evidence_profiles=("toy_numeric", "code_method", "mixed"),
+            input_schema={
+                "type": "object",
+                "required": ["metrics"],
+                "properties": {
+                    "table_id": {"type": "string"},
+                    "metrics": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["name", "observed", "expected", "tolerance"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "observed": {"type": "number"},
+                                "expected": {"type": "number"},
+                                "tolerance": {"type": "number", "minimum": 0},
+                            },
+                        },
+                    },
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["all_within_tolerance", "failed_metrics", "metrics"],
+                "properties": {
+                    "all_within_tolerance": {"type": "boolean"},
+                    "failed_metrics": {"type": "array"},
+                    "metrics": {"type": "array"},
+                },
+            },
             run=_run_metric_table_check,
         ),
     ]
     return {spec.executor_id: spec for spec in specs}
+
+
+def describe_tool_executors() -> dict[str, Any]:
+    """Return public metadata for available safe built-in executors."""
+
+    executors = sorted(builtin_tool_executors().values(), key=lambda spec: spec.executor_id)
+    return {
+        "ok": True,
+        "kind": "tool_executor_catalog",
+        "truth_source": "builtin_executor_registry",
+        "summary_inputs_trusted": False,
+        "executor_count": len(executors),
+        "executors": [
+            {
+                "executor_id": spec.executor_id,
+                "tool_family": spec.tool_family,
+                "tool_name": spec.tool_name,
+                "execution_mode": spec.execution_mode,
+                "version": spec.version,
+                "purpose": spec.purpose,
+                "evidence_profiles": list(spec.evidence_profiles),
+                "input_schema": spec.input_schema,
+                "output_schema": spec.output_schema,
+            }
+            for spec in executors
+        ],
+    }
 
 
 def execute_registered_tool(

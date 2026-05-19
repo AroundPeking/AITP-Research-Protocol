@@ -287,6 +287,22 @@ def require_valid_tool_recipe_record(payload: dict[str, Any]) -> dict[str, Any]:
     return _require_valid_tool_recipe_record(payload)
 
 
+def validate_tool_executor_catalog(payload: dict[str, Any], *, path: str = "tool_executor_catalog") -> ContractResult:
+    """Validate a public safe tool-executor catalog payload."""
+
+    from brain.v5.tool_executor_contracts import validate_tool_executor_catalog as _validate_tool_executor_catalog
+
+    return _validate_tool_executor_catalog(payload, path=path)
+
+
+def require_valid_tool_executor_catalog(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a safe tool-executor catalog payload or raise a contract error."""
+
+    from brain.v5.tool_executor_contracts import require_valid_tool_executor_catalog as _require_valid_tool_executor_catalog
+
+    return _require_valid_tool_executor_catalog(payload)
+
+
 def validate_risk_assessment(payload: dict[str, Any], *, path: str = "risk_assessment") -> ContractResult:
     """Validate a risk assessment payload."""
 

@@ -326,3 +326,47 @@ def test_cli_metric_table_executor_reports_failed_metrics(tmp_path, capsys):
     assert payload["outputs"]["all_within_tolerance"] is False
     assert payload["outputs"]["failed_metrics"] == ["gap_ev"]
     assert payload["outputs"]["passed_count"] == 1
+
+
+def test_tool_executor_catalog_exposes_input_contracts():
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.tool_executors import describe_tool_executors
+
+    catalog = describe_tool_executors()
+    executors = {executor["executor_id"]: executor for executor in catalog["executors"]}
+
+    assert require_valid_public_surface("tool_executor_catalog", catalog) == catalog
+    assert catalog["kind"] == "tool_executor_catalog"
+    assert catalog["truth_source"] == "builtin_executor_registry"
+    assert catalog["summary_inputs_trusted"] is False
+    assert set(executors) == {"metric_table_check", "scalar_tolerance_check"}
+    assert executors["scalar_tolerance_check"]["input_schema"]["required"] == ["observed", "expected", "tolerance"]
+    assert executors["metric_table_check"]["input_schema"]["required"] == ["metrics"]
+    assert "toy_numeric" in executors["metric_table_check"]["evidence_profiles"]
+    assert "code_method" in executors["metric_table_check"]["evidence_profiles"]
+
+
+def test_cli_tool_executors_returns_catalog(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+
+    assert main(["--base", str(tmp_path), "tool", "executors"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["kind"] == "tool_executor_catalog"
+    assert {executor["executor_id"] for executor in payload["executors"]} == {
+        "metric_table_check",
+        "scalar_tolerance_check",
+    }
+
+
+def test_mcp_tool_executor_catalog_returns_valid_surface():
+    from brain.v5.mcp_tools import aitp_v5_list_tool_executors
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    payload = aitp_v5_list_tool_executors()
+
+    assert payload["ok"] is True
+    assert require_valid_public_surface("tool_executor_catalog", payload) == payload

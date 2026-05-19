@@ -53,6 +53,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_execute_tool",
         "surface": "tool_run_record",
     },
+    "list_tool_executors": {
+        "cli": "aitp-v5 tool executors",
+        "mcp": "aitp_v5_list_tool_executors",
+        "surface": "tool_executor_catalog",
+    },
     "summary_orientation": {
         "cli": "aitp-v5 summary orientation <session-id>",
         "mcp": "aitp_v5_read_summary_orientation",

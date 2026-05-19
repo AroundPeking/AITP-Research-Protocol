@@ -12,6 +12,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "execution_brief",
         "session_summary_bundle",
         "summary_orientation",
+        "tool_executor_catalog",
         "tool_recipe_record",
         "tool_run_record",
         "trust_update_apply",
@@ -26,6 +27,15 @@ def test_public_surface_validator_accepts_valid_adapter_registry():
     registry = adapter_protocol_registry()
 
     assert require_valid_public_surface("adapter_protocol_registry", registry) == registry
+
+
+def test_public_surface_validator_accepts_tool_executor_catalog():
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.tool_executors import describe_tool_executors
+
+    catalog = describe_tool_executors()
+
+    assert require_valid_public_surface("tool_executor_catalog", catalog) == catalog
 
 
 def test_public_surface_validator_accepts_typed_write_records():

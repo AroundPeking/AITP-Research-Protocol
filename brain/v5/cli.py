@@ -18,7 +18,7 @@ from brain.v5.models import TrustUpdateRequest
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
-from brain.v5.tool_executors import execute_registered_tool_result
+from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
 from brain.v5.tools import record_tool_run, register_tool_recipe
 from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
 from brain.v5.workspace import (
@@ -115,6 +115,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     tool_parser = subparsers.add_parser("tool")
     tool_sub = tool_parser.add_subparsers(dest="tool_command", required=True)
+    tool_sub.add_parser("executors")
     tool_recipe = tool_sub.add_parser("recipe")
     tool_recipe_sub = tool_recipe.add_subparsers(dest="tool_recipe_command", required=True)
     tool_recipe_register = tool_recipe_sub.add_parser("register")
@@ -300,6 +301,9 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             source_refs=args.source_refs,
         )
         return {"ok": True, **require_valid_public_surface("tool_run_record", {"ok": True, **asdict(run)})}
+
+    if args.command == "tool" and args.tool_command == "executors":
+        return require_valid_public_surface("tool_executor_catalog", describe_tool_executors())
 
     if args.command == "tool" and args.tool_command == "execute":
         result = execute_registered_tool_result(
