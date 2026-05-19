@@ -11,6 +11,7 @@ from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
+from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 from brain.v5.physics_objects import record_object_relation, record_physics_object
@@ -162,6 +163,22 @@ def aitp_v5_record_reference_location(
         source_ref=source_ref, external_id=external_id, status=status, summary=summary,
         metadata=metadata, linked_records=linked_records)
     return require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})
+
+
+def aitp_v5_migrate_legacy_topic_to_v5(
+    base: str,
+    *,
+    topic_dir: str,
+    context_id: str,
+    session_id: str,
+) -> dict:
+    result = migrate_legacy_topic_to_v5(
+        _ws(base),
+        topic_dir,
+        context_id=context_id,
+        session_id=session_id,
+    )
+    return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
 
 
 def aitp_v5_write_session_summary(base: str, *, session_id: str) -> dict:

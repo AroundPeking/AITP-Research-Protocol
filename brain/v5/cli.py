@@ -15,6 +15,7 @@ from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
+from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 from brain.v5.physics_objects import record_object_relation, record_physics_object
@@ -140,6 +141,11 @@ def _build_parser() -> argparse.ArgumentParser:
     rlr.add_argument("--source-ref", default=""); rlr.add_argument("--external-id", default="")
     rlr.add_argument("--status", default="located"); rlr.add_argument("--summary", default="")
     rlr.add_argument("--metadata-json", default="{}"); rlr.add_argument("--linked-records-json", default="{}")
+
+    lp = sp.add_parser("legacy"); ls = lp.add_subparsers(dest="legacy_command", required=True)
+    lm = ls.add_parser("migrate"); lm.add_argument("topic_dir")
+    lm.add_argument("--context", required=True, dest="context_id")
+    lm.add_argument("--session", required=True, dest="session_id")
 
     smp = sp.add_parser("summary"); sms = smp.add_subparsers(dest="summary_command", required=True)
     sms.add_parser("session").add_argument("session_id")
@@ -297,6 +303,15 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             source_ref=args.source_ref, external_id=args.external_id, status=args.status, summary=args.summary,
             metadata=_j(args.metadata_json), linked_records=_j(args.linked_records_json))
         return {"ok": True, **require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})}
+
+    if args.command == "legacy" and args.legacy_command == "migrate":
+        result = migrate_legacy_topic_to_v5(
+            ws,
+            args.topic_dir,
+            context_id=args.context_id,
+            session_id=args.session_id,
+        )
+        return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
 
     if args.command == "summary" and args.summary_command == "session":
         return {"ok": True, **require_valid_public_surface("session_summary_bundle", asdict(write_session_summary(ws, args.session_id)))}

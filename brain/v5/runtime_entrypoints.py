@@ -68,6 +68,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_record_reference_location",
         "surface": "reference_location_record",
     },
+    "migrate_legacy_topic": {
+        "cli": "aitp-v5 legacy migrate <args>",
+        "mcp": "aitp_v5_migrate_legacy_topic_to_v5",
+        "surface": "legacy_migration_result",
+    },
     "summary_orientation": {
         "cli": "aitp-v5 summary orientation <session-id>",
         "mcp": "aitp_v5_read_summary_orientation",
@@ -291,6 +296,14 @@ def _sample_args_for_template(template: str) -> list[str]:
             "file:///papers/fqhe.pdf",
             "--label",
             "FQHE paper PDF",
+        ]
+    if template.startswith("legacy migrate"):
+        return [
+            "D:/aitp/legacy-topic",
+            "--context",
+            "legacy-context",
+            "--session",
+            "s1",
         ]
     if template.startswith("object record"):
         return [

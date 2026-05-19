@@ -12,6 +12,7 @@ _PUBLIC_SURFACE_NAMES = (
     "execution_brief",
     "human_checkpoint_record",
     "knowledge_connector_catalog",
+    "legacy_migration_result",
     "memory_entry_record",
     "object_relation_record",
     "physics_object_record",
@@ -36,6 +37,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "execution_brief": "typed kernel brief for current focus, risk, evidence coverage, and next actions",
     "human_checkpoint_record": "contracted human checkpoint requiring explicit options and a decision from the declared option set",
     "knowledge_connector_catalog": "contracted catalog of knowledge connectors for notes, literature, and learning memory",
+    "legacy_migration_result": "contracted explicit migration result from legacy topic files into v5 typed records",
     "memory_entry_record": "contracted L2 memory entry created only from evidence-backed promotion packets with human approval",
     "object_relation_record": "contracted object-relation record linking physics objects with typed relations, failure modes, and assumptions",
     "physics_object_record": "contracted physics-object record for theoretical objects, systems, operators, sectors, and definitions",
@@ -118,6 +120,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_trust_update_preflight,
         require_valid_validation_contract_record,
     )
+    from brain.v5.legacy_contracts import require_valid_legacy_migration_result
 
     return {
         "adapter_packet": require_valid_adapter_packet,
@@ -127,6 +130,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "execution_brief": require_valid_execution_brief,
         "human_checkpoint_record": require_valid_human_checkpoint_record,
         "knowledge_connector_catalog": require_valid_knowledge_connector_catalog,
+        "legacy_migration_result": require_valid_legacy_migration_result,
         "memory_entry_record": require_valid_memory_entry_record,
         "object_relation_record": require_valid_object_relation_record,
         "physics_object_record": require_valid_physics_object_record,

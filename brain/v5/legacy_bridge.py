@@ -6,9 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from brain.v5.brief import build_execution_brief
-from brain.v5.evidence import record_evidence
+from brain.v5.evidence import list_evidence_for_claim, record_evidence
 from brain.v5.markdown import read_md
 from brain.v5.paths import WorkspacePaths
+from brain.v5.references import record_reference_location
 from brain.v5.workspace import bind_session, create_claim, create_context, create_topic, init_workspace
 
 
@@ -103,6 +104,53 @@ def seed_v5_from_legacy(
         active_claim_id=claim.claim_id,
         preserved_source_refs=preserved_refs,
     )
+
+
+def migrate_legacy_topic_to_v5(
+    ws: WorkspacePaths,
+    topic_dir: str | Path,
+    *,
+    context_id: str,
+    session_id: str,
+) -> dict:
+    """Explicitly migrate a legacy topic into v5 typed records."""
+
+    seed = seed_v5_from_legacy(ws, topic_dir, context_id=context_id, session_id=session_id)
+    reference_location_ids: list[str] = []
+    for source_ref in seed.preserved_source_refs:
+        source_path = Path(source_ref.removeprefix("legacy_source:"))
+        location = record_reference_location(
+            ws,
+            topic_id=seed.topic_id,
+            claim_id=seed.active_claim_id,
+            connector_id="legacy_topic",
+            location_type="legacy_source_file",
+            uri=source_path.resolve().as_uri(),
+            label=source_path.name,
+            source_ref=source_ref,
+            summary="Legacy source file preserved during explicit v5 migration.",
+        )
+        reference_location_ids.append(location.location_id)
+
+    evidence_ids = [
+        evidence.evidence_id
+        for evidence in list_evidence_for_claim(ws, seed.active_claim_id)
+    ]
+    return {
+        "kind": "legacy_topic_migration_result",
+        "topic_id": seed.topic_id,
+        "context_id": seed.context_id,
+        "session_id": seed.session_id,
+        "active_claim_id": seed.active_claim_id,
+        "written_records": {
+            "topics": [seed.topic_id],
+            "claims": [seed.active_claim_id],
+            "evidence": evidence_ids,
+            "reference_locations": reference_location_ids,
+        },
+        "preserved_source_refs": list(seed.preserved_source_refs),
+        "summary_inputs_trusted": False,
+    }
 
 
 def audit_legacy_topic_migration(topic_path: str | Path) -> dict:
