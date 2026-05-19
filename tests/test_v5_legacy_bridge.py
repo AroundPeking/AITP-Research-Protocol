@@ -117,3 +117,26 @@ def test_legacy_topic_dry_run_reports_missing_and_mapped_sections(tmp_path):
     assert "L1/source_basis.md" in audit["missing_expected_paths"]
     assert audit["mapped_paths"]["state.md"] == "topic/runtime metadata"
     assert audit["mapped_paths"]["L0/sources/paper-a/source.md"] == "reference_location/source evidence candidate"
+
+
+def test_legacy_topic_dry_run_maps_candidates_and_reviews(tmp_path):
+    from brain.v5.legacy_bridge import audit_legacy_topic_migration
+
+    topic = tmp_path / "old-topic"
+    (topic / "L0" / "sources" / "paper-a").mkdir(parents=True)
+    (topic / "L1").mkdir()
+    (topic / "L3" / "candidates").mkdir(parents=True)
+    (topic / "L4" / "reviews").mkdir(parents=True)
+    (topic / "state.md").write_text("---\ntitle: Old Topic\n---\n# State\n", encoding="utf-8")
+    (topic / "L0" / "sources" / "paper-a" / "source.md").write_text("# Paper A\n", encoding="utf-8")
+    (topic / "L1" / "question_contract.md").write_text("# Question\n", encoding="utf-8")
+    (topic / "L1" / "source_basis.md").write_text("# Sources\n", encoding="utf-8")
+    (topic / "L3" / "candidates" / "candidate-a.md").write_text("# Candidate A\n", encoding="utf-8")
+    (topic / "L4" / "reviews" / "review-a.md").write_text("# Review A\n", encoding="utf-8")
+
+    audit = audit_legacy_topic_migration(topic)
+
+    assert audit["can_write_v5_records"] is True
+    assert audit["mapped_paths"]["L3/candidates/candidate-a.md"] == "claim/candidate seed"
+    assert audit["mapped_paths"]["L4/reviews/review-a.md"] == "validation evidence candidate"
+    assert audit["summary_inputs_trusted"] is False

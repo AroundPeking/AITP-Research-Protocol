@@ -120,6 +120,7 @@ def audit_legacy_topic_migration(topic_path: str | Path) -> dict:
     ]
     _PATH_MAP = {
         "state.md": "topic/runtime metadata",
+        "L1/source_basis.md": "source basis/evidence orientation",
     }
 
     for rel in _EXPECTED_PATHS:
@@ -133,7 +134,13 @@ def audit_legacy_topic_migration(topic_path: str | Path) -> dict:
     for src in sorted((root / "L0" / "sources").glob("*/source.md")):
         mapped_paths[src.relative_to(root).as_posix()] = "reference_location/source evidence candidate"
 
-    if root / "L1" / "question_contract.md" in (root / "L1" / "question_contract.md").parent.glob("*"):
+    for candidate in sorted((root / "L3" / "candidates").glob("*.md")):
+        mapped_paths[candidate.relative_to(root).as_posix()] = "claim/candidate seed"
+
+    for review in sorted((root / "L4" / "reviews").glob("*.md")):
+        mapped_paths[review.relative_to(root).as_posix()] = "validation evidence candidate"
+
+    if (root / "L1" / "question_contract.md").exists():
         mapped_paths["L1/question_contract.md"] = "claim/question or claim contract"
 
     can_write = len(missing_expected_paths) == 0
