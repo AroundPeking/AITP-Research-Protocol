@@ -28,6 +28,7 @@ _LAYOUT_DIRS = [
     "registry/tool_recipes",
     "registry/tool_runs",
     "registry/checkpoints",
+    "registry/promotion_packets",
     "registry/outputs",
     "memory/l2/entries",
     "memory/l2/graph",

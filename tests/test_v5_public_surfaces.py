@@ -14,6 +14,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "knowledge_connector_catalog",
         "object_relation_record",
         "physics_object_record",
+        "promotion_packet_record",
         "reference_location_record",
         "sensemaking_report_record",
         "session_summary_bundle",

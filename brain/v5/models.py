@@ -301,3 +301,21 @@ class HumanCheckpointRecord:
     rationale: str = ""
     decided_by: str = ""
     kind: str = "human_checkpoint"
+
+
+@dataclass
+class PromotionPacketRecord:
+    packet_id: str
+    topic_id: str
+    claim_id: str
+    proposed_memory_kind: str = "scoped_claim"
+    scope: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
+    non_claims: list[str] = field(default_factory=list)
+    known_failure_modes: list[str] = field(default_factory=list)
+    status: str = "pending_human_checkpoint"
+    kind: str = "promotion_packet"
+
+    @property
+    def record_id(self) -> str:
+        return self.packet_id

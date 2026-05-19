@@ -22,6 +22,7 @@ from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.validation import create_validation_contract
 from brain.v5.checkpoints import request_human_checkpoint
+from brain.v5.memory import create_promotion_packet
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
@@ -47,59 +48,45 @@ def main(argv: list[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aitp-v5", description="AITP v5 kernel CLI")
     parser.add_argument("--base", default=".")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    sp = parser.add_subparsers(dest="command", required=True)
 
-    init_parser = subparsers.add_parser("init")
-    init_parser.add_argument("base")
+    sp.add_parser("init").add_argument("base")
 
-    topic_parser = subparsers.add_parser("topic")
-    topic_sub = topic_parser.add_subparsers(dest="topic_command", required=True)
-    topic_create = topic_sub.add_parser("create")
-    topic_create.add_argument("topic_id")
-    topic_create.add_argument("--context", required=True, dest="context_id")
-    topic_create.add_argument("--title", required=True)
+    tp = sp.add_parser("topic"); ts = tp.add_subparsers(dest="topic_command", required=True)
+    tc = ts.add_parser("create"); tc.add_argument("topic_id")
+    tc.add_argument("--context", required=True, dest="context_id"); tc.add_argument("--title", required=True)
 
-    cl_p = subparsers.add_parser("claim")
-    cl_sub = cl_p.add_subparsers(dest="claim_command", required=True)
-    cc = cl_sub.add_parser("create")
+    cl_p = sp.add_parser("claim"); cl_s = cl_p.add_subparsers(dest="claim_command", required=True)
+    cc = cl_s.add_parser("create")
     cc.add_argument("--topic", required=True, dest="topic_id"); cc.add_argument("--statement", required=True)
     cc.add_argument("--evidence-profile", required=True)
     cc.add_argument("--confidence-state", default="hypothesis"); cc.add_argument("--uncertainty", required=True)
     cc.add_argument("--recipe-id", default="")
 
-    sess_p = subparsers.add_parser("session")
-    sess_sub = sess_p.add_subparsers(dest="session_command", required=True)
-    sb = sess_sub.add_parser("bind")
-    sb.add_argument("session_id")
+    se_p = sp.add_parser("session"); se_s = se_p.add_subparsers(dest="session_command", required=True)
+    sb = se_s.add_parser("bind"); sb.add_argument("session_id")
     sb.add_argument("--topic", required=True, dest="topic_id"); sb.add_argument("--context", required=True, dest="context_id")
     sb.add_argument("--claim", default="", dest="active_claim")
     sb.add_argument("--interaction-profile", default="collaborator"); sb.add_argument("--interaction-steering", default="")
 
-    brief_parser = subparsers.add_parser("brief")
-    brief_parser.add_argument("session_id")
+    sp.add_parser("brief").add_argument("session_id")
 
-    risk_parser = subparsers.add_parser("risk")
-    risk_sub = risk_parser.add_subparsers(dest="risk_command", required=True)
-    risk_assess = risk_sub.add_parser("assess")
-    risk_assess.add_argument("claim_id")
+    rp = sp.add_parser("risk"); rs = rp.add_subparsers(dest="risk_command", required=True)
+    rs.add_parser("assess").add_argument("claim_id")
 
-    code_parser = subparsers.add_parser("code")
-    code_sub = code_parser.add_subparsers(dest="code_command", required=True)
-    cs = code_sub.add_parser("state")
-    cs_sub = cs.add_subparsers(dest="code_state_command", required=True)
-    csr = cs_sub.add_parser("record")
+    cp = sp.add_parser("code"); cs = cp.add_subparsers(dest="code_command", required=True)
+    cst = cs.add_parser("state"); css = cst.add_subparsers(dest="code_state_command", required=True)
+    csr = css.add_parser("record")
     csr.add_argument("--repo-id", required=True)
     csr.add_argument("--upstream-remote", required=True); csr.add_argument("--upstream-branch", required=True)
     csr.add_argument("--upstream-commit", required=True); csr.add_argument("--local-branch", required=True)
-    csr.add_argument("--worktree-path", required=True)
-    csr.add_argument("--dirty", action="store_true")
+    csr.add_argument("--worktree-path", required=True); csr.add_argument("--dirty", action="store_true")
     csr.add_argument("--patch-id", default=""); csr.add_argument("--diff-hash", default="")
     csr.add_argument("--build-config-json", default="{}"); csr.add_argument("--runtime-environment-json", default="{}")
     csr.add_argument("--linked-records-json", default="{}"); csr.add_argument("--known-divergence", default="")
 
-    ev_p = subparsers.add_parser("evidence")
-    ev_sub = ev_p.add_subparsers(dest="evidence_command", required=True)
-    evr = ev_sub.add_parser("record")
+    ep = sp.add_parser("evidence"); es = ep.add_subparsers(dest="evidence_command", required=True)
+    evr = es.add_parser("record")
     evr.add_argument("--topic", required=True, dest="topic_id"); evr.add_argument("--claim", required=True, dest="claim_id")
     evr.add_argument("--type", required=True, dest="evidence_type"); evr.add_argument("--status", required=True)
     evr.add_argument("--summary", required=True)
@@ -108,55 +95,45 @@ def _build_parser() -> argparse.ArgumentParser:
     evr.add_argument("--tool-run-id", action="append", default=[], dest="tool_run_ids")
     evr.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
 
-    tool_parser = subparsers.add_parser("tool")
-    tool_sub = tool_parser.add_subparsers(dest="tool_command", required=True)
-    tool_sub.add_parser("executors")
-    tool_recipe = tool_sub.add_parser("recipe")
-    tool_recipe_sub = tool_recipe.add_subparsers(dest="tool_recipe_command", required=True)
-    tool_recipe_register = tool_recipe_sub.add_parser("register")
-    tool_recipe_register.add_argument("recipe_id")
-    tool_recipe_register.add_argument("--family", required=True, dest="tool_family")
-    tool_recipe_register.add_argument("--name", required=True, dest="tool_name")
-    tool_recipe_register.add_argument("--purpose", required=True)
-    tool_recipe_register.add_argument("--required-input", action="append", default=[], dest="required_inputs")
-    tool_recipe_register.add_argument("--expected-output", action="append", default=[], dest="expected_outputs")
-    tool_recipe_register.add_argument("--invariant", action="append", default=[], dest="invariants")
+    tlp = sp.add_parser("tool"); tls = tlp.add_subparsers(dest="tool_command", required=True)
+    tls.add_parser("executors")
+    trp = tls.add_parser("recipe"); trs = trp.add_subparsers(dest="tool_recipe_command", required=True)
+    tr = trs.add_parser("register"); tr.add_argument("recipe_id")
+    tr.add_argument("--family", required=True, dest="tool_family"); tr.add_argument("--name", required=True, dest="tool_name")
+    tr.add_argument("--purpose", required=True)
+    tr.add_argument("--required-input", action="append", default=[], dest="required_inputs")
+    tr.add_argument("--expected-output", action="append", default=[], dest="expected_outputs")
+    tr.add_argument("--invariant", action="append", default=[], dest="invariants")
 
-    tool_run = tool_sub.add_parser("run")
-    tool_run_sub = tool_run.add_subparsers(dest="tool_run_command", required=True)
-    trr = tool_run_sub.add_parser("record")
+    trun = tls.add_parser("run"); trus = trun.add_subparsers(dest="tool_run_command", required=True)
+    trr = trus.add_parser("record")
     trr.add_argument("--recipe", required=True, dest="recipe_id")
     trr.add_argument("--family", required=True, dest="tool_family"); trr.add_argument("--name", required=True, dest="tool_name")
     trr.add_argument("--topic", required=True, dest="topic_id"); trr.add_argument("--claim", required=True, dest="claim_id")
     trr.add_argument("--inputs-json", default="{}"); trr.add_argument("--outputs-json", default="{}")
-    trr.add_argument("--environment-json", default="{}")
-    trr.add_argument("--evidence-status", default="unreviewed")
+    trr.add_argument("--environment-json", default="{}"); trr.add_argument("--evidence-status", default="unreviewed")
     trr.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
     trr.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
     trr.add_argument("--source-ref", action="append", default=[], dest="source_refs")
 
-    te = tool_sub.add_parser("execute")
-    te.add_argument("executor_id")
+    te = tls.add_parser("execute"); te.add_argument("executor_id")
     te.add_argument("--recipe", required=True, dest="recipe_id")
     te.add_argument("--topic", required=True, dest="topic_id"); te.add_argument("--claim", required=True, dest="claim_id")
     te.add_argument("--inputs-json", required=True)
     te.add_argument("--evidence-status", default=""); te.add_argument("--evidence-type", default="tool_run")
     te.add_argument("--evidence-summary", default="")
     te.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
-    te.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids"); te.add_argument("--source-ref", action="append", default=[], dest="source_refs")
+    te.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
+    te.add_argument("--source-ref", action="append", default=[], dest="source_refs")
     te.add_argument("--supports-output", action="append", default=[], dest="supports_outputs")
 
-    knowledge_parser = subparsers.add_parser("knowledge")
-    knowledge_sub = knowledge_parser.add_subparsers(dest="knowledge_command", required=True)
-    knowledge_sub.add_parser("connectors")
+    kp = sp.add_parser("knowledge"); ks = kp.add_subparsers(dest="knowledge_command", required=True)
+    ks.add_parser("connectors")
 
-    ref_p = subparsers.add_parser("reference")
-    ref_sub = ref_p.add_subparsers(dest="reference_command", required=True)
-    ref_loc = ref_sub.add_parser("location")
-    ref_loc_sub = ref_loc.add_subparsers(dest="reference_location_command", required=True)
-    rlr = ref_loc_sub.add_parser("record")
-    rlr.add_argument("--topic", required=True, dest="topic_id")
-    rlr.add_argument("--claim", default="", dest="claim_id")
+    rfp = sp.add_parser("reference"); rfs = rfp.add_subparsers(dest="reference_command", required=True)
+    rfl = rfs.add_parser("location"); rls = rfl.add_subparsers(dest="reference_location_command", required=True)
+    rlr = rls.add_parser("record")
+    rlr.add_argument("--topic", required=True, dest="topic_id"); rlr.add_argument("--claim", default="", dest="claim_id")
     rlr.add_argument("--connector", required=True, dest="connector_id")
     rlr.add_argument("--type", required=True, dest="location_type")
     rlr.add_argument("--uri", required=True); rlr.add_argument("--label", required=True)
@@ -164,48 +141,37 @@ def _build_parser() -> argparse.ArgumentParser:
     rlr.add_argument("--status", default="located"); rlr.add_argument("--summary", default="")
     rlr.add_argument("--metadata-json", default="{}"); rlr.add_argument("--linked-records-json", default="{}")
 
-    summary_parser = subparsers.add_parser("summary")
-    summary_sub = summary_parser.add_subparsers(dest="summary_command", required=True)
-    summary_sub.add_parser("session").add_argument("session_id")
-    summary_sub.add_parser("orientation").add_argument("session_id")
+    smp = sp.add_parser("summary"); sms = smp.add_subparsers(dest="summary_command", required=True)
+    sms.add_parser("session").add_argument("session_id")
+    sms.add_parser("orientation").add_argument("session_id")
 
-    adapter_parser = subparsers.add_parser("adapter")
-    adapter_sub = adapter_parser.add_subparsers(dest="adapter_command", required=True)
-    adapter_packet = adapter_sub.add_parser("packet")
-    adapter_packet.add_argument("runtime")
-    adapter_packet.add_argument("session_id")
-    adapter_sub.add_parser("registry")
-    adapter_sub.add_parser("public-surfaces")
+    ap = sp.add_parser("adapter"); aps = ap.add_subparsers(dest="adapter_command", required=True)
+    apt = aps.add_parser("packet"); apt.add_argument("runtime"); apt.add_argument("session_id")
+    aps.add_parser("registry"); aps.add_parser("public-surfaces")
 
-    obj_p = subparsers.add_parser("object")
-    obj_sub = obj_p.add_subparsers(dest="object_command", required=True)
-    or_ = obj_sub.add_parser("record")
-    or_.add_argument("--topic", required=True, dest="topic_id")
-    or_.add_argument("--type", required=True, dest="object_type"); or_.add_argument("--name", required=True)
-    or_.add_argument("--definition", required=True); or_.add_argument("--notation", default="")
-    or_.add_argument("--assumption", action="append", default=[], dest="assumptions")
-    or_.add_argument("--source-ref", action="append", default=[], dest="source_refs")
-    or_.add_argument("--metadata-json", default="{}"); or_.add_argument("--linked-records-json", default="{}")
-    or_.add_argument("--status", default="active")
+    op = sp.add_parser("object"); ops = op.add_subparsers(dest="object_command", required=True)
+    orr = ops.add_parser("record")
+    orr.add_argument("--topic", required=True, dest="topic_id")
+    orr.add_argument("--type", required=True, dest="object_type"); orr.add_argument("--name", required=True)
+    orr.add_argument("--definition", required=True); orr.add_argument("--notation", default="")
+    orr.add_argument("--assumption", action="append", default=[], dest="assumptions")
+    orr.add_argument("--source-ref", action="append", default=[], dest="source_refs")
+    orr.add_argument("--metadata-json", default="{}"); orr.add_argument("--linked-records-json", default="{}")
+    orr.add_argument("--status", default="active")
 
-    rel_p = subparsers.add_parser("relation")
-    rel_sub = rel_p.add_subparsers(dest="relation_command", required=True)
-    rr = rel_sub.add_parser("record")
-    rr.add_argument("--topic", required=True, dest="topic_id")
-    rr.add_argument("--type", required=True, dest="relation_type")
-    rr.add_argument("--subject", required=True, dest="subject_id")
-    rr.add_argument("--object", required=True, dest="object_id")
-    rr.add_argument("--statement", required=True)
-    rr.add_argument("--claim", default="", dest="claim_id")
+    rlp = sp.add_parser("relation"); rls2 = rlp.add_subparsers(dest="relation_command", required=True)
+    rr = rls2.add_parser("record")
+    rr.add_argument("--topic", required=True, dest="topic_id"); rr.add_argument("--type", required=True, dest="relation_type")
+    rr.add_argument("--subject", required=True, dest="subject_id"); rr.add_argument("--object", required=True, dest="object_id")
+    rr.add_argument("--statement", required=True); rr.add_argument("--claim", default="", dest="claim_id")
     rr.add_argument("--assumption", action="append", default=[], dest="assumptions")
     rr.add_argument("--failure-mode", action="append", default=[], dest="failure_modes")
     rr.add_argument("--source-ref", action="append", default=[], dest="source_refs")
     rr.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     rr.add_argument("--status", default="hypothesis")
 
-    s_p = subparsers.add_parser("sensemaking")
-    s_sub = s_p.add_subparsers(dest="sensemaking_command", required=True)
-    sr = s_sub.add_parser("report")
+    sg_p = sp.add_parser("sensemaking"); sg_s = sg_p.add_subparsers(dest="sensemaking_command", required=True)
+    sr = sg_s.add_parser("report")
     sr.add_argument("--topic", required=True, dest="topic_id"); sr.add_argument("--claim", required=True, dest="claim_id")
     sr.add_argument("--title", required=True); sr.add_argument("--summary", required=True)
     sr.add_argument("--object-id", action="append", default=[], dest="object_ids")
@@ -214,26 +180,28 @@ def _build_parser() -> argparse.ArgumentParser:
     sr.add_argument("--open-question", action="append", default=[], dest="open_questions")
     sr.add_argument("--next-action", action="append", default=[], dest="next_actions")
 
-    chk_p = subparsers.add_parser("checkpoint")
-    chk_sub = chk_p.add_subparsers(dest="checkpoint_command", required=True)
-    chk_req = chk_sub.add_parser("request")
-    chk_req.add_argument("--topic", required=True, dest="topic_id")
-    chk_req.add_argument("--claim", required=True, dest="claim_id")
-    chk_req.add_argument("--reason", required=True); chk_req.add_argument("--requested-by", required=True)
-    chk_req.add_argument("--option", action="append", default=[], dest="options")
+    chk_p = sp.add_parser("checkpoint"); chk_s = chk_p.add_subparsers(dest="checkpoint_command", required=True)
+    chk_r = chk_s.add_parser("request")
+    chk_r.add_argument("--topic", required=True, dest="topic_id"); chk_r.add_argument("--claim", required=True, dest="claim_id")
+    chk_r.add_argument("--reason", required=True); chk_r.add_argument("--requested-by", required=True)
+    chk_r.add_argument("--option", action="append", default=[], dest="options")
 
-    trust_parser = subparsers.add_parser("trust")
-    trust_sub = trust_parser.add_subparsers(dest="trust_command", required=True)
-    trust_preflight = trust_sub.add_parser("preflight")
-    _add_trust_request_args(trust_preflight)
-    trust_apply = trust_sub.add_parser("apply")
-    _add_trust_request_args(trust_apply)
+    pp = sp.add_parser("promotion"); pps = pp.add_subparsers(dest="promotion_command", required=True)
+    pkt = pps.add_parser("packet"); pkts = pkt.add_subparsers(dest="promotion_packet_command", required=True)
+    pc = pkts.add_parser("create")
+    pc.add_argument("--topic", required=True, dest="topic_id"); pc.add_argument("--claim", required=True, dest="claim_id")
+    pc.add_argument("--proposed-kind", default="scoped_claim", dest="proposed_memory_kind")
+    pc.add_argument("--scope", required=True)
+    pc.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
+    pc.add_argument("--non-claim", action="append", default=[], dest="non_claims")
+    pc.add_argument("--failure-mode", action="append", default=[], dest="known_failure_modes")
 
-    val_p = subparsers.add_parser("validation")
-    val_sub = val_p.add_subparsers(dest="validation_command", required=True)
-    vc_p = val_sub.add_parser("contract")
-    vc_sub = vc_p.add_subparsers(dest="validation_contract_command", required=True)
-    vcr = vc_sub.add_parser("create")
+    tp2 = sp.add_parser("trust"); ts2 = tp2.add_subparsers(dest="trust_command", required=True)
+    _add_trust_request_args(ts2.add_parser("preflight")); _add_trust_request_args(ts2.add_parser("apply"))
+
+    vp = sp.add_parser("validation"); vs = vp.add_subparsers(dest="validation_command", required=True)
+    vcp = vs.add_parser("contract"); vcs = vcp.add_subparsers(dest="validation_contract_command", required=True)
+    vcr = vcs.add_parser("create")
     vcr.add_argument("--topic", required=True, dest="topic_id"); vcr.add_argument("--claim", required=True, dest="claim_id")
     vcr.add_argument("--required-check", action="append", default=[], dest="required_checks")
     vcr.add_argument("--failure-mode", action="append", default=[], dest="failure_modes")
@@ -245,184 +213,103 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "init":
-        ws = init_workspace(Path(args.base))
-        return {"ok": True, "workspace_root": str(ws.root)}
-
+        return {"ok": True, "workspace_root": str(init_workspace(Path(args.base)).root)}
     if args.command == "adapter" and args.adapter_command == "registry":
-        return {
-            "ok": True,
-            "adapter_protocol_registry": require_valid_public_surface(
-                "adapter_protocol_registry",
-                adapter_protocol_registry(),
-            ),
-        }
-
+        return {"ok": True, "adapter_protocol_registry": require_valid_public_surface("adapter_protocol_registry", adapter_protocol_registry())}
     if args.command == "adapter" and args.adapter_command == "public-surfaces":
         return {"ok": True, "public_surfaces": describe_public_surfaces()}
 
     ws = init_workspace(Path(args.base))
 
     if args.command == "topic" and args.topic_command == "create":
-        topic = create_topic(ws, args.topic_id, context_id=args.context_id, title=args.title)
-        return {"ok": True, **asdict(topic)}
-
+        return {"ok": True, **asdict(create_topic(ws, args.topic_id, context_id=args.context_id, title=args.title))}
     if args.command == "claim" and args.claim_command == "create":
-        claim = create_claim(
-            ws,
-            topic_id=args.topic_id,
-            statement=args.statement,
-            evidence_profile=args.evidence_profile,
-            confidence_state=args.confidence_state,
-            active_uncertainty=args.uncertainty,
-            recipe_id=args.recipe_id,
-        )
-        return {"ok": True, **asdict(claim)}
-
+        return {"ok": True, **asdict(create_claim(ws, topic_id=args.topic_id, statement=args.statement,
+            evidence_profile=args.evidence_profile, confidence_state=args.confidence_state,
+            active_uncertainty=args.uncertainty, recipe_id=args.recipe_id))}
     if args.command == "session" and args.session_command == "bind":
-        session = bind_session(
-            ws,
-            args.session_id,
-            topic_id=args.topic_id,
-            context_id=args.context_id,
-            active_claim=args.active_claim,
-            interaction_profile=args.interaction_profile,
-            interaction_steering=args.interaction_steering,
-        )
-        return {"ok": True, **asdict(session)}
-
+        return {"ok": True, **asdict(bind_session(ws, args.session_id, topic_id=args.topic_id,
+            context_id=args.context_id, active_claim=args.active_claim,
+            interaction_profile=args.interaction_profile, interaction_steering=args.interaction_steering))}
     if args.command == "brief":
         return require_valid_public_surface("execution_brief", build_execution_brief(ws, args.session_id))
-
     if args.command == "risk" and args.risk_command == "assess":
-        claim = get_claim(ws, args.claim_id)
-        risk = assess_claim_risk(claim)
-        return {"ok": True, "claim_id": args.claim_id, "risk_assessment": asdict(risk)}
+        return {"ok": True, "claim_id": args.claim_id, "risk_assessment": asdict(assess_claim_risk(get_claim(ws, args.claim_id)))}
 
     if args.command == "code" and args.code_command == "state" and args.code_state_command == "record":
-        state = record_code_state(
-            ws,
-            repo_id=args.repo_id,
-            upstream_remote=args.upstream_remote,
-            upstream_branch=args.upstream_branch,
-            upstream_commit=args.upstream_commit,
-            local_branch=args.local_branch,
-            worktree_path=args.worktree_path,
-            dirty=args.dirty,
-            patch_id=args.patch_id,
-            diff_hash=args.diff_hash,
-            build_config=_json_object_arg(args.build_config_json, "--build-config-json"),
-            runtime_environment=_json_object_arg(args.runtime_environment_json, "--runtime-environment-json"),
-            linked_records=_json_object_arg(args.linked_records_json, "--linked-records-json"),
-            known_divergence=args.known_divergence,
-        )
-        return {"ok": True, **require_valid_public_surface("code_state_record", {"ok": True, **asdict(state)})}
+        st = record_code_state(ws, repo_id=args.repo_id, upstream_remote=args.upstream_remote,
+            upstream_branch=args.upstream_branch, upstream_commit=args.upstream_commit,
+            local_branch=args.local_branch, worktree_path=args.worktree_path, dirty=args.dirty,
+            patch_id=args.patch_id, diff_hash=args.diff_hash,
+            build_config=_j(args.build_config_json), runtime_environment=_j(args.runtime_environment_json),
+            linked_records=_j(args.linked_records_json), known_divergence=args.known_divergence)
+        return {"ok": True, **require_valid_public_surface("code_state_record", {"ok": True, **asdict(st)})}
 
     if args.command == "evidence" and args.evidence_command == "record":
-        evidence = record_evidence(
-            ws,
-            topic_id=args.topic_id,
-            claim_id=args.claim_id,
-            evidence_type=args.evidence_type,
-            status=args.status,
-            summary=args.summary,
-            supports_outputs=args.supports_outputs,
-            source_refs=args.source_refs,
-            tool_run_ids=args.tool_run_ids,
-            artifact_ids=args.artifact_ids,
-        )
-        return {"ok": True, **require_valid_public_surface("evidence_record", {"ok": True, **asdict(evidence)})}
+        ev = record_evidence(ws, topic_id=args.topic_id, claim_id=args.claim_id,
+            evidence_type=args.evidence_type, status=args.status, summary=args.summary,
+            supports_outputs=args.supports_outputs, source_refs=args.source_refs,
+            tool_run_ids=args.tool_run_ids, artifact_ids=args.artifact_ids)
+        return {"ok": True, **require_valid_public_surface("evidence_record", {"ok": True, **asdict(ev)})}
 
     if args.command == "tool" and args.tool_command == "recipe" and args.tool_recipe_command == "register":
-        recipe = register_tool_recipe(
-            ws,
-            recipe_id=args.recipe_id,
-            tool_family=args.tool_family,
-            tool_name=args.tool_name,
-            purpose=args.purpose,
-            required_inputs=args.required_inputs,
-            expected_outputs=args.expected_outputs,
-            invariants=args.invariants,
-        )
-        return {"ok": True, **require_valid_public_surface("tool_recipe_record", {"ok": True, **asdict(recipe)})}
+        rc = register_tool_recipe(ws, recipe_id=args.recipe_id, tool_family=args.tool_family,
+            tool_name=args.tool_name, purpose=args.purpose, required_inputs=args.required_inputs,
+            expected_outputs=args.expected_outputs, invariants=args.invariants)
+        return {"ok": True, **require_valid_public_surface("tool_recipe_record", {"ok": True, **asdict(rc)})}
 
     if args.command == "tool" and args.tool_command == "run" and args.tool_run_command == "record":
-        run = record_tool_run(
-            ws,
-            recipe_id=args.recipe_id,
-            tool_family=args.tool_family,
-            tool_name=args.tool_name,
-            topic_id=args.topic_id,
-            claim_id=args.claim_id,
-            inputs=_json_object_arg(args.inputs_json, "--inputs-json"),
-            outputs=_json_object_arg(args.outputs_json, "--outputs-json"),
-            environment=_json_object_arg(args.environment_json, "--environment-json"),
-            evidence_status=args.evidence_status,
-            code_state_ids=args.code_state_ids,
-            artifact_ids=args.artifact_ids,
-            source_refs=args.source_refs,
-        )
-        return {"ok": True, **require_valid_public_surface("tool_run_record", {"ok": True, **asdict(run)})}
+        rn = record_tool_run(ws, recipe_id=args.recipe_id, tool_family=args.tool_family,
+            tool_name=args.tool_name, topic_id=args.topic_id, claim_id=args.claim_id,
+            inputs=_j(args.inputs_json), outputs=_j(args.outputs_json),
+            environment=_j(args.environment_json), evidence_status=args.evidence_status,
+            code_state_ids=args.code_state_ids, artifact_ids=args.artifact_ids, source_refs=args.source_refs)
+        return {"ok": True, **require_valid_public_surface("tool_run_record", {"ok": True, **asdict(rn)})}
 
     if args.command == "tool" and args.tool_command == "executors":
         return require_valid_public_surface("tool_executor_catalog", describe_tool_executors())
 
     if args.command == "tool" and args.tool_command == "execute":
-        result = execute_registered_tool_result(
-            ws,
-            executor_id=args.executor_id,
-            recipe_id=args.recipe_id,
-            topic_id=args.topic_id,
-            claim_id=args.claim_id,
-            inputs=_json_object_arg(args.inputs_json, "--inputs-json"),
-            evidence_status=args.evidence_status,
-            code_state_ids=args.code_state_ids,
-            artifact_ids=args.artifact_ids,
-            source_refs=args.source_refs,
-            supports_outputs=args.supports_outputs,
-            evidence_type=args.evidence_type,
-            evidence_summary=args.evidence_summary,
-        )
-        payload = {"ok": True, **asdict(result.run)}
-        if result.evidence is not None:
-            evidence = require_valid_public_surface("evidence_record", {"ok": True, **asdict(result.evidence)})
-            payload["evidence_id"] = result.evidence.evidence_id
-            payload["evidence"] = evidence
-        return {"ok": True, **require_valid_public_surface("tool_run_record", payload)}
+        r = execute_registered_tool_result(ws, executor_id=args.executor_id, recipe_id=args.recipe_id,
+            topic_id=args.topic_id, claim_id=args.claim_id, inputs=_j(args.inputs_json),
+            evidence_status=args.evidence_status, code_state_ids=args.code_state_ids,
+            artifact_ids=args.artifact_ids, source_refs=args.source_refs,
+            supports_outputs=args.supports_outputs, evidence_type=args.evidence_type,
+            evidence_summary=args.evidence_summary)
+        p = {"ok": True, **asdict(r.run)}
+        if r.evidence is not None:
+            p["evidence_id"] = r.evidence.evidence_id
+            p["evidence"] = require_valid_public_surface("evidence_record", {"ok": True, **asdict(r.evidence)})
+        return {"ok": True, **require_valid_public_surface("tool_run_record", p)}
 
     if args.command == "knowledge" and args.knowledge_command == "connectors":
         return require_valid_public_surface("knowledge_connector_catalog", describe_knowledge_connectors())
 
     if args.command == "reference" and args.reference_command == "location" and args.reference_location_command == "record":
-        location = record_reference_location(ws, topic_id=args.topic_id, claim_id=args.claim_id,
+        loc = record_reference_location(ws, topic_id=args.topic_id, claim_id=args.claim_id,
             connector_id=args.connector_id, location_type=args.location_type, uri=args.uri, label=args.label,
             source_ref=args.source_ref, external_id=args.external_id, status=args.status, summary=args.summary,
-            metadata=_json_object_arg(args.metadata_json, "--metadata-json"),
-            linked_records=_json_object_arg(args.linked_records_json, "--linked-records-json"))
-        return {"ok": True, **require_valid_public_surface("reference_location_record", {"ok": True, **asdict(location)})}
+            metadata=_j(args.metadata_json), linked_records=_j(args.linked_records_json))
+        return {"ok": True, **require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})}
 
     if args.command == "summary" and args.summary_command == "session":
-        return {"ok": True, **require_valid_public_surface(
-            "session_summary_bundle", asdict(write_session_summary(ws, args.session_id)))}
-
+        return {"ok": True, **require_valid_public_surface("session_summary_bundle", asdict(write_session_summary(ws, args.session_id)))}
     if args.command == "summary" and args.summary_command == "orientation":
-        return {"ok": True, **require_valid_public_surface(
-            "summary_orientation", read_summary_orientation(ws, args.session_id))}
-
+        return {"ok": True, **require_valid_public_surface("summary_orientation", read_summary_orientation(ws, args.session_id))}
     if args.command == "adapter" and args.adapter_command == "packet":
-        return {"ok": True, **require_valid_public_surface("adapter_packet",
-            build_adapter_packet(ws, args.session_id, runtime=args.runtime))}
+        return {"ok": True, **require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))}
 
     if args.command == "trust":
-        request = _trust_update_request_from_args(args)
+        req = _trust_update_request_from_args(args)
         if args.trust_command == "preflight":
-            return {"ok": True, **require_valid_public_surface("trust_update_preflight", preflight_trust_update(ws, request))}
-        return {"ok": True, **require_valid_public_surface("trust_update_apply", apply_trust_update(ws, request))}
+            return {"ok": True, **require_valid_public_surface("trust_update_preflight", preflight_trust_update(ws, req))}
+        return {"ok": True, **require_valid_public_surface("trust_update_apply", apply_trust_update(ws, req))}
 
     if args.command == "object" and args.object_command == "record":
         obj = record_physics_object(ws, topic_id=args.topic_id, object_type=args.object_type,
             name=args.name, definition=args.definition, notation=args.notation, assumptions=args.assumptions,
-            source_refs=args.source_refs, metadata=_json_object_arg(args.metadata_json, "--metadata-json"),
-            linked_records=_json_object_arg(args.linked_records_json, "--linked-records-json"), status=args.status)
+            source_refs=args.source_refs, metadata=_j(args.metadata_json),
+            linked_records=_j(args.linked_records_json), status=args.status)
         return {"ok": True, **require_valid_public_surface("physics_object_record", {"ok": True, **asdict(obj)})}
 
     if args.command == "relation" and args.relation_command == "record":
@@ -450,18 +337,24 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             reason=args.reason, requested_by=args.requested_by, options=args.options)
         return {"ok": True, **require_valid_public_surface("human_checkpoint_record", {"ok": True, **asdict(chk)})}
 
+    if args.command == "promotion" and args.promotion_command == "packet" and args.promotion_packet_command == "create":
+        pkt = create_promotion_packet(ws, topic_id=args.topic_id, claim_id=args.claim_id,
+            proposed_memory_kind=args.proposed_memory_kind, scope=args.scope,
+            evidence_refs=args.evidence_refs, non_claims=args.non_claims,
+            known_failure_modes=args.known_failure_modes)
+        return {"ok": True, **require_valid_public_surface("promotion_packet_record", {"ok": True, **asdict(pkt)})}
+
     raise SystemExit(f"unsupported command: {args.command}")
 
 
-def _add_trust_request_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("action")
-    parser.add_argument("--session", required=True, dest="session_id")
-    parser.add_argument("--topic", required=True, dest="topic_id"); parser.add_argument("--claim", required=True, dest="claim_id")
-    parser.add_argument("--requested-state", default=""); parser.add_argument("--source-kind", default="")
-    parser.add_argument("--source-ref", default="")
-    parser.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
-    parser.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
-    parser.add_argument("--rationale", default=""); parser.add_argument("--request-id", default="")
+def _add_trust_request_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("action"); p.add_argument("--session", required=True, dest="session_id")
+    p.add_argument("--topic", required=True, dest="topic_id"); p.add_argument("--claim", required=True, dest="claim_id")
+    p.add_argument("--requested-state", default=""); p.add_argument("--source-kind", default="")
+    p.add_argument("--source-ref", default="")
+    p.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
+    p.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
+    p.add_argument("--rationale", default=""); p.add_argument("--request-id", default="")
 
 
 def _trust_update_request_from_args(args: argparse.Namespace) -> TrustUpdateRequest:
@@ -473,13 +366,13 @@ def _trust_update_request_from_args(args: argparse.Namespace) -> TrustUpdateRequ
     )
 
 
-def _json_object_arg(raw: str, label: str) -> dict[str, Any]:
+def _j(raw: str) -> dict[str, Any]:
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise SystemExit(f"{label} must be a JSON object: {exc}") from exc
+        raise SystemExit(f"invalid JSON: {exc}") from exc
     if not isinstance(payload, dict):
-        raise SystemExit(f"{label} must be a JSON object")
+        raise SystemExit("expected a JSON object")
     return payload
 
 

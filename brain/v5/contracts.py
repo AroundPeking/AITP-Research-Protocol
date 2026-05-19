@@ -387,6 +387,22 @@ def require_valid_human_checkpoint_record(payload: dict[str, Any]) -> dict[str, 
     return _require_valid_human_checkpoint_record(payload)
 
 
+def validate_promotion_packet_record(payload: dict[str, Any], *, path: str = "promotion_packet_record") -> ContractResult:
+    """Validate a public promotion-packet-record write payload."""
+
+    from brain.v5.record_contracts import validate_promotion_packet_record as _validate
+
+    return _validate(payload, path=path)
+
+
+def require_valid_promotion_packet_record(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a promotion-packet-record write payload or raise a contract error."""
+
+    from brain.v5.record_contracts import require_valid_promotion_packet_record as _require
+
+    return _require(payload)
+
+
 def validate_tool_executor_catalog(payload: dict[str, Any], *, path: str = "tool_executor_catalog") -> ContractResult:
     """Validate a public safe tool-executor catalog payload."""
 

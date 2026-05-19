@@ -189,6 +189,27 @@ def require_valid_human_checkpoint_record(payload: dict[str, Any]) -> dict[str, 
     return _require_valid(validate_human_checkpoint_record(payload), payload)
 
 
+def validate_promotion_packet_record(payload: dict[str, Any], *, path: str = "promotion_packet_record") -> ContractResult:
+    result = _validate_base_record(payload, path, kind="promotion_packet")
+    if result.issues:
+        return result
+    for key in ("packet_id", "topic_id", "claim_id", "proposed_memory_kind", "scope"):
+        _require_nonempty_str(payload, key, path, result)
+    evidence = payload.get("evidence_refs")
+    _require_list(evidence, f"{path}.evidence_refs", result)
+    if isinstance(evidence, list) and len(evidence) == 0:
+        result.add(f"{path}.evidence_refs", "must not be empty — promotion requires evidence")
+    failure_modes = payload.get("known_failure_modes")
+    _require_list(failure_modes, f"{path}.known_failure_modes", result)
+    if isinstance(failure_modes, list) and len(failure_modes) == 0:
+        result.add(f"{path}.known_failure_modes", "must not be empty — promotion requires known failure modes")
+    return result
+
+
+def require_valid_promotion_packet_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return _require_valid(validate_promotion_packet_record(payload), payload)
+
+
 def _validate_base_record(payload: Any, path: str, *, kind: str) -> ContractResult:
     result = ContractResult()
     _require_mapping(payload, path, result)

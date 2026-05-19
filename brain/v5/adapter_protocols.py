@@ -50,6 +50,7 @@ _KERNEL_ENTRYPOINTS = [
     "aitp_v5_record_sensemaking_report",
     "aitp_v5_create_validation_contract",
     "aitp_v5_request_human_checkpoint",
+    "aitp_v5_create_promotion_packet",
     "aitp_v5_assess_risk",
     "aitp_v5_write_session_summary",
 ]
@@ -145,6 +146,12 @@ _RECORD_SEQUENCE_BY_ACTION = {
         "refresh_execution_brief",
         "write_session_summary",
     ],
+    "create_promotion_packet": [
+        "refresh_execution_brief",
+        "create_promotion_packet",
+        "refresh_execution_brief",
+        "write_session_summary",
+    ],
 }
 _RUNTIME_RECORD_PROTOCOLS = {
     "record_code_state": {
@@ -232,6 +239,14 @@ _RUNTIME_RECORD_PROTOCOLS = {
         "sequence": list(_RECORD_SEQUENCE_BY_ACTION["request_human_checkpoint"]),
         "required_typed_refs": ["topic_id", "claim_id", "reason", "requested_by"],
         "accepted_link_fields": ["options", "decision", "decided_by"],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+    "create_promotion_packet": {
+        "entrypoint": "aitp_v5_create_promotion_packet",
+        "sequence": list(_RECORD_SEQUENCE_BY_ACTION["create_promotion_packet"]),
+        "required_typed_refs": ["topic_id", "claim_id", "proposed_memory_kind", "scope"],
+        "accepted_link_fields": ["evidence_refs", "non_claims", "known_failure_modes"],
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },
