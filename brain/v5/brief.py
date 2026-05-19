@@ -13,6 +13,7 @@ from brain.v5.knowledge_connectors import suggest_knowledge_connectors_for_claim
 from brain.v5.models import ClaimRecord, CodeStateRecord
 from brain.v5.policy import evaluate_policy
 from brain.v5.question_engine import generate_questions
+from brain.v5.references import list_reference_locations_for_claim, reference_location_brief_payload
 from brain.v5.risk import action_budget_for_level, assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.workspace import get_claim, get_session_binding
@@ -29,6 +30,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     evidence_records = []
     recommended_tool_executors = []
     knowledge_connectors = []
+    reference_locations = []
 
     if session.active_claim:
         claim = get_claim(ws, session.active_claim)
@@ -38,6 +40,10 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         evidence_records = list_evidence_for_claim(ws, claim.claim_id)
         recommended_tool_executors = suggest_tool_executors_for_claim(claim)
         knowledge_connectors = suggest_knowledge_connectors_for_claim(claim)
+        reference_locations = [
+            reference_location_brief_payload(location)
+            for location in list_reference_locations_for_claim(ws, claim.claim_id)
+        ]
 
     action_budget = risk.action_budget if risk and risk.action_budget else action_budget_for_level("guided")
     evidence_coverage = required_output_coverage(
@@ -134,6 +140,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "previous_failed_attempts": [],
             "recommended_tool_executors": recommended_tool_executors,
             "knowledge_connectors": knowledge_connectors,
+            "reference_locations": reference_locations,
         },
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,

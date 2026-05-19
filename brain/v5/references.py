@@ -71,3 +71,15 @@ def list_reference_locations_for_claim(ws: WorkspacePaths, claim_id: str) -> lis
         for location in list_records(ws.registry_dir("reference_locations"), ReferenceLocationRecord)
         if location.claim_id == claim_id
     ]
+
+
+def reference_location_brief_payload(location: ReferenceLocationRecord) -> dict:
+    return {
+        "location_id": location.location_id,
+        "connector_id": location.connector_id,
+        "location_type": location.location_type,
+        "uri": location.uri,
+        "label": location.label,
+        "source_ref": location.source_ref,
+        "orientation_only": location.orientation_only,
+    }

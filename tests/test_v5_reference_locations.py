@@ -140,3 +140,46 @@ def test_adapter_protocol_advertises_reference_location_recording():
     assert protocol["required_typed_refs"] == ["topic_id", "connector_id", "uri"]
     assert "source_ref" in protocol["accepted_link_fields"]
     assert runtime_entrypoints()["record_reference_location"]["surface"] == "reference_location_record"
+
+
+def test_execution_brief_exposes_reference_locations_for_active_claim(tmp_path):
+    from brain.v5.brief import build_execution_brief
+    from brain.v5.references import record_reference_location
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Composite-fermion conventions should be compared with prior notes.",
+        evidence_profile="literature_synthesis",
+        confidence_state="learning",
+        active_uncertainty="note and paper locations",
+    )
+    record_reference_location(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        connector_id="zotero",
+        location_type="paper_pdf",
+        uri="zotero://select/items/JAIN1989",
+        label="Jain 1989 PDF",
+        source_ref="paper:jain-1989",
+    )
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
+
+    brief = build_execution_brief(ws, "s1")
+
+    locations = brief["known_context"]["reference_locations"]
+    assert locations == [
+        {
+            "location_id": locations[0]["location_id"],
+            "connector_id": "zotero",
+            "location_type": "paper_pdf",
+            "uri": "zotero://select/items/JAIN1989",
+            "label": "Jain 1989 PDF",
+            "source_ref": "paper:jain-1989",
+            "orientation_only": True,
+        }
+    ]
