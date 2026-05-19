@@ -319,3 +319,22 @@ class PromotionPacketRecord:
     @property
     def record_id(self) -> str:
         return self.packet_id
+
+
+@dataclass
+class MemoryEntryRecord:
+    entry_id: str
+    topic_id: str
+    source_claim_id: str
+    memory_kind: str = "scoped_claim"
+    scope: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
+    non_claims: list[str] = field(default_factory=list)
+    known_failure_modes: list[str] = field(default_factory=list)
+    source_packet_id: str = ""
+    human_checkpoint_id: str = ""
+    kind: str = "memory_entry"
+
+    @property
+    def record_id(self) -> str:
+        return self.entry_id

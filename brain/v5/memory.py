@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from brain.v5.ids import prefixed_id
-from brain.v5.models import PromotionPacketRecord
-from brain.v5.store import write_record
+from brain.v5.models import HumanCheckpointRecord, MemoryEntryRecord, PromotionPacketRecord
+from brain.v5.store import read_record, write_record
 from brain.v5.workspace import WorkspacePaths
 
 
@@ -32,3 +32,44 @@ def create_promotion_packet(
     )
     write_record(ws.registry_dir("promotion_packets") / f"{packet_id}.md", packet)
     return packet
+
+
+def apply_promotion_packet(
+    ws: WorkspacePaths,
+    *,
+    packet_id: str,
+    checkpoint_id: str,
+) -> MemoryEntryRecord:
+    if not checkpoint_id:
+        raise ValueError("approved human checkpoint is required to apply a promotion packet")
+
+    packet_path = ws.registry_dir("promotion_packets") / f"{packet_id}.md"
+    packet = read_record(packet_path, PromotionPacketRecord)
+
+    chk_path = ws.registry_dir("checkpoints") / f"{checkpoint_id}.md"
+    checkpoint = read_record(chk_path, HumanCheckpointRecord)
+
+    if checkpoint.status != "decided":
+        raise ValueError("approved human checkpoint is required — checkpoint not decided")
+    if checkpoint.decision != "approve":
+        raise ValueError(f"approved human checkpoint is required — decision was {checkpoint.decision!r}")
+
+    entry_id = prefixed_id("memory", packet_id)
+    entry = MemoryEntryRecord(
+        entry_id=entry_id,
+        topic_id=packet.topic_id,
+        source_claim_id=packet.claim_id,
+        memory_kind=packet.proposed_memory_kind,
+        scope=packet.scope,
+        evidence_refs=list(packet.evidence_refs),
+        non_claims=list(packet.non_claims),
+        known_failure_modes=list(packet.known_failure_modes),
+        source_packet_id=packet_id,
+        human_checkpoint_id=checkpoint_id,
+    )
+    write_record(ws.root / "memory" / "l2" / "entries" / f"{entry_id}.md", entry)
+
+    packet.status = "promoted"
+    write_record(packet_path, packet)
+
+    return entry

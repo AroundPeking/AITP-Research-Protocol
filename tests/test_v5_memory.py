@@ -127,3 +127,53 @@ def test_promotion_runtime_entrypoint():
     ep = runtime_entrypoints()
     assert "create_promotion_packet" in ep
     assert ep["create_promotion_packet"]["surface"] == "promotion_packet_record"
+
+
+def test_apply_promotion_requires_approved_human_checkpoint(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.memory import apply_promotion_packet, create_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Counting identifies the edge CFT in the recorded sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="locally_checked",
+        active_uncertainty="promotion readiness",
+    )
+    packet = create_promotion_packet(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        proposed_memory_kind="scoped_claim",
+        scope="fixed sector ED",
+        evidence_refs=["evidence-counting"],
+        known_failure_modes=["sector misassignment"],
+    )
+
+    with pytest.raises(ValueError, match="approved human checkpoint"):
+        apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id="")
+
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        reason="L2 promotion requires approval.",
+        requested_by="promotion_policy",
+        options=["approve", "revise"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="Evidence and scope are explicit.",
+        decided_by="human",
+    )
+    memory = apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id=checkpoint.checkpoint_id)
+
+    assert memory.kind == "memory_entry"
+    assert memory.source_claim_id == claim.claim_id
+    assert memory.evidence_refs == ["evidence-counting"]
