@@ -1248,6 +1248,7 @@ git commit -m "feat: surface object relations in briefs"
 
 - Modify: `brain/v5/brief.py`
 - Modify: `brain/v5/question_engine.py`
+- Modify: `brain/v5/question_intents.py`
 - Test: `tests/test_v5_physics_objects.py`
 - Test: `tests/test_v5_question_intents.py`
 
@@ -1299,42 +1300,34 @@ pytest tests\test_v5_physics_objects.py::test_mandatory_reflection_mentions_reco
 
 Expected: fail because generated questions do not include relation failure modes.
 
-- [ ] **Step 3: Update brief to pass relation strings into question engine**
+- [ ] **Step 3: Update brief to pass structured relation payloads into question engine**
 
-In `brain/v5/brief.py`, compute `object_relation_texts` before `generate_questions`:
+In `brain/v5/brief.py`, build `object_relations` once using the typed brief payload and pass that payload into `generate_questions`:
 
 ```python
 raw_object_relations = list_object_relations_for_claim(ws, claim.claim_id)
-object_relation_texts = [
-    f"{relation.statement} Failure modes: {', '.join(relation.failure_modes)}"
+object_relations = [
+    object_relation_brief_payload(relation)
     for relation in raw_object_relations
 ]
-questions = generate_questions(claim, flow, object_relations=object_relation_texts)
+questions = generate_questions(claim, flow, object_relations=object_relations)
 ```
 
-Avoid listing records twice by reusing `raw_object_relations` for the `known_context` payload.
+Do not make relation text the source of truth. The same `object_relations` payload should also be exposed in `known_context`.
 
-- [ ] **Step 4: Update question engine only if needed**
+- [ ] **Step 4: Normalize structured relation inputs in question intents**
 
-If `generate_questions` already accepts `object_relations`, only adjust wording. If it does not include failure modes, add one deterministic question:
+In `brain/v5/question_intents.py`, normalize each relation payload into:
 
 ```python
-if object_relations:
-    questions.append(
-        QuestionRecord(
-            question_id=f"question-{claim.claim_id}-object-relation-failure",
-            scene=flow.profile,
-            target_claim=claim.claim_id,
-            question=f"Which recorded object-relation failure mode is most dangerous here: {'; '.join(object_relations)}?",
-            why_this_question="Recorded object relations expose mechanisms and failure modes that should guide the next physics check.",
-            expected_answer_shape="Name the relation, the failure mode, and the cheapest check.",
-            possible_next_actions=["record_evidence", "run_minimal_check", "revise_relation"],
-            target_uncertainty=claim.active_uncertainty,
-            intent_id="object_relation_failure_mode_check",
-            intent_type="failure_mode",
-        )
-    )
+{
+    "prompt": "<relation_type>: <statement> Failure modes: <failure_modes>",
+    "target": "<relation_id>",
+    "failure_modes": ["<mode>"],
+}
 ```
+
+Keep legacy string inputs supported as a compatibility path, but make dict payloads the primary path. Relation-aware intents must store `target_relations` as relation IDs when relation IDs are available.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -1342,7 +1335,7 @@ if object_relations:
 pytest tests\test_v5_physics_objects.py tests\test_v5_question_intents.py tests\test_v5_kernel.py -q
 $files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }
 pytest $files -q
-git add brain/v5/brief.py brain/v5/question_engine.py tests/test_v5_physics_objects.py
+git add brain/v5/brief.py brain/v5/question_engine.py brain/v5/question_intents.py tests/test_v5_physics_objects.py tests/test_v5_question_intents.py
 git commit -m "feat: ask relation-aware physics questions"
 ```
 
