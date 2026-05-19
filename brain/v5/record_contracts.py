@@ -146,6 +146,24 @@ def require_valid_sensemaking_report_record(payload: dict[str, Any]) -> dict[str
     return _require_valid(validate_sensemaking_report_record(payload), payload)
 
 
+def validate_validation_contract_record(payload: dict[str, Any], *, path: str = "validation_contract_record") -> ContractResult:
+    result = _validate_base_record(payload, path, kind="validation_contract")
+    if result.issues:
+        return result
+    for key in ("contract_id", "topic_id", "claim_id", "validator_role", "status"):
+        _require_nonempty_str(payload, key, path, result)
+    for key in ("required_checks", "failure_modes", "required_evidence_outputs"):
+        lst = payload.get(key)
+        _require_list(lst, f"{path}.{key}", result)
+        if isinstance(lst, list) and len(lst) == 0:
+            result.add(f"{path}.{key}", "must not be empty — validation requires explicit failure hypotheses")
+    return result
+
+
+def require_valid_validation_contract_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return _require_valid(validate_validation_contract_record(payload), payload)
+
+
 def _validate_base_record(payload: Any, path: str, *, kind: str) -> ContractResult:
     result = ContractResult()
     _require_mapping(payload, path, result)

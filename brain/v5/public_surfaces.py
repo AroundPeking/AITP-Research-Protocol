@@ -22,6 +22,7 @@ _PUBLIC_SURFACE_NAMES = (
     "tool_run_record",
     "trust_update_apply",
     "trust_update_preflight",
+    "validation_contract_record",
 )
 _PUBLIC_SURFACE_VALIDATOR_REF = "brain.v5.public_surfaces.require_valid_public_surface"
 _PUBLIC_SURFACE_PURPOSES = {
@@ -42,6 +43,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "tool_run_record": "contracted tool-run provenance record linked to claims, code states, and artifacts",
     "trust_update_apply": "contracted result of a trust-changing mutation after preflight",
     "trust_update_preflight": "contracted preflight gate for trust-changing actions",
+    "validation_contract_record": "contracted validation contract requiring explicit checks, failure modes, and evidence outputs before a claim can be validated",
 }
 
 
@@ -105,6 +107,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_tool_run_record,
         require_valid_trust_update_apply,
         require_valid_trust_update_preflight,
+        require_valid_validation_contract_record,
     )
 
     return {
@@ -125,4 +128,5 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "tool_run_record": require_valid_tool_run_record,
         "trust_update_apply": require_valid_trust_update_apply,
         "trust_update_preflight": require_valid_trust_update_preflight,
+        "validation_contract_record": require_valid_validation_contract_record,
     }

@@ -16,6 +16,7 @@ from brain.v5.public_surfaces import describe_public_surfaces, require_valid_pub
 from brain.v5.physics_objects import record_object_relation, record_physics_object
 from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
+from brain.v5.validation import create_validation_contract
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.summaries import read_summary_orientation, write_session_summary
@@ -429,6 +430,18 @@ def aitp_v5_record_sensemaking_report(
         open_questions=open_questions, next_actions=next_actions,
     )
     return require_valid_public_surface("sensemaking_report_record", {"ok": True, **asdict(report)})
+
+
+def aitp_v5_create_validation_contract(
+    base: str, *, topic_id: str, claim_id: str,
+    required_checks: list[str] | None = None, failure_modes: list[str] | None = None,
+    required_evidence_outputs: list[str] | None = None, validator_role: str = "adversarial_reviewer",
+) -> dict:
+    ws = init_workspace(Path(base))
+    contract = create_validation_contract(ws, topic_id=topic_id, claim_id=claim_id,
+        required_checks=required_checks, failure_modes=failure_modes,
+        required_evidence_outputs=required_evidence_outputs, validator_role=validator_role)
+    return require_valid_public_surface("validation_contract_record", {"ok": True, **asdict(contract)})
 
 
 def aitp_v5_preflight_trust_update(

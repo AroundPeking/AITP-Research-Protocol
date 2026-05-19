@@ -273,3 +273,16 @@ class SensemakingReportRecord:
     next_actions: list[str] = field(default_factory=list)
     validation_status: str = "not_validation"
     kind: str = "sensemaking_report"
+
+
+@dataclass
+class ValidationContractRecord:
+    contract_id: str
+    topic_id: str
+    claim_id: str
+    required_checks: list[str] = field(default_factory=list)
+    failure_modes: list[str] = field(default_factory=list)
+    required_evidence_outputs: list[str] = field(default_factory=list)
+    validator_role: str = "adversarial_reviewer"
+    status: str = "open"
+    kind: str = "validation_contract"

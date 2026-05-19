@@ -20,6 +20,7 @@ from brain.v5.public_surfaces import describe_public_surfaces, require_valid_pub
 from brain.v5.physics_objects import record_object_relation, record_physics_object
 from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
+from brain.v5.validation import create_validation_contract
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
@@ -229,6 +230,17 @@ def _build_parser() -> argparse.ArgumentParser:
     trust_apply = trust_sub.add_parser("apply")
     _add_trust_request_args(trust_apply)
 
+    val_p = subparsers.add_parser("validation")
+    val_sub = val_p.add_subparsers(dest="validation_command", required=True)
+    vc_p = val_sub.add_parser("contract")
+    vc_sub = vc_p.add_subparsers(dest="validation_contract_command", required=True)
+    vcr = vc_sub.add_parser("create")
+    vcr.add_argument("--topic", required=True, dest="topic_id"); vcr.add_argument("--claim", required=True, dest="claim_id")
+    vcr.add_argument("--required-check", action="append", default=[], dest="required_checks")
+    vcr.add_argument("--failure-mode", action="append", default=[], dest="failure_modes")
+    vcr.add_argument("--required-output", action="append", default=[], dest="required_evidence_outputs")
+    vcr.add_argument("--validator-role", default="adversarial_reviewer")
+
     return parser
 
 
@@ -406,21 +418,11 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             ),
         }
 
-    if args.command == "trust" and args.trust_command == "preflight":
+    if args.command == "trust":
         request = _trust_update_request_from_args(args)
-        return {
-            "ok": True,
-            **require_valid_public_surface("trust_update_preflight", preflight_trust_update(ws, request)),
-        }
-
-    if args.command == "trust" and args.trust_command == "apply":
-        return {
-            "ok": True,
-            **require_valid_public_surface(
-                "trust_update_apply",
-                apply_trust_update(ws, _trust_update_request_from_args(args)),
-            ),
-        }
+        if args.trust_command == "preflight":
+            return {"ok": True, **require_valid_public_surface("trust_update_preflight", preflight_trust_update(ws, request))}
+        return {"ok": True, **require_valid_public_surface("trust_update_apply", apply_trust_update(ws, request))}
 
     if args.command == "object" and args.object_command == "record":
         obj = record_physics_object(ws, topic_id=args.topic_id, object_type=args.object_type,
@@ -443,6 +445,12 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             open_questions=args.open_questions, next_actions=args.next_actions)
         return {"ok": True, **require_valid_public_surface("sensemaking_report_record", {"ok": True, **asdict(rpt)})}
 
+    if args.command == "validation" and args.validation_command == "contract" and args.validation_contract_command == "create":
+        vc = create_validation_contract(ws, topic_id=args.topic_id, claim_id=args.claim_id,
+            required_checks=args.required_checks, failure_modes=args.failure_modes,
+            required_evidence_outputs=args.required_evidence_outputs, validator_role=args.validator_role)
+        return {"ok": True, **require_valid_public_surface("validation_contract_record", {"ok": True, **asdict(vc)})}
+
     raise SystemExit(f"unsupported command: {args.command}")
 
 
@@ -458,19 +466,11 @@ def _add_trust_request_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _trust_update_request_from_args(args: argparse.Namespace) -> TrustUpdateRequest:
-    request_id = args.request_id or f"trust-request-{args.session_id}-{args.claim_id}-{args.action}"
     return TrustUpdateRequest(
-        request_id=request_id,
-        action=args.action,
-        session_id=args.session_id,
-        topic_id=args.topic_id,
-        claim_id=args.claim_id,
-        requested_state=args.requested_state,
-        source_kind=args.source_kind,
-        source_ref=args.source_ref,
-        evidence_refs=args.evidence_refs,
-        code_state_ids=args.code_state_ids,
-        rationale=args.rationale,
+        request_id=args.request_id or f"trust-request-{args.session_id}-{args.claim_id}-{args.action}",
+        action=args.action, session_id=args.session_id, topic_id=args.topic_id, claim_id=args.claim_id,
+        requested_state=args.requested_state, source_kind=args.source_kind, source_ref=args.source_ref,
+        evidence_refs=args.evidence_refs, code_state_ids=args.code_state_ids, rationale=args.rationale,
     )
 
 

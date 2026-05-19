@@ -103,6 +103,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_record_sensemaking_report",
         "surface": "sensemaking_report_record",
     },
+    "create_validation_contract": {
+        "cli": "aitp-v5 validation contract create <args>",
+        "mcp": "aitp_v5_create_validation_contract",
+        "surface": "validation_contract_record",
+    },
 }
 
 
@@ -301,5 +306,18 @@ def _sample_args_for_template(template: str) -> list[str]:
             "Sanity check",
             "--summary",
             "Counting holds for N=8.",
+        ]
+    if template.startswith("validation contract create"):
+        return [
+            "--topic",
+            "gw",
+            "--claim",
+            "claim-gw",
+            "--required-check",
+            "code_state_present",
+            "--failure-mode",
+            "dirty worktree",
+            "--required-output",
+            "evidence_or_provenance",
         ]
     return []

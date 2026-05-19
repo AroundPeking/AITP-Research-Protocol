@@ -48,6 +48,7 @@ _KERNEL_ENTRYPOINTS = [
     "aitp_v5_record_physics_object",
     "aitp_v5_record_object_relation",
     "aitp_v5_record_sensemaking_report",
+    "aitp_v5_create_validation_contract",
     "aitp_v5_assess_risk",
     "aitp_v5_write_session_summary",
 ]
@@ -131,6 +132,12 @@ _RECORD_SEQUENCE_BY_ACTION = {
         "refresh_execution_brief",
         "write_session_summary",
     ],
+    "create_validation_contract": [
+        "refresh_execution_brief",
+        "create_validation_contract",
+        "refresh_execution_brief",
+        "write_session_summary",
+    ],
 }
 _RUNTIME_RECORD_PROTOCOLS = {
     "record_code_state": {
@@ -202,6 +209,14 @@ _RUNTIME_RECORD_PROTOCOLS = {
         "sequence": list(_RECORD_SEQUENCE_BY_ACTION["record_sensemaking_report"]),
         "required_typed_refs": ["topic_id", "claim_id", "title", "summary"],
         "accepted_link_fields": ["object_ids", "relation_ids", "evidence_refs"],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+    "create_validation_contract": {
+        "entrypoint": "aitp_v5_create_validation_contract",
+        "sequence": list(_RECORD_SEQUENCE_BY_ACTION["create_validation_contract"]),
+        "required_typed_refs": ["topic_id", "claim_id", "required_checks", "failure_modes"],
+        "accepted_link_fields": ["required_evidence_outputs", "validator_role"],
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },
