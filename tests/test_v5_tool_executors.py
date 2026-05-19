@@ -227,3 +227,102 @@ def test_mcp_tool_execute_can_return_evidence_record(tmp_path):
 
     assert payload["evidence"]["supports_outputs"] == ["minimal_check"]
     assert payload["evidence"]["tool_run_ids"] == [payload["run_id"]]
+
+
+def test_metric_table_executor_records_multi_metric_evidence_coverage(tmp_path):
+    from brain.v5.brief import build_execution_brief
+    from brain.v5.tool_executors import execute_registered_tool_result
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The edge-sector counting table matches the expected sequence.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size artifact may mimic counting",
+    )
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
+
+    result = execute_registered_tool_result(
+        ws,
+        executor_id="metric_table_check",
+        recipe_id="recipe-fqhe-counting-table",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        inputs={
+            "table_id": "fqhe-edge-counting",
+            "metrics": [
+                {"name": "L10_edge_count", "observed": 6, "expected": 6, "tolerance": 0},
+                {"name": "L12_edge_count", "observed": 10, "expected": 10, "tolerance": 0},
+            ],
+        },
+        supports_outputs=["evidence_or_provenance", "minimal_check"],
+        evidence_type="toy_numeric",
+        evidence_summary="The FQHE edge-counting table matches the expected sequence.",
+    )
+
+    assert result.run.tool_name == "metric_table_check"
+    assert result.run.evidence_status == "supports"
+    assert result.run.outputs["all_within_tolerance"] is True
+    assert result.run.outputs["metric_count"] == 2
+    assert result.run.outputs["failed_metrics"] == []
+    assert result.run.outputs["metrics"][0]["absolute_error"] == 0.0
+    assert result.evidence is not None
+    assert result.evidence.tool_run_ids == [result.run.run_id]
+
+    brief = build_execution_brief(ws, "s1")
+    assert "evidence_or_provenance" in brief["evidence_coverage"]["satisfied_outputs"]
+    assert "minimal_check" in brief["evidence_coverage"]["satisfied_outputs"]
+
+
+def test_cli_metric_table_executor_reports_failed_metrics(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "librpa-gw", context_id="gw-methods", title="LibRPA GW")
+    claim = create_claim(
+        ws,
+        topic_id="librpa-gw",
+        statement="The GW benchmark table is reproduced.",
+        evidence_profile="code_method",
+        confidence_state="hypothesis",
+        active_uncertainty="benchmark window",
+    )
+
+    assert main(
+        [
+            "--base",
+            str(tmp_path),
+            "tool",
+            "execute",
+            "metric_table_check",
+            "--recipe",
+            "recipe-librpa-gw-table",
+            "--topic",
+            "librpa-gw",
+            "--claim",
+            claim.claim_id,
+            "--inputs-json",
+            (
+                '{"table_id":"si-gw",'
+                '"metrics":['
+                '{"name":"gap_ev","observed":1.31,"expected":1.23,"tolerance":0.02},'
+                '{"name":"sigma_norm","observed":0.5,"expected":0.5,"tolerance":0.0}'
+                ']}'
+            ),
+        ]
+    ) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["kind"] == "tool_run"
+    assert payload["evidence_status"] == "refutes"
+    assert payload["outputs"]["all_within_tolerance"] is False
+    assert payload["outputs"]["failed_metrics"] == ["gap_ev"]
+    assert payload["outputs"]["passed_count"] == 1

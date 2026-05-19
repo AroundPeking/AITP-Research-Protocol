@@ -30,15 +30,25 @@ class ToolExecutionResult:
 def builtin_tool_executors() -> dict[str, ToolExecutorSpec]:
     """Return deterministic in-process executors available without shell access."""
 
-    spec = ToolExecutorSpec(
-        executor_id="scalar_tolerance_check",
-        tool_family="sanity_check",
-        tool_name="scalar_tolerance_check",
-        execution_mode="safe_builtin",
-        version="1",
-        run=_run_scalar_tolerance_check,
-    )
-    return {spec.executor_id: spec}
+    specs = [
+        ToolExecutorSpec(
+            executor_id="scalar_tolerance_check",
+            tool_family="sanity_check",
+            tool_name="scalar_tolerance_check",
+            execution_mode="safe_builtin",
+            version="1",
+            run=_run_scalar_tolerance_check,
+        ),
+        ToolExecutorSpec(
+            executor_id="metric_table_check",
+            tool_family="sanity_check",
+            tool_name="metric_table_check",
+            execution_mode="safe_builtin",
+            version="1",
+            run=_run_metric_table_check,
+        ),
+    ]
+    return {spec.executor_id: spec for spec in specs}
 
 
 def execute_registered_tool(
@@ -158,14 +168,64 @@ def _run_scalar_tolerance_check(inputs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _run_metric_table_check(inputs: dict[str, Any]) -> dict[str, Any]:
+    raw_metrics = inputs.get("metrics")
+    if not isinstance(raw_metrics, list) or not raw_metrics:
+        raise ValueError("metrics must be a non-empty list")
+
+    metrics = [_metric_result(row, index) for index, row in enumerate(raw_metrics)]
+    failed_metrics = [metric["name"] for metric in metrics if not metric["within_tolerance"]]
+    absolute_errors = [metric["absolute_error"] for metric in metrics]
+    return {
+        "table_id": str(inputs.get("table_id", "metric_table")),
+        "metric_count": len(metrics),
+        "passed_count": len(metrics) - len(failed_metrics),
+        "failed_count": len(failed_metrics),
+        "all_within_tolerance": not failed_metrics,
+        "max_absolute_error": max(absolute_errors),
+        "failed_metrics": failed_metrics,
+        "metrics": metrics,
+    }
+
+
+def _metric_result(row: Any, index: int) -> dict[str, Any]:
+    if not isinstance(row, dict):
+        raise ValueError(f"metrics[{index}] must be an object")
+    name = row.get("name")
+    if not isinstance(name, str) or not name:
+        raise ValueError(f"metrics[{index}].name must be a non-empty string")
+    observed = _number_from(row, "observed", f"metrics[{index}]")
+    expected = _number_from(row, "expected", f"metrics[{index}]")
+    tolerance = _number_from(row, "tolerance", f"metrics[{index}]")
+    if tolerance < 0:
+        raise ValueError(f"metrics[{index}].tolerance must be non-negative")
+    absolute_error = round(abs(observed - expected), 12)
+    return {
+        "name": name,
+        "observed": observed,
+        "expected": expected,
+        "tolerance": tolerance,
+        "absolute_error": absolute_error,
+        "within_tolerance": absolute_error <= tolerance,
+    }
+
+
 def _number(inputs: dict[str, Any], key: str) -> float:
+    return _number_from(inputs, key, "inputs")
+
+
+def _number_from(inputs: dict[str, Any], key: str, path: str) -> float:
     value = inputs.get(key)
-    if not isinstance(value, int | float):
-        raise ValueError(f"{key} must be numeric")
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{path}.{key} must be numeric")
     return float(value)
 
 
 def _infer_evidence_status(outputs: dict[str, Any]) -> str:
+    if outputs.get("all_within_tolerance") is True:
+        return "supports"
+    if outputs.get("all_within_tolerance") is False:
+        return "refutes"
     if outputs.get("within_tolerance") is True:
         return "supports"
     if outputs.get("within_tolerance") is False:
