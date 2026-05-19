@@ -108,6 +108,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_create_validation_contract",
         "surface": "validation_contract_record",
     },
+    "request_human_checkpoint": {
+        "cli": "aitp-v5 checkpoint request <args>",
+        "mcp": "aitp_v5_request_human_checkpoint",
+        "surface": "human_checkpoint_record",
+    },
 }
 
 
@@ -319,5 +324,18 @@ def _sample_args_for_template(template: str) -> list[str]:
             "dirty worktree",
             "--required-output",
             "evidence_or_provenance",
+        ]
+    if template.startswith("checkpoint request"):
+        return [
+            "--topic",
+            "fqhe",
+            "--claim",
+            "claim-fqhe",
+            "--reason",
+            "Promotion requires judgment",
+            "--requested-by",
+            "risk_policy",
+            "--option",
+            "approve",
         ]
     return []

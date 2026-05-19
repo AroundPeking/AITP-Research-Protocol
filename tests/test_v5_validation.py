@@ -186,3 +186,132 @@ def test_validation_runtime_entrypoint_exists():
     ep = runtime_entrypoints()
     assert "create_validation_contract" in ep
     assert ep["create_validation_contract"]["surface"] == "validation_contract_record"
+
+
+def test_human_checkpoint_records_reason_and_decision(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id="claim-fqhe",
+        reason="Promotion to reusable L2 memory requires human judgment.",
+        requested_by="risk_policy",
+        options=["approve", "revise", "reject"],
+    )
+
+    decided = decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="revise",
+        rationale="Need a negative control before promotion.",
+        decided_by="human",
+    )
+
+    assert decided.status == "decided"
+    assert decided.decision == "revise"
+    payload = {"ok": True, **asdict(decided)}
+    assert require_valid_public_surface("human_checkpoint_record", payload) == payload
+
+
+def test_human_checkpoint_contract_rejects_empty_options(tmp_path):
+    from brain.v5.checkpoints import request_human_checkpoint
+    from brain.v5.contracts import ContractError
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    checkpoint = request_human_checkpoint(
+        ws, topic_id="fqhe", claim_id="claim-fqhe",
+        reason="test", requested_by="test", options=[],
+    )
+    payload = {"ok": True, **asdict(checkpoint)}
+    with pytest.raises(ContractError, match="options"):
+        require_valid_public_surface("human_checkpoint_record", payload)
+
+
+def test_human_checkpoint_contract_rejects_invalid_decision(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.contracts import ContractError
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    checkpoint = request_human_checkpoint(
+        ws, topic_id="fqhe", claim_id="claim-fqhe",
+        reason="test", requested_by="test", options=["approve", "reject"],
+    )
+    decided = decide_human_checkpoint(
+        ws, checkpoint_id=checkpoint.checkpoint_id,
+        decision="invalid_choice", rationale="test", decided_by="human",
+    )
+    payload = {"ok": True, **asdict(decided)}
+    with pytest.raises(ContractError, match="decision"):
+        require_valid_public_surface("human_checkpoint_record", payload)
+
+
+def test_human_checkpoint_persists(tmp_path):
+    from brain.v5.checkpoints import request_human_checkpoint
+    from brain.v5.store import list_records
+    from brain.v5.models import HumanCheckpointRecord
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    checkpoint = request_human_checkpoint(
+        ws, topic_id="fqhe", claim_id="claim-fqhe",
+        reason="test", requested_by="test", options=["approve"],
+    )
+    records = list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord)
+    assert len(records) == 1
+    assert records[0].checkpoint_id == checkpoint.checkpoint_id
+
+
+def test_human_checkpoint_cli(tmp_path):
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    result = main([
+        "--base", str(tmp_path), "checkpoint", "request",
+        "--topic", "fqhe", "--claim", "claim-fqhe",
+        "--reason", "Promotion requires human judgment",
+        "--requested-by", "risk_policy", "--option", "approve", "--option", "revise",
+    ])
+    assert result == 0
+
+
+def test_human_checkpoint_mcp(tmp_path):
+    from brain.v5.checkpoints import request_human_checkpoint
+    from brain.v5.mcp_tools import aitp_v5_request_human_checkpoint
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    result = aitp_v5_request_human_checkpoint(
+        str(tmp_path), topic_id="fqhe", claim_id="claim-fqhe",
+        reason="test", requested_by="test", options=["approve", "reject"],
+    )
+    assert result["ok"] is True
+    assert result["kind"] == "human_checkpoint"
+
+
+def test_human_checkpoint_runtime_entrypoint():
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+
+    ep = runtime_entrypoints()
+    assert "request_human_checkpoint" in ep
+    assert ep["request_human_checkpoint"]["surface"] == "human_checkpoint_record"

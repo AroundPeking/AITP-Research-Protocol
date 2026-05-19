@@ -17,6 +17,7 @@ from brain.v5.physics_objects import record_object_relation, record_physics_obje
 from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.validation import create_validation_contract
+from brain.v5.checkpoints import request_human_checkpoint
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.summaries import read_summary_orientation, write_session_summary
@@ -442,6 +443,16 @@ def aitp_v5_create_validation_contract(
         required_checks=required_checks, failure_modes=failure_modes,
         required_evidence_outputs=required_evidence_outputs, validator_role=validator_role)
     return require_valid_public_surface("validation_contract_record", {"ok": True, **asdict(contract)})
+
+
+def aitp_v5_request_human_checkpoint(
+    base: str, *, topic_id: str, claim_id: str, reason: str, requested_by: str,
+    options: list[str] | None = None,
+) -> dict:
+    ws = init_workspace(Path(base))
+    checkpoint = request_human_checkpoint(ws, topic_id=topic_id, claim_id=claim_id,
+        reason=reason, requested_by=requested_by, options=options)
+    return require_valid_public_surface("human_checkpoint_record", {"ok": True, **asdict(checkpoint)})
 
 
 def aitp_v5_preflight_trust_update(

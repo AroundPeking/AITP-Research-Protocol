@@ -21,6 +21,7 @@ from brain.v5.physics_objects import record_object_relation, record_physics_obje
 from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.validation import create_validation_contract
+from brain.v5.checkpoints import request_human_checkpoint
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
@@ -44,8 +45,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="aitp-v5")
-    parser.add_argument("--base", default=".", help="Workspace base directory")
+    parser = argparse.ArgumentParser(prog="aitp-v5", description="AITP v5 kernel CLI")
+    parser.add_argument("--base", default=".")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_parser = subparsers.add_parser("init")
@@ -58,25 +59,21 @@ def _build_parser() -> argparse.ArgumentParser:
     topic_create.add_argument("--context", required=True, dest="context_id")
     topic_create.add_argument("--title", required=True)
 
-    claim_parser = subparsers.add_parser("claim")
-    claim_sub = claim_parser.add_subparsers(dest="claim_command", required=True)
-    claim_create = claim_sub.add_parser("create")
-    claim_create.add_argument("--topic", required=True, dest="topic_id")
-    claim_create.add_argument("--statement", required=True)
-    claim_create.add_argument("--evidence-profile", required=True)
-    claim_create.add_argument("--confidence-state", default="hypothesis")
-    claim_create.add_argument("--uncertainty", required=True)
-    claim_create.add_argument("--recipe-id", default="")
+    cl_p = subparsers.add_parser("claim")
+    cl_sub = cl_p.add_subparsers(dest="claim_command", required=True)
+    cc = cl_sub.add_parser("create")
+    cc.add_argument("--topic", required=True, dest="topic_id"); cc.add_argument("--statement", required=True)
+    cc.add_argument("--evidence-profile", required=True)
+    cc.add_argument("--confidence-state", default="hypothesis"); cc.add_argument("--uncertainty", required=True)
+    cc.add_argument("--recipe-id", default="")
 
-    session_parser = subparsers.add_parser("session")
-    session_sub = session_parser.add_subparsers(dest="session_command", required=True)
-    session_bind = session_sub.add_parser("bind")
-    session_bind.add_argument("session_id")
-    session_bind.add_argument("--topic", required=True, dest="topic_id")
-    session_bind.add_argument("--context", required=True, dest="context_id")
-    session_bind.add_argument("--claim", default="", dest="active_claim")
-    session_bind.add_argument("--interaction-profile", default="collaborator")
-    session_bind.add_argument("--interaction-steering", default="")
+    sess_p = subparsers.add_parser("session")
+    sess_sub = sess_p.add_subparsers(dest="session_command", required=True)
+    sb = sess_sub.add_parser("bind")
+    sb.add_argument("session_id")
+    sb.add_argument("--topic", required=True, dest="topic_id"); sb.add_argument("--context", required=True, dest="context_id")
+    sb.add_argument("--claim", default="", dest="active_claim")
+    sb.add_argument("--interaction-profile", default="collaborator"); sb.add_argument("--interaction-steering", default="")
 
     brief_parser = subparsers.add_parser("brief")
     brief_parser.add_argument("session_id")
@@ -169,10 +166,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     summary_parser = subparsers.add_parser("summary")
     summary_sub = summary_parser.add_subparsers(dest="summary_command", required=True)
-    summary_session = summary_sub.add_parser("session")
-    summary_session.add_argument("session_id")
-    summary_orientation = summary_sub.add_parser("orientation")
-    summary_orientation.add_argument("session_id")
+    summary_sub.add_parser("session").add_argument("session_id")
+    summary_sub.add_parser("orientation").add_argument("session_id")
 
     adapter_parser = subparsers.add_parser("adapter")
     adapter_sub = adapter_parser.add_subparsers(dest="adapter_command", required=True)
@@ -182,19 +177,16 @@ def _build_parser() -> argparse.ArgumentParser:
     adapter_sub.add_parser("registry")
     adapter_sub.add_parser("public-surfaces")
 
-    object_parser = subparsers.add_parser("object")
-    object_sub = object_parser.add_subparsers(dest="object_command", required=True)
-    object_record = object_sub.add_parser("record")
-    object_record.add_argument("--topic", required=True, dest="topic_id")
-    object_record.add_argument("--type", required=True, dest="object_type")
-    object_record.add_argument("--name", required=True)
-    object_record.add_argument("--definition", required=True)
-    object_record.add_argument("--notation", default="")
-    object_record.add_argument("--assumption", action="append", default=[], dest="assumptions")
-    object_record.add_argument("--source-ref", action="append", default=[], dest="source_refs")
-    object_record.add_argument("--metadata-json", default="{}")
-    object_record.add_argument("--linked-records-json", default="{}")
-    object_record.add_argument("--status", default="active")
+    obj_p = subparsers.add_parser("object")
+    obj_sub = obj_p.add_subparsers(dest="object_command", required=True)
+    or_ = obj_sub.add_parser("record")
+    or_.add_argument("--topic", required=True, dest="topic_id")
+    or_.add_argument("--type", required=True, dest="object_type"); or_.add_argument("--name", required=True)
+    or_.add_argument("--definition", required=True); or_.add_argument("--notation", default="")
+    or_.add_argument("--assumption", action="append", default=[], dest="assumptions")
+    or_.add_argument("--source-ref", action="append", default=[], dest="source_refs")
+    or_.add_argument("--metadata-json", default="{}"); or_.add_argument("--linked-records-json", default="{}")
+    or_.add_argument("--status", default="active")
 
     rel_p = subparsers.add_parser("relation")
     rel_sub = rel_p.add_subparsers(dest="relation_command", required=True)
@@ -211,17 +203,24 @@ def _build_parser() -> argparse.ArgumentParser:
     rr.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     rr.add_argument("--status", default="hypothesis")
 
-    sense_p = subparsers.add_parser("sensemaking")
-    sense_sub = sense_p.add_subparsers(dest="sensemaking_command", required=True)
-    sr = sense_sub.add_parser("report")
-    sr.add_argument("--topic", required=True, dest="topic_id")
-    sr.add_argument("--claim", required=True, dest="claim_id")
+    s_p = subparsers.add_parser("sensemaking")
+    s_sub = s_p.add_subparsers(dest="sensemaking_command", required=True)
+    sr = s_sub.add_parser("report")
+    sr.add_argument("--topic", required=True, dest="topic_id"); sr.add_argument("--claim", required=True, dest="claim_id")
     sr.add_argument("--title", required=True); sr.add_argument("--summary", required=True)
     sr.add_argument("--object-id", action="append", default=[], dest="object_ids")
     sr.add_argument("--relation-id", action="append", default=[], dest="relation_ids")
     sr.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     sr.add_argument("--open-question", action="append", default=[], dest="open_questions")
     sr.add_argument("--next-action", action="append", default=[], dest="next_actions")
+
+    chk_p = subparsers.add_parser("checkpoint")
+    chk_sub = chk_p.add_subparsers(dest="checkpoint_command", required=True)
+    chk_req = chk_sub.add_parser("request")
+    chk_req.add_argument("--topic", required=True, dest="topic_id")
+    chk_req.add_argument("--claim", required=True, dest="claim_id")
+    chk_req.add_argument("--reason", required=True); chk_req.add_argument("--requested-by", required=True)
+    chk_req.add_argument("--option", action="append", default=[], dest="options")
 
     trust_parser = subparsers.add_parser("trust")
     trust_sub = trust_parser.add_subparsers(dest="trust_command", required=True)
@@ -410,13 +409,8 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             "summary_orientation", read_summary_orientation(ws, args.session_id))}
 
     if args.command == "adapter" and args.adapter_command == "packet":
-        return {
-            "ok": True,
-            **require_valid_public_surface(
-                "adapter_packet",
-                build_adapter_packet(ws, args.session_id, runtime=args.runtime),
-            ),
-        }
+        return {"ok": True, **require_valid_public_surface("adapter_packet",
+            build_adapter_packet(ws, args.session_id, runtime=args.runtime))}
 
     if args.command == "trust":
         request = _trust_update_request_from_args(args)
@@ -450,6 +444,11 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             required_checks=args.required_checks, failure_modes=args.failure_modes,
             required_evidence_outputs=args.required_evidence_outputs, validator_role=args.validator_role)
         return {"ok": True, **require_valid_public_surface("validation_contract_record", {"ok": True, **asdict(vc)})}
+
+    if args.command == "checkpoint" and args.checkpoint_command == "request":
+        chk = request_human_checkpoint(ws, topic_id=args.topic_id, claim_id=args.claim_id,
+            reason=args.reason, requested_by=args.requested_by, options=args.options)
+        return {"ok": True, **require_valid_public_surface("human_checkpoint_record", {"ok": True, **asdict(chk)})}
 
     raise SystemExit(f"unsupported command: {args.command}")
 

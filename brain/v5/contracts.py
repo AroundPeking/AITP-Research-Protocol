@@ -371,6 +371,22 @@ def require_valid_validation_contract_record(payload: dict[str, Any]) -> dict[st
     return _require_valid_validation_contract_record(payload)
 
 
+def validate_human_checkpoint_record(payload: dict[str, Any], *, path: str = "human_checkpoint_record") -> ContractResult:
+    """Validate a public human-checkpoint-record write payload."""
+
+    from brain.v5.record_contracts import validate_human_checkpoint_record as _validate_human_checkpoint_record
+
+    return _validate_human_checkpoint_record(payload, path=path)
+
+
+def require_valid_human_checkpoint_record(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a human-checkpoint-record write payload or raise a contract error."""
+
+    from brain.v5.record_contracts import require_valid_human_checkpoint_record as _require_valid_human_checkpoint_record
+
+    return _require_valid_human_checkpoint_record(payload)
+
+
 def validate_tool_executor_catalog(payload: dict[str, Any], *, path: str = "tool_executor_catalog") -> ContractResult:
     """Validate a public safe tool-executor catalog payload."""
 

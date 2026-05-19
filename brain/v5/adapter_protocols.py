@@ -49,6 +49,7 @@ _KERNEL_ENTRYPOINTS = [
     "aitp_v5_record_object_relation",
     "aitp_v5_record_sensemaking_report",
     "aitp_v5_create_validation_contract",
+    "aitp_v5_request_human_checkpoint",
     "aitp_v5_assess_risk",
     "aitp_v5_write_session_summary",
 ]
@@ -138,6 +139,12 @@ _RECORD_SEQUENCE_BY_ACTION = {
         "refresh_execution_brief",
         "write_session_summary",
     ],
+    "request_human_checkpoint": [
+        "refresh_execution_brief",
+        "request_human_checkpoint",
+        "refresh_execution_brief",
+        "write_session_summary",
+    ],
 }
 _RUNTIME_RECORD_PROTOCOLS = {
     "record_code_state": {
@@ -217,6 +224,14 @@ _RUNTIME_RECORD_PROTOCOLS = {
         "sequence": list(_RECORD_SEQUENCE_BY_ACTION["create_validation_contract"]),
         "required_typed_refs": ["topic_id", "claim_id", "required_checks", "failure_modes"],
         "accepted_link_fields": ["required_evidence_outputs", "validator_role"],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+    "request_human_checkpoint": {
+        "entrypoint": "aitp_v5_request_human_checkpoint",
+        "sequence": list(_RECORD_SEQUENCE_BY_ACTION["request_human_checkpoint"]),
+        "required_typed_refs": ["topic_id", "claim_id", "reason", "requested_by"],
+        "accepted_link_fields": ["options", "decision", "decided_by"],
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },

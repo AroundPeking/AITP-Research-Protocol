@@ -164,6 +164,31 @@ def require_valid_validation_contract_record(payload: dict[str, Any]) -> dict[st
     return _require_valid(validate_validation_contract_record(payload), payload)
 
 
+def validate_human_checkpoint_record(payload: dict[str, Any], *, path: str = "human_checkpoint_record") -> ContractResult:
+    result = _validate_base_record(payload, path, kind="human_checkpoint")
+    if result.issues:
+        return result
+    for key in ("checkpoint_id", "topic_id", "claim_id", "reason", "requested_by"):
+        _require_nonempty_str(payload, key, path, result)
+    options = payload.get("options")
+    _require_list(options, f"{path}.options", result)
+    if isinstance(options, list) and len(options) == 0:
+        result.add(f"{path}.options", "must not be empty — checkpoint requires at least one option")
+    status = payload.get("status")
+    if status not in ("open", "decided"):
+        result.add(f"{path}.status", "must be 'open' or 'decided'")
+    if status == "decided":
+        for key in ("decision", "rationale", "decided_by"):
+            _require_nonempty_str(payload, key, path, result)
+        if isinstance(options, list) and isinstance(payload.get("decision"), str) and payload["decision"] not in options:
+            result.add(f"{path}.decision", f"must be one of options {options}")
+    return result
+
+
+def require_valid_human_checkpoint_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return _require_valid(validate_human_checkpoint_record(payload), payload)
+
+
 def _validate_base_record(payload: Any, path: str, *, kind: str) -> ContractResult:
     result = ContractResult()
     _require_mapping(payload, path, result)

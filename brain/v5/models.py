@@ -286,3 +286,18 @@ class ValidationContractRecord:
     validator_role: str = "adversarial_reviewer"
     status: str = "open"
     kind: str = "validation_contract"
+
+
+@dataclass
+class HumanCheckpointRecord:
+    checkpoint_id: str
+    topic_id: str
+    claim_id: str
+    reason: str
+    requested_by: str
+    options: list[str] = field(default_factory=list)
+    status: str = "open"
+    decision: str = ""
+    rationale: str = ""
+    decided_by: str = ""
+    kind: str = "human_checkpoint"
