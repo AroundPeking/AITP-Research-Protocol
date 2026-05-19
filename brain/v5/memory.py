@@ -8,6 +8,27 @@ from brain.v5.store import read_record, write_record
 from brain.v5.workspace import WorkspacePaths, get_claim
 
 
+def _promotion_packet_identity(
+    *,
+    claim_id: str,
+    proposed_memory_kind: str,
+    scope: str,
+    evidence_refs: list[str],
+    non_claims: list[str],
+    known_failure_modes: list[str],
+) -> str:
+    return "\n".join(
+        [
+            claim_id,
+            proposed_memory_kind,
+            scope,
+            "evidence:" + "|".join(evidence_refs),
+            "non_claims:" + "|".join(non_claims),
+            "failure_modes:" + "|".join(known_failure_modes),
+        ]
+    )
+
+
 def create_promotion_packet(
     ws: WorkspacePaths,
     *,
@@ -28,7 +49,17 @@ def create_promotion_packet(
     if not known_failure_modes:
         raise ValueError("promotion packet known_failure_modes must not be empty")
 
-    packet_id = prefixed_id("packet", claim_id)
+    packet_id = prefixed_id(
+        "packet",
+        _promotion_packet_identity(
+            claim_id=claim_id,
+            proposed_memory_kind=proposed_memory_kind,
+            scope=scope,
+            evidence_refs=evidence_refs,
+            non_claims=non_claims or [],
+            known_failure_modes=known_failure_modes,
+        ),
+    )
     packet = PromotionPacketRecord(
         packet_id=packet_id,
         topic_id=topic_id,
@@ -55,6 +86,8 @@ def apply_promotion_packet(
     packet_path = ws.registry_dir("promotion_packets") / f"{packet_id}.md"
     packet = read_record(packet_path, PromotionPacketRecord)
 
+    if packet.status == "promoted":
+        raise ValueError("promotion packet is already promoted")
     if not packet.scope:
         raise ValueError("promotion packet scope must not be empty")
     if not packet.evidence_refs:

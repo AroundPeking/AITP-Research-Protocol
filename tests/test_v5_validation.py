@@ -255,6 +255,38 @@ def test_human_checkpoint_contract_rejects_invalid_decision(tmp_path):
         )
 
 
+def test_decided_human_checkpoint_cannot_be_redecided(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.store import read_record
+    from brain.v5.models import HumanCheckpointRecord
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    checkpoint = request_human_checkpoint(
+        ws, topic_id="fqhe", claim_id="claim-fqhe",
+        reason="test", requested_by="test", options=["approve", "reject"],
+    )
+    decided = decide_human_checkpoint(
+        ws, checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve", rationale="First decision", decided_by="human",
+    )
+
+    with pytest.raises(ValueError, match="already decided"):
+        decide_human_checkpoint(
+            ws, checkpoint_id=checkpoint.checkpoint_id,
+            decision="reject", rationale="Second decision", decided_by="human",
+        )
+
+    persisted = read_record(
+        ws.registry_dir("checkpoints") / f"{checkpoint.checkpoint_id}.md",
+        HumanCheckpointRecord,
+    )
+    assert persisted.decision == decided.decision == "approve"
+    assert persisted.rationale == "First decision"
+
+
 def test_human_checkpoint_persists(tmp_path):
     from brain.v5.checkpoints import request_human_checkpoint
     from brain.v5.store import list_records

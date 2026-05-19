@@ -125,6 +125,30 @@ def test_promotion_packet_persists(tmp_path):
     assert len(records) == 1
 
 
+def test_multiple_promotion_packets_for_same_claim_do_not_overwrite(tmp_path):
+    ws, claim = _setup_claim(tmp_path)
+
+    from brain.v5.memory import create_promotion_packet
+    from brain.v5.models import PromotionPacketRecord
+    from brain.v5.store import list_records
+
+    first = create_promotion_packet(
+        ws, topic_id="fqhe", claim_id=claim.claim_id,
+        proposed_memory_kind="scoped_claim", scope="fixed sector ED",
+        evidence_refs=["evidence-1"], known_failure_modes=["sector misassignment"],
+    )
+    second = create_promotion_packet(
+        ws, topic_id="fqhe", claim_id=claim.claim_id,
+        proposed_memory_kind="scoped_claim", scope="larger-size ED",
+        evidence_refs=["evidence-2"], known_failure_modes=["finite-size aliasing"],
+    )
+
+    records = list_records(ws.registry_dir("promotion_packets"), PromotionPacketRecord)
+    assert first.packet_id != second.packet_id
+    assert {record.packet_id for record in records} == {first.packet_id, second.packet_id}
+    assert {record.scope for record in records} == {"fixed sector ED", "larger-size ED"}
+
+
 def test_promotion_cli(tmp_path):
     ws, claim = _setup_claim(tmp_path)
 
@@ -337,6 +361,41 @@ def test_apply_promotion_populates_memory_entry_and_packet_fields(tmp_path):
     )
     assert refreshed_packet.status == "promoted"
     assert refreshed_packet.human_checkpoint_id == checkpoint.checkpoint_id
+
+
+def test_apply_promotion_rejects_already_promoted_packet(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.memory import apply_promotion_packet, create_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws, topic_id="fqhe",
+        statement="Counting identifies the edge CFT in the recorded sector.",
+        evidence_profile="toy_numeric", confidence_state="locally_checked",
+        active_uncertainty="promotion readiness",
+    )
+    packet = create_promotion_packet(
+        ws, topic_id="fqhe", claim_id=claim.claim_id,
+        scope="fixed sector ED",
+        evidence_refs=["evidence-counting"],
+        known_failure_modes=["sector misassignment"],
+    )
+    checkpoint = request_human_checkpoint(
+        ws, topic_id="fqhe", claim_id=claim.claim_id,
+        reason="L2 promotion", requested_by="risk_policy",
+        options=["approve"],
+    )
+    decide_human_checkpoint(
+        ws, checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve", rationale="Good", decided_by="human",
+    )
+
+    apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id=checkpoint.checkpoint_id)
+
+    with pytest.raises(ValueError, match="already promoted"):
+        apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id=checkpoint.checkpoint_id)
 
 
 def test_apply_promotion_rejects_checkpoint_for_different_claim(tmp_path):
