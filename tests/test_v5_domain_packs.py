@@ -11,7 +11,33 @@ def test_builtin_formal_theory_pack_suggests_derivation_and_counterexample_work(
     assert "limit_symmetry_dimension_check" in pack.suggested_question_intents
     assert "derivation_trace" in pack.tool_recipes
     assert "counterexample_search" in pack.tool_recipes
+    assert any(
+        recommendation["executor_id"] == "checklist_consistency_check"
+        and recommendation["recipe_id"] == "recipe-formal-theory-checklist"
+        for recommendation in pack.tool_executor_recommendations
+    )
     assert pack.truth_standard_policy == "global_only"
+
+
+def test_formal_theory_domain_pack_recommends_checklist_executor_for_claim():
+    from brain.v5.domain_packs import suggest_tool_executors_for_claim
+    from brain.v5.models import ClaimRecord
+
+    claim = ClaimRecord(
+        claim_id="claim-formal",
+        topic_id="quantum-gravity",
+        statement="The proposed constraint algebra closes under the bracket.",
+        evidence_profile="formal_theory",
+        confidence_state="hypothesis",
+        active_uncertainty="definition and hidden-assumption audit",
+    )
+
+    recommendations = suggest_tool_executors_for_claim(claim)
+
+    assert recommendations
+    assert recommendations[0]["pack_id"] == "formal_theory"
+    assert recommendations[0]["executor_id"] == "checklist_consistency_check"
+    assert recommendations[0]["supports_outputs"] == ["evidence_or_provenance", "minimal_check"]
 
 
 def test_builtin_gw_librpa_pack_suggests_code_provenance_and_benchmarks():

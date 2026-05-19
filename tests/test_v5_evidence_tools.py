@@ -195,3 +195,42 @@ def test_execution_brief_exposes_evidence_coverage_for_active_claim(tmp_path):
     assert "evidence_coverage" in brief
     assert "evidence_or_provenance" in brief["evidence_coverage"]["satisfied_outputs"]
     assert "minimal_check" in brief["evidence_coverage"]["satisfied_outputs"]
+
+
+def test_checklist_executor_records_formal_theory_evidence(tmp_path):
+    from brain.v5.tool_executors import execute_registered_tool_result
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "qg", context_id="formal-theory", title="Quantum Gravity")
+    claim = create_claim(
+        ws,
+        topic_id="qg",
+        statement="The proposed constraint algebra closes under the bracket.",
+        evidence_profile="formal_theory",
+        confidence_state="hypothesis",
+        active_uncertainty="definition and hidden-assumption audit",
+    )
+
+    result = execute_registered_tool_result(
+        ws,
+        executor_id="checklist_consistency_check",
+        recipe_id="recipe-formal-theory-checklist",
+        topic_id="qg",
+        claim_id=claim.claim_id,
+        inputs={
+            "checks": [
+                {"name": "definition domain", "status": "checked", "note": "Domain of the bracket is explicit."},
+                {"name": "counterexample search", "status": "checked", "note": "No small counterexample found."},
+            ]
+        },
+        evidence_status="supports",
+        supports_outputs=["evidence_or_provenance", "minimal_check"],
+        evidence_type="formal_theory",
+    )
+
+    assert result.run.outputs["all_checked"] is True
+    assert result.run.outputs["unchecked_items"] == []
+    assert result.evidence is not None
+    assert result.evidence.evidence_type == "formal_theory"
+    assert result.evidence.status == "supports"

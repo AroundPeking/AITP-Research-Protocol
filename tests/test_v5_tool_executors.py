@@ -339,7 +339,9 @@ def test_tool_executor_catalog_exposes_input_contracts():
     assert catalog["kind"] == "tool_executor_catalog"
     assert catalog["truth_source"] == "builtin_executor_registry"
     assert catalog["summary_inputs_trusted"] is False
-    assert set(executors) == {"metric_table_check", "scalar_tolerance_check"}
+    assert set(executors) == {"checklist_consistency_check", "metric_table_check", "scalar_tolerance_check"}
+    assert executors["checklist_consistency_check"]["input_schema"]["required"] == ["checks"]
+    assert "formal_theory" in executors["checklist_consistency_check"]["evidence_profiles"]
     assert executors["scalar_tolerance_check"]["input_schema"]["required"] == ["observed", "expected", "tolerance"]
     assert executors["metric_table_check"]["input_schema"]["required"] == ["metrics"]
     assert "toy_numeric" in executors["metric_table_check"]["evidence_profiles"]
@@ -357,6 +359,7 @@ def test_cli_tool_executors_returns_catalog(tmp_path, capsys):
     assert payload["ok"] is True
     assert payload["kind"] == "tool_executor_catalog"
     assert {executor["executor_id"] for executor in payload["executors"]} == {
+        "checklist_consistency_check",
         "metric_table_check",
         "scalar_tolerance_check",
     }

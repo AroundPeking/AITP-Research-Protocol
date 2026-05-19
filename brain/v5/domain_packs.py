@@ -41,6 +41,15 @@ def builtin_domain_packs() -> dict[str, DomainPackRecord]:
             ],
             risk_signals=["evidence_gap", "physics_anomaly", "claim_importance"],
             tool_recipes=["definition_audit", "derivation_trace", "counterexample_search", "literature_consistency"],
+            tool_executor_recommendations=[
+                {
+                    "executor_id": "checklist_consistency_check",
+                    "recipe_id": "recipe-formal-theory-checklist",
+                    "evidence_type": "formal_theory",
+                    "supports_outputs": ["evidence_or_provenance", "minimal_check"],
+                    "use_when": "Record a definition, assumption, derivation-step, or counterexample-search checklist.",
+                },
+            ],
             trust_card_templates=["known_theorem_scope_card"],
         ),
         "fqhe_topological_order": DomainPackRecord(

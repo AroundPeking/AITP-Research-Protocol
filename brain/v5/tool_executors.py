@@ -102,6 +102,44 @@ def builtin_tool_executors() -> dict[str, ToolExecutorSpec]:
             },
             run=_run_metric_table_check,
         ),
+        ToolExecutorSpec(
+            executor_id="checklist_consistency_check",
+            tool_family="sanity_check",
+            tool_name="checklist_consistency_check",
+            execution_mode="safe_builtin",
+            version="1",
+            purpose="Check that formal definitions, assumptions, derivation steps, or counterexample searches are explicitly recorded.",
+            evidence_profiles=("formal_theory", "mixed"),
+            input_schema={
+                "type": "object",
+                "required": ["checks"],
+                "properties": {
+                    "checks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["name", "status", "note"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "status": {"type": "string"},
+                                "note": {"type": "string"},
+                            },
+                        },
+                    },
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["all_checked", "unchecked_items", "failed_items", "checks"],
+                "properties": {
+                    "all_checked": {"type": "boolean"},
+                    "unchecked_items": {"type": "array"},
+                    "failed_items": {"type": "array"},
+                    "checks": {"type": "array"},
+                },
+            },
+            run=_run_checklist_consistency_check,
+        ),
     ]
     return {spec.executor_id: spec for spec in specs}
 
@@ -270,6 +308,39 @@ def _run_metric_table_check(inputs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _run_checklist_consistency_check(inputs: dict[str, Any]) -> dict[str, Any]:
+    raw_checks = inputs.get("checks")
+    if not isinstance(raw_checks, list) or not raw_checks:
+        raise ValueError("checks must be a non-empty list")
+
+    checks = [_checklist_item(row, index) for index, row in enumerate(raw_checks)]
+    unchecked = [item["name"] for item in checks if item["status"] in {"unchecked", "unknown"}]
+    failed = [item["name"] for item in checks if item["status"] in {"failed", "invalid"}]
+    return {
+        "check_count": len(checks),
+        "checked_count": len(checks) - len(unchecked) - len(failed),
+        "unchecked_items": unchecked,
+        "failed_items": failed,
+        "all_checked": not unchecked and not failed,
+        "checks": checks,
+    }
+
+
+def _checklist_item(row: Any, index: int) -> dict[str, str]:
+    if not isinstance(row, dict):
+        raise ValueError(f"checks[{index}] must be an object")
+    name = row.get("name")
+    if not isinstance(name, str) or not name:
+        raise ValueError(f"checks[{index}].name must be a non-empty string")
+    status = str(row.get("status", "")).strip().lower()
+    if status not in {"checked", "unchecked", "unknown", "failed", "invalid"}:
+        raise ValueError(f"checks[{index}].status must be checked, unchecked, unknown, failed, or invalid")
+    note = row.get("note")
+    if not isinstance(note, str) or not note.strip():
+        raise ValueError(f"checks[{index}].note must be a non-empty string")
+    return {"name": name, "status": status, "note": note.strip()}
+
+
 def _metric_result(row: Any, index: int) -> dict[str, Any]:
     if not isinstance(row, dict):
         raise ValueError(f"metrics[{index}] must be an object")
@@ -304,6 +375,10 @@ def _number_from(inputs: dict[str, Any], key: str, path: str) -> float:
 
 
 def _infer_evidence_status(outputs: dict[str, Any]) -> str:
+    if outputs.get("all_checked") is True:
+        return "supports"
+    if outputs.get("all_checked") is False:
+        return "refutes"
     if outputs.get("all_within_tolerance") is True:
         return "supports"
     if outputs.get("all_within_tolerance") is False:
