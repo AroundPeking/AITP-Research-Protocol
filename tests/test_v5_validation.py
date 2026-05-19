@@ -238,9 +238,8 @@ def test_human_checkpoint_contract_rejects_empty_options(tmp_path):
 
 
 def test_human_checkpoint_contract_rejects_invalid_decision(tmp_path):
+    """Kernel-level validation rejects invalid decision before writing."""
     from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
-    from brain.v5.contracts import ContractError
-    from brain.v5.public_surfaces import require_valid_public_surface
     from brain.v5.workspace import create_topic, init_workspace
 
     ws = init_workspace(tmp_path)
@@ -250,13 +249,11 @@ def test_human_checkpoint_contract_rejects_invalid_decision(tmp_path):
         ws, topic_id="fqhe", claim_id="claim-fqhe",
         reason="test", requested_by="test", options=["approve", "reject"],
     )
-    decided = decide_human_checkpoint(
-        ws, checkpoint_id=checkpoint.checkpoint_id,
-        decision="invalid_choice", rationale="test", decided_by="human",
-    )
-    payload = {"ok": True, **asdict(decided)}
-    with pytest.raises(ContractError, match="decision"):
-        require_valid_public_surface("human_checkpoint_record", payload)
+    with pytest.raises(ValueError, match="decision.*must be one of options"):
+        decide_human_checkpoint(
+            ws, checkpoint_id=checkpoint.checkpoint_id,
+            decision="invalid_choice", rationale="test", decided_by="human",
+        )
 
 
 def test_human_checkpoint_persists(tmp_path):
@@ -315,3 +312,46 @@ def test_human_checkpoint_runtime_entrypoint():
     ep = runtime_entrypoints()
     assert "request_human_checkpoint" in ep
     assert ep["request_human_checkpoint"]["surface"] == "human_checkpoint_record"
+
+
+def test_decide_human_checkpoint_kernel_rejects_decision_not_in_options(tmp_path):
+    """Kernel must reject a decision that is not in the declared options."""
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    checkpoint = request_human_checkpoint(
+        ws, topic_id="fqhe", claim_id="claim-fqhe",
+        reason="test", requested_by="test", options=["revise", "reject"],
+    )
+    with pytest.raises(ValueError, match="decision.*must be one of options"):
+        decide_human_checkpoint(
+            ws, checkpoint_id=checkpoint.checkpoint_id,
+            decision="approve", rationale="sneaky", decided_by="human",
+        )
+
+
+def test_invalid_decision_checkpoint_blocks_promotion(tmp_path):
+    """A checkpoint with wrong decision must not be usable for promotion."""
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.memory import apply_promotion_packet, create_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(ws, topic_id="fqhe",
+        statement="Test claim", evidence_profile="toy_numeric",
+        confidence_state="hypothesis", active_uncertainty="test")
+    packet = create_promotion_packet(ws, topic_id="fqhe", claim_id=claim.claim_id,
+        proposed_memory_kind="scoped_claim", scope="test scope",
+        evidence_refs=["ev-1"], known_failure_modes=["test"])
+    checkpoint = request_human_checkpoint(ws, topic_id="fqhe", claim_id=claim.claim_id,
+        reason="test", requested_by="test", options=["approve", "revise"])
+    decided = decide_human_checkpoint(ws, checkpoint_id=checkpoint.checkpoint_id,
+        decision="revise", rationale="Not ready", decided_by="human")
+    assert decided.decision == "revise"
+
+    with pytest.raises(ValueError, match="decision was"):
+        apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id=checkpoint.checkpoint_id)

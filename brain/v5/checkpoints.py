@@ -49,6 +49,8 @@ def decide_human_checkpoint(
 ) -> HumanCheckpointRecord:
     records = list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord)
     target = next(r for r in records if r.checkpoint_id == checkpoint_id)
+    if decision not in target.options:
+        raise ValueError(f"decision {decision!r} must be one of options {target.options}")
     target.status = "decided"
     target.decision = decision
     target.rationale = rationale

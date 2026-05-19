@@ -46,6 +46,13 @@ def apply_promotion_packet(
     packet_path = ws.registry_dir("promotion_packets") / f"{packet_id}.md"
     packet = read_record(packet_path, PromotionPacketRecord)
 
+    if not packet.scope:
+        raise ValueError("promotion packet scope must not be empty")
+    if not packet.evidence_refs:
+        raise ValueError("promotion packet evidence_refs must not be empty")
+    if not packet.known_failure_modes:
+        raise ValueError("promotion packet known_failure_modes must not be empty")
+
     chk_path = ws.registry_dir("checkpoints") / f"{checkpoint_id}.md"
     checkpoint = read_record(chk_path, HumanCheckpointRecord)
 

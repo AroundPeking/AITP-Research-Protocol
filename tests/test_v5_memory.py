@@ -177,3 +177,79 @@ def test_apply_promotion_requires_approved_human_checkpoint(tmp_path):
     assert memory.kind == "memory_entry"
     assert memory.source_claim_id == claim.claim_id
     assert memory.evidence_refs == ["evidence-counting"]
+
+
+def test_apply_promotion_rejects_packet_with_empty_evidence_refs(tmp_path):
+    """A packet with empty evidence_refs must not be promotable to L2."""
+    import pytest
+
+    from brain.v5.memory import apply_promotion_packet, create_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(ws, topic_id="fqhe", statement="test", evidence_profile="toy_numeric",
+        confidence_state="hypothesis", active_uncertainty="test")
+    # Manually create a packet with empty evidence_refs (kernel allows creation, but promotion must reject)
+    from brain.v5.store import write_record
+    from brain.v5.ids import prefixed_id
+    from brain.v5.models import PromotionPacketRecord
+    packet_id = prefixed_id("packet", claim.claim_id)
+    packet = PromotionPacketRecord(
+        packet_id=packet_id, topic_id="fqhe", claim_id=claim.claim_id,
+        scope="test", evidence_refs=[], known_failure_modes=["test"],
+    )
+    write_record(ws.registry_dir("promotion_packets") / f"{packet_id}.md", packet)
+
+    with pytest.raises(ValueError, match="evidence_refs"):
+        apply_promotion_packet(ws, packet_id=packet_id, checkpoint_id="bypass")
+
+
+def test_apply_promotion_rejects_packet_with_empty_failure_modes(tmp_path):
+    """A packet with empty known_failure_modes must not be promotable to L2."""
+    import pytest
+
+    from brain.v5.memory import apply_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+    from brain.v5.store import write_record
+    from brain.v5.ids import prefixed_id
+    from brain.v5.models import PromotionPacketRecord
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(ws, topic_id="fqhe", statement="test", evidence_profile="toy_numeric",
+        confidence_state="hypothesis", active_uncertainty="test")
+    packet_id = prefixed_id("packet", claim.claim_id)
+    packet = PromotionPacketRecord(
+        packet_id=packet_id, topic_id="fqhe", claim_id=claim.claim_id,
+        scope="test", evidence_refs=["ev-1"], known_failure_modes=[],
+    )
+    write_record(ws.registry_dir("promotion_packets") / f"{packet_id}.md", packet)
+
+    with pytest.raises(ValueError, match="failure_modes"):
+        apply_promotion_packet(ws, packet_id=packet_id, checkpoint_id="bypass")
+
+
+def test_apply_promotion_rejects_packet_with_empty_scope(tmp_path):
+    """A packet with empty scope must not be promotable to L2."""
+    import pytest
+
+    from brain.v5.memory import apply_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+    from brain.v5.store import write_record
+    from brain.v5.ids import prefixed_id
+    from brain.v5.models import PromotionPacketRecord
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(ws, topic_id="fqhe", statement="test", evidence_profile="toy_numeric",
+        confidence_state="hypothesis", active_uncertainty="test")
+    packet_id = prefixed_id("packet", claim.claim_id)
+    packet = PromotionPacketRecord(
+        packet_id=packet_id, topic_id="fqhe", claim_id=claim.claim_id,
+        scope="", evidence_refs=["ev-1"], known_failure_modes=["test"],
+    )
+    write_record(ws.registry_dir("promotion_packets") / f"{packet_id}.md", packet)
+
+    with pytest.raises(ValueError, match="scope"):
+        apply_promotion_packet(ws, packet_id=packet_id, checkpoint_id="bypass")
