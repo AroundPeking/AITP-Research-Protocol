@@ -221,20 +221,19 @@ def test_human_checkpoint_records_reason_and_decision(tmp_path):
 
 def test_human_checkpoint_contract_rejects_empty_options(tmp_path):
     from brain.v5.checkpoints import request_human_checkpoint
-    from brain.v5.contracts import ContractError
-    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.models import HumanCheckpointRecord
+    from brain.v5.store import list_records
     from brain.v5.workspace import create_topic, init_workspace
 
     ws = init_workspace(tmp_path)
     create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
 
-    checkpoint = request_human_checkpoint(
-        ws, topic_id="fqhe", claim_id="claim-fqhe",
-        reason="test", requested_by="test", options=[],
-    )
-    payload = {"ok": True, **asdict(checkpoint)}
-    with pytest.raises(ContractError, match="options"):
-        require_valid_public_surface("human_checkpoint_record", payload)
+    with pytest.raises(ValueError, match="options"):
+        request_human_checkpoint(
+            ws, topic_id="fqhe", claim_id="claim-fqhe",
+            reason="test", requested_by="test", options=[],
+        )
+    assert list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord) == []
 
 
 def test_human_checkpoint_contract_rejects_invalid_decision(tmp_path):

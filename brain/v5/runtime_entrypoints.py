@@ -123,6 +123,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_create_promotion_packet",
         "surface": "promotion_packet_record",
     },
+    "apply_promotion_packet": {
+        "cli": "aitp-v5 promotion packet apply <args>",
+        "mcp": "aitp_v5_apply_promotion_packet",
+        "surface": "memory_entry_record",
+    },
 }
 
 
@@ -372,5 +377,11 @@ def _sample_args_for_template(template: str) -> list[str]:
             "evidence-1",
             "--failure-mode",
             "misassignment",
+        ]
+    if template.startswith("promotion packet apply"):
+        return [
+            "packet-fqhe",
+            "--checkpoint",
+            "checkpoint-fqhe",
         ]
     return []

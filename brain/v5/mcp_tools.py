@@ -18,7 +18,7 @@ from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.validation import create_validation_contract
 from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
-from brain.v5.memory import create_promotion_packet
+from brain.v5.memory import apply_promotion_packet, create_promotion_packet
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.summaries import read_summary_orientation, write_session_summary
@@ -257,6 +257,13 @@ def aitp_v5_create_promotion_packet(
         proposed_memory_kind=proposed_memory_kind, scope=scope, evidence_refs=evidence_refs,
         non_claims=non_claims, known_failure_modes=known_failure_modes)
     return require_valid_public_surface("promotion_packet_record", {"ok": True, **asdict(pkt)})
+
+
+def aitp_v5_apply_promotion_packet(
+    base: str, *, packet_id: str, checkpoint_id: str,
+) -> dict:
+    entry = apply_promotion_packet(_ws(base), packet_id=packet_id, checkpoint_id=checkpoint_id)
+    return require_valid_public_surface("memory_entry_record", {"ok": True, **asdict(entry)})
 
 
 def aitp_v5_preflight_trust_update(

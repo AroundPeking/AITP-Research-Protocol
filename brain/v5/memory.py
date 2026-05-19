@@ -19,6 +19,15 @@ def create_promotion_packet(
     non_claims: list[str] | None = None,
     known_failure_modes: list[str] | None = None,
 ) -> PromotionPacketRecord:
+    if not proposed_memory_kind:
+        raise ValueError("proposed_memory_kind must not be empty")
+    if not scope:
+        raise ValueError("promotion packet scope must not be empty")
+    if not evidence_refs:
+        raise ValueError("promotion packet evidence_refs must not be empty")
+    if not known_failure_modes:
+        raise ValueError("promotion packet known_failure_modes must not be empty")
+
     packet_id = prefixed_id("packet", claim_id)
     packet = PromotionPacketRecord(
         packet_id=packet_id,
@@ -56,6 +65,8 @@ def apply_promotion_packet(
     chk_path = ws.registry_dir("checkpoints") / f"{checkpoint_id}.md"
     checkpoint = read_record(chk_path, HumanCheckpointRecord)
 
+    if checkpoint.topic_id != packet.topic_id or checkpoint.claim_id != packet.claim_id:
+        raise ValueError("approved human checkpoint must belong to the same topic and claim as the promotion packet")
     if checkpoint.status != "decided":
         raise ValueError("approved human checkpoint is required — checkpoint not decided")
     if checkpoint.decision != "approve":

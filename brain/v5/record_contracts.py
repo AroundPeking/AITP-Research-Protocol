@@ -210,6 +210,36 @@ def require_valid_promotion_packet_record(payload: dict[str, Any]) -> dict[str, 
     return _require_valid(validate_promotion_packet_record(payload), payload)
 
 
+def validate_memory_entry_record(payload: dict[str, Any], *, path: str = "memory_entry_record") -> ContractResult:
+    result = _validate_base_record(payload, path, kind="memory_entry")
+    if result.issues:
+        return result
+    for key in (
+        "entry_id",
+        "topic_id",
+        "source_claim_id",
+        "source_topic_id",
+        "statement",
+        "memory_kind",
+        "scope",
+        "source_packet_id",
+        "human_checkpoint_id",
+        "status",
+    ):
+        _require_nonempty_str(payload, key, path, result)
+    evidence = payload.get("evidence_refs")
+    _require_list(evidence, f"{path}.evidence_refs", result)
+    if isinstance(evidence, list) and len(evidence) == 0:
+        result.add(f"{path}.evidence_refs", "must not be empty — memory entries require evidence")
+    for key in ("non_claims", "known_failure_modes"):
+        _require_list(payload.get(key), f"{path}.{key}", result)
+    return result
+
+
+def require_valid_memory_entry_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return _require_valid(validate_memory_entry_record(payload), payload)
+
+
 def _validate_base_record(payload: Any, path: str, *, kind: str) -> ContractResult:
     result = ContractResult()
     _require_mapping(payload, path, result)

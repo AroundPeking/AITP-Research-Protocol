@@ -12,6 +12,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "execution_brief",
         "human_checkpoint_record",
         "knowledge_connector_catalog",
+        "memory_entry_record",
         "object_relation_record",
         "physics_object_record",
         "promotion_packet_record",
@@ -109,11 +110,29 @@ def test_public_surface_validator_accepts_typed_write_records():
         "expected_outputs": ["benchmark_consistency"],
         "invariants": ["same upstream commit"],
     }
+    memory = {
+        "ok": True,
+        "kind": "memory_entry",
+        "entry_id": "memory-fqhe-counting",
+        "topic_id": "fqhe",
+        "source_claim_id": "claim-fqhe-counting",
+        "source_topic_id": "fqhe",
+        "statement": "Counting identifies the edge CFT in the recorded sector.",
+        "memory_kind": "scoped_claim",
+        "scope": "N<=10 ED",
+        "evidence_refs": ["evidence-counting"],
+        "non_claims": ["Does not prove thermodynamic limit."],
+        "known_failure_modes": ["sector misassignment"],
+        "source_packet_id": "packet-fqhe-counting",
+        "human_checkpoint_id": "checkpoint-fqhe-counting",
+        "status": "active",
+    }
 
     assert require_valid_public_surface("evidence_record", evidence) == evidence
     assert require_valid_public_surface("tool_run_record", tool_run) == tool_run
     assert require_valid_public_surface("code_state_record", code_state) == code_state
     assert require_valid_public_surface("tool_recipe_record", recipe) == recipe
+    assert require_valid_public_surface("memory_entry_record", memory) == memory
 
 
 def test_adapter_registry_exposes_public_surface_contract_names():

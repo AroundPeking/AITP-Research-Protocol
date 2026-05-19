@@ -17,6 +17,8 @@ def request_human_checkpoint(
     requested_by: str,
     options: list[str] | None = None,
 ) -> HumanCheckpointRecord:
+    if not options:
+        raise ValueError("checkpoint options must not be empty")
     checkpoint_id = prefixed_id(
         "checkpoint",
         f"{topic_id}:{claim_id}:{reason}:{requested_by}",

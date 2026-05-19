@@ -48,33 +48,65 @@ def test_create_promotion_packet_requires_evidence_and_scope(tmp_path):
 def test_promotion_packet_rejects_empty_evidence_refs(tmp_path):
     ws, claim = _setup_claim(tmp_path)
 
-    from brain.v5.contracts import ContractError
     from brain.v5.memory import create_promotion_packet
-    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.models import PromotionPacketRecord
+    from brain.v5.store import list_records
 
-    packet = create_promotion_packet(
-        ws, topic_id="fqhe", claim_id=claim.claim_id,
-        proposed_memory_kind="scoped_claim", scope="test",
-        evidence_refs=[], known_failure_modes=["test"],
-    )
-    with pytest.raises(ContractError, match="evidence_refs"):
-        require_valid_public_surface("promotion_packet_record", {"ok": True, **asdict(packet)})
+    with pytest.raises(ValueError, match="evidence_refs"):
+        create_promotion_packet(
+            ws, topic_id="fqhe", claim_id=claim.claim_id,
+            proposed_memory_kind="scoped_claim", scope="test",
+            evidence_refs=[], known_failure_modes=["test"],
+        )
+    assert list_records(ws.registry_dir("promotion_packets"), PromotionPacketRecord) == []
 
 
 def test_promotion_packet_rejects_empty_failure_modes(tmp_path):
     ws, claim = _setup_claim(tmp_path)
 
-    from brain.v5.contracts import ContractError
     from brain.v5.memory import create_promotion_packet
-    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.models import PromotionPacketRecord
+    from brain.v5.store import list_records
 
-    packet = create_promotion_packet(
-        ws, topic_id="fqhe", claim_id=claim.claim_id,
-        proposed_memory_kind="scoped_claim", scope="test",
-        evidence_refs=["evidence-1"], known_failure_modes=[],
-    )
-    with pytest.raises(ContractError, match="failure_modes"):
-        require_valid_public_surface("promotion_packet_record", {"ok": True, **asdict(packet)})
+    with pytest.raises(ValueError, match="known_failure_modes"):
+        create_promotion_packet(
+            ws, topic_id="fqhe", claim_id=claim.claim_id,
+            proposed_memory_kind="scoped_claim", scope="test",
+            evidence_refs=["evidence-1"], known_failure_modes=[],
+        )
+    assert list_records(ws.registry_dir("promotion_packets"), PromotionPacketRecord) == []
+
+
+def test_promotion_packet_rejects_empty_scope_before_write(tmp_path):
+    ws, claim = _setup_claim(tmp_path)
+
+    from brain.v5.memory import create_promotion_packet
+    from brain.v5.models import PromotionPacketRecord
+    from brain.v5.store import list_records
+
+    with pytest.raises(ValueError, match="scope"):
+        create_promotion_packet(
+            ws, topic_id="fqhe", claim_id=claim.claim_id,
+            proposed_memory_kind="scoped_claim", scope="",
+            evidence_refs=["evidence-1"], known_failure_modes=["test"],
+        )
+    assert list_records(ws.registry_dir("promotion_packets"), PromotionPacketRecord) == []
+
+
+def test_promotion_packet_rejects_empty_memory_kind_before_write(tmp_path):
+    ws, claim = _setup_claim(tmp_path)
+
+    from brain.v5.memory import create_promotion_packet
+    from brain.v5.models import PromotionPacketRecord
+    from brain.v5.store import list_records
+
+    with pytest.raises(ValueError, match="proposed_memory_kind"):
+        create_promotion_packet(
+            ws, topic_id="fqhe", claim_id=claim.claim_id,
+            proposed_memory_kind="", scope="test scope",
+            evidence_refs=["evidence-1"], known_failure_modes=["test"],
+        )
+    assert list_records(ws.registry_dir("promotion_packets"), PromotionPacketRecord) == []
 
 
 def test_promotion_packet_persists(tmp_path):
@@ -305,3 +337,121 @@ def test_apply_promotion_populates_memory_entry_and_packet_fields(tmp_path):
     )
     assert refreshed_packet.status == "promoted"
     assert refreshed_packet.human_checkpoint_id == checkpoint.checkpoint_id
+
+
+def test_apply_promotion_rejects_checkpoint_for_different_claim(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.memory import apply_promotion_packet, create_promotion_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim_a = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Claim A.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="promotion readiness",
+    )
+    claim_b = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Claim B.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="promotion readiness",
+    )
+    packet = create_promotion_packet(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim_a.claim_id,
+        scope="claim A scope",
+        evidence_refs=["evidence-a"],
+        known_failure_modes=["failure-a"],
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim_b.claim_id,
+        reason="Approve different claim.",
+        requested_by="risk_policy",
+        options=["approve"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="Only claim B is approved.",
+        decided_by="human",
+    )
+
+    with pytest.raises(ValueError, match="same topic and claim"):
+        apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id=checkpoint.checkpoint_id)
+
+
+def test_promotion_apply_cli_mcp_and_runtime_surface(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_apply_promotion_packet
+    from brain.v5.memory import create_promotion_packet
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Counting identifies the edge CFT in the recorded sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="locally_checked",
+        active_uncertainty="promotion readiness",
+    )
+    packet = create_promotion_packet(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        scope="fixed sector ED",
+        evidence_refs=["evidence-counting"],
+        known_failure_modes=["sector misassignment"],
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        reason="L2 promotion",
+        requested_by="risk_policy",
+        options=["approve"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="Evidence and scope are explicit.",
+        decided_by="human",
+    )
+
+    assert main([
+        "--base", str(tmp_path), "promotion", "packet", "apply",
+        packet.packet_id, "--checkpoint", checkpoint.checkpoint_id,
+    ]) == 0
+
+    packet2 = create_promotion_packet(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        proposed_memory_kind="scoped_claim_v2",
+        scope="fixed sector ED v2",
+        evidence_refs=["evidence-counting-v2"],
+        known_failure_modes=["sector misassignment"],
+    )
+    result = aitp_v5_apply_promotion_packet(
+        str(tmp_path),
+        packet_id=packet2.packet_id,
+        checkpoint_id=checkpoint.checkpoint_id,
+    )
+    assert result["ok"] is True
+    assert result["kind"] == "memory_entry"
+    assert result["statement"] == claim.statement
+    assert runtime_entrypoints()["apply_promotion_packet"]["surface"] == "memory_entry_record"

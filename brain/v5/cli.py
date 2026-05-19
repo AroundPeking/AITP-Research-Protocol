@@ -22,7 +22,7 @@ from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.validation import create_validation_contract
 from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
-from brain.v5.memory import create_promotion_packet
+from brain.v5.memory import apply_promotion_packet, create_promotion_packet
 from brain.v5.risk import assess_claim_risk
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
@@ -198,6 +198,9 @@ def _build_parser() -> argparse.ArgumentParser:
     pc.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     pc.add_argument("--non-claim", action="append", default=[], dest="non_claims")
     pc.add_argument("--failure-mode", action="append", default=[], dest="known_failure_modes")
+    pa = pkts.add_parser("apply")
+    pa.add_argument("packet_id")
+    pa.add_argument("--checkpoint", required=True, dest="checkpoint_id")
 
     tp2 = sp.add_parser("trust"); ts2 = tp2.add_subparsers(dest="trust_command", required=True)
     _add_trust_request_args(ts2.add_parser("preflight")); _add_trust_request_args(ts2.add_parser("apply"))
@@ -351,6 +354,10 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             evidence_refs=args.evidence_refs, non_claims=args.non_claims,
             known_failure_modes=args.known_failure_modes)
         return {"ok": True, **require_valid_public_surface("promotion_packet_record", {"ok": True, **asdict(pkt)})}
+
+    if args.command == "promotion" and args.promotion_command == "packet" and args.promotion_packet_command == "apply":
+        entry = apply_promotion_packet(ws, packet_id=args.packet_id, checkpoint_id=args.checkpoint_id)
+        return {"ok": True, **require_valid_public_surface("memory_entry_record", {"ok": True, **asdict(entry)})}
 
     raise SystemExit(f"unsupported command: {args.command}")
 
