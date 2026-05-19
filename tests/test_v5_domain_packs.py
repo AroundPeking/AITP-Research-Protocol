@@ -99,6 +99,34 @@ def test_execution_brief_exposes_domain_tool_executor_recommendations(tmp_path):
     assert recommendations[0]["recipe_id"] == "recipe-librpa-gw-benchmark-table"
 
 
+def test_execution_brief_promotes_recommended_executor_into_next_action(tmp_path):
+    from brain.v5.brief import build_execution_brief
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The FQHE edge-sector counting table matches the expected sequence.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size artifact may mimic counting",
+    )
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
+
+    brief = build_execution_brief(ws, "s1")
+
+    action = brief["next_action_candidates"][0]
+    assert action["action"] == "execute_recommended_tool"
+    assert action["executor_id"] == "metric_table_check"
+    assert action["recipe_id"] == "recipe-fqhe-counting-table"
+    assert action["supports_outputs"] == ["evidence_or_provenance", "minimal_check"]
+    assert action["satisfies_missing_outputs"] == ["evidence_or_provenance", "minimal_check"]
+    assert action["input_schema"]["required"] == ["metrics"]
+    assert action["rank"] == 1
+
+
 def test_register_domain_pack_writes_record_under_tools_domain_packs(tmp_path):
     from brain.v5.domain_packs import builtin_domain_packs, register_domain_pack
     from brain.v5.markdown import read_md

@@ -26,6 +26,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     risk = None
     questions = []
     evidence_records = []
+    recommended_tool_executors = []
 
     if session.active_claim:
         claim = get_claim(ws, session.active_claim)
@@ -33,6 +34,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         flow = resolve_flow_profile(claim, assessment=risk)
         questions = generate_questions(claim, flow)
         evidence_records = list_evidence_for_claim(ws, claim.claim_id)
+        recommended_tool_executors = suggest_tool_executors_for_claim(claim)
 
     action_budget = risk.action_budget if risk and risk.action_budget else action_budget_for_level("guided")
     evidence_coverage = required_output_coverage(
@@ -73,10 +75,17 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
                 }
             )
         elif flow.profile == "rigorous":
+            executor_action = _recommended_executor_action(
+                recommended_tool_executors,
+                missing_outputs=evidence_coverage.missing_outputs,
+                why=flow.reason,
+            )
+            if executor_action:
+                next_action_candidates.append(executor_action)
             next_action_candidates.append(
                 {
                     "action": "collect_required_evidence_or_provenance",
-                    "rank": 1,
+                    "rank": 2 if executor_action else 1,
                     "why": flow.reason,
                     "expected_evidence_gain": "turn a plausible claim into auditable evidence",
                 }
@@ -111,7 +120,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "topic_id": session.topic_id,
             "context_id": session.context_id,
             "previous_failed_attempts": [],
-            "recommended_tool_executors": suggest_tool_executors_for_claim(claim) if claim else [],
+            "recommended_tool_executors": recommended_tool_executors,
         },
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,
@@ -133,6 +142,37 @@ def _forbidden_actions(profile: str) -> list[str]:
     if profile == "adversarial":
         return ["ignore_counterargument", "promote_without_human_checkpoint"]
     return ["change_claim_confidence_without_evidence"]
+
+
+def _recommended_executor_action(
+    recommendations: list[dict],
+    *,
+    missing_outputs: list[str],
+    why: str,
+) -> dict[str, Any] | None:
+    missing = set(missing_outputs)
+    for recommendation in recommendations:
+        supported = [output for output in recommendation.get("supports_outputs", []) if output in missing]
+        if not supported:
+            continue
+        executor = recommendation.get("executor", {})
+        return {
+            "action": "execute_recommended_tool",
+            "rank": 1,
+            "why": f"{why}; domain pack recommends this safe executor for missing evidence outputs",
+            "expected_evidence_gain": "create a ToolRunRecord and linked EvidenceRecord for missing required outputs",
+            "executor_id": recommendation["executor_id"],
+            "recipe_id": recommendation["recipe_id"],
+            "pack_id": recommendation["pack_id"],
+            "domain": recommendation["domain"],
+            "supports_outputs": recommendation.get("supports_outputs", []),
+            "satisfies_missing_outputs": supported,
+            "evidence_type": recommendation.get("evidence_type", "tool_run"),
+            "required_context_refs": recommendation.get("required_context_refs", []),
+            "use_when": recommendation.get("use_when", ""),
+            "input_schema": executor.get("input_schema", {}),
+        }
+    return None
 
 
 def _linked_code_states(ws, claim_id: str) -> list[CodeStateRecord]:
