@@ -303,6 +303,30 @@ def require_valid_tool_executor_catalog(payload: dict[str, Any]) -> dict[str, An
     return _require_valid_tool_executor_catalog(payload)
 
 
+def validate_knowledge_connector_catalog(
+    payload: dict[str, Any],
+    *,
+    path: str = "knowledge_connector_catalog",
+) -> ContractResult:
+    """Validate a public knowledge-connector catalog payload."""
+
+    from brain.v5.knowledge_connector_contracts import (
+        validate_knowledge_connector_catalog as _validate_knowledge_connector_catalog,
+    )
+
+    return _validate_knowledge_connector_catalog(payload, path=path)
+
+
+def require_valid_knowledge_connector_catalog(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a knowledge-connector catalog payload or raise a contract error."""
+
+    from brain.v5.knowledge_connector_contracts import (
+        require_valid_knowledge_connector_catalog as _require_valid_knowledge_connector_catalog,
+    )
+
+    return _require_valid_knowledge_connector_catalog(payload)
+
+
 def validate_risk_assessment(payload: dict[str, Any], *, path: str = "risk_assessment") -> ContractResult:
     """Validate a risk assessment payload."""
 

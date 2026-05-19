@@ -9,6 +9,7 @@ from brain.v5.domain_packs import suggest_tool_executors_for_claim
 from brain.v5.evidence import list_evidence_for_claim, required_output_coverage
 from brain.v5.flow import resolve_flow_profile
 from brain.v5.interaction import prioritize_questions, resolve_interaction_profile
+from brain.v5.knowledge_connectors import suggest_knowledge_connectors_for_claim
 from brain.v5.models import ClaimRecord, CodeStateRecord
 from brain.v5.policy import evaluate_policy
 from brain.v5.question_engine import generate_questions
@@ -27,6 +28,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     questions = []
     evidence_records = []
     recommended_tool_executors = []
+    knowledge_connectors = []
 
     if session.active_claim:
         claim = get_claim(ws, session.active_claim)
@@ -35,6 +37,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         questions = generate_questions(claim, flow)
         evidence_records = list_evidence_for_claim(ws, claim.claim_id)
         recommended_tool_executors = suggest_tool_executors_for_claim(claim)
+        knowledge_connectors = suggest_knowledge_connectors_for_claim(claim)
 
     action_budget = risk.action_budget if risk and risk.action_budget else action_budget_for_level("guided")
     evidence_coverage = required_output_coverage(
@@ -121,6 +124,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "context_id": session.context_id,
             "previous_failed_attempts": [],
             "recommended_tool_executors": recommended_tool_executors,
+            "knowledge_connectors": knowledge_connectors,
         },
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,

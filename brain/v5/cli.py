@@ -14,6 +14,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
+from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 from brain.v5.risk import assess_claim_risk
@@ -156,6 +157,10 @@ def _build_parser() -> argparse.ArgumentParser:
     tool_execute.add_argument("--supports-output", action="append", default=[], dest="supports_outputs")
     tool_execute.add_argument("--evidence-type", default="tool_run")
     tool_execute.add_argument("--evidence-summary", default="")
+
+    knowledge_parser = subparsers.add_parser("knowledge")
+    knowledge_sub = knowledge_parser.add_subparsers(dest="knowledge_command", required=True)
+    knowledge_sub.add_parser("connectors")
 
     summary_parser = subparsers.add_parser("summary")
     summary_sub = summary_parser.add_subparsers(dest="summary_command", required=True)
@@ -327,6 +332,9 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             payload["evidence_id"] = result.evidence.evidence_id
             payload["evidence"] = evidence
         return {"ok": True, **require_valid_public_surface("tool_run_record", payload)}
+
+    if args.command == "knowledge" and args.knowledge_command == "connectors":
+        return require_valid_public_surface("knowledge_connector_catalog", describe_knowledge_connectors())
 
     if args.command == "summary" and args.summary_command == "session":
         return {

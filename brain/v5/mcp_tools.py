@@ -10,6 +10,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
+from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 from brain.v5.risk import assess_claim_risk
@@ -269,6 +270,10 @@ def aitp_v5_execute_tool(
 
 def aitp_v5_list_tool_executors() -> dict:
     return require_valid_public_surface("tool_executor_catalog", describe_tool_executors())
+
+
+def aitp_v5_list_knowledge_connectors() -> dict:
+    return require_valid_public_surface("knowledge_connector_catalog", describe_knowledge_connectors())
 
 
 def aitp_v5_write_session_summary(base: str, *, session_id: str) -> dict:
