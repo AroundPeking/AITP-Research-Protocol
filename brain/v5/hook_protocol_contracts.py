@@ -107,6 +107,11 @@ def validate_codex_hook_bridge(
         f"{path}.pre_tool_policy_entrypoint",
         result,
     )
+    _validate_pre_tool_event_entrypoint(
+        payload.get("pre_tool_event_entrypoint"),
+        f"{path}.pre_tool_event_entrypoint",
+        result,
+    )
     _validate_gate_protocols(payload.get("gate_protocols"), f"{path}.gate_protocols", result)
 
     for key in ("installation_mode", "path"):
@@ -167,6 +172,11 @@ def validate_opencode_plugin_bridge(
         _validate_pre_tool_policy_entrypoint(
             bridge.get("pre_tool_policy_entrypoint"),
             f"{path}.plugin_bridge.pre_tool_policy_entrypoint",
+            result,
+        )
+        _validate_pre_tool_event_entrypoint(
+            bridge.get("pre_tool_event_entrypoint"),
+            f"{path}.plugin_bridge.pre_tool_event_entrypoint",
             result,
         )
         _validate_gate_protocols(bridge.get("gate_protocols"), f"{path}.plugin_bridge.gate_protocols", result)
@@ -420,6 +430,26 @@ def _validate_pre_tool_policy_entrypoint(payload: Any, path: str, result: Contra
         "summary_inputs_trusted": False,
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
+    }
+    for key, value in expected.items():
+        if payload.get(key) != value:
+            result.add(f"{path}.{key}", f"must be {value!r}")
+
+
+def _validate_pre_tool_event_entrypoint(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    expected = {
+        "cli": "aitp-v5 adapter pre-tool-event <runtime> <session-id> <args>",
+        "mcp": "aitp_v5_evaluate_adapter_pre_tool_event",
+        "surface": "pre_tool_policy_decision",
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+        "requires_bridge_payload": True,
+        "requires_platform_event": True,
     }
     for key, value in expected.items():
         if payload.get(key) != value:

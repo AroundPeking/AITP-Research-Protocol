@@ -331,6 +331,17 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
     assert payload["summary_inputs_trusted"] is False
     assert payload["can_update_kernel_state"] is False
     assert payload["pre_tool_policy_entrypoint"]["surface"] == "pre_tool_policy_decision"
+    assert payload["pre_tool_event_entrypoint"] == {
+        "cli": "aitp-v5 adapter pre-tool-event <runtime> <session-id> <args>",
+        "mcp": "aitp_v5_evaluate_adapter_pre_tool_event",
+        "surface": "pre_tool_policy_decision",
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+        "requires_bridge_payload": True,
+        "requires_platform_event": True,
+    }
     assert payload["gate_protocols"]["source_protocol_field"] == "runtime_gate_protocols"
     assert payload["gate_protocols"]["validate_claim"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
     assert payload["gate_protocols"]["validate_claim"]["sequence"][1] == "evaluate_pre_tool_policy"
@@ -510,6 +521,17 @@ def test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet(tmp_path, ca
     assert payload["runtime"] == "opencode"
     assert payload["plugin_bridge"]["lifecycle_calls"][1]["hook_name"] == "pre_tool"
     assert payload["plugin_bridge"]["pre_tool_policy_entrypoint"]["surface"] == "pre_tool_policy_decision"
+    assert payload["plugin_bridge"]["pre_tool_event_entrypoint"] == {
+        "cli": "aitp-v5 adapter pre-tool-event <runtime> <session-id> <args>",
+        "mcp": "aitp_v5_evaluate_adapter_pre_tool_event",
+        "surface": "pre_tool_policy_decision",
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+        "requires_bridge_payload": True,
+        "requires_platform_event": True,
+    }
     assert payload["plugin_bridge"]["gate_protocols"]["source_protocol_field"] == "runtime_gate_protocols"
     assert payload["plugin_bridge"]["gate_protocols"]["validate_claim"]["sequence"][1] == "evaluate_pre_tool_policy"
     assert payload["plugin_bridge"]["gate_protocols"]["promote_to_l2"]["policy_reasons_field"] == "policy_reasons"

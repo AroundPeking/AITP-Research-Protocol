@@ -22,6 +22,17 @@ _PRE_TOOL_POLICY_ENTRYPOINT = {
     "can_update_kernel_state": False,
     "can_update_claim_trust": False,
 }
+_PRE_TOOL_EVENT_ENTRYPOINT = {
+    "cli": "aitp-v5 adapter pre-tool-event <runtime> <session-id> <args>",
+    "mcp": "aitp_v5_evaluate_adapter_pre_tool_event",
+    "surface": "pre_tool_policy_decision",
+    "truth_source": "typed_records",
+    "summary_inputs_trusted": False,
+    "can_update_kernel_state": False,
+    "can_update_claim_trust": False,
+    "requires_bridge_payload": True,
+    "requires_platform_event": True,
+}
 
 
 def build_runtime_hook_installation(runtime: str, runtime_hook_protocols: dict[str, Any]) -> dict[str, Any]:
@@ -72,6 +83,7 @@ def write_codex_hook_bridge(
         "summary_inputs_trusted": False,
         "can_update_kernel_state": False,
         "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
+        "pre_tool_event_entrypoint": deepcopy(_PRE_TOOL_EVENT_ENTRYPOINT),
         "gate_protocols": _gate_protocol_payload(runtime_gate_protocols),
         "path": str(bridge_path),
         "guard_calls": guard_calls,
@@ -115,6 +127,7 @@ def write_opencode_plugin_bridge(
             "setup": ["load AITP skills", "connect AITP MCP server", "read v5 adapter packet"],
             "lifecycle_calls": lifecycle_calls,
             "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
+            "pre_tool_event_entrypoint": deepcopy(_PRE_TOOL_EVENT_ENTRYPOINT),
             "gate_protocols": _gate_protocol_payload(runtime_gate_protocols),
             "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
             "truth_rule": "generated bridge is orientation-only; typed records remain authoritative",
@@ -236,6 +249,13 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
         "- can_update_kernel_state=false",
         "- can_update_claim_trust=false",
         "",
+        "## Adapter Pre-Tool Event",
+        "",
+        "Use `aitp-v5 adapter pre-tool-event <runtime> <session-id> --bridge-json <json> --event-json <json>` to normalize live platform events through the shared policy path.",
+        "",
+        f"- mcp: `{bridge['pre_tool_event_entrypoint']['mcp']}`",
+        f"- surface: `{bridge['pre_tool_event_entrypoint']['surface']}`",
+        "",
         "## Gate Protocols",
         "",
     ]
@@ -293,6 +313,13 @@ def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
         "- truth_source: `typed_records`",
         "- can_update_kernel_state=false",
         "- can_update_claim_trust=false",
+        "",
+        "## Adapter Pre-Tool Event",
+        "",
+        "Use `aitp-v5 adapter pre-tool-event <runtime> <session-id> --bridge-json <json> --event-json <json>` to normalize live platform events through the shared policy path.",
+        "",
+        f"- mcp: `{bridge['plugin_bridge']['pre_tool_event_entrypoint']['mcp']}`",
+        f"- surface: `{bridge['plugin_bridge']['pre_tool_event_entrypoint']['surface']}`",
         "",
         "## Gate Protocols",
         "",
