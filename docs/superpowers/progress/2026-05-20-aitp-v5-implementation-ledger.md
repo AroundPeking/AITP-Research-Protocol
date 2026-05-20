@@ -89,7 +89,7 @@ Each entry should record:
 - Next recommended task:
   - Add post-tool shell adapter and installation docs.
 
-### 8700028 - Document Hook Installation Contract
+### 6f34816 - Document Hook Installation Contract
 
 - Task: document how Codex, Claude Code, and OpenCode should wire v5 hook
   adapters, and establish this implementation ledger.
