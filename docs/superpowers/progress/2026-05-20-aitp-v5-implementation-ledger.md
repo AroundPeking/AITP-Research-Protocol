@@ -703,3 +703,59 @@ Each entry should record:
   - add context-aware Claude/OpenCode/Codex pre-tool policy validation for
     validation and promotion entrypoints, or persist one-time preflight records
     if stricter token replay protection is needed.
+
+### 30a5075 - Add Claude Context PreTool Policy
+
+- Task: make Claude Code `PreToolUse` policy for validation and L2 promotion use
+  active typed workspace context instead of entrypoint names alone.
+- Planning source:
+  - residual risk after `3370330`;
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-goal-instructions.md`;
+  - v5 invariant that validation and promotion must cite typed claim, evidence,
+    and code-state records rather than generated summaries.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `docs/INSTALL_CLAUDE_CODE.md`
+  - hook installation and next-agent planning docs
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_hooks.py`
+- Public/runtime behavior changes:
+  - Claude `PreToolUse` now resolves the v5 workspace, session binding, typed
+    claim, evidence refs, and linked or requested code-state records for
+    `validate_claim` and `promote_to_l2` MCP entrypoints;
+  - context policy reuses `evaluate_policy` instead of duplicating evidence or
+    code-state rules in the hook;
+  - code-method validation without code-state provenance returns a Claude
+    allowed/warn decision with `required_actions=["record_code_state"]`;
+  - L2 promotion without evidence refs returns a Claude deny/block decision with
+    `required_actions=["attach_evidence_ref"]`.
+- Tests:
+  - `aitp_v5_create_validation_contract` on a code-method claim without
+    code-state provenance warns before tool execution;
+  - `aitp_v5_create_promotion_packet` without evidence refs denies before tool
+    execution.
+- Verification:
+  - focused red tests failed because both entrypoints were logged with no policy
+    block;
+  - focused green set:
+    `pytest tests\test_v5_hooks.py::test_claude_hook_script_pre_tool_warns_code_method_validation_without_code_state tests\test_v5_hooks.py::test_claude_hook_script_pre_tool_denies_l2_promotion_without_evidence_refs -q`:
+    2 passed;
+  - regression set
+    `pytest tests\test_v5_hooks.py tests\test_v5_adapters.py
+    tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py
+    tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`:
+    96 passed;
+  - full v5 focused suite: 300 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - source module line counts remained below 500 lines;
+  - `python hooks\aitp_v5_hook.py pre-commit ...`: passed with `mode=log`.
+- Residual risks:
+  - context policy currently covers Claude validation/promotion entrypoints, not
+    every MCP input or all active risk-context dimensions;
+  - OpenCode/Codex native lifecycle pre-tool invocation remains incomplete.
+- Next recommended task:
+  - extend the same context-aware policy to OpenCode/Codex bridge invocation, or
+    add tests for summary-sourced validation/promotion attempts through Claude
+    MCP calls.
