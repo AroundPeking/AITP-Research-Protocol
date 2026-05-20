@@ -1121,3 +1121,55 @@ Each entry should record:
   - continue native Codex/OpenCode lifecycle integration work now that the
     adapter CLI surface has room, or add a focused runtime smoke test consuming
     generated `gate_protocols`.
+
+### b96500c - Consume Bridge Gate Protocols At Runtime
+
+- Task: add a small runtime helper that consumes generated Codex/OpenCode bridge
+  `gate_protocols` and delegates the actual validation/promotion pre-tool
+  decision to the shared typed-record-backed policy surface.
+- Planning source:
+  - residual risk after `b45c2bc` and `718fc8e`;
+  - hook installation plan requirement that Codex/OpenCode adapters consume
+    generated bridge gate metadata rather than scraping prose;
+  - v5 invariant that generated bridges remain orientation-only while decisions
+    are backed by typed kernel records.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `brain/v5/adapter_runtime.py`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `tests/test_v5_bridge_runtime.py`
+- Public/runtime behavior changes:
+  - new `brain.v5.adapter_runtime.evaluate_bridge_gate_pre_tool_policy` helper
+    reads Codex top-level `gate_protocols` or OpenCode
+    `plugin_bridge.gate_protocols`;
+  - the helper verifies the protocol names
+    `aitp_v5_evaluate_pre_tool_policy`, includes `evaluate_pre_tool_policy` in
+    the sequence, and then delegates to `evaluate_context_pre_tool_policy`;
+  - returned `pre_tool_policy_decision` payloads include a
+    `runtime_gate_protocol` audit field showing the consumed action sequence.
+- Tests:
+  - generated Codex and OpenCode bridge payloads both drive a
+    `promote_to_l2` pre-tool policy block through the runtime helper;
+  - returned payloads remain valid `pre_tool_policy_decision` public surfaces.
+- Verification:
+  - red test failed with `ModuleNotFoundError` for
+    `brain.v5.adapter_runtime`;
+  - focused green set:
+    `pytest tests/test_v5_bridge_runtime.py tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_pretool_policy.py tests/test_v5_architecture_boundaries.py -q`:
+    52 passed;
+  - full v5 focused suite: 310 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - source module line counts remained below 500 lines
+    (`adapter_runtime.py`: 65, `cli.py`: 464, `adapter_contracts.py`: 495).
+- Residual risks:
+  - this is still a runtime helper/smoke path, not a native Codex or OpenCode
+    lifecycle installer that automatically invokes it on live tool events;
+  - future installer work should exercise this helper from the platform-specific
+    lifecycle wrapper.
+- Next recommended task:
+  - implement a minimal native Codex/OpenCode lifecycle wrapper or smoke test
+    that maps an actual tool event to `evaluate_bridge_gate_pre_tool_policy`, or
+    broaden pre-tool policy coverage for additional MCP inputs.
