@@ -19,6 +19,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "legacy_migration_result",
         "memory_entry_record",
         "object_relation_record",
+        "opencode_plugin_bridge",
         "physics_object_record",
         "promotion_packet_record",
         "reference_location_record",
@@ -130,6 +131,39 @@ def test_public_surface_validator_accepts_claude_code_hook_installation():
     }
 
     assert require_valid_public_surface("claude_code_hook_installation", payload) == payload
+
+
+def test_public_surface_validator_accepts_opencode_plugin_bridge():
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    payload = {
+        "ok": True,
+        "kind": "opencode_plugin_bridge",
+        "runtime": "opencode",
+        "source_protocol_field": "runtime_hook_installation",
+        "installation_mode": "plugin_bridge",
+        "native_installer_available": False,
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+        "path": ".opencode/AITP_V5_PLUGIN_BRIDGE.md",
+        "plugin_bridge": {
+            "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
+            "lifecycle_calls": [
+                {
+                    "hook_name": "pre_tool",
+                    "lifecycle_event": "pre_tool",
+                    "command": "python hooks/aitp_v5_hook.py pre-tool",
+                    "required_inputs": ["action", "risk_level", "policy_json"],
+                    "output_kind": "hook_decision",
+                    "may_block": True,
+                    "state_mutation": "none",
+                }
+            ],
+        },
+    }
+
+    assert require_valid_public_surface("opencode_plugin_bridge", payload) == payload
 
 
 def test_public_surface_validator_accepts_hook_trace_event_record():

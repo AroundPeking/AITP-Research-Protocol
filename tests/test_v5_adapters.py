@@ -304,6 +304,77 @@ def test_mcp_codex_hook_bridge_wrapper_returns_contract_payload(tmp_path):
     assert bridge_path.exists()
 
 
+def test_opencode_plugin_bridge_is_rendered_from_installation_template(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+    from brain.v5.hook_install_templates import write_opencode_plugin_bridge
+
+    ws, _ = _seed_session(tmp_path)
+    packet = build_adapter_packet(ws, "s1", runtime="opencode")
+    bridge_path = tmp_path / ".opencode" / "AITP_V5_PLUGIN_BRIDGE.md"
+    bridge = write_opencode_plugin_bridge(bridge_path, packet["runtime_hook_installation"])
+
+    assert bridge["kind"] == "opencode_plugin_bridge"
+    assert bridge["runtime"] == "opencode"
+    assert bridge["source_protocol_field"] == "runtime_hook_installation"
+    assert bridge["installation_mode"] == "plugin_bridge"
+    assert bridge["summary_inputs_trusted"] is False
+    assert bridge["can_update_kernel_state"] is False
+    assert bridge["can_update_claim_trust"] is False
+    assert bridge["path"] == str(bridge_path)
+    assert [call["hook_name"] for call in bridge["plugin_bridge"]["lifecycle_calls"]] == [
+        "pre_commit",
+        "pre_tool",
+        "post_tool",
+    ]
+    text = bridge_path.read_text(encoding="utf-8")
+    assert "Generated from `runtime_hook_installation`." in text
+    assert "aitp_v5_persist_hook_trace_event" in text
+    assert "summary_inputs_trusted=false" in text
+
+
+def test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet(tmp_path, capsys):
+    _seed_session(tmp_path)
+
+    bridge_path = tmp_path / ".opencode" / "AITP_V5_PLUGIN_BRIDGE.md"
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "adapter",
+            "hook-bridge",
+            "opencode",
+            "s1",
+            "--output",
+            str(bridge_path),
+        ],
+        capsys,
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "opencode_plugin_bridge"
+    assert payload["runtime"] == "opencode"
+    assert payload["plugin_bridge"]["lifecycle_calls"][1]["hook_name"] == "pre_tool"
+    assert bridge_path.exists()
+
+
+def test_mcp_opencode_plugin_bridge_wrapper_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_write_opencode_plugin_bridge
+
+    _seed_session(tmp_path)
+
+    bridge_path = tmp_path / ".opencode" / "AITP_V5_PLUGIN_BRIDGE.md"
+    payload = aitp_v5_write_opencode_plugin_bridge(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(bridge_path),
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "opencode_plugin_bridge"
+    assert payload["plugin_bridge"]["persistence_entrypoint"] == "aitp_v5_persist_hook_trace_event"
+    assert bridge_path.exists()
+
+
 def test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet(tmp_path, capsys):
     _seed_session(tmp_path)
 

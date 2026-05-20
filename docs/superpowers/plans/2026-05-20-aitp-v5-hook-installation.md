@@ -16,6 +16,9 @@ Implemented:
 - derived `runtime_hook_installation` templates in v5 adapter packets;
 - Codex hook bridge writer derived from `runtime_hook_installation`;
 - CLI/MCP materializers for the Codex hook bridge from an actual adapter packet;
+- OpenCode plugin bridge writer derived from `runtime_hook_installation`;
+- CLI/MCP materializers for the OpenCode plugin bridge from an actual adapter
+  packet;
 - Claude Code hook settings writer derived from `runtime_hook_installation`;
 - Claude Code safe settings merge installer that preserves existing settings and
   deduplicates AITP v5 hook commands;
@@ -34,8 +37,7 @@ Documented here:
 Not implemented in this slice:
 
 - one-click installer wiring for Codex, Claude Code, or OpenCode native hook
-  configuration;
-- OpenCode plugin bridge generation.
+  configuration.
 
 ## Invariants
 
@@ -258,11 +260,27 @@ OpenCode should use the same contract as Codex and Claude Code:
 OpenCode adapters should avoid writing generated summaries as state. Any compact
 view should be treated as orientation-only.
 
+The repo-backed OpenCode plugin bridge writer is available through:
+
+```powershell
+aitp-v5 --base <workspace> adapter hook-bridge opencode <session-id> --output .opencode/AITP_V5_PLUGIN_BRIDGE.md
+```
+
+MCP clients use:
+
+```text
+aitp_v5_write_opencode_plugin_bridge(base, session_id, output_path)
+```
+
+The generated bridge records lifecycle calls and the persistence entrypoint, but
+it is still orientation-only. OpenCode must write durable state through typed v5
+kernel records and `aitp_v5_persist_hook_trace_event`.
+
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:
 
 - Codex runtime instructions or hook bridge that can call this adapter directly;
-- OpenCode plugin or runtime bridge configuration;
+- native OpenCode plugin invocation that calls the generated bridge automatically;
 - deeper Claude Code `PreToolUse` typed policy mapping beyond the current
   log-only wrapper.

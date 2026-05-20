@@ -66,6 +66,8 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `runtime_hook_protocols` and `runtime_hook_installation`.
 - Codex can materialize explicit guard-call instructions with
   `aitp-v5 adapter hook-bridge codex <session-id> --output <path>`.
+- OpenCode can materialize plugin bridge instructions with
+  `aitp-v5 adapter hook-bridge opencode <session-id> --output .opencode/AITP_V5_PLUGIN_BRIDGE.md`.
 - Claude Code can materialize native hook settings with
   `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
 - Claude Code can also merge AITP v5 hooks into an existing settings file with

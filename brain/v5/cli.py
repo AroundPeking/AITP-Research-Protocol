@@ -18,6 +18,7 @@ from brain.v5.hook_install_templates import (
     install_claude_code_hook_settings,
     write_claude_code_hook_settings,
     write_codex_hook_bridge,
+    write_opencode_plugin_bridge,
 )
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
@@ -347,8 +348,11 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return {"ok": True, **require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))}
     if args.command == "adapter" and args.adapter_command == "hook-bridge":
         packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))
+        if packet["runtime"] == "opencode":
+            bridge = {"ok": True, **write_opencode_plugin_bridge(args.output, packet["runtime_hook_installation"])}
+            return require_valid_public_surface("opencode_plugin_bridge", bridge)
         if packet["runtime"] != "codex":
-            raise SystemExit("adapter hook-bridge currently supports codex runtime only")
+            raise SystemExit("adapter hook-bridge currently supports codex and opencode runtimes only")
         bridge = {"ok": True, **write_codex_hook_bridge(args.output, packet["runtime_hook_installation"])}
         return require_valid_public_surface("codex_hook_bridge", bridge)
     if args.command == "adapter" and args.adapter_command == "hook-settings":

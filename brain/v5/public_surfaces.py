@@ -19,6 +19,7 @@ _PUBLIC_SURFACE_NAMES = (
     "legacy_migration_result",
     "memory_entry_record",
     "object_relation_record",
+    "opencode_plugin_bridge",
     "physics_object_record",
     "promotion_packet_record",
     "reference_location_record",
@@ -48,6 +49,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "legacy_migration_result": "contracted explicit migration result from legacy topic files into v5 typed records",
     "memory_entry_record": "contracted L2 memory entry created only from evidence-backed promotion packets with human approval",
     "object_relation_record": "contracted object-relation record linking physics objects with typed relations, failure modes, and assumptions",
+    "opencode_plugin_bridge": "contracted OpenCode plugin bridge generated from runtime hook installation metadata",
     "physics_object_record": "contracted physics-object record for theoretical objects, systems, operators, sectors, and definitions",
     "promotion_packet_record": "contracted promotion packet requiring explicit evidence refs, known failure modes, and scope before L2 memory promotion",
     "reference_location_record": "contracted orientation-only pointer to an external paper, note, or knowledge item",
@@ -134,6 +136,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_claude_code_hook_installation,
         require_valid_claude_code_hook_settings,
         require_valid_hook_trace_event_record,
+        require_valid_opencode_plugin_bridge,
     )
 
     return {
@@ -151,6 +154,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "legacy_migration_result": require_valid_legacy_migration_result,
         "memory_entry_record": require_valid_memory_entry_record,
         "object_relation_record": require_valid_object_relation_record,
+        "opencode_plugin_bridge": require_valid_opencode_plugin_bridge,
         "physics_object_record": require_valid_physics_object_record,
         "promotion_packet_record": require_valid_promotion_packet_record,
         "reference_location_record": require_valid_reference_location_record,

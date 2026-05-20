@@ -66,6 +66,44 @@ def write_codex_hook_bridge(path: str | Path, installation: dict[str, Any]) -> d
     return bridge
 
 
+def write_opencode_plugin_bridge(path: str | Path, installation: dict[str, Any]) -> dict[str, Any]:
+    """Write OpenCode plugin bridge instructions derived from hook installation metadata."""
+
+    bridge_path = Path(path)
+    lifecycle_calls = [
+        {
+            "hook_name": hook["hook_name"],
+            "lifecycle_event": hook["lifecycle_event"],
+            "command": _command_string(hook["command"]),
+            "required_inputs": deepcopy(hook["required_inputs"]),
+            "output_kind": hook["output_kind"],
+            "may_block": hook["may_block"],
+            "state_mutation": hook["state_mutation"],
+        }
+        for hook in installation["hooks"]
+    ]
+    bridge = {
+        "kind": "opencode_plugin_bridge",
+        "runtime": "opencode",
+        "source_protocol_field": "runtime_hook_installation",
+        "installation_mode": installation["installation_mode"],
+        "native_installer_available": installation["native_installer_available"],
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+        "path": str(bridge_path),
+        "plugin_bridge": {
+            "setup": ["load AITP skills", "connect AITP MCP server", "read v5 adapter packet"],
+            "lifecycle_calls": lifecycle_calls,
+            "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
+            "truth_rule": "generated bridge is orientation-only; typed records remain authoritative",
+        },
+    }
+    bridge_path.parent.mkdir(parents=True, exist_ok=True)
+    bridge_path.write_text(_opencode_bridge_markdown(bridge), encoding="utf-8")
+    return bridge
+
+
 def write_claude_code_hook_settings(
     path: str | Path,
     installation: dict[str, Any],
@@ -175,6 +213,47 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
                 "",
             ]
         )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
+    lines = [
+        "# AITP v5 OpenCode Plugin Bridge",
+        "",
+        "Generated from `runtime_hook_installation`.",
+        "",
+        "- truth_source: false",
+        "- summary_inputs_trusted=false",
+        "- can_update_kernel_state=false",
+        "- can_update_claim_trust=false",
+        "",
+        "## Lifecycle Calls",
+        "",
+    ]
+    for call in bridge["plugin_bridge"]["lifecycle_calls"]:
+        lines.extend(
+            [
+                f"### {call['hook_name']}",
+                "",
+                f"- lifecycle_event: `{call['lifecycle_event']}`",
+                f"- output_kind: `{call['output_kind']}`",
+                f"- may_block: `{str(call['may_block']).lower()}`",
+                f"- state_mutation: `{call['state_mutation']}`",
+                "",
+                "```powershell",
+                call["command"],
+                "```",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Persistence",
+            "",
+            "Persist post-tool trace events through `aitp_v5_persist_hook_trace_event` only.",
+            "",
+        ]
+    )
     return "\n".join(lines).rstrip() + "\n"
 
 

@@ -14,6 +14,7 @@ from brain.v5.hook_install_templates import (
     install_claude_code_hook_settings,
     write_claude_code_hook_settings,
     write_codex_hook_bridge,
+    write_opencode_plugin_bridge,
 )
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
@@ -209,6 +210,13 @@ def aitp_v5_write_codex_hook_bridge(base: str, *, session_id: str, output_path: 
     packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, session_id, runtime="codex"))
     bridge = {"ok": True, **write_codex_hook_bridge(output_path, packet["runtime_hook_installation"])}
     return require_valid_public_surface("codex_hook_bridge", bridge)
+
+
+def aitp_v5_write_opencode_plugin_bridge(base: str, *, session_id: str, output_path: str) -> dict:
+    ws = _ws(base)
+    packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, session_id, runtime="opencode"))
+    bridge = {"ok": True, **write_opencode_plugin_bridge(output_path, packet["runtime_hook_installation"])}
+    return require_valid_public_surface("opencode_plugin_bridge", bridge)
 
 
 def aitp_v5_write_claude_code_hook_settings(base: str, *, session_id: str, output_path: str) -> dict:

@@ -125,6 +125,53 @@ def require_valid_codex_hook_bridge(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def validate_opencode_plugin_bridge(
+    payload: dict[str, Any],
+    *,
+    path: str = "opencode_plugin_bridge",
+) -> ContractResult:
+    """Validate the public OpenCode plugin bridge write payload."""
+
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if result.issues:
+        return result
+
+    if payload.get("ok") is not True:
+        result.add(f"{path}.ok", "must be true")
+    if payload.get("kind") != "opencode_plugin_bridge":
+        result.add(f"{path}.kind", "must be 'opencode_plugin_bridge'")
+    if payload.get("runtime") != "opencode":
+        result.add(f"{path}.runtime", "must be 'opencode'")
+    if payload.get("source_protocol_field") != "runtime_hook_installation":
+        result.add(f"{path}.source_protocol_field", "must be 'runtime_hook_installation'")
+    if payload.get("installation_mode") != "plugin_bridge":
+        result.add(f"{path}.installation_mode", "must be 'plugin_bridge'")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    if not isinstance(payload.get("native_installer_available"), bool):
+        result.add(f"{path}.native_installer_available", "must be a boolean")
+    _require_nonempty_str(payload, "path", path, result)
+    _require_mapping(payload.get("plugin_bridge"), f"{path}.plugin_bridge", result)
+    bridge = payload.get("plugin_bridge")
+    if isinstance(bridge, dict):
+        if bridge.get("persistence_entrypoint") != "aitp_v5_persist_hook_trace_event":
+            result.add(f"{path}.plugin_bridge.persistence_entrypoint", "must be 'aitp_v5_persist_hook_trace_event'")
+        _require_list(bridge.get("lifecycle_calls"), f"{path}.plugin_bridge.lifecycle_calls", result)
+        if isinstance(bridge.get("lifecycle_calls"), list):
+            for index, call in enumerate(bridge["lifecycle_calls"]):
+                _validate_opencode_lifecycle_call(call, f"{path}.plugin_bridge.lifecycle_calls[{index}]", result)
+    return result
+
+
+def require_valid_opencode_plugin_bridge(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_opencode_plugin_bridge(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def validate_claude_code_hook_settings(
     payload: dict[str, Any],
     *,
@@ -276,6 +323,17 @@ def _validate_codex_guard_call(payload: Any, path: str, result: ContractResult) 
         return
 
     for key in ("hook_name", "when", "command", "output_kind", "state_mutation"):
+        _require_nonempty_str(payload, key, path, result)
+    _require_list(payload.get("required_inputs"), f"{path}.required_inputs", result)
+    if not isinstance(payload.get("may_block"), bool):
+        result.add(f"{path}.may_block", "must be a boolean")
+
+
+def _validate_opencode_lifecycle_call(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in ("hook_name", "lifecycle_event", "command", "output_kind", "state_mutation"):
         _require_nonempty_str(payload, key, path, result)
     _require_list(payload.get("required_inputs"), f"{path}.required_inputs", result)
     if not isinstance(payload.get("may_block"), bool):

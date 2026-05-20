@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-287 passed
+291 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -107,14 +107,17 @@ Implemented:
   v5 trace bridge.
 - Claude Code hook settings can be safely merged into an existing settings file
   without clobbering non-AITP hooks or duplicating AITP hook commands.
+- OpenCode plugin bridge instructions can be materialized from an actual adapter
+  packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
 
 Major remaining gaps:
 
 - Hook helpers still need native Codex/OpenCode lifecycle installer wiring.
   Codex explicit bridge materialization, Claude Code settings template
-  generation and merge installation, and post-tool trace persistence surfaces
-  exist, but Codex/OpenCode are not native lifecycle integrations yet.
+  generation and merge installation, OpenCode plugin bridge materialization, and
+  post-tool trace persistence surfaces exist, but Codex/OpenCode are not native
+  lifecycle integrations yet.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.
