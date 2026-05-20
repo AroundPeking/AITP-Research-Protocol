@@ -113,6 +113,9 @@ payloads carry this shared entrypoint plus `runtime_gate_protocols` explicitly,
 so adapter authors do not need to reconstruct record/validation/promotion sequencing
 from prose. Its `policy_reasons` list exposes machine-readable policy IDs and
 severities, so reviewers do not need to parse free-form hook messages. Adapter
+policy calls also carry `risk_level` and optional `human_checkpoint_id`; in
+adversarial risk, trust-changing actions require an approved typed human
+checkpoint before they can proceed. Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the record-evidence/tool-run and validation/promotion gate sequences, so runtimes can see that policy
 evaluation comes before preflight or promotion. The small

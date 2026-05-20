@@ -150,6 +150,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   and `runtime_gate_protocols.promote_to_l2` explicitly sequence
   `evaluate_pre_tool_policy` before the trust-relevant action and require
   `policy_reasons` as the machine-readable routing field.
+- Shared pre-tool policy carries `risk_level` and optional
+  `human_checkpoint_id`; for adversarial risk, trust-changing actions are
+  hard-blocked unless that checkpoint resolves to a decided typed
+  `HumanCheckpointRecord` with `decision=approve` for the active claim.
 - Claude Code `PreToolUse` uses that shared policy for validation and L2
   promotion MCP calls: it resolves the typed claim, cited evidence refs, and
   linked or requested code states, then reuses `evaluate_policy` before the tool

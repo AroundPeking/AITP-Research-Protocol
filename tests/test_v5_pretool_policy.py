@@ -197,6 +197,116 @@ def test_mcp_pre_tool_policy_blocks_record_evidence_from_summary_source(tmp_path
     ]
 
 
+def test_mcp_pre_tool_policy_blocks_adversarial_trust_change_without_checkpoint(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    _, claim = _seed_claim(tmp_path)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="promote_to_l2",
+        claim_id=claim.claim_id,
+        evidence_refs=["evidence-fqhe-counting"],
+        source_kind="typed_records",
+        risk_level="adversarial",
+    )
+
+    assert payload["action"] == "promote_to_l2"
+    assert payload["risk_level"] == "adversarial"
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["required_actions"] == ["request_human_checkpoint"]
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "adversarial_trust_change_requires_human_checkpoint"
+    ]
+
+
+def test_mcp_pre_tool_policy_accepts_adversarial_trust_change_with_approved_checkpoint(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    ws, claim = _seed_claim(tmp_path)
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        reason="Adversarial promotion needs human checkpoint",
+        requested_by="risk_policy",
+        options=["approve", "reject"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="Evidence and scope were checked.",
+        decided_by="human",
+    )
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="promote_to_l2",
+        claim_id=claim.claim_id,
+        evidence_refs=["evidence-fqhe-counting"],
+        source_kind="typed_records",
+        risk_level="adversarial",
+        human_checkpoint_id=checkpoint.checkpoint_id,
+    )
+
+    assert payload["risk_level"] == "adversarial"
+    assert payload["human_checkpoint_id"] == checkpoint.checkpoint_id
+    assert payload["mode"] == "log"
+    assert payload["block"] is False
+    assert payload["policy_reasons"] == []
+
+
+def test_cli_pre_tool_policy_accepts_human_checkpoint_id(tmp_path, capsys):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+
+    ws, claim = _seed_claim(tmp_path)
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        reason="Adversarial validation needs human checkpoint",
+        requested_by="risk_policy",
+        options=["approve", "reject"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="Validation is allowed.",
+        decided_by="human",
+    )
+
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "policy",
+            "pre-tool",
+            "validate_claim",
+            "--session",
+            "s1",
+            "--claim",
+            claim.claim_id,
+            "--source-kind",
+            "typed_records",
+            "--risk-level",
+            "adversarial",
+            "--human-checkpoint",
+            checkpoint.checkpoint_id,
+        ],
+        capsys,
+    )
+
+    assert payload["risk_level"] == "adversarial"
+    assert payload["human_checkpoint_id"] == checkpoint.checkpoint_id
+    assert payload["block"] is False
+
+
 def test_cli_pre_tool_policy_blocks_record_tool_run_from_task_plan_source(tmp_path, capsys):
     _, claim = _seed_claim(tmp_path)
 

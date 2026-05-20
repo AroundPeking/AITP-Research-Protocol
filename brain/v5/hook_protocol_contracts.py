@@ -9,6 +9,7 @@ from brain.v5.contracts import (
     ContractError,
     ContractResult,
     _require_bool_value,
+    _require_level,
     _require_list,
     _require_mapping,
     _require_nonempty_str,
@@ -359,6 +360,7 @@ def validate_pre_tool_policy_decision(
         result.add(f"{path}.hook_name", "must be 'pre_tool'")
     for key in ("action", "session_id", "claim_id", "message"):
         _require_nonempty_str(payload, key, path, result)
+    _require_level(payload.get("risk_level"), f"{path}.risk_level", result)
     mode = payload.get("mode")
     if mode not in {"log", "warn", "block"}:
         result.add(f"{path}.mode", "must be one of log, warn, block")

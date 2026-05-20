@@ -559,6 +559,58 @@ def test_mcp_adapter_pre_tool_event_evaluates_platform_payload(tmp_path):
     ]
 
 
+def test_mcp_adapter_pre_tool_event_passes_adversarial_checkpoint_context(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
+    from brain.v5.mcp_tools import aitp_v5_evaluate_adapter_pre_tool_event, aitp_v5_write_codex_hook_bridge
+
+    ws, claim = _seed_session(tmp_path)
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        reason="Adversarial evidence recording needs human checkpoint",
+        requested_by="risk_policy",
+        options=["approve", "reject"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="The source is a typed record path.",
+        decided_by="human",
+    )
+    bridge = aitp_v5_write_codex_hook_bridge(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md"),
+    )
+
+    payload = aitp_v5_evaluate_adapter_pre_tool_event(
+        str(tmp_path),
+        bridge_payload=bridge,
+        platform_event={
+            "runtime": "codex",
+            "hook_name": "pre_tool",
+            "session_id": "s1",
+            "risk_level": "adversarial",
+            "tool_name": "mcp__aitp__aitp_v5_record_evidence",
+            "tool_input": {
+                "topic_id": "librpa-gw",
+                "claim_id": claim.claim_id,
+                "source_kind": "typed_records",
+                "human_checkpoint_id": checkpoint.checkpoint_id,
+            },
+        },
+    )
+
+    assert payload["ok"] is True
+    assert payload["action"] == "record_evidence"
+    assert payload["risk_level"] == "adversarial"
+    assert payload["human_checkpoint_id"] == checkpoint.checkpoint_id
+    assert payload["block"] is False
+    assert payload["policy_reasons"] == []
+
+
 def test_opencode_plugin_bridge_is_rendered_from_installation_template(tmp_path):
     from brain.v5.adapters import build_adapter_packet
     from brain.v5.hook_install_templates import write_opencode_plugin_bridge

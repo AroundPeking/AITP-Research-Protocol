@@ -69,6 +69,7 @@ def evaluate_policy(
         return decision
 
     _guard_summary_surface_cannot_drive_trust_update(decision, action, ctx)
+    _guard_adversarial_trust_change_requires_checkpoint(decision, action, risk_level, ctx)
 
     if action in {"validate_claim", "promote_to_l2"}:
         _guard_code_method_requires_code_state(decision, claim, states)
@@ -101,6 +102,24 @@ def _guard_summary_surface_cannot_drive_trust_update(
         "no_summary_surface_as_truth_source",
         "derived summary surfaces are orientation only and cannot justify trust-changing actions",
         "query_execution_brief_or_typed_record",
+        severity="hard_block",
+    )
+
+
+def _guard_adversarial_trust_change_requires_checkpoint(
+    decision: PolicyDecision,
+    action: str,
+    risk_level: str,
+    context: dict[str, Any],
+) -> None:
+    if risk_level != "adversarial" or action not in _TRUST_CHANGING_ACTIONS:
+        return
+    if context.get("human_checkpoint_approved") is True:
+        return
+    decision.add_block(
+        "adversarial_trust_change_requires_human_checkpoint",
+        "adversarial-risk trust-changing actions require an approved human checkpoint",
+        "request_human_checkpoint",
         severity="hard_block",
     )
 

@@ -268,6 +268,10 @@ typed-record-backed pre-tool policy surface. The bridge remains orientation-only
 the returned decision is still backed by typed kernel records.
 Generated gate protocols now cover record-evidence, record-tool-run,
 validation, and L2-promotion actions.
+The shared policy carries `risk_level` and optional `human_checkpoint_id`.
+Adversarial-risk trust-changing actions are hard-blocked unless that checkpoint
+is a decided typed human checkpoint with `decision=approve` for the active
+claim.
 For live-style adapter events, `evaluate_bridge_lifecycle_event` maps an
 adapter-neutral `pre_tool` event payload onto the same helper after confirming
 that the generated bridge declares a pre-tool lifecycle call. Codex/OpenCode

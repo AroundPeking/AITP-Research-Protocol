@@ -174,6 +174,10 @@ Implemented:
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_evidence` and `record_tool_run`
   trust-changing record attempts.
+- The shared CLI/MCP/runtime pre-tool policy now carries `risk_level` and
+  optional `human_checkpoint_id`; adversarial-risk trust-changing actions are
+  hard-blocked unless the checkpoint resolves to an approved typed human
+  checkpoint for the active claim.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
@@ -189,8 +193,9 @@ Major remaining gaps:
   Codex and OpenCode also have generated installation fixtures.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion context, and summary-sourced evidence/tool-run
-  record attempts through CLI/MCP/runtime/bridge metadata, but it does not yet
-  cover every MCP input or all active risk context.
+  record attempts through CLI/MCP/runtime/bridge metadata, and adversarial-risk
+  trust changes require approved typed human checkpoints. It still does not yet
+  cover every MCP input or every active risk dimension.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.

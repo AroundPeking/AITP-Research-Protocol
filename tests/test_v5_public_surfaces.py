@@ -287,6 +287,8 @@ def test_public_surface_validator_accepts_pre_tool_policy_decision():
         "action": "promote_to_l2",
         "session_id": "s1",
         "claim_id": "claim-fqhe",
+        "risk_level": "adversarial",
+        "human_checkpoint_id": "checkpoint-fqhe",
         "mode": "block",
         "block": True,
         "message": "blocked promote_to_l2; no_l2_promotion_without_evidence_ref; required: attach_evidence_ref",
@@ -306,6 +308,34 @@ def test_public_surface_validator_accepts_pre_tool_policy_decision():
     }
 
     assert require_valid_public_surface("pre_tool_policy_decision", payload) == payload
+
+
+def test_public_surface_validator_rejects_invalid_pre_tool_policy_risk_level():
+    from brain.v5.hook_protocol_contracts import validate_pre_tool_policy_decision
+
+    payload = {
+        "ok": True,
+        "kind": "hook_decision",
+        "hook_name": "pre_tool",
+        "action": "promote_to_l2",
+        "session_id": "s1",
+        "claim_id": "claim-fqhe",
+        "risk_level": "casual",
+        "mode": "block",
+        "block": True,
+        "message": "blocked promote_to_l2",
+        "policy_reasons": [],
+        "required_actions": ["request_human_checkpoint"],
+        "exit_code": 2,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+    result = validate_pre_tool_policy_decision(payload)
+
+    assert any(issue.path == "pre_tool_policy_decision.risk_level" for issue in result.issues)
 
 
 def test_public_surface_validator_accepts_typed_write_records():
