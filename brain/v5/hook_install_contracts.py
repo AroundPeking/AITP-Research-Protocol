@@ -12,7 +12,7 @@ from brain.v5.contracts import (
     _require_mapping,
     _require_nonempty_str,
 )
-from brain.v5.hook_protocol_contracts import validate_codex_hook_bridge
+from brain.v5.hook_protocol_contracts import validate_codex_hook_bridge, validate_opencode_plugin_bridge
 
 
 def validate_codex_hook_installation(
@@ -71,6 +71,67 @@ def validate_codex_hook_installation(
 
 def require_valid_codex_hook_installation(payload: dict[str, Any]) -> dict[str, Any]:
     result = validate_codex_hook_installation(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
+def validate_opencode_hook_installation(
+    payload: dict[str, Any],
+    *,
+    path: str = "opencode_hook_installation",
+) -> ContractResult:
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if result.issues:
+        return result
+
+    expected_values = {
+        "kind": "opencode_hook_installation",
+        "runtime": "opencode",
+        "source_protocol_field": "runtime_hook_installation",
+        "installation_mode": "plugin_bridge",
+    }
+    if payload.get("ok") is not True:
+        result.add(f"{path}.ok", "must be true")
+    for key, value in expected_values.items():
+        if payload.get(key) != value:
+            result.add(f"{path}.{key}", f"must be {value!r}")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    _require_bool_value(payload.get("fixture_installer_available"), True, f"{path}.fixture_installer_available", result)
+    _require_bool_value(payload.get("native_installer_available"), False, f"{path}.native_installer_available", result)
+    for key in ("path", "bridge_path", "bridge_payload_path"):
+        _require_nonempty_str(payload, key, path, result)
+
+    bridge = payload.get("bridge")
+    if isinstance(bridge, dict):
+        bridge_result = validate_opencode_plugin_bridge({**bridge, "ok": True}, path=f"{path}.bridge")
+        result.issues.extend(bridge_result.issues)
+    else:
+        _require_mapping(bridge, f"{path}.bridge", result)
+
+    fixture = payload.get("fixture")
+    _require_mapping(fixture, f"{path}.fixture", result)
+    if isinstance(fixture, dict):
+        if fixture.get("kind") != "opencode_hook_installation_fixture":
+            result.add(f"{path}.fixture.kind", "must be 'opencode_hook_installation_fixture'")
+        _require_bool_value(
+            fixture.get("summary_inputs_trusted"),
+            False,
+            f"{path}.fixture.summary_inputs_trusted",
+            result,
+        )
+        hooks = fixture.get("plugin_hooks")
+        _require_mapping(hooks, f"{path}.fixture.plugin_hooks", result)
+        if isinstance(hooks, dict):
+            _validate_pre_tool_hook(hooks.get("pre_tool"), f"{path}.fixture.plugin_hooks.pre_tool", result)
+    return result
+
+
+def require_valid_opencode_hook_installation(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_opencode_hook_installation(payload)
     if not result.ok:
         raise ContractError(result)
     return payload

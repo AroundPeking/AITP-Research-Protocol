@@ -139,7 +139,9 @@ The generated `pre_tool_event_runner.stdin_runner.argv` field advertises that
 host-facing command directly in the bridge sidecar. Codex can also materialize a
 native-ish hook fixture with
 `aitp-v5 adapter install-hooks codex <session-id> --output .codex/AITP_V5_HOOKS.json`;
-the fixture writes the bridge and sidecar, then points its pre-tool hook at the
+OpenCode has the matching plugin fixture at
+`aitp-v5 adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json`.
+Both fixtures write the bridge and sidecar, then point pre-tool hooks at the
 stdin runner without granting generated files authority over typed records.
 Trust-changing confidence updates use a request-bound preflight proof token:
 `trust preflight`/`aitp_v5_preflight_trust_update` returns the token, and

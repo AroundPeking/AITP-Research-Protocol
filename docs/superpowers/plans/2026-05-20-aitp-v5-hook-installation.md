@@ -19,6 +19,8 @@ Implemented:
 - OpenCode plugin bridge writer derived from `runtime_hook_installation`;
 - CLI/MCP materializers for the OpenCode plugin bridge from an actual adapter
   packet;
+- CLI/MCP materializers for the OpenCode stdin-runner plugin fixture from an
+  actual adapter packet;
 - Claude Code hook settings writer derived from `runtime_hook_installation`;
 - Claude Code safe settings merge installer that preserves existing settings and
   deduplicates AITP v5 hook commands;
@@ -383,6 +385,7 @@ MCP clients use:
 
 ```text
 aitp_v5_write_opencode_plugin_bridge(base, session_id, output_path)
+aitp_v5_install_opencode_hook_fixture(base, session_id, output_path)
 ```
 
 The generated bridge records lifecycle calls, gate protocols, and the
@@ -395,11 +398,21 @@ OpenCode hosts that provide event JSON over stdin can use the same
 `hooks/aitp_v5_adapter_event_runner.py pre-tool` path with `--runtime opencode`.
 The OpenCode bridge sidecar advertises it under
 `plugin_bridge.pre_tool_event_runner.stdin_runner.argv`.
+OpenCode can also write a native-ish stdin-runner plugin fixture plus the bridge
+and sidecar:
+
+```powershell
+aitp-v5 --base <workspace> adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json
+```
+
+That command writes `.opencode/AITP_V5_PLUGIN_HOOKS.json`,
+`.opencode/AITP_V5_PLUGIN_BRIDGE.md`, and
+`.opencode/AITP_V5_PLUGIN_BRIDGE.json`. The fixture is runtime metadata only;
+typed kernel records remain authoritative.
 
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:
 
-- native OpenCode plugin invocation that calls the generated bridge automatically;
 - native adapter wiring that automatically calls the shared
   `pre_tool_policy_decision` surface from Codex/OpenCode lifecycle events.

@@ -165,6 +165,10 @@ Implemented:
   `aitp-v5 adapter install-hooks codex <session-id> --output <path>` and
   `aitp_v5_install_codex_hook_fixture`; the fixture writes the bridge/sidecar
   and points pre-tool events at the stdin runner.
+- OpenCode can now write a native-ish stdin-runner plugin fixture through
+  `aitp-v5 adapter install-hooks opencode <session-id> --output <path>` and
+  `aitp_v5_install_opencode_hook_fixture`; the fixture writes the plugin
+  bridge/sidecar and points pre-tool events at the stdin runner.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_evidence` and `record_tool_run`
   trust-changing record attempts.
@@ -180,7 +184,7 @@ Major remaining gaps:
   post-tool trace persistence surfaces exist; Codex/OpenCode now have a
   CLI/MCP-callable runtime event normalizer advertised in generated bridges plus
   a generated bridge JSON sidecar, runner argv, advertised stdin host-runner;
-  Codex also has a generated installation fixture, while OpenCode does not yet.
+  Codex and OpenCode also have generated installation fixtures.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion context, and summary-sourced evidence/tool-run
   record attempts through CLI/MCP/runtime/bridge metadata, but it does not yet
@@ -279,6 +283,8 @@ Modify as needed:
 - `brain/v5/hook_bridge_markdown.py`: generated Codex/OpenCode bridge Markdown
   renderers; keep this separate from `hook_install_templates.py` so payload
   construction and rendering do not grow into a single large module.
+- `brain/v5/hook_fixture_templates.py`: generated Codex/OpenCode stdin-runner
+  installation fixtures; keep fixture writing out of hook bridge templates.
 - `brain/v5/hook_install_contracts.py`: host installation fixture contracts;
   keep these out of generic hook protocol contracts.
 - `brain/v5/adapter_contracts.py`: only if adapter packet schema changes.

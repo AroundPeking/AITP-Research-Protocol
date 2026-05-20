@@ -35,6 +35,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_write_opencode_plugin_bridge",
         "surface": "opencode_plugin_bridge",
     },
+    "opencode_hook_installation": {
+        "cli": "aitp-v5 adapter install-hooks opencode <session-id> <args>",
+        "mcp": "aitp_v5_install_opencode_hook_fixture",
+        "surface": "opencode_hook_installation",
+    },
     "claude_code_hook_settings": {
         "cli": "aitp-v5 adapter hook-settings claude-code <session-id> <args>",
         "mcp": "aitp_v5_write_claude_code_hook_settings",
@@ -302,6 +307,11 @@ def sample_args_for_template(template: str) -> list[str]:
         return [
             "--output",
             ".codex/AITP_V5_HOOKS.json",
+        ]
+    if template.startswith("adapter install-hooks opencode"):
+        return [
+            "--output",
+            ".opencode/AITP_V5_PLUGIN_HOOKS.json",
         ]
     if template.startswith("adapter install-hooks"):
         return [

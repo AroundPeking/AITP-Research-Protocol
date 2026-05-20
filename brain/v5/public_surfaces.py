@@ -20,6 +20,7 @@ _PUBLIC_SURFACE_NAMES = (
     "legacy_migration_result",
     "memory_entry_record",
     "object_relation_record",
+    "opencode_hook_installation",
     "opencode_plugin_bridge",
     "physics_object_record",
     "pre_tool_policy_decision",
@@ -52,6 +53,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "legacy_migration_result": "contracted explicit migration result from legacy topic files into v5 typed records",
     "memory_entry_record": "contracted L2 memory entry created only from evidence-backed promotion packets with human approval",
     "object_relation_record": "contracted object-relation record linking physics objects with typed relations, failure modes, and assumptions",
+    "opencode_hook_installation": "contracted OpenCode stdin-runner hook installation fixture generated from runtime metadata",
     "opencode_plugin_bridge": "contracted OpenCode plugin bridge generated from runtime hook installation metadata",
     "physics_object_record": "contracted physics-object record for theoretical objects, systems, operators, sectors, and definitions",
     "pre_tool_policy_decision": "contracted pre-tool policy decision derived from typed kernel records, not summaries",
@@ -143,7 +145,10 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_opencode_plugin_bridge,
         require_valid_pre_tool_policy_decision,
     )
-    from brain.v5.hook_install_contracts import require_valid_codex_hook_installation
+    from brain.v5.hook_install_contracts import (
+        require_valid_codex_hook_installation,
+        require_valid_opencode_hook_installation,
+    )
 
     return {
         "adapter_packet": require_valid_adapter_packet,
@@ -161,6 +166,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "legacy_migration_result": require_valid_legacy_migration_result,
         "memory_entry_record": require_valid_memory_entry_record,
         "object_relation_record": require_valid_object_relation_record,
+        "opencode_hook_installation": require_valid_opencode_hook_installation,
         "opencode_plugin_bridge": require_valid_opencode_plugin_bridge,
         "physics_object_record": require_valid_physics_object_record,
         "pre_tool_policy_decision": require_valid_pre_tool_policy_decision,

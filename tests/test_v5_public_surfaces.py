@@ -20,6 +20,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "legacy_migration_result",
         "memory_entry_record",
         "object_relation_record",
+        "opencode_hook_installation",
         "opencode_plugin_bridge",
         "physics_object_record",
         "pre_tool_policy_decision",

@@ -688,6 +688,63 @@ def test_mcp_opencode_plugin_bridge_wrapper_returns_contract_payload(tmp_path):
     assert bridge_path.exists()
 
 
+def test_cli_adapter_install_hooks_writes_opencode_stdin_runner_fixture(tmp_path, capsys):
+    _seed_session(tmp_path)
+
+    fixture_path = tmp_path / ".opencode" / "AITP_V5_PLUGIN_HOOKS.json"
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "adapter",
+            "install-hooks",
+            "opencode",
+            "s1",
+            "--output",
+            str(fixture_path),
+        ],
+        capsys,
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "opencode_hook_installation"
+    assert payload["runtime"] == "opencode"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["can_update_kernel_state"] is False
+    assert payload["path"] == str(fixture_path)
+    assert payload["bridge"]["kind"] == "opencode_plugin_bridge"
+    assert payload["bridge_payload_path"] == str(fixture_path.parent / "AITP_V5_PLUGIN_BRIDGE.json")
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["stdin"] == "<platform-event-json>"
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["argv"][1] == "hooks/aitp_v5_adapter_event_runner.py"
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["argv"][6] == "opencode"
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["argv"][8] == "s1"
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["argv"][10] == payload["bridge_payload_path"]
+
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    assert fixture == payload["fixture"]
+    assert (fixture_path.parent / "AITP_V5_PLUGIN_BRIDGE.md").exists()
+    assert (fixture_path.parent / "AITP_V5_PLUGIN_BRIDGE.json").exists()
+
+
+def test_mcp_opencode_hook_installer_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_install_opencode_hook_fixture
+
+    _seed_session(tmp_path)
+
+    fixture_path = tmp_path / ".opencode" / "AITP_V5_PLUGIN_HOOKS.json"
+    payload = aitp_v5_install_opencode_hook_fixture(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(fixture_path),
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "opencode_hook_installation"
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["argv"][6] == "opencode"
+    assert payload["fixture"]["plugin_hooks"]["pre_tool"]["argv"][10] == payload["bridge_payload_path"]
+    assert fixture_path.exists()
+
+
 def test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet(tmp_path, capsys):
     _seed_session(tmp_path)
 

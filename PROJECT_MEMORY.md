@@ -86,6 +86,11 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   keeps `summary_inputs_trusted=false`.
 - OpenCode can materialize plugin bridge instructions with
   `aitp-v5 adapter hook-bridge opencode <session-id> --output .opencode/AITP_V5_PLUGIN_BRIDGE.md`.
+- OpenCode can materialize a native-ish stdin-runner plugin fixture with
+  `aitp-v5 adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json`.
+  The fixture writes an OpenCode plugin bridge plus sidecar and points
+  `plugin_hooks.pre_tool` at `hooks/aitp_v5_adapter_event_runner.py`; it is
+  runtime metadata only and keeps `summary_inputs_trusted=false`.
 - Claude Code can materialize native hook settings with
   `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
 - Claude Code can also merge AITP v5 hooks into an existing settings file with
