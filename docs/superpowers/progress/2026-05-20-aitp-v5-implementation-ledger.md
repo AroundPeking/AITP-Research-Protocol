@@ -1798,3 +1798,58 @@ Each entry should record:
     runtime/action family if it approaches the global source-size boundary.
 - Next recommended task:
   - add the matching OpenCode stdin-runner installation fixture.
+
+### bcc53e0 - Add OpenCode Stdin Runner Install Fixture
+
+- Task: add an OpenCode native-ish plugin fixture that points pre-tool events at
+  the existing stdin host-runner without making generated files truth sources.
+- Planning source:
+  - residual risk from `40f6af7`;
+  - hook-installation plan gap for OpenCode fixture-level host wiring;
+  - v5 rule that generated bridge/fixture files are runtime metadata only.
+- Changed files:
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/hook_fixture_templates.py`
+  - `brain/v5/hook_install_contracts.py`
+  - `brain/v5/hook_install_templates.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `aitp-v5 adapter install-hooks opencode <session-id> --output <path>` writes
+    `.opencode/AITP_V5_PLUGIN_HOOKS.json` plus the OpenCode plugin bridge
+    Markdown and JSON sidecar;
+  - `aitp_v5_install_opencode_hook_fixture` exposes the same behavior through
+    MCP;
+  - new public surface `opencode_hook_installation` validates the fixture,
+    embedded plugin bridge, runner argv, and no-trust/no-state-mutation flags;
+  - Codex fixture writing moved from `hook_install_templates.py` to
+    `hook_fixture_templates.py` to keep bridge templates bounded.
+- Tests:
+  - CLI installer test asserts fixture, plugin bridge, sidecar, runner argv,
+    session id, runtime, and sidecar path;
+  - MCP installer test asserts contracted payload and runner metadata;
+  - runtime entrypoint and public surface registry tests include
+    `opencode_hook_installation`.
+- Verification:
+  - red tests failed as expected with missing CLI support, MCP wrapper, runtime
+    entrypoint, and public surface;
+  - target green set:
+    `python -m pytest tests/test_v5_adapters.py::test_cli_adapter_install_hooks_writes_opencode_stdin_runner_fixture tests/test_v5_adapters.py::test_mcp_opencode_hook_installer_returns_contract_payload tests/test_v5_runtime_entrypoints.py::test_runtime_entrypoints_advertise_typed_write_surfaces tests/test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads -q`:
+    4 passed.
+- Residual risks:
+  - this is still fixture-level host wiring, not a guaranteed native OpenCode
+    lifecycle installer;
+  - native Codex/OpenCode runtime integration still depends on host support for
+    invoking the generated stdin runner.
+- Next recommended task:
+  - expand pre-tool policy coverage for active risk context or add fixture
+    smoke tests that execute the generated runner against a sample platform
+    event.
