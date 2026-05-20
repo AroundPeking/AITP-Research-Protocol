@@ -31,6 +31,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "mcp": "aitp_v5_write_codex_hook_bridge",
         "surface": "codex_hook_bridge",
     }
+    assert entrypoints["persist_hook_trace_event"] == {
+        "cli": "aitp-v5 trace hook-event persist <args>",
+        "mcp": "aitp_v5_persist_hook_trace_event",
+        "surface": "hook_trace_event_record",
+    }
 
 
 def test_runtime_entrypoint_validation_reports_bad_mcp_and_cli_targets():

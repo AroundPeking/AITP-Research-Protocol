@@ -12,6 +12,7 @@ _PUBLIC_SURFACE_NAMES = (
     "evidence_record",
     "execution_brief",
     "human_checkpoint_record",
+    "hook_trace_event_record",
     "knowledge_connector_catalog",
     "legacy_migration_result",
     "memory_entry_record",
@@ -38,6 +39,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "evidence_record": "contracted evidence write result linked to a claim and required outputs",
     "execution_brief": "typed kernel brief for current focus, risk, evidence coverage, and next actions",
     "human_checkpoint_record": "contracted human checkpoint requiring explicit options and a decision from the declared option set",
+    "hook_trace_event_record": "contracted persisted hook trace-event record that cannot update claim trust",
     "knowledge_connector_catalog": "contracted catalog of knowledge connectors for notes, literature, and learning memory",
     "legacy_migration_result": "contracted explicit migration result from legacy topic files into v5 typed records",
     "memory_entry_record": "contracted L2 memory entry created only from evidence-backed promotion packets with human approval",
@@ -124,6 +126,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_validation_contract_record,
     )
     from brain.v5.legacy_contracts import require_valid_legacy_migration_result
+    from brain.v5.hook_protocol_contracts import require_valid_hook_trace_event_record
 
     return {
         "adapter_packet": require_valid_adapter_packet,
@@ -133,6 +136,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "evidence_record": require_valid_evidence_record,
         "execution_brief": require_valid_execution_brief,
         "human_checkpoint_record": require_valid_human_checkpoint_record,
+        "hook_trace_event_record": require_valid_hook_trace_event_record,
         "knowledge_connector_catalog": require_valid_knowledge_connector_catalog,
         "legacy_migration_result": require_valid_legacy_migration_result,
         "memory_entry_record": require_valid_memory_entry_record,

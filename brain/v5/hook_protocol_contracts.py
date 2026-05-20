@@ -125,6 +125,67 @@ def require_valid_codex_hook_bridge(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def validate_hook_trace_event_payload(payload: Any, *, path: str = "hook_trace_event") -> ContractResult:
+    """Validate stdout emitted by the post-tool shell hook before persistence."""
+
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return result
+
+    if payload.get("kind") != "hook_trace_event":
+        result.add(f"{path}.kind", "must be 'hook_trace_event'")
+    if payload.get("hook_name") != "post_tool":
+        result.add(f"{path}.hook_name", "must be 'post_tool'")
+    if payload.get("exit_code") != 0:
+        result.add(f"{path}.exit_code", "must be 0")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _validate_trace_event_payload(payload.get("event"), f"{path}.event", result)
+    return result
+
+
+def require_valid_hook_trace_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_hook_trace_event_payload(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
+def validate_hook_trace_event_record(
+    payload: dict[str, Any],
+    *,
+    path: str = "hook_trace_event_record",
+) -> ContractResult:
+    """Validate a persisted hook trace-event write result."""
+
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if result.issues:
+        return result
+
+    if payload.get("ok") is not True:
+        result.add(f"{path}.ok", "must be true")
+    if payload.get("kind") != "hook_trace_event_record":
+        result.add(f"{path}.kind", "must be 'hook_trace_event_record'")
+    if payload.get("source_kind") != "hook_trace_event":
+        result.add(f"{path}.source_kind", "must be 'hook_trace_event'")
+    if payload.get("source_hook") != "post_tool":
+        result.add(f"{path}.source_hook", "must be 'post_tool'")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    _require_bool_value(payload.get("writes_trace_event"), True, f"{path}.writes_trace_event", result)
+    for key in ("event_id", "session_id", "topic_id", "event_type", "risk_level", "trace_path"):
+        _require_nonempty_str(payload, key, path, result)
+    return result
+
+
+def require_valid_hook_trace_event_record(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_hook_trace_event_record(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def _validate_codex_guard_call(payload: Any, path: str, result: ContractResult) -> None:
     _require_mapping(payload, path, result)
     if not isinstance(payload, dict):
@@ -135,3 +196,14 @@ def _validate_codex_guard_call(payload: Any, path: str, result: ContractResult) 
     _require_list(payload.get("required_inputs"), f"{path}.required_inputs", result)
     if not isinstance(payload.get("may_block"), bool):
         result.add(f"{path}.may_block", "must be a boolean")
+
+
+def _validate_trace_event_payload(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    if payload.get("kind") != "trace_event":
+        result.add(f"{path}.kind", "must be 'trace_event'")
+    for key in ("event_id", "session_id", "topic_id", "event_type", "risk_level"):
+        _require_nonempty_str(payload, key, path, result)
+    _require_mapping(payload.get("payload"), f"{path}.payload", result)

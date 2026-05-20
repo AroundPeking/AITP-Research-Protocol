@@ -30,6 +30,7 @@ from brain.v5.subagents import ingest_subagent_result
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
 from brain.v5.tools import record_tool_run, register_tool_recipe
+from brain.v5.trace import persist_hook_trace_event
 from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
 from brain.v5.workspace import (
     bind_session,
@@ -132,6 +133,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     kp = sp.add_parser("knowledge"); ks = kp.add_subparsers(dest="knowledge_command", required=True)
     ks.add_parser("connectors")
+
+    trcp = sp.add_parser("trace"); trcs = trcp.add_subparsers(dest="trace_command", required=True)
+    the = trcs.add_parser("hook-event"); thes = the.add_subparsers(dest="trace_hook_event_command", required=True)
+    thp = thes.add_parser("persist"); thp.add_argument("--payload-json", required=True)
 
     rfp = sp.add_parser("reference"); rfs = rfp.add_subparsers(dest="reference_command", required=True)
     rfl = rfs.add_parser("location"); rls = rfl.add_subparsers(dest="reference_location_command", required=True)
@@ -306,6 +311,9 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
 
     if args.command == "knowledge" and args.knowledge_command == "connectors":
         return require_valid_public_surface("knowledge_connector_catalog", describe_knowledge_connectors())
+
+    if args.command == "trace" and args.trace_command == "hook-event" and args.trace_hook_event_command == "persist":
+        return require_valid_public_surface("hook_trace_event_record", persist_hook_trace_event(ws, _j(args.payload_json)))
 
     if args.command == "reference" and args.reference_command == "location" and args.reference_location_command == "record":
         loc = record_reference_location(ws, topic_id=args.topic_id, claim_id=args.claim_id,

@@ -27,6 +27,7 @@ from brain.v5.subagents import ingest_subagent_result
 from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
 from brain.v5.tools import record_tool_run, register_tool_recipe
+from brain.v5.trace import persist_hook_trace_event
 from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
 from brain.v5.workspace import bind_session, create_claim, create_topic, get_claim, init_workspace
 
@@ -152,6 +153,10 @@ def aitp_v5_list_tool_executors() -> dict:
 
 def aitp_v5_list_knowledge_connectors() -> dict:
     return require_valid_public_surface("knowledge_connector_catalog", describe_knowledge_connectors())
+
+
+def aitp_v5_persist_hook_trace_event(base: str, *, hook_payload: dict) -> dict:
+    return require_valid_public_surface("hook_trace_event_record", persist_hook_trace_event(_ws(base), hook_payload))
 
 
 def aitp_v5_record_reference_location(

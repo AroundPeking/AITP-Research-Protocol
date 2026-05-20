@@ -12,6 +12,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "evidence_record",
         "execution_brief",
         "human_checkpoint_record",
+        "hook_trace_event_record",
         "knowledge_connector_catalog",
         "legacy_migration_result",
         "memory_entry_record",
@@ -76,6 +77,29 @@ def test_public_surface_validator_accepts_codex_hook_bridge():
     }
 
     assert require_valid_public_surface("codex_hook_bridge", bridge) == bridge
+
+
+def test_public_surface_validator_accepts_hook_trace_event_record():
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    payload = {
+        "ok": True,
+        "kind": "hook_trace_event_record",
+        "event_id": "event-s1-fqhe-claim-tool",
+        "session_id": "s1",
+        "topic_id": "fqhe",
+        "claim_id": "claim-fqhe",
+        "event_type": "tool_run_recorded",
+        "risk_level": "guided",
+        "source_kind": "hook_trace_event",
+        "source_hook": "post_tool",
+        "trace_path": ".aitp/runtime/hook_trace_events.jsonl",
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+        "writes_trace_event": True,
+    }
+
+    assert require_valid_public_surface("hook_trace_event_record", payload) == payload
 
 
 def test_public_surface_validator_accepts_typed_write_records():

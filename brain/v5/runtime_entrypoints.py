@@ -68,6 +68,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_list_knowledge_connectors",
         "surface": "knowledge_connector_catalog",
     },
+    "persist_hook_trace_event": {
+        "cli": "aitp-v5 trace hook-event persist <args>",
+        "mcp": "aitp_v5_persist_hook_trace_event",
+        "surface": "hook_trace_event_record",
+    },
     "record_reference_location": {
         "cli": "aitp-v5 reference location record <args>",
         "mcp": "aitp_v5_record_reference_location",
@@ -306,6 +311,11 @@ def _sample_args_for_template(template: str) -> list[str]:
             "file:///papers/fqhe.pdf",
             "--label",
             "FQHE paper PDF",
+        ]
+    if template.startswith("trace hook-event persist"):
+        return [
+            "--payload-json",
+            '{"kind":"hook_trace_event","hook_name":"post_tool","event":{"event_id":"event-1","session_id":"s1","topic_id":"fqhe","event_type":"tool_run_recorded","risk_level":"guided","payload":{},"kind":"trace_event"},"exit_code":0,"summary_inputs_trusted":false}',
         ]
     if template.startswith("legacy migrate"):
         return [

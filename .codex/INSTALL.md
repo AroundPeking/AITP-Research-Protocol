@@ -64,6 +64,17 @@ The command builds the Codex adapter packet, reads its
 `codex_hook_bridge` payload. MCP clients should use
 `aitp_v5_write_codex_hook_bridge`.
 
+When a `post_tool` guard call emits a `hook_trace_event`, persist the payload
+through the v5 trace bridge instead of copying it into notes or summaries:
+
+```powershell
+aitp-v5 --base <workspace> trace hook-event persist --payload-json '<hook_trace_event_json>'
+```
+
+MCP clients should use `aitp_v5_persist_hook_trace_event`. This records process
+history in `.aitp/runtime/hook_trace_events.jsonl`; it does not create evidence
+or change claim trust.
+
 ## Repo-backed contributor path
 
 If you want repo-synced skills while changing this repository, use a local

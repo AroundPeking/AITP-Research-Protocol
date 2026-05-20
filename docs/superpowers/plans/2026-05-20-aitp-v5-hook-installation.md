@@ -16,6 +16,8 @@ Implemented:
 - derived `runtime_hook_installation` templates in v5 adapter packets;
 - Codex hook bridge writer derived from `runtime_hook_installation`;
 - CLI/MCP materializers for the Codex hook bridge from an actual adapter packet;
+- CLI/MCP runtime bridge for persisting `post-tool` hook trace events through
+  `.aitp/runtime/hook_trace_events.jsonl`;
 - short JSON output with `summary_inputs_trusted=false`.
 
 Documented here:
@@ -28,7 +30,7 @@ Not implemented in this slice:
 
 - one-click installer wiring for Codex, Claude Code, or OpenCode native hook
   configuration;
-- automatic persistence of `post-tool` trace events from platform hook output.
+- automatic platform-native invocation of the persistence bridge.
 
 ## Invariants
 
@@ -39,7 +41,8 @@ Not implemented in this slice:
 - A `post-tool` hook emits a serialized `TraceEvent`; it does not write
   evidence or change claim confidence.
 - Any adapter that wants durable trace history must persist the returned event
-  through the v5 trace/kernel path, not by editing summary files.
+  through `aitp-v5 trace hook-event persist` or
+  `aitp_v5_persist_hook_trace_event`, not by editing summary files.
 - Decision hooks may block through exit code `2`; trace hooks exit `0`.
 
 ## Common Command Contract
@@ -114,8 +117,8 @@ Adapter responsibility:
 
 - provide the active session/topic/claim identifiers from typed v5 state;
 - pass the tool name and evidence status as process metadata;
-- persist the returned trace event through the v5 trace path if the platform
-  supports durable post-tool logging.
+- persist the returned trace event through the v5 trace bridge when durable
+  post-tool logging is desired.
 
 Expected output:
 
@@ -123,6 +126,25 @@ Expected output:
 - `event` is a serialized v5 `TraceEvent`;
 - `exit_code=0`;
 - `summary_inputs_trusted=false`.
+
+Persistence command:
+
+```powershell
+aitp-v5 --base <workspace> trace hook-event persist --payload-json '<hook_trace_event_json>'
+```
+
+MCP persistence wrapper:
+
+```text
+aitp_v5_persist_hook_trace_event(base, hook_payload)
+```
+
+Persistence output:
+
+- `kind=hook_trace_event_record`;
+- appends to `.aitp/runtime/hook_trace_events.jsonl`;
+- `can_update_claim_trust=false`;
+- does not create evidence, memory, validation, or confidence records.
 
 ## Codex Template
 
@@ -139,7 +161,9 @@ Recommended placement:
 - call `pre-tool` before trust-changing actions, L2 promotion, remote execution,
   destructive actions, or expensive compute;
 - call `post-tool` after meaningful physics/numerical/literature tool runs when
-  active session/topic/claim IDs are known.
+  active session/topic/claim IDs are known;
+- pass the returned `hook_trace_event` to `aitp-v5 trace hook-event persist`
+  when the event should survive the current process.
 
 Codex must not infer a trust update from the hook output. If a hook says a tool
 run supported a claim, that is process history only until typed evidence and
@@ -178,7 +202,7 @@ Recommended mapping:
 - PreToolUse: translate the platform tool event into a v5 action, obtain a
   typed `PolicyDecision`, then call `pre-tool`.
 - PostToolUse: call `post-tool` with active v5 identifiers and persist the
-  returned trace event through the trace/kernel path.
+  returned trace event through `aitp_v5_persist_hook_trace_event`.
 - Pre-commit or Stop-time repository guard: call `pre-commit` for staged
   harness changes before allowing a commit recommendation.
 
@@ -193,7 +217,7 @@ OpenCode should use the same contract as Codex and Claude Code:
 - before high-risk tool calls, the OpenCode adapter computes a v5 policy packet
   and calls `pre-tool`;
 - after tool calls, the adapter calls `post-tool` and persists trace events only
-  through v5 trace/kernel functions;
+  through `aitp_v5_persist_hook_trace_event` or the matching CLI command;
 - before repository commits, it calls `pre-commit` with changed files, test refs,
   and evolution note.
 
@@ -207,5 +231,4 @@ Future implementation should add tests and installer assets for:
 - Codex runtime instructions or hook bridge that can call this adapter directly;
 - Claude Code settings/template generation for v5 lifecycle hooks;
 - OpenCode plugin or runtime bridge configuration;
-- post-tool trace persistence through the v5 kernel rather than stdout-only
-  event emission.
+- platform-native automatic invocation of the post-tool persistence bridge.
