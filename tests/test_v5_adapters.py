@@ -304,6 +304,63 @@ def test_mcp_codex_hook_bridge_wrapper_returns_contract_payload(tmp_path):
     assert bridge_path.exists()
 
 
+def test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet(tmp_path, capsys):
+    _seed_session(tmp_path)
+
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "adapter",
+            "hook-settings",
+            "claude-code",
+            "s1",
+            "--output",
+            str(settings_path),
+        ],
+        capsys,
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "claude_code_hook_settings"
+    assert payload["runtime"] == "claude_code"
+    assert payload["source_protocol_field"] == "runtime_hook_installation"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert payload["can_write_trace_events"] is True
+    assert payload["path"] == str(settings_path)
+    assert [event["hook_event_name"] for event in payload["events"]] == ["PreToolUse", "PostToolUse"]
+
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert set(settings["hooks"]) == {"PreToolUse", "PostToolUse"}
+    pre_command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    post_command = settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+    assert "hooks/aitp_v5_claude_hook.py" in pre_command
+    assert "pre-tool" in pre_command
+    assert "--session-id s1" in pre_command
+    assert "post-tool" in post_command
+    assert "--base" in post_command
+
+
+def test_mcp_claude_code_hook_settings_wrapper_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_write_claude_code_hook_settings
+
+    _seed_session(tmp_path)
+
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    payload = aitp_v5_write_claude_code_hook_settings(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(settings_path),
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "claude_code_hook_settings"
+    assert payload["settings"]["hooks"]["PostToolUse"][0]["matcher"] == "*"
+    assert settings_path.exists()
+
+
 def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
     from brain.v5.adapter_protocols import adapter_protocol_fingerprint
     from brain.v5.adapters import build_adapter_packet

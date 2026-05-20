@@ -28,6 +28,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_write_codex_hook_bridge",
         "surface": "codex_hook_bridge",
     },
+    "claude_code_hook_settings": {
+        "cli": "aitp-v5 adapter hook-settings claude-code <session-id> <args>",
+        "mcp": "aitp_v5_write_claude_code_hook_settings",
+        "surface": "claude_code_hook_settings",
+    },
     "execution_brief": {
         "cli": "aitp-v5 brief <session-id>",
         "mcp": "aitp_v5_get_execution_brief",
@@ -329,6 +334,11 @@ def _sample_args_for_template(template: str) -> list[str]:
         return [
             "--output",
             "AITP_V5_HOOK_BRIDGE.md",
+        ]
+    if template.startswith("adapter hook-settings"):
+        return [
+            "--output",
+            ".claude/settings.local.json",
         ]
     if template.startswith("object record"):
         return [

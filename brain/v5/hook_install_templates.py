@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,45 @@ def write_codex_hook_bridge(path: str | Path, installation: dict[str, Any]) -> d
     return bridge
 
 
+def write_claude_code_hook_settings(
+    path: str | Path,
+    installation: dict[str, Any],
+    *,
+    workspace_base: str,
+    session_id: str,
+) -> dict[str, Any]:
+    """Write Claude Code hook settings derived from hook installation metadata."""
+
+    settings_path = Path(path)
+    command_base = f'python hooks/aitp_v5_claude_hook.py {{command}} --base "{workspace_base}" --session-id {session_id}'
+    settings = {
+        "hooks": {
+            "PreToolUse": [_claude_event("*", command_base.format(command="pre-tool"))],
+            "PostToolUse": [_claude_event("*", command_base.format(command="post-tool"))],
+        }
+    }
+    events = [
+        {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
+        {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
+    ]
+    payload = {
+        "kind": "claude_code_hook_settings",
+        "runtime": "claude_code",
+        "source_protocol_field": "runtime_hook_installation",
+        "installation_mode": installation["installation_mode"],
+        "native_installer_available": installation["native_installer_available"],
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+        "can_write_trace_events": True,
+        "path": str(settings_path),
+        "events": events,
+        "settings": settings,
+    }
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return payload
+
+
 def _hook_template(hook_name: str, protocol: dict[str, Any]) -> dict[str, Any]:
     return {
         "hook_name": hook_name,
@@ -107,6 +147,18 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
             ]
         )
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _claude_event(matcher: str, command: str) -> dict[str, Any]:
+    return {
+        "matcher": matcher,
+        "hooks": [
+            {
+                "type": "command",
+                "command": command,
+            }
+        ],
+    }
 
 
 def _codex_when(hook_name: str) -> str:

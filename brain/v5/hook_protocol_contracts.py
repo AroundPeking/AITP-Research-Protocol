@@ -125,6 +125,45 @@ def require_valid_codex_hook_bridge(payload: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def validate_claude_code_hook_settings(
+    payload: dict[str, Any],
+    *,
+    path: str = "claude_code_hook_settings",
+) -> ContractResult:
+    """Validate generated Claude Code hook settings metadata."""
+
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if result.issues:
+        return result
+
+    if payload.get("ok") is not True:
+        result.add(f"{path}.ok", "must be true")
+    if payload.get("kind") != "claude_code_hook_settings":
+        result.add(f"{path}.kind", "must be 'claude_code_hook_settings'")
+    if payload.get("runtime") != "claude_code":
+        result.add(f"{path}.runtime", "must be 'claude_code'")
+    if payload.get("source_protocol_field") != "runtime_hook_installation":
+        result.add(f"{path}.source_protocol_field", "must be 'runtime_hook_installation'")
+    if payload.get("installation_mode") != "native_lifecycle_hooks":
+        result.add(f"{path}.installation_mode", "must be 'native_lifecycle_hooks'")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    _require_bool_value(payload.get("can_write_trace_events"), True, f"{path}.can_write_trace_events", result)
+    for key in ("path",):
+        _require_nonempty_str(payload, key, path, result)
+    _require_list(payload.get("events"), f"{path}.events", result)
+    _require_mapping(payload.get("settings"), f"{path}.settings", result)
+    return result
+
+
+def require_valid_claude_code_hook_settings(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_claude_code_hook_settings(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def validate_hook_trace_event_payload(payload: Any, *, path: str = "hook_trace_event") -> ContractResult:
     """Validate stdout emitted by the post-tool shell hook before persistence."""
 

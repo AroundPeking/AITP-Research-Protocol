@@ -14,7 +14,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
-from brain.v5.hook_install_templates import write_codex_hook_bridge
+from brain.v5.hook_install_templates import write_claude_code_hook_settings, write_codex_hook_bridge
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import TrustUpdateRequest
@@ -162,6 +162,8 @@ def _build_parser() -> argparse.ArgumentParser:
     apt = aps.add_parser("packet"); apt.add_argument("runtime"); apt.add_argument("session_id")
     ahb = aps.add_parser("hook-bridge"); ahb.add_argument("runtime"); ahb.add_argument("session_id")
     ahb.add_argument("--output", required=True)
+    ahs = aps.add_parser("hook-settings"); ahs.add_argument("runtime"); ahs.add_argument("session_id")
+    ahs.add_argument("--output", required=True)
     aps.add_parser("registry"); aps.add_parser("public-surfaces")
 
     op = sp.add_parser("object"); ops = op.add_subparsers(dest="object_command", required=True)
@@ -343,6 +345,13 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             raise SystemExit("adapter hook-bridge currently supports codex runtime only")
         bridge = {"ok": True, **write_codex_hook_bridge(args.output, packet["runtime_hook_installation"])}
         return require_valid_public_surface("codex_hook_bridge", bridge)
+    if args.command == "adapter" and args.adapter_command == "hook-settings":
+        packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))
+        if packet["runtime"] != "claude_code":
+            raise SystemExit("adapter hook-settings currently supports claude-code runtime only")
+        settings = {"ok": True, **write_claude_code_hook_settings(
+            args.output, packet["runtime_hook_installation"], workspace_base=str(ws.base), session_id=args.session_id)}
+        return require_valid_public_surface("claude_code_hook_settings", settings)
 
     if args.command == "trust":
         req = _trust_update_request_from_args(args)

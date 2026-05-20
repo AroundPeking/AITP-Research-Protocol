@@ -73,6 +73,32 @@ claude mcp list
 3. **PreToolUse**: Routing guard prevents Write/Edit to AITP topic files outside the protocol
 4. **MCP tools**: `mcp__aitp__aitp_*` tools available for structured protocol actions
 
+## AITP v5 hook settings
+
+Repo-backed v5 workspaces can generate a Claude Code settings template from the
+typed adapter packet:
+
+```powershell
+aitp-v5 --base <workspace> adapter hook-settings claude-code <session-id> --output .claude/settings.local.json
+```
+
+The generated settings use Claude Code `PreToolUse` and `PostToolUse` hook
+entries that call:
+
+```text
+hooks/aitp_v5_claude_hook.py
+```
+
+`PostToolUse` persists process trace events through
+`.aitp/runtime/hook_trace_events.jsonl`. These events are durable process
+history, not evidence records and not claim-confidence updates.
+
+MCP clients can call:
+
+```text
+aitp_v5_write_claude_code_hook_settings(base, session_id, output_path)
+```
+
 The expected UX:
 - Natural-language theory requests enter AITP before substantive work
 - `Continue this topic` routes to the current topic automatically

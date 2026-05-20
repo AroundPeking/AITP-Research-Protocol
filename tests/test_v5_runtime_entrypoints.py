@@ -31,6 +31,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "mcp": "aitp_v5_write_codex_hook_bridge",
         "surface": "codex_hook_bridge",
     }
+    assert entrypoints["claude_code_hook_settings"] == {
+        "cli": "aitp-v5 adapter hook-settings claude-code <session-id> <args>",
+        "mcp": "aitp_v5_write_claude_code_hook_settings",
+        "surface": "claude_code_hook_settings",
+    }
     assert entrypoints["persist_hook_trace_event"] == {
         "cli": "aitp-v5 trace hook-event persist <args>",
         "mcp": "aitp_v5_persist_hook_trace_event",

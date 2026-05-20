@@ -60,6 +60,20 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
 - Test: `pytest tests/`
 - The MCP server is configured in each workspace's `.mcp.json`
 
+## AITP v5 Runtime Hooks
+
+- v5 hook metadata is generated from typed adapter packets under
+  `runtime_hook_protocols` and `runtime_hook_installation`.
+- Codex can materialize explicit guard-call instructions with
+  `aitp-v5 adapter hook-bridge codex <session-id> --output <path>`.
+- Claude Code can materialize native hook settings with
+  `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
+- `hooks/aitp_v5_claude_hook.py` reads Claude Code hook JSON from stdin; its
+  `PostToolUse` path persists process trace events through
+  `.aitp/runtime/hook_trace_events.jsonl`.
+- Hook trace events are durable process history only. They do not create
+  evidence, memory, validation, or claim-confidence records.
+
 ## Protocol Layer Map
 
 | Layer | Purpose | Key Tools |

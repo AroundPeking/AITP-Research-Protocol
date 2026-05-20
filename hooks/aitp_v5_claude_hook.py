@@ -1,0 +1,110 @@
+"""Claude Code hook bridge for AITP v5."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from brain.v5.brief import build_execution_brief
+from brain.v5.hook_adapters import hook_decision_payload, hook_trace_event_payload
+from brain.v5.hooks import decide_pre_tool_use, post_tool_use_trace_event
+from brain.v5.policy import PolicyDecision
+from brain.v5.trace import persist_hook_trace_event
+from brain.v5.workspace import get_session_binding, init_workspace
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    claude_payload = _read_stdin_payload()
+    payload = _dispatch(args, claude_payload)
+    json.dump(payload, sys.stdout, ensure_ascii=False, sort_keys=True)
+    sys.stdout.write("\n")
+    return 0
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="aitp-v5-claude-hook")
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument("--base", required=True)
+    parent.add_argument("--session-id", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("pre-tool", parents=[parent])
+    subparsers.add_parser("post-tool", parents=[parent])
+    return parser
+
+
+def _dispatch(args: argparse.Namespace, claude_payload: dict) -> dict:
+    if args.command == "pre-tool":
+        action = _action_from_claude_tool(claude_payload)
+        decision = decide_pre_tool_use(
+            action=action,
+            risk_level="guided",
+            policy_decision=PolicyDecision(allowed=True, action=action),
+        )
+        return _claude_continue({"aitp": hook_decision_payload(decision, hook_name="pre_tool")})
+    if args.command == "post-tool":
+        ws = init_workspace(args.base)
+        binding = get_session_binding(ws, args.session_id)
+        risk_level = _risk_level(ws, args.session_id)
+        event = post_tool_use_trace_event(
+            session_id=args.session_id,
+            topic_id=binding.topic_id,
+            risk_level=risk_level,
+            claim_id=binding.active_claim,
+            tool_name=str(claude_payload.get("tool_name") or "unknown"),
+            evidence_status=_evidence_status(claude_payload),
+        )
+        hook_payload = hook_trace_event_payload(event, hook_name="post_tool")
+        record = persist_hook_trace_event(ws, hook_payload)
+        return _claude_continue({"aitp": record})
+    raise SystemExit(f"unsupported Claude hook command: {args.command}")
+
+
+def _read_stdin_payload() -> dict:
+    raw = sys.stdin.read().strip()
+    if not raw:
+        return {}
+    payload = json.loads(raw)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _action_from_claude_tool(payload: dict) -> str:
+    tool_name = str(payload.get("tool_name") or "").lower()
+    if tool_name == "bash":
+        command = str((payload.get("tool_input") or {}).get("command") or "").lower()
+        if any(token in command for token in ("rm -rf", "git reset --hard", "ssh ", "scp ")):
+            return "remote_or_destructive_tool_use"
+    if tool_name in {"webfetch", "websearch"}:
+        return "literature_or_web_tool_use"
+    return "claude_tool_use"
+
+
+def _evidence_status(payload: dict) -> str:
+    response = payload.get("tool_response")
+    if isinstance(response, dict) and response.get("exit_code") == 0:
+        return "completed"
+    return "process_trace"
+
+
+def _risk_level(ws, session_id: str) -> str:
+    try:
+        return str(build_execution_brief(ws, session_id)["risk_assessment"]["level"])
+    except Exception:
+        return "guided"
+
+
+def _claude_continue(extra: dict) -> dict:
+    return {
+        "continue": True,
+        "suppressOutput": True,
+        **extra,
+    }
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

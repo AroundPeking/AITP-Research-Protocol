@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-279 passed
+283 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -102,13 +102,18 @@ Implemented:
   through CLI/MCP/runtime public surfaces.
 - Post-tool hook trace events can be persisted from hook stdout through
   CLI/MCP/runtime public surfaces into `.aitp/runtime/hook_trace_events.jsonl`.
+- Claude Code hook settings can be generated from an actual adapter packet, and
+  the generated `PostToolUse` wrapper persists process trace events through the
+  v5 trace bridge.
 - A v5 implementation ledger exists for step-by-step review.
 
 Major remaining gaps:
 
-- Hook helpers still need native Codex/Claude/OpenCode lifecycle installer wiring.
-  Codex explicit bridge materialization and post-tool trace persistence surfaces
-  exist, but are not native lifecycle integration.
+- Hook helpers still need native Codex/OpenCode lifecycle installer wiring and
+  one-click Claude Code settings merge logic. Codex explicit bridge
+  materialization, Claude Code settings template generation, and post-tool trace
+  persistence surfaces exist, but Codex/OpenCode are not native lifecycle
+  integrations yet.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.

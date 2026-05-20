@@ -275,3 +275,60 @@ def test_v5_hook_script_post_tool_emits_trace_event_payload():
     assert payload["event"]["claim_id"] == "claim-fqhe"
     assert payload["event"]["payload"]["tool_name"] == "exact-diagonalization"
     assert payload["event"]["payload"]["evidence_status"] == "supports"
+
+
+def test_claude_hook_script_post_tool_persists_trace_event(tmp_path):
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from brain.v5.trace import read_trace_events
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The tool process trace should be durable.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="process history",
+    )
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "hooks" / "aitp_v5_claude_hook.py"
+    hook_input = {
+        "session_id": "claude-session",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": "echo hi"},
+        "tool_response": {"exit_code": 0},
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "post-tool",
+            "--base",
+            str(tmp_path),
+            "--session-id",
+            "s1",
+        ],
+        input=json.dumps(hook_input),
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["continue"] is True
+    assert payload["suppressOutput"] is True
+    assert payload["aitp"]["kind"] == "hook_trace_event_record"
+    events = read_trace_events(ws.root / "runtime" / "hook_trace_events.jsonl")
+    assert len(events) == 1
+    assert events[0].payload["tool_name"] == "Bash"
