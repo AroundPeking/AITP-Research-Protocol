@@ -522,3 +522,55 @@ Each entry should record:
 - Next recommended task:
   - deepen the Claude `PreToolUse` typed policy mapping, or implement native
     OpenCode plugin invocation around the generated bridge.
+
+### 4ab7a4d - Map Claude PreTool Policy Decisions
+
+- Task: make the Claude Code `PreToolUse` wrapper map Claude tool JSON into a
+  typed v5 policy decision and return Claude `permissionDecision` output.
+- Planning source:
+  - residual risk after `9fbcc1d`;
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`;
+  - v5 goal requirement that hooks enforce protocol decisions instead of only
+    generating orientation text.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `docs/INSTALL_CLAUDE_CODE.md`
+  - hook installation and next-agent planning docs
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_hooks.py`
+- Public/runtime behavior changes:
+  - Claude `PreToolUse` now returns `hookSpecificOutput.permissionDecision`;
+  - destructive Bash commands such as `rm -rf` and `git reset --hard` map to
+    `destructive_action`;
+  - SSH/SCP commands map to `remote_execution`;
+  - scheduler-like Bash commands map to `expensive_compute`;
+  - high-risk mapped actions produce a v5 typed pre-tool block with
+    `required_actions=["request_human_checkpoint"]` and Claude
+    `permissionDecision=deny`;
+  - web/literature tools remain `allow` plus a logged typed hook decision.
+- Tests:
+  - destructive Bash is denied and carries the v5 `hook_decision` payload;
+  - WebSearch is allowed and carries the v5 typed log decision.
+- Verification:
+  - focused red tests failed because the Claude hook output lacked
+    `hookSpecificOutput`.
+  - focused green test set: 2 passed.
+  - regression set
+    `pytest tests\test_v5_hooks.py tests\test_v5_adapters.py
+    tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py
+    tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`:
+    91 passed.
+  - full v5 focused suite: 293 passed.
+  - `python -m compileall -q brain\v5`: passed.
+  - `git diff --check -- .`: passed.
+  - source module line counts remained below 500 lines.
+  - `python hooks\aitp_v5_hook.py pre-commit ...`: passed with `mode=log`.
+- Residual risks:
+  - Claude `PreToolUse` mapping still covers only coarse Bash/web categories;
+  - the wrapper creates the policy decision locally rather than querying the
+    full active claim/risk context for every tool event;
+  - native OpenCode plugin invocation remains incomplete.
+- Next recommended task:
+  - extend Claude `PreToolUse` mapping to trust-changing MCP/kernel calls, or
+    add native OpenCode plugin invocation around the generated bridge.
