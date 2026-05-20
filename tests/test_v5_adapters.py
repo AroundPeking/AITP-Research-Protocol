@@ -163,6 +163,40 @@ def test_adapter_packet_includes_orientation_summaries_and_trusted_brief(tmp_pat
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     }
+    assert packet["runtime_gate_protocols"]["record_evidence"] == {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "record_evidence",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id"],
+        "allowed_state_sources": ["typed_records", "typed_evidence_records"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    }
+    assert packet["runtime_gate_protocols"]["record_tool_run"] == {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "record_tool_run",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id", "recipe_id"],
+        "allowed_state_sources": ["typed_records", "typed_tool_run_records"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    }
     assert "read_for_orientation" in packet["runtime_rules"][0]
 
 
@@ -302,6 +336,8 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
     assert payload["gate_protocols"]["validate_claim"]["sequence"][1] == "evaluate_pre_tool_policy"
     assert payload["gate_protocols"]["validate_claim"]["policy_reasons_field"] == "policy_reasons"
     assert payload["gate_protocols"]["promote_to_l2"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
+    assert payload["gate_protocols"]["record_evidence"]["sequence"][1] == "evaluate_pre_tool_policy"
+    assert payload["gate_protocols"]["record_tool_run"]["policy_reasons_field"] == "policy_reasons"
     assert payload["path"] == str(bridge_path)
     assert [call["hook_name"] for call in payload["guard_calls"]] == ["pre_commit", "pre_tool", "post_tool"]
     text = bridge_path.read_text(encoding="utf-8")
@@ -388,6 +424,8 @@ def test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet(tmp_path, ca
     assert payload["plugin_bridge"]["gate_protocols"]["source_protocol_field"] == "runtime_gate_protocols"
     assert payload["plugin_bridge"]["gate_protocols"]["validate_claim"]["sequence"][1] == "evaluate_pre_tool_policy"
     assert payload["plugin_bridge"]["gate_protocols"]["promote_to_l2"]["policy_reasons_field"] == "policy_reasons"
+    assert payload["plugin_bridge"]["gate_protocols"]["record_evidence"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
+    assert payload["plugin_bridge"]["gate_protocols"]["record_tool_run"]["sequence"][1] == "evaluate_pre_tool_policy"
     assert bridge_path.exists()
     assert "evaluate_pre_tool_policy" in bridge_path.read_text(encoding="utf-8")
 

@@ -202,3 +202,46 @@ def test_opencode_platform_pre_tool_event_maps_plugin_call_to_gate_policy(tmp_pa
     assert payload["runtime_event"]["platform_event"] == "opencode_pre_tool"
     assert payload["runtime_event"]["tool_name"] == "mcp__aitp__aitp_v5_create_promotion_packet"
     assert payload["runtime_gate_protocol"]["action"] == "promote_to_l2"
+
+
+def test_platform_pre_tool_event_blocks_summary_sourced_record_evidence(tmp_path):
+    from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
+    from brain.v5.adapters import build_adapter_packet
+    from brain.v5.hook_install_templates import write_codex_hook_bridge
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    ws, claim = _seed_session(tmp_path)
+    packet = build_adapter_packet(ws, "s1", runtime="codex")
+    bridge = {
+        "ok": True,
+        **write_codex_hook_bridge(
+            tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md",
+            packet["runtime_hook_installation"],
+            packet["runtime_gate_protocols"],
+        ),
+    }
+
+    payload = evaluate_platform_pre_tool_event(
+        ws,
+        bridge,
+        {
+            "runtime": "codex",
+            "hook_name": "pre_tool",
+            "session_id": "s1",
+            "tool_name": "mcp__aitp__aitp_v5_record_evidence",
+            "tool_input": {
+                "topic_id": "fqhe",
+                "claim_id": claim.claim_id,
+                "source_kind": "findings",
+                "source_ref": ".aitp/surfaces/session_summaries/s1/findings.md",
+                "orientation_only": True,
+            },
+        },
+    )
+
+    assert payload["block"] is True
+    assert payload["runtime_gate_protocol"]["action"] == "record_evidence"
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "no_summary_surface_as_truth_source"
+    ]
+    assert require_valid_public_surface("pre_tool_policy_decision", payload) == payload

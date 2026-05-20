@@ -211,7 +211,7 @@ def _gate_protocol_payload(runtime_gate_protocols: dict[str, Any] | None) -> dic
 
         runtime_gate_protocols = mandatory_gate_protocols()
     payload = {"source_protocol_field": "runtime_gate_protocols"}
-    for action in ("validate_claim", "promote_to_l2"):
+    for action in runtime_gate_protocols:
         payload[action] = deepcopy(runtime_gate_protocols[action])
     return payload
 
@@ -228,7 +228,7 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
         "",
         "## Shared Context Pre-Tool Policy",
         "",
-        "Use `aitp-v5 policy pre-tool <args>` before validation or L2 promotion actions that depend on typed claim, evidence, or code-state context.",
+        "Use `aitp-v5 policy pre-tool <args>` before trust-changing actions that depend on typed claim, evidence, source, or code-state context.",
         "",
         "- surface: `pre_tool_policy_decision`",
         "- mcp: `aitp_v5_evaluate_pre_tool_policy`",
@@ -239,7 +239,7 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
         "## Gate Protocols",
         "",
     ]
-    for action in ("validate_claim", "promote_to_l2"):
+    for action in _gate_protocol_actions(bridge["gate_protocols"]):
         protocol = bridge["gate_protocols"].get(action, {})
         lines.extend(
             [
@@ -286,7 +286,7 @@ def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
         "",
         "## Shared Context Pre-Tool Policy",
         "",
-        "Use `aitp-v5 policy pre-tool <args>` before validation or L2 promotion actions that depend on typed claim, evidence, or code-state context.",
+        "Use `aitp-v5 policy pre-tool <args>` before trust-changing actions that depend on typed claim, evidence, source, or code-state context.",
         "",
         "- surface: `pre_tool_policy_decision`",
         "- mcp: `aitp_v5_evaluate_pre_tool_policy`",
@@ -297,7 +297,7 @@ def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
         "## Gate Protocols",
         "",
     ]
-    for action in ("validate_claim", "promote_to_l2"):
+    for action in _gate_protocol_actions(bridge["plugin_bridge"]["gate_protocols"]):
         protocol = bridge["plugin_bridge"]["gate_protocols"].get(action, {})
         lines.extend(
             [
@@ -405,6 +405,10 @@ def _codex_when(hook_name: str) -> str:
 
 def _command_string(command: list[str]) -> str:
     return " ".join(command)
+
+
+def _gate_protocol_actions(gate_protocols: dict[str, Any]) -> list[str]:
+    return [action for action in gate_protocols if action != "source_protocol_field"]
 
 
 def _normalize_runtime(runtime: str) -> str:

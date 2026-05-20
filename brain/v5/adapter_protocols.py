@@ -7,6 +7,7 @@ import json
 from copy import deepcopy
 from typing import Any
 
+from brain.v5.gate_protocols import mandatory_gate_protocols
 from brain.v5.public_surfaces import public_surface_names, public_surface_validator_ref
 
 
@@ -299,43 +300,6 @@ _RUNTIME_RECORD_PROTOCOLS = {
         "summary_inputs_trusted": False,
     },
 }
-_RUNTIME_GATE_PROTOCOLS = {
-    "validate_claim": {
-        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
-        "preflight": "aitp_v5_preflight_trust_update",
-        "sequence": [
-            "refresh_execution_brief",
-            "evaluate_pre_tool_policy",
-            "preflight_trust_update",
-            "record_validation_evidence",
-            "refresh_execution_brief",
-            "write_session_summary",
-        ],
-        "required_typed_refs": ["topic_id", "claim_id", "evidence_refs"],
-        "allowed_state_sources": ["typed_evidence_records", "typed_validation_records"],
-        "policy_reasons_field": "policy_reasons",
-        "human_checkpoint_required": False,
-        "truth_source": "typed_records",
-        "summary_inputs_trusted": False,
-    },
-    "promote_to_l2": {
-        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
-        "preflight": "aitp_v5_preflight_trust_update",
-        "sequence": [
-            "refresh_execution_brief",
-            "evaluate_pre_tool_policy",
-            "preflight_trust_update",
-            "human_checkpoint",
-            "promote_to_l2",
-        ],
-        "required_typed_refs": ["topic_id", "claim_id", "evidence_refs", "validation_result_ref"],
-        "allowed_state_sources": ["typed_evidence_records", "typed_validation_records", "human_checkpoint"],
-        "policy_reasons_field": "policy_reasons",
-        "human_checkpoint_required": True,
-        "truth_source": "typed_records",
-        "summary_inputs_trusted": False,
-    },
-}
 _RUNTIME_HOOK_PROTOCOLS = {
     "pre_commit": {
         "lifecycle_event": "pre_commit",
@@ -437,12 +401,6 @@ def mandatory_record_protocols() -> dict[str, Any]:
     return deepcopy(_RUNTIME_RECORD_PROTOCOLS)
 
 
-def mandatory_gate_protocols() -> dict[str, Any]:
-    """Return mandatory validation and promotion runtime protocols."""
-
-    return deepcopy(_RUNTIME_GATE_PROTOCOLS)
-
-
 def mandatory_hook_protocols() -> dict[str, Any]:
     """Return mandatory lifecycle hook protocols for runtime adapters."""
 
@@ -466,6 +424,6 @@ def _build_protocol_payload() -> dict[str, Any]:
         "trust_mutation_entrypoints": deepcopy(_TRUST_MUTATION_ENTRYPOINTS),
         "runtime_trust_update_protocol": deepcopy(_RUNTIME_TRUST_UPDATE_PROTOCOL),
         "runtime_record_protocols": deepcopy(_RUNTIME_RECORD_PROTOCOLS),
-        "runtime_gate_protocols": deepcopy(_RUNTIME_GATE_PROTOCOLS),
+        "runtime_gate_protocols": mandatory_gate_protocols(),
         "runtime_hook_protocols": deepcopy(_RUNTIME_HOOK_PROTOCOLS),
     }

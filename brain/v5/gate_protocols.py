@@ -1,0 +1,85 @@
+"""Runtime gate protocols for trust-relevant AITP v5 adapter actions."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+
+_RUNTIME_GATE_PROTOCOLS = {
+    "record_evidence": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "record_evidence",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id"],
+        "allowed_state_sources": ["typed_records", "typed_evidence_records"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+    "record_tool_run": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "record_tool_run",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id", "recipe_id"],
+        "allowed_state_sources": ["typed_records", "typed_tool_run_records"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+    "validate_claim": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "aitp_v5_preflight_trust_update",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "preflight_trust_update",
+            "record_validation_evidence",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id", "evidence_refs"],
+        "allowed_state_sources": ["typed_evidence_records", "typed_validation_records"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+    "promote_to_l2": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "aitp_v5_preflight_trust_update",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "preflight_trust_update",
+            "human_checkpoint",
+            "promote_to_l2",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id", "evidence_refs", "validation_result_ref"],
+        "allowed_state_sources": ["typed_evidence_records", "typed_validation_records", "human_checkpoint"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": True,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
+}
+
+
+def mandatory_gate_protocols() -> dict[str, Any]:
+    """Return mandatory runtime gate protocols for adapter and hook bridges."""
+
+    return deepcopy(_RUNTIME_GATE_PROTOCOLS)

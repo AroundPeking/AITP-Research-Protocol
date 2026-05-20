@@ -450,7 +450,7 @@ def _validate_runtime_gate_protocols(
         preflight = protocol.get("preflight")
         if preflight != expected_protocol["preflight"]:
             result.add(f"{path}.{action}.preflight", f"must be {expected_protocol['preflight']!r}")
-        if isinstance(preflight, str) and entrypoints and preflight not in entrypoints:
+        if isinstance(preflight, str) and preflight and entrypoints and preflight not in entrypoints:
             result.add(f"{path}.{action}.preflight", "must reference a declared required kernel entrypoint")
         pre_tool_policy = protocol.get("pre_tool_policy")
         if pre_tool_policy != expected_protocol["pre_tool_policy"]:
