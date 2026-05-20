@@ -1623,3 +1623,49 @@ Each entry should record:
 - Next recommended task:
   - advertise the stdin runner in generated bridge payloads or add platform
     installation wiring that calls it directly.
+
+### 13df91c - Advertise Adapter Stdin Runner In Bridge Payloads
+
+- Task: make generated Codex/OpenCode bridge sidecars and Markdown advertise
+  the stdin host-runner command vector.
+- Planning source:
+  - residual risk after `82ab863`;
+  - bridge sidecars already had a low-level `adapter pre-tool-event` argv, but
+    the host-facing stdin runner was only documented outside the machine
+    payload.
+- Changed files:
+  - `brain/v5/hook_install_templates.py`
+  - `brain/v5/hook_runner_payloads.py`
+  - `tests/test_v5_adapters.py`
+- Public/runtime behavior changes:
+  - `pre_tool_event_runner.stdin_runner.argv` is now present in Codex bridge
+    payloads;
+  - `plugin_bridge.pre_tool_event_runner.stdin_runner.argv` is now present in
+    OpenCode bridge payloads;
+  - generated Markdown renders the stdin runner command for hosts that pass
+    platform event JSON through stdin.
+- Tests:
+  - Codex CLI/MCP bridge tests assert actual session id and sidecar path in the
+    stdin runner argv;
+  - OpenCode direct/CLI bridge tests assert placeholder and actual session id
+    behavior;
+  - Codex/OpenCode bridge Markdown tests assert the stdin runner script is
+    rendered.
+- Verification:
+  - red tests failed as expected with missing `stdin_runner` and then missing
+    Markdown rendering;
+  - target green set:
+    `python -m pytest tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet tests/test_v5_adapters.py::test_mcp_codex_hook_bridge_wrapper_returns_contract_payload tests/test_v5_adapters.py::test_opencode_plugin_bridge_is_rendered_from_installation_template tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet -q`:
+    4 passed;
+  - focused adapter/runtime set:
+    `python -m pytest tests/test_v5_adapters.py tests/test_v5_adapter_event_runner.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    52 passed;
+  - `hook_install_templates.py`: 496 lines; `hook_runner_payloads.py`: 59
+    lines.
+- Residual risks:
+  - native Codex/OpenCode installation is still not automatic;
+  - `hook_install_templates.py` is close to the 500-line source boundary.
+- Next recommended task:
+  - add native-ish Codex/OpenCode installation fixtures that call the advertised
+    stdin runner, or split bridge Markdown rendering before the next template
+    expansion.
