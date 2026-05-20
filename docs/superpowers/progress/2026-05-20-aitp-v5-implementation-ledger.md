@@ -2125,3 +2125,59 @@ Each entry should record:
 - Next recommended task:
   - broaden pre-tool policy coverage for validation-contract or promotion-packet
     creation inputs, or add native hook installer documentation/tests.
+
+### bd2f3eb - Gate Validation Contract Creation Through Pre-Tool Policy
+
+- Task: give `create_validation_contract` its own pre-tool gate action instead
+  of treating the MCP entrypoint as `validate_claim`.
+- Planning source:
+  - previous ledger recommendation to broaden pre-tool policy coverage for
+    validation-contract creation inputs;
+  - v5 invariant that validation contracts shape later trust decisions and must
+    not be created from orientation-only summaries.
+- Changed files:
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/gate_protocols.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `create_validation_contract` participates in context-aware pre-tool policy
+    evaluation;
+  - summary/task-plan/findings/progress orientation surfaces cannot directly
+    drive validation contract creation;
+  - generated bridge gate protocols now include `create_validation_contract`;
+  - Codex/OpenCode platform pre-tool event normalization now maps
+    `aitp_v5_create_validation_contract` to `create_validation_contract`
+    instead of `validate_claim`.
+- Tests:
+  - MCP pre-tool policy blocks `create_validation_contract` when sourced from
+    findings orientation;
+  - adapter pre-tool event path infers `create_validation_contract` from the MCP
+    tool name and blocks the same orientation-sourced contract creation through
+    bridge gate metadata.
+- Verification:
+  - red tests failed as expected: direct MCP policy allowed summary-sourced
+    `create_validation_contract`, and adapter event normalization mapped
+    `aitp_v5_create_validation_contract` to `validate_claim`;
+  - target green set:
+    `python -m pytest tests/test_v5_pretool_policy.py::test_mcp_pre_tool_policy_blocks_validation_contract_from_findings_source tests/test_v5_adapters.py::test_mcp_adapter_pre_tool_event_infers_validation_contract_policy -q`:
+    2 passed;
+  - focused surface/adapter/boundary set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_architecture_boundaries.py -q`:
+    72 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 338 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py`:
+    passed;
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - promotion-packet creation still needs a separate pre-tool coverage pass.
+- Next recommended task:
+  - broaden pre-tool policy coverage for `create_promotion_packet`, or add
+    native hook installer documentation/tests.
