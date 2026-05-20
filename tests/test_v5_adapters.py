@@ -297,12 +297,18 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
     assert payload["summary_inputs_trusted"] is False
     assert payload["can_update_kernel_state"] is False
     assert payload["pre_tool_policy_entrypoint"]["surface"] == "pre_tool_policy_decision"
+    assert payload["gate_protocols"]["source_protocol_field"] == "runtime_gate_protocols"
+    assert payload["gate_protocols"]["validate_claim"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
+    assert payload["gate_protocols"]["validate_claim"]["sequence"][1] == "evaluate_pre_tool_policy"
+    assert payload["gate_protocols"]["validate_claim"]["policy_reasons_field"] == "policy_reasons"
+    assert payload["gate_protocols"]["promote_to_l2"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
     assert payload["path"] == str(bridge_path)
     assert [call["hook_name"] for call in payload["guard_calls"]] == ["pre_commit", "pre_tool", "post_tool"]
     text = bridge_path.read_text(encoding="utf-8")
     assert "Generated from `runtime_hook_installation`." in text
     assert "python hooks/aitp_v5_hook.py pre-tool" in text
     assert "aitp-v5 policy pre-tool" in text
+    assert "evaluate_pre_tool_policy" in text
 
 
 def test_mcp_codex_hook_bridge_wrapper_returns_contract_payload(tmp_path):
@@ -320,6 +326,7 @@ def test_mcp_codex_hook_bridge_wrapper_returns_contract_payload(tmp_path):
     assert payload["ok"] is True
     assert payload["kind"] == "codex_hook_bridge"
     assert payload["summary_inputs_trusted"] is False
+    assert payload["gate_protocols"]["validate_claim"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
     assert bridge_path.exists()
 
 
@@ -378,7 +385,11 @@ def test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet(tmp_path, ca
     assert payload["runtime"] == "opencode"
     assert payload["plugin_bridge"]["lifecycle_calls"][1]["hook_name"] == "pre_tool"
     assert payload["plugin_bridge"]["pre_tool_policy_entrypoint"]["surface"] == "pre_tool_policy_decision"
+    assert payload["plugin_bridge"]["gate_protocols"]["source_protocol_field"] == "runtime_gate_protocols"
+    assert payload["plugin_bridge"]["gate_protocols"]["validate_claim"]["sequence"][1] == "evaluate_pre_tool_policy"
+    assert payload["plugin_bridge"]["gate_protocols"]["promote_to_l2"]["policy_reasons_field"] == "policy_reasons"
     assert bridge_path.exists()
+    assert "evaluate_pre_tool_policy" in bridge_path.read_text(encoding="utf-8")
 
 
 def test_mcp_opencode_plugin_bridge_wrapper_returns_contract_payload(tmp_path):
@@ -396,6 +407,7 @@ def test_mcp_opencode_plugin_bridge_wrapper_returns_contract_payload(tmp_path):
     assert payload["ok"] is True
     assert payload["kind"] == "opencode_plugin_bridge"
     assert payload["plugin_bridge"]["persistence_entrypoint"] == "aitp_v5_persist_hook_trace_event"
+    assert payload["plugin_bridge"]["gate_protocols"]["validate_claim"]["pre_tool_policy"] == "aitp_v5_evaluate_pre_tool_policy"
     assert bridge_path.exists()
 
 

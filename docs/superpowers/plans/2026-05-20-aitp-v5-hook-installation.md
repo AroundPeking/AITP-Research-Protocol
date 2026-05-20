@@ -217,7 +217,10 @@ Both surfaces return a contracted `codex_hook_bridge` payload and keep
 `summary_inputs_trusted=false`. The payload also carries
 `pre_tool_policy_entrypoint`, pointing to the shared
 `pre_tool_policy_decision` CLI/MCP surface for validation and L2-promotion
-pre-tool checks.
+pre-tool checks. It also carries `gate_protocols` generated from the adapter
+packet's `runtime_gate_protocols`, and the generated Markdown renders the
+validate/promote sequence including `evaluate_pre_tool_policy` before preflight
+or promotion.
 
 Adapter packets also encode the same rule in `runtime_gate_protocols`: both
 `validate_claim` and `promote_to_l2` sequence `evaluate_pre_tool_policy` before
@@ -299,7 +302,10 @@ view should be treated as orientation-only.
 
 Generated OpenCode bridge payloads include
 `plugin_bridge.pre_tool_policy_entrypoint`, pointing to the same
-`pre_tool_policy_decision` CLI/MCP surface used by Codex and Claude Code.
+`pre_tool_policy_decision` CLI/MCP surface used by Codex and Claude Code. They
+also include `plugin_bridge.gate_protocols`, generated from adapter
+`runtime_gate_protocols`, so plugin authors can consume the validate/promote
+sequence without scraping prose.
 
 The repo-backed OpenCode plugin bridge writer is available through:
 
@@ -313,9 +319,10 @@ MCP clients use:
 aitp_v5_write_opencode_plugin_bridge(base, session_id, output_path)
 ```
 
-The generated bridge records lifecycle calls and the persistence entrypoint, but
-it is still orientation-only. OpenCode must write durable state through typed v5
-kernel records and `aitp_v5_persist_hook_trace_event`.
+The generated bridge records lifecycle calls, gate protocols, and the
+persistence entrypoint, but it is still orientation-only. OpenCode must write
+durable state through typed v5 kernel records and
+`aitp_v5_persist_hook_trace_event`.
 
 ## Installer Work Still Needed
 

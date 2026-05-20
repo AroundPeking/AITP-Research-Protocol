@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-307 passed
+308 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -127,6 +127,9 @@ Implemented:
   parsing hook messages.
 - Adapter packet gate protocols for `validate_claim` and `promote_to_l2`
   explicitly sequence `evaluate_pre_tool_policy` before preflight/promotion.
+- Generated Codex/OpenCode bridge payloads and Markdown now carry
+  `gate_protocols` derived from `runtime_gate_protocols`, so adapter runtimes
+  can consume the validate/promote sequence without prose scraping.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.

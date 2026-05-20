@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from brain.v5.adapter_protocols import mandatory_hook_protocols
+from brain.v5.adapter_protocols import mandatory_gate_protocols, mandatory_hook_protocols
 from brain.v5.contracts import (
     ContractError,
     ContractResult,
@@ -107,6 +107,7 @@ def validate_codex_hook_bridge(
         f"{path}.pre_tool_policy_entrypoint",
         result,
     )
+    _validate_gate_protocols(payload.get("gate_protocols"), f"{path}.gate_protocols", result)
 
     for key in ("installation_mode", "path"):
         _require_nonempty_str(payload, key, path, result)
@@ -168,6 +169,7 @@ def validate_opencode_plugin_bridge(
             f"{path}.plugin_bridge.pre_tool_policy_entrypoint",
             result,
         )
+        _validate_gate_protocols(bridge.get("gate_protocols"), f"{path}.plugin_bridge.gate_protocols", result)
         _require_list(bridge.get("lifecycle_calls"), f"{path}.plugin_bridge.lifecycle_calls", result)
         if isinstance(bridge.get("lifecycle_calls"), list):
             for index, call in enumerate(bridge["lifecycle_calls"]):
@@ -422,6 +424,19 @@ def _validate_pre_tool_policy_entrypoint(payload: Any, path: str, result: Contra
     for key, value in expected.items():
         if payload.get(key) != value:
             result.add(f"{path}.{key}", f"must be {value!r}")
+
+
+def _validate_gate_protocols(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    if payload.get("source_protocol_field") != "runtime_gate_protocols":
+        result.add(f"{path}.source_protocol_field", "must be 'runtime_gate_protocols'")
+    for action, expected in mandatory_gate_protocols().items():
+        protocol = payload.get(action)
+        _require_mapping(protocol, f"{path}.{action}", result)
+        if isinstance(protocol, dict) and protocol != expected:
+            result.add(f"{path}.{action}", "must match mandatory runtime gate protocol")
 
 
 def _validate_policy_reason(payload: Any, path: str, result: ContractResult) -> None:

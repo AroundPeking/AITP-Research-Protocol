@@ -55,6 +55,7 @@ def test_public_surface_validator_accepts_tool_executor_catalog():
 
 
 def test_public_surface_validator_accepts_codex_hook_bridge():
+    from brain.v5.adapter_protocols import mandatory_gate_protocols
     from brain.v5.public_surfaces import require_valid_public_surface
 
     bridge = {
@@ -75,6 +76,10 @@ def test_public_surface_validator_accepts_codex_hook_bridge():
             "can_update_kernel_state": False,
             "can_update_claim_trust": False,
         },
+        "gate_protocols": {
+            "source_protocol_field": "runtime_gate_protocols",
+            **mandatory_gate_protocols(),
+        },
         "path": "AITP_V5_HOOK_BRIDGE.md",
         "guard_calls": [
             {
@@ -90,6 +95,41 @@ def test_public_surface_validator_accepts_codex_hook_bridge():
     }
 
     assert require_valid_public_surface("codex_hook_bridge", bridge) == bridge
+
+
+def test_public_surface_validator_rejects_codex_hook_bridge_without_gate_protocols():
+    import pytest
+
+    from brain.v5.contracts import ContractError
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    with pytest.raises(ContractError) as error:
+        require_valid_public_surface(
+            "codex_hook_bridge",
+            {
+                "ok": True,
+                "kind": "codex_hook_bridge",
+                "runtime": "codex",
+                "source_protocol_field": "runtime_hook_installation",
+                "installation_mode": "explicit_guard_calls",
+                "native_installer_available": False,
+                "summary_inputs_trusted": False,
+                "can_update_kernel_state": False,
+                "pre_tool_policy_entrypoint": {
+                    "cli": "aitp-v5 policy pre-tool <args>",
+                    "mcp": "aitp_v5_evaluate_pre_tool_policy",
+                    "surface": "pre_tool_policy_decision",
+                    "truth_source": "typed_records",
+                    "summary_inputs_trusted": False,
+                    "can_update_kernel_state": False,
+                    "can_update_claim_trust": False,
+                },
+                "path": "AITP_V5_HOOK_BRIDGE.md",
+                "guard_calls": [],
+            },
+        )
+
+    assert any(issue.path == "codex_hook_bridge.gate_protocols" for issue in error.value.result.issues)
 
 
 def test_public_surface_validator_accepts_claude_code_hook_settings():
@@ -144,6 +184,7 @@ def test_public_surface_validator_accepts_claude_code_hook_installation():
 
 
 def test_public_surface_validator_accepts_opencode_plugin_bridge():
+    from brain.v5.adapter_protocols import mandatory_gate_protocols
     from brain.v5.public_surfaces import require_valid_public_surface
 
     payload = {
@@ -167,6 +208,10 @@ def test_public_surface_validator_accepts_opencode_plugin_bridge():
                 "summary_inputs_trusted": False,
                 "can_update_kernel_state": False,
                 "can_update_claim_trust": False,
+            },
+            "gate_protocols": {
+                "source_protocol_field": "runtime_gate_protocols",
+                **mandatory_gate_protocols(),
             },
             "lifecycle_calls": [
                 {

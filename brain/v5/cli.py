@@ -355,11 +355,13 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "adapter" and args.adapter_command == "hook-bridge":
         packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))
         if packet["runtime"] == "opencode":
-            bridge = {"ok": True, **write_opencode_plugin_bridge(args.output, packet["runtime_hook_installation"])}
+            bridge = {"ok": True, **write_opencode_plugin_bridge(
+                args.output, packet["runtime_hook_installation"], packet["runtime_gate_protocols"])}
             return require_valid_public_surface("opencode_plugin_bridge", bridge)
         if packet["runtime"] != "codex":
             raise SystemExit("adapter hook-bridge currently supports codex and opencode runtimes only")
-        bridge = {"ok": True, **write_codex_hook_bridge(args.output, packet["runtime_hook_installation"])}
+        bridge = {"ok": True, **write_codex_hook_bridge(
+            args.output, packet["runtime_hook_installation"], packet["runtime_gate_protocols"])}
         return require_valid_public_surface("codex_hook_bridge", bridge)
     if args.command == "adapter" and args.adapter_command == "hook-settings":
         packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))

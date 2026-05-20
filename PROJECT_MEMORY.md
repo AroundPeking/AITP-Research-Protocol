@@ -91,7 +91,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing
-  policy logic.
+  policy logic. They also carry `gate_protocols` generated from
+  `runtime_gate_protocols`, so bridge files expose the validate/promote sequence
+  as machine-readable payload and rendered Markdown.
 - Adapter packet `runtime_gate_protocols.validate_claim` and
   `runtime_gate_protocols.promote_to_l2` explicitly sequence
   `evaluate_pre_tool_policy` before preflight/promotion and require

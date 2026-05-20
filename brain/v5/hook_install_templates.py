@@ -43,7 +43,11 @@ def build_runtime_hook_installation(runtime: str, runtime_hook_protocols: dict[s
     }
 
 
-def write_codex_hook_bridge(path: str | Path, installation: dict[str, Any]) -> dict[str, Any]:
+def write_codex_hook_bridge(
+    path: str | Path,
+    installation: dict[str, Any],
+    runtime_gate_protocols: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Write Codex guard-call instructions derived from hook installation metadata."""
 
     bridge_path = Path(path)
@@ -68,6 +72,7 @@ def write_codex_hook_bridge(path: str | Path, installation: dict[str, Any]) -> d
         "summary_inputs_trusted": False,
         "can_update_kernel_state": False,
         "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
+        "gate_protocols": _gate_protocol_payload(runtime_gate_protocols),
         "path": str(bridge_path),
         "guard_calls": guard_calls,
     }
@@ -76,7 +81,11 @@ def write_codex_hook_bridge(path: str | Path, installation: dict[str, Any]) -> d
     return bridge
 
 
-def write_opencode_plugin_bridge(path: str | Path, installation: dict[str, Any]) -> dict[str, Any]:
+def write_opencode_plugin_bridge(
+    path: str | Path,
+    installation: dict[str, Any],
+    runtime_gate_protocols: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Write OpenCode plugin bridge instructions derived from hook installation metadata."""
 
     bridge_path = Path(path)
@@ -106,6 +115,7 @@ def write_opencode_plugin_bridge(path: str | Path, installation: dict[str, Any])
             "setup": ["load AITP skills", "connect AITP MCP server", "read v5 adapter packet"],
             "lifecycle_calls": lifecycle_calls,
             "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
+            "gate_protocols": _gate_protocol_payload(runtime_gate_protocols),
             "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
             "truth_rule": "generated bridge is orientation-only; typed records remain authoritative",
         },
@@ -195,6 +205,17 @@ def _hook_template(hook_name: str, protocol: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _gate_protocol_payload(runtime_gate_protocols: dict[str, Any] | None) -> dict[str, Any]:
+    if runtime_gate_protocols is None:
+        from brain.v5.adapter_protocols import mandatory_gate_protocols
+
+        runtime_gate_protocols = mandatory_gate_protocols()
+    payload = {"source_protocol_field": "runtime_gate_protocols"}
+    for action in ("validate_claim", "promote_to_l2"):
+        payload[action] = deepcopy(runtime_gate_protocols[action])
+    return payload
+
+
 def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
     lines = [
         "# AITP v5 Codex Hook Bridge",
@@ -215,9 +236,24 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
         "- can_update_kernel_state=false",
         "- can_update_claim_trust=false",
         "",
-        "## Guard Calls",
+        "## Gate Protocols",
         "",
     ]
+    for action in ("validate_claim", "promote_to_l2"):
+        protocol = bridge["gate_protocols"].get(action, {})
+        lines.extend(
+            [
+                f"### {action}",
+                "",
+                "Generated from `runtime_gate_protocols` in the adapter packet.",
+                "",
+                f"- pre_tool_policy: `{protocol.get('pre_tool_policy', '')}`",
+                f"- policy_reasons_field: `{protocol.get('policy_reasons_field', '')}`",
+                f"- sequence: `{', '.join(protocol.get('sequence', []))}`",
+                "",
+            ]
+        )
+    lines.extend(["## Guard Calls", ""])
     for guard_call in bridge["guard_calls"]:
         lines.extend(
             [
@@ -258,9 +294,24 @@ def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
         "- can_update_kernel_state=false",
         "- can_update_claim_trust=false",
         "",
-        "## Lifecycle Calls",
+        "## Gate Protocols",
         "",
     ]
+    for action in ("validate_claim", "promote_to_l2"):
+        protocol = bridge["plugin_bridge"]["gate_protocols"].get(action, {})
+        lines.extend(
+            [
+                f"### {action}",
+                "",
+                "Generated from `runtime_gate_protocols` in the adapter packet.",
+                "",
+                f"- pre_tool_policy: `{protocol.get('pre_tool_policy', '')}`",
+                f"- policy_reasons_field: `{protocol.get('policy_reasons_field', '')}`",
+                f"- sequence: `{', '.join(protocol.get('sequence', []))}`",
+                "",
+            ]
+        )
+    lines.extend(["## Lifecycle Calls", ""])
     for call in bridge["plugin_bridge"]["lifecycle_calls"]:
         lines.extend(
             [

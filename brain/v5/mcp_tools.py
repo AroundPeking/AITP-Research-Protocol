@@ -209,14 +209,16 @@ def aitp_v5_get_adapter_packet(base: str, *, runtime: str, session_id: str) -> d
 def aitp_v5_write_codex_hook_bridge(base: str, *, session_id: str, output_path: str) -> dict:
     ws = _ws(base)
     packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, session_id, runtime="codex"))
-    bridge = {"ok": True, **write_codex_hook_bridge(output_path, packet["runtime_hook_installation"])}
+    bridge = {"ok": True, **write_codex_hook_bridge(
+        output_path, packet["runtime_hook_installation"], packet["runtime_gate_protocols"])}
     return require_valid_public_surface("codex_hook_bridge", bridge)
 
 
 def aitp_v5_write_opencode_plugin_bridge(base: str, *, session_id: str, output_path: str) -> dict:
     ws = _ws(base)
     packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, session_id, runtime="opencode"))
-    bridge = {"ok": True, **write_opencode_plugin_bridge(output_path, packet["runtime_hook_installation"])}
+    bridge = {"ok": True, **write_opencode_plugin_bridge(
+        output_path, packet["runtime_hook_installation"], packet["runtime_gate_protocols"])}
     return require_valid_public_surface("opencode_plugin_bridge", bridge)
 
 
