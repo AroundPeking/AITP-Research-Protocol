@@ -1271,3 +1271,52 @@ Each entry should record:
   - add native Codex/OpenCode lifecycle wrapper smoke tests for
     `evaluate_bridge_lifecycle_event`, or extend shared pre-tool policy to the
     next trust-changing MCP input with typed-record-backed context.
+
+### 4ea3436 - Normalize Platform PreTool Events
+
+- Task: add a minimal Codex/OpenCode platform-event wrapper over the existing
+  bridge lifecycle pre-tool policy path.
+- Planning source:
+  - residual risk after `9a5f5be` and `8a23544`;
+  - hook installation plan requirement that Codex/OpenCode lifecycle events call
+    the typed policy surface rather than relying on prose;
+  - v5 invariant that generated bridge metadata and platform payloads are not
+    truth sources.
+- Changed files:
+  - `brain/v5/adapter_runtime.py`
+  - `tests/test_v5_bridge_runtime.py`
+- Public/runtime behavior changes:
+  - new `brain.v5.adapter_runtime.evaluate_platform_pre_tool_event` helper
+    accepts Codex-style guard-call payloads and OpenCode-style plugin lifecycle
+    payloads;
+  - the helper extracts the AITP MCP action, session id, claim id, evidence refs,
+    code-state refs, and source metadata, then delegates to
+    `evaluate_bridge_lifecycle_event`;
+  - returned decisions include runtime audit metadata for `runtime`,
+    `platform_event`, and `tool_name`, while the decision itself still comes from
+    typed kernel records.
+- Tests:
+  - Codex-style `mcp__aitp__aitp_v5_create_promotion_packet` pre-tool payload
+    maps to `promote_to_l2` and triggers the evidence gate;
+  - OpenCode-style plugin `tool.name`/`tool.input` payload maps to the same gate;
+  - both returned payloads validate as `pre_tool_policy_decision`.
+- Verification:
+  - red test failed as expected with missing
+    `evaluate_platform_pre_tool_event` import;
+  - focused green test: `pytest tests/test_v5_bridge_runtime.py -q`: 4 passed;
+  - focused bridge/adapter set:
+    `pytest tests/test_v5_bridge_runtime.py tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_pretool_policy.py tests/test_v5_architecture_boundaries.py -q`:
+    57 passed;
+  - full v5 focused suite: 315 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - `adapter_runtime.py`: 176 lines.
+- Residual risks:
+  - this is still a runtime normalizer and smoke path, not an automatic native
+    Codex/OpenCode installer;
+  - the gate-protocol bridge currently covers validation and L2 promotion, not
+    every trust-changing MCP action.
+- Next recommended task:
+  - decide whether to extend bridge gate protocols beyond validation/promotion
+    for `record_evidence` and `record_tool_run`, or add automatic
+    Codex/OpenCode installer wiring that invokes the new normalizer.

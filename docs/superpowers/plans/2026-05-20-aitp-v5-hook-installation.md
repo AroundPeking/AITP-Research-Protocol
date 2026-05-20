@@ -235,7 +235,11 @@ typed-record-backed pre-tool policy surface. The bridge remains orientation-only
 the returned decision is still backed by typed kernel records.
 For live-style adapter events, `evaluate_bridge_lifecycle_event` maps an
 adapter-neutral `pre_tool` event payload onto the same helper after confirming
-that the generated bridge declares a pre-tool lifecycle call.
+that the generated bridge declares a pre-tool lifecycle call. Codex/OpenCode
+platform-style pre-tool payloads can be normalized first through
+`brain.v5.adapter_runtime.evaluate_platform_pre_tool_event`, which extracts the
+AITP action, typed refs, source metadata, and session id before delegating to the
+same bridge lifecycle path.
 
 ## Claude Code Template
 

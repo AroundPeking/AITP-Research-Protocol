@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-313 passed
+315 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -134,6 +134,9 @@ Implemented:
   generated bridge `gate_protocols` and delegates actual decisions to the shared
   typed-record-backed pre-tool policy surface. `evaluate_bridge_lifecycle_event`
   maps adapter-neutral `pre_tool` event payloads onto that helper.
+- `brain.v5.adapter_runtime.evaluate_platform_pre_tool_event` normalizes
+  Codex/OpenCode pre-tool platform payloads into that lifecycle wrapper for
+  validation/promotion gate decisions.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_evidence` and `record_tool_run`
   trust-changing record attempts.
@@ -146,8 +149,8 @@ Major remaining gaps:
 - Hook helpers still need native Codex/OpenCode lifecycle installer wiring.
   Codex explicit bridge materialization, Claude Code settings template
   generation and merge installation, OpenCode plugin bridge materialization, and
-  post-tool trace persistence surfaces exist, but Codex/OpenCode are not native
-  lifecycle integrations yet.
+  post-tool trace persistence surfaces exist; Codex/OpenCode now have a runtime
+  event normalizer, but not automatic native lifecycle installation yet.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion context, and summary-sourced evidence/tool-run
   record attempts through CLI/MCP/runtime, but it does not yet cover every MCP
