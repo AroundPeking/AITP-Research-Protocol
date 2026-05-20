@@ -117,7 +117,7 @@ Each entry should record:
   - Implement or test the first native adapter/installer bridge for one platform,
     likely Codex runtime instructions or Claude Code settings template.
 
-### Pending - Expose Hook Protocols In Adapter Packets
+### 0d8a448 - Expose Hook Protocols In Adapter Packets
 
 - Task: expose the v5 hook installation contract as typed adapter metadata.
 - Planning source:
