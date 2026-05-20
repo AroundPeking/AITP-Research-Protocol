@@ -267,7 +267,7 @@ sequences `evaluate_pre_tool_policy`, then delegates the decision to the shared
 typed-record-backed pre-tool policy surface. The bridge remains orientation-only;
 the returned decision is still backed by typed kernel records.
 Generated gate protocols now cover record-evidence, record-tool-run,
-validation, and L2-promotion actions.
+execute-tool, validation, and L2-promotion actions.
 The shared policy carries `risk_level` and optional `human_checkpoint_id`.
 Adversarial-risk trust-changing actions are hard-blocked unless that checkpoint
 is a decided typed human checkpoint with `decision=approve` for the active

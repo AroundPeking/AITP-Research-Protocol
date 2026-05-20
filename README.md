@@ -106,8 +106,9 @@ the tool runs. Other adapters can call the same contract through
 `aitp-v5 policy pre-tool <args>` or `aitp_v5_evaluate_pre_tool_policy`; the
 returned `pre_tool_policy_decision` is orientation/permission output only and
 cannot update kernel state or claim trust. The same shared surface also blocks
-`record_evidence` and `record_tool_run` attempts when their requested source is
-only a summary/task-plan/findings/progress orientation surface. Generated
+`record_evidence`, `record_tool_run`, and `execute_tool` attempts when their
+requested source is only a summary/task-plan/findings/progress orientation
+surface. Generated
 Codex/OpenCode bridge
 payloads carry this shared entrypoint plus `runtime_gate_protocols` explicitly,
 so adapter authors do not need to reconstruct record/validation/promotion sequencing
@@ -117,8 +118,9 @@ policy calls also carry `risk_level` and optional `human_checkpoint_id`; in
 adversarial risk, trust-changing actions require an approved typed human
 checkpoint before they can proceed. Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
-the record-evidence/tool-run and validation/promotion gate sequences, so runtimes can see that policy
-evaluation comes before preflight or promotion. The small
+the record-evidence/tool-run/execute-tool and validation/promotion gate
+sequences, so runtimes can see that policy evaluation comes before preflight or
+promotion. The small
 `brain.v5.adapter_runtime.evaluate_bridge_gate_pre_tool_policy` helper consumes
 that generated gate metadata and delegates the actual decision back to typed
 kernel records; `evaluate_bridge_lifecycle_event` is the adapter-neutral

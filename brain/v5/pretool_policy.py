@@ -12,7 +12,13 @@ from brain.v5.store import list_records
 from brain.v5.workspace import get_claim, get_session_binding
 
 
-_CONTEXT_ACTIONS = {"record_evidence", "record_tool_run", "validate_claim", "promote_to_l2"}
+_CONTEXT_ACTIONS = {
+    "record_evidence",
+    "record_tool_run",
+    "execute_tool",
+    "validate_claim",
+    "promote_to_l2",
+}
 
 
 def context_policy_decision(

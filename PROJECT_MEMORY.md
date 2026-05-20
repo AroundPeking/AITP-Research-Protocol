@@ -112,14 +112,15 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   to mutate kernel state or claim trust. It includes machine-readable
   `policy_reasons` so reviewers and adapters can inspect policy IDs/severities
   without parsing free-form messages. It now covers validation, L2 promotion,
-  and summary-sourced `record_evidence`/`record_tool_run` trust-changing record
-  attempts through the same CLI/MCP entrypoint.
+  and summary-sourced `record_evidence`/`record_tool_run`/`execute_tool`
+  trust-changing attempts through the same CLI/MCP entrypoint.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing
   policy logic. They also carry `gate_protocols` generated from
-  `runtime_gate_protocols`, so bridge files expose record evidence/tool-run and
-  validate/promote sequences as machine-readable payload and rendered Markdown.
+  `runtime_gate_protocols`, so bridge files expose record evidence/tool-run,
+  execute-tool, and validate/promote sequences as machine-readable payload and
+  rendered Markdown.
 - Runtime adapters can consume those generated bridge `gate_protocols` through
   `brain/v5/adapter_runtime.py::evaluate_bridge_gate_pre_tool_policy`, which
   verifies the bridge sequence and then delegates to the shared typed-record
@@ -131,13 +132,12 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp_v5_evaluate_adapter_pre_tool_event`, returning the contracted
   `pre_tool_policy_decision` surface. Generated Codex/OpenCode bridge payloads
   advertise this as `pre_tool_event_entrypoint` so runtime adapters can discover
-  the correct CLI/MCP invocation without prose scraping. The bridge
-  entrypoints also advertise machine-readable
-  `pre_tool_policy_entrypoint.input_schema` and
+  the correct CLI/MCP invocation without prose scraping. The bridge entrypoints
+  also advertise machine-readable `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level` and
   optional `human_checkpoint_id`, while typed kernel records remain the
   authority.
-  materializers write a machine-readable JSON sidecar beside the generated
+- Bridge materializers write a machine-readable JSON sidecar beside the generated
   Markdown and return its `payload_path`; runtime hook runners should use
   `adapter pre-tool-event --bridge-path <payload-path> --event-json <json>` to
   consume the bridge payload without treating generated Markdown as a truth
@@ -151,8 +151,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `pre_tool_event_runner.stdin_runner.argv` or
   `plugin_bridge.pre_tool_event_runner.stdin_runner.argv`.
 - Adapter packet `runtime_gate_protocols.record_evidence`,
-  `runtime_gate_protocols.record_tool_run`, `runtime_gate_protocols.validate_claim`,
-  and `runtime_gate_protocols.promote_to_l2` explicitly sequence
+  `runtime_gate_protocols.record_tool_run`,
+  `runtime_gate_protocols.execute_tool`,
+  `runtime_gate_protocols.validate_claim`, and
+  `runtime_gate_protocols.promote_to_l2` explicitly sequence
   `evaluate_pre_tool_policy` before the trust-relevant action and require
   `policy_reasons` as the machine-readable routing field.
 - Shared pre-tool policy carries `risk_level` and optional

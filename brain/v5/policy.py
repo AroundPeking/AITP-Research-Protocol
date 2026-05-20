@@ -13,6 +13,7 @@ from brain.v5.risk import RiskAssessment
 _TRUST_CHANGING_ACTIONS = {
     "record_evidence",
     "record_tool_run",
+    "execute_tool",
     "change_claim_confidence",
     "validate_claim",
     "promote_to_l2",
