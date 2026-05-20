@@ -2059,3 +2059,69 @@ Each entry should record:
 - Next recommended task:
   - broaden pre-tool policy coverage for the next trust-relevant MCP input, or
     add host-side installation documentation/tests for native hook APIs.
+
+### e02ec54 - Gate Subagent Result Ingestion Through Pre-Tool Policy
+
+- Task: broaden shared pre-tool policy coverage to
+  `ingest_subagent_result`, which was already listed as a trust-changing
+  runtime action.
+- Planning source:
+  - previous ledger recommendation to broaden pre-tool policy coverage for the
+    next trust-relevant MCP input;
+  - v5 invariant that subagent outputs are bounded evidence/proposals and must
+    not become trust changes when sourced from orientation-only summaries.
+- Changed files:
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/gate_protocols.py`
+  - `brain/v5/hook_entrypoint_schemas.py`
+  - `brain/v5/hook_bridge_markdown.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `ingest_subagent_result` participates in context-aware pre-tool policy
+    evaluation;
+  - summary/task-plan/findings/progress orientation surfaces cannot directly
+    drive subagent result ingestion;
+  - generated bridge gate protocols now include `ingest_subagent_result`;
+  - Codex/OpenCode platform pre-tool event normalization can infer
+    `ingest_subagent_result` from `aitp_v5_ingest_subagent_result`;
+  - platform event schema metadata advertises optional nested `packet` input,
+    allowing adapters to discover where subagent packet context may live.
+- Tests:
+  - MCP pre-tool policy blocks `ingest_subagent_result` when sourced from
+    findings orientation;
+  - adapter pre-tool event path infers `ingest_subagent_result` from the MCP
+    tool name, reads `claim_id` from nested `packet`, and blocks the same
+    orientation-sourced ingestion through bridge gate metadata;
+  - Codex/OpenCode bridge schema tests assert optional `packet` metadata.
+- Verification:
+  - red tests failed as expected: direct MCP policy allowed summary-sourced
+    `ingest_subagent_result`, and adapter event normalization could not infer
+    `aitp_v5_ingest_subagent_result`;
+  - bridge schema red test failed as expected because generated platform event
+    metadata did not advertise optional nested `packet` input;
+  - target green set:
+    `python -m pytest tests/test_v5_pretool_policy.py::test_mcp_pre_tool_policy_blocks_subagent_ingestion_from_findings_source tests/test_v5_adapters.py::test_mcp_adapter_pre_tool_event_infers_subagent_ingestion_policy -q`:
+    2 passed;
+  - bridge schema green set:
+    `python -m pytest tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet tests/test_v5_adapters.py::test_opencode_plugin_bridge_is_rendered_from_installation_template tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet tests/test_v5_public_surfaces.py::test_public_surface_validator_accepts_codex_hook_bridge tests/test_v5_public_surfaces.py::test_public_surface_validator_accepts_opencode_plugin_bridge -q`:
+    5 passed;
+  - focused surface/adapter/boundary set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_architecture_boundaries.py -q`:
+    70 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 336 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py`:
+    passed;
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - live external-subagent execution adapters still need integration tests.
+- Next recommended task:
+  - broaden pre-tool policy coverage for validation-contract or promotion-packet
+    creation inputs, or add native hook installer documentation/tests.
