@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-309 passed
+310 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -130,6 +130,9 @@ Implemented:
 - Generated Codex/OpenCode bridge payloads and Markdown now carry
   `gate_protocols` derived from `runtime_gate_protocols`, so adapter runtimes
   can consume the validate/promote sequence without prose scraping.
+- `brain.v5.adapter_runtime.evaluate_bridge_gate_pre_tool_policy` consumes
+  generated bridge `gate_protocols` and delegates actual decisions to the shared
+  typed-record-backed pre-tool policy surface.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
@@ -232,6 +235,8 @@ Modify as needed:
 - `brain/v5/mcp_tools.py`: thin MCP calls.
 - `brain/v5/runtime_entrypoints.py`: CLI/MCP entrypoint registry.
 - `brain/v5/adapter_protocols.py`: adapter runtime protocol metadata.
+- `brain/v5/adapter_runtime.py`: small runtime helpers that consume generated
+  adapter bridge payloads without treating bridge files as truth sources.
 - `brain/v5/adapter_contracts.py`: only if adapter packet schema changes.
 - `brain/v5/summaries.py`: only after typed records exist.
 

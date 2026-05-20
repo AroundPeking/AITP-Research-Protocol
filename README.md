@@ -112,7 +112,10 @@ from prose. Its `policy_reasons` list exposes machine-readable policy IDs and
 severities, so reviewers do not need to parse free-form hook messages. Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the validation/promotion gate sequence, so runtimes can see that policy
-evaluation comes before preflight or promotion.
+evaluation comes before preflight or promotion. The small
+`brain.v5.adapter_runtime.evaluate_bridge_gate_pre_tool_policy` helper consumes
+that generated gate metadata and delegates the actual decision back to typed
+kernel records.
 Trust-changing confidence updates use a request-bound preflight proof token:
 `trust preflight`/`aitp_v5_preflight_trust_update` returns the token, and
 `trust apply`/`aitp_v5_apply_trust_update` must carry the matching token before

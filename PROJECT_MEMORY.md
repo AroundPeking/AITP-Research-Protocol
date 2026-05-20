@@ -97,6 +97,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   policy logic. They also carry `gate_protocols` generated from
   `runtime_gate_protocols`, so bridge files expose the validate/promote sequence
   as machine-readable payload and rendered Markdown.
+- Runtime adapters can consume those generated bridge `gate_protocols` through
+  `brain/v5/adapter_runtime.py::evaluate_bridge_gate_pre_tool_policy`, which
+  verifies the bridge sequence and then delegates to the shared typed-record
+  pre-tool policy surface.
 - Adapter packet `runtime_gate_protocols.validate_claim` and
   `runtime_gate_protocols.promote_to_l2` explicitly sequence
   `evaluate_pre_tool_policy` before preflight/promotion and require

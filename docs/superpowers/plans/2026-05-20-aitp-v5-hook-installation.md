@@ -227,6 +227,13 @@ Adapter packets also encode the same rule in `runtime_gate_protocols`: both
 preflight/promotion and name `policy_reasons` as the machine-readable routing
 field.
 
+Runtime adapters can consume generated bridge gate metadata through
+`brain.v5.adapter_runtime.evaluate_bridge_gate_pre_tool_policy`. That helper
+checks that the bridge protocol names `aitp_v5_evaluate_pre_tool_policy` and
+sequences `evaluate_pre_tool_policy`, then delegates the decision to the shared
+typed-record-backed pre-tool policy surface. The bridge remains orientation-only;
+the returned decision is still backed by typed kernel records.
+
 ## Claude Code Template
 
 Claude Code has existing AITP SessionStart and PreToolUse integration for the
