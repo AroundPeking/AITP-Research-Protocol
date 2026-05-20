@@ -2006,3 +2006,56 @@ Each entry should record:
 - Next recommended task:
   - broaden pre-tool policy coverage for another trust-relevant MCP input, or
     add host-side installation documentation/tests for the next native hook API.
+
+### a901ccd - Gate Execute Tool Through Pre-Tool Policy
+
+- Task: broaden shared pre-tool policy coverage to `execute_tool`, which was
+  already listed as a trust-changing runtime action.
+- Planning source:
+  - previous ledger recommendation to broaden pre-tool policy coverage for
+    another trust-relevant MCP input;
+  - v5 invariant that tool execution producing tool/evidence records must not be
+    driven by orientation-only summary/progress surfaces.
+- Changed files:
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/gate_protocols.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `execute_tool` participates in context-aware pre-tool policy evaluation;
+  - summary/task-plan/findings/progress orientation surfaces cannot directly
+    drive `execute_tool`;
+  - generated bridge gate protocols now include `execute_tool`;
+  - Codex/OpenCode platform pre-tool event normalization can infer
+    `execute_tool` from `aitp_v5_execute_tool`.
+- Tests:
+  - MCP pre-tool policy blocks `execute_tool` when sourced from progress
+    orientation;
+  - adapter pre-tool event path infers `execute_tool` from the MCP tool name and
+    blocks the same orientation-sourced execution through bridge gate metadata.
+- Verification:
+  - red tests failed as expected: direct MCP policy allowed summary-sourced
+    `execute_tool`, and adapter event normalization could not infer
+    `aitp_v5_execute_tool`;
+  - target green set:
+    `python -m pytest tests/test_v5_pretool_policy.py::test_mcp_pre_tool_policy_blocks_execute_tool_from_progress_source tests/test_v5_adapters.py::test_mcp_adapter_pre_tool_event_infers_execute_tool_policy -q`:
+    2 passed;
+  - focused surface/adapter/boundary set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_architecture_boundaries.py -q`:
+    68 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 334 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py`:
+    passed;
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - native Codex/OpenCode hosts still need true lifecycle installer wiring.
+- Next recommended task:
+  - broaden pre-tool policy coverage for the next trust-relevant MCP input, or
+    add host-side installation documentation/tests for native hook APIs.
