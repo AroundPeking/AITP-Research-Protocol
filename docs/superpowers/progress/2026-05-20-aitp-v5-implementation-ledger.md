@@ -633,3 +633,73 @@ Each entry should record:
 - Next recommended task:
   - add a typed trust-update preflight token/proof chain for Claude MCP calls,
     or broaden validation/promotion MCP mapping with active workspace context.
+
+### 3370330 - Require Trust Preflight Tokens
+
+- Task: make trust-changing confidence mutation require a request-bound typed
+  preflight proof token instead of relying on source labels alone.
+- Planning source:
+  - residual risk after `5da30c9`;
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-goal-instructions.md`;
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`;
+  - v5 invariant that trust-changing actions must go through kernel records and
+    auditable preflight before mutation.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `brain/v5/models.py`
+  - `brain/v5/trust_updates.py`
+  - `brain/v5/trust_contracts.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_trust_updates.py`
+  - `tests/test_v5_hooks.py`
+  - Claude install docs, hook installation plan, next-agent plan, and v5
+    architecture spec
+- Public/runtime behavior changes:
+  - `preflight_trust_update` now emits `preflight_token` and
+    `preflight_proof`;
+  - `apply_trust_update` refuses otherwise policy-allowed confidence mutations
+    unless the request carries the matching token;
+  - CLI trust apply accepts `--preflight-token`;
+  - MCP `aitp_v5_apply_trust_update` accepts `preflight_token`;
+  - Claude `PreToolUse` denies direct `aitp_v5_apply_trust_update` unless the
+    tool input carries both a trusted source kind and a `trust-preflight-*`
+    token;
+  - public trust preflight/apply contracts validate token/proof fields and
+    require applied mutations to match the preflight token.
+- Tests:
+  - preflight exposes a proof token;
+  - apply without a matching token does not mutate claim confidence;
+  - apply with a matching token updates registry and topic ledger records;
+  - CLI and MCP trust apply paths accept the matching token;
+  - Claude `PreToolUse` blocks trust apply with trusted source kind but no
+    token.
+- Verification:
+  - focused red tests failed because preflight lacked `preflight_token`, direct
+    apply mutated without one, CLI/MCP could not pass the token, and Claude
+    `PreToolUse` allowed source-kind-only trust apply;
+  - focused green set:
+    `pytest tests\test_v5_trust_updates.py::test_preflight_allows_code_method_promotion_with_evidence_and_code_state tests\test_v5_trust_updates.py::test_apply_confidence_change_requires_matching_preflight_token tests\test_v5_trust_updates.py::test_apply_confidence_change_updates_registry_and_topic_ledger tests\test_v5_trust_updates.py::test_cli_trust_apply_confidence_change_updates_claim tests\test_v5_trust_updates.py::test_mcp_apply_trust_update_accepts_matching_preflight_token tests\test_v5_hooks.py::test_claude_hook_script_pre_tool_denies_trust_apply_without_preflight_token -q`:
+    6 passed;
+  - regression set
+    `pytest tests\test_v5_trust_updates.py tests\test_v5_hooks.py
+    tests\test_v5_cli.py tests\test_v5_mcp_tools.py
+    tests\test_v5_public_surfaces.py tests\test_v5_contracts.py
+    tests\test_v5_architecture_boundaries.py -q`: 103 passed;
+  - full v5 focused suite: 298 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - source module line counts remained below 500 lines;
+  - `python hooks\aitp_v5_hook.py pre-commit ...`: passed with `mode=log`.
+- Residual risks:
+  - the token is deterministic and request-bound, not a persisted one-time
+    nonce;
+  - Claude `PreToolUse` validates token presence/shape before tool execution,
+    while the kernel validates exact token matching during apply;
+  - native Codex/OpenCode lifecycle invocation remains incomplete.
+- Next recommended task:
+  - add context-aware Claude/OpenCode/Codex pre-tool policy validation for
+    validation and promotion entrypoints, or persist one-time preflight records
+    if stricter token replay protection is needed.
