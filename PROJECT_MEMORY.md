@@ -74,6 +74,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
 - v5 hook installation fixture contracts live in
   `brain/v5/hook_install_contracts.py`; keep host installation payload
   contracts out of `hook_protocol_contracts.py`.
+- v5 runtime entrypoint catalog data and CLI sample arguments live in
+  `brain/v5/runtime_entrypoint_catalog.py`; keep
+  `brain/v5/runtime_entrypoints.py` focused on copy/validation helpers.
 - Codex can materialize explicit guard-call instructions with
   `aitp-v5 adapter hook-bridge codex <session-id> --output <path>`.
 - Codex can materialize a native-ish stdin-runner installation fixture with

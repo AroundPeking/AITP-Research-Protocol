@@ -270,7 +270,9 @@ Modify as needed:
 - `brain/v5/cli_adapters.py`: adapter CLI dispatch helpers; use this instead
   of growing the main CLI module for adapter packet/bridge/hook commands.
 - `brain/v5/mcp_tools.py`: thin MCP calls.
-- `brain/v5/runtime_entrypoints.py`: CLI/MCP entrypoint registry.
+- `brain/v5/runtime_entrypoints.py`: CLI/MCP entrypoint copy/validation helpers.
+- `brain/v5/runtime_entrypoint_catalog.py`: runtime entrypoint metadata and CLI
+  parser sample arguments; keep catalog growth here rather than in validators.
 - `brain/v5/adapter_protocols.py`: adapter runtime protocol metadata.
 - `brain/v5/adapter_runtime.py`: small runtime helpers that consume generated
   adapter bridge payloads without treating bridge files as truth sources.

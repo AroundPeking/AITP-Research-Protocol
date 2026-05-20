@@ -36,6 +36,13 @@ def test_hook_install_template_module_stays_renderer_free():
     assert len(template_path.read_text(encoding="utf-8").splitlines()) <= 450
 
 
+def test_runtime_entrypoints_module_keeps_catalog_out_of_validator_logic():
+    repo_root = Path(__file__).resolve().parents[1]
+    runtime_path = repo_root / "brain" / "v5" / "runtime_entrypoints.py"
+
+    assert len(runtime_path.read_text(encoding="utf-8").splitlines()) <= 450
+
+
 def test_trust_update_contracts_live_behind_contracts_facade():
     import brain.v5.contracts as contracts
     from brain.v5 import trust_contracts
