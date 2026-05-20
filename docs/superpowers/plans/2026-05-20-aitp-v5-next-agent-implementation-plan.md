@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-311 passed
+313 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -134,6 +134,9 @@ Implemented:
   generated bridge `gate_protocols` and delegates actual decisions to the shared
   typed-record-backed pre-tool policy surface. `evaluate_bridge_lifecycle_event`
   maps adapter-neutral `pre_tool` event payloads onto that helper.
+- The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
+  orientation surfaces from driving `record_evidence` and `record_tool_run`
+  trust-changing record attempts.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
@@ -146,8 +149,8 @@ Major remaining gaps:
   post-tool trace persistence surfaces exist, but Codex/OpenCode are not native
   lifecycle integrations yet.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
-  presence and validation/promotion context, and that context check is now
-  adapter-callable through CLI/MCP/runtime, but it does not yet cover every MCP
+  presence, validation/promotion context, and summary-sourced evidence/tool-run
+  record attempts through CLI/MCP/runtime, but it does not yet cover every MCP
   input or all active risk context.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.

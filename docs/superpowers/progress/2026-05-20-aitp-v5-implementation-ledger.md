@@ -1222,3 +1222,52 @@ Each entry should record:
   - add a minimal platform-specific Codex/OpenCode wrapper over
     `evaluate_bridge_lifecycle_event`, or broaden the shared pre-tool policy for
     one additional trust-relevant MCP input class.
+
+### 8a23544 - Guard Evidence Toolrun PreTool Sources
+
+- Task: broaden the shared context-aware pre-tool policy to one additional
+  trust-relevant MCP input class: typed evidence/tool-run record attempts.
+- Planning source:
+  - residual risk after `9a5f5be`;
+  - v5 invariant that generated summaries, task plans, findings, and progress
+    files are orientation-only and must not justify trust-changing records;
+  - goal requirement that public kernel behavior stay available through
+    CLI/MCP surfaces without duplicating policy logic.
+- Changed files:
+  - `brain/v5/pretool_policy.py`
+  - `tests/test_v5_pretool_policy.py`
+- Public/runtime behavior changes:
+  - `evaluate_context_pre_tool_policy` now applies typed policy to
+    `record_evidence` and `record_tool_run`, in addition to `validate_claim`
+    and `promote_to_l2`;
+  - CLI `aitp-v5 policy pre-tool record_tool_run ...` and MCP
+    `aitp_v5_evaluate_pre_tool_policy(..., action="record_evidence")` now
+    return hard blocks when the source is a summary/task-plan/findings/progress
+    orientation surface;
+  - returned payloads keep `truth_source=typed_records` and remain permission
+    decisions only, with no authority to mutate kernel state.
+- Tests:
+  - MCP pre-tool policy blocks a `record_evidence` request sourced from
+    `findings`;
+  - CLI pre-tool policy blocks a `record_tool_run` request sourced from
+    `task_plan`;
+  - both expose `no_summary_surface_as_truth_source` in `policy_reasons`.
+- Verification:
+  - red test failed as expected with `mode == "log"` instead of `block`;
+  - focused green test: `pytest tests/test_v5_pretool_policy.py -q`: 7 passed;
+  - focused policy/MCP/CLI set:
+    `pytest tests/test_v5_pretool_policy.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    55 passed;
+  - full v5 focused suite: 313 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- brain/v5/pretool_policy.py tests/test_v5_pretool_policy.py`:
+    passed.
+- Residual risks:
+  - record-time guards still depend on the adapter/runtime invoking the shared
+    pre-tool policy before MCP mutation calls;
+  - other trust-relevant MCP inputs and active risk context still need expanded
+    policy coverage.
+- Next recommended task:
+  - add native Codex/OpenCode lifecycle wrapper smoke tests for
+    `evaluate_bridge_lifecycle_event`, or extend shared pre-tool policy to the
+    next trust-changing MCP input with typed-record-backed context.

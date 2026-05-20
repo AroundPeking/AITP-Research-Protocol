@@ -105,7 +105,10 @@ active typed claim plus evidence/code-state refs and reuses kernel policy before
 the tool runs. Other adapters can call the same contract through
 `aitp-v5 policy pre-tool <args>` or `aitp_v5_evaluate_pre_tool_policy`; the
 returned `pre_tool_policy_decision` is orientation/permission output only and
-cannot update kernel state or claim trust. Generated Codex/OpenCode bridge
+cannot update kernel state or claim trust. The same shared surface also blocks
+`record_evidence` and `record_tool_run` attempts when their requested source is
+only a summary/task-plan/findings/progress orientation surface. Generated
+Codex/OpenCode bridge
 payloads carry this shared entrypoint plus `runtime_gate_protocols` explicitly,
 so adapter authors do not need to reconstruct validation/promotion sequencing
 from prose. Its `policy_reasons` list exposes machine-readable policy IDs and
