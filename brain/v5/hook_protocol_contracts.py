@@ -364,6 +364,10 @@ def validate_pre_tool_policy_decision(
     _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
     _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
     _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    _require_list(payload.get("policy_reasons"), f"{path}.policy_reasons", result)
+    if isinstance(payload.get("policy_reasons"), list):
+        for index, reason in enumerate(payload["policy_reasons"]):
+            _validate_policy_reason(reason, f"{path}.policy_reasons[{index}]", result)
     _require_list(payload.get("required_actions"), f"{path}.required_actions", result)
     if isinstance(payload.get("required_actions"), list):
         for index, action in enumerate(payload["required_actions"]):
@@ -418,6 +422,14 @@ def _validate_pre_tool_policy_entrypoint(payload: Any, path: str, result: Contra
     for key, value in expected.items():
         if payload.get(key) != value:
             result.add(f"{path}.{key}", f"must be {value!r}")
+
+
+def _validate_policy_reason(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in ("policy_id", "severity", "message"):
+        _require_nonempty_str(payload, key, path, result)
 
 
 def _validate_trace_event_payload(payload: Any, path: str, result: ContractResult) -> None:

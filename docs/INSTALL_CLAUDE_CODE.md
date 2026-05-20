@@ -125,7 +125,8 @@ aitp_v5_evaluate_pre_tool_policy(base, session_id, action, claim_id, ...)
 
 The returned `pre_tool_policy_decision` is a permission/orientation payload only:
 it records `truth_source=typed_records`, keeps `summary_inputs_trusted=false`,
-and cannot update kernel state or claim trust.
+and cannot update kernel state or claim trust. Its `policy_reasons` field lists
+machine-readable policy IDs and severities for review and adapter routing.
 
 MCP clients can call:
 

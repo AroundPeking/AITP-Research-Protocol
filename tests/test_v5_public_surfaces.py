@@ -221,6 +221,13 @@ def test_public_surface_validator_accepts_pre_tool_policy_decision():
         "mode": "block",
         "block": True,
         "message": "blocked promote_to_l2; no_l2_promotion_without_evidence_ref; required: attach_evidence_ref",
+        "policy_reasons": [
+            {
+                "policy_id": "no_l2_promotion_without_evidence_ref",
+                "severity": "block",
+                "message": "L2 promotion requires at least one evidence reference",
+            }
+        ],
         "required_actions": ["attach_evidence_ref"],
         "exit_code": 2,
         "truth_source": "typed_records",

@@ -85,7 +85,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp-v5 policy pre-tool <args>` and `aitp_v5_evaluate_pre_tool_policy`.
   It returns the contracted `pre_tool_policy_decision` public surface with
   `truth_source=typed_records`, `summary_inputs_trusted=false`, and no authority
-  to mutate kernel state or claim trust.
+  to mutate kernel state or claim trust. It includes machine-readable
+  `policy_reasons` so reviewers and adapters can inspect policy IDs/severities
+  without parsing free-form messages.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing

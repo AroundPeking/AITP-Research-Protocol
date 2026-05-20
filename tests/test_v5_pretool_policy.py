@@ -113,3 +113,61 @@ def test_mcp_context_pre_tool_policy_warns_code_validation_without_code_state(tm
     assert payload["block"] is False
     assert payload["required_actions"] == ["record_code_state"]
     assert require_valid_public_surface("pre_tool_policy_decision", payload) == payload
+
+
+def test_cli_pre_tool_policy_exposes_machine_readable_summary_source_block(tmp_path, capsys):
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    _, claim = _seed_claim(tmp_path)
+
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "policy",
+            "pre-tool",
+            "validate_claim",
+            "--session",
+            "s1",
+            "--claim",
+            claim.claim_id,
+            "--source-kind",
+            "summary_orientation",
+            "--source-ref",
+            ".aitp/surfaces/session_summaries/s1/findings.md",
+            "--orientation-only",
+        ],
+        capsys,
+    )
+
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["required_actions"] == ["query_execution_brief_or_typed_record"]
+    assert payload["policy_reasons"] == [
+        {
+            "policy_id": "no_summary_surface_as_truth_source",
+            "severity": "hard_block",
+            "message": "derived summary surfaces are orientation only and cannot justify trust-changing actions",
+        }
+    ]
+    assert require_valid_public_surface("pre_tool_policy_decision", payload) == payload
+
+
+def test_mcp_pre_tool_policy_exposes_machine_readable_policy_reasons(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    _, claim = _seed_claim(tmp_path)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="promote_to_l2",
+        claim_id=claim.claim_id,
+        evidence_refs=[],
+        source_kind="typed_records",
+    )
+
+    assert payload["block"] is True
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "no_l2_promotion_without_evidence_ref"
+    ]

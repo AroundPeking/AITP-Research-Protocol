@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-304 passed
+306 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -122,6 +122,9 @@ Implemented:
   `pre_tool_policy_decision`.
 - Generated Codex/OpenCode bridge payloads explicitly advertise that shared
   pre-tool policy entrypoint.
+- `pre_tool_policy_decision` includes machine-readable `policy_reasons`, so
+  denial/warn causes such as summary-sourced trust updates are auditable without
+  parsing hook messages.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.

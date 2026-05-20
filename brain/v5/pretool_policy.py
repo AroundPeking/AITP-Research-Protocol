@@ -80,6 +80,14 @@ def evaluate_context_pre_tool_policy(
             "action": action,
             "session_id": session_id,
             "claim_id": resolved_claim_id,
+            "policy_reasons": [
+                {
+                    "policy_id": reason.policy_id,
+                    "severity": reason.severity,
+                    "message": reason.message,
+                }
+                for reason in policy.reasons
+            ],
             "truth_source": "typed_records",
             "can_update_kernel_state": False,
             "can_update_claim_trust": False,
