@@ -214,3 +214,67 @@ def test_legacy_migration_cli_mcp_and_runtime_surface(tmp_path, capsys):
     assert mcp_payload["ok"] is True
     assert mcp_payload["kind"] == "legacy_topic_migration_result"
     assert runtime_entrypoints()["migrate_legacy_topic"]["surface"] == "legacy_migration_result"
+
+
+def test_legacy_migration_converts_all_candidates_and_reviews_to_typed_records(tmp_path):
+    from brain.v5.evidence import list_evidence_for_claim
+    from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
+    from brain.v5.models import ClaimRecord, SensemakingReportRecord
+    from brain.v5.store import list_records
+    from brain.v5.workspace import init_workspace
+
+    legacy = _write_legacy_topic(tmp_path / "legacy")
+    candidate_dir = legacy / "L3" / "candidates"
+    review_dir = legacy / "L4" / "reviews"
+    review_dir.mkdir(parents=True)
+    second = candidate_dir / "candidate-negative-control.md"
+    review = review_dir / "review-counting.md"
+    second.write_text(
+        "---\n"
+        "candidate_id: candidate-negative-control\n"
+        "claim: A negative-control sector breaks the same counting sequence.\n"
+        "evidence: The mismatch appears in the control sector.\n"
+        "---\n"
+        "# Candidate Negative Control\n\nThe control sector should not match the edge CFT.\n",
+        encoding="utf-8",
+    )
+    review.write_text(
+        "---\n"
+        "review_id: review-counting\n"
+        "status: supports\n"
+        "summary: L4 review accepts the scoped counting claim.\n"
+        "---\n"
+        "# Review\n\nThe review accepts the claim only within the recorded finite-size scope.\n",
+        encoding="utf-8",
+    )
+    before = second.read_text(encoding="utf-8")
+    ws = init_workspace(tmp_path / "v5")
+
+    result = migrate_legacy_topic_to_v5(
+        ws,
+        legacy,
+        context_id="legacy-context",
+        session_id="s1",
+    )
+
+    assert second.read_text(encoding="utf-8") == before
+    claims = list_records(ws.registry_dir("claims"), ClaimRecord)
+    statements = {claim.statement for claim in claims}
+    assert statements == {
+        "Finite-size counting identifies the FQHE edge sector.",
+        "A negative-control sector breaks the same counting sequence.",
+    }
+    assert set(result["written_records"]["claims"]) == {claim.claim_id for claim in claims}
+    assert result["written_records"]["sensemaking_reports"]
+
+    all_evidence = []
+    for claim in claims:
+        all_evidence.extend(list_evidence_for_claim(ws, claim.claim_id))
+    evidence_types = {evidence.evidence_type for evidence in all_evidence}
+    assert "legacy_candidate" in evidence_types
+    assert "legacy_l4_review" in evidence_types
+    assert any(review.as_posix() in ref for evidence in all_evidence for ref in evidence.source_refs)
+
+    reports = list_records(ws.registry_dir("sensemaking_reports"), SensemakingReportRecord)
+    assert {report.report_id for report in reports} == set(result["written_records"]["sensemaking_reports"])
+    assert any("control sector" in report.summary for report in reports)

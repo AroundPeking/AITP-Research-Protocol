@@ -6,10 +6,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from brain.v5.brief import build_execution_brief
-from brain.v5.evidence import list_evidence_for_claim, record_evidence
+from brain.v5.evidence import record_evidence
 from brain.v5.markdown import read_md
 from brain.v5.paths import WorkspacePaths
 from brain.v5.references import record_reference_location
+from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.workspace import bind_session, create_claim, create_context, create_topic, init_workspace
 
 
@@ -115,14 +116,81 @@ def migrate_legacy_topic_to_v5(
 ) -> dict:
     """Explicitly migrate a legacy topic into v5 typed records."""
 
-    seed = seed_v5_from_legacy(ws, topic_dir, context_id=context_id, session_id=session_id)
+    root = Path(topic_dir)
+    summary = scan_legacy_topic(root)
+    create_context(ws, context_id, title=context_id)
+    create_topic(ws, summary.topic_slug, context_id=context_id, title=summary.title)
+
+    candidate_records = _legacy_candidate_records(root)
+    if not candidate_records:
+        candidate_records = [
+            {
+                "path": root / "state.md",
+                "statement": summary.question,
+                "evidence_summary": "Legacy topic question imported as candidate claim.",
+                "body_summary": summary.question,
+                "candidate_id": "legacy-question",
+            }
+        ]
+
+    claims = []
+    evidence_ids: list[str] = []
+    sensemaking_report_ids: list[str] = []
+    for candidate in candidate_records:
+        claim = create_claim(
+            ws,
+            topic_id=summary.topic_slug,
+            statement=candidate["statement"],
+            evidence_profile=_evidence_profile_for_lane(summary.lane),
+            confidence_state="legacy_seed",
+            active_uncertainty=summary.question or "legacy topic imported for v5 review",
+        )
+        claims.append(claim)
+        candidate_source_ref = f"legacy_candidate:{candidate['path'].as_posix()}"
+        candidate_evidence = record_evidence(
+            ws,
+            topic_id=summary.topic_slug,
+            claim_id=claim.claim_id,
+            evidence_type="legacy_candidate",
+            status="legacy_seed",
+            summary=candidate["evidence_summary"],
+            supports_outputs=["evidence_or_provenance"],
+            source_refs=[candidate_source_ref],
+        )
+        evidence_ids.append(candidate_evidence.evidence_id)
+        report = record_sensemaking_report(
+            ws,
+            topic_id=summary.topic_slug,
+            claim_id=claim.claim_id,
+            title=f"Legacy candidate: {candidate['candidate_id']}",
+            summary=candidate["body_summary"],
+            evidence_refs=[candidate_evidence.evidence_id],
+            next_actions=["review_legacy_candidate_in_v5"],
+        )
+        sensemaking_report_ids.append(report.report_id)
+
+    active_claim = claims[0]
+    preserved_refs = [f"legacy_source:{path}" for path in summary.source_paths]
+    for source_ref in preserved_refs:
+        source_evidence = record_evidence(
+            ws,
+            topic_id=summary.topic_slug,
+            claim_id=active_claim.claim_id,
+            evidence_type="legacy_source",
+            status="legacy_seed",
+            summary="Legacy source path preserved for v5 review.",
+            supports_outputs=["evidence_or_provenance"],
+            source_refs=[source_ref],
+        )
+        evidence_ids.append(source_evidence.evidence_id)
+
     reference_location_ids: list[str] = []
-    for source_ref in seed.preserved_source_refs:
+    for source_ref in preserved_refs:
         source_path = Path(source_ref.removeprefix("legacy_source:"))
         location = record_reference_location(
             ws,
-            topic_id=seed.topic_id,
-            claim_id=seed.active_claim_id,
+            topic_id=summary.topic_slug,
+            claim_id=active_claim.claim_id,
             connector_id="legacy_topic",
             location_type="legacy_source_file",
             uri=source_path.resolve().as_uri(),
@@ -132,23 +200,41 @@ def migrate_legacy_topic_to_v5(
         )
         reference_location_ids.append(location.location_id)
 
-    evidence_ids = [
-        evidence.evidence_id
-        for evidence in list_evidence_for_claim(ws, seed.active_claim_id)
-    ]
+    for review in _legacy_review_records(root):
+        review_evidence = record_evidence(
+            ws,
+            topic_id=summary.topic_slug,
+            claim_id=active_claim.claim_id,
+            evidence_type="legacy_l4_review",
+            status=review["status"],
+            summary=review["summary"],
+            supports_outputs=["evidence_or_provenance", "minimal_check"],
+            source_refs=[f"legacy_l4_review:{review['path'].as_posix()}"],
+        )
+        evidence_ids.append(review_evidence.evidence_id)
+
+    bind_session(
+        ws,
+        session_id,
+        topic_id=summary.topic_slug,
+        context_id=context_id,
+        active_claim=active_claim.claim_id,
+    )
+
     return {
         "kind": "legacy_topic_migration_result",
-        "topic_id": seed.topic_id,
-        "context_id": seed.context_id,
-        "session_id": seed.session_id,
-        "active_claim_id": seed.active_claim_id,
+        "topic_id": summary.topic_slug,
+        "context_id": context_id,
+        "session_id": session_id,
+        "active_claim_id": active_claim.claim_id,
         "written_records": {
-            "topics": [seed.topic_id],
-            "claims": [seed.active_claim_id],
+            "topics": [summary.topic_slug],
+            "claims": [claim.claim_id for claim in claims],
             "evidence": evidence_ids,
             "reference_locations": reference_location_ids,
+            "sensemaking_reports": sensemaking_report_ids,
         },
-        "preserved_source_refs": list(seed.preserved_source_refs),
+        "preserved_source_refs": preserved_refs,
         "summary_inputs_trusted": False,
     }
 
@@ -229,3 +315,52 @@ def _first_nonempty_body_line(body: str) -> str:
         if stripped:
             return stripped
     return ""
+
+
+def _legacy_candidate_records(root: Path) -> list[dict]:
+    records = []
+    for candidate_path in sorted((root / "L3" / "candidates").glob("*.md")):
+        fm, body = read_md(candidate_path)
+        statement = str(fm.get("claim") or _first_nonempty_body_line(body))
+        if not statement:
+            continue
+        body_summary = _first_paragraph(body) or statement
+        records.append(
+            {
+                "path": candidate_path,
+                "statement": statement,
+                "evidence_summary": str(fm.get("evidence") or body_summary),
+                "body_summary": body_summary,
+                "candidate_id": str(fm.get("candidate_id") or candidate_path.stem),
+            }
+        )
+    return records
+
+
+def _legacy_review_records(root: Path) -> list[dict]:
+    records = []
+    for review_path in sorted((root / "L4" / "reviews").glob("*.md")):
+        fm, body = read_md(review_path)
+        summary = str(fm.get("summary") or _first_paragraph(body) or review_path.stem)
+        records.append(
+            {
+                "path": review_path,
+                "status": str(fm.get("status") or "legacy_review"),
+                "summary": summary,
+            }
+        )
+    return records
+
+
+def _first_paragraph(body: str) -> str:
+    lines = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if lines:
+                break
+            continue
+        if stripped.startswith("#"):
+            continue
+        lines.append(stripped)
+    return " ".join(lines)
