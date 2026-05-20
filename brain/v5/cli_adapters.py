@@ -85,6 +85,7 @@ def _dispatch_hook_bridge(args: Namespace, packet: dict[str, Any]) -> dict[str, 
                 args.output,
                 packet["runtime_hook_installation"],
                 packet["runtime_gate_protocols"],
+                session_id=args.session_id,
             ),
         }
         return require_valid_public_surface("opencode_plugin_bridge", bridge)
@@ -96,6 +97,7 @@ def _dispatch_hook_bridge(args: Namespace, packet: dict[str, Any]) -> dict[str, 
             args.output,
             packet["runtime_hook_installation"],
             packet["runtime_gate_protocols"],
+            session_id=args.session_id,
         ),
     }
     return require_valid_public_surface("codex_hook_bridge", bridge)

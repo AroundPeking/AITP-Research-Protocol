@@ -115,7 +115,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   Markdown and return its `payload_path`; runtime hook runners should use
   `adapter pre-tool-event --bridge-path <payload-path> --event-json <json>` to
   consume the bridge payload without treating generated Markdown as a truth
-  source.
+  source. Generated bridge payloads also carry `pre_tool_event_runner.argv` with
+  the concrete runtime/session/sidecar invocation and a `<platform-event-json>`
+  placeholder.
 - Adapter packet `runtime_gate_protocols.record_evidence`,
   `runtime_gate_protocols.record_tool_run`, `runtime_gate_protocols.validate_claim`,
   and `runtime_gate_protocols.promote_to_l2` explicitly sequence

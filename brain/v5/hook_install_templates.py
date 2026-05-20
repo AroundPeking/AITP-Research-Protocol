@@ -7,6 +7,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from brain.v5.hook_runner_payloads import build_pre_tool_event_runner
+
 
 _INSTALLATION_MODES = {
     "codex": "explicit_guard_calls",
@@ -58,6 +60,8 @@ def write_codex_hook_bridge(
     path: str | Path,
     installation: dict[str, Any],
     runtime_gate_protocols: dict[str, Any] | None = None,
+    *,
+    session_id: str = "<session-id>",
 ) -> dict[str, Any]:
     """Write Codex guard-call instructions derived from hook installation metadata."""
 
@@ -87,6 +91,7 @@ def write_codex_hook_bridge(
         "gate_protocols": _gate_protocol_payload(runtime_gate_protocols),
         "path": str(bridge_path),
         "payload_path": str(_payload_sidecar_path(bridge_path)),
+        "pre_tool_event_runner": build_pre_tool_event_runner("codex", session_id, _payload_sidecar_path(bridge_path)),
         "guard_calls": guard_calls,
     }
     bridge_path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,6 +104,8 @@ def write_opencode_plugin_bridge(
     path: str | Path,
     installation: dict[str, Any],
     runtime_gate_protocols: dict[str, Any] | None = None,
+    *,
+    session_id: str = "<session-id>",
 ) -> dict[str, Any]:
     """Write OpenCode plugin bridge instructions derived from hook installation metadata."""
 
@@ -131,6 +138,11 @@ def write_opencode_plugin_bridge(
             "lifecycle_calls": lifecycle_calls,
             "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
             "pre_tool_event_entrypoint": deepcopy(_PRE_TOOL_EVENT_ENTRYPOINT),
+            "pre_tool_event_runner": build_pre_tool_event_runner(
+                "opencode",
+                session_id,
+                _payload_sidecar_path(bridge_path),
+            ),
             "gate_protocols": _gate_protocol_payload(runtime_gate_protocols),
             "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
             "truth_rule": "generated bridge is orientation-only; typed records remain authoritative",
@@ -255,10 +267,15 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
         "",
         "## Adapter Pre-Tool Event",
         "",
-        "Use `aitp-v5 adapter pre-tool-event <runtime> <session-id> --bridge-json <json> --event-json <json>` to normalize live platform events through the shared policy path.",
+        "Use the generated sidecar runner to normalize live platform events through the shared policy path.",
         "",
+        f"- bridge_payload_source: `{bridge['pre_tool_event_runner']['bridge_payload_source']}`",
         f"- mcp: `{bridge['pre_tool_event_entrypoint']['mcp']}`",
         f"- surface: `{bridge['pre_tool_event_entrypoint']['surface']}`",
+        "",
+        "```powershell",
+        _command_string(bridge["pre_tool_event_runner"]["argv"]),
+        "```",
         "",
         "## Gate Protocols",
         "",
@@ -320,10 +337,15 @@ def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
         "",
         "## Adapter Pre-Tool Event",
         "",
-        "Use `aitp-v5 adapter pre-tool-event <runtime> <session-id> --bridge-json <json> --event-json <json>` to normalize live platform events through the shared policy path.",
+        "Use the generated sidecar runner to normalize live platform events through the shared policy path.",
         "",
+        f"- bridge_payload_source: `{bridge['plugin_bridge']['pre_tool_event_runner']['bridge_payload_source']}`",
         f"- mcp: `{bridge['plugin_bridge']['pre_tool_event_entrypoint']['mcp']}`",
         f"- surface: `{bridge['plugin_bridge']['pre_tool_event_entrypoint']['surface']}`",
+        "",
+        "```powershell",
+        _command_string(bridge["plugin_bridge"]["pre_tool_event_runner"]["argv"]),
+        "```",
         "",
         "## Gate Protocols",
         "",

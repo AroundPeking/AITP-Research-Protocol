@@ -200,7 +200,10 @@ The repo-backed bridge writer is
 Markdown guide from `runtime_hook_installation` and deliberately marks the output
 as orientation-only. It also writes a machine-readable JSON sidecar next to the
 Markdown guide and returns the sidecar as `payload_path`; runtime hook runners
-should consume that file, not the Markdown text.
+should consume that file, not the Markdown text. The generated payload includes
+`pre_tool_event_runner.argv`, a machine-readable command vector for invoking
+`aitp-v5 adapter pre-tool-event` with the concrete runtime, session id, sidecar
+path, and a `<platform-event-json>` placeholder.
 
 For an actual v5 workspace/session, materialize it through the public runtime
 surface instead of calling the helper by hand:
@@ -360,8 +363,10 @@ aitp_v5_write_opencode_plugin_bridge(base, session_id, output_path)
 
 The generated bridge records lifecycle calls, gate protocols, and the
 persistence entrypoint, and it writes a sibling JSON sidecar exposed as
-`payload_path`, but it is still orientation-only. OpenCode must write durable
-state through typed v5 kernel records and `aitp_v5_persist_hook_trace_event`.
+`payload_path`. Its `plugin_bridge.pre_tool_event_runner.argv` provides the
+same sidecar-backed pre-tool event invocation for plugin authors, but it is
+still orientation-only. OpenCode must write durable state through typed v5
+kernel records and `aitp_v5_persist_hook_trace_event`.
 
 ## Installer Work Still Needed
 
