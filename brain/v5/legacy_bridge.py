@@ -8,6 +8,7 @@ from pathlib import Path
 from brain.v5.brief import build_execution_brief
 from brain.v5.evidence import record_evidence
 from brain.v5.legacy_migration_records import (
+    legacy_l1_intake_candidates,
     legacy_l2_migration_candidates,
     legacy_source_metadata_anchor_candidates,
     migrate_legacy_l1_understanding,
@@ -277,6 +278,7 @@ def audit_legacy_topic_migration(topic_path: str | Path) -> dict:
     ]
     _PATH_MAP = {
         "state.md": "topic/runtime metadata",
+        "L1/question_contract.md": "l1/question contract candidate",
         "L1/source_basis.md": "source basis/evidence orientation",
         "L1/convention_snapshot.md": "understanding/conventions candidate",
         "L1/derivation_anchor_map.md": "understanding/derivation anchor candidate",
@@ -303,7 +305,9 @@ def audit_legacy_topic_migration(topic_path: str | Path) -> dict:
         mapped_paths[review.relative_to(root).as_posix()] = "validation evidence candidate"
 
     if (root / "L1" / "question_contract.md").exists():
-        mapped_paths["L1/question_contract.md"] = "claim/question or claim contract"
+        mapped_paths["L1/question_contract.md"] = _PATH_MAP["L1/question_contract.md"]
+    for _path, display_path in legacy_l1_intake_candidates(root):
+        mapped_paths[display_path] = "l1/intake note candidate"
     for rel in (
         "L1/convention_snapshot.md",
         "L1/derivation_anchor_map.md",

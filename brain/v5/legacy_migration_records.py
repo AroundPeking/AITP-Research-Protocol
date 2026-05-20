@@ -43,7 +43,14 @@ def migrate_legacy_l1_understanding(
     ]
     evidence_ids: list[str] = []
     report_ids: list[str] = []
-    for filename, evidence_type, title in specs:
+    for filename, evidence_type, title in [
+        (
+            "question_contract.md",
+            "legacy_l1_question_contract",
+            "Legacy L1 question contract",
+        ),
+        *specs,
+    ]:
         path = root / "L1" / filename
         if not path.exists():
             continue
@@ -70,7 +77,56 @@ def migrate_legacy_l1_understanding(
         )
         evidence_ids.append(evidence.evidence_id)
         report_ids.append(report.report_id)
+
+    for path, display_path in legacy_l1_intake_candidates(root):
+        fm, body = read_md(path)
+        summary = str(
+            fm.get("summary")
+            or _first_paragraph(body)
+            or f"Legacy L1 intake note: {display_path}"
+        )
+        evidence = record_evidence(
+            ws,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            evidence_type="legacy_l1_intake_note",
+            status="legacy_seed",
+            summary=summary,
+            supports_outputs=["evidence_or_provenance"],
+            source_refs=[f"legacy_l1:{path.as_posix()}"],
+        )
+        report = record_sensemaking_report(
+            ws,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            title=f"Legacy L1 intake note: {display_path}",
+            summary=summary,
+            evidence_refs=[evidence.evidence_id],
+            next_actions=["review_legacy_l1_intake_note"],
+        )
+        evidence_ids.append(evidence.evidence_id)
+        report_ids.append(report.report_id)
     return evidence_ids, report_ids
+
+
+def legacy_l1_intake_candidates(root: Path) -> list[tuple[Path, str]]:
+    candidates: list[Path] = []
+    for path in sorted((root / "L1" / "intake").glob("*.md")):
+        candidates.append(path)
+    for name in ("intake_notes.md", "reading_notes.md", "literature_notes.md"):
+        path = root / "L1" / name
+        if path.exists():
+            candidates.append(path)
+
+    seen: set[str] = set()
+    result: list[tuple[Path, str]] = []
+    for path in candidates:
+        resolved = str(path.resolve())
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        result.append((path, path.relative_to(root).as_posix()))
+    return result
 
 
 def migrate_legacy_source_reference_locations(

@@ -475,6 +475,57 @@ def test_legacy_migration_preserves_l1_derivation_anchors_and_contradictions(tmp
     assert any("shifted momentum convention" in report.summary for report in reports)
 
 
+def test_legacy_migration_preserves_l1_question_contract_and_intake_notes(tmp_path):
+    from brain.v5.evidence import list_evidence_for_claim
+    from brain.v5.legacy_bridge import audit_legacy_topic_migration, migrate_legacy_topic_to_v5
+    from brain.v5.models import SensemakingReportRecord
+    from brain.v5.store import list_records
+    from brain.v5.workspace import init_workspace
+
+    legacy = _write_legacy_topic(tmp_path / "legacy")
+    l1 = legacy / "L1"
+    intake = l1 / "intake"
+    intake.mkdir(parents=True)
+    question = l1 / "question_contract.md"
+    note = intake / "edge-paper.md"
+    question.write_text(
+        "---\n"
+        "summary: Determine whether finite-size edge counting distinguishes the CFT sector.\n"
+        "---\n"
+        "# Question Contract\n\nBounded question: compare counting with CFT characters.\n",
+        encoding="utf-8",
+    )
+    note.write_text(
+        "---\n"
+        "summary: The paper's counting table is useful, but its momentum convention is shifted.\n"
+        "---\n"
+        "# Intake Note\n\nRecord the convention shift before using the table.\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_legacy_topic_migration(legacy)
+    assert audit["mapped_paths"]["L1/question_contract.md"] == "l1/question contract candidate"
+    assert audit["mapped_paths"]["L1/intake/edge-paper.md"] == "l1/intake note candidate"
+
+    ws = init_workspace(tmp_path / "v5")
+    result = migrate_legacy_topic_to_v5(
+        ws,
+        legacy,
+        context_id="legacy-context",
+        session_id="s1",
+    )
+
+    evidence = list_evidence_for_claim(ws, result["active_claim_id"])
+    evidence_types = {item.evidence_type for item in evidence}
+    assert {"legacy_l1_question_contract", "legacy_l1_intake_note"} <= evidence_types
+    assert any(question.as_posix() in ref for item in evidence for ref in item.source_refs)
+    assert any(note.as_posix() in ref for item in evidence for ref in item.source_refs)
+
+    reports = list_records(ws.registry_dir("sensemaking_reports"), SensemakingReportRecord)
+    assert any("distinguishes the CFT sector" in report.summary for report in reports)
+    assert any("momentum convention is shifted" in report.summary for report in reports)
+
+
 def test_legacy_migration_preserves_l2_entries_as_legacy_seed_memory(tmp_path):
     from brain.v5.legacy_bridge import audit_legacy_topic_migration, migrate_legacy_topic_to_v5
     from brain.v5.models import MemoryEntryRecord

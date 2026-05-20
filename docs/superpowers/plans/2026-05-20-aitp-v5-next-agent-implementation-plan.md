@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-15eeb40 feat(v5): migrate legacy l2 memory seeds, or a later completed commit from this plan
+6ff1117 feat(v5): migrate legacy source anchors, or a later completed commit from this plan
 ```
 
 Current focused v5 verification:
@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-264 passed
+265 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -88,6 +88,7 @@ Implemented:
 - Legacy runtime logs migrate into v5 JSONL trace events as orientation process history.
 - Legacy L1 source basis and convention snapshots migrate into v5 evidence plus sense-making reports.
 - Legacy L1 derivation anchor maps and contradiction registers migrate into v5 evidence plus sense-making reports and appear in dry-run audit mapping.
+- Legacy L1 question contracts and intake notes migrate into v5 evidence plus sense-making reports and appear in dry-run audit mapping.
 - Legacy L2 entries, graph nodes, and graph edges migrate into v5 memory entries with `status=legacy_seed`, provenance refs, and review-required checkpoint markers.
 - Legacy L0 source metadata anchors (`source_url`, PDF, DOI, arXiv, and note paths) migrate into orientation-only v5 reference locations and appear in dry-run audit mapping.
 - Subagent auditor results ingest as typed evidence plus sense-making proposals, never direct confidence changes or L2 promotion.
@@ -95,7 +96,6 @@ Implemented:
 
 Major remaining gaps:
 
-- Legacy migration still needs broader old-topic coverage for old L1 intake.
 - Hook helpers are implemented as pure kernel decisions; shell/app hook adapters and installation docs still need integration work.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
