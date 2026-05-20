@@ -461,3 +461,64 @@ Each entry should record:
 - Next recommended task:
   - add OpenCode plugin/bridge generation from the same typed hook installation
     metadata, or deepen the Claude `PreToolUse` policy mapping.
+
+### 9fbcc1d - Materialize OpenCode Hook Bridge
+
+- Task: add OpenCode plugin bridge generation from typed v5 runtime hook
+  installation metadata.
+- Planning source:
+  - residual risk after `113673e`;
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`;
+  - v5 goal requirement for Codex/Claude/OpenCode adapter symmetry without
+    making generated bridge files truth sources.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `brain/v5/cli.py`
+  - `brain/v5/hook_install_templates.py`
+  - `brain/v5/hook_protocol_contracts.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoints.py`
+  - hook installation and next-agent planning docs
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+- Public surface changes:
+  - helper: `write_opencode_plugin_bridge`;
+  - CLI: `aitp-v5 --base <workspace> adapter hook-bridge opencode
+    <session-id> --output .opencode/AITP_V5_PLUGIN_BRIDGE.md`;
+  - MCP: `aitp_v5_write_opencode_plugin_bridge`;
+  - runtime entrypoint: `opencode_plugin_bridge`;
+  - public contract: `opencode_plugin_bridge` with
+    `summary_inputs_trusted=false`, `can_update_kernel_state=false`, and
+    `can_update_claim_trust=false`.
+- Tests:
+  - direct writer renders lifecycle calls from `runtime_hook_installation`;
+  - CLI materializes an OpenCode bridge from an actual adapter packet;
+  - MCP wrapper returns the contracted payload;
+  - public surface registry validates `opencode_plugin_bridge`;
+  - runtime entrypoint registry advertises the CLI/MCP pair.
+- Verification:
+  - focused red tests failed with missing writer helper, CLI support restricted
+    to Codex, missing MCP wrapper, unknown public surface, and missing runtime
+    entrypoint.
+  - focused green test set: 5 passed.
+  - regression set
+    `pytest tests\test_v5_adapters.py tests\test_v5_hooks.py
+    tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py
+    tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`:
+    89 passed.
+  - full v5 focused suite: 291 passed.
+  - `python -m compileall -q brain\v5`: passed.
+  - `git diff --check -- .`: passed.
+  - source module line counts remained below 500 lines.
+  - `python hooks\aitp_v5_hook.py pre-commit ...`: passed with `mode=log`.
+- Residual risks:
+  - generated OpenCode bridge is still an orientation-only guide, not an
+    automatically installed native OpenCode plugin;
+  - Claude `PreToolUse` remains log-only and does not compute a full typed
+    blocking policy from Claude tool JSON.
+- Next recommended task:
+  - deepen the Claude `PreToolUse` typed policy mapping, or implement native
+    OpenCode plugin invocation around the generated bridge.
