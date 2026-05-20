@@ -1764,3 +1764,37 @@ Each entry should record:
 - Next recommended task:
   - split `runtime_entrypoints.py` metadata/sample args, then add the matching
     OpenCode stdin-runner installation fixture.
+
+### 40f6af7 - Split Runtime Entrypoint Catalog Data
+
+- Task: split runtime entrypoint metadata and CLI parser sample arguments out of
+  `brain/v5/runtime_entrypoints.py` before adding another hook-installation
+  surface.
+- Planning source:
+  - residual risk from `2951649`;
+  - user requirement to avoid old-style large AITP files;
+  - v5 architecture boundary that validator modules should stay focused.
+- Changed files:
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/runtime_entrypoints.py`
+  - `tests/test_v5_architecture_boundaries.py`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - no intended behavior change;
+  - `runtime_entrypoints()` continues returning the same CLI/MCP surface map;
+  - validation still confirms advertised CLI/MCP targets parse and exist.
+- Tests:
+  - new architecture-boundary test requires `runtime_entrypoints.py` to stay at
+    or below 450 lines;
+  - existing runtime-entrypoint tests validate the same public behavior.
+- Verification:
+  - red boundary test failed as expected at 496 lines;
+  - target green set:
+    `python -m pytest tests/test_v5_architecture_boundaries.py::test_runtime_entrypoints_module_keeps_catalog_out_of_validator_logic tests/test_v5_runtime_entrypoints.py -q`:
+    4 passed.
+- Residual risks:
+  - the new catalog module is data-heavy by design and should be split by
+    runtime/action family if it approaches the global source-size boundary.
+- Next recommended task:
+  - add the matching OpenCode stdin-runner installation fixture.
