@@ -269,3 +269,65 @@ Each entry should record:
   - implement either a Claude Code native settings/template writer, or a
     post-tool trace persistence runtime bridge that records hook trace events
     through typed v5 trace/kernel paths.
+
+### 2a9e536 - Persist Post-Tool Hook Traces
+
+- Task: persist `post-tool` hook stdout payloads through the typed v5 trace path
+  instead of leaving them as process-local JSON output.
+- Planning source:
+  - residual risk after `f460fa3`;
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`;
+  - v5 goal requirement for hook/MCP/CLI/runtime symmetry and durable research
+    process records.
+- Changed files:
+  - `.codex/INSTALL.md`
+  - `README.md`
+  - `brain/v5/trace.py`
+  - `brain/v5/hook_protocol_contracts.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoints.py`
+  - `tests/test_v5_trace_audit.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - hook installation and next-agent planning docs
+- Public surface changes:
+  - kernel helper: `persist_hook_trace_event`;
+  - CLI: `aitp-v5 --base <workspace> trace hook-event persist --payload-json
+    <hook_trace_event_json>`;
+  - MCP: `aitp_v5_persist_hook_trace_event`;
+  - runtime entrypoint: `persist_hook_trace_event`;
+  - public contract: `hook_trace_event_record` with
+    `summary_inputs_trusted=false`, `can_update_claim_trust=false`, and
+    `writes_trace_event=true`.
+- Tests:
+  - kernel persistence appends hook payloads to
+    `.aitp/runtime/hook_trace_events.jsonl`;
+  - CLI persists the same hook payload;
+  - MCP wrapper returns the contracted payload;
+  - public surface validator accepts `hook_trace_event_record`;
+  - runtime entrypoint registry advertises the CLI/MCP pair.
+- Verification:
+  - focused red tests failed with missing `persist_hook_trace_event`, missing
+    `trace` CLI command, missing MCP wrapper, unknown public surface, and missing
+    runtime entrypoint.
+  - focused green test set: 5 passed.
+  - regression set
+    `pytest tests\test_v5_trace_audit.py tests\test_v5_hooks.py
+    tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py
+    tests\test_v5_adapters.py tests\test_v5_contracts.py
+    tests\test_v5_architecture_boundaries.py -q`: 83 passed.
+  - full v5 focused suite: 279 passed.
+  - `python -m compileall -q brain\v5`: passed.
+  - `git diff --check -- .`: passed.
+  - `python hooks\aitp_v5_hook.py pre-commit ...`: passed with `mode=log`.
+- Residual risks:
+  - Codex/Claude/OpenCode still need native lifecycle installers to invoke the
+    bridge automatically;
+  - persisted trace events remain process history, not evidence or trust
+    updates.
+- Next recommended task:
+  - implement a native lifecycle installer/template for one runtime, likely
+    Claude Code settings or OpenCode plugin bridge, using the same hook protocol
+    metadata and persistence surface.
