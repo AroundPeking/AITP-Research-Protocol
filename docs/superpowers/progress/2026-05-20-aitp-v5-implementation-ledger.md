@@ -1427,3 +1427,55 @@ Each entry should record:
   - add a small generated bridge/runtime doc or script example showing how a
     Codex/OpenCode hook invokes `adapter pre-tool-event`, or continue expanding
     pre-tool policy coverage for remaining trust-relevant actions.
+
+### e6ff277 - Advertise Adapter PreTool Event Entrypoint
+
+- Task: make generated Codex/OpenCode bridges advertise the CLI/MCP surface for
+  normalizing live platform pre-tool events.
+- Planning source:
+  - residual risk after `43ee8d3`;
+  - hook installation plan requirement that runtime adapters discover the
+    correct typed policy invocation without prose scraping;
+  - v5 invariant that bridge files are orientation/runtime instructions, not
+    truth sources.
+- Changed files:
+  - `brain/v5/hook_install_templates.py`
+  - `brain/v5/hook_protocol_contracts.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - Codex hook bridge payloads now include top-level
+    `pre_tool_event_entrypoint`;
+  - OpenCode plugin bridge payloads now include
+    `plugin_bridge.pre_tool_event_entrypoint`;
+  - both entrypoints advertise
+    `aitp-v5 adapter pre-tool-event <runtime> <session-id> <args>`,
+    `aitp_v5_evaluate_adapter_pre_tool_event`, required bridge/event payloads,
+    and the `pre_tool_policy_decision` surface.
+- Tests:
+  - generated Codex/OpenCode bridge payloads include the expected event
+    entrypoint metadata;
+  - public surface validators accept bridges with the new metadata;
+  - hook bridge contracts now validate the event entrypoint shape.
+- Verification:
+  - red tests failed as expected with missing `pre_tool_event_entrypoint`;
+  - target green set:
+    `pytest tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet tests/test_v5_public_surfaces.py::test_public_surface_validator_accepts_codex_hook_bridge tests/test_v5_public_surfaces.py::test_public_surface_validator_accepts_opencode_plugin_bridge -q`:
+    4 passed;
+  - focused adapter/public/runtime set:
+    `pytest tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    51 passed;
+  - full v5 focused suite: 318 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - line counts stayed below 500 (`hook_protocol_contracts.py`: 488,
+    `hook_install_templates.py`: 445).
+- Residual risks:
+  - this advertises invocation metadata, but still does not install an automatic
+    native Codex/OpenCode hook runner;
+  - JSON payload shape remains intentionally thin and should be hardened if a
+    specific platform exposes richer native event schemas.
+- Next recommended task:
+  - add a minimal generated script/wrapper or installation instruction that uses
+    `pre_tool_event_entrypoint` to call `adapter pre-tool-event`, then smoke-test
+    the script against generated bridge payloads.

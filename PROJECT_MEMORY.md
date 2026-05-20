@@ -108,7 +108,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   into that same typed decision path. The normalizer is exposed through
   `aitp-v5 adapter pre-tool-event <runtime> <session-id> ...` and
   `aitp_v5_evaluate_adapter_pre_tool_event`, returning the contracted
-  `pre_tool_policy_decision` surface.
+  `pre_tool_policy_decision` surface. Generated Codex/OpenCode bridge payloads
+  advertise this as `pre_tool_event_entrypoint` so runtime adapters can discover
+  the correct CLI/MCP invocation without prose scraping.
 - Adapter packet `runtime_gate_protocols.record_evidence`,
   `runtime_gate_protocols.record_tool_run`, `runtime_gate_protocols.validate_claim`,
   and `runtime_gate_protocols.promote_to_l2` explicitly sequence

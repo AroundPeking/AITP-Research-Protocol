@@ -254,6 +254,10 @@ or the MCP wrapper:
 aitp_v5_evaluate_adapter_pre_tool_event(base, bridge_payload, platform_event)
 ```
 
+Generated Codex/OpenCode bridge payloads include `pre_tool_event_entrypoint`
+metadata with those CLI/MCP targets, the required `bridge_payload` and
+`platform_event` inputs, and the same `pre_tool_policy_decision` surface.
+
 ## Claude Code Template
 
 Claude Code has existing AITP SessionStart and PreToolUse integration for the

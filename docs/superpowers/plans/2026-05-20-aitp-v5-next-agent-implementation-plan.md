@@ -145,6 +145,8 @@ Implemented:
   `aitp-v5 adapter pre-tool-event <runtime> <session-id> ...` /
   `aitp_v5_evaluate_adapter_pre_tool_event` /
   `pre_tool_policy_decision`.
+- Generated Codex/OpenCode bridge payloads now advertise
+  `pre_tool_event_entrypoint` metadata for that CLI/MCP runtime surface.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_evidence` and `record_tool_run`
   trust-changing record attempts.
@@ -158,8 +160,8 @@ Major remaining gaps:
   Codex explicit bridge materialization, Claude Code settings template
   generation and merge installation, OpenCode plugin bridge materialization, and
   post-tool trace persistence surfaces exist; Codex/OpenCode now have a
-  CLI/MCP-callable runtime event normalizer, but not automatic native lifecycle
-  installation yet.
+  CLI/MCP-callable runtime event normalizer advertised in generated bridges, but
+  not automatic native lifecycle installation yet.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion context, and summary-sourced evidence/tool-run
   record attempts through CLI/MCP/runtime/bridge metadata, but it does not yet
