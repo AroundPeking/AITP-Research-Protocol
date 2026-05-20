@@ -12,6 +12,7 @@ _AITP_TOOL_ACTIONS = {
     "aitp_v5_record_evidence": "record_evidence",
     "aitp_v5_record_tool_run": "record_tool_run",
     "aitp_v5_execute_tool": "execute_tool",
+    "aitp_v5_ingest_subagent_result": "ingest_subagent_result",
     "aitp_v5_create_validation_contract": "validate_claim",
     "aitp_v5_create_promotion_packet": "promote_to_l2",
     "aitp_v5_apply_promotion_packet": "promote_to_l2",
@@ -151,7 +152,7 @@ def _platform_pre_tool_event(bridge_payload: dict[str, Any], platform_event: dic
         "lifecycle_event": "pre_tool",
         "session_id": str(platform_event.get("session_id") or tool_input.get("session_id") or ""),
         "action": action,
-        "claim_id": str(tool_input.get("claim_id") or tool_input.get("claim") or ""),
+        "claim_id": _claim_id_from_tool_input(tool_input),
         "evidence_refs": _input_list(tool_input, "evidence_refs"),
         "code_state_ids": _input_list(tool_input, "code_state_ids"),
         "source_kind": str(tool_input.get("source_kind") or platform_event.get("source_kind") or "typed_records"),
@@ -208,6 +209,15 @@ def _input_list(payload: dict[str, Any], key: str) -> list[str]:
     if singular:
         return [str(singular)]
     return []
+
+
+def _claim_id_from_tool_input(tool_input: dict[str, Any]) -> str:
+    if tool_input.get("claim_id") or tool_input.get("claim"):
+        return str(tool_input.get("claim_id") or tool_input.get("claim"))
+    packet = tool_input.get("packet")
+    if isinstance(packet, dict) and packet.get("claim_id"):
+        return str(packet["claim_id"])
+    return ""
 
 
 def _clean_list(values: Any) -> list[str]:

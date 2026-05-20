@@ -342,6 +342,7 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
         "claim_id",
         "evidence_refs",
         "code_state_ids",
+        "packet",
         "source_kind",
         "source_ref",
         "orientation_only",
@@ -367,6 +368,7 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
                 "claim_id",
                 "evidence_refs",
                 "code_state_ids",
+                "packet",
                 "source_kind",
                 "source_ref",
                 "orientation_only",
@@ -635,6 +637,50 @@ def test_mcp_adapter_pre_tool_event_infers_execute_tool_policy(tmp_path):
     ]
 
 
+def test_mcp_adapter_pre_tool_event_infers_subagent_ingestion_policy(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_adapter_pre_tool_event, aitp_v5_write_codex_hook_bridge
+
+    _, claim = _seed_session(tmp_path)
+    bridge = aitp_v5_write_codex_hook_bridge(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md"),
+    )
+
+    payload = aitp_v5_evaluate_adapter_pre_tool_event(
+        str(tmp_path),
+        bridge_payload=bridge,
+        platform_event={
+            "runtime": "codex",
+            "hook_name": "pre_tool",
+            "session_id": "s1",
+            "tool_name": "mcp__aitp__aitp_v5_ingest_subagent_result",
+            "tool_input": {
+                "topic_id": "librpa-gw",
+                "packet": {
+                    "packet_id": "packet-critic-si-gw",
+                    "packet_type": "CriticPacket",
+                    "claim_id": claim.claim_id,
+                    "claim_statement": claim.statement,
+                },
+                "source_kind": "findings",
+                "source_ref": ".aitp/surfaces/session_summaries/s1/findings.md",
+                "orientation_only": True,
+            },
+        },
+    )
+
+    assert payload["ok"] is True
+    assert payload["action"] == "ingest_subagent_result"
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["runtime_gate_protocol"]["action"] == "ingest_subagent_result"
+    assert payload["claim_id"] == claim.claim_id
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "no_summary_surface_as_truth_source"
+    ]
+
+
 def test_mcp_adapter_pre_tool_event_passes_adversarial_checkpoint_context(tmp_path):
     from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
     from brain.v5.mcp_tools import aitp_v5_evaluate_adapter_pre_tool_event, aitp_v5_write_codex_hook_bridge
@@ -716,6 +762,7 @@ def test_opencode_plugin_bridge_is_rendered_from_installation_template(tmp_path)
     assert bridge["plugin_bridge"]["pre_tool_event_entrypoint"]["platform_event_schema"]["tool_input_optional"][-1] == (
         "human_checkpoint_id"
     )
+    assert "packet" in bridge["plugin_bridge"]["pre_tool_event_entrypoint"]["platform_event_schema"]["tool_input_optional"]
     assert bridge["path"] == str(bridge_path)
     assert bridge["payload_path"] == str(bridge_path.with_suffix(".json"))
     assert bridge["plugin_bridge"]["pre_tool_event_runner"]["argv"] == [
@@ -810,6 +857,7 @@ def test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet(tmp_path, ca
                 "claim_id",
                 "evidence_refs",
                 "code_state_ids",
+                "packet",
                 "source_kind",
                 "source_ref",
                 "orientation_only",

@@ -117,7 +117,7 @@ def _adapter_pre_tool_event_lines(*, runner: dict[str, Any], entrypoint: dict[st
         f"- bridge_payload_source: `{runner['bridge_payload_source']}`",
         f"- mcp: `{entrypoint['mcp']}`",
         f"- surface: `{entrypoint['surface']}`",
-        "- platform event optional tool inputs include: `claim_id`, `evidence_refs`, `code_state_ids`, `source_kind`, `source_ref`, `orientation_only`, `risk_level`, `human_checkpoint_id`",
+        "- platform event optional tool inputs include: `claim_id`, `evidence_refs`, `code_state_ids`, `packet`, `source_kind`, `source_ref`, `orientation_only`, `risk_level`, `human_checkpoint_id`",
         "",
         "```powershell",
         _command_string(runner["argv"]),

@@ -30,6 +30,7 @@ _PRE_TOOL_EVENT_PLATFORM_SCHEMA = {
         "claim_id",
         "evidence_refs",
         "code_state_ids",
+        "packet",
         "source_kind",
         "source_ref",
         "orientation_only",

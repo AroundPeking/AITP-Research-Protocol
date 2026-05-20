@@ -267,7 +267,7 @@ sequences `evaluate_pre_tool_policy`, then delegates the decision to the shared
 typed-record-backed pre-tool policy surface. The bridge remains orientation-only;
 the returned decision is still backed by typed kernel records.
 Generated gate protocols now cover record-evidence, record-tool-run,
-execute-tool, validation, and L2-promotion actions.
+execute-tool, subagent-ingestion, validation, and L2-promotion actions.
 The shared policy carries `risk_level` and optional `human_checkpoint_id`.
 Adversarial-risk trust-changing actions are hard-blocked unless that checkpoint
 is a decided typed human checkpoint with `decision=approve` for the active
@@ -304,8 +304,9 @@ The same generated payloads and sidecars expose
 `pre_tool_policy_entrypoint.input_schema` and
 `pre_tool_event_entrypoint.platform_event_schema`. The schema metadata names
 the required policy inputs (`session_id`, `action`, `claim_id`, `risk_level`),
-optional typed refs/source metadata, and optional `human_checkpoint_id`; it is a
-machine-readable adapter contract, not a truth source.
+optional typed refs/source metadata, optional nested `packet` input, and
+optional `human_checkpoint_id`; it is a machine-readable adapter contract, not
+a truth source.
 
 ## Claude Code Template
 

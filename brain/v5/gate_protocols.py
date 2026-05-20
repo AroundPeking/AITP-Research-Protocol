@@ -62,6 +62,28 @@ _RUNTIME_GATE_PROTOCOLS = {
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },
+    "ingest_subagent_result": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "ingest_subagent_result",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["topic_id", "claim_id", "packet_id"],
+        "allowed_state_sources": [
+            "typed_records",
+            "typed_subagent_packets",
+            "typed_evidence_records",
+            "typed_code_state_records",
+        ],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
     "validate_claim": {
         "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
         "preflight": "aitp_v5_preflight_trust_update",

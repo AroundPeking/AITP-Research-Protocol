@@ -16,6 +16,7 @@ _CONTEXT_ACTIONS = {
     "record_evidence",
     "record_tool_run",
     "execute_tool",
+    "ingest_subagent_result",
     "validate_claim",
     "promote_to_l2",
 }

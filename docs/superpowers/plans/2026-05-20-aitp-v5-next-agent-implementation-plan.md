@@ -127,10 +127,10 @@ Implemented:
   parsing hook messages.
 - Adapter packet gate protocols for `validate_claim` and `promote_to_l2`
   explicitly sequence `evaluate_pre_tool_policy` before preflight/promotion.
-- Adapter packet gate protocols for `record_evidence`, `record_tool_run`, and
-  `execute_tool` now also sequence `evaluate_pre_tool_policy` before the
-  trust-relevant action, so summary-sourced attempts can be blocked through
-  bridge metadata.
+- Adapter packet gate protocols for `record_evidence`, `record_tool_run`,
+  `execute_tool`, and `ingest_subagent_result` now also sequence
+  `evaluate_pre_tool_policy` before the trust-relevant action, so
+  summary-sourced attempts can be blocked through bridge metadata.
 - Generated Codex/OpenCode bridge payloads and Markdown now carry
   `gate_protocols` derived from `runtime_gate_protocols`, so adapter runtimes
   can consume record/validate/promote sequences without prose scraping.
@@ -173,8 +173,8 @@ Implemented:
   bridge/sidecar and points pre-tool events at the stdin runner with a declared
   repository `cwd`.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
-  orientation surfaces from driving `record_evidence`, `record_tool_run`, and
-  `execute_tool` trust-changing attempts.
+  orientation surfaces from driving `record_evidence`, `record_tool_run`,
+  `execute_tool`, and `ingest_subagent_result` trust-changing attempts.
 - The shared CLI/MCP/runtime pre-tool policy now carries `risk_level` and
   optional `human_checkpoint_id`; adversarial-risk trust-changing actions are
   hard-blocked unless the checkpoint resolves to an approved typed human
@@ -182,8 +182,8 @@ Implemented:
 - Generated Codex/OpenCode bridge payloads and JSON sidecars now advertise
   `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level` and
-  optional `human_checkpoint_id`, so adapters can discover pre-tool inputs
-  without parsing Markdown.
+  optional `human_checkpoint_id` plus optional nested `packet` input, so
+  adapters can discover pre-tool inputs without parsing Markdown.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
@@ -199,11 +199,11 @@ Major remaining gaps:
   Codex and OpenCode also have generated installation fixtures.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion context, and summary-sourced
-  evidence/tool-run/tool-execution attempts through CLI/MCP/runtime/bridge
-  metadata, and adversarial-risk trust changes require approved typed human
-  checkpoints. It still does not yet cover every MCP input or every active risk
-  dimension; bridge metadata now advertises the current policy input schema
-  explicitly.
+  evidence/tool-run/tool-execution/subagent-ingestion attempts through
+  CLI/MCP/runtime/bridge metadata, and adversarial-risk trust changes require
+  approved typed human checkpoints. It still does not yet cover every MCP input
+  or every active risk dimension; bridge metadata now advertises the current
+  policy input schema explicitly.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.
