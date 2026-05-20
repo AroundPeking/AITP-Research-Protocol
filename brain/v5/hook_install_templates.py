@@ -76,33 +76,62 @@ def write_claude_code_hook_settings(
     """Write Claude Code hook settings derived from hook installation metadata."""
 
     settings_path = Path(path)
-    command_base = f'python hooks/aitp_v5_claude_hook.py {{command}} --base "{workspace_base}" --session-id {session_id}'
-    settings = {
-        "hooks": {
-            "PreToolUse": [_claude_event("*", command_base.format(command="pre-tool"))],
-            "PostToolUse": [_claude_event("*", command_base.format(command="post-tool"))],
-        }
-    }
-    events = [
-        {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
-        {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
-    ]
-    payload = {
-        "kind": "claude_code_hook_settings",
-        "runtime": "claude_code",
-        "source_protocol_field": "runtime_hook_installation",
-        "installation_mode": installation["installation_mode"],
-        "native_installer_available": installation["native_installer_available"],
-        "summary_inputs_trusted": False,
-        "can_update_claim_trust": False,
-        "can_write_trace_events": True,
-        "path": str(settings_path),
-        "events": events,
-        "settings": settings,
-    }
+    payload = _claude_settings_payload(settings_path, installation, workspace_base=workspace_base, session_id=session_id)
     settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    settings_path.write_text(
+        json.dumps(payload["settings"], ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     return payload
+
+
+def install_claude_code_hook_settings(
+    path: str | Path,
+    installation: dict[str, Any],
+    *,
+    workspace_base: str,
+    session_id: str,
+) -> dict[str, Any]:
+    """Merge AITP v5 Claude hooks into an existing settings file without clobbering it."""
+
+    settings_path = Path(path)
+    generated = _claude_settings_payload(
+        settings_path,
+        installation,
+        workspace_base=workspace_base,
+        session_id=session_id,
+    )
+    created = not settings_path.exists()
+    merged_settings = _read_claude_settings(settings_path) if not created else {}
+    hooks = merged_settings.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError("Claude Code settings field 'hooks' must be an object")
+
+    added_hooks = 0
+    for event_name, event_hooks in generated["settings"]["hooks"].items():
+        current_hooks = hooks.setdefault(event_name, [])
+        if not isinstance(current_hooks, list):
+            raise ValueError(f"Claude Code settings hooks.{event_name} must be a list")
+        for event_hook in event_hooks:
+            if event_hook not in current_hooks:
+                current_hooks.append(deepcopy(event_hook))
+                added_hooks += 1
+
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(
+        json.dumps(merged_settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        **generated,
+        "kind": "claude_code_hook_installation",
+        "settings_kind": generated["kind"],
+        "created": created,
+        "merged": True,
+        "added_hooks": added_hooks,
+        "settings": merged_settings,
+    }
 
 
 def _hook_template(hook_name: str, protocol: dict[str, Any]) -> dict[str, Any]:
@@ -159,6 +188,48 @@ def _claude_event(matcher: str, command: str) -> dict[str, Any]:
             }
         ],
     }
+
+
+def _claude_settings_payload(
+    settings_path: Path,
+    installation: dict[str, Any],
+    *,
+    workspace_base: str,
+    session_id: str,
+) -> dict[str, Any]:
+    command_base = f'python hooks/aitp_v5_claude_hook.py {{command}} --base "{workspace_base}" --session-id {session_id}'
+    settings = {
+        "hooks": {
+            "PreToolUse": [_claude_event("*", command_base.format(command="pre-tool"))],
+            "PostToolUse": [_claude_event("*", command_base.format(command="post-tool"))],
+        }
+    }
+    return {
+        "kind": "claude_code_hook_settings",
+        "runtime": "claude_code",
+        "source_protocol_field": "runtime_hook_installation",
+        "installation_mode": installation["installation_mode"],
+        "native_installer_available": installation["native_installer_available"],
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+        "can_write_trace_events": True,
+        "path": str(settings_path),
+        "events": [
+            {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
+            {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
+        ],
+        "settings": settings,
+    }
+
+
+def _read_claude_settings(settings_path: Path) -> dict[str, Any]:
+    text = settings_path.read_text(encoding="utf-8")
+    if not text.strip():
+        return {}
+    payload = json.loads(text)
+    if not isinstance(payload, dict):
+        raise ValueError("Claude Code settings must be a JSON object")
+    return payload
 
 
 def _codex_when(hook_name: str) -> str:

@@ -7,6 +7,7 @@ from typing import Any, Callable
 _PUBLIC_SURFACE_NAMES = (
     "adapter_packet",
     "adapter_protocol_registry",
+    "claude_code_hook_installation",
     "claude_code_hook_settings",
     "codex_hook_bridge",
     "code_state_record",
@@ -35,6 +36,7 @@ _PUBLIC_SURFACE_VALIDATOR_REF = "brain.v5.public_surfaces.require_valid_public_s
 _PUBLIC_SURFACE_PURPOSES = {
     "adapter_packet": "runtime adapter packet carrying brief, summary orientation, and trust protocol metadata",
     "adapter_protocol_registry": "auditable registry metadata for adapter protocol fields and validator surfaces",
+    "claude_code_hook_installation": "contracted safe merge of AITP hooks into Claude Code settings without treating settings as truth",
     "claude_code_hook_settings": "contracted Claude Code hook settings generated from runtime hook installation metadata",
     "codex_hook_bridge": "contracted Codex hook bridge generated from runtime hook installation metadata",
     "code_state_record": "contracted code-state provenance record for code-dependent physics results",
@@ -129,6 +131,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     )
     from brain.v5.legacy_contracts import require_valid_legacy_migration_result
     from brain.v5.hook_protocol_contracts import (
+        require_valid_claude_code_hook_installation,
         require_valid_claude_code_hook_settings,
         require_valid_hook_trace_event_record,
     )
@@ -136,6 +139,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     return {
         "adapter_packet": require_valid_adapter_packet,
         "adapter_protocol_registry": require_valid_adapter_protocol_registry,
+        "claude_code_hook_installation": require_valid_claude_code_hook_installation,
         "claude_code_hook_settings": require_valid_claude_code_hook_settings,
         "codex_hook_bridge": require_valid_codex_hook_bridge,
         "code_state_record": require_valid_code_state_record,

@@ -68,6 +68,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp-v5 adapter hook-bridge codex <session-id> --output <path>`.
 - Claude Code can materialize native hook settings with
   `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
+- Claude Code can also merge AITP v5 hooks into an existing settings file with
+  `aitp-v5 adapter install-hooks claude-code <session-id> --settings .claude/settings.local.json`;
+  this preserves existing hook entries and avoids duplicate AITP hook commands.
 - `hooks/aitp_v5_claude_hook.py` reads Claude Code hook JSON from stdin; its
   `PostToolUse` path persists process trace events through
   `.aitp/runtime/hook_trace_events.jsonl`.

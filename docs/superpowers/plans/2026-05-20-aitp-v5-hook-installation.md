@@ -17,6 +17,8 @@ Implemented:
 - Codex hook bridge writer derived from `runtime_hook_installation`;
 - CLI/MCP materializers for the Codex hook bridge from an actual adapter packet;
 - Claude Code hook settings writer derived from `runtime_hook_installation`;
+- Claude Code safe settings merge installer that preserves existing settings and
+  deduplicates AITP v5 hook commands;
 - Claude Code hook wrapper that can persist `PostToolUse` traces through the v5
   trace bridge;
 - CLI/MCP runtime bridge for persisting `post-tool` hook trace events through
@@ -215,10 +217,17 @@ The repo-backed settings writer is available through:
 aitp-v5 --base <workspace> adapter hook-settings claude-code <session-id> --output .claude/settings.local.json
 ```
 
+The safe merge installer is available through:
+
+```powershell
+aitp-v5 --base <workspace> adapter install-hooks claude-code <session-id> --settings .claude/settings.local.json
+```
+
 MCP clients use:
 
 ```text
 aitp_v5_write_claude_code_hook_settings(base, session_id, output_path)
+aitp_v5_install_claude_code_hook_settings(base, session_id, settings_path)
 ```
 
 The generated settings follow Claude Code's native hook JSON shape:
@@ -255,4 +264,5 @@ Future implementation should add tests and installer assets for:
 
 - Codex runtime instructions or hook bridge that can call this adapter directly;
 - OpenCode plugin or runtime bridge configuration;
-- one-click installer merge logic for Claude Code project/user settings.
+- deeper Claude Code `PreToolUse` typed policy mapping beyond the current
+  log-only wrapper.

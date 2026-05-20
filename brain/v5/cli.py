@@ -14,7 +14,11 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
-from brain.v5.hook_install_templates import write_claude_code_hook_settings, write_codex_hook_bridge
+from brain.v5.hook_install_templates import (
+    install_claude_code_hook_settings,
+    write_claude_code_hook_settings,
+    write_codex_hook_bridge,
+)
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import TrustUpdateRequest
@@ -164,6 +168,8 @@ def _build_parser() -> argparse.ArgumentParser:
     ahb.add_argument("--output", required=True)
     ahs = aps.add_parser("hook-settings"); ahs.add_argument("runtime"); ahs.add_argument("session_id")
     ahs.add_argument("--output", required=True)
+    aih = aps.add_parser("install-hooks"); aih.add_argument("runtime"); aih.add_argument("session_id")
+    aih.add_argument("--settings", required=True)
     aps.add_parser("registry"); aps.add_parser("public-surfaces")
 
     op = sp.add_parser("object"); ops = op.add_subparsers(dest="object_command", required=True)
@@ -352,6 +358,13 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         settings = {"ok": True, **write_claude_code_hook_settings(
             args.output, packet["runtime_hook_installation"], workspace_base=str(ws.base), session_id=args.session_id)}
         return require_valid_public_surface("claude_code_hook_settings", settings)
+    if args.command == "adapter" and args.adapter_command == "install-hooks":
+        packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))
+        if packet["runtime"] != "claude_code":
+            raise SystemExit("adapter install-hooks currently supports claude-code runtime only")
+        installed = {"ok": True, **install_claude_code_hook_settings(
+            args.settings, packet["runtime_hook_installation"], workspace_base=str(ws.base), session_id=args.session_id)}
+        return require_valid_public_surface("claude_code_hook_installation", installed)
 
     if args.command == "trust":
         req = _trust_update_request_from_args(args)

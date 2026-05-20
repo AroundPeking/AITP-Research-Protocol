@@ -7,6 +7,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
     assert set(public_surface_names()) == {
         "adapter_packet",
         "adapter_protocol_registry",
+        "claude_code_hook_installation",
         "claude_code_hook_settings",
         "codex_hook_bridge",
         "code_state_record",
@@ -102,6 +103,33 @@ def test_public_surface_validator_accepts_claude_code_hook_settings():
     }
 
     assert require_valid_public_surface("claude_code_hook_settings", payload) == payload
+
+
+def test_public_surface_validator_accepts_claude_code_hook_installation():
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    payload = {
+        "ok": True,
+        "kind": "claude_code_hook_installation",
+        "runtime": "claude_code",
+        "source_protocol_field": "runtime_hook_installation",
+        "settings_kind": "claude_code_hook_settings",
+        "installation_mode": "native_lifecycle_hooks",
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+        "can_write_trace_events": True,
+        "created": False,
+        "merged": True,
+        "added_hooks": 2,
+        "path": ".claude/settings.local.json",
+        "events": [
+            {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
+            {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
+        ],
+        "settings": {"hooks": {"PreToolUse": [], "PostToolUse": []}},
+    }
+
+    assert require_valid_public_surface("claude_code_hook_installation", payload) == payload
 
 
 def test_public_surface_validator_accepts_hook_trace_event_record():

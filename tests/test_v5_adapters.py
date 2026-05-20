@@ -361,6 +361,131 @@ def test_mcp_claude_code_hook_settings_wrapper_returns_contract_payload(tmp_path
     assert settings_path.exists()
 
 
+def test_claude_code_hook_installer_merges_existing_settings_without_clobbering(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+    from brain.v5.hook_install_templates import install_claude_code_hook_settings
+
+    ws, _ = _seed_session(tmp_path)
+    packet = build_adapter_packet(ws, "s1", runtime="claude-code")
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash",
+                            "hooks": [{"type": "command", "command": "echo existing-pre"}],
+                        }
+                    ],
+                    "Stop": [
+                        {
+                            "matcher": "*",
+                            "hooks": [{"type": "command", "command": "echo existing-stop"}],
+                        }
+                    ],
+                },
+                "permissions": {"allow": ["Bash(git status)"]},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    payload = install_claude_code_hook_settings(
+        settings_path,
+        packet["runtime_hook_installation"],
+        workspace_base=str(tmp_path),
+        session_id="s1",
+    )
+
+    merged = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert payload["kind"] == "claude_code_hook_installation"
+    assert payload["settings_kind"] == "claude_code_hook_settings"
+    assert payload["created"] is False
+    assert payload["added_hooks"] == 2
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert merged["permissions"] == {"allow": ["Bash(git status)"]}
+    assert merged["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == "echo existing-pre"
+    assert merged["hooks"]["Stop"][0]["hooks"][0]["command"] == "echo existing-stop"
+    assert len(merged["hooks"]["PreToolUse"]) == 2
+    assert len(merged["hooks"]["PostToolUse"]) == 1
+
+    second_payload = install_claude_code_hook_settings(
+        settings_path,
+        packet["runtime_hook_installation"],
+        workspace_base=str(tmp_path),
+        session_id="s1",
+    )
+
+    installed_twice = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert second_payload["added_hooks"] == 0
+    assert installed_twice == merged
+
+
+def test_cli_adapter_install_hooks_merges_claude_code_settings(tmp_path, capsys):
+    _seed_session(tmp_path)
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(
+        json.dumps(
+            {
+                "hooks": {
+                    "PreToolUse": [
+                        {
+                            "matcher": "Bash",
+                            "hooks": [{"type": "command", "command": "echo keep-me"}],
+                        }
+                    ]
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "adapter",
+            "install-hooks",
+            "claude-code",
+            "s1",
+            "--settings",
+            str(settings_path),
+        ],
+        capsys,
+    )
+
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["kind"] == "claude_code_hook_installation"
+    assert payload["added_hooks"] == 2
+    assert settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == "echo keep-me"
+    assert "hooks/aitp_v5_claude_hook.py" in settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+
+
+def test_mcp_claude_code_hook_installer_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_install_claude_code_hook_settings
+
+    _seed_session(tmp_path)
+
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    payload = aitp_v5_install_claude_code_hook_settings(
+        str(tmp_path),
+        session_id="s1",
+        settings_path=str(settings_path),
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "claude_code_hook_installation"
+    assert payload["created"] is True
+    assert payload["added_hooks"] == 2
+    assert settings_path.exists()
+
+
 def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
     from brain.v5.adapter_protocols import adapter_protocol_fingerprint
     from brain.v5.adapters import build_adapter_packet

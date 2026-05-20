@@ -95,8 +95,9 @@ AITP v5 is the current typed-kernel implementation track. It keeps durable
 research state in structured v5 records under `brain/v5/`; generated summaries,
 adapter packets, README text, and external note pointers are orientation-only.
 The v5 hook path exposes pre-commit/pre-tool/post-tool shell adapters, Codex
-hook bridge materialization, Claude Code hook settings generation, and post-tool
-trace-event persistence through CLI/MCP/runtime public surfaces.
+hook bridge materialization, Claude Code hook settings generation and safe
+settings merge installation, and post-tool trace-event persistence through
+CLI/MCP/runtime public surfaces.
 
 Current planning and review entry points:
 

@@ -82,6 +82,13 @@ typed adapter packet:
 aitp-v5 --base <workspace> adapter hook-settings claude-code <session-id> --output .claude/settings.local.json
 ```
 
+To preserve existing Claude Code settings and append only missing AITP v5 hook
+entries, use the merge installer:
+
+```powershell
+aitp-v5 --base <workspace> adapter install-hooks claude-code <session-id> --settings .claude/settings.local.json
+```
+
 The generated settings use Claude Code `PreToolUse` and `PostToolUse` hook
 entries that call:
 
@@ -97,6 +104,7 @@ MCP clients can call:
 
 ```text
 aitp_v5_write_claude_code_hook_settings(base, session_id, output_path)
+aitp_v5_install_claude_code_hook_settings(base, session_id, settings_path)
 ```
 
 The expected UX:
