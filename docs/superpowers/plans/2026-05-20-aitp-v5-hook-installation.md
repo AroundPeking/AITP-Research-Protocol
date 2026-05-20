@@ -15,6 +15,7 @@ Implemented:
 - typed `runtime_hook_protocols` metadata in v5 adapter packets;
 - derived `runtime_hook_installation` templates in v5 adapter packets;
 - Codex hook bridge writer derived from `runtime_hook_installation`;
+- CLI/MCP materializers for the Codex hook bridge from an actual adapter packet;
 - short JSON output with `summary_inputs_trusted=false`.
 
 Documented here:
@@ -148,6 +149,22 @@ The repo-backed bridge writer is
 `brain.v5.hook_install_templates.write_codex_hook_bridge`. It writes a compact
 Markdown guide from `runtime_hook_installation` and deliberately marks the output
 as orientation-only.
+
+For an actual v5 workspace/session, materialize it through the public runtime
+surface instead of calling the helper by hand:
+
+```powershell
+aitp-v5 --base <workspace> adapter hook-bridge codex <session-id> --output .codex/AITP_V5_HOOK_BRIDGE.md
+```
+
+MCP clients use:
+
+```text
+aitp_v5_write_codex_hook_bridge(base, session_id, output_path)
+```
+
+Both surfaces return a contracted `codex_hook_bridge` payload and keep
+`summary_inputs_trusted=false`.
 
 ## Claude Code Template
 

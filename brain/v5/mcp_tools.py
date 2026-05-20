@@ -10,6 +10,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
+from brain.v5.hook_install_templates import write_codex_hook_bridge
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
@@ -192,6 +193,13 @@ def aitp_v5_read_summary_orientation(base: str, *, session_id: str) -> dict:
 
 def aitp_v5_get_adapter_packet(base: str, *, runtime: str, session_id: str) -> dict:
     return {"ok": True, **require_valid_public_surface("adapter_packet", build_adapter_packet(_ws(base), session_id, runtime=runtime))}
+
+
+def aitp_v5_write_codex_hook_bridge(base: str, *, session_id: str, output_path: str) -> dict:
+    ws = _ws(base)
+    packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, session_id, runtime="codex"))
+    bridge = {"ok": True, **write_codex_hook_bridge(output_path, packet["runtime_hook_installation"])}
+    return require_valid_public_surface("codex_hook_bridge", bridge)
 
 
 def aitp_v5_get_adapter_protocol_registry() -> dict:

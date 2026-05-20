@@ -52,6 +52,18 @@ For repo-backed development, the bridge writer lives in
 derives commands from the adapter packet instead of maintaining a second copy of
 hook commands.
 
+Repo-backed v5 workspaces can materialize the same bridge directly from an
+adapter packet:
+
+```powershell
+aitp-v5 --base <workspace> adapter hook-bridge codex <session-id> --output .codex/AITP_V5_HOOK_BRIDGE.md
+```
+
+The command builds the Codex adapter packet, reads its
+`runtime_hook_installation`, writes the bridge file, and returns a contracted
+`codex_hook_bridge` payload. MCP clients should use
+`aitp_v5_write_codex_hook_bridge`.
+
 ## Repo-backed contributor path
 
 If you want repo-synced skills while changing this repository, use a local

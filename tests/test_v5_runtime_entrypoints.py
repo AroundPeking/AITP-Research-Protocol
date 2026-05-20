@@ -26,6 +26,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
     assert entrypoints["execute_tool"]["mcp"] == "aitp_v5_execute_tool"
     assert entrypoints["list_tool_executors"]["mcp"] == "aitp_v5_list_tool_executors"
     assert entrypoints["migrate_legacy_topic"]["mcp"] == "aitp_v5_migrate_legacy_topic_to_v5"
+    assert entrypoints["codex_hook_bridge"] == {
+        "cli": "aitp-v5 adapter hook-bridge codex <session-id> <args>",
+        "mcp": "aitp_v5_write_codex_hook_bridge",
+        "surface": "codex_hook_bridge",
+    }
 
 
 def test_runtime_entrypoint_validation_reports_bad_mcp_and_cli_targets():

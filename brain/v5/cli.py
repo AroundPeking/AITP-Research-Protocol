@@ -14,6 +14,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
+from brain.v5.hook_install_templates import write_codex_hook_bridge
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import TrustUpdateRequest
@@ -154,6 +155,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     ap = sp.add_parser("adapter"); aps = ap.add_subparsers(dest="adapter_command", required=True)
     apt = aps.add_parser("packet"); apt.add_argument("runtime"); apt.add_argument("session_id")
+    ahb = aps.add_parser("hook-bridge"); ahb.add_argument("runtime"); ahb.add_argument("session_id")
+    ahb.add_argument("--output", required=True)
     aps.add_parser("registry"); aps.add_parser("public-surfaces")
 
     op = sp.add_parser("object"); ops = op.add_subparsers(dest="object_command", required=True)
@@ -326,6 +329,12 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return {"ok": True, **require_valid_public_surface("summary_orientation", read_summary_orientation(ws, args.session_id))}
     if args.command == "adapter" and args.adapter_command == "packet":
         return {"ok": True, **require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))}
+    if args.command == "adapter" and args.adapter_command == "hook-bridge":
+        packet = require_valid_public_surface("adapter_packet", build_adapter_packet(ws, args.session_id, runtime=args.runtime))
+        if packet["runtime"] != "codex":
+            raise SystemExit("adapter hook-bridge currently supports codex runtime only")
+        bridge = {"ok": True, **write_codex_hook_bridge(args.output, packet["runtime_hook_installation"])}
+        return require_valid_public_surface("codex_hook_bridge", bridge)
 
     if args.command == "trust":
         req = _trust_update_request_from_args(args)

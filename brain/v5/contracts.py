@@ -120,41 +120,35 @@ def require_valid_execution_brief(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -> ContractResult:
-    """Validate the public runtime adapter packet."""
-
     from brain.v5.adapter_contracts import validate_adapter_packet as _validate_adapter_packet
-
     return _validate_adapter_packet(payload, path=path)
 
 
 def require_valid_adapter_packet(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return an adapter packet or raise a contract error."""
-
     from brain.v5.adapter_contracts import require_valid_adapter_packet as _require_valid_adapter_packet
-
     return _require_valid_adapter_packet(payload)
 
 
-def validate_adapter_protocol_registry(
-    payload: dict[str, Any],
-    *,
-    path: str = "adapter_protocol_registry",
-) -> ContractResult:
-    """Validate the public adapter protocol registry payload."""
-
+def validate_adapter_protocol_registry(payload: dict[str, Any], *, path: str = "adapter_protocol_registry") -> ContractResult:
     from brain.v5.adapter_contracts import validate_adapter_protocol_registry as _validate_adapter_protocol_registry
-
     return _validate_adapter_protocol_registry(payload, path=path)
 
 
 def require_valid_adapter_protocol_registry(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return an adapter protocol registry payload or raise a contract error."""
-
     from brain.v5.adapter_contracts import (
         require_valid_adapter_protocol_registry as _require_valid_adapter_protocol_registry,
     )
-
     return _require_valid_adapter_protocol_registry(payload)
+
+
+def validate_codex_hook_bridge(payload: dict[str, Any], *, path: str = "codex_hook_bridge") -> ContractResult:
+    from brain.v5.hook_protocol_contracts import validate_codex_hook_bridge as _validate_codex_hook_bridge
+    return _validate_codex_hook_bridge(payload, path=path)
+
+
+def require_valid_codex_hook_bridge(payload: dict[str, Any]) -> dict[str, Any]:
+    from brain.v5.hook_protocol_contracts import require_valid_codex_hook_bridge as _require_valid_codex_hook_bridge
+    return _require_valid_codex_hook_bridge(payload)
 
 
 def validate_summary_orientation(payload: dict[str, Any], *, path: str = "summary_orientation") -> ContractResult:

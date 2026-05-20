@@ -23,6 +23,11 @@ _RUNTIME_ENTRYPOINTS = {
         "mcp": "aitp_v5_get_adapter_packet",
         "surface": "adapter_packet",
     },
+    "codex_hook_bridge": {
+        "cli": "aitp-v5 adapter hook-bridge codex <session-id> <args>",
+        "mcp": "aitp_v5_write_codex_hook_bridge",
+        "surface": "codex_hook_bridge",
+    },
     "execution_brief": {
         "cli": "aitp-v5 brief <session-id>",
         "mcp": "aitp_v5_get_execution_brief",
@@ -309,6 +314,11 @@ def _sample_args_for_template(template: str) -> list[str]:
             "legacy-context",
             "--session",
             "s1",
+        ]
+    if template.startswith("adapter hook-bridge"):
+        return [
+            "--output",
+            "AITP_V5_HOOK_BRIDGE.md",
         ]
     if template.startswith("object record"):
         return [

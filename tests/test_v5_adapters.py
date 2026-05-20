@@ -255,6 +255,55 @@ def test_codex_hook_bridge_is_rendered_from_installation_template(tmp_path):
     assert "summary_inputs_trusted=false" in text
 
 
+def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsys):
+    _seed_session(tmp_path)
+
+    bridge_path = tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md"
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "adapter",
+            "hook-bridge",
+            "codex",
+            "s1",
+            "--output",
+            str(bridge_path),
+        ],
+        capsys,
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "codex_hook_bridge"
+    assert payload["runtime"] == "codex"
+    assert payload["source_protocol_field"] == "runtime_hook_installation"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["can_update_kernel_state"] is False
+    assert payload["path"] == str(bridge_path)
+    assert [call["hook_name"] for call in payload["guard_calls"]] == ["pre_commit", "pre_tool", "post_tool"]
+    text = bridge_path.read_text(encoding="utf-8")
+    assert "Generated from `runtime_hook_installation`." in text
+    assert "python hooks/aitp_v5_hook.py pre-tool" in text
+
+
+def test_mcp_codex_hook_bridge_wrapper_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_write_codex_hook_bridge
+
+    _seed_session(tmp_path)
+
+    bridge_path = tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md"
+    payload = aitp_v5_write_codex_hook_bridge(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(bridge_path),
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "codex_hook_bridge"
+    assert payload["summary_inputs_trusted"] is False
+    assert bridge_path.exists()
+
+
 def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
     from brain.v5.adapter_protocols import adapter_protocol_fingerprint
     from brain.v5.adapters import build_adapter_packet

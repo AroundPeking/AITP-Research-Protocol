@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-272 passed
+275 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -98,12 +98,15 @@ Implemented:
 - Adapter packets expose typed `runtime_hook_protocols` metadata for installer/runtime bridges.
 - Adapter packets derive `runtime_hook_installation` templates from `runtime_hook_protocols`.
 - Codex hook bridge instructions can be generated from `runtime_hook_installation`.
+- Codex hook bridge instructions can be materialized from an actual adapter packet
+  through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
 
 Major remaining gaps:
 
-- Hook helpers still need native Codex/Claude/OpenCode installer wiring and
-  post-tool trace persistence from platform hooks.
+- Hook helpers still need native Codex/Claude/OpenCode lifecycle installer wiring
+  and post-tool trace persistence from platform hooks. Codex explicit bridge
+  materialization exists, but is not native lifecycle integration.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.

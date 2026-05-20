@@ -7,6 +7,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
     assert set(public_surface_names()) == {
         "adapter_packet",
         "adapter_protocol_registry",
+        "codex_hook_bridge",
         "code_state_record",
         "evidence_record",
         "execution_brief",
@@ -46,6 +47,35 @@ def test_public_surface_validator_accepts_tool_executor_catalog():
     catalog = describe_tool_executors()
 
     assert require_valid_public_surface("tool_executor_catalog", catalog) == catalog
+
+
+def test_public_surface_validator_accepts_codex_hook_bridge():
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    bridge = {
+        "ok": True,
+        "kind": "codex_hook_bridge",
+        "runtime": "codex",
+        "source_protocol_field": "runtime_hook_installation",
+        "installation_mode": "explicit_guard_calls",
+        "native_installer_available": False,
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "path": "AITP_V5_HOOK_BRIDGE.md",
+        "guard_calls": [
+            {
+                "hook_name": "pre_tool",
+                "when": "before trust-changing actions",
+                "command": "python hooks/aitp_v5_hook.py pre-tool",
+                "required_inputs": ["action", "risk_level", "policy_json"],
+                "output_kind": "hook_decision",
+                "may_block": True,
+                "state_mutation": "none",
+            }
+        ],
+    }
+
+    assert require_valid_public_surface("codex_hook_bridge", bridge) == bridge
 
 
 def test_public_surface_validator_accepts_typed_write_records():
