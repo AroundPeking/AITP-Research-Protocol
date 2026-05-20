@@ -17,6 +17,26 @@ from brain.v5.trace import persist_hook_trace_event
 from brain.v5.workspace import get_session_binding, init_workspace
 
 
+_AITP_MCP_ACTIONS = {
+    "aitp_v5_record_evidence": "record_evidence",
+    "aitp_v5_record_tool_run": "record_tool_run",
+    "aitp_v5_execute_tool": "execute_tool",
+    "aitp_v5_ingest_subagent_result": "ingest_subagent_result",
+    "aitp_v5_apply_trust_update": "change_claim_confidence",
+    "aitp_v5_create_promotion_packet": "promote_to_l2",
+    "aitp_v5_apply_promotion_packet": "promote_to_l2",
+    "aitp_v5_create_validation_contract": "validate_claim",
+}
+_TRUSTED_APPLY_SOURCE_KINDS = {
+    "execution_brief",
+    "typed_record",
+    "typed_records",
+    "evidence_record",
+    "validation_record",
+    "human_checkpoint",
+}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -44,9 +64,9 @@ def _dispatch(args: argparse.Namespace, claude_payload: dict) -> dict:
         decision = decide_pre_tool_use(
             action=action,
             risk_level="guided",
-            policy_decision=_policy_from_claude_tool(action),
+            policy_decision=_policy_from_claude_tool(action, claude_payload),
         )
-        return _claude_pre_tool_output(decision)
+        return _claude_pre_tool_output(decision, action=action)
     if args.command == "post-tool":
         ws = init_workspace(args.base)
         binding = get_session_binding(ws, args.session_id)
@@ -75,6 +95,9 @@ def _read_stdin_payload() -> dict:
 
 def _action_from_claude_tool(payload: dict) -> str:
     tool_name = str(payload.get("tool_name") or "").lower()
+    action = _action_from_aitp_mcp_tool(tool_name)
+    if action:
+        return action
     if tool_name == "bash":
         command = str((payload.get("tool_input") or {}).get("command") or "").lower()
         if any(token in command for token in ("rm -rf", "git reset --hard")):
@@ -88,7 +111,27 @@ def _action_from_claude_tool(payload: dict) -> str:
     return "claude_tool_use"
 
 
-def _policy_from_claude_tool(action: str) -> PolicyDecision:
+def _action_from_aitp_mcp_tool(tool_name: str) -> str:
+    for entrypoint, action in _AITP_MCP_ACTIONS.items():
+        if entrypoint in tool_name:
+            return action
+    return ""
+
+
+def _policy_from_claude_tool(action: str, payload: dict) -> PolicyDecision:
+    if action == "change_claim_confidence" and not _has_trusted_apply_source(payload):
+        return PolicyDecision(
+            allowed=False,
+            action=action,
+            reasons=[
+                PolicyReason(
+                    policy_id="claude_pre_tool_requires_trust_preflight",
+                    message="Direct trust application requires a typed preflight/source, not an unqualified tool call.",
+                    severity="hard_block",
+                )
+            ],
+            required_actions=["aitp_v5_preflight_trust_update"],
+        )
     if action in {"destructive_action", "remote_execution", "expensive_compute"}:
         return PolicyDecision(
             allowed=False,
@@ -105,8 +148,17 @@ def _policy_from_claude_tool(action: str) -> PolicyDecision:
     return PolicyDecision(allowed=True, action=action)
 
 
-def _claude_pre_tool_output(decision) -> dict:
+def _has_trusted_apply_source(payload: dict) -> bool:
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return False
+    source_kind = str(tool_input.get("source_kind") or "").strip().lower()
+    return source_kind in _TRUSTED_APPLY_SOURCE_KINDS
+
+
+def _claude_pre_tool_output(decision, *, action: str) -> dict:
     aitp_payload = hook_decision_payload(decision, hook_name="pre_tool")
+    aitp_payload["action"] = action
     permission = "deny" if decision.block else "allow"
     return {
         "hookSpecificOutput": {

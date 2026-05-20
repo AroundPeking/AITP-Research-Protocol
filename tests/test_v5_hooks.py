@@ -417,3 +417,96 @@ def test_claude_hook_script_pre_tool_allows_web_search_with_typed_log(tmp_path):
     }
     assert payload["aitp"]["block"] is False
     assert payload["aitp"]["mode"] == "log"
+
+
+def test_claude_hook_script_pre_tool_denies_direct_trust_apply_mcp_call(tmp_path):
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "hooks" / "aitp_v5_claude_hook.py"
+    hook_input = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "mcp__aitp__aitp_v5_apply_trust_update",
+        "tool_input": {
+            "action": "change_claim_confidence",
+            "claim_id": "claim-fqhe",
+            "requested_state": "validated",
+        },
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "pre-tool",
+            "--base",
+            str(tmp_path),
+            "--session-id",
+            "s1",
+        ],
+        input=json.dumps(hook_input),
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["hookSpecificOutput"] == {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": "blocked change_claim_confidence; claude_pre_tool_requires_trust_preflight; required: aitp_v5_preflight_trust_update",
+    }
+    assert payload["aitp"]["action"] == "change_claim_confidence"
+    assert payload["aitp"]["block"] is True
+    assert payload["aitp"]["required_actions"] == ["aitp_v5_preflight_trust_update"]
+    assert payload["aitp"]["summary_inputs_trusted"] is False
+
+
+def test_claude_hook_script_pre_tool_allows_record_evidence_mcp_call_as_typed_write(tmp_path):
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "hooks" / "aitp_v5_claude_hook.py"
+    hook_input = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "mcp__aitp__aitp_v5_record_evidence",
+        "tool_input": {
+            "topic_id": "fqhe",
+            "claim_id": "claim-fqhe",
+            "status": "supports",
+        },
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "pre-tool",
+            "--base",
+            str(tmp_path),
+            "--session-id",
+            "s1",
+        ],
+        input=json.dumps(hook_input),
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["hookSpecificOutput"] == {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "allow",
+        "permissionDecisionReason": "logged record_evidence; no policy block",
+    }
+    assert payload["aitp"]["action"] == "record_evidence"
+    assert payload["aitp"]["block"] is False
+    assert payload["aitp"]["summary_inputs_trusted"] is False

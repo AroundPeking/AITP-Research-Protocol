@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-293 passed
+295 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -109,6 +109,9 @@ Implemented:
   without clobbering non-AITP hooks or duplicating AITP hook commands.
 - Claude Code `PreToolUse` maps destructive, remote, and expensive Bash tool
   calls to a typed v5 policy block and Claude `permissionDecision=deny`.
+- Claude Code `PreToolUse` maps coarse AITP MCP/kernel entrypoints into v5
+  actions, denies unqualified direct trust application, and logs typed writes
+  such as evidence recording.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
@@ -120,6 +123,9 @@ Major remaining gaps:
   generation and merge installation, OpenCode plugin bridge materialization, and
   post-tool trace persistence surfaces exist, but Codex/OpenCode are not native
   lifecycle integrations yet.
+- Claude Code `PreToolUse` coverage is still entrypoint-level. It does not yet
+  validate every MCP input against full active topic/claim/risk context or a
+  preflight proof token chain.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.

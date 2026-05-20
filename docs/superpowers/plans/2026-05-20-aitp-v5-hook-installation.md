@@ -24,6 +24,9 @@ Implemented:
   deduplicates AITP v5 hook commands;
 - Claude Code `PreToolUse` wrapper maps destructive, remote, and expensive Bash
   tool JSON to a typed v5 policy block and Claude `permissionDecision=deny`;
+- Claude Code `PreToolUse` wrapper maps coarse AITP MCP/kernel calls into v5
+  actions, denying unqualified direct trust application and logging typed writes
+  such as evidence recording;
 - Claude Code hook wrapper that can persist `PostToolUse` traces through the v5
   trace bridge;
 - CLI/MCP runtime bridge for persisting `post-tool` hook trace events through
@@ -244,6 +247,10 @@ The current wrapper:
 - maps `PreToolUse` to a v5 pre-tool decision and returns Claude
   `hookSpecificOutput.permissionDecision`; destructive, remote, and expensive
   Bash commands currently deny with `request_human_checkpoint`;
+- maps AITP MCP entrypoints such as `aitp_v5_record_evidence` and
+  `aitp_v5_apply_trust_update` to v5 actions; direct trust application without
+  a trusted `tool_input.source_kind` denies with
+  `aitp_v5_preflight_trust_update`;
 - maps `PostToolUse` to a v5 `TraceEvent` and persists it through
   `.aitp/runtime/hook_trace_events.jsonl`;
 - keeps `summary_inputs_trusted=false` and `can_update_claim_trust=false`.
@@ -285,5 +292,5 @@ Future implementation should add tests and installer assets for:
 
 - Codex runtime instructions or hook bridge that can call this adapter directly;
 - native OpenCode plugin invocation that calls the generated bridge automatically;
-- broader Claude Code `PreToolUse` typed policy coverage beyond Bash
-  destructive/remote/expensive command mapping.
+- broader Claude Code `PreToolUse` typed policy coverage beyond current Bash and
+  coarse AITP MCP entrypoint mapping.

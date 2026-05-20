@@ -103,7 +103,11 @@ history, not evidence records and not claim-confidence updates.
 `PreToolUse` maps Claude tool JSON into a v5 typed pre-tool decision. Destructive,
 remote, or expensive Bash commands produce `permissionDecision=deny` with a
 required human checkpoint; ordinary web/literature tool use produces
-`permissionDecision=allow` plus a logged AITP hook decision.
+`permissionDecision=allow` plus a logged AITP hook decision. AITP MCP calls are
+also mapped into v5 actions: unqualified direct
+`aitp_v5_apply_trust_update` calls are denied with
+`required_actions=["aitp_v5_preflight_trust_update"]`, while typed writes such
+as `aitp_v5_record_evidence` are allowed and logged as `record_evidence`.
 
 MCP clients can call:
 
