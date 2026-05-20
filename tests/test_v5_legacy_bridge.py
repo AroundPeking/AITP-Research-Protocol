@@ -174,6 +174,64 @@ def test_explicit_legacy_migration_writes_v5_records_without_rewriting_legacy(tm
     assert [location.location_id for location in locations] == result["written_records"]["reference_locations"]
 
 
+def test_legacy_migration_preserves_source_metadata_as_reference_locations(tmp_path):
+    from brain.v5.legacy_bridge import audit_legacy_topic_migration, migrate_legacy_topic_to_v5
+    from brain.v5.references import list_reference_locations_for_claim
+    from brain.v5.workspace import init_workspace
+
+    legacy = _write_legacy_topic(tmp_path / "legacy")
+    source = legacy / "L0" / "sources" / "paper-a" / "source.md"
+    source.write_text(
+        "---\n"
+        "title: Counting paper\n"
+        "source_url: https://example.test/paper\n"
+        "pdf_path: file:///papers/fqhe/counting.pdf\n"
+        "doi: 10.1234/fqhe.counting\n"
+        "arxiv_id: 2201.12345\n"
+        "note_path: notes/FQHE Counting.md\n"
+        "---\n"
+        "# Counting paper\n",
+        encoding="utf-8",
+    )
+    ws = init_workspace(tmp_path / "v5")
+
+    audit = audit_legacy_topic_migration(legacy)
+    assert audit["mapped_paths"]["L0/sources/paper-a/source.md#source_url"] == (
+        "reference_location/source_url metadata anchor"
+    )
+    assert audit["mapped_paths"]["L0/sources/paper-a/source.md#doi"] == (
+        "reference_location/doi metadata anchor"
+    )
+
+    result = migrate_legacy_topic_to_v5(
+        ws,
+        legacy,
+        context_id="legacy-context",
+        session_id="s1",
+    )
+
+    locations = list_reference_locations_for_claim(ws, result["active_claim_id"])
+    by_type = {location.location_type: location for location in locations}
+    assert {
+        "legacy_source_file",
+        "source_url",
+        "paper_pdf",
+        "doi",
+        "arxiv",
+        "note_path",
+    } <= set(by_type)
+    assert by_type["source_url"].uri == "https://example.test/paper"
+    assert by_type["paper_pdf"].uri == "file:///papers/fqhe/counting.pdf"
+    assert by_type["doi"].uri == "doi:10.1234/fqhe.counting"
+    assert by_type["arxiv"].uri == "https://arxiv.org/abs/2201.12345"
+    assert by_type["note_path"].uri == "legacy-note:notes/FQHE%20Counting.md"
+    assert all(location.orientation_only is True for location in locations)
+    assert all(location.source_ref == f"legacy_source:{source}" for location in locations)
+    assert set(result["written_records"]["reference_locations"]) == {
+        location.location_id for location in locations
+    }
+
+
 def test_legacy_migration_result_is_public_surface_valid(tmp_path):
     from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
     from brain.v5.public_surfaces import require_valid_public_surface

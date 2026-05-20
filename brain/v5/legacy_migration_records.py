@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import quote
 
 from brain.v5.evidence import record_evidence
 from brain.v5.ids import prefixed_id
 from brain.v5.markdown import read_md
 from brain.v5.models import MemoryEntryRecord
 from brain.v5.paths import WorkspacePaths
+from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.store import write_record
 from brain.v5.trace import TraceEvent, append_trace_event
@@ -69,6 +71,66 @@ def migrate_legacy_l1_understanding(
         evidence_ids.append(evidence.evidence_id)
         report_ids.append(report.report_id)
     return evidence_ids, report_ids
+
+
+def migrate_legacy_source_reference_locations(
+    ws: WorkspacePaths,
+    *,
+    topic_id: str,
+    claim_id: str,
+    source_paths: list[str],
+) -> list[str]:
+    location_ids: list[str] = []
+    for source_path_text in source_paths:
+        source_path = Path(source_path_text)
+        source_ref = f"legacy_source:{source_path_text}"
+        fm, _body = read_md(source_path)
+        title = str(fm.get("title") or source_path.parent.name or source_path.name)
+
+        file_location = record_reference_location(
+            ws,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            connector_id="legacy_topic",
+            location_type="legacy_source_file",
+            uri=source_path.resolve().as_uri(),
+            label=source_path.name,
+            source_ref=source_ref,
+            summary="Legacy source file preserved during explicit v5 migration.",
+            metadata={"legacy_title": title, "legacy_frontmatter": dict(fm)},
+        )
+        location_ids.append(file_location.location_id)
+
+        for location_type, uri in _legacy_source_metadata_uris(fm):
+            location = record_reference_location(
+                ws,
+                topic_id=topic_id,
+                claim_id=claim_id,
+                connector_id="legacy_source_metadata",
+                location_type=location_type,
+                uri=uri,
+                label=f"{title} ({location_type})",
+                source_ref=source_ref,
+                summary="Legacy source metadata anchor preserved as orientation-only context.",
+                metadata={"legacy_title": title, "legacy_frontmatter": dict(fm)},
+            )
+            location_ids.append(location.location_id)
+    return sorted(location_ids)
+
+
+def legacy_source_metadata_anchor_candidates(root: Path) -> list[tuple[str, str]]:
+    anchors: list[tuple[str, str]] = []
+    for source_path in sorted((root / "L0" / "sources").glob("*/source.md")):
+        fm, _body = read_md(source_path)
+        display_path = source_path.relative_to(root).as_posix()
+        for location_type, _uri in _legacy_source_metadata_uris(fm):
+            anchors.append(
+                (
+                    f"{display_path}#{location_type}",
+                    f"reference_location/{location_type} metadata anchor",
+                )
+            )
+    return anchors
 
 
 def migrate_legacy_runtime_log(
@@ -185,6 +247,60 @@ def _legacy_runtime_log_summaries(log_path: Path) -> list[str]:
         if stripped:
             summaries.append(stripped)
     return summaries
+
+
+def _legacy_source_metadata_uris(fm: dict) -> list[tuple[str, str]]:
+    specs = [
+        ("source_url", "source_url", _plain_uri),
+        ("url", "source_url", _plain_uri),
+        ("pdf_path", "paper_pdf", _plain_uri),
+        ("pdf_url", "paper_pdf", _plain_uri),
+        ("pdf", "paper_pdf", _plain_uri),
+        ("doi", "doi", _doi_uri),
+        ("arxiv_id", "arxiv", _arxiv_uri),
+        ("arxiv", "arxiv", _arxiv_uri),
+        ("note_path", "note_path", _legacy_note_uri),
+        ("notes_path", "note_path", _legacy_note_uri),
+        ("obsidian_note", "note_path", _legacy_note_uri),
+    ]
+    uris: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for key, location_type, formatter in specs:
+        value = fm.get(key)
+        if not value:
+            continue
+        uri = formatter(str(value).strip())
+        if not uri:
+            continue
+        item = (location_type, uri)
+        if item in seen:
+            continue
+        seen.add(item)
+        uris.append(item)
+    return uris
+
+
+def _plain_uri(value: str) -> str:
+    return value
+
+
+def _doi_uri(value: str) -> str:
+    if value.startswith("doi:"):
+        return value
+    return f"doi:{value}"
+
+
+def _arxiv_uri(value: str) -> str:
+    if value.startswith(("http://", "https://", "arxiv:")):
+        return value
+    return f"https://arxiv.org/abs/{value}"
+
+
+def _legacy_note_uri(value: str) -> str:
+    if value.startswith(("obsidian://", "file://", "legacy-note:")):
+        return value
+    normalized = value.replace("\\", "/")
+    return f"legacy-note:{quote(normalized, safe='/')}"
 
 
 def _legacy_l2_roots(root: Path) -> list[Path]:

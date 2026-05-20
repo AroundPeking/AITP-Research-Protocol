@@ -9,13 +9,14 @@ from brain.v5.brief import build_execution_brief
 from brain.v5.evidence import record_evidence
 from brain.v5.legacy_migration_records import (
     legacy_l2_migration_candidates,
+    legacy_source_metadata_anchor_candidates,
     migrate_legacy_l1_understanding,
     migrate_legacy_l2_memory,
     migrate_legacy_runtime_log,
+    migrate_legacy_source_reference_locations,
 )
 from brain.v5.markdown import read_md
 from brain.v5.paths import WorkspacePaths
-from brain.v5.references import record_reference_location
 from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.workspace import bind_session, create_claim, create_context, create_topic, init_workspace
 
@@ -190,21 +191,12 @@ def migrate_legacy_topic_to_v5(
         )
         evidence_ids.append(source_evidence.evidence_id)
 
-    reference_location_ids: list[str] = []
-    for source_ref in preserved_refs:
-        source_path = Path(source_ref.removeprefix("legacy_source:"))
-        location = record_reference_location(
-            ws,
-            topic_id=summary.topic_slug,
-            claim_id=active_claim.claim_id,
-            connector_id="legacy_topic",
-            location_type="legacy_source_file",
-            uri=source_path.resolve().as_uri(),
-            label=source_path.name,
-            source_ref=source_ref,
-            summary="Legacy source file preserved during explicit v5 migration.",
-        )
-        reference_location_ids.append(location.location_id)
+    reference_location_ids = migrate_legacy_source_reference_locations(
+        ws,
+        topic_id=summary.topic_slug,
+        claim_id=active_claim.claim_id,
+        source_paths=summary.source_paths,
+    )
 
     l1_evidence_ids, l1_report_ids = migrate_legacy_l1_understanding(
         ws,
@@ -301,6 +293,8 @@ def audit_legacy_topic_migration(topic_path: str | Path) -> dict:
 
     for src in sorted((root / "L0" / "sources").glob("*/source.md")):
         mapped_paths[src.relative_to(root).as_posix()] = "reference_location/source evidence candidate"
+    for display_path, label in legacy_source_metadata_anchor_candidates(root):
+        mapped_paths[display_path] = label
 
     for candidate in sorted((root / "L3" / "candidates").glob("*.md")):
         mapped_paths[candidate.relative_to(root).as_posix()] = "claim/candidate seed"
