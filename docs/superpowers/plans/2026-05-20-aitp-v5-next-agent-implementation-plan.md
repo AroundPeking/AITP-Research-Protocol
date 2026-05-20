@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-f11b253 feat: record reference locations
+328145f feat(v5): migrate legacy l1 understanding
 ```
 
 Current focused v5 verification:
@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-253 passed
+262 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -87,12 +87,13 @@ Implemented:
 - Legacy migration converts old L3 candidates into v5 claims/evidence/sense-making reports and old L4 reviews into validation evidence.
 - Legacy runtime logs migrate into v5 JSONL trace events as orientation process history.
 - Legacy L1 source basis and convention snapshots migrate into v5 evidence plus sense-making reports.
+- Legacy L1 derivation anchor maps and contradiction registers migrate into v5 evidence plus sense-making reports and appear in dry-run audit mapping.
 - Subagent auditor results ingest as typed evidence plus sense-making proposals, never direct confidence changes or L2 promotion.
 - Harness audit/evolution skeleton.
 
 Major remaining gaps:
 
-- Legacy migration still needs broader old-topic coverage for old L1 intake/derivation anchors/contradiction registers, old L2 entries, and richer source anchors.
+- Legacy migration still needs broader old-topic coverage for old L1 intake, old L2 entries, and richer source anchors.
 - Hook helpers are implemented as pure kernel decisions; shell/app hook adapters and installation docs still need integration work.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.

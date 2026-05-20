@@ -132,6 +132,8 @@ def test_legacy_topic_dry_run_maps_candidates_and_reviews(tmp_path):
     (topic / "L1" / "question_contract.md").write_text("# Question\n", encoding="utf-8")
     (topic / "L1" / "source_basis.md").write_text("# Sources\n", encoding="utf-8")
     (topic / "L1" / "convention_snapshot.md").write_text("# Conventions\n", encoding="utf-8")
+    (topic / "L1" / "derivation_anchor_map.md").write_text("# Anchors\n", encoding="utf-8")
+    (topic / "L1" / "contradiction_register.md").write_text("# Contradictions\n", encoding="utf-8")
     (topic / "L3" / "candidates" / "candidate-a.md").write_text("# Candidate A\n", encoding="utf-8")
     (topic / "L4" / "reviews" / "review-a.md").write_text("# Review A\n", encoding="utf-8")
 
@@ -141,6 +143,8 @@ def test_legacy_topic_dry_run_maps_candidates_and_reviews(tmp_path):
     assert audit["mapped_paths"]["L3/candidates/candidate-a.md"] == "claim/candidate seed"
     assert audit["mapped_paths"]["L4/reviews/review-a.md"] == "validation evidence candidate"
     assert audit["mapped_paths"]["L1/convention_snapshot.md"] == "understanding/conventions candidate"
+    assert audit["mapped_paths"]["L1/derivation_anchor_map.md"] == "understanding/derivation anchor candidate"
+    assert audit["mapped_paths"]["L1/contradiction_register.md"] == "understanding/contradiction candidate"
     assert audit["summary_inputs_trusted"] is False
 
 
@@ -365,3 +369,49 @@ def test_legacy_migration_preserves_l1_source_basis_and_conventions(tmp_path):
     reports = list_records(ws.registry_dir("sensemaking_reports"), SensemakingReportRecord)
     assert {report.report_id for report in reports} >= set(result["written_records"]["sensemaking_reports"])
     assert any("Magnetic length is set to one" in report.summary for report in reports)
+
+
+def test_legacy_migration_preserves_l1_derivation_anchors_and_contradictions(tmp_path):
+    from brain.v5.evidence import list_evidence_for_claim
+    from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
+    from brain.v5.models import SensemakingReportRecord
+    from brain.v5.store import list_records
+    from brain.v5.workspace import init_workspace
+
+    legacy = _write_legacy_topic(tmp_path / "legacy")
+    l1 = legacy / "L1"
+    l1.mkdir()
+    anchors = l1 / "derivation_anchor_map.md"
+    contradictions = l1 / "contradiction_register.md"
+    anchors.write_text(
+        "---\n"
+        "summary: Eq. 3 anchors the edge-counting generating function to the finite-size table.\n"
+        "---\n"
+        "# Derivation Anchors\n\nEq. 3 is the source anchor for the generating function.\n",
+        encoding="utf-8",
+    )
+    contradictions.write_text(
+        "---\n"
+        "summary: Paper B uses a shifted momentum convention that can mimic a mismatch.\n"
+        "---\n"
+        "# Contradiction Register\n\nThe shifted convention remains unresolved.\n",
+        encoding="utf-8",
+    )
+    ws = init_workspace(tmp_path / "v5")
+
+    result = migrate_legacy_topic_to_v5(
+        ws,
+        legacy,
+        context_id="legacy-context",
+        session_id="s1",
+    )
+
+    evidence = list_evidence_for_claim(ws, result["active_claim_id"])
+    evidence_types = {item.evidence_type for item in evidence}
+    assert {"legacy_l1_derivation_anchor_map", "legacy_l1_contradiction_register"} <= evidence_types
+    assert any(anchors.as_posix() in ref for item in evidence for ref in item.source_refs)
+    assert any(contradictions.as_posix() in ref for item in evidence for ref in item.source_refs)
+
+    reports = list_records(ws.registry_dir("sensemaking_reports"), SensemakingReportRecord)
+    assert any("edge-counting generating function" in report.summary for report in reports)
+    assert any("shifted momentum convention" in report.summary for report in reports)
