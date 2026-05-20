@@ -1004,3 +1004,69 @@ Each entry should record:
   - add a small runtime/bridge smoke path proving a generated adapter consumes
     `runtime_gate_protocols.*.pre_tool_policy`, or extract adapter contract
     helpers before the next contract expansion.
+
+### b45c2bc - Carry Gate Protocols Into Hook Bridges
+
+- Task: make generated Codex/OpenCode bridge payloads and Markdown carry the
+  adapter packet's runtime gate protocols, so adapter authors can consume the
+  validate/promote pre-tool policy sequence without scraping prose.
+- Planning source:
+  - residual risk after `d19b3dc`;
+  - hook installation plan requirement for adapter-neutral bridge payloads;
+  - v5 invariant that bridge files are orientation-only while typed kernel
+    records and packet protocols define the authoritative sequence.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `brain/v5/cli.py`
+  - `brain/v5/hook_install_templates.py`
+  - `brain/v5/hook_protocol_contracts.py`
+  - `brain/v5/mcp_tools.py`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - `codex_hook_bridge` payloads now include top-level `gate_protocols` derived
+    from adapter `runtime_gate_protocols`;
+  - `opencode_plugin_bridge.plugin_bridge` now includes `gate_protocols`
+    derived from adapter `runtime_gate_protocols`;
+  - generated bridge Markdown renders each validate/promote gate sequence,
+    including `evaluate_pre_tool_policy` before preflight or promotion;
+  - public-surface validation now rejects Codex/OpenCode bridge payloads that
+    omit the mandatory gate protocols.
+- Tests:
+  - CLI and MCP bridge materialization tests assert Codex/OpenCode bridge
+    payloads expose `gate_protocols`;
+  - bridge Markdown tests assert the rendered files include
+    `evaluate_pre_tool_policy`;
+  - public-surface tests reject a Codex bridge missing gate protocols and accept
+    Codex/OpenCode examples with mandatory gate protocols.
+- Verification:
+  - red adapter tests failed with missing `gate_protocols` keys in generated
+    Codex/OpenCode bridge payloads;
+  - red public-surface test failed because a Codex bridge without gate
+    protocols was accepted;
+  - focused green set:
+    `pytest tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet tests/test_v5_adapters.py::test_mcp_codex_hook_bridge_wrapper_returns_contract_payload tests/test_v5_adapters.py::test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet tests/test_v5_adapters.py::test_mcp_opencode_plugin_bridge_wrapper_returns_contract_payload tests/test_v5_public_surfaces.py::test_public_surface_validator_rejects_codex_hook_bridge_without_gate_protocols tests/test_v5_public_surfaces.py::test_public_surface_validator_accepts_codex_hook_bridge tests/test_v5_public_surfaces.py::test_public_surface_validator_accepts_opencode_plugin_bridge -q`:
+    7 passed;
+  - regression set:
+    `pytest tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_contracts.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    81 passed;
+  - full v5 focused suite: 308 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - source module line counts remained below 500 lines
+    (`cli.py`: 498, `hook_install_templates.py`: 414,
+    `hook_protocol_contracts.py`: 458, `mcp_tools.py`: 397);
+  - `python hooks\aitp_v5_hook.py pre-commit ...`: passed with `mode=log`.
+- Residual risks:
+  - `cli.py` is now close to the 500-line architecture limit, so future CLI
+    changes should extract adapter command dispatch helpers before adding more
+    branches;
+  - generated Codex/OpenCode bridge files now carry gate protocols, but native
+    lifecycle integrations still need installer-level execution tests.
+- Next recommended task:
+  - extract CLI adapter dispatch into a small module before the next CLI-facing
+    feature, or implement a minimal native Codex/OpenCode lifecycle smoke test
+    that consumes the generated gate protocol payload.
