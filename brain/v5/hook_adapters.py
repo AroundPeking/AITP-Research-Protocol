@@ -7,6 +7,7 @@ from typing import Any
 
 from brain.v5.hooks import HookDecision
 from brain.v5.policy import PolicyDecision, PolicyReason
+from brain.v5.trace import TraceEvent
 
 
 def hook_decision_payload(decision: HookDecision, *, hook_name: str) -> dict[str, Any]:
@@ -25,6 +26,18 @@ def hook_exit_code(decision: HookDecision) -> int:
     """Return the shell exit code for a hook decision."""
 
     return 2 if decision.block else 0
+
+
+def hook_trace_event_payload(event: TraceEvent, *, hook_name: str) -> dict[str, Any]:
+    """Render a trace event as hook output without turning it into evidence."""
+
+    return {
+        "kind": "hook_trace_event",
+        "hook_name": hook_name,
+        "event": asdict(event),
+        "exit_code": 0,
+        "summary_inputs_trusted": False,
+    }
 
 
 def policy_decision_from_payload(payload: dict[str, Any], *, fallback_action: str) -> PolicyDecision:

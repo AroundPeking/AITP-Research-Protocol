@@ -157,7 +157,8 @@ git push origin HEAD:main
 
 ## Implemented Adapter Surface
 
-The v5 hook adapter starts with narrow shell-facing pre-commit and pre-tool entrypoints:
+The v5 hook adapter starts with narrow shell-facing pre-commit, pre-tool, and
+post-tool entrypoints:
 
 ```powershell
 python hooks\aitp_v5_hook.py pre-commit `
@@ -173,15 +174,31 @@ python hooks\aitp_v5_hook.py pre-tool `
   --policy-json '{"allowed":false,"action":"promote_to_l2","reasons":[{"policy_id":"no_l2_promotion_without_evidence_ref","message":"missing evidence","severity":"block"}],"required_actions":["attach_evidence_ref"]}'
 ```
 
-The script writes one JSON object to stdout:
+```powershell
+python hooks\aitp_v5_hook.py post-tool `
+  --session-id s1 `
+  --topic-id fqhe `
+  --claim-id claim-fqhe `
+  --risk-level guided `
+  --tool-name exact-diagonalization `
+  --evidence-status supports
+```
+
+The script writes one JSON object to stdout. For decision hooks:
 
 - `kind: hook_decision`;
 - `mode`, `block`, `message`, and `required_actions` from the kernel decision;
 - `exit_code: 2` when the hook should block, otherwise `0`;
 - `summary_inputs_trusted: false`.
 
+For the post-tool trace hook:
+
+- `kind: hook_trace_event`;
+- `event` is a serialized v5 `TraceEvent`;
+- `exit_code: 0`;
+- `summary_inputs_trusted: false`.
+
 Current scope:
 
-- implemented: machine-readable pre-commit and pre-tool adapters;
-- not yet implemented: Codex/Claude/OpenCode installation templates and
-  post-tool shell wrapper.
+- implemented: machine-readable pre-commit, pre-tool, and post-tool adapters;
+- not yet implemented: Codex/Claude/OpenCode installation templates.

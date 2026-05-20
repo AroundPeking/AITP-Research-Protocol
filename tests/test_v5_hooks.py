@@ -229,3 +229,49 @@ def test_v5_hook_script_pre_tool_blocks_from_policy_json():
     assert payload["block"] is True
     assert payload["required_actions"] == ["attach_evidence_ref"]
     assert payload["summary_inputs_trusted"] is False
+
+
+def test_v5_hook_script_post_tool_emits_trace_event_payload():
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "hooks" / "aitp_v5_hook.py"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "post-tool",
+            "--session-id",
+            "s1",
+            "--topic-id",
+            "fqhe",
+            "--claim-id",
+            "claim-fqhe",
+            "--risk-level",
+            "guided",
+            "--tool-name",
+            "exact-diagonalization",
+            "--evidence-status",
+            "supports",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["kind"] == "hook_trace_event"
+    assert payload["hook_name"] == "post_tool"
+    assert payload["exit_code"] == 0
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["event"]["event_type"] == "tool_run_recorded"
+    assert payload["event"]["session_id"] == "s1"
+    assert payload["event"]["topic_id"] == "fqhe"
+    assert payload["event"]["claim_id"] == "claim-fqhe"
+    assert payload["event"]["payload"]["tool_name"] == "exact-diagonalization"
+    assert payload["event"]["payload"]["evidence_status"] == "supports"

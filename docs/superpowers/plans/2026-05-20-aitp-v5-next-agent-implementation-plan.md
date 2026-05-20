@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-b7c6f64 feat(v5): migrate legacy l1 intake, or a later completed commit from this plan
+855a3e6 feat(v5): add pre-tool hook adapter, or a later completed commit from this plan
 ```
 
 Current focused v5 verification:
@@ -40,7 +40,7 @@ pytest $files -q
 Expected baseline:
 
 ```text
-266 passed
+267 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -93,11 +93,11 @@ Implemented:
 - Legacy L0 source metadata anchors (`source_url`, PDF, DOI, arXiv, and note paths) migrate into orientation-only v5 reference locations and appear in dry-run audit mapping.
 - Subagent auditor results ingest as typed evidence plus sense-making proposals, never direct confidence changes or L2 promotion.
 - Harness audit/evolution skeleton.
-- Hook helpers include machine-readable pre-commit and pre-tool shell adapters over kernel decisions.
+- Hook helpers include machine-readable pre-commit, pre-tool, and post-tool shell adapters over kernel decisions and trace events.
 
 Major remaining gaps:
 
-- Hook helpers still need post-tool shell adapter coverage and Codex/Claude/OpenCode installation docs.
+- Hook helpers still need Codex/Claude/OpenCode installation docs.
 - Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
 - Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
 - Full legacy test suite remains a historical failure set outside the v5 regression gate.

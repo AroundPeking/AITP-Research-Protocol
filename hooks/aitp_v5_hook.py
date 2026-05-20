@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from brain.v5.hook_adapters import hook_decision_payload, policy_decision_from_payload
-from brain.v5.hooks import decide_pre_commit, decide_pre_tool_use
+from brain.v5.hook_adapters import hook_decision_payload, hook_trace_event_payload, policy_decision_from_payload
+from brain.v5.hooks import decide_pre_commit, decide_pre_tool_use, post_tool_use_trace_event
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,6 +36,14 @@ def _build_parser() -> argparse.ArgumentParser:
     pre_tool.add_argument("--risk-level", default="fluid")
     pre_tool.add_argument("--policy-json", required=True)
 
+    post_tool = subparsers.add_parser("post-tool")
+    post_tool.add_argument("--session-id", required=True)
+    post_tool.add_argument("--topic-id", required=True)
+    post_tool.add_argument("--claim-id", required=True)
+    post_tool.add_argument("--risk-level", default="fluid")
+    post_tool.add_argument("--tool-name", required=True)
+    post_tool.add_argument("--evidence-status", default="unknown")
+
     return parser
 
 
@@ -58,6 +66,16 @@ def _dispatch(args: argparse.Namespace) -> dict:
             ),
         )
         return hook_decision_payload(decision, hook_name="pre_tool")
+    if args.command == "post-tool":
+        event = post_tool_use_trace_event(
+            session_id=args.session_id,
+            topic_id=args.topic_id,
+            risk_level=args.risk_level,
+            claim_id=args.claim_id,
+            tool_name=args.tool_name,
+            evidence_status=args.evidence_status,
+        )
+        return hook_trace_event_payload(event, hook_name="post_tool")
     raise SystemExit(f"unsupported hook command: {args.command}")
 
 
