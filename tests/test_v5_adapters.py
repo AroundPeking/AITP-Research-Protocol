@@ -681,6 +681,46 @@ def test_mcp_adapter_pre_tool_event_infers_subagent_ingestion_policy(tmp_path):
     ]
 
 
+def test_mcp_adapter_pre_tool_event_infers_validation_contract_policy(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_adapter_pre_tool_event, aitp_v5_write_codex_hook_bridge
+
+    _, claim = _seed_session(tmp_path)
+    bridge = aitp_v5_write_codex_hook_bridge(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md"),
+    )
+
+    payload = aitp_v5_evaluate_adapter_pre_tool_event(
+        str(tmp_path),
+        bridge_payload=bridge,
+        platform_event={
+            "runtime": "codex",
+            "hook_name": "pre_tool",
+            "session_id": "s1",
+            "tool_name": "mcp__aitp__aitp_v5_create_validation_contract",
+            "tool_input": {
+                "topic_id": "librpa-gw",
+                "claim_id": claim.claim_id,
+                "required_checks": ["reproduce benchmark"],
+                "failure_modes": ["formula-code mismatch"],
+                "source_kind": "findings",
+                "source_ref": ".aitp/surfaces/session_summaries/s1/findings.md",
+                "orientation_only": True,
+            },
+        },
+    )
+
+    assert payload["ok"] is True
+    assert payload["action"] == "create_validation_contract"
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["runtime_gate_protocol"]["action"] == "create_validation_contract"
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "no_summary_surface_as_truth_source"
+    ]
+
+
 def test_mcp_adapter_pre_tool_event_passes_adversarial_checkpoint_context(tmp_path):
     from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
     from brain.v5.mcp_tools import aitp_v5_evaluate_adapter_pre_tool_event, aitp_v5_write_codex_hook_bridge

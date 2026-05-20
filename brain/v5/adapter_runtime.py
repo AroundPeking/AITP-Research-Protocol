@@ -13,7 +13,7 @@ _AITP_TOOL_ACTIONS = {
     "aitp_v5_record_tool_run": "record_tool_run",
     "aitp_v5_execute_tool": "execute_tool",
     "aitp_v5_ingest_subagent_result": "ingest_subagent_result",
-    "aitp_v5_create_validation_contract": "validate_claim",
+    "aitp_v5_create_validation_contract": "create_validation_contract",
     "aitp_v5_create_promotion_packet": "promote_to_l2",
     "aitp_v5_apply_promotion_packet": "promote_to_l2",
 }

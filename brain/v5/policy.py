@@ -16,6 +16,7 @@ _TRUST_CHANGING_ACTIONS = {
     "execute_tool",
     "ingest_subagent_result",
     "change_claim_confidence",
+    "create_validation_contract",
     "validate_claim",
     "promote_to_l2",
 }
