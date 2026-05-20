@@ -214,7 +214,10 @@ aitp_v5_write_codex_hook_bridge(base, session_id, output_path)
 ```
 
 Both surfaces return a contracted `codex_hook_bridge` payload and keep
-`summary_inputs_trusted=false`.
+`summary_inputs_trusted=false`. The payload also carries
+`pre_tool_policy_entrypoint`, pointing to the shared
+`pre_tool_policy_decision` CLI/MCP surface for validation and L2-promotion
+pre-tool checks.
 
 ## Claude Code Template
 
@@ -288,6 +291,10 @@ OpenCode should use the same contract as Codex and Claude Code:
 
 OpenCode adapters should avoid writing generated summaries as state. Any compact
 view should be treated as orientation-only.
+
+Generated OpenCode bridge payloads include
+`plugin_bridge.pre_tool_policy_entrypoint`, pointing to the same
+`pre_tool_policy_decision` CLI/MCP surface used by Codex and Claude Code.
 
 The repo-backed OpenCode plugin bridge writer is available through:
 

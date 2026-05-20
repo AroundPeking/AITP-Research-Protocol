@@ -86,6 +86,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   It returns the contracted `pre_tool_policy_decision` public surface with
   `truth_source=typed_records`, `summary_inputs_trusted=false`, and no authority
   to mutate kernel state or claim trust.
+- Generated Codex and OpenCode bridge payloads include a
+  `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
+  adapters can wire validation/promotion pre-tool checks without reimplementing
+  policy logic.
 - Claude Code `PreToolUse` uses that shared policy for validation and L2
   promotion MCP calls: it resolves the typed claim, cited evidence refs, and
   linked or requested code states, then reuses `evaluate_policy` before the tool

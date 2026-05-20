@@ -13,6 +13,15 @@ _INSTALLATION_MODES = {
     "claude_code": "native_lifecycle_hooks",
     "opencode": "plugin_bridge",
 }
+_PRE_TOOL_POLICY_ENTRYPOINT = {
+    "cli": "aitp-v5 policy pre-tool <args>",
+    "mcp": "aitp_v5_evaluate_pre_tool_policy",
+    "surface": "pre_tool_policy_decision",
+    "truth_source": "typed_records",
+    "summary_inputs_trusted": False,
+    "can_update_kernel_state": False,
+    "can_update_claim_trust": False,
+}
 
 
 def build_runtime_hook_installation(runtime: str, runtime_hook_protocols: dict[str, Any]) -> dict[str, Any]:
@@ -58,6 +67,7 @@ def write_codex_hook_bridge(path: str | Path, installation: dict[str, Any]) -> d
         "native_installer_available": installation["native_installer_available"],
         "summary_inputs_trusted": False,
         "can_update_kernel_state": False,
+        "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
         "path": str(bridge_path),
         "guard_calls": guard_calls,
     }
@@ -95,6 +105,7 @@ def write_opencode_plugin_bridge(path: str | Path, installation: dict[str, Any])
         "plugin_bridge": {
             "setup": ["load AITP skills", "connect AITP MCP server", "read v5 adapter packet"],
             "lifecycle_calls": lifecycle_calls,
+            "pre_tool_policy_entrypoint": deepcopy(_PRE_TOOL_POLICY_ENTRYPOINT),
             "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
             "truth_rule": "generated bridge is orientation-only; typed records remain authoritative",
         },
@@ -194,6 +205,16 @@ def _codex_bridge_markdown(bridge: dict[str, Any]) -> str:
         "- summary_inputs_trusted=false",
         "- can_update_kernel_state=false",
         "",
+        "## Shared Context Pre-Tool Policy",
+        "",
+        "Use `aitp-v5 policy pre-tool <args>` before validation or L2 promotion actions that depend on typed claim, evidence, or code-state context.",
+        "",
+        "- surface: `pre_tool_policy_decision`",
+        "- mcp: `aitp_v5_evaluate_pre_tool_policy`",
+        "- truth_source: `typed_records`",
+        "- can_update_kernel_state=false",
+        "- can_update_claim_trust=false",
+        "",
         "## Guard Calls",
         "",
     ]
@@ -224,6 +245,16 @@ def _opencode_bridge_markdown(bridge: dict[str, Any]) -> str:
         "",
         "- truth_source: false",
         "- summary_inputs_trusted=false",
+        "- can_update_kernel_state=false",
+        "- can_update_claim_trust=false",
+        "",
+        "## Shared Context Pre-Tool Policy",
+        "",
+        "Use `aitp-v5 policy pre-tool <args>` before validation or L2 promotion actions that depend on typed claim, evidence, or code-state context.",
+        "",
+        "- surface: `pre_tool_policy_decision`",
+        "- mcp: `aitp_v5_evaluate_pre_tool_policy`",
+        "- truth_source: `typed_records`",
         "- can_update_kernel_state=false",
         "- can_update_claim_trust=false",
         "",

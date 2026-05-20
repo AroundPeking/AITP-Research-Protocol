@@ -102,6 +102,11 @@ def validate_codex_hook_bridge(
         result.add(f"{path}.summary_inputs_trusted", "must be false")
     if payload.get("can_update_kernel_state") is not False:
         result.add(f"{path}.can_update_kernel_state", "must be false")
+    _validate_pre_tool_policy_entrypoint(
+        payload.get("pre_tool_policy_entrypoint"),
+        f"{path}.pre_tool_policy_entrypoint",
+        result,
+    )
 
     for key in ("installation_mode", "path"):
         _require_nonempty_str(payload, key, path, result)
@@ -158,6 +163,11 @@ def validate_opencode_plugin_bridge(
     if isinstance(bridge, dict):
         if bridge.get("persistence_entrypoint") != "aitp_v5_persist_hook_trace_event":
             result.add(f"{path}.plugin_bridge.persistence_entrypoint", "must be 'aitp_v5_persist_hook_trace_event'")
+        _validate_pre_tool_policy_entrypoint(
+            bridge.get("pre_tool_policy_entrypoint"),
+            f"{path}.plugin_bridge.pre_tool_policy_entrypoint",
+            result,
+        )
         _require_list(bridge.get("lifecycle_calls"), f"{path}.plugin_bridge.lifecycle_calls", result)
         if isinstance(bridge.get("lifecycle_calls"), list):
             for index, call in enumerate(bridge["lifecycle_calls"]):
@@ -390,6 +400,24 @@ def _validate_opencode_lifecycle_call(payload: Any, path: str, result: ContractR
     _require_list(payload.get("required_inputs"), f"{path}.required_inputs", result)
     if not isinstance(payload.get("may_block"), bool):
         result.add(f"{path}.may_block", "must be a boolean")
+
+
+def _validate_pre_tool_policy_entrypoint(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    expected = {
+        "cli": "aitp-v5 policy pre-tool <args>",
+        "mcp": "aitp_v5_evaluate_pre_tool_policy",
+        "surface": "pre_tool_policy_decision",
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    for key, value in expected.items():
+        if payload.get(key) != value:
+            result.add(f"{path}.{key}", f"must be {value!r}")
 
 
 def _validate_trace_event_payload(payload: Any, path: str, result: ContractResult) -> None:

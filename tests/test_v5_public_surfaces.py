@@ -66,6 +66,15 @@ def test_public_surface_validator_accepts_codex_hook_bridge():
         "native_installer_available": False,
         "summary_inputs_trusted": False,
         "can_update_kernel_state": False,
+        "pre_tool_policy_entrypoint": {
+            "cli": "aitp-v5 policy pre-tool <args>",
+            "mcp": "aitp_v5_evaluate_pre_tool_policy",
+            "surface": "pre_tool_policy_decision",
+            "truth_source": "typed_records",
+            "summary_inputs_trusted": False,
+            "can_update_kernel_state": False,
+            "can_update_claim_trust": False,
+        },
         "path": "AITP_V5_HOOK_BRIDGE.md",
         "guard_calls": [
             {
@@ -150,6 +159,15 @@ def test_public_surface_validator_accepts_opencode_plugin_bridge():
         "path": ".opencode/AITP_V5_PLUGIN_BRIDGE.md",
         "plugin_bridge": {
             "persistence_entrypoint": "aitp_v5_persist_hook_trace_event",
+            "pre_tool_policy_entrypoint": {
+                "cli": "aitp-v5 policy pre-tool <args>",
+                "mcp": "aitp_v5_evaluate_pre_tool_policy",
+                "surface": "pre_tool_policy_decision",
+                "truth_source": "typed_records",
+                "summary_inputs_trusted": False,
+                "can_update_kernel_state": False,
+                "can_update_claim_trust": False,
+            },
             "lifecycle_calls": [
                 {
                     "hook_name": "pre_tool",

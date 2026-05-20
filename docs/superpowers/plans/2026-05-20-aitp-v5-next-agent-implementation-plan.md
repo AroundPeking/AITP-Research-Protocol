@@ -120,6 +120,8 @@ Implemented:
   CLI/MCP/runtime public surface:
   `aitp-v5 policy pre-tool <args>` / `aitp_v5_evaluate_pre_tool_policy` /
   `pre_tool_policy_decision`.
+- Generated Codex/OpenCode bridge payloads explicitly advertise that shared
+  pre-tool policy entrypoint.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
