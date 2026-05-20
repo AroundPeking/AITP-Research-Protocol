@@ -1070,3 +1070,54 @@ Each entry should record:
   - extract CLI adapter dispatch into a small module before the next CLI-facing
     feature, or implement a minimal native Codex/OpenCode lifecycle smoke test
     that consumes the generated gate protocol payload.
+
+### 718fc8e - Split Adapter CLI Dispatch
+
+- Task: keep the main v5 CLI from becoming a monolith before adding more
+  adapter-facing behavior by moving adapter subcommand dispatch into a focused
+  helper module.
+- Planning source:
+  - residual risk after `b45c2bc`;
+  - v5 invariant that `cli.py`, `mcp_tools.py`, and contract modules must remain
+    thin and bounded;
+  - current line-count evidence that `cli.py` had reached 498 lines.
+- Changed files:
+  - `PROJECT_MEMORY.md`
+  - `brain/v5/cli.py`
+  - `brain/v5/cli_adapters.py`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `tests/test_v5_architecture_boundaries.py`
+  - `tests/test_v5_cli.py`
+- Public/runtime behavior changes:
+  - no intended CLI behavior change;
+  - `adapter registry`, `adapter public-surfaces`, `adapter packet`,
+    `adapter hook-bridge`, `adapter hook-settings`, and `adapter install-hooks`
+    now dispatch through `brain.v5.cli_adapters.dispatch_adapter_command`;
+  - static adapter registry/public-surface commands still avoid creating a v5
+    workspace.
+- Tests:
+  - architecture test now requires `brain.v5.cli_adapters` and checks `cli.py`
+    stays at or below 480 lines;
+  - CLI contract tests monkeypatch the new adapter dispatch module boundary.
+- Verification:
+  - red architecture test failed with `ModuleNotFoundError` for
+    `brain.v5.cli_adapters`;
+  - first focused regression exposed two stale test monkeypatches against the
+    old `brain.v5.cli` module boundary; root cause was the intentional dispatch
+    extraction, and the tests were updated to patch `brain.v5.cli_adapters`;
+  - focused green set:
+    `pytest tests/test_v5_architecture_boundaries.py tests/test_v5_adapters.py tests/test_v5_cli.py tests/test_v5_runtime_entrypoints.py -q`:
+    44 passed;
+  - full v5 focused suite: 309 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed;
+  - source module line counts remained below 500 lines (`cli.py`: 464,
+    `cli_adapters.py`: 93).
+- Residual risks:
+  - `cli.py` still contains broad command dispatch beyond adapter commands; if
+    future non-adapter CLI features push it upward again, repeat this extraction
+    pattern for that command family.
+- Next recommended task:
+  - continue native Codex/OpenCode lifecycle integration work now that the
+    adapter CLI surface has room, or add a focused runtime smoke test consuming
+    generated `gate_protocols`.
