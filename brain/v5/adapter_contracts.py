@@ -25,7 +25,7 @@ from brain.v5.contracts import (
     _require_nonempty_str,
     validate_execution_brief,
 )
-from brain.v5.hook_protocol_contracts import validate_runtime_hook_protocols
+from brain.v5.hook_protocol_contracts import validate_runtime_hook_installation, validate_runtime_hook_protocols
 from brain.v5.public_surfaces import describe_public_surfaces
 from brain.v5.summary_contracts import validate_summary_orientation_flags
 
@@ -44,6 +44,7 @@ _ADAPTER_REQUIRED_KEYS = (
     "public_surface_audit",
     "runtime_entrypoints",
     "adapter_protocol_registry",
+    "runtime_hook_installation",
     "trust_changing_actions",
     "requires_kernel_call_before",
     "required_kernel_entrypoints",
@@ -164,6 +165,15 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
         validate_runtime_hook_protocols(
             payload["runtime_hook_protocols"],
             f"{path}.runtime_hook_protocols",
+            result,
+        )
+
+    if "runtime_hook_installation" in payload:
+        validate_runtime_hook_installation(
+            payload["runtime_hook_installation"],
+            f"{path}.runtime_hook_installation",
+            payload.get("runtime"),
+            payload.get("runtime_hook_protocols"),
             result,
         )
 

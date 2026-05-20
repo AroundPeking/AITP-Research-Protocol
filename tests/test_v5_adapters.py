@@ -202,6 +202,33 @@ def test_adapter_packet_exposes_hook_protocols_for_runtime_installers(tmp_path):
     }
 
 
+def test_codex_adapter_packet_builds_hook_installation_from_hook_protocols(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+
+    ws, _ = _seed_session(tmp_path)
+
+    packet = build_adapter_packet(ws, "s1", runtime="codex")
+
+    installation = packet["runtime_hook_installation"]
+    assert installation["kind"] == "runtime_hook_installation_template"
+    assert installation["runtime"] == "codex"
+    assert installation["source_protocol_field"] == "runtime_hook_protocols"
+    assert installation["installation_mode"] == "explicit_guard_calls"
+    assert installation["native_installer_available"] is False
+    assert installation["summary_inputs_trusted"] is False
+
+    protocols = packet["runtime_hook_protocols"]
+    hooks = {hook["hook_name"]: hook for hook in installation["hooks"]}
+    assert set(hooks) == set(protocols)
+    for hook_name, protocol in protocols.items():
+        hook = hooks[hook_name]
+        assert hook["command"] == protocol["command"]
+        assert hook["required_inputs"] == protocol["required_inputs"]
+        assert hook["output_kind"] == protocol["output_kind"]
+        assert hook["may_block"] == protocol["may_block"]
+        assert hook["state_mutation"] == protocol["state_mutation"]
+
+
 def test_adapter_packet_exposes_protocol_registry_metadata(tmp_path):
     from brain.v5.adapter_protocols import adapter_protocol_fingerprint
     from brain.v5.adapters import build_adapter_packet

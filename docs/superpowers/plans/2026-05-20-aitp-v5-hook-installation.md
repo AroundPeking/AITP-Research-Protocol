@@ -13,6 +13,7 @@ Implemented:
 - shell-facing `pre-tool` adapter;
 - shell-facing `post-tool` trace-event adapter;
 - typed `runtime_hook_protocols` metadata in v5 adapter packets;
+- derived `runtime_hook_installation` templates in v5 adapter packets;
 - short JSON output with `summary_inputs_trusted=false`.
 
 Documented here:
@@ -43,7 +44,10 @@ Not implemented in this slice:
 
 The same contract is available to external runtimes through each v5 adapter
 packet under `runtime_hook_protocols`. That metadata is the typed source for
-installer templates; this Markdown page explains the same contract for humans.
+installer templates. Adapter packets also include `runtime_hook_installation`,
+which is generated from `runtime_hook_protocols` so Codex/Claude/OpenCode bridges
+do not need to duplicate hook commands. This Markdown page explains the same
+contract for humans.
 
 Run from the AITP repository root, or replace `hooks\aitp_v5_hook.py` with an
 absolute path.
@@ -127,6 +131,7 @@ the Codex-facing runtime should treat these commands as explicit guard calls.
 Recommended placement:
 
 - include this document in Codex AITP runtime instructions;
+- read `runtime_hook_installation` from the v5 adapter packet when available;
 - call `pre-commit` before committing any v5 harness, policy, migration, hook,
   or public-surface change;
 - call `pre-tool` before trust-changing actions, L2 promotion, remote execution,

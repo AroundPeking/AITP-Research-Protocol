@@ -47,3 +47,25 @@ def validate_runtime_hook_protocols(payload: Any, path: str, result: ContractRes
             f"{path}.{hook_name}.summary_inputs_trusted",
             result,
         )
+
+
+def validate_runtime_hook_installation(
+    payload: Any,
+    path: str,
+    runtime: Any,
+    runtime_hook_protocols: Any,
+    result: ContractResult,
+) -> None:
+    """Validate runtime hook installation metadata against hook protocols."""
+
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    if not isinstance(runtime, str) or not isinstance(runtime_hook_protocols, dict):
+        return
+
+    from brain.v5.hook_install_templates import build_runtime_hook_installation
+
+    expected = build_runtime_hook_installation(runtime, runtime_hook_protocols)
+    if payload != expected:
+        result.add(path, "must match build_runtime_hook_installation(runtime, runtime_hook_protocols)")

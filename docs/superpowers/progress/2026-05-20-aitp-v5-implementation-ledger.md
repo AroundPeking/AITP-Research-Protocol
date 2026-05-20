@@ -147,3 +147,38 @@ Each entry should record:
 - Next recommended task:
   - implement a Codex or Claude Code installer/template test that consumes
     `runtime_hook_protocols` instead of duplicating hook commands.
+
+### Pending - Derive Hook Installation Template From Hook Protocols
+
+- Task: expose runtime hook installation instructions in adapter packets without
+  duplicating hook command definitions.
+- Planning source:
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - previous ledger recommendation after `0d8a448`.
+- Changed files:
+  - `brain/v5/adapters.py`
+  - `brain/v5/adapter_contracts.py`
+  - `brain/v5/hook_install_templates.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_contracts.py`
+  - hook installation and next-agent planning docs
+- Public surface changes:
+  - adapter packets now include `runtime_hook_installation`;
+  - Codex receives `installation_mode=explicit_guard_calls` derived from
+    `runtime_hook_protocols`.
+- Tests:
+  - Codex adapter packet builds hook installation from hook protocols;
+  - adapter packet contract rejects stale hook installation templates.
+- Verification:
+  - focused red test failed with missing `runtime_hook_installation`.
+  - `pytest tests\test_v5_adapters.py tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`: 48 passed.
+  - full v5 focused suite: 271 passed.
+  - `python -m compileall -q brain\v5`: passed.
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - native platform config writers still need to consume this template;
+  - post-tool trace event persistence remains stdout-only until a runtime bridge
+    writes it through v5 trace/kernel paths.
+- Next recommended task:
+  - add a native config writer or bridge test for one runtime using
+    `runtime_hook_installation`.

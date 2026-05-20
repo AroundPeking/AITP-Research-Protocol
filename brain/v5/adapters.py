@@ -7,6 +7,7 @@ from typing import Any
 from brain.v5.adapter_protocols import build_adapter_protocols, supported_runtimes
 from brain.v5.brief import build_execution_brief
 from brain.v5.contracts import require_valid_adapter_packet, require_valid_execution_brief
+from brain.v5.hook_install_templates import build_runtime_hook_installation
 from brain.v5.paths import WorkspacePaths
 from brain.v5.public_surfaces import describe_public_surfaces
 from brain.v5.runtime_entrypoints import runtime_entrypoints
@@ -25,6 +26,7 @@ def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = 
     summary = write_session_summary(ws, session_id)
     orientation = read_summary_orientation(ws, session_id)
     brief = require_valid_execution_brief(build_execution_brief(ws, session_id))
+    adapter_protocols = build_adapter_protocols()
     focus = brief["current_focus"]
 
     packet = {
@@ -53,7 +55,11 @@ def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = 
         },
         "public_surface_audit": describe_public_surfaces(),
         "runtime_entrypoints": runtime_entrypoints(),
-        **build_adapter_protocols(),
+        **adapter_protocols,
+        "runtime_hook_installation": build_runtime_hook_installation(
+            normalized_runtime,
+            adapter_protocols["runtime_hook_protocols"],
+        ),
         "runtime_rules": _runtime_rules(normalized_runtime),
     }
     return require_valid_adapter_packet(packet)
