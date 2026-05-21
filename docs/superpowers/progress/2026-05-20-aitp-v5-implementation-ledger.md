@@ -5205,3 +5205,70 @@ Each entry should record:
   - add a versioned LibRPA/GW diagnostic artifact or executor that records
     frequency-grid and basis-cutoff metadata from actual run/input/output
     artifacts, linked to code state and validation results.
+
+### d799071 - Add LibRPA/GW Metadata Diagnostic Executor
+
+- Task: add a deterministic LibRPA/GW run-metadata diagnostic executor for the
+  version-sensitive reproduction path: frequency-grid metadata, basis-cutoff
+  metadata, artifact refs, and code-state-linked tool runs.
+- Planning source:
+  - previous ledger recommendation after `a96f3e1`;
+  - user requirement that computational theoretical-physics conclusions record
+    code version, input/output artifact, and numerical-parameter provenance so
+    failed reproduction is not confused with physics disagreement;
+  - `docs/superpowers/plans/2026-05-18-aitp-v5-domain-tools-plan.md`.
+- Changed files:
+  - `brain/v5/tool_executor_kernels.py`
+  - `brain/v5/tool_executors.py`
+  - `brain/v5/domain_packs.py`
+  - `tests/test_v5_tool_executors.py`
+  - `tests/test_v5_domain_packs.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-18-aitp-v5-domain-tools-plan.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - safe executor catalog now includes `librpa_gw_run_metadata_check`;
+  - executor input requires `frequency_grid`, `basis_cutoff`, and `expected`
+    metadata; each metadata block records source refs and threshold-relevant
+    fields;
+  - executor output reports `all_metadata_checks_passed`, `passed_checks`,
+    `failed_checks`, `missing_metadata`, normalized `frequency_grid`,
+    normalized `basis_cutoff`, and `expected` thresholds;
+  - evidence status is inferred as `supports` only when all metadata checks
+    pass, otherwise `refutes`;
+  - LibRPA/GW domain pack recommends
+    `recipe-librpa-gw-run-metadata-diagnostic` with required context refs
+    `code_state_ids` and `artifact_ids`.
+- Tests:
+  - added catalog coverage for `librpa_gw_run_metadata_check`;
+  - added executor behavior coverage proving a run with sufficient cutoff/bands
+    but undersampled frequency grid is recorded as refuting evidence while
+    preserving code-state and artifact links;
+  - added GW domain-pack and execution-brief recommendation coverage for the
+    new metadata diagnostic recipe;
+  - updated CLI executor catalog expectation.
+- Verification:
+  - red target:
+    `pytest tests\test_v5_tool_executors.py::test_tool_executor_catalog_exposes_input_contracts tests\test_v5_tool_executors.py::test_librpa_gw_run_metadata_executor_checks_frequency_grid_and_basis_cutoff tests\test_v5_domain_packs.py::test_builtin_gw_librpa_pack_suggests_code_provenance_and_benchmarks tests\test_v5_domain_packs.py::test_execution_brief_exposes_domain_tool_executor_recommendations -q`:
+    4 failed because the executor and domain recommendation did not exist;
+  - target green:
+    same command: 4 passed;
+  - focused related set:
+    `pytest tests\test_v5_tool_executors.py tests\test_v5_domain_packs.py tests\test_v5_public_surfaces.py tests\test_v5_real_workflows.py tests\test_v5_evidence_tools.py -q`:
+    53 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; pytest $files -q`:
+    455 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed, with CRLF conversion warnings only.
+- Residual risks:
+  - this is still a deterministic metadata checker; it does not parse native
+    LibRPA files automatically or prove convergence;
+  - the expected thresholds are supplied by the researcher/agent and should be
+    tied to benchmark contracts or domain conventions in a stricter future
+    slice.
+- Next recommended task:
+  - connect LibRPA/GW metadata diagnostics into validation-contract examples or
+    real-workflow acceptance tests so promotion can require metadata validation
+    alongside benchmark and formula-code evidence.
