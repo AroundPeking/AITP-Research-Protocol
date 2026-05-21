@@ -289,8 +289,10 @@ Implemented:
   <checkpoint-id> ...` / `aitp_v5_record_failure_mode_review_result` now expose
   the contracted `failure_mode_review_result_record` public surface. It records
   reviewed failure modes and the actual literature/tool/evidence/validation
-  basis behind an approved failure-mode review checkpoint while keeping
-  `summary_inputs_trusted=false` and `can_update_claim_trust=false`.
+  basis behind an approved failure-mode review checkpoint; local typed basis
+  refs must resolve to same-topic/claim records, while external/literature
+  `basis_refs` remain labels. It keeps `summary_inputs_trusted=false` and
+  `can_update_claim_trust=false`.
 - `aitp-v5 trust audit --claim <claim-id>` /
   `aitp_v5_audit_claim_trust` now expose the contracted
   `claim_trust_audit` public surface. It derives current claim-confidence

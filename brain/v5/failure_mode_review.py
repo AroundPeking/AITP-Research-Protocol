@@ -5,7 +5,15 @@ from __future__ import annotations
 from brain.v5.ids import prefixed_id
 from brain.v5.checkpoints import request_human_checkpoint
 from brain.v5.failure_mode_audit import audit_failure_mode_coverage
-from brain.v5.models import FailureModeReviewResultRecord, HumanCheckpointRecord
+from brain.v5.models import (
+    ArtifactRecord,
+    EvidenceRecord,
+    FailureModeReviewResultRecord,
+    HumanCheckpointRecord,
+    ReferenceLocationRecord,
+    ToolRunRecord,
+    ValidationResultRecord,
+)
 from brain.v5.store import list_records, write_record
 from brain.v5.workspace import WorkspacePaths
 
@@ -83,6 +91,16 @@ def record_failure_mode_review_result(
     artifacts = _clean_list(artifact_ids)
     if not any([basis, evidence, validations, tool_runs, references, artifacts]):
         raise ValueError("failure-mode review basis must cite typed refs, tools, literature, evidence, or artifacts")
+    _validate_typed_basis_refs(
+        ws,
+        topic_id=checkpoint.topic_id,
+        claim_id=claim_id,
+        evidence_refs=evidence,
+        validation_result_ids=validations,
+        tool_run_ids=tool_runs,
+        reference_location_ids=references,
+        artifact_ids=artifacts,
+    )
     if status not in {"passed", "needs_revision", "inconclusive"}:
         raise ValueError("failure-mode review result status must be passed, needs_revision, or inconclusive")
     if not summary.strip():
@@ -179,6 +197,85 @@ def _approved_failure_mode_review_checkpoint(ws: WorkspacePaths, checkpoint_id: 
     if checkpoint.status != "decided" or checkpoint.decision != "approve_failure_mode_review":
         raise ValueError("failure-mode review result requires an approved failure-mode review checkpoint")
     return checkpoint
+
+
+def _validate_typed_basis_refs(
+    ws: WorkspacePaths,
+    *,
+    topic_id: str,
+    claim_id: str,
+    evidence_refs: list[str],
+    validation_result_ids: list[str],
+    tool_run_ids: list[str],
+    reference_location_ids: list[str],
+    artifact_ids: list[str],
+) -> None:
+    _require_same_claim_refs(
+        "evidence ref",
+        evidence_refs,
+        list_records(ws.registry_dir("evidence"), EvidenceRecord),
+        "evidence_id",
+        topic_id,
+        claim_id,
+    )
+    _require_same_claim_refs(
+        "validation result",
+        validation_result_ids,
+        list_records(ws.registry_dir("validation_results"), ValidationResultRecord),
+        "result_id",
+        topic_id,
+        claim_id,
+    )
+    _require_same_claim_refs(
+        "tool run",
+        tool_run_ids,
+        list_records(ws.registry_dir("tool_runs"), ToolRunRecord),
+        "run_id",
+        topic_id,
+        claim_id,
+    )
+    _require_same_claim_refs(
+        "artifact",
+        artifact_ids,
+        list_records(ws.registry_dir("artifacts"), ArtifactRecord),
+        "artifact_id",
+        topic_id,
+        claim_id,
+    )
+    _require_reference_locations(ws, reference_location_ids, topic_id, claim_id)
+
+
+def _require_same_claim_refs(
+    label: str,
+    ids: list[str],
+    records: list,
+    id_attr: str,
+    topic_id: str,
+    claim_id: str,
+) -> None:
+    records_by_id = {getattr(record, id_attr): record for record in records}
+    for ref_id in ids:
+        record = records_by_id.get(ref_id)
+        if record is None:
+            raise ValueError(f"unknown {label}: {ref_id}")
+        if record.topic_id != topic_id or record.claim_id != claim_id:
+            raise ValueError(f"{label} must belong to the same topic and claim: {ref_id}")
+
+
+def _require_reference_locations(
+    ws: WorkspacePaths,
+    reference_location_ids: list[str],
+    topic_id: str,
+    claim_id: str,
+) -> None:
+    records = list_records(ws.registry_dir("reference_locations"), ReferenceLocationRecord)
+    records_by_id = {record.location_id: record for record in records}
+    for location_id in reference_location_ids:
+        record = records_by_id.get(location_id)
+        if record is None:
+            raise ValueError(f"unknown reference location: {location_id}")
+        if record.topic_id != topic_id or record.claim_id not in {"", claim_id}:
+            raise ValueError(f"reference location must belong to the same topic or claim: {location_id}")
 
 
 def _clean_list(values: list[str] | None) -> list[str]:

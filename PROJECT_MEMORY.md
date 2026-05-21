@@ -230,8 +230,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   review checkpoint. The resulting contracted
   `failure_mode_review_result_record` persists the actual review basis:
   reviewed failure modes plus literature/tool/evidence/validation/reference
-  citations. It keeps `summary_inputs_trusted=false` and
-  `can_update_claim_trust=false`.
+  citations. External/literature `basis_refs` are labels, while local typed refs
+  must resolve to same-topic/claim records. It keeps
+  `summary_inputs_trusted=false` and `can_update_claim_trust=false`.
 - To audit a claim confidence state directly, agents can call
   `aitp-v5 trust audit --claim <claim-id>` or
   `aitp_v5_audit_claim_trust`. This returns the contracted

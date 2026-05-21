@@ -477,8 +477,6 @@ def test_failure_mode_review_result_records_typed_review_basis(tmp_path):
         status="passed",
         reviewed_failure_modes=["frequency grid mismatch", "basis cutoff mismatch"],
         basis_refs=["literature:fqhe-edge-counting"],
-        evidence_refs=["evidence-counting-note"],
-        validation_result_ids=["validation-grid-check"],
         reviewer_role="adversarial_reviewer",
         summary="The review checked whether grid and cutoff mismatches could fake the edge count.",
     )
@@ -491,8 +489,8 @@ def test_failure_mode_review_result_records_typed_review_basis(tmp_path):
     assert result.checkpoint_id == approved.checkpoint_id
     assert result.reviewed_failure_modes == ["frequency grid mismatch", "basis cutoff mismatch"]
     assert result.basis_refs == ["literature:fqhe-edge-counting"]
-    assert result.evidence_refs == ["evidence-counting-note"]
-    assert result.validation_result_ids == ["validation-grid-check"]
+    assert result.evidence_refs == []
+    assert result.validation_result_ids == []
     assert result.summary_inputs_trusted is False
     assert result.can_update_claim_trust is False
 
@@ -505,6 +503,147 @@ def test_failure_mode_review_result_records_typed_review_basis(tmp_path):
             reviewed_failure_modes=["frequency grid mismatch"],
             summary="A basis-free review result must not be accepted.",
         )
+
+
+def test_failure_mode_review_result_rejects_missing_typed_basis_refs(tmp_path):
+    import pytest
+
+    from brain.v5.checkpoints import decide_human_checkpoint
+    from brain.v5.failure_mode_review import (
+        record_failure_mode_review_result,
+        request_failure_mode_review_checkpoint,
+    )
+
+    ws, claim, _ = _setup_failure_mode_audit_gap(tmp_path)
+    checkpoint = request_failure_mode_review_checkpoint(ws, claim_id=claim.claim_id)
+    approved = decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve_failure_mode_review",
+        rationale="Failure modes were checked.",
+        decided_by="human",
+    )
+
+    with pytest.raises(ValueError, match="unknown evidence ref"):
+        record_failure_mode_review_result(
+            ws,
+            claim_id=claim.claim_id,
+            checkpoint_id=approved.checkpoint_id,
+            status="passed",
+            reviewed_failure_modes=["frequency grid mismatch"],
+            evidence_refs=["evidence-missing"],
+            summary="Missing typed evidence refs must not be accepted.",
+        )
+
+
+def test_failure_mode_review_result_accepts_existing_typed_basis_refs(tmp_path):
+    from brain.v5.checkpoints import decide_human_checkpoint
+    from brain.v5.evidence import record_artifact_ref, record_evidence
+    from brain.v5.failure_mode_review import (
+        record_failure_mode_review_result,
+        request_failure_mode_review_checkpoint,
+    )
+    from brain.v5.references import record_reference_location
+    from brain.v5.tools import record_tool_run
+    from brain.v5.validation import create_validation_contract, record_validation_result
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="Counting identifies the edge CFT in the recorded sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="locally_checked",
+        active_uncertainty="sector assignment",
+        strongest_failure_mode="sector misassignment",
+    )
+    artifact = record_artifact_ref(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        artifact_type="table",
+        uri="file:///tmp/counting-table.csv",
+        summary="Counting table artifact.",
+    )
+    reference = record_reference_location(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        connector_id="local_pdf",
+        location_type="paper_pdf",
+        uri="file:///papers/fqhe.pdf",
+        label="FQHE edge counting paper",
+    )
+    contract = create_validation_contract(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        required_checks=["counting benchmark"],
+        failure_modes=["sector misassignment"],
+        required_evidence_outputs=["counting_table"],
+    )
+    run = record_tool_run(
+        ws,
+        recipe_id="recipe-fqhe-ed",
+        tool_family="numerical",
+        tool_name="pytest",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        outputs={"counting_table": "ok"},
+        artifact_ids=[artifact.artifact_id],
+    )
+    validation = record_validation_result(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        contract_id=contract.contract_id,
+        tool_run_id=run.run_id,
+        status="passed",
+        checked_outputs=["counting_table"],
+        artifact_ids=[artifact.artifact_id],
+        summary="Counting table passed validation.",
+    )
+    evidence = record_evidence(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        evidence_type="toy_numeric",
+        status="supports",
+        summary="Tool-derived counting evidence.",
+        tool_run_ids=[run.run_id],
+        validation_result_ids=[validation.result_id],
+        artifact_ids=[artifact.artifact_id],
+    )
+    checkpoint = request_failure_mode_review_checkpoint(ws, claim_id=claim.claim_id)
+    approved = decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve_failure_mode_review",
+        rationale="Typed basis refs were checked.",
+        decided_by="human",
+    )
+
+    result = record_failure_mode_review_result(
+        ws,
+        claim_id=claim.claim_id,
+        checkpoint_id=approved.checkpoint_id,
+        status="passed",
+        reviewed_failure_modes=["sector misassignment"],
+        evidence_refs=[evidence.evidence_id],
+        validation_result_ids=[validation.result_id],
+        tool_run_ids=[run.run_id],
+        reference_location_ids=[reference.location_id],
+        artifact_ids=[artifact.artifact_id],
+        summary="All typed basis refs resolve to the same claim.",
+    )
+
+    assert result.evidence_refs == [evidence.evidence_id]
+    assert result.validation_result_ids == [validation.result_id]
+    assert result.tool_run_ids == [run.run_id]
+    assert result.reference_location_ids == [reference.location_id]
+    assert result.artifact_ids == [artifact.artifact_id]
 
 
 def test_failure_mode_review_result_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
@@ -592,7 +731,6 @@ def test_failure_mode_audit_surfaces_review_result_basis(tmp_path):
         status="passed",
         reviewed_failure_modes=["frequency grid mismatch", "basis cutoff mismatch"],
         basis_refs=["literature:fqhe-edge-counting"],
-        validation_result_ids=["validation-grid-check"],
         summary="Reviewed whether grid and cutoff artifacts can mimic the edge count.",
     )
 
@@ -606,7 +744,7 @@ def test_failure_mode_audit_surfaces_review_result_basis(tmp_path):
     assert reviewed["checkpoint_id"] == approved.checkpoint_id
     assert reviewed["status"] == "passed"
     assert reviewed["basis_refs"] == ["literature:fqhe-edge-counting"]
-    assert reviewed["validation_result_ids"] == ["validation-grid-check"]
+    assert reviewed["validation_result_ids"] == []
     assert reviewed["summary_inputs_trusted"] is False
     assert reviewed["can_update_claim_trust"] is False
 
