@@ -159,9 +159,14 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp_v5_audit_claim_trust`. This returns the contracted
   `claim_trust_audit` public surface, derived only from typed records, showing
   supporting/challenging evidence refs, passed/failed validation results, L2
-  memory entry ids, code-state ids, support state, and review actions while
-  keeping `summary_inputs_trusted=false`, `can_update_kernel_state=false`, and
-  `can_update_claim_trust=false`.
+  memory entry ids, code-state ids, durable `trust_update_record_ids`, support
+  state, and review actions while keeping `summary_inputs_trusted=false`,
+  `can_update_kernel_state=false`, and `can_update_claim_trust=false`.
+- Each trust apply attempt writes a contracted `trust_update_record` under the
+  typed registry. Agents can retrieve it through
+  `aitp-v5 trust update-record <update-id>` or
+  `aitp_v5_get_trust_update_record`; the record is the authoritative mutation
+  history, not the generated audit or summary text.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing

@@ -3769,3 +3769,76 @@ Each entry should record:
   - either add durable trust-update history records for confidence transitions,
     or continue the remaining native lifecycle installer integration for
     Codex/OpenCode.
+
+### d4aa384 - Persist Trust Update History
+
+- Task: make confidence-changing trust apply attempts durable typed records, so
+  later audits can show actual mutation history rather than a placeholder flag.
+- Planning source:
+  - previous ledger recommendation after `c5136f9`;
+  - v5 invariant that trust-changing actions must go through kernel records and
+    must remain auditable from typed records instead of summaries;
+  - goal requirement that every implemented step is reviewable by another AI or
+    human.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/paths.py`
+  - `brain/v5/trust_updates.py`
+  - `brain/v5/trust_contracts.py`
+  - `brain/v5/trust_audit.py`
+  - `brain/v5/trust_audit_contracts.py`
+  - `brain/v5/record_contracts.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_trust_updates.py`
+  - `tests/test_v5_trust_audit.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+- Public/runtime behavior changes:
+  - new typed dataclass `TrustUpdateRecord`;
+  - new registry directory `.aitp/registry/trust_updates`;
+  - `apply_trust_update` writes a `TrustUpdateRecord` for both applied and
+    blocked attempts and returns `trust_update_record_id`;
+  - new public surface `trust_update_record`;
+  - new kernel getter `get_trust_update_record(ws, update_id)`;
+  - new CLI command `aitp-v5 trust update-record <update-id>`;
+  - new MCP wrapper `aitp_v5_get_trust_update_record`;
+  - new runtime entrypoint `get_trust_update_record`;
+  - `claim_trust_audit` now reports `trust_update_record_ids` and sets
+    `mutation_history_available=true` when typed history exists.
+- Tests:
+  - apply writes an applied history record and blocks summary-sourced attempts
+    while still recording the blocked attempt;
+  - the trust-update record public surface validates the persisted record;
+  - CLI/MCP/runtime surfaces expose the new history record getter;
+  - claim trust audit reads typed mutation history from the registry.
+- Verification:
+  - red audit-history test:
+    `python -m pytest tests\test_v5_trust_updates.py::test_apply_confidence_change_updates_registry_and_topic_ledger tests\test_v5_trust_updates.py::test_apply_confidence_change_blocks_summary_source_without_mutating tests\test_v5_trust_audit.py::test_claim_trust_audit_reports_typed_support_for_current_confidence tests\test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads -q`:
+    1 failed, 3 passed because `claim_trust_audit` omitted
+    `trust_update_record_ids`;
+  - red CLI/MCP/runtime getter tests:
+    `python -m pytest tests\test_v5_trust_updates.py::test_can_read_persisted_trust_update_record_by_id tests\test_v5_trust_updates.py::test_cli_trust_update_record_returns_contract_payload tests\test_v5_trust_updates.py::test_mcp_get_trust_update_record_returns_contract_payload tests\test_v5_runtime_entrypoints.py::test_runtime_entrypoints_advertise_typed_write_surfaces -q`:
+    4 failed because the getter, CLI subcommand, MCP wrapper, and runtime
+    entrypoint did not exist;
+  - target getter set:
+    same command: 4 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_trust_updates.py tests\test_v5_trust_audit.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_cli.py tests\test_v5_mcp_tools.py -q`:
+    66 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    406 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - trust-update history is currently an apply-attempt ledger, not a full
+    narrative explanation graph; reviewers still need to inspect linked
+    evidence, validation results, and code states for the physics justification.
+- Next recommended task:
+  - continue with remaining native Codex/OpenCode lifecycle installer wiring,
+    or deepen pre-tool policy coverage for MCP inputs and active risk
+    dimensions.

@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-855a3e6 feat(v5): add pre-tool hook adapter, or a later completed commit from this plan
+d4aa384 feat(v5): persist trust update history
 ```
 
 Current focused v5 verification:
@@ -37,10 +37,10 @@ $files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullNa
 pytest $files -q
 ```
 
-Expected baseline as of `c5136f9`:
+Expected baseline as of `d4aa384`:
 
 ```text
-403 passed
+406 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -73,6 +73,9 @@ Implemented:
 - Code workspace and code state provenance.
 - Trust cards and trust-update preflight/apply, including request-bound
   preflight proof tokens required before confidence-state mutation.
+- Durable trust-update history records for every trust apply attempt, with
+  CLI/MCP/runtime retrieval and claim trust audits that expose the typed
+  `trust_update_record_ids`.
 - Domain packs and executor recommendations.
 - Knowledge connector catalog with IMA as optional example backend.
 - Reference location records for external notes/PDFs/Zotero/IMA/Obsidian locations.
@@ -223,7 +226,12 @@ Implemented:
   `claim_trust_audit` public surface. It derives current claim-confidence
   support only from typed records, including supporting/challenging evidence,
   passed/failed validation results, L2 memory entries, code-state refs, and
-  review actions.
+  durable trust-update record ids.
+- `trust_update_apply` now persists a contracted `trust_update_record` for
+  applied and blocked attempts. `aitp-v5 trust update-record <update-id>` /
+  `aitp_v5_get_trust_update_record` expose those records for review, and
+  `claim_trust_audit` reports `mutation_history_available=true` when such
+  records exist.
 - Generated Codex/OpenCode bridge payloads and JSON sidecars now advertise
   `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,

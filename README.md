@@ -153,8 +153,11 @@ derived code-state refs, all from typed records with
 `aitp-v5 trust audit --claim <claim-id>` and `aitp_v5_audit_claim_trust`
 return the contracted `claim_trust_audit` surface: current confidence,
 supporting/challenging evidence, passed/failed validation results, L2 memory
-entry ids, code-state ids, and review actions. It is read-only and cannot
-update kernel state or claim trust.
+entry ids, code-state ids, durable `trust_update_record_ids`, and review
+actions. It is read-only and cannot update kernel state or claim trust. Each
+trust apply attempt also writes a contracted `trust_update_record`; reviewers
+can retrieve it with `aitp-v5 trust update-record <update-id>` or
+`aitp_v5_get_trust_update_record` without trusting summaries.
 Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the code-state/record-evidence/tool-run/execute-tool/tool-recipe/reference-location/
