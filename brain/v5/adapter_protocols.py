@@ -34,6 +34,7 @@ _TRUST_CHANGING_ACTIONS = [
     "record_evidence",
     "record_tool_run",
     "execute_tool",
+    "register_tool_recipe",
     "record_reference_location",
     "record_physics_object",
     "record_object_relation",

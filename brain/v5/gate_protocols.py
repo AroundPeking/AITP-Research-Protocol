@@ -79,6 +79,28 @@ _RUNTIME_GATE_PROTOCOLS = {
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },
+    "register_tool_recipe": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "register_tool_recipe",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["recipe_id", "tool_family", "tool_name"],
+        "allowed_state_sources": [
+            "typed_records",
+            "typed_tool_recipe_records",
+            "domain_pack",
+            "human_instruction",
+        ],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
     "record_reference_location": {
         "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
         "preflight": "",

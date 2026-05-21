@@ -13,6 +13,7 @@ _AITP_TOOL_ACTIONS = {
     "aitp_v5_record_evidence": "record_evidence",
     "aitp_v5_record_tool_run": "record_tool_run",
     "aitp_v5_execute_tool": "execute_tool",
+    "aitp_v5_register_tool_recipe": "register_tool_recipe",
     "aitp_v5_record_reference_location": "record_reference_location",
     "aitp_v5_record_physics_object": "record_physics_object",
     "aitp_v5_record_object_relation": "record_object_relation",
