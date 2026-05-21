@@ -139,7 +139,10 @@ passed validation results cover every cited tool run, and the shared pre-tool
 policy hard-blocks rigorous/adversarial promotion attempts that omit or mismatch
 those links. Execution briefs expose active claim L2 memory entries as
 orientation-only `known_context.memory_entries`, so agents can see previously
-promoted scoped memory without treating the brief itself as the authority.
+promoted scoped memory without treating the brief itself as the authority. For
+code-method memory, those brief entries include `code_state_ids` derived from
+the linked evidence's tool runs, so version-sensitive conclusions keep their
+code provenance visible in subsequent sessions.
 Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the code-state/record-evidence/tool-run/execute-tool/tool-recipe/reference-location/

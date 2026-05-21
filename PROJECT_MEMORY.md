@@ -142,7 +142,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   policy hard-blocks rigorous/adversarial promotion attempts that omit or
   mismatch those links. Execution briefs expose active claim L2 memory entries
   as orientation-only `known_context.memory_entries`; typed memory records under
-  `memory/l2/entries` remain authoritative.
+  `memory/l2/entries` remain authoritative. Code-method memory brief entries
+  include `code_state_ids` derived from linked evidence tool runs so version
+  provenance stays visible without making the brief a truth source.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing

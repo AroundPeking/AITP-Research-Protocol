@@ -3537,3 +3537,60 @@ Each entry should record:
 - Next recommended task:
   - strengthen the GW real workflow in the same way: require a validation
     contract/result before any code-method promotion, including code-state refs.
+
+### f95ba36 - Carry Code-State Refs Into L2 Brief Context
+
+- Task: strengthen the GW/code-method real workflow so a benchmark result tied
+  to an exact code state can pass validation, be promoted through a human
+  checkpoint, and then surface its code provenance in the next execution brief.
+- Planning source:
+  - previous ledger recommendation after `68f4a85`;
+  - v5 invariant that code-dependent physics claims must retain code-state
+    provenance across validation and L2 memory orientation;
+  - user concern that failed reproductions can come from version/worktree
+    mismatch rather than physics disagreement.
+- Changed files:
+  - `brain/v5/brief.py`
+  - `brain/v5/memory.py`
+  - `tests/test_v5_real_workflows.py`
+- Public/runtime behavior changes:
+  - `memory_entry_brief_payload` can receive typed evidence and tool-run records
+    and include derived `code_state_ids` for memory entries whose supporting
+    evidence came from code-bound tool runs;
+  - execution briefs pass active-claim tool runs into the memory brief renderer;
+  - GW/code-method workflow acceptance now exercises code-state provenance,
+    validation contract/result, promotion packet creation, human checkpoint
+    approval, L2 memory write, and refreshed brief orientation.
+- Tests:
+  - GW acceptance test asserts the promoted L2 memory entry appears in
+    `known_context.memory_entries` with the expected `code_state_ids`;
+  - FQHE acceptance test remains green without `code_state_ids`, proving the
+    field is conditional on code-bound evidence.
+- Verification:
+  - red test:
+    `python -m pytest tests\test_v5_real_workflows.py::test_gw_formula_code_translation_records_code_state_and_benchmark -q`:
+    1 failed because `known_context.memory_entries` did not include
+    `code_state_ids`;
+  - implementation correction:
+    first attempt incorrectly read `code_state_ids` from `EvidenceRecord`,
+    causing an `AttributeError`; the final implementation resolves them through
+    linked `ToolRunRecord.code_state_ids`;
+  - target green set:
+    `python -m pytest tests\test_v5_real_workflows.py::test_gw_formula_code_translation_records_code_state_and_benchmark tests\test_v5_real_workflows.py::test_fqhe_learning_to_idea_to_toy_check_workflow -q`:
+    2 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_real_workflows.py tests\test_v5_memory.py tests\test_v5_contracts.py tests\test_v5_kernel.py tests\test_v5_tool_executors.py -q`:
+    74 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    395 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - `code_state_ids` are derived for brief orientation from current typed
+    evidence/tool-run records; consumers needing full repository metadata must
+    read the referenced `CodeStateRecord`.
+- Next recommended task:
+  - add a compact review/audit surface for L2 memory brief entries or continue
+    closing remaining hook installer/native lifecycle gaps.

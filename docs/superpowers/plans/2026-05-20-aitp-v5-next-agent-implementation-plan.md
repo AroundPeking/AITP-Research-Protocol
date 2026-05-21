@@ -208,7 +208,8 @@ Implemented:
   those links.
 - Execution briefs now expose active-claim L2 memory entries as
   orientation-only `known_context.memory_entries`, with typed memory records
-  remaining authoritative.
+  remaining authoritative. Code-method memory brief entries include
+  `code_state_ids` derived from linked evidence tool runs.
 - Generated Codex/OpenCode bridge payloads and JSON sidecars now advertise
   `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,
