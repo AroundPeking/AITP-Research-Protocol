@@ -4610,3 +4610,72 @@ Each entry should record:
   - add policy/promotion awareness of failure-mode review checkpoints so high
     risk promotion can require an approved review checkpoint before L2 memory
     promotion, while preserving explicit human decision semantics.
+
+### a84e70a - Gate High-Risk Promotion On Failure-Mode Review
+
+- Task: require approved failure-mode review checkpoints before high-risk
+  promotion-packet creation when the active claim has a recorded strongest
+  failure mode.
+- Planning source:
+  - previous ledger recommendation after `47eee91`;
+  - v5 invariant that promotion gates must use typed records, not summaries;
+  - user requirement that the harness should force meaningful physics review
+    without turning every step into uncontrolled automatic trust mutation.
+- Changed files:
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/cli_policy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/hook_entrypoint_schemas.py`
+  - `brain/v5/hook_protocol_contracts.py`
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - shared pre-tool policy accepts `failure_mode_review_checkpoint_id`;
+  - rigorous/adversarial `create_promotion_packet` is blocked when the active
+    claim has `strongest_failure_mode`, known failure modes cover that recorded
+    risk, but no approved failure-mode review checkpoint is supplied;
+  - accepted checkpoint must be a typed human checkpoint for the same claim,
+    requested by `failure_mode_review_packet`, decided with
+    `approve_failure_mode_review`;
+  - CLI, MCP, adapter platform-event schemas, and Claude hook policy calls all
+    propagate the new field.
+- Tests:
+  - added MCP coverage for blocking high-risk promotion without an approved
+    failure-mode review checkpoint;
+  - added MCP and CLI coverage for accepting high-risk promotion with the
+    approved checkpoint;
+  - updated adapter bridge schema expectations for the new pre-tool event field.
+- Verification:
+  - red target set:
+    `python -m pytest tests\test_v5_pretool_policy.py::test_mcp_pre_tool_policy_blocks_high_risk_promotion_without_failure_mode_review_checkpoint tests\test_v5_pretool_policy.py::test_mcp_pre_tool_policy_accepts_high_risk_promotion_with_failure_mode_review_checkpoint tests\test_v5_pretool_policy.py::test_cli_pre_tool_policy_accepts_failure_mode_review_checkpoint -q`:
+    3 failed because the policy did not yet block without the checkpoint, MCP
+    did not accept `failure_mode_review_checkpoint_id`, and CLI rejected
+    `--failure-mode-review-checkpoint`;
+  - target green set:
+    `python -m pytest tests\test_v5_pretool_policy.py::test_mcp_pre_tool_policy_blocks_rigorous_tool_evidence_without_validation_result tests\test_v5_pretool_policy.py::test_mcp_pre_tool_policy_accepts_promotion_failure_mode_covering_claim_risk tests\test_v5_pretool_policy.py::test_mcp_pre_tool_policy_blocks_high_risk_promotion_without_failure_mode_review_checkpoint tests\test_v5_pretool_policy.py::test_mcp_pre_tool_policy_accepts_high_risk_promotion_with_failure_mode_review_checkpoint tests\test_v5_pretool_policy.py::test_cli_pre_tool_policy_accepts_failure_mode_review_checkpoint tests\test_v5_architecture_boundaries.py::test_v5_source_modules_stay_bounded -q`:
+    6 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_pretool_policy.py tests\test_v5_adapters.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_hooks.py tests\test_v5_architecture_boundaries.py -q`:
+    172 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    441 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - policy gates promotion-packet creation, but `apply_promotion_packet` still
+    relies on the ordinary approved human checkpoint for final memory
+    promotion;
+  - the review checkpoint records human/adversarial approval, not proof that a
+    domain numerical/symbolic/literature tool was run.
+- Next recommended task:
+  - add a typed domain-tool-backed failure-mode review result, or extend
+    promotion packet metadata so final L2 memory entries can cite the approved
+    failure-mode review checkpoint explicitly.
