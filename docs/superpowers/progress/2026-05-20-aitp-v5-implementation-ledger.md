@@ -4409,3 +4409,71 @@ Each entry should record:
   - add a read-only failure-mode adequacy/audit surface that reports uncovered
     claim uncertainty, strongest failure mode, validation-contract failure
     modes, and promotion-packet known failure modes without mutating trust.
+
+### 9498735 - Audit Failure-Mode Coverage
+
+- Task: add a read-only public audit surface that reports whether a claim's
+  recorded failure modes are covered by validation contracts and promotion
+  packet known failure modes.
+- Planning source:
+  - previous ledger recommendation after `4db4118`;
+  - v5 invariant that typed records, not summaries, are authoritative;
+  - user requirement that harness gates should induce actual physics-style
+    reflection without making every step a trust-changing action.
+- Changed files:
+  - `brain/v5/failure_mode_audit.py`
+  - `brain/v5/failure_mode_audit_contracts.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/cli_memory.py`
+  - `brain/v5/mcp_memory.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_memory_audit.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - new kernel helper `audit_failure_mode_coverage`;
+  - new CLI command `aitp-v5 memory failure-modes --claim <claim-id>`;
+  - new MCP wrapper `aitp_v5_audit_failure_mode_coverage`;
+  - new public surface `failure_mode_audit`;
+  - new runtime entrypoint catalog item `audit_failure_mode_coverage`;
+  - payload reports active uncertainty, strongest failure mode, validation
+    contract failure modes, promotion-packet known failure modes, uncovered
+    claim/validation modes, coverage status, and recommended review actions;
+  - payload is explicitly read-only:
+    `summary_inputs_trusted=false`, `can_update_kernel_state=false`, and
+    `can_update_claim_trust=false`.
+- Tests:
+  - added a typed-record fixture with claim risk, validation-contract failure
+    modes, and a mismatched promotion packet;
+  - added kernel/public-surface coverage for uncovered claim and validation
+    failure modes;
+  - added CLI, MCP, and runtime-entrypoint coverage for the same audit surface.
+- Verification:
+  - red target set:
+    `python -m pytest tests\test_v5_memory_audit.py::test_failure_mode_audit_reports_uncovered_claim_and_contract_modes tests\test_v5_memory_audit.py::test_failure_mode_audit_cli_mcp_and_runtime_entrypoint tests\test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads -q`:
+    3 failed because the module, MCP wrapper, and public surface did not exist;
+  - target green set:
+    same command: 3 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_memory_audit.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_architecture_boundaries.py -q`:
+    46 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    433 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - coverage is deterministic token coverage and does not prove physical
+    adequacy across synonyms, conventions, or deeper theoretical equivalences;
+  - the audit is read-only and advisory; later policy work can use it as input
+    but should still route trust changes through typed validation/promotion
+    records.
+- Next recommended task:
+  - add a physics adequacy review packet or domain-tool-backed failure-mode
+    review flow that can assess whether recorded failure modes are physically
+    sufficient before promotion, without making summaries authoritative.
