@@ -4679,3 +4679,71 @@ Each entry should record:
   - add a typed domain-tool-backed failure-mode review result, or extend
     promotion packet metadata so final L2 memory entries can cite the approved
     failure-mode review checkpoint explicitly.
+
+### 65fad1f - Preserve Failure-Mode Review Provenance
+
+- Task: persist the approved failure-mode review checkpoint id on promotion
+  packets, resulting L2 memory entries, and L2 memory audits.
+- Planning source:
+  - previous ledger recommendation after `a84e70a`;
+  - v5 invariant that final research memory must preserve provenance in typed
+    records;
+  - user requirement that later review can see why a physical adequacy gate was
+    considered satisfied.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/memory.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/memory_audit.py`
+  - `brain/v5/memory_audit_contracts.py`
+  - `tests/test_v5_memory.py`
+  - `tests/test_v5_memory_audit.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `PromotionPacketRecord` and `MemoryEntryRecord` now carry
+    `failure_mode_review_checkpoint_id`;
+  - `create_promotion_packet`, `aitp-v5 promotion packet create`, and
+    `aitp_v5_create_promotion_packet` accept and persist that id;
+  - `apply_promotion_packet` copies the id into the resulting L2 memory entry;
+  - `l2_memory_audit` reports the id for reviewer provenance.
+- Tests:
+  - added kernel coverage that a promotion packet and resulting memory entry
+    preserve the approved failure-mode review checkpoint id;
+  - added CLI and MCP coverage for promotion-packet creation with the id;
+  - added L2 memory audit coverage for surfacing the id.
+- Verification:
+  - red target set:
+    `python -m pytest tests\test_v5_memory.py::test_promotion_packet_and_memory_entry_record_failure_mode_review_checkpoint -q`:
+    1 failed because `create_promotion_packet` did not accept
+    `failure_mode_review_checkpoint_id`;
+  - CLI/MCP red target:
+    `python -m pytest tests\test_v5_memory.py::test_promotion_cli tests\test_v5_memory.py::test_promotion_mcp -q`:
+    2 failed because CLI rejected `--failure-mode-review-checkpoint` and MCP
+    rejected `failure_mode_review_checkpoint_id`;
+  - audit red target:
+    `python -m pytest tests\test_v5_memory_audit.py::test_l2_memory_audit_reports_failure_mode_review_checkpoint -q`:
+    1 failed because the audit payload did not include
+    `failure_mode_review_checkpoint_id`;
+  - target green set:
+    `python -m pytest tests\test_v5_memory.py::test_promotion_packet_and_memory_entry_record_failure_mode_review_checkpoint tests\test_v5_memory.py::test_promotion_cli tests\test_v5_memory.py::test_promotion_mcp tests\test_v5_memory_audit.py::test_l2_memory_audit_reports_failure_mode_review_checkpoint tests\test_v5_memory_audit.py::test_l2_memory_audit_surfaces_typed_promotion_provenance -q`:
+    5 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_memory.py tests\test_v5_memory_audit.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_architecture_boundaries.py -q`:
+    73 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    443 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - the id records checkpoint provenance, but still does not encode tool-backed
+    details of the physical adequacy review itself;
+  - legacy promotion packets without the field remain valid with an empty
+    provenance id.
+- Next recommended task:
+  - add a typed failure-mode review result or domain-tool review artifact that
+    records the actual review basis behind the checkpoint decision.
