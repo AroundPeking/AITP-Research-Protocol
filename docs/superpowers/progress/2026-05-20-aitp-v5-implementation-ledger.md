@@ -3133,3 +3133,87 @@ Each entry should record:
   - add a typed post-tool validation-result/evidence gate that checks whether a
     completed high-risk tool run satisfied the bound validation contract
     outputs before it can support a claim.
+
+### 63b4c95 - Record Validation Results For Tool Runs
+
+- Task: add the typed post-tool validation-result record that links a completed
+  tool run back to a validation contract and its required outputs.
+- Planning source:
+  - previous ledger recommendation to check whether completed high-risk tool
+    runs satisfied bound validation-contract outputs;
+  - v5 invariant that trust-relevant validation must be recorded as typed
+    kernel state, not inferred from summaries or model claims;
+  - user requirement that numerical/formula-code work leave auditable evidence
+    of what was checked and why it passed or failed.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/paths.py`
+  - `brain/v5/validation.py`
+  - `brain/v5/record_contracts.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/cli_validation.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/adapter_protocols.py`
+  - `brain/v5/gate_protocols.py`
+  - `brain/v5/adapter_runtime.py`
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_validation.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `tests/test_v5_adapters.py`
+  - `PROJECT_MEMORY.md`
+  - `README.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - added `ValidationResultRecord` and `.aitp/registry/validation_results`;
+  - added `record_validation_result` kernel logic that resolves the referenced
+    contract and tool run, computes `missing_outputs`, and forbids `passed`
+    results with missing required outputs or observed failure modes;
+  - added `validation_result_record` as a public surface;
+  - added CLI `aitp-v5 validation result record ...`;
+  - added MCP `aitp_v5_record_validation_result`;
+  - added runtime entrypoint `record_validation_result`;
+  - added pre-tool summary-source blocking for `record_validation_result`;
+  - added adapter record/gate protocol metadata and Claude/Codex/OpenCode
+    action inference for validation-result recording;
+  - moved validation CLI parsing/dispatch into `brain/v5/cli_validation.py` so
+    `brain/v5/cli.py` stays below the architecture boundary.
+- Tests:
+  - kernel test records a passed validation result and persists it;
+  - kernel rejects `passed` when contract-required outputs are missing;
+  - CLI/MCP/runtime entrypoint tests cover validation-result recording;
+  - pre-tool policy blocks summary/findings-sourced validation-result writes;
+  - public surface and adapter packet tests advertise the new surface and gate.
+- Verification:
+  - red tests failed as expected:
+    `python -m pytest tests\test_v5_validation.py tests\test_v5_pretool_policy.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_adapters.py -q -k "validation_result or record_validation_result or public_surface_registry_names_all_runtime_facing_payloads or runtime_entrypoints_advertise_typed_write_surfaces or adapter_packet_includes"`:
+    7 failed because the validation-result model, kernel function, MCP wrapper,
+    public surface, runtime entrypoint, pre-tool action, and adapter metadata did
+    not exist;
+  - target green set:
+    same command: 7 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_validation.py tests\test_v5_pretool_policy.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_adapters.py tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py tests\test_v5_hooks.py -q`:
+    188 passed after moving validation CLI code into `cli_validation.py` and
+    keeping `contracts.py` at the 500-line boundary;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 383 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - validation results currently check declared output names, not the semantic
+    quality of each physics check;
+  - validation results are recorded separately from evidence support, so a later
+    policy should require passed validation-result refs before a high-risk tool
+    run can support a claim or promotion packet.
+- Next recommended task:
+  - require high-risk tool-derived evidence or promotion packets to reference a
+    passed `ValidationResultRecord` for the relevant `ToolRunRecord`.
