@@ -137,7 +137,10 @@ Promotion packets now carry `validation_result_ids` as typed links too:
 promotion-packet creation and L2 application reject tool-derived evidence unless
 passed validation results cover every cited tool run, and the shared pre-tool
 policy hard-blocks rigorous/adversarial promotion attempts that omit or mismatch
-those links. Adapter
+those links. Execution briefs expose active claim L2 memory entries as
+orientation-only `known_context.memory_entries`, so agents can see previously
+promoted scoped memory without treating the brief itself as the authority.
+Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the code-state/record-evidence/tool-run/execute-tool/tool-recipe/reference-location/
 physics-object/object-relation/sensemaking-report/subagent-ingestion, validation-contract/result, human-checkpoint request/decision, promotion-packet

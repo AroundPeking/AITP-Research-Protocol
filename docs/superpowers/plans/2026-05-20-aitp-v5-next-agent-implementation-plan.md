@@ -206,6 +206,9 @@ Implemented:
   results cover every cited tool run, and the shared CLI/MCP/runtime pre-tool
   policy blocks rigorous/adversarial promotion attempts that omit or mismatch
   those links.
+- Execution briefs now expose active-claim L2 memory entries as
+  orientation-only `known_context.memory_entries`, with typed memory records
+  remaining authoritative.
 - Generated Codex/OpenCode bridge payloads and JSON sidecars now advertise
   `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,

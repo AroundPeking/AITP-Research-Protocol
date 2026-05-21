@@ -3484,3 +3484,56 @@ Each entry should record:
   - continue broadening high-risk typed-record guard coverage, or start the
     realistic workflow acceptance skeletons once the remaining public runtime
     gaps are closed.
+
+### 68f4a85 - Expose L2 Memory In Execution Brief
+
+- Task: extend the realistic FQHE workflow acceptance path so a validated tool
+  result can become scoped L2 memory through a promotion packet and approved
+  human checkpoint, then appear in the next execution brief as orientation-only
+  context.
+- Planning source:
+  - Task 12 real workflow acceptance skeleton;
+  - v5 invariant that generated briefs can orient agents but typed kernel
+    memory records remain authoritative;
+  - user requirement that research memory preserve the validated path from
+    literature/context through numerical check, validation, and promotion.
+- Changed files:
+  - `brain/v5/brief.py`
+  - `brain/v5/memory.py`
+  - `tests/test_v5_real_workflows.py`
+- Public/runtime behavior changes:
+  - added `list_memory_entries_for_claim`;
+  - added `memory_entry_brief_payload`, which renders active L2 memory entries
+    with `orientation_only=true`;
+  - execution briefs now include `known_context.memory_entries` for active
+    claim L2 memory entries;
+  - the FQHE real workflow test now exercises validation contract/result,
+    promotion packet creation, human checkpoint approval, L2 memory write, and
+    refreshed brief orientation.
+- Tests:
+  - FQHE acceptance test asserts the promoted L2 memory entry preserves evidence
+    refs and appears in `known_context.memory_entries`;
+  - existing GW workflow skeleton remains as the code-method benchmark path.
+- Verification:
+  - red test:
+    `python -m pytest tests\test_v5_real_workflows.py::test_fqhe_learning_to_idea_to_toy_check_workflow -q`:
+    1 failed with `KeyError: 'memory_entries'` because briefs did not expose
+    L2 memory context;
+  - target green set:
+    same command: 1 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_real_workflows.py tests\test_v5_memory.py tests\test_v5_contracts.py tests\test_v5_kernel.py -q`:
+    63 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    395 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - execution brief memory entries intentionally expose compact orientation
+    fields only; consumers that need the statement/non-claims/failure modes
+    should read the typed `MemoryEntryRecord`.
+- Next recommended task:
+  - strengthen the GW real workflow in the same way: require a validation
+    contract/result before any code-method promotion, including code-state refs.

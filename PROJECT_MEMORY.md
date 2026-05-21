@@ -140,7 +140,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   links: packet creation and L2 application reject tool-derived evidence unless
   passed validation results cover every cited tool run, and the shared pre-tool
   policy hard-blocks rigorous/adversarial promotion attempts that omit or
-  mismatch those links.
+  mismatch those links. Execution briefs expose active claim L2 memory entries
+  as orientation-only `known_context.memory_entries`; typed memory records under
+  `memory/l2/entries` remain authoritative.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing
