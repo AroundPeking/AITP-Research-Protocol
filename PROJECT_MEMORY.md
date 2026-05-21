@@ -174,10 +174,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   Built-in safe executors now include `formula_code_invariant_check`, which
   checks explicit formula refs, code refs, expected relations, observed
   relations, and matched/failed/missing status for formula-code translation
-  work, plus `failure_mode_basis_check`, which checks that every named failure
-  mode has explicit review basis. FQHE and LibRPA/GW domain packs recommend
+  work; `librpa_gw_run_metadata_check`, which records and checks frequency-grid
+  and basis-cutoff metadata from versioned LibRPA/GW input/output artifacts;
+  and `failure_mode_basis_check`, which checks that every named failure mode
+  has explicit review basis. FQHE and LibRPA/GW domain packs recommend
   failure-mode review basis recipes; the LibRPA/GW pack also recommends
-  `recipe-librpa-gw-formula-code-invariant`.
+  `recipe-librpa-gw-formula-code-invariant` and
+  `recipe-librpa-gw-run-metadata-diagnostic`.
   Execution brief evidence coverage includes both required action-budget
   outputs and additional typed outputs already supported by evidence records,
   so a later session can see a recorded `failure_mode_review_basis` without

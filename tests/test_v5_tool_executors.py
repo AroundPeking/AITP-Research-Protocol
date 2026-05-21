@@ -343,13 +343,20 @@ def test_tool_executor_catalog_exposes_input_contracts():
         "checklist_consistency_check",
         "failure_mode_basis_check",
         "formula_code_invariant_check",
+        "librpa_gw_run_metadata_check",
         "metric_table_check",
         "scalar_tolerance_check",
     }
     assert executors["checklist_consistency_check"]["input_schema"]["required"] == ["checks"]
     assert executors["failure_mode_basis_check"]["input_schema"]["required"] == ["failure_modes", "basis_items"]
     assert executors["formula_code_invariant_check"]["input_schema"]["required"] == ["invariants"]
+    assert executors["librpa_gw_run_metadata_check"]["input_schema"]["required"] == [
+        "frequency_grid",
+        "basis_cutoff",
+        "expected",
+    ]
     assert "code_method" in executors["formula_code_invariant_check"]["evidence_profiles"]
+    assert "code_method" in executors["librpa_gw_run_metadata_check"]["evidence_profiles"]
     assert "code_method" in executors["failure_mode_basis_check"]["evidence_profiles"]
     assert "formal_theory" in executors["checklist_consistency_check"]["evidence_profiles"]
     assert executors["scalar_tolerance_check"]["input_schema"]["required"] == ["observed", "expected", "tolerance"]
@@ -372,6 +379,7 @@ def test_cli_tool_executors_returns_catalog(tmp_path, capsys):
         "checklist_consistency_check",
         "failure_mode_basis_check",
         "formula_code_invariant_check",
+        "librpa_gw_run_metadata_check",
         "metric_table_check",
         "scalar_tolerance_check",
     }
@@ -487,3 +495,95 @@ def test_formula_code_invariant_executor_checks_librpa_translation_items(tmp_pat
     assert result.run.outputs["failed_invariants"] == []
     assert result.evidence is not None
     assert result.evidence.supports_outputs == ["formula_code_invariant", "minimal_check"]
+
+
+def test_librpa_gw_run_metadata_executor_checks_frequency_grid_and_basis_cutoff(tmp_path):
+    from brain.v5.code import record_code_state
+    from brain.v5.evidence import record_artifact_ref
+    from brain.v5.tool_executors import execute_registered_tool_result
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "librpa-gw", context_id="gw-methods", title="LibRPA GW")
+    claim = create_claim(
+        ws,
+        topic_id="librpa-gw",
+        statement="The GW run metadata is adequate for reproducing the self-energy benchmark.",
+        evidence_profile="code_method",
+        confidence_state="hypothesis",
+        active_uncertainty="frequency grid and basis cutoff provenance",
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    code_state = record_code_state(
+        ws,
+        repo_id="librpa",
+        upstream_remote="origin",
+        upstream_branch="master",
+        upstream_commit="abc123",
+        local_branch="topic/gw-metadata",
+        worktree_path="D:/worktrees/librpa/gw-metadata",
+        dirty=False,
+        linked_records={"claim_id": claim.claim_id},
+    )
+    input_artifact = record_artifact_ref(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        artifact_type="librpa-input",
+        uri="D:/runs/librpa/si-gw/input.json",
+        summary="Versioned LibRPA GW input metadata.",
+    )
+    output_artifact = record_artifact_ref(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        artifact_type="librpa-output",
+        uri="D:/runs/librpa/si-gw/output.json",
+        summary="Versioned LibRPA GW output metadata.",
+    )
+
+    result = execute_registered_tool_result(
+        ws,
+        executor_id="librpa_gw_run_metadata_check",
+        recipe_id="recipe-librpa-gw-run-metadata-diagnostic",
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        inputs={
+            "frequency_grid": {
+                "source_ref": input_artifact.artifact_id,
+                "grid_type": "gauss-legendre",
+                "n_points": 80,
+                "omega_min_ev": 0.0,
+                "omega_max_ev": 120.0,
+            },
+            "basis_cutoff": {
+                "source_ref": output_artifact.artifact_id,
+                "cutoff_ev": 150.0,
+                "band_count": 96,
+            },
+            "expected": {
+                "grid_type": "gauss-legendre",
+                "min_frequency_points": 96,
+                "min_basis_cutoff_ev": 120.0,
+                "min_band_count": 64,
+            },
+        },
+        code_state_ids=[code_state.code_state_id],
+        artifact_ids=[input_artifact.artifact_id, output_artifact.artifact_id],
+        supports_outputs=["librpa_gw_run_metadata", "minimal_check"],
+        evidence_type="code_method",
+        evidence_summary="LibRPA GW run metadata check found an undersampled frequency grid.",
+    )
+
+    assert result.run.evidence_status == "refutes"
+    assert result.run.code_state_ids == [code_state.code_state_id]
+    assert result.run.artifact_ids == [input_artifact.artifact_id, output_artifact.artifact_id]
+    assert result.run.outputs["all_metadata_checks_passed"] is False
+    assert result.run.outputs["passed_checks"] == ["frequency_grid.grid_type", "basis_cutoff.cutoff_ev", "basis_cutoff.band_count"]
+    assert result.run.outputs["failed_checks"] == ["frequency_grid.n_points"]
+    assert result.run.outputs["missing_metadata"] == []
+    assert result.run.outputs["frequency_grid"]["source_ref"] == input_artifact.artifact_id
+    assert result.run.outputs["basis_cutoff"]["source_ref"] == output_artifact.artifact_id
+    assert result.evidence is not None
+    assert result.evidence.artifact_ids == [input_artifact.artifact_id, output_artifact.artifact_id]
+    assert result.evidence.supports_outputs == ["librpa_gw_run_metadata", "minimal_check"]

@@ -128,6 +128,14 @@ def builtin_domain_packs() -> dict[str, DomainPackRecord]:
                     "required_context_refs": ["code_state_ids", "formula_refs"],
                 },
                 {
+                    "executor_id": "librpa_gw_run_metadata_check",
+                    "recipe_id": "recipe-librpa-gw-run-metadata-diagnostic",
+                    "evidence_type": "code_method",
+                    "supports_outputs": ["librpa_gw_run_metadata", "minimal_check"],
+                    "use_when": "Check frequency-grid and basis-cutoff metadata from versioned LibRPA/GW input/output artifacts.",
+                    "required_context_refs": ["code_state_ids", "artifact_ids"],
+                },
+                {
                     "executor_id": "failure_mode_basis_check",
                     "recipe_id": "recipe-librpa-gw-failure-mode-review-basis",
                     "evidence_type": "code_method",

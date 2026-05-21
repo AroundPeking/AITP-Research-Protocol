@@ -73,6 +73,9 @@ Implemented:
 - LibRPA/GW formula-code invariant executor for explicit formula references,
   code references, expected relations, observed relations, and
   matched/failed/missing translation status.
+- LibRPA/GW run-metadata diagnostic executor for frequency-grid and
+  basis-cutoff metadata from versioned input/output artifacts, linked through
+  tool-run `code_state_ids` and `artifact_ids`.
 - Code workspace and code state provenance.
 - Trust cards and trust-update preflight/apply, including request-bound
   preflight proof tokens required before confidence-state mutation.

@@ -104,6 +104,48 @@ def run_formula_code_invariant_check(inputs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def run_librpa_gw_run_metadata_check(inputs: dict[str, Any]) -> dict[str, Any]:
+    frequency_grid = _frequency_grid_metadata(inputs.get("frequency_grid"))
+    basis_cutoff = _basis_cutoff_metadata(inputs.get("basis_cutoff"))
+    expected = _expected_librpa_metadata(inputs.get("expected"))
+    passed: list[str] = []
+    failed: list[str] = []
+
+    _record_check(
+        passed,
+        failed,
+        "frequency_grid.grid_type",
+        frequency_grid["grid_type"] == expected["grid_type"],
+    )
+    _record_check(
+        passed,
+        failed,
+        "frequency_grid.n_points",
+        frequency_grid["n_points"] >= expected["min_frequency_points"],
+    )
+    _record_check(
+        passed,
+        failed,
+        "basis_cutoff.cutoff_ev",
+        basis_cutoff["cutoff_ev"] >= expected["min_basis_cutoff_ev"],
+    )
+    _record_check(
+        passed,
+        failed,
+        "basis_cutoff.band_count",
+        basis_cutoff["band_count"] >= expected["min_band_count"],
+    )
+    return {
+        "all_metadata_checks_passed": not failed,
+        "passed_checks": passed,
+        "failed_checks": failed,
+        "missing_metadata": [],
+        "frequency_grid": frequency_grid,
+        "basis_cutoff": basis_cutoff,
+        "expected": expected,
+    }
+
+
 def infer_evidence_status(outputs: dict[str, Any]) -> str:
     if outputs.get("all_checked") is True:
         return "supports"
@@ -120,6 +162,10 @@ def infer_evidence_status(outputs: dict[str, Any]) -> str:
     if outputs.get("all_invariants_checked") is True:
         return "supports"
     if outputs.get("all_invariants_checked") is False:
+        return "refutes"
+    if outputs.get("all_metadata_checks_passed") is True:
+        return "supports"
+    if outputs.get("all_metadata_checks_passed") is False:
         return "refutes"
     if outputs.get("within_tolerance") is True:
         return "supports"
@@ -156,6 +202,51 @@ def _invariant_item(row: Any, index: int) -> dict[str, str]:
         "observed_relation": observed,
         "status": status,
     }
+
+
+def _frequency_grid_metadata(value: Any) -> dict[str, Any]:
+    row = _metadata_object(value, "frequency_grid")
+    result = {
+        "source_ref": _nonempty_string(row.get("source_ref"), "frequency_grid.source_ref"),
+        "grid_type": _nonempty_string(row.get("grid_type"), "frequency_grid.grid_type"),
+        "n_points": _positive_int(row.get("n_points"), "frequency_grid.n_points"),
+    }
+    for key in ("omega_min_ev", "omega_max_ev"):
+        if key in row:
+            result[key] = _number_from(row, key, "frequency_grid")
+    return result
+
+
+def _basis_cutoff_metadata(value: Any) -> dict[str, Any]:
+    row = _metadata_object(value, "basis_cutoff")
+    return {
+        "source_ref": _nonempty_string(row.get("source_ref"), "basis_cutoff.source_ref"),
+        "cutoff_ev": _nonnegative_number(row.get("cutoff_ev"), "basis_cutoff.cutoff_ev"),
+        "band_count": _positive_int(row.get("band_count"), "basis_cutoff.band_count"),
+    }
+
+
+def _expected_librpa_metadata(value: Any) -> dict[str, Any]:
+    row = _metadata_object(value, "expected")
+    return {
+        "grid_type": _nonempty_string(row.get("grid_type"), "expected.grid_type"),
+        "min_frequency_points": _positive_int(row.get("min_frequency_points"), "expected.min_frequency_points"),
+        "min_basis_cutoff_ev": _nonnegative_number(row.get("min_basis_cutoff_ev"), "expected.min_basis_cutoff_ev"),
+        "min_band_count": _positive_int(row.get("min_band_count"), "expected.min_band_count"),
+    }
+
+
+def _metadata_object(value: Any, path: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} must be an object")
+    return value
+
+
+def _record_check(passed: list[str], failed: list[str], name: str, ok: bool) -> None:
+    if ok:
+        passed.append(name)
+    else:
+        failed.append(name)
 
 
 def _checklist_item(row: Any, index: int) -> dict[str, str]:
@@ -210,3 +301,19 @@ def _number_from(inputs: dict[str, Any], key: str, path: str) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{path}.{key} must be numeric")
     return float(value)
+
+
+def _nonnegative_number(value: Any, path: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{path} must be numeric")
+    if value < 0:
+        raise ValueError(f"{path} must be non-negative")
+    return float(value)
+
+
+def _positive_int(value: Any, path: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{path} must be an integer")
+    if value <= 0:
+        raise ValueError(f"{path} must be positive")
+    return int(value)

@@ -13,6 +13,7 @@ from brain.v5.tool_executor_kernels import (
     run_checklist_consistency_check,
     run_failure_mode_basis_check,
     run_formula_code_invariant_check,
+    run_librpa_gw_run_metadata_check,
     run_metric_table_check,
     run_scalar_tolerance_check,
 )
@@ -151,6 +152,47 @@ def builtin_tool_executors() -> dict[str, ToolExecutorSpec]:
                 },
             },
             run=run_formula_code_invariant_check,
+        ),
+        ToolExecutorSpec(
+            executor_id="librpa_gw_run_metadata_check",
+            tool_family="sanity_check",
+            tool_name="librpa_gw_run_metadata_check",
+            execution_mode="safe_builtin",
+            version="1",
+            purpose="Check LibRPA/GW frequency-grid and basis-cutoff metadata against expected reproduction thresholds.",
+            evidence_profiles=("code_method", "mixed"),
+            input_schema={
+                "type": "object",
+                "required": ["frequency_grid", "basis_cutoff", "expected"],
+                "properties": {
+                    "frequency_grid": {
+                        "type": "object",
+                        "required": ["source_ref", "grid_type", "n_points"],
+                    },
+                    "basis_cutoff": {
+                        "type": "object",
+                        "required": ["source_ref", "cutoff_ev", "band_count"],
+                    },
+                    "expected": {
+                        "type": "object",
+                        "required": ["grid_type", "min_frequency_points", "min_basis_cutoff_ev", "min_band_count"],
+                    },
+                },
+            },
+            output_schema={
+                "type": "object",
+                "required": ["all_metadata_checks_passed", "passed_checks", "failed_checks", "frequency_grid", "basis_cutoff"],
+                "properties": {
+                    "all_metadata_checks_passed": {"type": "boolean"},
+                    "passed_checks": {"type": "array"},
+                    "failed_checks": {"type": "array"},
+                    "missing_metadata": {"type": "array"},
+                    "frequency_grid": {"type": "object"},
+                    "basis_cutoff": {"type": "object"},
+                    "expected": {"type": "object"},
+                },
+            },
+            run=run_librpa_gw_run_metadata_check,
         ),
         ToolExecutorSpec(
             executor_id="checklist_consistency_check",

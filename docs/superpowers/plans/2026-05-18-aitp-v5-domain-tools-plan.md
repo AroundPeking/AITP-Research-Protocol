@@ -8,10 +8,13 @@
 
 Current implementation note: the safe executor catalog now includes
 `formula_code_invariant_check`, a deterministic in-process formula-code
-translation checker, and `failure_mode_basis_check`, a deterministic
+translation checker, `librpa_gw_run_metadata_check`, a deterministic
+frequency-grid/basis-cutoff metadata checker for versioned LibRPA/GW
+input/output artifacts, and `failure_mode_basis_check`, a deterministic
 in-process review-basis checker. The LibRPA/GW domain pack recommends
-`recipe-librpa-gw-formula-code-invariant`; FQHE and LibRPA/GW domain packs also
-recommend `recipe-fqhe-failure-mode-review-basis` and
+`recipe-librpa-gw-formula-code-invariant` and
+`recipe-librpa-gw-run-metadata-diagnostic`; FQHE and LibRPA/GW domain packs
+also recommend `recipe-fqhe-failure-mode-review-basis` and
 `recipe-librpa-gw-failure-mode-review-basis`, so a passed
 `failure_mode_review_result_record` can cite concrete tool/validation basis
 rather than only prose.
@@ -23,7 +26,8 @@ rather than only prose.
 ## File Responsibility Map
 
 - `brain/v5/domain_packs.py`: built-in pack definitions, persistence, recommendations.
-- `brain/v5/tool_executors.py`: safe deterministic executors.
+- `brain/v5/tool_executors.py`: safe deterministic executor catalog and tool-run/evidence plumbing.
+- `brain/v5/tool_executor_kernels.py`: deterministic executor kernels.
 - `brain/v5/evidence.py`: evidence records linked to tool runs.
 - `brain/v5/brief.py`: recommended executor actions in execution briefs.
 - `tests/test_v5_domain_packs.py`: pack behavior.
