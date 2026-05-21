@@ -2557,3 +2557,78 @@ Each entry should record:
   - continue with remaining public write surfaces such as
     `record_reference_location` and `record_sensemaking_report`, or add
     host-side installation documentation/tests for native hook APIs.
+
+### 7b6cec2 - Gate Reference And Sensemaking Writes Through Pre-Tool Policy
+
+- Task: make `record_reference_location` and `record_sensemaking_report`
+  first-class pre-tool/gate actions instead of leaving them as record-only MCP
+  writes.
+- Planning source:
+  - v5 invariant that typed kernel records are authoritative and generated
+    summaries, task plans, findings files, progress files, and external-note
+    pointers are orientation-only;
+  - reference locations are not evidence by themselves, but they still become
+    typed research context and should not be created directly from generated
+    summaries;
+  - sensemaking reports steer future theoretical interpretation, so they must
+    go through the same pre-tool policy path as other context-shaping writes;
+  - previous ledger recommendation to cover `record_reference_location` and
+    `record_sensemaking_report`.
+- Changed files:
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/adapter_protocols.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/gate_protocols.py`
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_hooks.py`
+- Public/runtime behavior changes:
+  - `record_reference_location` and `record_sensemaking_report` participate in
+    context-aware pre-tool policy evaluation;
+  - summary/task-plan/findings/progress orientation surfaces cannot directly
+    drive reference-location or sensemaking-report typed records;
+  - adapter `trust_changing_actions` and `requires_kernel_call_before` include
+    both actions;
+  - generated bridge `runtime_gate_protocols` include reference-location and
+    sensemaking-report sequences with `evaluate_pre_tool_policy` before the
+    typed write;
+  - Codex/OpenCode platform event normalization maps
+    `aitp_v5_record_reference_location` and
+    `aitp_v5_record_sensemaking_report` to explicit v5 actions;
+  - Claude Code `PreToolUse` maps sensemaking/report and reference-location MCP
+    calls through the shared typed-record-backed policy path.
+- Tests:
+  - MCP pre-tool policy blocks findings-sourced reference-location recording;
+  - MCP pre-tool policy blocks progress-sourced sensemaking-report recording;
+  - adapter pre-tool event path infers both actions from MCP tool names and
+    returns the bridge gate protocol;
+  - Claude hook test denies a summary-sourced sensemaking-report write attempt;
+  - adapter packet tests assert both actions are advertised as kernel-gated
+    trust-relevant actions.
+- Verification:
+  - red tests failed as expected:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_hooks.py -q -k "reference_location_from_findings_source or sensemaking_report_from_progress_source or infers_reference_location_policy or infers_sensemaking_report_policy or summary_sourced_sensemaking_report"`:
+    5 failed because direct policy returned `log`, adapter runtime could not
+    infer the actions, and Claude hook allowed the sensemaking write;
+  - target green set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_hooks.py -q -k "reference_location_from_findings_source or sensemaking_report_from_progress_source or infers_reference_location_policy or infers_sensemaking_report_policy or summary_sourced_sensemaking_report"`:
+    5 passed;
+  - focused related set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_hooks.py tests/test_v5_public_surfaces.py tests/test_v5_contracts.py tests/test_v5_reference_locations.py tests/test_v5_sensemaking.py -q`:
+    153 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 362 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - native Codex/OpenCode hosts still need true lifecycle installer wiring;
+  - pre-tool coverage still does not cover every public MCP input or every
+    active risk dimension;
+  - reference-location records remain pointers, not evidence or validation.
+- Next recommended task:
+  - audit remaining MCP write surfaces against the pre-tool policy/gate list,
+    then either close the current policy-coverage pass or add the next missing
+    trust-relevant write surface.
