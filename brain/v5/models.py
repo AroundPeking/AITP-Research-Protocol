@@ -210,6 +210,7 @@ class EvidenceRecord:
     supports_outputs: list[str] = field(default_factory=list)
     source_refs: list[str] = field(default_factory=list)
     tool_run_ids: list[str] = field(default_factory=list)
+    validation_result_ids: list[str] = field(default_factory=list)
     artifact_ids: list[str] = field(default_factory=list)
     kind: str = "evidence"
 

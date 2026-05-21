@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from brain.v5.evolution import EvolutionProposal
-from brain.v5.models import ClaimRecord, CodeStateRecord, ValidationContractRecord
+from brain.v5.models import ClaimRecord, CodeStateRecord, ValidationContractRecord, ValidationResultRecord
 from brain.v5.risk import RiskAssessment
 
 
@@ -68,6 +68,7 @@ def evaluate_policy(
     code_states: list[CodeStateRecord] | None = None,
     evidence_refs: list[str] | None = None,
     validation_contracts: list[ValidationContractRecord] | None = None,
+    validation_results: list[ValidationResultRecord] | None = None,
     risk_level: str = "",
     risk_assessment: RiskAssessment | None = None,
     evolution_proposal: EvolutionProposal | None = None,
@@ -78,6 +79,7 @@ def evaluate_policy(
     states = code_states or []
     refs = evidence_refs or []
     contracts = validation_contracts or []
+    results = validation_results or []
     decision = PolicyDecision(allowed=True, action=action)
     ctx = context or {}
 
@@ -95,6 +97,9 @@ def evaluate_policy(
 
     if action in {"execute_tool", "record_tool_run"}:
         _guard_high_risk_tool_requires_validation_contract(decision, action, risk_level, contracts, ctx)
+
+    if action == "record_evidence":
+        _guard_high_risk_tool_evidence_requires_validation_result(decision, risk_level, results, ctx)
 
     if action == "reduce_friction_with_trust_card":
         _guard_invalidated_trust_card_cannot_reduce_friction(decision, risk_assessment)
@@ -228,6 +233,50 @@ def _validation_contract_matches_tool(
         if action == "execute_tool" and recipe_id in recipe_ids and executor_id in executor_ids:
             return True
     return False
+
+
+def _guard_high_risk_tool_evidence_requires_validation_result(
+    decision: PolicyDecision,
+    risk_level: str,
+    validation_results: list[ValidationResultRecord],
+    context: dict[str, Any],
+) -> None:
+    if risk_level not in {"rigorous", "adversarial"}:
+        return
+    tool_run_ids = set(_context_list(context.get("tool_run_ids")))
+    if not tool_run_ids:
+        return
+    passed_results = [
+        result
+        for result in validation_results
+        if result.status == "passed"
+        and not result.missing_outputs
+        and not result.failure_modes_observed
+    ]
+    if not passed_results:
+        decision.add_block(
+            "high_risk_tool_evidence_requires_validation_result",
+            "rigorous or adversarial tool-derived evidence requires a passed validation result for the linked tool run",
+            "attach_passed_validation_result",
+            severity="hard_block",
+        )
+        return
+    passed_tool_runs = {result.tool_run_id for result in passed_results}
+    if not tool_run_ids.issubset(passed_tool_runs):
+        decision.add_block(
+            "high_risk_tool_evidence_validation_result_mismatch",
+            "provided validation results do not pass every linked high-risk tool run",
+            "attach_matching_validation_result",
+            severity="hard_block",
+        )
+
+
+def _context_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item)]
+    if value:
+        return [str(value)]
+    return []
 
 
 def _guard_invalidated_trust_card_cannot_reduce_friction(

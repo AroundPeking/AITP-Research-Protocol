@@ -26,6 +26,43 @@ def _seed_claim(tmp_path, *, evidence_profile: str = "toy_numeric"):
     return ws, claim
 
 
+def _seed_passed_validation_result(tmp_path):
+    from brain.v5.tools import record_tool_run
+    from brain.v5.validation import create_validation_contract, record_validation_result
+
+    ws, claim = _seed_claim(tmp_path)
+    contract = create_validation_contract(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        required_checks=["finite-size counting benchmark"],
+        failure_modes=["finite-size artifact"],
+        required_evidence_outputs=["counting_table"],
+        tool_recipe_ids=["recipe-fqhe-ed"],
+        executor_ids=["pytest"],
+    )
+    run = record_tool_run(
+        ws,
+        recipe_id="recipe-fqhe-ed",
+        tool_family="numerical",
+        tool_name="pytest",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        outputs={"counting_table": "ok"},
+    )
+    result = record_validation_result(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        contract_id=contract.contract_id,
+        tool_run_id=run.run_id,
+        status="passed",
+        checked_outputs=["counting_table"],
+        summary="Required counting output was checked.",
+    )
+    return ws, claim, run, result
+
+
 def _invoke(args, capsys):
     from brain.v5.cli import main
 
@@ -195,6 +232,58 @@ def test_mcp_pre_tool_policy_blocks_record_evidence_from_summary_source(tmp_path
     assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
         "no_summary_surface_as_truth_source"
     ]
+
+
+def test_mcp_pre_tool_policy_blocks_rigorous_tool_evidence_without_validation_result(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    _, claim, run, _ = _seed_passed_validation_result(tmp_path)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="record_evidence",
+        claim_id=claim.claim_id,
+        source_kind="typed_records",
+        risk_level="rigorous",
+        tool_run_ids=[run.run_id],
+    )
+
+    assert payload["action"] == "record_evidence"
+    assert payload["risk_level"] == "rigorous"
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["required_actions"] == ["attach_passed_validation_result"]
+    assert payload["tool_run_ids"] == [run.run_id]
+    assert payload["validation_result_ids"] == []
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "high_risk_tool_evidence_requires_validation_result"
+    ]
+
+
+def test_mcp_pre_tool_policy_accepts_rigorous_tool_evidence_with_passed_validation_result(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    _, claim, run, result = _seed_passed_validation_result(tmp_path)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="record_evidence",
+        claim_id=claim.claim_id,
+        source_kind="typed_records",
+        risk_level="rigorous",
+        tool_run_ids=[run.run_id],
+        validation_result_ids=[result.result_id],
+    )
+
+    assert payload["action"] == "record_evidence"
+    assert payload["risk_level"] == "rigorous"
+    assert payload["tool_run_ids"] == [run.run_id]
+    assert payload["validation_result_ids"] == [result.result_id]
+    assert payload["mode"] == "log"
+    assert payload["block"] is False
+    assert payload["policy_reasons"] == []
 
 
 def test_mcp_pre_tool_policy_blocks_code_state_from_progress_source(tmp_path):

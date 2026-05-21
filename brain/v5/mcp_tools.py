@@ -10,7 +10,6 @@ from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
-from brain.v5.evidence import record_evidence
 from brain.v5.hook_fixture_templates import install_codex_hook_fixture, install_opencode_hook_fixture
 from brain.v5.hook_install_templates import (
     install_claude_code_hook_settings,
@@ -29,6 +28,7 @@ from brain.v5.sensemaking import record_sensemaking_report
 from brain.v5.validation import create_validation_contract, record_validation_result
 from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
 from brain.v5.memory import apply_promotion_packet, create_promotion_packet
+from brain.v5.mcp_evidence import aitp_v5_record_evidence
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.subagents import ingest_subagent_result
@@ -97,18 +97,6 @@ def aitp_v5_record_code_state(
         runtime_environment=runtime_environment, linked_records=linked_records,
         known_divergence=known_divergence)
     return require_valid_public_surface("code_state_record", {"ok": True, **asdict(state)})
-
-
-def aitp_v5_record_evidence(
-    base: str, *, topic_id: str, claim_id: str, evidence_type: str, status: str,
-    summary: str, supports_outputs: list[str] | None = None, source_refs: list[str] | None = None,
-    tool_run_ids: list[str] | None = None, artifact_ids: list[str] | None = None,
-) -> dict:
-    evidence = record_evidence(_ws(base), topic_id=topic_id, claim_id=claim_id,
-        evidence_type=evidence_type, status=status, summary=summary,
-        supports_outputs=supports_outputs, source_refs=source_refs,
-        tool_run_ids=tool_run_ids, artifact_ids=artifact_ids)
-    return require_valid_public_surface("evidence_record", {"ok": True, **asdict(evidence)})
 
 
 def aitp_v5_register_tool_recipe(
@@ -331,6 +319,7 @@ def aitp_v5_evaluate_pre_tool_policy(
     base: str, *, session_id: str, action: str, claim_id: str = "",
     evidence_refs: list[str] | None = None, code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    tool_run_ids: list[str] | None = None, validation_result_ids: list[str] | None = None,
     recipe_id: str = "", executor_id: str = "",
     source_kind: str = "", source_ref: str = "", orientation_only: bool = False,
     risk_level: str = "guided", human_checkpoint_id: str = "",
@@ -339,6 +328,7 @@ def aitp_v5_evaluate_pre_tool_policy(
         _ws(base), session_id=session_id, action=action, claim_id=claim_id,
         evidence_refs=evidence_refs, code_state_ids=code_state_ids,
         validation_contract_ids=validation_contract_ids,
+        tool_run_ids=tool_run_ids, validation_result_ids=validation_result_ids,
         recipe_id=recipe_id, executor_id=executor_id,
         source_kind=source_kind, source_ref=source_ref, orientation_only=orientation_only,
         risk_level=risk_level, human_checkpoint_id=human_checkpoint_id))

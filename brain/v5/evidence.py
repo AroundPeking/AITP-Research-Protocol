@@ -61,6 +61,7 @@ def record_evidence(
     supports_outputs: list[str] | None = None,
     source_refs: list[str] | None = None,
     tool_run_ids: list[str] | None = None,
+    validation_result_ids: list[str] | None = None,
     artifact_ids: list[str] | None = None,
     body: str | None = None,
 ) -> EvidenceRecord:
@@ -77,6 +78,7 @@ def record_evidence(
         supports_outputs=supports_outputs or [],
         source_refs=source_refs or [],
         tool_run_ids=tool_run_ids or [],
+        validation_result_ids=validation_result_ids or [],
         artifact_ids=artifact_ids or [],
     )
     write_record(

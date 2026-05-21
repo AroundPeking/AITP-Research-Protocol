@@ -96,6 +96,7 @@ def _build_parser() -> argparse.ArgumentParser:
     evr.add_argument("--supports-output", action="append", default=[], dest="supports_outputs")
     evr.add_argument("--source-ref", action="append", default=[], dest="source_refs")
     evr.add_argument("--tool-run-id", action="append", default=[], dest="tool_run_ids")
+    evr.add_argument("--validation-result-id", action="append", default=[], dest="validation_result_ids")
     evr.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
 
     tlp = sp.add_parser("tool"); tls = tlp.add_subparsers(dest="tool_command", required=True)
@@ -279,7 +280,8 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         ev = record_evidence(ws, topic_id=args.topic_id, claim_id=args.claim_id,
             evidence_type=args.evidence_type, status=args.status, summary=args.summary,
             supports_outputs=args.supports_outputs, source_refs=args.source_refs,
-            tool_run_ids=args.tool_run_ids, artifact_ids=args.artifact_ids)
+            tool_run_ids=args.tool_run_ids, validation_result_ids=args.validation_result_ids,
+            artifact_ids=args.artifact_ids)
         return {"ok": True, **require_valid_public_surface("evidence_record", {"ok": True, **asdict(ev)})}
 
     if args.command == "tool" and args.tool_command == "recipe" and args.tool_recipe_command == "register":

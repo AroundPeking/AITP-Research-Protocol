@@ -210,7 +210,7 @@ _RUNTIME_RECORD_PROTOCOLS = {
         "entrypoint": "aitp_v5_record_evidence",
         "sequence": list(_RECORD_SEQUENCE_BY_ACTION["record_evidence"]),
         "required_typed_refs": ["topic_id", "claim_id"],
-        "accepted_link_fields": ["source_refs", "tool_run_ids", "artifact_ids"],
+        "accepted_link_fields": ["source_refs", "tool_run_ids", "validation_result_ids", "artifact_ids"],
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },

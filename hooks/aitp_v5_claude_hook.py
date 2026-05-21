@@ -182,11 +182,15 @@ def _context_policy_from_workspace(
 ) -> PolicyDecision | None:
     if action not in {
         "record_code_state",
+        "record_evidence",
+        "record_tool_run",
+        "execute_tool",
         "register_tool_recipe",
         "record_reference_location",
         "record_physics_object",
         "record_object_relation",
         "record_sensemaking_report",
+        "ingest_subagent_result",
         "create_promotion_packet",
         "apply_promotion_packet",
         "request_human_checkpoint",
@@ -209,9 +213,15 @@ def _context_policy_from_workspace(
             claim_id=claim_id,
             code_state_ids=_input_list(tool_input, "code_state_ids"),
             evidence_refs=_input_list(tool_input, "evidence_refs"),
+            validation_contract_ids=_input_list(tool_input, "validation_contract_ids"),
+            tool_run_ids=_input_list(tool_input, "tool_run_ids"),
+            validation_result_ids=_input_list(tool_input, "validation_result_ids"),
+            recipe_id=str(tool_input.get("recipe_id") or tool_input.get("recipe") or ""),
+            executor_id=str(tool_input.get("executor_id") or tool_input.get("executor") or ""),
             source_kind=str(tool_input.get("source_kind") or ""),
             source_ref=str(tool_input.get("source_ref") or ""),
             orientation_only=bool(tool_input.get("orientation_only") is True),
+            risk_level=str(tool_input.get("risk_level") or "guided"),
             human_checkpoint_id=str(tool_input.get("human_checkpoint_id") or tool_input.get("checkpoint_id") or ""),
         )
     except Exception:

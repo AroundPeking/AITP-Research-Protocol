@@ -13,7 +13,7 @@ def validate_evidence_record(payload: dict[str, Any], *, path: str = "evidence_r
         return result
     for key in ("evidence_id", "topic_id", "claim_id", "evidence_type", "status", "summary"):
         _require_nonempty_str(payload, key, path, result)
-    for key in ("supports_outputs", "source_refs", "tool_run_ids", "artifact_ids"):
+    for key in ("supports_outputs", "source_refs", "tool_run_ids", "validation_result_ids", "artifact_ids"):
         _require_list(payload.get(key), f"{path}.{key}", result)
     return result
 

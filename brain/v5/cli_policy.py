@@ -20,6 +20,8 @@ def add_policy_parser(sp: argparse._SubParsersAction) -> None:
     pre.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     pre.add_argument("--code-state-id", action="append", default=[], dest="code_state_ids")
     pre.add_argument("--validation-contract-id", action="append", default=[], dest="validation_contract_ids")
+    pre.add_argument("--tool-run-id", action="append", default=[], dest="tool_run_ids")
+    pre.add_argument("--validation-result-id", action="append", default=[], dest="validation_result_ids")
     pre.add_argument("--recipe", default="", dest="recipe_id")
     pre.add_argument("--executor", default="", dest="executor_id")
     pre.add_argument("--source-kind", default="")
@@ -39,6 +41,8 @@ def dispatch_policy_command(args: argparse.Namespace, ws) -> dict[str, Any]:
         evidence_refs=args.evidence_refs,
         code_state_ids=args.code_state_ids,
         validation_contract_ids=args.validation_contract_ids,
+        tool_run_ids=args.tool_run_ids,
+        validation_result_ids=args.validation_result_ids,
         recipe_id=args.recipe_id,
         executor_id=args.executor_id,
         source_kind=args.source_kind,

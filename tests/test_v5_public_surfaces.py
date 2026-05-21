@@ -368,6 +368,7 @@ def test_public_surface_validator_accepts_typed_write_records():
         "supports_outputs": ["minimal_check"],
         "source_refs": ["paper:example"],
         "tool_run_ids": ["tool-run-ed"],
+        "validation_result_ids": ["validation-result-ed"],
         "artifact_ids": ["artifact-spectrum"],
     }
     tool_run = {

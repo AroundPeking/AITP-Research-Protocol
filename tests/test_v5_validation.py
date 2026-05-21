@@ -328,6 +328,79 @@ def test_validation_result_cli_mcp_and_runtime_surface(tmp_path, capsys):
     assert runtime_entrypoints()["record_validation_result"]["surface"] == "validation_result_record"
 
 
+def test_evidence_record_links_passed_validation_result_cli_mcp_surface(tmp_path, capsys):
+    ws, claim, contract, run = _setup_validation_contract_and_run(tmp_path)
+
+    from brain.v5.cli import main
+    from brain.v5.evidence import record_evidence
+    from brain.v5.mcp_tools import aitp_v5_record_evidence
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.validation import record_validation_result
+
+    result = record_validation_result(
+        ws,
+        topic_id="gw",
+        claim_id=claim.claim_id,
+        contract_id=contract.contract_id,
+        tool_run_id=run.run_id,
+        status="passed",
+        checked_outputs=["benchmark_table", "diagnostic_plot"],
+        summary="Both outputs passed validation.",
+    )
+
+    evidence = record_evidence(
+        ws,
+        topic_id="gw",
+        claim_id=claim.claim_id,
+        evidence_type="code_method",
+        status="supports",
+        summary="Kernel evidence links the passed validation result.",
+        tool_run_ids=[run.run_id],
+        validation_result_ids=[result.result_id],
+    )
+    assert evidence.validation_result_ids == [result.result_id]
+    assert require_valid_public_surface("evidence_record", {"ok": True, **asdict(evidence)})["ok"] is True
+
+    assert main(
+        [
+            "--base",
+            str(tmp_path),
+            "evidence",
+            "record",
+            "--topic",
+            "gw",
+            "--claim",
+            claim.claim_id,
+            "--type",
+            "code_method",
+            "--status",
+            "supports",
+            "--summary",
+            "CLI evidence links the passed validation result.",
+            "--tool-run-id",
+            run.run_id,
+            "--validation-result-id",
+            result.result_id,
+        ]
+    ) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    assert cli_payload["tool_run_ids"] == [run.run_id]
+    assert cli_payload["validation_result_ids"] == [result.result_id]
+
+    mcp_payload = aitp_v5_record_evidence(
+        str(tmp_path),
+        topic_id="gw",
+        claim_id=claim.claim_id,
+        evidence_type="code_method",
+        status="supports",
+        summary="MCP evidence links the passed validation result.",
+        tool_run_ids=[run.run_id],
+        validation_result_ids=[result.result_id],
+    )
+    assert mcp_payload["tool_run_ids"] == [run.run_id]
+    assert mcp_payload["validation_result_ids"] == [result.result_id]
+
+
 def test_human_checkpoint_records_reason_and_decision(tmp_path):
     from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
     from brain.v5.public_surfaces import require_valid_public_surface

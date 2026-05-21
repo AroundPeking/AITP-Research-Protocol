@@ -6,7 +6,7 @@ from typing import Any
 
 from brain.v5.hook_adapters import hook_decision_payload
 from brain.v5.hooks import decide_pre_tool_use
-from brain.v5.models import CodeStateRecord, HumanCheckpointRecord, ValidationContractRecord
+from brain.v5.models import CodeStateRecord, HumanCheckpointRecord, ValidationContractRecord, ValidationResultRecord
 from brain.v5.policy import PolicyDecision, evaluate_policy
 from brain.v5.store import list_records
 from brain.v5.workspace import get_claim, get_session_binding
@@ -43,6 +43,8 @@ def context_policy_decision(
     evidence_refs: list[str] | None = None,
     code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    tool_run_ids: list[str] | None = None,
+    validation_result_ids: list[str] | None = None,
     recipe_id: str = "",
     executor_id: str = "",
     source_kind: str = "",
@@ -68,6 +70,11 @@ def context_policy_decision(
             claim.claim_id,
             _clean_list(validation_contract_ids),
         ),
+        validation_results=_resolve_validation_results(
+            ws,
+            claim.claim_id,
+            _clean_list(validation_result_ids),
+        ),
         risk_level=risk_level,
         context={
             "source_kind": source_kind.strip().lower(),
@@ -77,6 +84,8 @@ def context_policy_decision(
             "human_checkpoint_approved": approved_checkpoint,
             "recipe_id": recipe_id,
             "executor_id": executor_id,
+            "tool_run_ids": _clean_list(tool_run_ids),
+            "validation_result_ids": _clean_list(validation_result_ids),
         },
     )
 
@@ -90,6 +99,8 @@ def evaluate_context_pre_tool_policy(
     evidence_refs: list[str] | None = None,
     code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    tool_run_ids: list[str] | None = None,
+    validation_result_ids: list[str] | None = None,
     recipe_id: str = "",
     executor_id: str = "",
     source_kind: str = "",
@@ -109,6 +120,8 @@ def evaluate_context_pre_tool_policy(
         evidence_refs=evidence_refs,
         code_state_ids=code_state_ids,
         validation_contract_ids=validation_contract_ids,
+        tool_run_ids=tool_run_ids,
+        validation_result_ids=validation_result_ids,
         recipe_id=recipe_id,
         executor_id=executor_id,
         source_kind=source_kind,
@@ -122,6 +135,10 @@ def evaluate_context_pre_tool_policy(
         contract.contract_id
         for contract in _resolve_validation_contracts(ws, resolved_claim_id, _clean_list(validation_contract_ids))
     ]
+    resolved_result_ids = [
+        result.result_id
+        for result in _resolve_validation_results(ws, resolved_claim_id, _clean_list(validation_result_ids))
+    ]
     payload = {"ok": True, **hook_decision_payload(decision, hook_name="pre_tool")}
     payload.update(
         {
@@ -131,6 +148,8 @@ def evaluate_context_pre_tool_policy(
             "risk_level": risk_level,
             "human_checkpoint_id": human_checkpoint_id,
             "validation_contract_ids": resolved_contract_ids,
+            "tool_run_ids": _clean_list(tool_run_ids),
+            "validation_result_ids": resolved_result_ids,
             "recipe_id": recipe_id,
             "executor_id": executor_id,
             "policy_reasons": [
@@ -177,6 +196,22 @@ def _resolve_validation_contracts(
         record
         for record in records
         if record.contract_id in wanted and record.claim_id == claim_id and record.status == "open"
+    ]
+
+
+def _resolve_validation_results(
+    ws,
+    claim_id: str,
+    requested_ids: list[str],
+) -> list[ValidationResultRecord]:
+    if not requested_ids:
+        return []
+    wanted = set(requested_ids)
+    records = list_records(ws.registry_dir("validation_results"), ValidationResultRecord)
+    return [
+        record
+        for record in records
+        if record.result_id in wanted and record.claim_id == claim_id
     ]
 
 

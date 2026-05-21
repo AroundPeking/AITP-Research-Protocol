@@ -35,7 +35,7 @@ _RUNTIME_GATE_PROTOCOLS = {
             "write_session_summary",
         ],
         "required_typed_refs": ["topic_id", "claim_id"],
-        "allowed_state_sources": ["typed_records", "typed_evidence_records"],
+        "allowed_state_sources": ["typed_records", "typed_evidence_records", "typed_validation_records"],
         "policy_reasons_field": "policy_reasons",
         "human_checkpoint_required": False,
         "truth_source": "typed_records",
