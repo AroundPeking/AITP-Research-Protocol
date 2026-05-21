@@ -2822,3 +2822,54 @@ Each entry should record:
   - continue migration completeness by deciding whether old L3 process-note
     bodies should be copied into v5 archival records or remain provenance-linked
     summaries, then move to the next gap if that policy is intentionally deferred.
+
+### 173fa1a - Archive Legacy L3 Process Bodies
+
+- Task: reduce long-term dependence on legacy topic files by copying migrated L3
+  process-note bodies into v5 typed evidence Markdown, not just preserving
+  summaries and provenance refs.
+- Planning source:
+  - goal invariant that legacy content should migrate into v5 typed records;
+  - previous residual risk that process-note migration preserved only summaries
+    plus `legacy_l3_process:*` source refs;
+  - user requirement that wrong attempts, derivation paths, and gap-audit
+    process should remain detailed in the new architecture.
+- Changed files:
+  - `brain/v5/evidence.py`
+  - `brain/v5/legacy_l3_process_records.py`
+  - `tests/test_v5_legacy_bridge.py`
+- Public/runtime behavior changes:
+  - `record_evidence` accepts an optional explicit Markdown `body` while keeping
+    the previous summary-only default for existing callers;
+  - legacy L3 process-note migration writes evidence bodies with source path and
+    a `Migrated Legacy Body` section containing the original legacy Markdown
+    body;
+  - process-note evidence remains `legacy_seed` and still requires v5 review
+    before validation or promotion.
+- Tests:
+  - legacy L3 process migration now asserts that derive, gap-audit, and diagnose
+    evidence files contain the original legacy note prose after migration.
+- Verification:
+  - red test failed as expected:
+    `python -m pytest tests\test_v5_legacy_bridge.py -q -k "l3_process"`:
+    1 failed because the migrated evidence body only contained `# Evidence` and
+    the summary;
+  - target green set:
+    same command: 1 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_legacy_bridge.py tests\test_v5_evidence_tools.py tests\test_v5_public_surfaces.py tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`:
+    82 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 370 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - this archives L3 process-note bodies, but L1 and L4 legacy evidence still
+    mainly preserve summaries plus provenance refs unless separately expanded;
+  - very large legacy process artifacts may eventually need artifact-reference
+    policy rather than inline Markdown bodies.
+- Next recommended task:
+  - either extend archival-body migration to L1/L4 legacy artifacts, or switch
+    to the next planned implementation gap: native Codex/OpenCode lifecycle
+    hook wiring.
