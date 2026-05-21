@@ -3842,3 +3842,69 @@ Each entry should record:
   - continue with remaining native Codex/OpenCode lifecycle installer wiring,
     or deepen pre-tool policy coverage for MCP inputs and active risk
     dimensions.
+
+### a43851a - Install Codex Native Hooks
+
+- Task: add a Codex-native `hooks.json` merge installer so AITP v5 can wire
+  lifecycle events into an existing Codex hooks file instead of relying only on
+  generated fixture metadata.
+- Planning source:
+  - major remaining hook gap in
+    `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`;
+  - v5 invariant that runtime hooks and generated bridge files are metadata and
+    cannot become truth sources;
+  - goal requirement for CLI/MCP/runtime/hook symmetry and reviewable
+    implementation steps.
+- Changed files:
+  - `brain/v5/hook_codex_install.py`
+  - `brain/v5/mcp_hook_install.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/hook_install_contracts.py`
+  - `brain/v5/mcp_tools.py`
+  - `tests/test_v5_adapters.py`
+- Public/runtime behavior changes:
+  - new helper `install_codex_hooks_json(...)` in a focused Codex installer
+    module;
+  - `aitp-v5 adapter install-hooks codex <session-id> --settings <hooks.json>`
+    merges AITP `PreToolUse` and `PostToolUse` command hooks into an existing
+    Codex hooks JSON file;
+  - the installer preserves existing events, avoids duplicate AITP hooks on
+    repeated runs, writes the bridge Markdown plus JSON sidecar, and returns the
+    contracted `codex_hook_installation` public surface;
+  - `aitp_v5_install_codex_hook_fixture(..., hooks_path=<hooks.json>)` exposes
+    the same native install path through MCP while retaining the older fixture
+    path with `output_path`.
+- Tests:
+  - native installer preserves existing Codex hooks, writes sidecar bridge, and
+    is idempotent;
+  - CLI `adapter install-hooks codex --settings` returns the contracted payload;
+  - MCP `aitp_v5_install_codex_hook_fixture(..., hooks_path=...)` returns the
+    contracted payload;
+  - architecture boundary test keeps hook template rendering separate from the
+    Codex native installer module.
+- Verification:
+  - initial red set:
+    `python -m pytest tests\test_v5_adapters.py::test_codex_native_hooks_json_installer_merges_lifecycle_hooks tests\test_v5_adapters.py::test_cli_adapter_install_hooks_merges_codex_hooks_json tests\test_v5_adapters.py::test_mcp_codex_native_hook_installer_returns_contract_payload -q`:
+    3 failed because the helper, CLI `--settings`, and MCP `hooks_path` surface
+    did not exist;
+  - target set after implementation and refactor:
+    `python -m pytest tests\test_v5_adapters.py::test_codex_native_hooks_json_installer_merges_lifecycle_hooks tests\test_v5_adapters.py::test_cli_adapter_install_hooks_merges_codex_hooks_json tests\test_v5_adapters.py::test_mcp_codex_native_hook_installer_returns_contract_payload tests\test_v5_architecture_boundaries.py::test_hook_install_template_module_stays_renderer_free -q`:
+    4 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_adapters.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_cli.py tests\test_v5_architecture_boundaries.py -q`:
+    107 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    409 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - this installs into a supplied Codex hooks JSON path; a future packaged
+    installer should discover the host config path and report conflicts before
+    writing;
+  - OpenCode still has a generated plugin fixture but not equivalent native
+    lifecycle config merging.
+- Next recommended task:
+  - implement the OpenCode native lifecycle installer or broaden pre-tool
+    policy coverage for remaining MCP inputs and active risk dimensions.

@@ -200,6 +200,12 @@ The generated `pre_tool_event_runner.stdin_runner.argv` field advertises that
 host-facing command directly in the bridge sidecar. Codex can also materialize a
 native-ish hook fixture with
 `aitp-v5 adapter install-hooks codex <session-id> --output .codex/AITP_V5_HOOKS.json`;
+or it can merge AITP lifecycle hooks into an existing Codex hooks file with
+`aitp-v5 adapter install-hooks codex <session-id> --settings .codex/hooks.json`.
+The `--settings` path preserves existing Codex hook events, adds idempotent
+`PreToolUse` and `PostToolUse` command hooks that call
+`hooks/aitp_v5_adapter_event_runner.py`, and writes the bridge sidecar used by
+the pre-tool policy runner.
 OpenCode has the matching plugin fixture at
 `aitp-v5 adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json`.
 Both fixtures write the bridge and sidecar, then point pre-tool hooks at the

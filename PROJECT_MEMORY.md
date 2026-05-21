@@ -86,6 +86,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `cwd`; `pre_tool` returns typed policy decisions, while `post_tool` persists
   hook trace records under `.aitp/runtime/hook_trace_events.jsonl`. It is
   runtime metadata only and keeps `summary_inputs_trusted=false`.
+- Codex can also merge AITP v5 lifecycle hooks into an existing Codex
+  `hooks.json` file with
+  `aitp-v5 adapter install-hooks codex <session-id> --settings .codex/hooks.json`.
+  The installer preserves existing events, adds idempotent `PreToolUse` and
+  `PostToolUse` command hooks, writes the bridge sidecar, and validates the same
+  `codex_hook_installation` public surface. The generated hooks file is runtime
+  metadata only; typed kernel records remain authoritative.
 - OpenCode can materialize plugin bridge instructions with
   `aitp-v5 adapter hook-bridge opencode <session-id> --output .opencode/AITP_V5_PLUGIN_BRIDGE.md`.
 - OpenCode can materialize a native-ish stdin-runner plugin fixture with

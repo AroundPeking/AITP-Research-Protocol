@@ -16,6 +16,8 @@ Implemented:
 - derived `runtime_hook_installation` templates in v5 adapter packets;
 - Codex hook bridge writer derived from `runtime_hook_installation`;
 - CLI/MCP materializers for the Codex hook bridge from an actual adapter packet;
+- Codex native `hooks.json` merge installer that preserves existing hooks and
+  deduplicates AITP v5 hook commands;
 - OpenCode plugin bridge writer derived from `runtime_hook_installation`;
 - CLI/MCP materializers for the OpenCode plugin bridge from an actual adapter
   packet;
@@ -54,8 +56,10 @@ Documented here:
 
 Not implemented in this slice:
 
-- one-click installer wiring for Codex, Claude Code, or OpenCode native hook
-  configuration.
+- one-click installer wiring for OpenCode native hook configuration beyond the
+  generated plugin fixture;
+- packaged host-specific installer UX around the existing Codex and Claude Code
+  merge installers.
 
 ## Invariants
 
@@ -174,8 +178,9 @@ Persistence output:
 ## Codex Template
 
 Codex currently uses AITP primarily through skills, MCP, runtime entrypoints, and
-the repository workflow. Until a native Codex lifecycle hook installer exists,
-the Codex-facing runtime should treat these commands as explicit guard calls.
+the repository workflow. Codex can either call these commands explicitly as
+guard calls or install them into a native `hooks.json` file with the merge
+installer documented below.
 
 Recommended placement:
 
@@ -242,15 +247,31 @@ typed policy decisions and `hooks.post_tool` for appending contracted
 `hook_trace_event_record` entries to `.aitp/runtime/hook_trace_events.jsonl`.
 It is runtime metadata only; typed kernel records remain authoritative.
 
+For Codex hosts that use a native `hooks.json`, install into the existing file
+instead of writing a separate fixture:
+
+```powershell
+aitp-v5 --base <workspace> adapter install-hooks codex <session-id> --settings .codex/hooks.json
+```
+
+That command preserves existing Codex hook events, adds idempotent `PreToolUse`
+and `PostToolUse` command hooks that call
+`hooks/aitp_v5_adapter_event_runner.py`, writes the Codex bridge Markdown plus
+JSON sidecar, and returns the same contracted `codex_hook_installation` payload.
+The hooks file remains runtime metadata; it cannot update kernel state or claim
+trust directly.
+
 MCP clients use:
 
 ```text
 aitp_v5_write_codex_hook_bridge(base, session_id, output_path)
 aitp_v5_install_codex_hook_fixture(base, session_id, output_path)
+aitp_v5_install_codex_hook_fixture(base, session_id, hooks_path=<hooks.json>)
 ```
 
-Both surfaces return a contracted `codex_hook_bridge` payload and keep
-`summary_inputs_trusted=false`. The payload also carries
+The bridge surface returns a contracted `codex_hook_bridge` payload; the install
+surfaces return a contracted `codex_hook_installation` payload. Both keep
+`summary_inputs_trusted=false`. The bridge payload also carries
 `pre_tool_policy_entrypoint`, pointing to the shared
 `pre_tool_policy_decision` CLI/MCP surface for validation and L2-promotion
 pre-tool checks. It also carries `gate_protocols` generated from the adapter
@@ -460,6 +481,8 @@ typed kernel records remain authoritative.
 
 Future implementation should add tests and installer assets for:
 
-- native adapter wiring that automatically calls the shared
+- native OpenCode adapter wiring that automatically calls the shared
   `pre_tool_policy_decision` and `hook_trace_event_record` surfaces from real
-  Codex/OpenCode lifecycle events rather than generated fixture metadata.
+  OpenCode lifecycle events rather than generated fixture metadata;
+- packaged runtime installer UX that chooses the correct Codex/Claude/OpenCode
+  host config path and reports conflicts before writing.

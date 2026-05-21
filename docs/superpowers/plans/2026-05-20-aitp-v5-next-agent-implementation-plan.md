@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-d4aa384 feat(v5): persist trust update history
+a43851a feat(v5): install codex native hooks
 ```
 
 Current focused v5 verification:
@@ -37,10 +37,10 @@ $files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullNa
 pytest $files -q
 ```
 
-Expected baseline as of `d4aa384`:
+Expected baseline as of `a43851a`:
 
 ```text
-406 passed
+409 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -172,6 +172,12 @@ Implemented:
   `aitp_v5_install_codex_hook_fixture`; the fixture writes the bridge/sidecar
   and points pre-tool events at the policy runner and post-tool events at the
   trace-persistence runner with a declared repository `cwd`.
+- Codex can now merge AITP v5 lifecycle hooks into an existing Codex
+  `hooks.json` file through
+  `aitp-v5 adapter install-hooks codex <session-id> --settings <hooks.json>` and
+  `aitp_v5_install_codex_hook_fixture(..., hooks_path=...)`; the installer
+  preserves existing hooks, avoids duplicate AITP commands, writes the bridge
+  sidecar, and returns the contracted `codex_hook_installation` surface.
 - OpenCode can now write a native-ish stdin-runner plugin fixture through
   `aitp-v5 adapter install-hooks opencode <session-id> --output <path>` and
   `aitp_v5_install_opencode_hook_fixture`; the fixture writes the plugin
@@ -252,15 +258,18 @@ Implemented:
 
 Major remaining gaps:
 
-- Hook helpers still need true native Codex/OpenCode lifecycle installer wiring.
+- Hook helpers still need true native OpenCode lifecycle installer wiring and
+  broader host packaging.
   Codex explicit bridge materialization, Claude Code settings template
-  generation and merge installation, OpenCode plugin bridge materialization, and
+  generation and merge installation, Codex `hooks.json` merge installation,
+  OpenCode plugin bridge materialization, and
   post-tool trace persistence surfaces exist; Codex/OpenCode now have a
   CLI/MCP-callable runtime event normalizer advertised in generated bridges plus
   a generated bridge JSON sidecar, runner argv, advertised stdin host-runner;
   Codex and OpenCode also have generated installation fixtures for pre-tool
-  policy decisions and post-tool trace persistence. The remaining gap is
-  platform-native lifecycle installer wiring beyond generated fixture metadata.
+  policy decisions and post-tool trace persistence. The remaining native
+  lifecycle gap is OpenCode installation beyond generated fixture metadata, plus
+  end-to-end host packaging for each runtime.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion-packet/promotion context, and summary-sourced
   code-state/evidence/tool-run/tool-execution/tool-recipe/reference-location/
@@ -292,7 +301,7 @@ Expected:
 ```text
 branch = codex/aitp-v5-kernel-mvp
 working tree has no unrelated dirty v5 files
-latest commit is f11b253 or a later commit from this plan
+latest commit is a43851a or a later commit from this plan
 ```
 
 After each task:
