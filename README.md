@@ -208,6 +208,11 @@ The `--settings` path preserves existing Codex hook events, adds idempotent
 the pre-tool policy runner.
 OpenCode has the matching plugin fixture at
 `aitp-v5 adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json`.
+For a real OpenCode project-local plugin, use
+`aitp-v5 adapter install-hooks opencode <session-id> --plugin .opencode/plugins/aitp-v5.js`;
+the generated plugin subscribes to `tool.execute.before` and
+`tool.execute.after`, invokes the same sidecar-backed runner, blocks through
+typed pre-tool policy decisions, and records post-tool traces.
 Both fixtures write the bridge and sidecar, then point pre-tool hooks at the
 stdin runner and post-tool hooks at the trace-persistence runner with a declared
 repository `cwd`, without granting generated files authority over typed records.

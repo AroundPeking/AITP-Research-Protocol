@@ -103,6 +103,12 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `pre_tool` returns typed policy decisions, while `post_tool` persists hook
   trace records under `.aitp/runtime/hook_trace_events.jsonl`. It is runtime
   metadata only and keeps `summary_inputs_trusted=false`.
+- OpenCode can install a real project-local plugin file with
+  `aitp-v5 adapter install-hooks opencode <session-id> --plugin .opencode/plugins/aitp-v5.js`.
+  The generated plugin subscribes to `tool.execute.before` and
+  `tool.execute.after`, calls `hooks/aitp_v5_adapter_event_runner.py`, blocks
+  through the typed `pre_tool_policy_decision`, and persists post-tool trace
+  events without treating the plugin file as a truth source.
 - Claude Code can materialize native hook settings with
   `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
 - Claude Code can also merge AITP v5 hooks into an existing settings file with

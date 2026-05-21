@@ -23,6 +23,8 @@ Implemented:
   packet;
 - CLI/MCP materializers for the OpenCode stdin-runner plugin fixture from an
   actual adapter packet;
+- CLI/MCP materializers for an OpenCode project-local plugin file under
+  `.opencode/plugins/`, using `tool.execute.before` and `tool.execute.after`;
 - Claude Code hook settings writer derived from `runtime_hook_installation`;
 - Claude Code safe settings merge installer that preserves existing settings and
   deduplicates AITP v5 hook commands;
@@ -56,10 +58,8 @@ Documented here:
 
 Not implemented in this slice:
 
-- one-click installer wiring for OpenCode native hook configuration beyond the
-  generated plugin fixture;
 - packaged host-specific installer UX around the existing Codex and Claude Code
-  merge installers.
+  merge installers and OpenCode local plugin installer.
 
 ## Invariants
 
@@ -430,6 +430,11 @@ OpenCode should use the same contract as Codex and Claude Code:
 OpenCode adapters should avoid writing generated summaries as state. Any compact
 view should be treated as orientation-only.
 
+This follows the OpenCode plugin contract: project-local plugin files under
+`.opencode/plugins/` are loaded automatically, and plugins can return lifecycle
+hooks such as `tool.execute.before` from their exported function:
+https://opencode.ai/docs/plugins/.
+
 Generated OpenCode bridge payloads include
 `plugin_bridge.pre_tool_policy_entrypoint`, pointing to the same
 `pre_tool_policy_decision` CLI/MCP surface used by Codex and Claude Code. They
@@ -477,12 +482,25 @@ contains `plugin_hooks.pre_tool` for typed policy decisions and
 entries to `.aitp/runtime/hook_trace_events.jsonl`. It is runtime metadata only;
 typed kernel records remain authoritative.
 
+For an actual project-local OpenCode plugin file, install with:
+
+```powershell
+aitp-v5 --base <workspace> adapter install-hooks opencode <session-id> --plugin .opencode/plugins/aitp-v5.js
+```
+
+That command writes `.opencode/plugins/aitp-v5.js`, plus
+`.opencode/AITP_V5_PLUGIN_BRIDGE.md` and
+`.opencode/AITP_V5_PLUGIN_BRIDGE.json`. The plugin subscribes to
+`tool.execute.before` and `tool.execute.after`, calls
+`hooks/aitp_v5_adapter_event_runner.py`, throws on blocking typed
+`pre_tool_policy_decision` output, and logs post-tool trace persistence
+failures without giving generated files authority over typed kernel records.
+
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:
 
-- native OpenCode adapter wiring that automatically calls the shared
-  `pre_tool_policy_decision` and `hook_trace_event_record` surfaces from real
-  OpenCode lifecycle events rather than generated fixture metadata;
 - packaged runtime installer UX that chooses the correct Codex/Claude/OpenCode
-  host config path and reports conflicts before writing.
+  host config path and reports conflicts before writing;
+- in-host smoke tests that execute the generated Codex/OpenCode lifecycle hooks
+  in their real host runtimes rather than only through repo-level runner tests.

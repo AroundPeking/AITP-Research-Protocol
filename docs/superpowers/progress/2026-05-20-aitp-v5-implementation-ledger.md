@@ -3908,3 +3908,68 @@ Each entry should record:
 - Next recommended task:
   - implement the OpenCode native lifecycle installer or broaden pre-tool
     policy coverage for remaining MCP inputs and active risk dimensions.
+
+### 68ba87b - Install OpenCode Local Plugin Hooks
+
+- Task: add a real OpenCode project-local plugin installer that wires OpenCode
+  lifecycle hooks to the AITP v5 adapter event runner instead of only writing a
+  generated JSON fixture.
+- Planning source:
+  - previous ledger recommendation after `a43851a`;
+  - hook-installation plan requirement to move beyond generated fixture metadata
+    for Codex/OpenCode lifecycle events;
+  - OpenCode plugin contract for project-local plugins under
+    `.opencode/plugins/` with lifecycle hooks such as `tool.execute.before`.
+- Changed files:
+  - `brain/v5/hook_opencode_install.py`
+  - `brain/v5/mcp_hook_install.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/hook_install_contracts.py`
+  - `brain/v5/mcp_tools.py`
+  - `tests/test_v5_adapters.py`
+- Public/runtime behavior changes:
+  - new helper `install_opencode_plugin_file(...)` writes an OpenCode local
+    plugin file such as `.opencode/plugins/aitp-v5.js`;
+  - new CLI path:
+    `aitp-v5 adapter install-hooks opencode <session-id> --plugin <path>`;
+  - MCP `aitp_v5_install_opencode_hook_fixture(..., plugin_path=<path>)` exposes
+    the same plugin installer while preserving the existing fixture path through
+    `output_path`;
+  - generated plugin subscribes to `tool.execute.before` and
+    `tool.execute.after`, calls `hooks/aitp_v5_adapter_event_runner.py`, throws
+    on blocking typed pre-tool policy output, and logs post-tool trace failures;
+  - `opencode_hook_installation` contract now accepts either the older fixture
+    payload or the new native plugin payload.
+- Tests:
+  - direct installer writes the plugin, bridge Markdown, JSON sidecar, and is
+    idempotent on a second run;
+  - CLI `adapter install-hooks opencode --plugin` returns the contracted
+    `opencode_hook_installation` payload;
+  - MCP `aitp_v5_install_opencode_hook_fixture(..., plugin_path=...)` returns
+    the contracted payload.
+- Verification:
+  - red target set:
+    `python -m pytest tests\test_v5_adapters.py::test_opencode_local_plugin_installer_writes_native_plugin tests\test_v5_adapters.py::test_cli_adapter_install_hooks_writes_opencode_local_plugin tests\test_v5_adapters.py::test_mcp_opencode_local_plugin_installer_returns_contract_payload -q`:
+    3 failed because `brain.v5.hook_opencode_install`, CLI `--plugin`, and MCP
+    `plugin_path` did not exist;
+  - target green set:
+    same command: 3 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_adapters.py tests\test_v5_adapter_event_runner.py tests\test_v5_bridge_runtime.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_cli.py tests\test_v5_architecture_boundaries.py -q`:
+    122 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    412 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - this generates a local plugin file and statically verifies its lifecycle
+    wiring; it does not yet run inside a live OpenCode host process;
+  - packaged installer UX still needs host path discovery and conflict reporting
+    across Codex, Claude Code, and OpenCode.
+- Next recommended task:
+  - add host-installation discovery/audit surfaces for runtime config paths, or
+    broaden pre-tool policy coverage for remaining MCP inputs and active risk
+    dimensions.
