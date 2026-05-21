@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
+from brain.v5.failure_mode_audit import audit_failure_mode_coverage
 from brain.v5.memory_audit import audit_l2_memory_context
 from brain.v5.public_surfaces import require_valid_public_surface
 
@@ -14,6 +15,8 @@ def add_memory_parser(sp: argparse._SubParsersAction) -> None:
     ms = memory.add_subparsers(dest="memory_command", required=True)
     audit = ms.add_parser("audit")
     audit.add_argument("--claim", required=True, dest="claim_id")
+    failure_modes = ms.add_parser("failure-modes")
+    failure_modes.add_argument("--claim", required=True, dest="claim_id")
 
 
 def dispatch_memory_command(args: argparse.Namespace, ws: Any) -> dict[str, Any]:
@@ -21,5 +24,10 @@ def dispatch_memory_command(args: argparse.Namespace, ws: Any) -> dict[str, Any]
         return require_valid_public_surface(
             "l2_memory_audit",
             audit_l2_memory_context(ws, claim_id=args.claim_id),
+        )
+    if args.memory_command == "failure-modes":
+        return require_valid_public_surface(
+            "failure_mode_audit",
+            audit_failure_mode_coverage(ws, claim_id=args.claim_id),
         )
     raise SystemExit(f"unsupported memory command: {args.memory_command}")

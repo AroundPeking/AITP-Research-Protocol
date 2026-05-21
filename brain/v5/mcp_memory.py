@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from brain.v5.failure_mode_audit import audit_failure_mode_coverage
 from brain.v5.memory_audit import audit_l2_memory_context
 from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.workspace import init_workspace
@@ -12,3 +13,8 @@ from brain.v5.workspace import init_workspace
 def aitp_v5_audit_l2_memory_context(base: str, *, claim_id: str) -> dict:
     payload = audit_l2_memory_context(init_workspace(Path(base)), claim_id=claim_id)
     return require_valid_public_surface("l2_memory_audit", payload)
+
+
+def aitp_v5_audit_failure_mode_coverage(base: str, *, claim_id: str) -> dict:
+    payload = audit_failure_mode_coverage(init_workspace(Path(base)), claim_id=claim_id)
+    return require_valid_public_surface("failure_mode_audit", payload)

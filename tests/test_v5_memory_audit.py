@@ -102,6 +102,50 @@ def _setup_promoted_code_memory(tmp_path: Path):
     return ws, claim, code_state, validation, evidence, packet, decided, entry
 
 
+def _setup_failure_mode_audit_gap(tmp_path: Path):
+    from brain.v5.evidence import record_evidence
+    from brain.v5.memory import create_promotion_packet
+    from brain.v5.validation import create_validation_contract
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting table identifies the FQHE edge sector.",
+        evidence_profile="toy_numeric",
+        confidence_state="locally_checked",
+        active_uncertainty="frequency grid mismatch may mimic the edge count",
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    create_validation_contract(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        required_checks=["frequency-grid and basis-cutoff sanity checks"],
+        failure_modes=["frequency grid mismatch", "basis cutoff mismatch"],
+        required_evidence_outputs=["grid_table"],
+    )
+    evidence = record_evidence(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        evidence_type="toy_numeric",
+        status="supports",
+        summary="Counting evidence without tool-run provenance.",
+    )
+    packet = create_promotion_packet(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        scope="Finite-size toy-model edge counting only.",
+        evidence_refs=[evidence.evidence_id],
+        known_failure_modes=["finite-size aliasing"],
+    )
+    return ws, claim, packet
+
+
 def test_l2_memory_audit_surfaces_typed_promotion_provenance(tmp_path):
     from brain.v5.memory_audit import audit_l2_memory_context
     from brain.v5.public_surfaces import require_valid_public_surface
@@ -147,6 +191,61 @@ def test_l2_memory_audit_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
         "cli": "aitp-v5 memory audit <args>",
         "mcp": "aitp_v5_audit_l2_memory_context",
         "surface": "l2_memory_audit",
+    }
+    assert validate_runtime_entrypoints() == []
+
+
+def test_failure_mode_audit_reports_uncovered_claim_and_contract_modes(tmp_path):
+    from brain.v5.failure_mode_audit import audit_failure_mode_coverage
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    ws, claim, packet = _setup_failure_mode_audit_gap(tmp_path)
+
+    payload = audit_failure_mode_coverage(ws, claim_id=claim.claim_id)
+
+    assert require_valid_public_surface("failure_mode_audit", payload) == payload
+    assert payload["kind"] == "failure_mode_audit"
+    assert payload["truth_source"] == "typed_records"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert payload["active_uncertainty"] == "frequency grid mismatch may mimic the edge count"
+    assert payload["strongest_failure_mode"] == "frequency grid mismatch"
+    assert payload["promotion_packet_ids"] == [packet.packet_id]
+    assert payload["promotion_packet_failure_modes"] == ["finite-size aliasing"]
+    assert payload["validation_contract_failure_modes"] == [
+        "frequency grid mismatch",
+        "basis cutoff mismatch",
+    ]
+    assert payload["uncovered_claim_failure_modes"] == ["frequency grid mismatch"]
+    assert payload["uncovered_validation_failure_modes"] == [
+        "frequency grid mismatch",
+        "basis cutoff mismatch",
+    ]
+    assert payload["coverage_status"] == "gap"
+    assert payload["recommended_actions"] == [
+        "align_promotion_failure_modes_with_claim_risk",
+        "cover_validation_contract_failure_modes",
+    ]
+
+
+def test_failure_mode_audit_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_audit_failure_mode_coverage
+    from brain.v5.runtime_entrypoints import runtime_entrypoints, validate_runtime_entrypoints
+
+    _, claim, _ = _setup_failure_mode_audit_gap(tmp_path)
+
+    assert main(["--base", str(tmp_path), "memory", "failure-modes", "--claim", claim.claim_id]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_audit_failure_mode_coverage(str(tmp_path), claim_id=claim.claim_id)
+
+    assert cli_payload["coverage_status"] == "gap"
+    assert mcp_payload == cli_payload
+    assert runtime_entrypoints()["audit_failure_mode_coverage"] == {
+        "cli": "aitp-v5 memory failure-modes <args>",
+        "mcp": "aitp_v5_audit_failure_mode_coverage",
+        "surface": "failure_mode_audit",
     }
     assert validate_runtime_entrypoints() == []
 

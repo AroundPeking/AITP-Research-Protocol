@@ -199,6 +199,12 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   each active memory entry to its promotion packet, human checkpoint decision,
   evidence refs, validation result refs, and code-state refs while keeping
   `summary_inputs_trusted=false` and `can_update_kernel_state=false`.
+- Agents can call `aitp-v5 memory failure-modes --claim <claim-id>` or
+  `aitp_v5_audit_failure_mode_coverage` for a read-only
+  `failure_mode_audit` surface. It reports active uncertainty,
+  `strongest_failure_mode`, validation-contract failure modes,
+  promotion-packet known failure modes, uncovered failure modes, and review
+  actions from typed records only; it cannot update kernel state or claim trust.
 - To audit a claim confidence state directly, agents can call
   `aitp-v5 trust audit --claim <claim-id>` or
   `aitp_v5_audit_claim_trust`. This returns the contracted
