@@ -221,6 +221,39 @@ def require_valid_runtime_hook_installation_audit(payload: dict[str, Any]) -> di
     return payload
 
 
+def validate_runtime_hook_installation_paths(
+    payload: dict[str, Any],
+    *,
+    path: str = "runtime_hook_installation_paths",
+) -> ContractResult:
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if result.issues:
+        return result
+    if payload.get("kind") != "runtime_hook_installation_paths":
+        result.add(f"{path}.kind", "must be 'runtime_hook_installation_paths'")
+    if payload.get("truth_source") != "workspace_conventions":
+        result.add(f"{path}.truth_source", "must be 'workspace_conventions'")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    _require_nonempty_str(payload, "workspace_base", path, result)
+    _require_list(payload.get("paths"), f"{path}.paths", result)
+    entries = payload.get("paths")
+    if isinstance(entries, list):
+        for index, entry in enumerate(entries):
+            _validate_install_path_entry(entry, f"{path}.paths[{index}]", result)
+    return result
+
+
+def require_valid_runtime_hook_installation_paths(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_runtime_hook_installation_paths(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def _validate_pre_tool_hook(payload: Any, path: str, result: ContractResult) -> None:
     _require_mapping(payload, path, result)
     if not isinstance(payload, dict):
@@ -308,3 +341,30 @@ def _validate_install_audit_finding(payload: Any, path: str, result: ContractRes
     _require_list(payload.get("observed"), f"{path}.observed", result)
     _require_list(payload.get("messages"), f"{path}.messages", result)
     _require_bool_value(payload.get("runtime_metadata_only"), True, f"{path}.runtime_metadata_only", result)
+
+
+def _validate_install_path_entry(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    if payload.get("runtime") not in {"codex", "claude_code", "opencode"}:
+        result.add(f"{path}.runtime", "must be a supported runtime")
+    _validate_install_path_payload(payload.get("preferred"), f"{path}.preferred", result)
+    _require_list(payload.get("alternates"), f"{path}.alternates", result)
+    alternates = payload.get("alternates")
+    if isinstance(alternates, list):
+        for index, alternate in enumerate(alternates):
+            _validate_install_path_payload(alternate, f"{path}.alternates[{index}]", result)
+    _require_nonempty_str(payload, "install_command", path, result)
+    _require_nonempty_str(payload, "audit_command", path, result)
+    _require_bool_value(payload.get("runtime_metadata_only"), True, f"{path}.runtime_metadata_only", result)
+
+
+def _validate_install_path_payload(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    _require_nonempty_str(payload, "path", path, result)
+    _require_nonempty_str(payload, "relative_path", path, result)
+    if payload.get("install_arg") not in {"--settings", "--output", "--plugin"}:
+        result.add(f"{path}.install_arg", "must be --settings, --output, or --plugin")

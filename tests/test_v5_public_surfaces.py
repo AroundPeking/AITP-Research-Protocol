@@ -30,6 +30,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "record_gate_coverage_audit",
         "reference_location_record",
         "runtime_hook_installation_audit",
+        "runtime_hook_installation_paths",
         "sensemaking_report_record",
         "session_summary_bundle",
         "summary_orientation",
@@ -526,6 +527,42 @@ def test_public_surface_validator_accepts_runtime_hook_installation_audit():
     }
 
     assert require_valid_public_surface("runtime_hook_installation_audit", payload) == payload
+
+
+def test_public_surface_validator_accepts_runtime_hook_installation_paths():
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    payload = {
+        "kind": "runtime_hook_installation_paths",
+        "truth_source": "workspace_conventions",
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+        "workspace_base": "workspace",
+        "paths": [
+                {
+                    "runtime": "codex",
+                    "preferred": {
+                        "path": "workspace/.codex/hooks.json",
+                        "relative_path": ".codex/hooks.json",
+                        "install_arg": "--settings",
+                    },
+                    "alternates": [
+                        {
+                            "path": "workspace/.codex/AITP_V5_HOOKS.json",
+                            "relative_path": ".codex/AITP_V5_HOOKS.json",
+                            "install_arg": "--output",
+                        }
+                    ],
+                "install_command": "aitp-v5 --base workspace adapter install-hooks codex <session-id> --settings .codex/hooks.json",
+                "audit_command": "aitp-v5 --base workspace adapter install-audit codex --settings .codex/hooks.json",
+                "runtime_metadata_only": True,
+            }
+        ],
+    }
+
+    assert require_valid_public_surface("runtime_hook_installation_paths", payload) == payload
 
 
 def test_runtime_entrypoint_surfaces_close_over_public_surface_contracts():

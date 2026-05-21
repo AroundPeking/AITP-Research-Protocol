@@ -11,6 +11,7 @@ from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
 from brain.v5.hook_install_audit import audit_hook_installation
+from brain.v5.hook_install_paths import discover_hook_install_paths
 from brain.v5.hook_install_templates import (
     install_claude_code_hook_settings,
     write_claude_code_hook_settings,
@@ -288,6 +289,13 @@ def aitp_v5_audit_hook_installation(
                 output_path=output_path,
             ),
         ),
+    }
+
+
+def aitp_v5_discover_hook_install_paths(base: str) -> dict:
+    return {
+        "ok": True,
+        **require_valid_public_surface("runtime_hook_installation_paths", discover_hook_install_paths(_ws(base))),
     }
 
 

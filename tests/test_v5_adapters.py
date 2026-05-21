@@ -2083,6 +2083,64 @@ def test_mcp_hook_installation_audit_reports_claude_settings(tmp_path):
     assert payload["findings"][0]["status"] == "installed"
 
 
+def test_hook_installation_paths_discover_workspace_defaults(tmp_path):
+    from brain.v5.hook_install_paths import discover_hook_install_paths
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path)
+
+    payload = discover_hook_install_paths(ws)
+
+    assert payload["kind"] == "runtime_hook_installation_paths"
+    assert payload["truth_source"] == "workspace_conventions"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert {entry["runtime"] for entry in payload["paths"]} == {"codex", "claude_code", "opencode"}
+    by_runtime = {entry["runtime"]: entry for entry in payload["paths"]}
+    assert by_runtime["codex"]["preferred"]["path"] == str(tmp_path / ".codex" / "hooks.json")
+    assert by_runtime["codex"]["preferred"]["install_arg"] == "--settings"
+    assert by_runtime["claude_code"]["preferred"]["path"] == str(tmp_path / ".claude" / "settings.local.json")
+    assert by_runtime["claude_code"]["preferred"]["install_arg"] == "--settings"
+    assert by_runtime["opencode"]["preferred"]["path"] == str(tmp_path / ".opencode" / "plugins" / "aitp-v5.js")
+    assert by_runtime["opencode"]["preferred"]["install_arg"] == "--plugin"
+    assert "--settings" in by_runtime["codex"]["install_command"]
+    assert "--plugin" in by_runtime["opencode"]["install_command"]
+    assert require_valid_public_surface("runtime_hook_installation_paths", payload) == payload
+
+
+def test_cli_adapter_install_paths_returns_default_paths(tmp_path, capsys):
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "adapter",
+            "install-paths",
+        ],
+        capsys,
+    )
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "runtime_hook_installation_paths"
+    by_runtime = {entry["runtime"]: entry for entry in payload["paths"]}
+    assert by_runtime["codex"]["audit_command"].endswith("adapter install-audit codex --settings .codex/hooks.json")
+    assert by_runtime["opencode"]["install_command"].endswith(
+        "adapter install-hooks opencode <session-id> --plugin .opencode/plugins/aitp-v5.js"
+    )
+
+
+def test_mcp_hook_installation_paths_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_discover_hook_install_paths
+
+    payload = aitp_v5_discover_hook_install_paths(str(tmp_path))
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "runtime_hook_installation_paths"
+    assert payload["paths"][0]["runtime"] == "codex"
+
+
 def test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet(tmp_path, capsys):
     _seed_session(tmp_path)
 
