@@ -5343,3 +5343,59 @@ Each entry should record:
   - extend the session/workspace summary generators to list memory-entry
     `validation_result_ids` as orientation-only links and add a test proving
     summaries remain non-authoritative compared with typed memory records.
+
+### c2a97fc - Expose Memory Validation Links In Summaries
+
+- Task: make derived session summaries list promoted L2 memory entries and
+  their validation-result links while preserving the invariant that summaries
+  are orientation-only and cannot mutate typed kernel state.
+- Planning source:
+  - previous ledger recommendation after `c747236`;
+  - AITP v5 goal instruction that summaries, plans, and generated markdown are
+    orientation-only unless converted into typed kernel records.
+- Changed files:
+  - `brain/v5/summaries.py`
+  - `tests/test_v5_summaries.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `write_session_summary` now derives active L2 memory entries from the
+    execution brief and includes `memory_entries` and `validation_results` in
+    the bundle `source_records`;
+  - generated findings/progress files list promoted memory entry ids, evidence
+    refs, and validation-result ids as orientation-only resumption links;
+  - `read_summary_orientation` still returns `truth_source=false`,
+    `orientation_only=true`, and `can_update_kernel_state=false`, even when a
+    summary file is edited to claim authority.
+- Tests:
+  - added a promoted-memory summary workflow that creates typed tool evidence,
+    validation, promotion packet, human approval, and L2 memory, then checks
+    generated source records and findings/progress output;
+  - the same test tampers with the findings summary and proves `l2_memory_audit`
+    still reports only the typed validation result id.
+- Verification:
+  - red target:
+    `pytest tests\test_v5_summaries.py::test_session_summary_lists_memory_validation_links_without_becoming_truth_source -q`:
+    1 failed because `source_records` did not include `memory_entries`;
+  - target green:
+    same command: 1 passed;
+  - focused related sets:
+    `pytest tests\test_v5_summaries.py tests\test_v5_memory.py tests\test_v5_memory_audit.py -q`:
+    47 passed;
+    `pytest tests\test_v5_public_surfaces.py tests\test_v5_contracts.py tests\test_v5_mcp_tools.py tests\test_v5_cli.py -q`:
+    81 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; pytest $files -q`:
+    456 passed in 143.58s;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed, with CRLF conversion warnings only.
+- Residual risks:
+  - summary files still render compact links rather than full validation result
+    details; agents should use typed validation/audit surfaces for inspection;
+  - there is not yet a workspace-wide summary generator distinct from the
+    session summary bundle.
+- Next recommended task:
+  - add a workspace/program-level summary or audit surface that lists active
+    topics/claims, promoted memory entries, and validation links across
+    concurrent sessions while keeping typed records authoritative.
