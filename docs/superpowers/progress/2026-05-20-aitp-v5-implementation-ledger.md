@@ -5272,3 +5272,74 @@ Each entry should record:
   - connect LibRPA/GW metadata diagnostics into validation-contract examples or
     real-workflow acceptance tests so promotion can require metadata validation
     alongside benchmark and formula-code evidence.
+
+### c747236 - Preserve Validation Links In L2 Memory
+
+- Task: make promoted L2 memory carry the typed validation-result links used to
+  justify promotion, and extend the GW real-workflow acceptance path so
+  promotion requires benchmark, formula-code invariant, and run-metadata
+  diagnostic validation evidence together.
+- Planning source:
+  - previous ledger recommendation after `d799071`;
+  - user requirement that computational physics conclusions stay tied to
+    exact validation, code-state, and artifact provenance across sessions;
+  - AITP v5 rule that execution briefs are orientation-only views while typed
+    kernel records remain authoritative.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/memory.py`
+  - `brain/v5/memory_audit.py`
+  - `brain/v5/record_contracts.py`
+  - `brain/v5/brief_contracts.py`
+  - `tests/test_v5_real_workflows.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-18-aitp-v5-domain-tools-plan.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - `MemoryEntryRecord` now includes `validation_result_ids`;
+  - `apply_promotion_packet` copies promotion-packet validation links into the
+    resulting memory entry;
+  - execution-brief memory context exposes non-empty `validation_result_ids` as
+    orientation-only links back to typed validation records;
+  - `memory_entry_record` contract requires list-shaped validation refs, and
+    execution-brief contracts validate them when present;
+  - `l2_memory_audit` starts from memory-entry validation refs and still merges
+    packet/evidence-derived refs for review continuity.
+- Tests:
+  - updated FQHE and GW workflow acceptance expectations so promoted memory
+    entries expose validation refs in execution briefs;
+  - extended high-risk GW workflow acceptance to require benchmark evidence,
+    formula-code invariant evidence, metadata diagnostic evidence, and matching
+    validation results before promotion;
+  - updated public surface validation for `memory_entry_record`.
+- Verification:
+  - red target:
+    `pytest tests\test_v5_real_workflows.py -q`: 3 failed because execution
+    brief memory entries lacked `validation_result_ids`, and
+    `MemoryEntryRecord` had no `validation_result_ids` field;
+  - target green:
+    same command: 3 passed;
+  - focused related sets:
+    `pytest tests\test_v5_memory.py tests\test_v5_memory_audit.py -q`:
+    39 passed;
+    `pytest tests\test_v5_public_surfaces.py tests\test_v5_evidence_tools.py -q`:
+    28 passed after updating the memory-entry public surface fixture;
+    `pytest tests\test_v5_real_workflows.py tests\test_v5_memory.py tests\test_v5_memory_audit.py -q`:
+    42 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; pytest $files -q`:
+    455 passed in 132.79s;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed, with CRLF conversion warnings only.
+- Residual risks:
+  - the execution brief still surfaces only validation IDs, not full validation
+    result payloads; agents must call typed validation/audit surfaces for
+    details;
+  - old legacy-seed memory entries may have empty validation links until a
+    migration or review step creates typed validation results.
+- Next recommended task:
+  - extend the session/workspace summary generators to list memory-entry
+    `validation_result_ids` as orientation-only links and add a test proving
+    summaries remain non-authoritative compared with typed memory records.
