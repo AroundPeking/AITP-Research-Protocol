@@ -127,7 +127,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   entrypoint. For `risk_level=rigorous` or `risk_level=adversarial`,
   `execute_tool` and `record_tool_run` must carry at least one typed
   `validation_contract_id` for the active claim before the pre-tool policy will
-  allow the action.
+  allow the action. For high-risk `execute_tool`, the supplied validation
+  contract must also bind the current `recipe_id` and `executor_id`; for
+  high-risk `record_tool_run`, it must bind the current `recipe_id`.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing
@@ -152,9 +154,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   the correct CLI/MCP invocation without prose scraping. The bridge entrypoints
   also advertise machine-readable `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,
-  optional `validation_contract_ids`, optional `human_checkpoint_id`, optional
-  `checkpoint_id`, and optional nested `packet` input, while typed kernel
-  records remain the authority.
+  optional `validation_contract_ids`, optional `recipe_id`, optional
+  `executor_id`, optional `human_checkpoint_id`, optional `checkpoint_id`, and
+  optional nested `packet` input, while typed kernel records remain the
+  authority.
 - Bridge materializers write a machine-readable JSON sidecar beside the generated
   Markdown and return its `payload_path`; runtime hook runners should use
   `adapter pre-tool-event --bridge-path <payload-path> --event-json <json>` to
@@ -197,9 +200,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   hard-blocked unless that checkpoint resolves to a decided typed
   `HumanCheckpointRecord` with `decision=approve` for the active claim.
   Rigorous/adversarial tool execution additionally requires an explicitly
-  linked open `ValidationContractRecord`, so expensive or correctness-critical
-  numerical/formula-code checks cannot run as trust-relevant work without a
-  typed validation plan.
+  linked open `ValidationContractRecord` bound to the concrete tool recipe and
+  executor, so expensive or correctness-critical numerical/formula-code checks
+  cannot run as trust-relevant work without a typed validation plan for that
+  tool path.
 - Claude Code `PreToolUse` uses that shared policy for code-state provenance,
   tool-recipe registration, reference-location pointers, physics-object/relation graph writes,
   sensemaking reports, validation, human-checkpoint request/decision, promotion-packet

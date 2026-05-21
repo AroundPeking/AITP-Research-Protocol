@@ -3051,3 +3051,85 @@ Each entry should record:
 - Next recommended task:
   - either deepen the validation-contract/tool-recipe match, or continue toward
     true native Codex/OpenCode lifecycle installer wiring.
+
+### acddfa1 - Bind Validation Contracts To Concrete Tools
+
+- Task: deepen the high-risk tool gate so an arbitrary open claim-linked
+  validation contract cannot authorize a different tool path.
+- Planning source:
+  - previous ledger residual risk that validation contracts did not inspect
+    whether required checks matched the exact tool recipe/executor;
+  - user requirement that AITP should force actual physicist-style verification
+    instead of letting an AI pass a gate with a generic plan;
+  - v5 invariant that typed kernel records, not generated summaries or model
+    intuition, authorize trust-relevant work.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/validation.py`
+  - `brain/v5/record_contracts.py`
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/cli_policy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/hook_entrypoint_schemas.py`
+  - `brain/v5/adapter_protocols.py`
+  - `tests/test_v5_validation.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+- Public/runtime behavior changes:
+  - `ValidationContractRecord` now carries `tool_recipe_ids` and
+    `executor_ids`;
+  - `aitp-v5 validation contract create` accepts `--recipe-id` and
+    `--executor-id`;
+  - `aitp_v5_create_validation_contract` accepts `tool_recipe_ids` and
+    `executor_ids`;
+  - `aitp-v5 policy pre-tool` accepts `--recipe` and `--executor`;
+  - `aitp_v5_evaluate_pre_tool_policy`, bridge lifecycle evaluation, and
+    Codex/OpenCode platform event normalization pass `recipe_id` and
+    `executor_id` into the typed policy decision;
+  - rigorous/adversarial `execute_tool` requires a provided open validation
+    contract for the active claim whose `tool_recipe_ids` contains the current
+    `recipe_id` and whose `executor_ids` contains the current `executor_id`;
+  - rigorous/adversarial `record_tool_run` requires a provided open validation
+    contract for the active claim whose `tool_recipe_ids` contains the current
+    `recipe_id`;
+  - generated hook/adapter schemas advertise optional `recipe_id` and
+    `executor_id`, keeping the bridge machine-readable while preserving
+    `summary_inputs_trusted=false`.
+- Tests:
+  - validation contract creation stores and exposes recipe/executor bindings
+    through kernel, CLI, and MCP paths;
+  - MCP pre-tool policy blocks rigorous `execute_tool` when the supplied
+    validation contract is unbound to the requested recipe/executor;
+  - MCP and CLI pre-tool policy allow rigorous `execute_tool` only when the
+    supplied contract binds the requested recipe/executor;
+  - adapter pre-tool event normalization blocks unbound rigorous tool
+    execution and allows the bound case.
+- Verification:
+  - red tests failed as expected:
+    `python -m pytest tests\test_v5_validation.py tests\test_v5_pretool_policy.py tests\test_v5_adapters.py -q -k "validation_contract_id or rigorous_execute or recipe_id or executor_id or unbound"`:
+    5 failed because validation contracts and policy calls did not yet accept
+    `tool_recipe_ids`/`executor_ids`/`recipe_id`/`executor_id`, and the adapter
+    allowed an unbound contract;
+  - target green set:
+    same command: 7 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_validation.py tests\test_v5_pretool_policy.py tests\test_v5_adapters.py tests\test_v5_hooks.py tests\test_v5_public_surfaces.py tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`:
+    181 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 379 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - the binding proves that the validation contract names the current tool
+    identity, but it does not yet semantically verify that every required check
+    is sufficient for the physics claim;
+  - real host adapters may expose recipe/executor aliases beyond the current
+    `recipe_id`/`recipe` and `executor_id`/`executor` forms.
+- Next recommended task:
+  - add a typed post-tool validation-result/evidence gate that checks whether a
+    completed high-risk tool run satisfied the bound validation contract
+    outputs before it can support a claim.
