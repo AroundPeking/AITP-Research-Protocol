@@ -19,6 +19,7 @@ from brain.v5.workspace import get_session_binding, init_workspace
 
 
 _AITP_MCP_ACTIONS = {
+    "aitp_v5_record_code_state": "record_code_state",
     "aitp_v5_record_evidence": "record_evidence",
     "aitp_v5_record_tool_run": "record_tool_run",
     "aitp_v5_execute_tool": "execute_tool",
@@ -174,6 +175,7 @@ def _context_policy_from_workspace(
     session_id: str,
 ) -> PolicyDecision | None:
     if action not in {
+        "record_code_state",
         "create_promotion_packet",
         "apply_promotion_packet",
         "request_human_checkpoint",

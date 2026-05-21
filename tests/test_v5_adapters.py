@@ -59,6 +59,7 @@ def test_adapter_packet_includes_orientation_summaries_and_trusted_brief(tmp_pat
     assert packet["summary_orientation"]["orientation_only"] is True
     assert packet["execution_brief"]["current_focus"]["active_claim"] == claim.claim_id
     assert packet["trusted_focus"]["claim_statement"] == claim.statement
+    assert "record_code_state" in packet["trust_changing_actions"]
     assert "change_claim_confidence" in packet["trust_changing_actions"]
     assert "ingest_subagent_result" in packet["trust_changing_actions"]
     assert "create_validation_contract" in packet["trust_changing_actions"]
@@ -600,6 +601,52 @@ def test_mcp_adapter_pre_tool_event_evaluates_platform_payload(tmp_path):
     assert payload["ok"] is True
     assert payload["action"] == "record_evidence"
     assert payload["block"] is True
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "no_summary_surface_as_truth_source"
+    ]
+
+
+def test_mcp_adapter_pre_tool_event_infers_code_state_policy(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_adapter_pre_tool_event, aitp_v5_write_codex_hook_bridge
+
+    _, claim = _seed_session(tmp_path)
+    bridge = aitp_v5_write_codex_hook_bridge(
+        str(tmp_path),
+        session_id="s1",
+        output_path=str(tmp_path / "codex" / "AITP_V5_HOOK_BRIDGE.md"),
+    )
+
+    payload = aitp_v5_evaluate_adapter_pre_tool_event(
+        str(tmp_path),
+        bridge_payload=bridge,
+        platform_event={
+            "runtime": "codex",
+            "hook_name": "pre_tool",
+            "session_id": "s1",
+            "tool_name": "mcp__aitp__aitp_v5_record_code_state",
+            "tool_input": {
+                "repo_id": "librpa",
+                "upstream_commit": "abc123",
+                "local_branch": "topic/gw",
+                "linked_records": {"claim_id": claim.claim_id},
+                "claim_id": claim.claim_id,
+                "source_kind": "progress",
+                "source_ref": ".aitp/surfaces/session_summaries/s1/progress.md",
+                "orientation_only": True,
+            },
+        },
+    )
+
+    assert payload["ok"] is True
+    assert payload["action"] == "record_code_state"
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["runtime_gate_protocol"]["action"] == "record_code_state"
+    assert payload["runtime_gate_protocol"]["required_typed_refs"] == [
+        "repo_id",
+        "upstream_commit",
+        "local_branch",
+    ]
     assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
         "no_summary_surface_as_truth_source"
     ]
@@ -1476,6 +1523,7 @@ def test_adapter_packet_ignores_tampered_summary_as_truth_source(tmp_path):
     assert packet["trusted_focus"]["confidence_state"] == "hypothesis"
     assert packet["trusted_focus"]["claim_statement"] == claim.statement
     assert packet["requires_kernel_call_before"] == [
+        "record_code_state",
         "record_evidence",
         "record_tool_run",
         "execute_tool",

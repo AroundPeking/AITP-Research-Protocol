@@ -30,6 +30,7 @@ _REGISTRY_METADATA = {
     "summary_inputs_trusted": False,
 }
 _TRUST_CHANGING_ACTIONS = [
+    "record_code_state",
     "record_evidence",
     "record_tool_run",
     "execute_tool",

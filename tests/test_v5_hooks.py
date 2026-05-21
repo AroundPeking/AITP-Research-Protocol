@@ -560,6 +560,79 @@ def test_claude_hook_script_pre_tool_allows_record_evidence_mcp_call_as_typed_wr
     assert payload["aitp"]["summary_inputs_trusted"] is False
 
 
+def test_claude_hook_script_pre_tool_blocks_summary_sourced_code_state(tmp_path):
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "librpa-gw", context_id="gw-methods", title="LibRPA GW")
+    claim = create_claim(
+        ws,
+        topic_id="librpa-gw",
+        statement="The code-state provenance is required before benchmark validation.",
+        evidence_profile="code_method",
+        confidence_state="hypothesis",
+        active_uncertainty="formula-code translation risk",
+    )
+    bind_session(
+        ws,
+        "s1",
+        topic_id="librpa-gw",
+        context_id="gw-methods",
+        active_claim=claim.claim_id,
+    )
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script = repo_root / "hooks" / "aitp_v5_claude_hook.py"
+    hook_input = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "mcp__aitp__aitp_v5_record_code_state",
+        "tool_input": {
+            "repo_id": "librpa",
+            "upstream_commit": "abc123",
+            "local_branch": "topic/gw",
+            "linked_records": {"claim_id": claim.claim_id},
+            "claim_id": claim.claim_id,
+            "source_kind": "progress",
+            "source_ref": ".aitp/surfaces/session_summaries/s1/progress.md",
+            "orientation_only": True,
+        },
+    }
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "pre-tool",
+            "--base",
+            str(tmp_path),
+            "--session-id",
+            "s1",
+        ],
+        input=json.dumps(hook_input),
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert payload["aitp"]["action"] == "record_code_state"
+    assert payload["aitp"]["block"] is True
+    assert payload["aitp"]["policy_reasons"] == [
+        {
+            "policy_id": "no_summary_surface_as_truth_source",
+            "severity": "hard_block",
+            "message": "derived summary surfaces are orientation only and cannot justify trust-changing actions",
+        }
+    ]
+
+
 def test_claude_hook_script_pre_tool_warns_code_method_validation_without_code_state(tmp_path):
     import json
     import subprocess

@@ -11,6 +11,7 @@ from brain.v5.risk import RiskAssessment
 
 
 _TRUST_CHANGING_ACTIONS = {
+    "record_code_state",
     "record_evidence",
     "record_tool_run",
     "execute_tool",

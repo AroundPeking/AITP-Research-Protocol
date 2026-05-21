@@ -9,6 +9,7 @@ from brain.v5.pretool_policy import evaluate_context_pre_tool_policy
 
 
 _AITP_TOOL_ACTIONS = {
+    "aitp_v5_record_code_state": "record_code_state",
     "aitp_v5_record_evidence": "record_evidence",
     "aitp_v5_record_tool_run": "record_tool_run",
     "aitp_v5_execute_tool": "execute_tool",

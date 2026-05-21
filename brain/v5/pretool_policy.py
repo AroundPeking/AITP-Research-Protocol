@@ -13,6 +13,7 @@ from brain.v5.workspace import get_claim, get_session_binding
 
 
 _CONTEXT_ACTIONS = {
+    "record_code_state",
     "record_evidence",
     "record_tool_run",
     "execute_tool",

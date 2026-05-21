@@ -7,6 +7,23 @@ from typing import Any
 
 
 _RUNTIME_GATE_PROTOCOLS = {
+    "record_code_state": {
+        "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
+        "preflight": "",
+        "sequence": [
+            "refresh_execution_brief",
+            "evaluate_pre_tool_policy",
+            "record_code_state",
+            "refresh_execution_brief",
+            "write_session_summary",
+        ],
+        "required_typed_refs": ["repo_id", "upstream_commit", "local_branch"],
+        "allowed_state_sources": ["typed_records", "typed_code_state_records", "version_control_state"],
+        "policy_reasons_field": "policy_reasons",
+        "human_checkpoint_required": False,
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+    },
     "record_evidence": {
         "pre_tool_policy": "aitp_v5_evaluate_pre_tool_policy",
         "preflight": "",
