@@ -147,6 +147,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   provenance stays visible without making the brief a truth source. The
   execution-brief contract lives in `brain/v5/brief_contracts.py` and validates
   memory entries as orientation-only payloads with list-shaped refs.
+- For deeper review than the compact execution brief, agents can call
+  `aitp-v5 memory audit --claim <claim-id>` or
+  `aitp_v5_audit_l2_memory_context`. This returns the contracted
+  `l2_memory_audit` public surface, derived only from typed records, linking
+  each active memory entry to its promotion packet, human checkpoint decision,
+  evidence refs, validation result refs, and code-state refs while keeping
+  `summary_inputs_trusted=false` and `can_update_kernel_state=false`.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing

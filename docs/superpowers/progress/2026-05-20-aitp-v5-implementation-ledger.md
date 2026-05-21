@@ -3646,3 +3646,65 @@ Each entry should record:
 - Next recommended task:
   - continue with remaining hook installer/native lifecycle gaps, or add a
     dedicated L2 memory audit surface if review needs more than brief context.
+
+### f334f0e - Audit L2 Memory Provenance
+
+- Task: add a compact read-only audit surface for active claim L2 memory, so a
+  reviewer can inspect the typed provenance behind memory brief entries without
+  treating generated summaries or execution briefs as truth sources.
+- Planning source:
+  - previous ledger recommendation after `50dc9d4`;
+  - v5 invariant that typed kernel records remain authoritative while derived
+    public surfaces must keep `summary_inputs_trusted=false`;
+  - user requirement that research records be detailed enough for later GPT or
+    human review without re-trusting compressed conversation context.
+- Changed files:
+  - `brain/v5/memory_audit.py`
+  - `brain/v5/memory_audit_contracts.py`
+  - `brain/v5/cli_memory.py`
+  - `brain/v5/mcp_memory.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_memory_audit.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - new kernel function `audit_l2_memory_context(ws, claim_id=...)`;
+  - new public surface `l2_memory_audit`;
+  - new CLI command `aitp-v5 memory audit --claim <claim-id>`;
+  - new MCP wrapper `aitp_v5_audit_l2_memory_context`;
+  - new runtime entrypoint `audit_l2_memory_context`;
+  - audit entries expose `source_packet_id`, promotion packet status, human
+    checkpoint id/decision, evidence refs, validation result ids, derived
+    code-state ids, and `missing_links` while remaining orientation-only.
+- Tests:
+  - audit payload links a promoted code-method L2 memory entry to its promotion
+    packet, approved human checkpoint, evidence, validation result, and
+    code-state provenance;
+  - CLI/MCP/runtime entrypoints expose the same contracted payload;
+  - public surface contract rejects summary-sourced audit payloads.
+- Verification:
+  - red test:
+    `python -m pytest tests\test_v5_memory_audit.py -q`: 3 failed because
+    `brain.v5.memory_audit`, `aitp_v5_audit_l2_memory_context`, and the
+    `l2_memory_audit` public surface did not exist;
+  - target green set:
+    same command: 3 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_memory.py tests\test_v5_memory_audit.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_cli.py tests\test_v5_mcp_tools.py -q`:
+    71 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    400 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --cached --check -- .`: passed.
+- Residual risks:
+  - this is an audit/orientation surface, not a mutation path and not a full
+    graph query; reviewers needing full record bodies should still read the
+    referenced typed records directly.
+- Next recommended task:
+  - add a small review helper that audits claim trust/confidence changes against
+    evidence, validation results, and L2 memory, or continue the remaining
+    native lifecycle installer work for Codex/OpenCode.

@@ -144,7 +144,12 @@ code-method memory, those brief entries include `code_state_ids` derived from
 the linked evidence's tool runs, so version-sensitive conclusions keep their
 code provenance visible in subsequent sessions. The public execution-brief
 contract validates these memory entries as orientation-only payloads with
-list-shaped evidence/code-state references.
+list-shaped evidence/code-state references. For review, `aitp-v5 memory audit
+--claim <claim-id>` and `aitp_v5_audit_l2_memory_context` expose the contracted
+`l2_memory_audit` surface: active L2 memory entries plus their promotion
+packets, human checkpoint decisions, evidence refs, validation results, and
+derived code-state refs, all from typed records with
+`summary_inputs_trusted=false`.
 Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the code-state/record-evidence/tool-run/execute-tool/tool-recipe/reference-location/
