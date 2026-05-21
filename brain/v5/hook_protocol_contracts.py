@@ -381,7 +381,7 @@ def validate_pre_tool_policy_decision(
     _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
     for key in ("evidence_refs", "validation_contract_ids", "tool_run_ids", "validation_result_ids", "known_failure_modes"):
         _require_list(payload.get(key), f"{path}.{key}", result)
-    if not isinstance(payload.get("failure_mode_review_checkpoint_id", ""), str): result.add(f"{path}.failure_mode_review_checkpoint_id", "must be a string")
+    if any(not isinstance(payload.get(key, ""), str) for key in ("failure_mode_review_checkpoint_id", "failure_mode_review_result_id")): result.add(f"{path}.failure_mode_review_ids", "must be strings")
     if isinstance(payload.get("validation_contract_ids"), list):
         for index, contract_id in enumerate(payload["validation_contract_ids"]):
             if not isinstance(contract_id, str) or not contract_id.strip():

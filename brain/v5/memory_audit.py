@@ -112,7 +112,7 @@ def _audit_entry(
     for result_id in validation_result_ids:
         if result_id not in validations_by_id:
             missing_links.append(f"validation_result:{result_id}")
-    review_results = review_results_by_checkpoint.get(entry.failure_mode_review_checkpoint_id, [])
+    review_results = _review_results_for_entry(entry, review_results_by_checkpoint)
 
     return {
         "entry_id": entry.entry_id,
@@ -131,6 +131,7 @@ def _audit_entry(
         "promotion_packet_status": packet.status if packet is not None else "",
         "human_checkpoint_id": entry.human_checkpoint_id,
         "failure_mode_review_checkpoint_id": entry.failure_mode_review_checkpoint_id,
+        "failure_mode_review_result_id": entry.failure_mode_review_result_id,
         "failure_mode_review_result_ids": [result.result_id for result in review_results],
         "failure_mode_review_results": [_review_result_payload(result) for result in review_results],
         "human_checkpoint_decision": checkpoint.decision if checkpoint is not None else "",
@@ -145,6 +146,16 @@ def _append_unique(target: list[str], values: list[str]) -> None:
         if value and value not in seen:
             seen.add(value)
             target.append(value)
+
+
+def _review_results_for_entry(
+    entry,
+    review_results_by_checkpoint: dict[str, list[FailureModeReviewResultRecord]],
+) -> list[FailureModeReviewResultRecord]:
+    results = review_results_by_checkpoint.get(entry.failure_mode_review_checkpoint_id, [])
+    if entry.failure_mode_review_result_id:
+        return [result for result in results if result.result_id == entry.failure_mode_review_result_id]
+    return results
 
 
 def _review_result_payload(record: FailureModeReviewResultRecord) -> dict:

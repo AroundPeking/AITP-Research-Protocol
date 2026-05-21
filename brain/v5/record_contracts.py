@@ -263,6 +263,9 @@ def validate_promotion_packet_record(payload: dict[str, Any], *, path: str = "pr
     _require_list(failure_modes, f"{path}.known_failure_modes", result)
     if isinstance(failure_modes, list) and len(failure_modes) == 0:
         result.add(f"{path}.known_failure_modes", "must not be empty — promotion requires known failure modes")
+    for key in ("failure_mode_review_checkpoint_id", "failure_mode_review_result_id"):
+        if not isinstance(payload.get(key, ""), str):
+            result.add(f"{path}.{key}", "must be a string")
     return result
 
 
@@ -293,6 +296,9 @@ def validate_memory_entry_record(payload: dict[str, Any], *, path: str = "memory
         result.add(f"{path}.evidence_refs", "must not be empty — memory entries require evidence")
     for key in ("non_claims", "known_failure_modes"):
         _require_list(payload.get(key), f"{path}.{key}", result)
+    for key in ("failure_mode_review_checkpoint_id", "failure_mode_review_result_id"):
+        if not isinstance(payload.get(key, ""), str):
+            result.add(f"{path}.{key}", "must be a string")
     return result
 
 

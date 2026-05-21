@@ -282,9 +282,10 @@ Implemented:
   pre-tool mapping treats the wrapper as `request_human_checkpoint`, preserving
   summary-source blocking while making physical adequacy review durable.
   High-risk promotion can pass that approved checkpoint via
-  `--failure-mode-review-checkpoint` / `failure_mode_review_checkpoint_id`;
-  promotion packets, resulting L2 memory entries, and `l2_memory_audit` preserve
-  that id for provenance review.
+  `--failure-mode-review-checkpoint` / `failure_mode_review_checkpoint_id` plus
+  a passed `--failure-mode-review-result` /
+  `failure_mode_review_result_id`; promotion packets, resulting L2 memory
+  entries, and `l2_memory_audit` preserve both ids for provenance review.
 - `aitp-v5 memory failure-mode-review-result --claim <claim-id> --checkpoint
   <checkpoint-id> ...` / `aitp_v5_record_failure_mode_review_result` now expose
   the contracted `failure_mode_review_result_record` public surface. It records

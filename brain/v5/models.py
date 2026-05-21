@@ -386,6 +386,7 @@ class PromotionPacketRecord:
     non_claims: list[str] = field(default_factory=list)
     known_failure_modes: list[str] = field(default_factory=list)
     failure_mode_review_checkpoint_id: str = ""
+    failure_mode_review_result_id: str = ""
     status: str = "pending_human_checkpoint"
     human_checkpoint_id: str = ""
     kind: str = "promotion_packet"
@@ -410,6 +411,7 @@ class MemoryEntryRecord:
     source_packet_id: str = ""
     human_checkpoint_id: str = ""
     failure_mode_review_checkpoint_id: str = ""
+    failure_mode_review_result_id: str = ""
     status: str = "active"
     kind: str = "memory_entry"
 

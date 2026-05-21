@@ -9,6 +9,7 @@ from brain.v5.hooks import decide_pre_tool_use
 from brain.v5.models import (
     CodeStateRecord,
     EvidenceRecord,
+    FailureModeReviewResultRecord,
     HumanCheckpointRecord,
     ValidationContractRecord,
     ValidationResultRecord,
@@ -53,6 +54,7 @@ def context_policy_decision(
     validation_result_ids: list[str] | None = None,
     known_failure_modes: list[str] | None = None,
     failure_mode_review_checkpoint_id: str = "",
+    failure_mode_review_result_id: str = "",
     recipe_id: str = "",
     executor_id: str = "",
     source_kind: str = "",
@@ -72,6 +74,12 @@ def context_policy_decision(
         ws,
         claim.claim_id,
         failure_mode_review_checkpoint_id,
+    )
+    passed_failure_mode_review = _passed_failure_mode_review_result_for_claim(
+        ws,
+        claim.claim_id,
+        failure_mode_review_checkpoint_id,
+        failure_mode_review_result_id,
     )
     return evaluate_policy(
         action=action,
@@ -103,6 +111,8 @@ def context_policy_decision(
             "known_failure_modes": _clean_list(known_failure_modes),
             "failure_mode_review_checkpoint_id": failure_mode_review_checkpoint_id,
             "failure_mode_review_checkpoint_approved": approved_failure_mode_review,
+            "failure_mode_review_result_id": failure_mode_review_result_id,
+            "failure_mode_review_result_passed": passed_failure_mode_review,
         },
     )
 
@@ -120,6 +130,7 @@ def evaluate_context_pre_tool_policy(
     validation_result_ids: list[str] | None = None,
     known_failure_modes: list[str] | None = None,
     failure_mode_review_checkpoint_id: str = "",
+    failure_mode_review_result_id: str = "",
     recipe_id: str = "",
     executor_id: str = "",
     source_kind: str = "",
@@ -143,6 +154,7 @@ def evaluate_context_pre_tool_policy(
         validation_result_ids=validation_result_ids,
         known_failure_modes=known_failure_modes,
         failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id,
+        failure_mode_review_result_id=failure_mode_review_result_id,
         recipe_id=recipe_id,
         executor_id=executor_id,
         source_kind=source_kind,
@@ -174,6 +186,7 @@ def evaluate_context_pre_tool_policy(
             "validation_result_ids": resolved_result_ids,
             "known_failure_modes": _clean_list(known_failure_modes),
             "failure_mode_review_checkpoint_id": failure_mode_review_checkpoint_id,
+            "failure_mode_review_result_id": failure_mode_review_result_id,
             "recipe_id": recipe_id,
             "executor_id": executor_id,
             "policy_reasons": [
@@ -276,6 +289,26 @@ def _approved_failure_mode_review_checkpoint_for_claim(ws, claim_id: str, checkp
         and record.requested_by == "failure_mode_review_packet"
         and record.status == "decided"
         and record.decision == "approve_failure_mode_review"
+        for record in records
+    )
+
+
+def _passed_failure_mode_review_result_for_claim(
+    ws,
+    claim_id: str,
+    checkpoint_id: str,
+    result_id: str,
+) -> bool:
+    result_id = result_id.strip()
+    checkpoint_id = checkpoint_id.strip()
+    if not result_id or not checkpoint_id:
+        return False
+    records = list_records(ws.registry_dir("failure_mode_reviews"), FailureModeReviewResultRecord)
+    return any(
+        record.result_id == result_id
+        and record.claim_id == claim_id
+        and record.checkpoint_id == checkpoint_id
+        and record.status == "passed"
         for record in records
     )
 

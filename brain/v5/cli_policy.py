@@ -30,6 +30,7 @@ def add_policy_parser(sp: argparse._SubParsersAction) -> None:
     pre.add_argument("--orientation-only", action="store_true")
     pre.add_argument("--human-checkpoint", default="", dest="human_checkpoint_id")
     pre.add_argument("--failure-mode-review-checkpoint", default="", dest="failure_mode_review_checkpoint_id")
+    pre.add_argument("--failure-mode-review-result", default="", dest="failure_mode_review_result_id")
 
 
 def dispatch_policy_command(args: argparse.Namespace, ws) -> dict[str, Any]:
@@ -54,5 +55,6 @@ def dispatch_policy_command(args: argparse.Namespace, ws) -> dict[str, Any]:
         risk_level=args.risk_level,
         human_checkpoint_id=args.human_checkpoint_id,
         failure_mode_review_checkpoint_id=args.failure_mode_review_checkpoint_id,
+        failure_mode_review_result_id=args.failure_mode_review_result_id,
     )
     return require_valid_public_surface("pre_tool_policy_decision", payload)

@@ -199,7 +199,7 @@ def test_l2_memory_audit_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
 def test_l2_memory_audit_reports_failure_mode_review_checkpoint(tmp_path):
     from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
     from brain.v5.evidence import record_evidence
-    from brain.v5.failure_mode_review import request_failure_mode_review_checkpoint
+    from brain.v5.failure_mode_review import record_failure_mode_review_result, request_failure_mode_review_checkpoint
     from brain.v5.memory import apply_promotion_packet, create_promotion_packet
     from brain.v5.memory_audit import audit_l2_memory_context
     from brain.v5.validation import create_validation_contract, record_validation_result
@@ -261,6 +261,15 @@ def test_l2_memory_audit_reports_failure_mode_review_checkpoint(tmp_path):
         rationale="Reviewed failure-mode adequacy.",
         decided_by="human",
     )
+    review_result = record_failure_mode_review_result(
+        ws,
+        claim_id=claim.claim_id,
+        checkpoint_id=approved_review.checkpoint_id,
+        status="passed",
+        reviewed_failure_modes=["sector misassignment"],
+        validation_result_ids=[validation.result_id],
+        summary="Sector-misassignment review passed against validation basis.",
+    )
     packet = create_promotion_packet(
         ws,
         topic_id="fqhe",
@@ -270,6 +279,7 @@ def test_l2_memory_audit_reports_failure_mode_review_checkpoint(tmp_path):
         validation_result_ids=[validation.result_id],
         known_failure_modes=["sector misassignment"],
         failure_mode_review_checkpoint_id=approved_review.checkpoint_id,
+        failure_mode_review_result_id=review_result.result_id,
     )
     checkpoint = request_human_checkpoint(
         ws,
@@ -291,6 +301,7 @@ def test_l2_memory_audit_reports_failure_mode_review_checkpoint(tmp_path):
     payload = audit_l2_memory_context(ws, claim_id=claim.claim_id)
 
     assert payload["memory_entries"][0]["failure_mode_review_checkpoint_id"] == approved_review.checkpoint_id
+    assert payload["memory_entries"][0]["failure_mode_review_result_id"] == review_result.result_id
     assert payload["memory_entries"][0]["missing_links"] == []
 
 
@@ -838,6 +849,7 @@ def test_l2_memory_audit_links_review_result_basis_to_memory_entry(tmp_path):
         validation_result_ids=[validation.result_id],
         known_failure_modes=["sector misassignment"],
         failure_mode_review_checkpoint_id=approved_review.checkpoint_id,
+        failure_mode_review_result_id=review_result.result_id,
     )
     checkpoint = request_human_checkpoint(
         ws,
@@ -861,6 +873,7 @@ def test_l2_memory_audit_links_review_result_basis_to_memory_entry(tmp_path):
     assert require_valid_public_surface("l2_memory_audit", audit) == audit
     entry = audit["memory_entries"][0]
     assert entry["failure_mode_review_checkpoint_id"] == approved_review.checkpoint_id
+    assert entry["failure_mode_review_result_id"] == review_result.result_id
     assert entry["failure_mode_review_result_ids"] == [review_result.result_id]
     reviewed = entry["failure_mode_review_results"][0]
     assert reviewed["result_id"] == review_result.result_id

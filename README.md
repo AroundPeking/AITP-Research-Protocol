@@ -145,8 +145,10 @@ of letting an evidence citation alone pass the gate. When the claim records a
 recorded risk before the packet can be created. For rigorous/adversarial
 promotion with a recorded strongest failure mode, the same pre-tool policy now
 also requires an approved `failure_mode_review_checkpoint_id`, produced by the
-typed failure-mode review checkpoint flow, so the physical adequacy review is a
-durable checkpoint rather than a summary note. Execution briefs expose active claim L2 memory entries as
+typed failure-mode review checkpoint flow, plus a passed
+`failure_mode_review_result_id` linked to that checkpoint, so the physical
+adequacy review has both a durable decision and a typed review basis rather
+than a summary note. Execution briefs expose active claim L2 memory entries as
 orientation-only `known_context.memory_entries`, so agents can see previously
 promoted scoped memory without treating the brief itself as the authority. For
 code-method memory, those brief entries include `code_state_ids` derived from
@@ -174,9 +176,10 @@ review should become durable, `aitp-v5 memory request-failure-mode-review
 create a typed `human_checkpoint_record` from the review packet; this records
 the need for physical adequacy review but still does not update claim trust.
 Pass the approved checkpoint as `--failure-mode-review-checkpoint` /
-`failure_mode_review_checkpoint_id` when creating a high-risk promotion packet;
-the id is persisted on both the promotion packet and resulting L2 memory entry,
-and appears in `l2_memory_audit`. The actual review basis can be stored with
+`failure_mode_review_checkpoint_id` and the passed review result as
+`--failure-mode-review-result` / `failure_mode_review_result_id` when creating a
+high-risk promotion packet; both ids are persisted on the promotion packet and
+resulting L2 memory entry, and appear in `l2_memory_audit`. The actual review basis can be stored with
 `aitp-v5 memory failure-mode-review-result --claim <claim-id> --checkpoint
 <checkpoint-id> ...` or `aitp_v5_record_failure_mode_review_result`; that
 contracted `failure_mode_review_result_record` cites reviewed failure modes plus

@@ -5,6 +5,7 @@ from __future__ import annotations
 from brain.v5.ids import prefixed_id
 from brain.v5.models import (
     EvidenceRecord,
+    FailureModeReviewResultRecord,
     HumanCheckpointRecord,
     MemoryEntryRecord,
     PromotionPacketRecord,
@@ -25,6 +26,7 @@ def _promotion_packet_identity(
     non_claims: list[str],
     known_failure_modes: list[str],
     failure_mode_review_checkpoint_id: str,
+    failure_mode_review_result_id: str,
 ) -> str:
     return "\n".join(
         [
@@ -36,6 +38,7 @@ def _promotion_packet_identity(
             "non_claims:" + "|".join(non_claims),
             "failure_modes:" + "|".join(known_failure_modes),
             "failure_mode_review_checkpoint:" + failure_mode_review_checkpoint_id,
+            "failure_mode_review_result:" + failure_mode_review_result_id,
         ]
     )
 
@@ -52,6 +55,7 @@ def create_promotion_packet(
     non_claims: list[str] | None = None,
     known_failure_modes: list[str] | None = None,
     failure_mode_review_checkpoint_id: str = "",
+    failure_mode_review_result_id: str = "",
 ) -> PromotionPacketRecord:
     if not proposed_memory_kind:
         raise ValueError("proposed_memory_kind must not be empty")
@@ -67,6 +71,14 @@ def create_promotion_packet(
         evidence_refs=evidence_refs or [],
         validation_result_ids=validation_result_ids or [],
     )
+    if failure_mode_review_checkpoint_id or failure_mode_review_result_id:
+        _ensure_passed_failure_mode_review_result(
+            ws,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            checkpoint_id=failure_mode_review_checkpoint_id,
+            result_id=failure_mode_review_result_id,
+        )
 
     packet_id = prefixed_id(
         "packet",
@@ -79,6 +91,7 @@ def create_promotion_packet(
             non_claims=non_claims or [],
             known_failure_modes=known_failure_modes,
             failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id,
+            failure_mode_review_result_id=failure_mode_review_result_id,
         ),
     )
     packet = PromotionPacketRecord(
@@ -92,6 +105,7 @@ def create_promotion_packet(
         non_claims=non_claims or [],
         known_failure_modes=known_failure_modes or [],
         failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id,
+        failure_mode_review_result_id=failure_mode_review_result_id,
     )
     write_record(ws.registry_dir("promotion_packets") / f"{packet_id}.md", packet)
     return packet
@@ -123,6 +137,14 @@ def apply_promotion_packet(
         evidence_refs=packet.evidence_refs,
         validation_result_ids=packet.validation_result_ids,
     )
+    if packet.failure_mode_review_checkpoint_id or packet.failure_mode_review_result_id:
+        _ensure_passed_failure_mode_review_result(
+            ws,
+            topic_id=packet.topic_id,
+            claim_id=packet.claim_id,
+            checkpoint_id=packet.failure_mode_review_checkpoint_id,
+            result_id=packet.failure_mode_review_result_id,
+        )
 
     chk_path = ws.registry_dir("checkpoints") / f"{checkpoint_id}.md"
     checkpoint = read_record(chk_path, HumanCheckpointRecord)
@@ -151,6 +173,7 @@ def apply_promotion_packet(
         source_packet_id=packet_id,
         human_checkpoint_id=checkpoint_id,
         failure_mode_review_checkpoint_id=packet.failure_mode_review_checkpoint_id,
+        failure_mode_review_result_id=packet.failure_mode_review_result_id,
         status="active",
     )
     write_record(ws.root / "memory" / "l2" / "entries" / f"{entry_id}.md", entry)
@@ -250,6 +273,46 @@ def _ensure_tool_evidence_has_passed_validation_results(
     }
     if not tool_run_ids.issubset(passed_tool_runs):
         raise ValueError("promotion packet validation_result_ids must include passed results for every tool-derived evidence run")
+
+
+def _ensure_passed_failure_mode_review_result(
+    ws: WorkspacePaths,
+    *,
+    topic_id: str,
+    claim_id: str,
+    checkpoint_id: str,
+    result_id: str,
+) -> FailureModeReviewResultRecord:
+    if not checkpoint_id or not result_id:
+        raise ValueError("promotion packet failure_mode_review_result_id must cite a passed failure-mode review result")
+    checkpoint = _resolve_approved_failure_mode_review_checkpoint(ws, claim_id, checkpoint_id)
+    if checkpoint.topic_id != topic_id:
+        raise ValueError("failure-mode review checkpoint must belong to the promotion topic")
+    records = list_records(ws.registry_dir("failure_mode_reviews"), FailureModeReviewResultRecord)
+    result = next((record for record in records if record.result_id == result_id), None)
+    if result is None:
+        raise ValueError(f"unknown failure_mode_review_result_id: {result_id}")
+    if result.topic_id != topic_id or result.claim_id != claim_id or result.checkpoint_id != checkpoint_id:
+        raise ValueError("failure-mode review result must belong to the same topic, claim, and checkpoint as the promotion packet")
+    if result.status != "passed":
+        raise ValueError("promotion packet requires a passed failure-mode review result")
+    return result
+
+
+def _resolve_approved_failure_mode_review_checkpoint(
+    ws: WorkspacePaths,
+    claim_id: str,
+    checkpoint_id: str,
+) -> HumanCheckpointRecord:
+    checkpoints = list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord)
+    checkpoint = next((record for record in checkpoints if record.checkpoint_id == checkpoint_id), None)
+    if checkpoint is None:
+        raise ValueError(f"unknown failure-mode review checkpoint: {checkpoint_id}")
+    if checkpoint.claim_id != claim_id or checkpoint.requested_by != "failure_mode_review_packet":
+        raise ValueError("failure-mode review checkpoint must belong to the same claim")
+    if checkpoint.status != "decided" or checkpoint.decision != "approve_failure_mode_review":
+        raise ValueError("promotion packet requires an approved failure-mode review checkpoint")
+    return checkpoint
 
 
 def _resolve_evidence_records(ws: WorkspacePaths, claim_id: str, evidence_refs: list[str]) -> list[EvidenceRecord]:

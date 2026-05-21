@@ -81,6 +81,7 @@ def _validate_l2_memory_audit_entry(payload: Any, path: str, result: ContractRes
         "promotion_packet_status",
         "human_checkpoint_id",
         "failure_mode_review_checkpoint_id",
+        "failure_mode_review_result_id",
         "human_checkpoint_decision",
     ):
         if not isinstance(payload.get(key), str):

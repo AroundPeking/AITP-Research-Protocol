@@ -187,7 +187,8 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   failure modes must cover that recorded risk before the policy allows packet
   creation. For rigorous/adversarial promotion with such recorded claim risk,
   the pre-tool policy also requires an approved
-  `failure_mode_review_checkpoint_id` from the typed failure-mode review flow.
+  `failure_mode_review_checkpoint_id` from the typed failure-mode review flow
+  plus a passed `failure_mode_review_result_id` linked to that checkpoint.
   Execution briefs expose active claim L2 memory entries
   as orientation-only `known_context.memory_entries`; typed memory records under
   `memory/l2/entries` remain authoritative. Code-method memory brief entries
@@ -221,9 +222,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   treats the wrapper as `request_human_checkpoint`, so it inherits summary
   source blocking; the checkpoint is durable review state, not a trust update.
   High-risk promotion should pass the approved checkpoint as
-  `--failure-mode-review-checkpoint` / `failure_mode_review_checkpoint_id`;
-  promotion packets, resulting L2 memory entries, and `l2_memory_audit` all
-  preserve that id for provenance review.
+  `--failure-mode-review-checkpoint` / `failure_mode_review_checkpoint_id` and
+  the passed result as `--failure-mode-review-result` /
+  `failure_mode_review_result_id`; promotion packets, resulting L2 memory
+  entries, and `l2_memory_audit` preserve both ids for provenance review.
 - Agents can call `aitp-v5 memory failure-mode-review-result --claim
   <claim-id> --checkpoint <checkpoint-id> ...` or
   `aitp_v5_record_failure_mode_review_result` after an approved failure-mode

@@ -323,7 +323,7 @@ def aitp_v5_evaluate_pre_tool_policy(
     recipe_id: str = "", executor_id: str = "",
     source_kind: str = "", source_ref: str = "", orientation_only: bool = False,
     risk_level: str = "guided", human_checkpoint_id: str = "",
-    failure_mode_review_checkpoint_id: str = "",
+    failure_mode_review_checkpoint_id: str = "", failure_mode_review_result_id: str = "",
 ) -> dict:
     return require_valid_public_surface("pre_tool_policy_decision", evaluate_context_pre_tool_policy(
         _ws(base), session_id=session_id, action=action, claim_id=claim_id,
@@ -334,7 +334,7 @@ def aitp_v5_evaluate_pre_tool_policy(
         recipe_id=recipe_id, executor_id=executor_id,
         source_kind=source_kind, source_ref=source_ref, orientation_only=orientation_only,
         risk_level=risk_level, human_checkpoint_id=human_checkpoint_id,
-        failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id))
+        failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id, failure_mode_review_result_id=failure_mode_review_result_id))
 
 
 def aitp_v5_record_physics_object(
@@ -437,12 +437,12 @@ def aitp_v5_create_promotion_packet(
     base: str, *, topic_id: str, claim_id: str, proposed_memory_kind: str = "scoped_claim",
     scope: str = "", evidence_refs: list[str] | None = None, non_claims: list[str] | None = None,
     known_failure_modes: list[str] | None = None, validation_result_ids: list[str] | None = None,
-    failure_mode_review_checkpoint_id: str = "",
+    failure_mode_review_checkpoint_id: str = "", failure_mode_review_result_id: str = "",
 ) -> dict:
     pkt = create_promotion_packet(_ws(base), topic_id=topic_id, claim_id=claim_id,
         proposed_memory_kind=proposed_memory_kind, scope=scope, evidence_refs=evidence_refs,
         validation_result_ids=validation_result_ids, non_claims=non_claims,
-        known_failure_modes=known_failure_modes, failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id)
+        known_failure_modes=known_failure_modes, failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id, failure_mode_review_result_id=failure_mode_review_result_id)
     return require_valid_public_surface("promotion_packet_record", {"ok": True, **asdict(pkt)})
 
 
