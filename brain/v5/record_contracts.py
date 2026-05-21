@@ -157,6 +157,8 @@ def validate_validation_contract_record(payload: dict[str, Any], *, path: str = 
         _require_list(lst, f"{path}.{key}", result)
         if isinstance(lst, list) and len(lst) == 0:
             result.add(f"{path}.{key}", "must not be empty — validation requires explicit failure hypotheses")
+    for key in ("tool_recipe_ids", "executor_ids"):
+        _require_list(payload.get(key), f"{path}.{key}", result)
     return result
 
 

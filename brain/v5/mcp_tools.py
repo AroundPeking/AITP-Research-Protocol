@@ -331,6 +331,7 @@ def aitp_v5_evaluate_pre_tool_policy(
     base: str, *, session_id: str, action: str, claim_id: str = "",
     evidence_refs: list[str] | None = None, code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    recipe_id: str = "", executor_id: str = "",
     source_kind: str = "", source_ref: str = "", orientation_only: bool = False,
     risk_level: str = "guided", human_checkpoint_id: str = "",
 ) -> dict:
@@ -338,6 +339,7 @@ def aitp_v5_evaluate_pre_tool_policy(
         _ws(base), session_id=session_id, action=action, claim_id=claim_id,
         evidence_refs=evidence_refs, code_state_ids=code_state_ids,
         validation_contract_ids=validation_contract_ids,
+        recipe_id=recipe_id, executor_id=executor_id,
         source_kind=source_kind, source_ref=source_ref, orientation_only=orientation_only,
         risk_level=risk_level, human_checkpoint_id=human_checkpoint_id))
 
@@ -396,11 +398,15 @@ def aitp_v5_ingest_subagent_result(
 def aitp_v5_create_validation_contract(
     base: str, *, topic_id: str, claim_id: str,
     required_checks: list[str] | None = None, failure_modes: list[str] | None = None,
-    required_evidence_outputs: list[str] | None = None, validator_role: str = "adversarial_reviewer",
+    required_evidence_outputs: list[str] | None = None,
+    tool_recipe_ids: list[str] | None = None, executor_ids: list[str] | None = None,
+    validator_role: str = "adversarial_reviewer",
 ) -> dict:
     contract = create_validation_contract(_ws(base), topic_id=topic_id, claim_id=claim_id,
         required_checks=required_checks, failure_modes=failure_modes,
-        required_evidence_outputs=required_evidence_outputs, validator_role=validator_role)
+        required_evidence_outputs=required_evidence_outputs,
+        tool_recipe_ids=tool_recipe_ids, executor_ids=executor_ids,
+        validator_role=validator_role)
     return require_valid_public_surface("validation_contract_record", {"ok": True, **asdict(contract)})
 
 

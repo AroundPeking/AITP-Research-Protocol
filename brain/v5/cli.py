@@ -242,6 +242,8 @@ def _build_parser() -> argparse.ArgumentParser:
     vcr.add_argument("--required-check", action="append", default=[], dest="required_checks")
     vcr.add_argument("--failure-mode", action="append", default=[], dest="failure_modes")
     vcr.add_argument("--required-output", action="append", default=[], dest="required_evidence_outputs")
+    vcr.add_argument("--recipe-id", action="append", default=[], dest="tool_recipe_ids")
+    vcr.add_argument("--executor-id", action="append", default=[], dest="executor_ids")
     vcr.add_argument("--validator-role", default="adversarial_reviewer")
 
     return parser
@@ -387,7 +389,9 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "validation" and args.validation_command == "contract" and args.validation_contract_command == "create":
         vc = create_validation_contract(ws, topic_id=args.topic_id, claim_id=args.claim_id,
             required_checks=args.required_checks, failure_modes=args.failure_modes,
-            required_evidence_outputs=args.required_evidence_outputs, validator_role=args.validator_role)
+            required_evidence_outputs=args.required_evidence_outputs,
+            tool_recipe_ids=args.tool_recipe_ids, executor_ids=args.executor_ids,
+            validator_role=args.validator_role)
         return {"ok": True, **require_valid_public_surface("validation_contract_record", {"ok": True, **asdict(vc)})}
 
     if args.command == "checkpoint" and args.checkpoint_command == "request":

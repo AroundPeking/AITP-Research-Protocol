@@ -93,7 +93,7 @@ def evaluate_policy(
         _guard_l2_promotion_requires_evidence(decision, refs)
 
     if action in {"execute_tool", "record_tool_run"}:
-        _guard_high_risk_tool_requires_validation_contract(decision, risk_level, contracts)
+        _guard_high_risk_tool_requires_validation_contract(decision, action, risk_level, contracts, ctx)
 
     if action == "reduce_friction_with_trust_card":
         _guard_invalidated_trust_card_cannot_reduce_friction(decision, risk_assessment)
@@ -170,19 +170,63 @@ def _guard_l2_promotion_requires_evidence(decision: PolicyDecision, evidence_ref
 
 def _guard_high_risk_tool_requires_validation_contract(
     decision: PolicyDecision,
+    action: str,
     risk_level: str,
     validation_contracts: list[ValidationContractRecord],
+    context: dict[str, Any],
 ) -> None:
     if risk_level not in {"rigorous", "adversarial"}:
         return
-    if validation_contracts:
+    if not validation_contracts:
+        decision.add_block(
+            "high_risk_tool_execution_requires_validation_contract",
+            "rigorous or adversarial tool execution requires an explicit typed validation contract",
+            "create_validation_contract",
+            severity="hard_block",
+        )
+        return
+    recipe_id = str(context.get("recipe_id", "")).strip()
+    executor_id = str(context.get("executor_id", "")).strip()
+    if action == "execute_tool" and (not recipe_id or not executor_id):
+        decision.add_block(
+            "high_risk_tool_execution_requires_tool_identity",
+            "rigorous or adversarial tool execution must name the tool recipe and executor before a validation contract can authorize it",
+            "include_tool_recipe_and_executor",
+            severity="hard_block",
+        )
+        return
+    if action == "record_tool_run" and not recipe_id:
+        decision.add_block(
+            "high_risk_tool_execution_requires_tool_identity",
+            "rigorous or adversarial tool-run records must name the tool recipe before a validation contract can authorize them",
+            "include_tool_recipe",
+            severity="hard_block",
+        )
+        return
+    if _validation_contract_matches_tool(action, validation_contracts, recipe_id, executor_id):
         return
     decision.add_block(
-        "high_risk_tool_execution_requires_validation_contract",
-        "rigorous or adversarial tool execution requires an explicit typed validation contract",
-        "create_validation_contract",
+        "high_risk_tool_validation_contract_mismatch",
+        "provided validation contracts do not bind the current high-risk tool recipe and executor",
+        "bind_validation_contract_to_tool",
         severity="hard_block",
     )
+
+
+def _validation_contract_matches_tool(
+    action: str,
+    contracts: list[ValidationContractRecord],
+    recipe_id: str,
+    executor_id: str,
+) -> bool:
+    for contract in contracts:
+        recipe_ids = set(getattr(contract, "tool_recipe_ids", []))
+        executor_ids = set(getattr(contract, "executor_ids", []))
+        if action == "record_tool_run" and recipe_id in recipe_ids:
+            return True
+        if action == "execute_tool" and recipe_id in recipe_ids and executor_id in executor_ids:
+            return True
+    return False
 
 
 def _guard_invalidated_trust_card_cannot_reduce_friction(

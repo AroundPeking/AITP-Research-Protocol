@@ -42,6 +42,8 @@ def context_policy_decision(
     evidence_refs: list[str] | None = None,
     code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    recipe_id: str = "",
+    executor_id: str = "",
     source_kind: str = "",
     source_ref: str = "",
     orientation_only: bool = False,
@@ -72,6 +74,8 @@ def context_policy_decision(
             "orientation_only": orientation_only,
             "human_checkpoint_id": human_checkpoint_id,
             "human_checkpoint_approved": approved_checkpoint,
+            "recipe_id": recipe_id,
+            "executor_id": executor_id,
         },
     )
 
@@ -85,6 +89,8 @@ def evaluate_context_pre_tool_policy(
     evidence_refs: list[str] | None = None,
     code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    recipe_id: str = "",
+    executor_id: str = "",
     source_kind: str = "",
     source_ref: str = "",
     orientation_only: bool = False,
@@ -102,6 +108,8 @@ def evaluate_context_pre_tool_policy(
         evidence_refs=evidence_refs,
         code_state_ids=code_state_ids,
         validation_contract_ids=validation_contract_ids,
+        recipe_id=recipe_id,
+        executor_id=executor_id,
         source_kind=source_kind,
         source_ref=source_ref,
         orientation_only=orientation_only,
@@ -122,6 +130,8 @@ def evaluate_context_pre_tool_policy(
             "risk_level": risk_level,
             "human_checkpoint_id": human_checkpoint_id,
             "validation_contract_ids": resolved_contract_ids,
+            "recipe_id": recipe_id,
+            "executor_id": executor_id,
             "policy_reasons": [
                 {
                     "policy_id": reason.policy_id,

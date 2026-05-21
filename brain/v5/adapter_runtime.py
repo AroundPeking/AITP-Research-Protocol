@@ -67,6 +67,8 @@ def evaluate_bridge_lifecycle_event(
         evidence_refs=_clean_list(event.get("evidence_refs")),
         code_state_ids=_clean_list(event.get("code_state_ids")),
         validation_contract_ids=_clean_list(event.get("validation_contract_ids")),
+        recipe_id=str(event.get("recipe_id", "")),
+        executor_id=str(event.get("executor_id", "")),
         source_kind=str(event.get("source_kind", "typed_records")),
         source_ref=str(event.get("source_ref", "")),
         orientation_only=bool(event.get("orientation_only", False)),
@@ -91,6 +93,8 @@ def evaluate_bridge_gate_pre_tool_policy(
     evidence_refs: list[str] | None = None,
     code_state_ids: list[str] | None = None,
     validation_contract_ids: list[str] | None = None,
+    recipe_id: str = "",
+    executor_id: str = "",
     source_kind: str = "typed_records",
     source_ref: str = "",
     orientation_only: bool = False,
@@ -113,6 +117,8 @@ def evaluate_bridge_gate_pre_tool_policy(
         evidence_refs=evidence_refs,
         code_state_ids=code_state_ids,
         validation_contract_ids=validation_contract_ids,
+        recipe_id=recipe_id,
+        executor_id=executor_id,
         source_kind=source_kind,
         source_ref=source_ref,
         orientation_only=orientation_only,
@@ -167,6 +173,13 @@ def _platform_pre_tool_event(bridge_payload: dict[str, Any], platform_event: dic
         "evidence_refs": _input_list(tool_input, "evidence_refs"),
         "code_state_ids": _input_list(tool_input, "code_state_ids"),
         "validation_contract_ids": _input_list(tool_input, "validation_contract_ids"),
+        "recipe_id": str(tool_input.get("recipe_id") or tool_input.get("recipe") or platform_event.get("recipe_id") or ""),
+        "executor_id": str(
+            tool_input.get("executor_id")
+            or tool_input.get("executor")
+            or platform_event.get("executor_id")
+            or ""
+        ),
         "source_kind": str(tool_input.get("source_kind") or platform_event.get("source_kind") or "typed_records"),
         "source_ref": str(tool_input.get("source_ref") or platform_event.get("source_ref") or ""),
         "orientation_only": bool(tool_input.get("orientation_only") is True or platform_event.get("orientation_only") is True),

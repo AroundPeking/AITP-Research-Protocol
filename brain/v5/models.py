@@ -284,6 +284,8 @@ class ValidationContractRecord:
     required_checks: list[str] = field(default_factory=list)
     failure_modes: list[str] = field(default_factory=list)
     required_evidence_outputs: list[str] = field(default_factory=list)
+    tool_recipe_ids: list[str] = field(default_factory=list)
+    executor_ids: list[str] = field(default_factory=list)
     validator_role: str = "adversarial_reviewer"
     status: str = "open"
     kind: str = "validation_contract"

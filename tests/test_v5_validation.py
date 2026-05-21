@@ -41,12 +41,16 @@ def test_create_validation_contract_requires_claim_checks_and_failure_modes(tmp_
         required_checks=["code_state_present", "benchmark_table_within_tolerance"],
         failure_modes=["wrong frequency grid", "dirty worktree"],
         required_evidence_outputs=["evidence_or_provenance", "minimal_check"],
+        tool_recipe_ids=["recipe-si-gw"],
+        executor_ids=["pytest"],
         validator_role="adversarial_reviewer",
     )
 
     payload = {"ok": True, **asdict(contract)}
     assert contract.kind == "validation_contract"
     assert contract.status == "open"
+    assert contract.tool_recipe_ids == ["recipe-si-gw"]
+    assert contract.executor_ids == ["pytest"]
     assert require_valid_public_surface("validation_contract_record", payload) == payload
 
 
@@ -156,6 +160,10 @@ def test_validation_cli_json_output(tmp_path):
             "dirty worktree",
             "--required-output",
             "evidence_or_provenance",
+            "--recipe-id",
+            "recipe-si-gw",
+            "--executor-id",
+            "pytest",
         ]
     )
     assert result == 0
@@ -173,11 +181,15 @@ def test_validation_mcp_valid_surface(tmp_path):
         required_checks=["code_state_present"],
         failure_modes=["dirty worktree"],
         required_evidence_outputs=["evidence_or_provenance"],
+        tool_recipe_ids=["recipe-si-gw"],
+        executor_ids=["pytest"],
         validator_role="adversarial_reviewer",
     )
     assert result["ok"] is True
     assert result["kind"] == "validation_contract"
     assert result["status"] == "open"
+    assert result["tool_recipe_ids"] == ["recipe-si-gw"]
+    assert result["executor_ids"] == ["pytest"]
 
 
 def test_validation_runtime_entrypoint_exists():

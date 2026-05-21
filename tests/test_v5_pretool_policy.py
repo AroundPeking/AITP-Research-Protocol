@@ -711,6 +711,8 @@ def test_mcp_pre_tool_policy_accepts_rigorous_execute_tool_with_validation_contr
         required_checks=["finite-size scaling sanity check"],
         failure_modes=["finite-size artifact"],
         required_evidence_outputs=["diagnostic plot"],
+        tool_recipe_ids=["recipe-fqhe-ed"],
+        executor_ids=["pytest"],
     )
 
     payload = aitp_v5_evaluate_pre_tool_policy(
@@ -720,6 +722,8 @@ def test_mcp_pre_tool_policy_accepts_rigorous_execute_tool_with_validation_contr
         claim_id=claim.claim_id,
         source_kind="typed_records",
         risk_level="rigorous",
+        recipe_id="recipe-fqhe-ed",
+        executor_id="pytest",
         validation_contract_ids=[contract.contract_id],
     )
 
@@ -728,6 +732,40 @@ def test_mcp_pre_tool_policy_accepts_rigorous_execute_tool_with_validation_contr
     assert payload["mode"] == "log"
     assert payload["block"] is False
     assert payload["policy_reasons"] == []
+
+
+def test_mcp_pre_tool_policy_blocks_rigorous_execute_tool_with_unbound_validation_contract(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+    from brain.v5.validation import create_validation_contract
+
+    ws, claim = _seed_claim(tmp_path)
+    contract = create_validation_contract(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        required_checks=["finite-size scaling sanity check"],
+        failure_modes=["finite-size artifact"],
+        required_evidence_outputs=["diagnostic plot"],
+    )
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="execute_tool",
+        claim_id=claim.claim_id,
+        source_kind="typed_records",
+        risk_level="rigorous",
+        recipe_id="recipe-fqhe-ed",
+        executor_id="pytest",
+        validation_contract_ids=[contract.contract_id],
+    )
+
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["required_actions"] == ["bind_validation_contract_to_tool"]
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "high_risk_tool_validation_contract_mismatch"
+    ]
 
 
 def test_cli_pre_tool_policy_accepts_validation_contract_id(tmp_path, capsys):
@@ -741,6 +779,8 @@ def test_cli_pre_tool_policy_accepts_validation_contract_id(tmp_path, capsys):
         required_checks=["compare neutral sector counting"],
         failure_modes=["wrong edge-mode identification"],
         required_evidence_outputs=["counting table"],
+        tool_recipe_ids=["recipe-fqhe-ed"],
+        executor_ids=["pytest"],
     )
 
     payload = _invoke(
@@ -758,6 +798,10 @@ def test_cli_pre_tool_policy_accepts_validation_contract_id(tmp_path, capsys):
             "typed_records",
             "--risk-level",
             "rigorous",
+            "--recipe",
+            "recipe-fqhe-ed",
+            "--executor",
+            "pytest",
             "--validation-contract-id",
             contract.contract_id,
         ],

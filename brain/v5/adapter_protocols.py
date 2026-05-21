@@ -274,7 +274,7 @@ _RUNTIME_RECORD_PROTOCOLS = {
         "entrypoint": "aitp_v5_create_validation_contract",
         "sequence": list(_RECORD_SEQUENCE_BY_ACTION["create_validation_contract"]),
         "required_typed_refs": ["topic_id", "claim_id", "required_checks", "failure_modes"],
-        "accepted_link_fields": ["required_evidence_outputs", "validator_role"],
+        "accepted_link_fields": ["required_evidence_outputs", "tool_recipe_ids", "executor_ids", "validator_role"],
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     },
