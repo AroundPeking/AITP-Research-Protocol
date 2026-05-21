@@ -142,7 +142,9 @@ orientation-only `known_context.memory_entries`, so agents can see previously
 promoted scoped memory without treating the brief itself as the authority. For
 code-method memory, those brief entries include `code_state_ids` derived from
 the linked evidence's tool runs, so version-sensitive conclusions keep their
-code provenance visible in subsequent sessions.
+code provenance visible in subsequent sessions. The public execution-brief
+contract validates these memory entries as orientation-only payloads with
+list-shaped evidence/code-state references.
 Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the code-state/record-evidence/tool-run/execute-tool/tool-recipe/reference-location/

@@ -3594,3 +3594,55 @@ Each entry should record:
 - Next recommended task:
   - add a compact review/audit surface for L2 memory brief entries or continue
     closing remaining hook installer/native lifecycle gaps.
+
+### 50dc9d4 - Contract L2 Memory Brief Context
+
+- Task: make execution-brief validation explicitly check L2 memory orientation
+  entries, so `known_context.memory_entries` cannot silently become an
+  uncontracted truth source.
+- Planning source:
+  - residual risk after `68f4a85` and `f95ba36`;
+  - v5 invariant that public derived context must remain orientation-only;
+  - architecture rule to keep modules small and avoid rebuilding the old
+    monolithic AITP style.
+- Changed files:
+  - `brain/v5/brief_contracts.py`
+  - `brain/v5/contracts.py`
+  - `tests/test_v5_contracts.py`
+- Public/runtime behavior changes:
+  - execution-brief contract validation is now implemented in
+    `brain/v5/brief_contracts.py`, while `contracts.py` remains the public
+    wrapper;
+  - `known_context.memory_entries` is validated as a list when present;
+  - each memory brief entry must keep `orientation_only=true`;
+  - `evidence_refs` must be list-shaped, and optional `code_state_ids` must
+    also be list-shaped.
+- Tests:
+  - contract rejects memory brief entries with `orientation_only=false`;
+  - contract rejects string-shaped `evidence_refs` and `code_state_ids`;
+  - current execution briefs still satisfy the public contract.
+- Verification:
+  - red test:
+    `python -m pytest tests\test_v5_contracts.py -q -k "memory_entry"`:
+    2 failed because `validate_execution_brief` ignored memory entry content;
+  - target green set:
+    `python -m pytest tests\test_v5_contracts.py -q -k "execution_brief_contract"`:
+    4 passed, 31 deselected;
+  - focused related set:
+    `python -m pytest tests\test_v5_contracts.py tests\test_v5_real_workflows.py tests\test_v5_adapters.py tests\test_v5_mcp_tools.py tests\test_v5_legacy_bridge.py -q`:
+    115 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    397 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings;
+  - architecture line count check from full v5 left `contracts.py` at 435 lines,
+    below the 500-line boundary.
+- Residual risks:
+  - the contract validates memory brief shape, not the full typed
+    `MemoryEntryRecord` semantics; consumers still need typed records for
+    authoritative details.
+- Next recommended task:
+  - continue with remaining hook installer/native lifecycle gaps, or add a
+    dedicated L2 memory audit surface if review needs more than brief context.
