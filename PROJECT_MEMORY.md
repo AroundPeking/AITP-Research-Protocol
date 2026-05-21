@@ -165,7 +165,7 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   the correct CLI/MCP invocation without prose scraping. The bridge entrypoints
   also advertise machine-readable `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,
-  optional `validation_contract_ids`, optional `tool_run_ids`, optional
+  optional `evidence_refs`, optional `validation_contract_ids`, optional `tool_run_ids`, optional
   `validation_result_ids`, optional `recipe_id`, optional
   `executor_id`, optional `human_checkpoint_id`, optional `checkpoint_id`, and
   optional nested `packet` input, while typed kernel records remain the

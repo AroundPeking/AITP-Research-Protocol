@@ -3379,3 +3379,61 @@ Each entry should record:
     `create_promotion_packet` with tool-derived evidence and
     `validation_result_ids`, or move to the next high-risk typed-record guard
     from the implementation plan.
+
+### b91032c - Expose Evidence Refs In Pre-Tool Decisions
+
+- Task: make pre-tool policy decisions explicitly return the evidence and
+  validation-link inputs used for promotion/evidence checks, so review does not
+  rely on reconstructing hook input from logs.
+- Planning source:
+  - previous ledger residual risk after `14a2f9a` to exercise adapter-event
+    promotion validation links;
+  - v5 invariant that adapter decisions must be auditable typed surfaces rather
+    than prose-only hook messages.
+- Changed files:
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/hook_protocol_contracts.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_bridge_runtime.py`
+- Public/runtime behavior changes:
+  - `pre_tool_policy_decision` payloads now include `evidence_refs`;
+  - the pre-tool public-surface contract now requires list-shaped
+    `evidence_refs`, `validation_contract_ids`, `tool_run_ids`, and
+    `validation_result_ids`;
+  - Codex-style platform pre-tool events are covered for
+    `create_promotion_packet` with tool-derived evidence and matching
+    `validation_result_ids`.
+- Tests:
+  - MCP pre-tool promotion tests assert `evidence_refs` are returned for both
+    blocked and allowed rigorous promotion decisions;
+  - public-surface contract test accepts the expanded audit-field payload;
+  - bridge-runtime test verifies Codex platform events pass promotion evidence
+    refs and validation-result links into the typed decision.
+- Verification:
+  - red test:
+    `python -m pytest tests\test_v5_pretool_policy.py -q -k "rigorous_promotion_packet"`:
+    2 failed because `pre_tool_policy_decision` did not expose
+    `evidence_refs`;
+  - target green set:
+    `python -m pytest tests\test_v5_bridge_runtime.py tests\test_v5_pretool_policy.py tests\test_v5_public_surfaces.py -q -k "promotion_validation_links or rigorous_promotion_packet or pre_tool_policy_decision"`:
+    5 passed, 54 deselected;
+  - focused related set:
+    `python -m pytest tests\test_v5_bridge_runtime.py tests\test_v5_pretool_policy.py tests\test_v5_public_surfaces.py tests\test_v5_hooks.py tests\test_v5_adapters.py tests\test_v5_contracts.py -q`:
+    167 passed;
+  - full v5 regression set initially failed only the module-size boundary
+    because `hook_protocol_contracts.py` reached 501 lines; after compressing
+    repeated list-contract checks, full v5 passed:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    394 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - the decision surface exposes IDs used in policy checks, but it still does
+    not include a full resolved evidence-record snapshot; consumers must read
+    typed records when they need details.
+- Next recommended task:
+  - continue the next high-risk typed-record guard from the implementation
+    plan, or add equivalent OpenCode platform-event coverage for promotion
+    validation links.
