@@ -37,10 +37,10 @@ $files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullNa
 pytest $files -q
 ```
 
-Expected baseline as of `f334f0e`:
+Expected baseline as of `c5136f9`:
 
 ```text
-400 passed
+403 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -218,6 +218,12 @@ Implemented:
   `l2_memory_audit` public surface. It derives active L2 memory review context
   only from typed records, including promotion packet status, human checkpoint
   decision, evidence refs, validation result refs, and code-state refs.
+- `aitp-v5 trust audit --claim <claim-id>` /
+  `aitp_v5_audit_claim_trust` now expose the contracted
+  `claim_trust_audit` public surface. It derives current claim-confidence
+  support only from typed records, including supporting/challenging evidence,
+  passed/failed validation results, L2 memory entries, code-state refs, and
+  review actions.
 - Generated Codex/OpenCode bridge payloads and JSON sidecars now advertise
   `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,
@@ -327,6 +333,10 @@ Create or extend:
 - `brain/v5/memory_audit.py`: read-only claim-level L2 memory audit payloads
   derived from typed records.
 - `brain/v5/memory_audit_contracts.py`: public contract for `l2_memory_audit`.
+- `brain/v5/trust_audit.py`: read-only claim confidence support audit payloads
+  derived from typed records.
+- `brain/v5/trust_audit_contracts.py`: public contract for
+  `claim_trust_audit`.
 - `tests/test_v5_physics_objects.py`: object and relation record tests.
 - `tests/test_v5_sensemaking.py`: sense-making report tests.
 - `tests/test_v5_validation.py`: validation and checkpoint tests.

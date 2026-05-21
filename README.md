@@ -149,7 +149,12 @@ list-shaped evidence/code-state references. For review, `aitp-v5 memory audit
 `l2_memory_audit` surface: active L2 memory entries plus their promotion
 packets, human checkpoint decisions, evidence refs, validation results, and
 derived code-state refs, all from typed records with
-`summary_inputs_trusted=false`.
+`summary_inputs_trusted=false`. To review the current claim confidence itself,
+`aitp-v5 trust audit --claim <claim-id>` and `aitp_v5_audit_claim_trust`
+return the contracted `claim_trust_audit` surface: current confidence,
+supporting/challenging evidence, passed/failed validation results, L2 memory
+entry ids, code-state ids, and review actions. It is read-only and cannot
+update kernel state or claim trust.
 Adapter
 packets and generated bridge files put `aitp_v5_evaluate_pre_tool_policy` into
 the code-state/record-evidence/tool-run/execute-tool/tool-recipe/reference-location/

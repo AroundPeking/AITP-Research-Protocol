@@ -3708,3 +3708,64 @@ Each entry should record:
   - add a small review helper that audits claim trust/confidence changes against
     evidence, validation results, and L2 memory, or continue the remaining
     native lifecycle installer work for Codex/OpenCode.
+
+### c5136f9 - Audit Claim Trust Support
+
+- Task: add a compact read-only audit surface for a claim's current confidence
+  state, so reviewers can see whether typed evidence, validation results, L2
+  memory, and code-state provenance support that state.
+- Planning source:
+  - previous ledger recommendation after `f334f0e`;
+  - v5 invariant that trust-changing actions must be backed by typed kernel
+    records and never by summaries;
+  - goal requirement that another AI or human reviewer can audit each step.
+- Changed files:
+  - `brain/v5/trust_audit.py`
+  - `brain/v5/trust_audit_contracts.py`
+  - `brain/v5/mcp_trust_audit.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_trust_audit.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - new kernel function `audit_claim_trust(ws, claim_id=...)`;
+  - new public surface `claim_trust_audit`;
+  - new CLI command `aitp-v5 trust audit --claim <claim-id>`;
+  - new MCP wrapper `aitp_v5_audit_claim_trust`;
+  - new runtime entrypoint `audit_claim_trust`;
+  - audit payloads expose current confidence, evidence profile, support state,
+    supporting/challenging evidence refs, passed/failed validation result ids,
+    active L2 memory entry ids, code-state ids, review actions, and explicit
+    `mutation_history_available=false`.
+- Tests:
+  - audit payload reports `validated_memory_backed` support for a code-method
+    claim that has typed evidence, passed validation result, promoted L2 memory,
+    and code-state provenance;
+  - CLI/MCP/runtime entrypoints expose the same contracted payload;
+  - public surface contract rejects summary-sourced audit payloads.
+- Verification:
+  - red test:
+    `python -m pytest tests\test_v5_trust_audit.py -q`: 3 failed because
+    `brain.v5.trust_audit`, `aitp_v5_audit_claim_trust`, and the
+    `claim_trust_audit` public surface did not exist;
+  - target green set:
+    same command: 3 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_trust_audit.py tests\test_v5_trust_updates.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_cli.py tests\test_v5_mcp_tools.py -q`:
+    63 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    403 passed;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --cached --check -- .`: passed.
+- Residual risks:
+  - trust-update apply currently mutates claim confidence but does not persist a
+    separate trust-update history record; the audit therefore reports
+    `mutation_history_available=false` and focuses on current typed support.
+- Next recommended task:
+  - either add durable trust-update history records for confidence transitions,
+    or continue the remaining native lifecycle installer integration for
+    Codex/OpenCode.
