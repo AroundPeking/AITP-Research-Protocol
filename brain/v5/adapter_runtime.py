@@ -79,6 +79,7 @@ def evaluate_bridge_lifecycle_event(
         orientation_only=bool(event.get("orientation_only", False)),
         risk_level=str(event.get("risk_level", "guided")),
         human_checkpoint_id=str(event.get("human_checkpoint_id", "")),
+        failure_mode_review_checkpoint_id=str(event.get("failure_mode_review_checkpoint_id", "")),
     )
     payload["runtime_event"] = {
         "lifecycle_event": "pre_tool",
@@ -108,6 +109,7 @@ def evaluate_bridge_gate_pre_tool_policy(
     orientation_only: bool = False,
     risk_level: str = "guided",
     human_checkpoint_id: str = "",
+    failure_mode_review_checkpoint_id: str = "",
 ) -> dict[str, Any]:
     """Evaluate the shared pre-tool policy using gate metadata from a bridge."""
 
@@ -135,6 +137,7 @@ def evaluate_bridge_gate_pre_tool_policy(
         orientation_only=orientation_only,
         risk_level=risk_level,
         human_checkpoint_id=human_checkpoint_id,
+        failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id,
     )
     payload["runtime_gate_protocol"] = {
         "source_protocol_field": "runtime_gate_protocols",
@@ -205,6 +208,13 @@ def _platform_pre_tool_event(bridge_payload: dict[str, Any], platform_event: dic
             or platform_event.get("human_checkpoint_id")
             or platform_event.get("human_checkpoint")
             or platform_event.get("checkpoint_id")
+            or ""
+        ),
+        "failure_mode_review_checkpoint_id": str(
+            tool_input.get("failure_mode_review_checkpoint_id")
+            or tool_input.get("failure_mode_review_checkpoint")
+            or platform_event.get("failure_mode_review_checkpoint_id")
+            or platform_event.get("failure_mode_review_checkpoint")
             or ""
         ),
         "tool_name": tool_name,

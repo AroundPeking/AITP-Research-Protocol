@@ -185,7 +185,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   so agents cannot treat evidence attachment alone as enough for L2 memory
   promotion. When the active claim has `strongest_failure_mode`, the supplied
   failure modes must cover that recorded risk before the policy allows packet
-  creation. Execution briefs expose active claim L2 memory entries
+  creation. For rigorous/adversarial promotion with such recorded claim risk,
+  the pre-tool policy also requires an approved
+  `failure_mode_review_checkpoint_id` from the typed failure-mode review flow.
+  Execution briefs expose active claim L2 memory entries
   as orientation-only `known_context.memory_entries`; typed memory records under
   `memory/l2/entries` remain authoritative. Code-method memory brief entries
   include `code_state_ids` derived from linked evidence tool runs so version
@@ -215,6 +218,8 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   typed `human_checkpoint_record` from that packet. Adapter pre-tool mapping
   treats the wrapper as `request_human_checkpoint`, so it inherits summary
   source blocking; the checkpoint is durable review state, not a trust update.
+  High-risk promotion should pass the approved checkpoint as
+  `--failure-mode-review-checkpoint` / `failure_mode_review_checkpoint_id`.
 - To audit a claim confidence state directly, agents can call
   `aitp-v5 trust audit --claim <claim-id>` or
   `aitp_v5_audit_claim_trust`. This returns the contracted

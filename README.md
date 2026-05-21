@@ -142,7 +142,11 @@ and blocks promotion-packet creation until the agent states at least one way the
 claim could still fail, matching the durable promotion packet contract instead
 of letting an evidence citation alone pass the gate. When the claim records a
 `strongest_failure_mode`, the supplied `known_failure_modes` must cover that
-recorded risk before the packet can be created. Execution briefs expose active claim L2 memory entries as
+recorded risk before the packet can be created. For rigorous/adversarial
+promotion with a recorded strongest failure mode, the same pre-tool policy now
+also requires an approved `failure_mode_review_checkpoint_id`, produced by the
+typed failure-mode review checkpoint flow, so the physical adequacy review is a
+durable checkpoint rather than a summary note. Execution briefs expose active claim L2 memory entries as
 orientation-only `known_context.memory_entries`, so agents can see previously
 promoted scoped memory without treating the brief itself as the authority. For
 code-method memory, those brief entries include `code_state_ids` derived from
@@ -167,8 +171,10 @@ promotion, with no authority to update kernel state or claim trust. When that
 review should become durable, `aitp-v5 memory request-failure-mode-review
 --claim <claim-id>` and `aitp_v5_request_failure_mode_review_checkpoint`
 create a typed `human_checkpoint_record` from the review packet; this records
-the need for physical adequacy review but still does not update claim trust. To
-review the current claim confidence itself,
+the need for physical adequacy review but still does not update claim trust.
+Pass the approved checkpoint as `--failure-mode-review-checkpoint` /
+`failure_mode_review_checkpoint_id` when creating a high-risk promotion packet.
+To review the current claim confidence itself,
 `aitp-v5 trust audit --claim <claim-id>` and `aitp_v5_audit_claim_trust`
 return the contracted `claim_trust_audit` surface: current confidence,
 supporting/challenging evidence, passed/failed validation results, L2 memory

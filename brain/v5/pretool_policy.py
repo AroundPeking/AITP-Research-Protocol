@@ -52,6 +52,7 @@ def context_policy_decision(
     tool_run_ids: list[str] | None = None,
     validation_result_ids: list[str] | None = None,
     known_failure_modes: list[str] | None = None,
+    failure_mode_review_checkpoint_id: str = "",
     recipe_id: str = "",
     executor_id: str = "",
     source_kind: str = "",
@@ -67,6 +68,11 @@ def context_policy_decision(
     resolved_claim_id = _resolve_claim_id(ws, session_id, claim_id)
     claim = get_claim(ws, resolved_claim_id)
     approved_checkpoint = _approved_checkpoint_for_claim(ws, claim.claim_id, human_checkpoint_id)
+    approved_failure_mode_review = _approved_failure_mode_review_checkpoint_for_claim(
+        ws,
+        claim.claim_id,
+        failure_mode_review_checkpoint_id,
+    )
     return evaluate_policy(
         action=action,
         claim=claim,
@@ -95,6 +101,8 @@ def context_policy_decision(
             "tool_run_ids": _clean_list(tool_run_ids),
             "validation_result_ids": _clean_list(validation_result_ids),
             "known_failure_modes": _clean_list(known_failure_modes),
+            "failure_mode_review_checkpoint_id": failure_mode_review_checkpoint_id,
+            "failure_mode_review_checkpoint_approved": approved_failure_mode_review,
         },
     )
 
@@ -111,6 +119,7 @@ def evaluate_context_pre_tool_policy(
     tool_run_ids: list[str] | None = None,
     validation_result_ids: list[str] | None = None,
     known_failure_modes: list[str] | None = None,
+    failure_mode_review_checkpoint_id: str = "",
     recipe_id: str = "",
     executor_id: str = "",
     source_kind: str = "",
@@ -133,6 +142,7 @@ def evaluate_context_pre_tool_policy(
         tool_run_ids=tool_run_ids,
         validation_result_ids=validation_result_ids,
         known_failure_modes=known_failure_modes,
+        failure_mode_review_checkpoint_id=failure_mode_review_checkpoint_id,
         recipe_id=recipe_id,
         executor_id=executor_id,
         source_kind=source_kind,
@@ -163,6 +173,7 @@ def evaluate_context_pre_tool_policy(
             "tool_run_ids": _clean_list(tool_run_ids),
             "validation_result_ids": resolved_result_ids,
             "known_failure_modes": _clean_list(known_failure_modes),
+            "failure_mode_review_checkpoint_id": failure_mode_review_checkpoint_id,
             "recipe_id": recipe_id,
             "executor_id": executor_id,
             "policy_reasons": [
@@ -250,6 +261,21 @@ def _approved_checkpoint_for_claim(ws, claim_id: str, checkpoint_id: str) -> boo
         and record.claim_id == claim_id
         and record.status == "decided"
         and record.decision == "approve"
+        for record in records
+    )
+
+
+def _approved_failure_mode_review_checkpoint_for_claim(ws, claim_id: str, checkpoint_id: str) -> bool:
+    checkpoint_id = checkpoint_id.strip()
+    if not checkpoint_id:
+        return False
+    records = list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord)
+    return any(
+        record.checkpoint_id == checkpoint_id
+        and record.claim_id == claim_id
+        and record.requested_by == "failure_mode_review_packet"
+        and record.status == "decided"
+        and record.decision == "approve_failure_mode_review"
         for record in records
     )
 

@@ -249,7 +249,9 @@ Implemented:
   keeping L2 promotion aligned with the durable promotion packet contract rather
   than reducing the gate to evidence-link attachment. If the claim already has a
   `strongest_failure_mode`, those supplied failure modes must cover the recorded
-  risk.
+  risk. Rigorous/adversarial promotion with such recorded risk also requires an
+  approved `failure_mode_review_checkpoint_id` from the typed failure-mode
+  review checkpoint flow.
 - Execution briefs now expose active-claim L2 memory entries as
   orientation-only `known_context.memory_entries`, with typed memory records
   remaining authoritative. Code-method memory brief entries include
@@ -277,6 +279,8 @@ Implemented:
   `human_checkpoint_record` from the failure-mode review packet. Adapter
   pre-tool mapping treats the wrapper as `request_human_checkpoint`, preserving
   summary-source blocking while making physical adequacy review durable.
+  High-risk promotion can pass that approved checkpoint via
+  `--failure-mode-review-checkpoint` / `failure_mode_review_checkpoint_id`.
 - `aitp-v5 trust audit --claim <claim-id>` /
   `aitp_v5_audit_claim_trust` now expose the contracted
   `claim_trust_audit` public surface. It derives current claim-confidence

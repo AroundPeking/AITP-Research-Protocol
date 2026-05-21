@@ -128,6 +128,20 @@ def _seed_grid_validation_evidence(ws, claim):
     return evidence, result
 
 
+def _approve_failure_mode_review_checkpoint(ws, claim):
+    from brain.v5.checkpoints import decide_human_checkpoint
+    from brain.v5.failure_mode_review import request_failure_mode_review_checkpoint
+
+    checkpoint = request_failure_mode_review_checkpoint(ws, claim_id=claim.claim_id)
+    return decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve_failure_mode_review",
+        rationale="Failure modes were physically reviewed before promotion.",
+        decided_by="human",
+    )
+
+
 def _invoke(args, capsys):
     from brain.v5.cli import main
 
@@ -148,7 +162,7 @@ def test_context_pre_tool_policy_blocks_l2_promotion_without_evidence(tmp_path):
         action="promote_to_l2",
         claim_id=claim.claim_id,
         evidence_refs=[],
-        risk_level="guided",
+        risk_level="rigorous",
         source_kind="typed_records",
     )
 
@@ -945,13 +959,112 @@ def test_mcp_pre_tool_policy_accepts_promotion_failure_mode_covering_claim_risk(
         validation_result_ids=[result.result_id],
         known_failure_modes=["frequency grid mismatch"],
         source_kind="typed_records",
-        risk_level="rigorous",
+        risk_level="guided",
     )
 
     assert payload["known_failure_modes"] == ["frequency grid mismatch"]
     assert payload["mode"] == "log"
     assert payload["block"] is False
     assert payload["policy_reasons"] == []
+
+
+def test_mcp_pre_tool_policy_blocks_high_risk_promotion_without_failure_mode_review_checkpoint(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    ws, claim = _seed_claim(
+        tmp_path,
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    evidence, result = _seed_grid_validation_evidence(ws, claim)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="create_promotion_packet",
+        claim_id=claim.claim_id,
+        evidence_refs=[evidence.evidence_id],
+        validation_result_ids=[result.result_id],
+        known_failure_modes=["frequency grid mismatch"],
+        source_kind="typed_records",
+        risk_level="rigorous",
+    )
+
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["failure_mode_review_checkpoint_id"] == ""
+    assert payload["required_actions"] == ["approve_failure_mode_review_checkpoint"]
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "high_risk_promotion_requires_failure_mode_review_checkpoint"
+    ]
+
+
+def test_mcp_pre_tool_policy_accepts_high_risk_promotion_with_failure_mode_review_checkpoint(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    ws, claim = _seed_claim(
+        tmp_path,
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    evidence, result = _seed_grid_validation_evidence(ws, claim)
+    checkpoint = _approve_failure_mode_review_checkpoint(ws, claim)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="create_promotion_packet",
+        claim_id=claim.claim_id,
+        evidence_refs=[evidence.evidence_id],
+        validation_result_ids=[result.result_id],
+        known_failure_modes=["frequency grid mismatch"],
+        failure_mode_review_checkpoint_id=checkpoint.checkpoint_id,
+        source_kind="typed_records",
+        risk_level="rigorous",
+    )
+
+    assert payload["mode"] == "log"
+    assert payload["block"] is False
+    assert payload["failure_mode_review_checkpoint_id"] == checkpoint.checkpoint_id
+    assert payload["policy_reasons"] == []
+
+
+def test_cli_pre_tool_policy_accepts_failure_mode_review_checkpoint(tmp_path, capsys):
+    ws, claim = _seed_claim(
+        tmp_path,
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    evidence, result = _seed_grid_validation_evidence(ws, claim)
+    checkpoint = _approve_failure_mode_review_checkpoint(ws, claim)
+
+    payload = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "policy",
+            "pre-tool",
+            "create_promotion_packet",
+            "--session",
+            "s1",
+            "--claim",
+            claim.claim_id,
+            "--source-kind",
+            "typed_records",
+            "--risk-level",
+            "rigorous",
+            "--evidence-ref",
+            evidence.evidence_id,
+            "--validation-result-id",
+            result.result_id,
+            "--known-failure-mode",
+            "frequency grid mismatch",
+            "--failure-mode-review-checkpoint",
+            checkpoint.checkpoint_id,
+        ],
+        capsys,
+    )
+
+    assert payload["failure_mode_review_checkpoint_id"] == checkpoint.checkpoint_id
+    assert payload["mode"] == "log"
+    assert payload["block"] is False
 
 
 def test_mcp_pre_tool_policy_blocks_apply_promotion_packet_from_findings_source(tmp_path):

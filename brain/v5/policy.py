@@ -107,6 +107,7 @@ def evaluate_policy(
 
     if action == "create_promotion_packet":
         _guard_promotion_packet_requires_known_failure_modes(decision, claim, ctx)
+        _guard_high_risk_promotion_requires_failure_mode_review_checkpoint(decision, claim, risk_level, ctx)
 
     if action in {"execute_tool", "record_tool_run"}:
         _guard_high_risk_tool_requires_validation_contract(decision, action, risk_level, contracts, ctx)
@@ -209,6 +210,27 @@ def _guard_promotion_packet_requires_known_failure_modes(
         "promotion_failure_modes_must_cover_claim_failure_mode",
         "promotion packet known failure modes must cover the claim's strongest recorded failure mode",
         "align_failure_mode_with_claim_risk",
+        severity="hard_block",
+    )
+
+
+def _guard_high_risk_promotion_requires_failure_mode_review_checkpoint(
+    decision: PolicyDecision,
+    claim: ClaimRecord | None,
+    risk_level: str,
+    context: dict[str, Any],
+) -> None:
+    if risk_level not in {"rigorous", "adversarial"} or not claim or not claim.strongest_failure_mode.strip():
+        return
+    modes = _context_list(context.get("known_failure_modes"))
+    if not modes or not _failure_modes_cover_claim_risk(claim.strongest_failure_mode, modes):
+        return
+    if context.get("failure_mode_review_checkpoint_approved") is True:
+        return
+    decision.add_block(
+        "high_risk_promotion_requires_failure_mode_review_checkpoint",
+        "rigorous or adversarial promotion with recorded claim risk requires an approved failure-mode review checkpoint",
+        "approve_failure_mode_review_checkpoint",
         severity="hard_block",
     )
 

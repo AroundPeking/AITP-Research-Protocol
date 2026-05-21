@@ -224,6 +224,11 @@ def _context_policy_from_workspace(
             orientation_only=bool(tool_input.get("orientation_only") is True),
             risk_level=str(tool_input.get("risk_level") or "guided"),
             human_checkpoint_id=str(tool_input.get("human_checkpoint_id") or tool_input.get("checkpoint_id") or ""),
+            failure_mode_review_checkpoint_id=str(
+                tool_input.get("failure_mode_review_checkpoint_id")
+                or tool_input.get("failure_mode_review_checkpoint")
+                or ""
+            ),
         )
     except Exception:
         return None

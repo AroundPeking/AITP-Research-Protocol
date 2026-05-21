@@ -381,6 +381,8 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
         "risk_level",
         "human_checkpoint_id",
         "checkpoint_id",
+        "failure_mode_review_checkpoint_id",
+        "failure_mode_review_checkpoint",
     ]
     assert payload["pre_tool_event_entrypoint"] == {
         "cli": "aitp-v5 adapter pre-tool-event <runtime> <session-id> <args>",
@@ -414,6 +416,8 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
                 "risk_level",
                 "human_checkpoint_id",
                 "checkpoint_id",
+                "failure_mode_review_checkpoint_id",
+                "failure_mode_review_checkpoint",
             ],
             "truth_source": "platform_event_for_routing_only",
             "summary_inputs_trusted": False,
@@ -460,7 +464,7 @@ def test_cli_adapter_hook_bridge_writes_codex_bridge_from_packet(tmp_path, capsy
     assert sidecar["path"] == str(bridge_path)
     assert sidecar["pre_tool_event_runner"]["bridge_payload_source"] == "payload_path"
     assert sidecar["pre_tool_event_entrypoint"]["mcp"] == "aitp_v5_evaluate_adapter_pre_tool_event"
-    assert sidecar["pre_tool_policy_entrypoint"]["input_schema"]["optional"][-1] == "human_checkpoint_id"
+    assert sidecar["pre_tool_policy_entrypoint"]["input_schema"]["optional"][-1] == "failure_mode_review_checkpoint_id"
     text = bridge_path.read_text(encoding="utf-8")
     assert "Generated from `runtime_hook_installation`." in text
     assert "python hooks/aitp_v5_hook.py pre-tool" in text
@@ -1823,6 +1827,8 @@ def test_cli_adapter_hook_bridge_writes_opencode_bridge_from_packet(tmp_path, ca
                 "risk_level",
                 "human_checkpoint_id",
                 "checkpoint_id",
+                "failure_mode_review_checkpoint_id",
+                "failure_mode_review_checkpoint",
             ],
             "truth_source": "platform_event_for_routing_only",
             "summary_inputs_trusted": False,
