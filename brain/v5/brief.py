@@ -11,6 +11,7 @@ from brain.v5.flow import resolve_flow_profile
 from brain.v5.interaction import prioritize_questions, resolve_interaction_profile
 from brain.v5.knowledge_connectors import suggest_knowledge_connectors_for_claim
 from brain.v5.models import ClaimRecord, CodeStateRecord
+from brain.v5.memory import list_memory_entries_for_claim, memory_entry_brief_payload
 from brain.v5.policy import evaluate_policy
 from brain.v5.question_engine import generate_questions
 from brain.v5.physics_objects import list_object_relations_for_claim, object_relation_brief_payload
@@ -33,6 +34,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     knowledge_connectors = []
     reference_locations = []
     object_relations = []
+    memory_entries = []
 
     if session.active_claim:
         claim = get_claim(ws, session.active_claim)
@@ -50,6 +52,10 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         reference_locations = [
             reference_location_brief_payload(location)
             for location in list_reference_locations_for_claim(ws, claim.claim_id)
+        ]
+        memory_entries = [
+            memory_entry_brief_payload(entry)
+            for entry in list_memory_entries_for_claim(ws, claim.claim_id)
         ]
 
     action_budget = risk.action_budget if risk and risk.action_budget else action_budget_for_level("guided")
@@ -149,6 +155,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "knowledge_connectors": knowledge_connectors,
             "reference_locations": reference_locations,
             "object_relations": object_relations,
+            "memory_entries": memory_entries,
         },
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,

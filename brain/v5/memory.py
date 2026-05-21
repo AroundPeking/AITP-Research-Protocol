@@ -155,6 +155,30 @@ def apply_promotion_packet(
     return entry
 
 
+def list_memory_entries_for_claim(ws: WorkspacePaths, claim_id: str) -> list[MemoryEntryRecord]:
+    """Return active L2 memory entries derived from a claim."""
+
+    return [
+        entry
+        for entry in list_records(ws.root / "memory" / "l2" / "entries", MemoryEntryRecord)
+        if entry.source_claim_id == claim_id and entry.status == "active"
+    ]
+
+
+def memory_entry_brief_payload(entry: MemoryEntryRecord) -> dict:
+    """Return orientation-only L2 memory context for execution briefs."""
+
+    return {
+        "entry_id": entry.entry_id,
+        "memory_kind": entry.memory_kind,
+        "scope": entry.scope,
+        "evidence_refs": list(entry.evidence_refs),
+        "source_packet_id": entry.source_packet_id,
+        "human_checkpoint_id": entry.human_checkpoint_id,
+        "orientation_only": True,
+    }
+
+
 def _ensure_tool_evidence_has_passed_validation_results(
     ws: WorkspacePaths,
     *,

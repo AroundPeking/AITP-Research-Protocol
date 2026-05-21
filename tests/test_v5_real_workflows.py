@@ -3,10 +3,13 @@ from __future__ import annotations
 
 def test_fqhe_learning_to_idea_to_toy_check_workflow(tmp_path):
     from brain.v5.brief import build_execution_brief
+    from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
     from brain.v5.evidence import record_evidence
+    from brain.v5.memory import apply_promotion_packet, create_promotion_packet
     from brain.v5.physics_objects import record_object_relation, record_physics_object
     from brain.v5.references import record_reference_location
     from brain.v5.tool_executors import execute_registered_tool_result
+    from brain.v5.validation import create_validation_contract, record_validation_result
     from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
 
     ws = init_workspace(tmp_path)
@@ -41,6 +44,16 @@ def test_fqhe_learning_to_idea_to_toy_check_workflow(tmp_path):
         claim_id=claim.claim_id,
         failure_modes=["wrong sector"],
     )
+    contract = create_validation_contract(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        required_checks=["finite-size counting table agrees level by level"],
+        failure_modes=["wrong sector", "finite-size aliasing"],
+        required_evidence_outputs=["all_within_tolerance"],
+        tool_recipe_ids=["recipe-fqhe-counting-table"],
+        executor_ids=["metric_table_check"],
+    )
     result = execute_registered_tool_result(
         ws,
         executor_id="metric_table_check",
@@ -57,6 +70,17 @@ def test_fqhe_learning_to_idea_to_toy_check_workflow(tmp_path):
         supports_outputs=["evidence_or_provenance", "minimal_check"],
         evidence_type="toy_numeric",
     )
+    validation = record_validation_result(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        contract_id=contract.contract_id,
+        tool_run_id=result.run.run_id,
+        status="passed",
+        checked_outputs=["all_within_tolerance"],
+        evidence_refs=[result.evidence.evidence_id],
+        summary="Finite-size counting table passed the required benchmark.",
+    )
     record_evidence(
         ws,
         topic_id="fqhe",
@@ -67,14 +91,53 @@ def test_fqhe_learning_to_idea_to_toy_check_workflow(tmp_path):
         supports_outputs=["evidence_or_provenance"],
         source_refs=["paper:fqhe-counting"],
     )
+    packet = create_promotion_packet(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        proposed_memory_kind="scoped_claim",
+        scope="recorded finite-size sector",
+        evidence_refs=[result.evidence.evidence_id],
+        validation_result_ids=[validation.result_id],
+        non_claims=["Does not prove thermodynamic-limit uniqueness."],
+        known_failure_modes=["wrong sector", "finite-size aliasing"],
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        reason="Promote validated finite-size counting claim to scoped L2 memory.",
+        requested_by="real_workflow_acceptance",
+        options=["approve", "reject"],
+    )
+    decide_human_checkpoint(
+        ws,
+        checkpoint_id=checkpoint.checkpoint_id,
+        decision="approve",
+        rationale="Tool evidence has a passed validation result and the memory scope is explicit.",
+        decided_by="human",
+    )
+    memory = apply_promotion_packet(ws, packet_id=packet.packet_id, checkpoint_id=checkpoint.checkpoint_id)
     bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order", active_claim=claim.claim_id)
 
     brief = build_execution_brief(ws, "s1")
 
     assert result.evidence is not None
+    assert memory.evidence_refs == [result.evidence.evidence_id]
     assert brief["evidence_coverage"]["satisfied_outputs"]
     assert brief["known_context"]["reference_locations"]
     assert brief["known_context"]["object_relations"]
+    assert brief["known_context"]["memory_entries"] == [
+        {
+            "entry_id": memory.entry_id,
+            "memory_kind": "scoped_claim",
+            "scope": "recorded finite-size sector",
+            "evidence_refs": [result.evidence.evidence_id],
+            "source_packet_id": packet.packet_id,
+            "human_checkpoint_id": checkpoint.checkpoint_id,
+            "orientation_only": True,
+        }
+    ]
 
 
 def test_gw_formula_code_translation_records_code_state_and_benchmark(tmp_path):
