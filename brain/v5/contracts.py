@@ -387,25 +387,17 @@ def require_valid_memory_entry_record(payload: dict[str, Any]) -> dict[str, Any]
 
 
 def validate_l2_memory_audit(payload: dict[str, Any], *, path: str = "l2_memory_audit") -> ContractResult:
-    from brain.v5.memory_audit_contracts import validate_l2_memory_audit as _validate
-    return _validate(payload, path=path)
-
-
+    from brain.v5.memory_audit_contracts import validate_l2_memory_audit as _validate; return _validate(payload, path=path)
 def require_valid_l2_memory_audit(payload: dict[str, Any]) -> dict[str, Any]:
-    from brain.v5.memory_audit_contracts import require_valid_l2_memory_audit as _require
-    return _require(payload)
-
-
+    from brain.v5.memory_audit_contracts import require_valid_l2_memory_audit as _require; return _require(payload)
 def validate_failure_mode_audit(payload: dict[str, Any], *, path: str = "failure_mode_audit") -> ContractResult:
-    from brain.v5.failure_mode_audit_contracts import validate_failure_mode_audit as _validate
-    return _validate(payload, path=path)
-
-
+    from brain.v5.failure_mode_audit_contracts import validate_failure_mode_audit as _validate; return _validate(payload, path=path)
 def require_valid_failure_mode_audit(payload: dict[str, Any]) -> dict[str, Any]:
-    from brain.v5.failure_mode_audit_contracts import require_valid_failure_mode_audit as _require
-    return _require(payload)
-
-
+    from brain.v5.failure_mode_audit_contracts import require_valid_failure_mode_audit as _require; return _require(payload)
+def validate_failure_mode_review_packet(payload: dict[str, Any], *, path: str = "failure_mode_review_packet") -> ContractResult:
+    from brain.v5.failure_mode_review_contracts import validate_failure_mode_review_packet as _validate; return _validate(payload, path=path)
+def require_valid_failure_mode_review_packet(payload: dict[str, Any]) -> dict[str, Any]:
+    from brain.v5.failure_mode_review_contracts import require_valid_failure_mode_review_packet as _require; return _require(payload)
 def validate_tool_executor_catalog(payload: dict[str, Any], *, path: str = "tool_executor_catalog") -> ContractResult:
     """Validate a public safe tool-executor catalog payload."""
 

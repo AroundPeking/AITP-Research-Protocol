@@ -210,12 +210,9 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_apply_promotion_packet",
         "surface": "memory_entry_record",
     },
-    "audit_l2_memory_context": {
-        "cli": "aitp-v5 memory audit <args>",
-        "mcp": "aitp_v5_audit_l2_memory_context",
-        "surface": "l2_memory_audit",
-    },
+    "audit_l2_memory_context": {"cli": "aitp-v5 memory audit <args>", "mcp": "aitp_v5_audit_l2_memory_context", "surface": "l2_memory_audit"},
     "audit_failure_mode_coverage": {"cli": "aitp-v5 memory failure-modes <args>", "mcp": "aitp_v5_audit_failure_mode_coverage", "surface": "failure_mode_audit"},
+    "build_failure_mode_review_packet": {"cli": "aitp-v5 memory failure-mode-review <args>", "mcp": "aitp_v5_build_failure_mode_review_packet", "surface": "failure_mode_review_packet"},
 }
 
 
@@ -250,11 +247,10 @@ def sample_args_for_template(template: str) -> list[str]:
             "typed_records",
         ]
     if template.startswith("memory audit"):
-        return [
-            "--claim",
-            "claim-fqhe",
-        ]
+        return ["--claim", "claim-fqhe"]
     if template.startswith("memory failure-modes"):
+        return ["--claim", "claim-fqhe"]
+    if template.startswith("memory failure-mode-review"):
         return ["--claim", "claim-fqhe"]
     if template.startswith("code state record"):
         return [

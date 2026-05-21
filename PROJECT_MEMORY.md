@@ -205,6 +205,11 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `strongest_failure_mode`, validation-contract failure modes,
   promotion-packet known failure modes, uncovered failure modes, and review
   actions from typed records only; it cannot update kernel state or claim trust.
+- Agents can call `aitp-v5 memory failure-mode-review --claim <claim-id>` or
+  `aitp_v5_build_failure_mode_review_packet` to turn that typed audit into a
+  read-only `failure_mode_review_packet`. It lists per-mode source labels,
+  coverage labels, and physical adequacy questions for human/adversarial review
+  before promotion; it cannot update kernel state or claim trust.
 - To audit a claim confidence state directly, agents can call
   `aitp-v5 trust audit --claim <claim-id>` or
   `aitp_v5_audit_claim_trust`. This returns the contracted

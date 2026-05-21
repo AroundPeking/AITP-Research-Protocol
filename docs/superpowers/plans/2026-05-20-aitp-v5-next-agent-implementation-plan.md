@@ -267,6 +267,11 @@ Implemented:
   `failure_mode_audit` public surface. It is read-only and compares the claim's
   active uncertainty and `strongest_failure_mode` with validation-contract
   failure modes and promotion-packet known failure modes.
+- `aitp-v5 memory failure-mode-review --claim <claim-id>` /
+  `aitp_v5_build_failure_mode_review_packet` now expose the contracted
+  `failure_mode_review_packet` public surface. It is read-only and turns typed
+  failure-mode audit gaps into per-mode source labels, coverage labels, and
+  physical adequacy questions for human/adversarial review before promotion.
 - `aitp-v5 trust audit --claim <claim-id>` /
   `aitp_v5_audit_claim_trust` now expose the contracted
   `claim_trust_audit` public surface. It derives current claim-confidence

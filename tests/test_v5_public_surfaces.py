@@ -16,6 +16,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "evidence_record",
         "execution_brief",
         "failure_mode_audit",
+        "failure_mode_review_packet",
         "human_checkpoint_record",
         "hook_trace_event_record",
         "knowledge_connector_catalog",

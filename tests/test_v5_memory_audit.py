@@ -250,6 +250,63 @@ def test_failure_mode_audit_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
     assert validate_runtime_entrypoints() == []
 
 
+def test_failure_mode_review_packet_generates_physics_adequacy_questions(tmp_path):
+    from brain.v5.failure_mode_review import build_failure_mode_review_packet
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    ws, claim, _ = _setup_failure_mode_audit_gap(tmp_path)
+
+    packet = build_failure_mode_review_packet(ws, claim_id=claim.claim_id)
+
+    assert require_valid_public_surface("failure_mode_review_packet", packet) == packet
+    assert packet["kind"] == "failure_mode_review_packet"
+    assert packet["truth_source"] == "typed_records"
+    assert packet["summary_inputs_trusted"] is False
+    assert packet["can_update_kernel_state"] is False
+    assert packet["can_update_claim_trust"] is False
+    assert packet["claim_id"] == claim.claim_id
+    assert packet["coverage_status"] == "gap"
+    assert packet["requires_human_or_adversarial_review"] is True
+    assert packet["review_scope"] == "physical_adequacy_before_promotion"
+    modes = {item["failure_mode"]: item for item in packet["review_items"]}
+    assert modes["frequency grid mismatch"]["sources"] == [
+        "claim.strongest_failure_mode",
+        "validation_contract.failure_modes",
+    ]
+    assert modes["frequency grid mismatch"]["coverage"] == "uncovered"
+    assert modes["basis cutoff mismatch"]["sources"] == [
+        "validation_contract.failure_modes",
+    ]
+    assert modes["finite-size aliasing"]["coverage"] == "promotion_packet_only"
+    assert any(
+        "frequency grid mismatch" in question
+        for question in modes["frequency grid mismatch"]["review_questions"]
+    )
+    assert "review_physical_adequacy_of_failure_modes" in packet["recommended_actions"]
+
+
+def test_failure_mode_review_packet_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_failure_mode_review_packet
+    from brain.v5.runtime_entrypoints import runtime_entrypoints, validate_runtime_entrypoints
+
+    _, claim, _ = _setup_failure_mode_audit_gap(tmp_path)
+
+    assert main(["--base", str(tmp_path), "memory", "failure-mode-review", "--claim", claim.claim_id]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_failure_mode_review_packet(str(tmp_path), claim_id=claim.claim_id)
+
+    assert cli_payload["kind"] == "failure_mode_review_packet"
+    assert cli_payload["review_items"]
+    assert mcp_payload == cli_payload
+    assert runtime_entrypoints()["build_failure_mode_review_packet"] == {
+        "cli": "aitp-v5 memory failure-mode-review <args>",
+        "mcp": "aitp_v5_build_failure_mode_review_packet",
+        "surface": "failure_mode_review_packet",
+    }
+    assert validate_runtime_entrypoints() == []
+
+
 def test_l2_memory_audit_public_surface_contract_rejects_summary_truth_source():
     import pytest
 

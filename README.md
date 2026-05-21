@@ -159,7 +159,12 @@ derived code-state refs, all from typed records with
 `failure_mode_audit` surface: active uncertainty, strongest failure mode,
 validation-contract failure modes, promotion-packet known failure modes,
 uncovered risk modes, and recommended review actions, again only from typed
-records. To review the current claim confidence itself,
+records. `aitp-v5 memory failure-mode-review --claim <claim-id>` and
+`aitp_v5_build_failure_mode_review_packet` turn that typed audit into a
+read-only `failure_mode_review_packet`: per-mode physical adequacy questions,
+source labels, and coverage labels for human or adversarial review before
+promotion, with no authority to update kernel state or claim trust. To review
+the current claim confidence itself,
 `aitp-v5 trust audit --claim <claim-id>` and `aitp_v5_audit_claim_trust`
 return the contracted `claim_trust_audit` surface: current confidence,
 supporting/challenging evidence, passed/failed validation results, L2 memory
