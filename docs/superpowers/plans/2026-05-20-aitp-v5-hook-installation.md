@@ -237,8 +237,10 @@ aitp-v5 --base <workspace> adapter install-hooks codex <session-id> --output .co
 That command writes `.codex/AITP_V5_HOOKS.json`,
 `.codex/AITP_V5_HOOK_BRIDGE.md`, and `.codex/AITP_V5_HOOK_BRIDGE.json`.
 The fixture declares the repository `cwd` for the relative
-`hooks/aitp_v5_adapter_event_runner.py` argv. It is runtime metadata only; typed
-kernel records remain authoritative.
+`hooks/aitp_v5_adapter_event_runner.py` argv. It contains `hooks.pre_tool` for
+typed policy decisions and `hooks.post_tool` for appending contracted
+`hook_trace_event_record` entries to `.aitp/runtime/hook_trace_events.jsonl`.
+It is runtime metadata only; typed kernel records remain authoritative.
 
 MCP clients use:
 
@@ -437,12 +439,16 @@ aitp-v5 --base <workspace> adapter install-hooks opencode <session-id> --output 
 That command writes `.opencode/AITP_V5_PLUGIN_HOOKS.json`,
 `.opencode/AITP_V5_PLUGIN_BRIDGE.md`, and
 `.opencode/AITP_V5_PLUGIN_BRIDGE.json`. The fixture declares the repository
-`cwd` for the relative `hooks/aitp_v5_adapter_event_runner.py` argv. It is
-runtime metadata only; typed kernel records remain authoritative.
+`cwd` for the relative `hooks/aitp_v5_adapter_event_runner.py` argv. It
+contains `plugin_hooks.pre_tool` for typed policy decisions and
+`plugin_hooks.post_tool` for appending contracted `hook_trace_event_record`
+entries to `.aitp/runtime/hook_trace_events.jsonl`. It is runtime metadata only;
+typed kernel records remain authoritative.
 
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:
 
 - native adapter wiring that automatically calls the shared
-  `pre_tool_policy_decision` surface from Codex/OpenCode lifecycle events.
+  `pre_tool_policy_decision` and `hook_trace_event_record` surfaces from real
+  Codex/OpenCode lifecycle events rather than generated fixture metadata.

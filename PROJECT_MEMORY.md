@@ -81,17 +81,21 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp-v5 adapter hook-bridge codex <session-id> --output <path>`.
 - Codex can materialize a native-ish stdin-runner installation fixture with
   `aitp-v5 adapter install-hooks codex <session-id> --output .codex/AITP_V5_HOOKS.json`.
-  The fixture writes a Codex bridge plus sidecar and points `pre_tool` at
-  `hooks/aitp_v5_adapter_event_runner.py` with a declared repo `cwd`; it is
+  The fixture writes a Codex bridge plus sidecar and points `pre_tool` and
+  `post_tool` at `hooks/aitp_v5_adapter_event_runner.py` with a declared repo
+  `cwd`; `pre_tool` returns typed policy decisions, while `post_tool` persists
+  hook trace records under `.aitp/runtime/hook_trace_events.jsonl`. It is
   runtime metadata only and keeps `summary_inputs_trusted=false`.
 - OpenCode can materialize plugin bridge instructions with
   `aitp-v5 adapter hook-bridge opencode <session-id> --output .opencode/AITP_V5_PLUGIN_BRIDGE.md`.
 - OpenCode can materialize a native-ish stdin-runner plugin fixture with
   `aitp-v5 adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json`.
   The fixture writes an OpenCode plugin bridge plus sidecar and points
-  `plugin_hooks.pre_tool` at `hooks/aitp_v5_adapter_event_runner.py` with a
-  declared repo `cwd`; it is runtime metadata only and keeps
-  `summary_inputs_trusted=false`.
+  `plugin_hooks.pre_tool` and `plugin_hooks.post_tool` at
+  `hooks/aitp_v5_adapter_event_runner.py` with a declared repo `cwd`;
+  `pre_tool` returns typed policy decisions, while `post_tool` persists hook
+  trace records under `.aitp/runtime/hook_trace_events.jsonl`. It is runtime
+  metadata only and keeps `summary_inputs_trusted=false`.
 - Claude Code can materialize native hook settings with
   `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
 - Claude Code can also merge AITP v5 hooks into an existing settings file with

@@ -167,13 +167,13 @@ Implemented:
 - Codex can now write a native-ish stdin-runner installation fixture through
   `aitp-v5 adapter install-hooks codex <session-id> --output <path>` and
   `aitp_v5_install_codex_hook_fixture`; the fixture writes the bridge/sidecar
-  and points pre-tool events at the stdin runner with a declared repository
-  `cwd`.
+  and points pre-tool events at the policy runner and post-tool events at the
+  trace-persistence runner with a declared repository `cwd`.
 - OpenCode can now write a native-ish stdin-runner plugin fixture through
   `aitp-v5 adapter install-hooks opencode <session-id> --output <path>` and
   `aitp_v5_install_opencode_hook_fixture`; the fixture writes the plugin
-  bridge/sidecar and points pre-tool events at the stdin runner with a declared
-  repository `cwd`.
+  bridge/sidecar and points pre-tool events at the policy runner and post-tool
+  events at the trace-persistence runner with a declared repository `cwd`.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_code_state`, `record_evidence`,
   `record_tool_run`, `execute_tool`, `ingest_subagent_result`,
@@ -208,7 +208,9 @@ Major remaining gaps:
   post-tool trace persistence surfaces exist; Codex/OpenCode now have a
   CLI/MCP-callable runtime event normalizer advertised in generated bridges plus
   a generated bridge JSON sidecar, runner argv, advertised stdin host-runner;
-  Codex and OpenCode also have generated installation fixtures.
+  Codex and OpenCode also have generated installation fixtures for pre-tool
+  policy decisions and post-tool trace persistence. The remaining gap is
+  platform-native lifecycle installer wiring beyond generated fixture metadata.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion-packet/promotion context, and summary-sourced
   code-state/evidence/tool-run/tool-execution/tool-recipe/reference-location/

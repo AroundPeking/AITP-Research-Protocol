@@ -2927,3 +2927,60 @@ Each entry should record:
   - move from legacy migration completeness back to native Codex/OpenCode
     lifecycle hook wiring, because the main remaining goal gap is runtime host
     integration rather than typed-record migration.
+
+### 27dc47c - Add Codex/OpenCode Post-Tool Fixture Runners
+
+- Task: extend generated Codex/OpenCode stdin-runner installation fixtures from
+  pre-tool policy only to pre-tool plus post-tool lifecycle coverage.
+- Planning source:
+  - hook-installation plan requires post-tool trace events to stay process
+    history only, not evidence/trust;
+  - next-agent plan identified native Codex/OpenCode lifecycle hook wiring as a
+    remaining gap;
+  - goal invariant that generated fixture files are runtime metadata and typed
+    kernel records remain authoritative.
+- Changed files:
+  - `brain/v5/hook_fixture_templates.py`
+  - `brain/v5/hook_install_contracts.py`
+  - `hooks/aitp_v5_adapter_event_runner.py`
+  - `tests/test_v5_adapter_event_runner.py`
+  - `tests/test_v5_adapters.py`
+- Public/runtime behavior changes:
+  - Codex fixtures now include `hooks.post_tool` pointing to
+    `hooks/aitp_v5_adapter_event_runner.py post-tool`;
+  - OpenCode fixtures now include `plugin_hooks.post_tool` pointing to the same
+    runner with `--runtime opencode`;
+  - the adapter event runner can persist post-tool trace events through
+    `persist_hook_trace_event`, returning the contracted
+    `hook_trace_event_record` public surface;
+  - post-tool defaults are derived from the active session binding when the host
+    event omits `topic_id` or `claim_id`;
+  - installation contracts now require both pre-tool and post-tool hook entries.
+- Tests:
+  - CLI/MCP fixture tests assert post-tool hook metadata, non-blocking behavior,
+    and `append_trace_event` state mutation;
+  - runner tests execute Codex/OpenCode post-tool fixture commands and verify
+    `.aitp/runtime/hook_trace_events.jsonl` receives the trace event.
+- Verification:
+  - red tests failed as expected:
+    `python -m pytest tests\test_v5_adapters.py tests\test_v5_adapter_event_runner.py -q -k "install_fixture or install_hooks"`:
+    4 failed because generated fixtures did not contain `post_tool`;
+  - target green set:
+    same command: 7 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_adapters.py tests\test_v5_adapter_event_runner.py tests\test_v5_hooks.py tests\test_v5_trace_audit.py tests\test_v5_public_surfaces.py tests\test_v5_architecture_boundaries.py -q`:
+    107 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 372 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - this is still generated fixture metadata, not a true Codex/OpenCode native
+    installer API integration;
+  - platform-specific event schemas may need additional normalization once real
+    host events are available.
+- Next recommended task:
+  - add explicit native-lifecycle adapter installation docs/tests for the actual
+    Codex/OpenCode host surfaces, or continue broadening pre-tool policy
+    coverage for remaining trust-relevant MCP inputs.
