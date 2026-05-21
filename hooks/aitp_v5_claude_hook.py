@@ -25,7 +25,7 @@ _AITP_MCP_ACTIONS = {
     "aitp_v5_ingest_subagent_result": "ingest_subagent_result",
     "aitp_v5_apply_trust_update": "change_claim_confidence",
     "aitp_v5_create_promotion_packet": "create_promotion_packet",
-    "aitp_v5_apply_promotion_packet": "promote_to_l2",
+    "aitp_v5_apply_promotion_packet": "apply_promotion_packet",
     "aitp_v5_create_validation_contract": "validate_claim",
 }
 _TRUSTED_APPLY_SOURCE_KINDS = {
@@ -62,17 +62,18 @@ def _build_parser() -> argparse.ArgumentParser:
 def _dispatch(args: argparse.Namespace, claude_payload: dict) -> dict:
     if args.command == "pre-tool":
         action = _action_from_claude_tool(claude_payload)
+        policy_decision = _policy_from_claude_tool(
+            action,
+            claude_payload,
+            base=args.base,
+            session_id=args.session_id,
+        )
         decision = decide_pre_tool_use(
             action=action,
             risk_level="guided",
-            policy_decision=_policy_from_claude_tool(
-                action,
-                claude_payload,
-                base=args.base,
-                session_id=args.session_id,
-            ),
+            policy_decision=policy_decision,
         )
-        return _claude_pre_tool_output(decision, action=action)
+        return _claude_pre_tool_output(decision, action=action, policy_decision=policy_decision)
     if args.command == "post-tool":
         ws = init_workspace(args.base)
         binding = get_session_binding(ws, args.session_id)
@@ -170,7 +171,7 @@ def _context_policy_from_workspace(
     base: str,
     session_id: str,
 ) -> PolicyDecision | None:
-    if action not in {"create_promotion_packet", "validate_claim", "promote_to_l2"}:
+    if action not in {"create_promotion_packet", "apply_promotion_packet", "validate_claim", "promote_to_l2"}:
         return None
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, dict):
@@ -188,6 +189,7 @@ def _context_policy_from_workspace(
             source_kind=str(tool_input.get("source_kind") or ""),
             source_ref=str(tool_input.get("source_ref") or ""),
             orientation_only=bool(tool_input.get("orientation_only") is True),
+            human_checkpoint_id=str(tool_input.get("human_checkpoint_id") or tool_input.get("checkpoint_id") or ""),
         )
     except Exception:
         return None
@@ -212,9 +214,19 @@ def _input_list(payload: dict, key: str) -> list[str]:
     return []
 
 
-def _claude_pre_tool_output(decision, *, action: str) -> dict:
+def _claude_pre_tool_output(decision, *, action: str, policy_decision: PolicyDecision) -> dict:
     aitp_payload = hook_decision_payload(decision, hook_name="pre_tool")
     aitp_payload["action"] = action
+    aitp_payload["policy_reasons"] = [
+        {
+            "policy_id": reason.policy_id,
+            "severity": reason.severity,
+            "message": reason.message,
+        }
+        for reason in policy_decision.reasons
+    ]
+    aitp_payload["can_update_kernel_state"] = False
+    aitp_payload["can_update_claim_trust"] = False
     permission = "deny" if decision.block else "allow"
     return {
         "hookSpecificOutput": {

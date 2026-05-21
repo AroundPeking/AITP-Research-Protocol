@@ -114,15 +114,17 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   without parsing free-form messages. It now covers validation, L2 promotion,
   and summary-sourced
   `record_evidence`/`record_tool_run`/`execute_tool`/`ingest_subagent_result`/
-  `create_validation_contract`/`create_promotion_packet` trust-changing
-  attempts through the same CLI/MCP entrypoint.
+  `create_validation_contract`/`create_promotion_packet`/
+  `apply_promotion_packet` trust-changing attempts through the same CLI/MCP
+  entrypoint.
 - Generated Codex and OpenCode bridge payloads include a
   `pre_tool_policy_entrypoint` pointing to that shared surface, so runtime
   adapters can wire validation/promotion pre-tool checks without reimplementing
   policy logic. They also carry `gate_protocols` generated from
   `runtime_gate_protocols`, so bridge files expose record evidence/tool-run,
-  execute-tool, subagent-ingestion, validation-contract, promotion-packet, and
-  validate/promote sequences as machine-readable payload and rendered Markdown.
+  execute-tool, subagent-ingestion, validation-contract, promotion-packet
+  creation/application, and validate/promote sequences as machine-readable
+  payload and rendered Markdown.
 - Runtime adapters can consume those generated bridge `gate_protocols` through
   `brain/v5/adapter_runtime.py::evaluate_bridge_gate_pre_tool_policy`, which
   verifies the bridge sequence and then delegates to the shared typed-record
@@ -137,8 +139,8 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   the correct CLI/MCP invocation without prose scraping. The bridge entrypoints
   also advertise machine-readable `pre_tool_policy_entrypoint.input_schema` and
   `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,
-  optional `human_checkpoint_id`, and optional nested `packet` input, while
-  typed kernel records remain the authority.
+  optional `human_checkpoint_id`, optional `checkpoint_id`, and optional nested
+  `packet` input, while typed kernel records remain the authority.
 - Bridge materializers write a machine-readable JSON sidecar beside the generated
   Markdown and return its `payload_path`; runtime hook runners should use
   `adapter pre-tool-event --bridge-path <payload-path> --event-json <json>` to
@@ -158,6 +160,7 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `runtime_gate_protocols.ingest_subagent_result`,
   `runtime_gate_protocols.create_validation_contract`,
   `runtime_gate_protocols.create_promotion_packet`,
+  `runtime_gate_protocols.apply_promotion_packet`,
   `runtime_gate_protocols.validate_claim`, and
   `runtime_gate_protocols.promote_to_l2` explicitly sequence
   `evaluate_pre_tool_policy` before the trust-relevant action and require
@@ -167,9 +170,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   hard-blocked unless that checkpoint resolves to a decided typed
   `HumanCheckpointRecord` with `decision=approve` for the active claim.
 - Claude Code `PreToolUse` uses that shared policy for validation,
-  promotion-packet creation, and L2 promotion MCP calls: it resolves the typed
-  claim, cited evidence refs, and linked or requested code states, then reuses
-  `evaluate_policy` before the tool runs.
+  promotion-packet creation/application, and L2 promotion MCP calls: it
+  resolves the typed claim, cited evidence refs, and linked or requested code
+  states, then reuses `evaluate_policy` before the tool runs.
 - Trust-changing confidence updates use a request-bound preflight proof token:
   `preflight_trust_update` emits `preflight_token`/`preflight_proof`, and
   `apply_trust_update` refuses otherwise policy-allowed mutations unless the

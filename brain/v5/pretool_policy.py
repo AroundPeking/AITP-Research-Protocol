@@ -19,6 +19,7 @@ _CONTEXT_ACTIONS = {
     "ingest_subagent_result",
     "create_validation_contract",
     "create_promotion_packet",
+    "apply_promotion_packet",
     "validate_claim",
     "promote_to_l2",
 }

@@ -36,6 +36,7 @@ _PRE_TOOL_EVENT_PLATFORM_SCHEMA = {
         "orientation_only",
         "risk_level",
         "human_checkpoint_id",
+        "checkpoint_id",
     ],
     "truth_source": "platform_event_for_routing_only",
     "summary_inputs_trusted": False,

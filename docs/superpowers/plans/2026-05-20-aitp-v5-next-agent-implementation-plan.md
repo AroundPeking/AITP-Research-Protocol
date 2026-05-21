@@ -114,8 +114,8 @@ Implemented:
   actions, denies unqualified direct trust application, and logs typed writes
   such as evidence recording.
 - Claude Code `PreToolUse` uses active workspace context for validation,
-  promotion-packet creation, and L2 promotion MCP calls, reusing kernel policy
-  for evidence and code-state requirements before tool execution.
+  promotion-packet creation/application, and L2 promotion MCP calls, reusing
+  kernel policy for evidence and code-state requirements before tool execution.
 - The same context-aware pre-tool policy is now exposed as a shared
   CLI/MCP/runtime public surface:
   `aitp-v5 policy pre-tool <args>` / `aitp_v5_evaluate_pre_tool_policy` /
@@ -128,20 +128,21 @@ Implemented:
 - Adapter packet gate protocols for `validate_claim` and `promote_to_l2`
   explicitly sequence `evaluate_pre_tool_policy` before preflight/promotion.
 - Adapter packet gate protocols for `record_evidence`, `record_tool_run`,
-  `execute_tool`, `ingest_subagent_result`, `create_validation_contract`, and
-  `create_promotion_packet` now also
+  `execute_tool`, `ingest_subagent_result`, `create_validation_contract`,
+  `create_promotion_packet`, and `apply_promotion_packet` now also
   sequence `evaluate_pre_tool_policy` before the trust-relevant action, so
   summary-sourced attempts can be blocked through bridge metadata.
 - Generated Codex/OpenCode bridge payloads and Markdown now carry
   `gate_protocols` derived from `runtime_gate_protocols`, so adapter runtimes
-  can consume record/validate/promote sequences without prose scraping.
+  can consume record/validate/promotion-packet/promote sequences without prose
+  scraping.
 - `brain.v5.adapter_runtime.evaluate_bridge_gate_pre_tool_policy` consumes
   generated bridge `gate_protocols` and delegates actual decisions to the shared
   typed-record-backed pre-tool policy surface. `evaluate_bridge_lifecycle_event`
   maps adapter-neutral `pre_tool` event payloads onto that helper.
 - `brain.v5.adapter_runtime.evaluate_platform_pre_tool_event` normalizes
   Codex/OpenCode pre-tool platform payloads into that lifecycle wrapper for
-  validation/promotion gate decisions.
+  validation/promotion-packet/promotion gate decisions.
 - The platform pre-tool event normalizer is now available through
   CLI/MCP/runtime entrypoints:
   `aitp-v5 adapter pre-tool-event <runtime> <session-id> ...` /
@@ -176,15 +177,16 @@ Implemented:
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_evidence`, `record_tool_run`,
   `execute_tool`, `ingest_subagent_result`, `create_validation_contract`, and
-  `create_promotion_packet` trust-changing attempts.
+  `create_promotion_packet`/`apply_promotion_packet` trust-changing attempts.
 - The shared CLI/MCP/runtime pre-tool policy now carries `risk_level` and
   optional `human_checkpoint_id`; adversarial-risk trust-changing actions are
   hard-blocked unless the checkpoint resolves to an approved typed human
   checkpoint for the active claim.
 - Generated Codex/OpenCode bridge payloads and JSON sidecars now advertise
   `pre_tool_policy_entrypoint.input_schema` and
-  `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level` and
-  optional `human_checkpoint_id` plus optional nested `packet` input, so
+  `pre_tool_event_entrypoint.platform_event_schema`, including `risk_level`,
+  optional `human_checkpoint_id`, optional `checkpoint_id`, and optional nested
+  `packet` input, so
   adapters can discover pre-tool inputs without parsing Markdown.
 - OpenCode plugin bridge instructions can be materialized from an actual adapter
   packet through CLI/MCP/runtime public surfaces.
@@ -200,9 +202,10 @@ Major remaining gaps:
   a generated bridge JSON sidecar, runner argv, advertised stdin host-runner;
   Codex and OpenCode also have generated installation fixtures.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
-  presence, validation/promotion context, and summary-sourced
+  presence, validation/promotion-packet/promotion context, and summary-sourced
   evidence/tool-run/tool-execution/subagent-ingestion/validation-contract/
-  promotion-packet attempts through CLI/MCP/runtime/bridge metadata, and
+  promotion-packet creation/application attempts through CLI/MCP/runtime/bridge
+  metadata, and
   adversarial-risk trust changes require approved typed human checkpoints. It
   still does not yet cover every MCP input or every active risk dimension;
   bridge metadata now advertises the current policy input schema explicitly.

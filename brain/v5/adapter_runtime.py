@@ -15,7 +15,7 @@ _AITP_TOOL_ACTIONS = {
     "aitp_v5_ingest_subagent_result": "ingest_subagent_result",
     "aitp_v5_create_validation_contract": "create_validation_contract",
     "aitp_v5_create_promotion_packet": "create_promotion_packet",
-    "aitp_v5_apply_promotion_packet": "promote_to_l2",
+    "aitp_v5_apply_promotion_packet": "apply_promotion_packet",
 }
 
 
@@ -162,8 +162,10 @@ def _platform_pre_tool_event(bridge_payload: dict[str, Any], platform_event: dic
         "human_checkpoint_id": str(
             tool_input.get("human_checkpoint_id")
             or tool_input.get("human_checkpoint")
+            or tool_input.get("checkpoint_id")
             or platform_event.get("human_checkpoint_id")
             or platform_event.get("human_checkpoint")
+            or platform_event.get("checkpoint_id")
             or ""
         ),
         "tool_name": tool_name,
