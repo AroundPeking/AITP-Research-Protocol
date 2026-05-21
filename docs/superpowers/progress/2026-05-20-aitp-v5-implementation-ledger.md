@@ -4747,3 +4747,77 @@ Each entry should record:
 - Next recommended task:
   - add a typed failure-mode review result or domain-tool review artifact that
     records the actual review basis behind the checkpoint decision.
+
+### e914fcd - Record Failure-Mode Review Results
+
+- Task: add a typed failure-mode review result record so approved physical
+  adequacy checkpoints can cite the actual review basis.
+- Planning source:
+  - previous ledger recommendation after `65fad1f`;
+  - v5 invariant that checkpoint approval alone should not be the final truth
+    source for physical adequacy;
+  - user requirement that the harness should force real theoretical-physics
+    reasoning without turning review into a box-checking gate.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/failure_mode_review.py`
+  - `brain/v5/record_contracts.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/cli_memory.py`
+  - `brain/v5/mcp_memory.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_memory_audit.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - new typed `FailureModeReviewResultRecord`;
+  - new kernel helper `record_failure_mode_review_result`;
+  - new CLI command `aitp-v5 memory failure-mode-review-result <args>`;
+  - new MCP wrapper `aitp_v5_record_failure_mode_review_result`;
+  - new public surface `failure_mode_review_result_record`;
+  - new runtime entrypoint catalog item
+    `record_failure_mode_review_result`;
+  - result creation requires an approved typed failure-mode review checkpoint
+    for the same claim;
+  - result creation requires reviewed failure modes plus at least one concrete
+    review basis ref, such as literature/tool/evidence/validation/reference or
+    artifact ids;
+  - result records keep `summary_inputs_trusted=false` and
+    `can_update_claim_trust=false`.
+- Tests:
+  - added kernel/public-surface coverage that an approved checkpoint can produce
+    a typed review result with literature/evidence/validation basis refs;
+  - added rejection coverage for basis-free review results;
+  - added CLI/MCP/runtime-entrypoint coverage;
+  - updated public-surface registry coverage.
+- Verification:
+  - red target set:
+    `python -m pytest tests\test_v5_memory_audit.py::test_failure_mode_review_result_records_typed_review_basis tests\test_v5_memory_audit.py::test_failure_mode_review_result_cli_mcp_and_runtime_entrypoint tests\test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads -q`:
+    3 failed because the kernel helper, MCP wrapper, and public surface did not
+    exist;
+  - target green set:
+    same command: 3 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_memory_audit.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_architecture_boundaries.py -q`:
+    53 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    445 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - review basis refs are recorded and contract-checked for presence, but this
+    slice does not yet verify that every cited id resolves to an existing typed
+    record;
+  - promotion policy still requires the approved checkpoint id, not this review
+    result id, so the result is provenance for reviewers rather than an
+    additional promotion gate.
+- Next recommended task:
+  - connect failure-mode review results into the failure-mode audit/L2 memory
+    audit surfaces, or add strict typed-ref existence checks for the review
+    basis ids.
