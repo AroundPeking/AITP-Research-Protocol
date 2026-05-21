@@ -179,6 +179,11 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `runtime_gate_protocols.promote_to_l2` explicitly sequence
   `evaluate_pre_tool_policy` before the trust-relevant action and require
   `policy_reasons` as the machine-readable routing field.
+- `record_gate_coverage_audit` is exposed through
+  `aitp-v5 adapter record-gate-audit` and
+  `aitp_v5_audit_record_gate_coverage`; it reports all runtime record
+  protocols, all runtime gate protocols, gated record actions, ungated record
+  actions, and extra non-record gates from the adapter protocol registry.
 - Shared pre-tool policy carries `risk_level` and optional
   `human_checkpoint_id`; for adversarial risk, trust-changing actions are
   hard-blocked unless that checkpoint resolves to a decided typed

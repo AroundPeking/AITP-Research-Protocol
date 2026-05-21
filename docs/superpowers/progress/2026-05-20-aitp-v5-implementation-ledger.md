@@ -2700,3 +2700,68 @@ Each entry should record:
   - add an explicit registry consistency audit test that prevents future
     runtime record protocols from being introduced without a conscious gate
     decision.
+
+### c10ecb1 - Add Record Gate Coverage Audit
+
+- Task: expose a contracted audit showing whether runtime typed-record
+  protocols have runtime gate coverage.
+- Planning source:
+  - v5 invariant that typed records are authoritative and generated summaries
+    cannot become truth sources;
+  - previous ledger recommendation to prevent future runtime record protocols
+    from being introduced without a conscious gate decision;
+  - project architecture rule that v5 modules stay bounded and focused.
+- Changed files:
+  - `brain/v5/adapter_protocols.py`
+  - `brain/v5/record_gate_audit_contracts.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_cli.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+- Public/runtime behavior changes:
+  - `record_gate_coverage_audit()` reports runtime record protocols, runtime
+    gate protocols, gated record actions, ungated record actions, and extra
+    non-record gates from the adapter protocol registry;
+  - CLI exposes `aitp-v5 adapter record-gate-audit` without initializing a v5
+    workspace;
+  - MCP exposes `aitp_v5_audit_record_gate_coverage`;
+  - public-surface contracts validate `record_gate_coverage_audit`;
+  - runtime entrypoints advertise the audit so external reviewers can discover
+    it without reading implementation modules.
+- Tests:
+  - adapter audit reports no ungated record protocols;
+  - MCP wrapper returns the contracted audit payload;
+  - CLI wrapper returns the same static audit without creating `.aitp`;
+  - public-surface validator accepts the audit surface;
+  - runtime entrypoint catalog advertises the audit CLI/MCP/surface tuple.
+- Verification:
+  - red tests failed as expected:
+    `python -m pytest tests/test_v5_adapters.py tests/test_v5_cli.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py -q -k "record_gate_coverage_audit or record_gate_audit or record_gate_coverage"`:
+    4 failed because the helper/public surface/CLI/MCP entrypoints did not yet
+    exist;
+  - target green set:
+    same command: 4 passed;
+  - focused related set:
+    `python -m pytest tests/test_v5_adapters.py tests/test_v5_cli.py tests/test_v5_public_surfaces.py tests/test_v5_contracts.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    122 passed after moving the audit contract into
+    `record_gate_audit_contracts.py` to keep modules within the 500-line v5
+    architecture boundary;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 369 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - the audit proves registry coverage, not semantic correctness of every gate;
+  - native Codex/OpenCode hosts still need true lifecycle installer wiring;
+  - active risk dimensions beyond current pre-tool inputs remain partial.
+- Next recommended task:
+  - use the new audit as a guard while moving to the next remaining v5 gap:
+    native hook lifecycle wiring, migration completeness, or broader active-risk
+    policy inputs.

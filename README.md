@@ -153,6 +153,10 @@ call. Hosts that provide hook events on stdin can use
 `hooks/aitp_v5_adapter_event_runner.py pre-tool --base <workspace> --runtime <runtime> --session-id <session-id> --bridge-path <payload-path>`;
 the script fills runtime/session/pre-tool defaults, validates the bridge runner,
 and returns the same typed `pre_tool_policy_decision` payload and hook exit code.
+For review, agents can call `aitp-v5 adapter record-gate-audit` or
+`aitp_v5_audit_record_gate_coverage`; the contracted audit reports every
+runtime record protocol, every runtime gate protocol, and any ungated typed
+record actions without treating generated summaries as authority.
 The generated `pre_tool_event_runner.stdin_runner.argv` field advertises that
 host-facing command directly in the bridge sidecar. Codex can also materialize a
 native-ish hook fixture with

@@ -278,6 +278,10 @@ record-tool-run, execute-tool, tool-recipe, reference-location, physics-object,
 object-relation, sensemaking-report, subagent-ingestion, validation-contract,
 promotion-packet creation/application, human-checkpoint request/decision,
 validation, and L2-promotion actions.
+`aitp-v5 adapter record-gate-audit` and
+`aitp_v5_audit_record_gate_coverage` expose a contracted audit over the same
+registry so reviewers can see whether any runtime record protocol lacks a
+conscious gate decision.
 The shared policy carries `risk_level` and optional `human_checkpoint_id`.
 Adversarial-risk trust-changing actions are hard-blocked unless that checkpoint
 is a decided typed human checkpoint with `decision=approve` for the active
