@@ -32,7 +32,7 @@ from brain.v5.tool_executors import describe_tool_executors, execute_registered_
 from brain.v5.tools import record_tool_run, register_tool_recipe
 from brain.v5.trace import persist_hook_trace_event
 from brain.v5.trust_audit import audit_claim_trust
-from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
+from brain.v5.trust_updates import apply_trust_update, get_trust_update_record, preflight_trust_update
 from brain.v5.workspace import (
     bind_session,
     create_claim,
@@ -237,6 +237,7 @@ def _build_parser() -> argparse.ArgumentParser:
     tp2 = sp.add_parser("trust"); ts2 = tp2.add_subparsers(dest="trust_command", required=True)
     _add_trust_request_args(ts2.add_parser("preflight")); _add_trust_request_args(ts2.add_parser("apply"))
     ta = ts2.add_parser("audit"); ta.add_argument("--claim", required=True, dest="claim_id")
+    tur = ts2.add_parser("update-record"); tur.add_argument("update_id")
 
     add_policy_parser(sp)
 
@@ -352,6 +353,9 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "trust":
         if args.trust_command == "audit":
             return require_valid_public_surface("claim_trust_audit", audit_claim_trust(ws, claim_id=args.claim_id))
+        if args.trust_command == "update-record":
+            record = get_trust_update_record(ws, args.update_id)
+            return require_valid_public_surface("trust_update_record", {"ok": True, **asdict(record)})
         req = _trust_update_request_from_args(args)
         if args.trust_command == "preflight":
             return {"ok": True, **require_valid_public_surface("trust_update_preflight", preflight_trust_update(ws, req))}

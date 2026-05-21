@@ -28,6 +28,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
     assert entrypoints["list_tool_executors"]["mcp"] == "aitp_v5_list_tool_executors"
     assert entrypoints["migrate_legacy_topic"]["mcp"] == "aitp_v5_migrate_legacy_topic_to_v5"
     assert entrypoints["record_validation_result"]["mcp"] == "aitp_v5_record_validation_result"
+    assert entrypoints["get_trust_update_record"] == {
+        "cli": "aitp-v5 trust update-record <args>",
+        "mcp": "aitp_v5_get_trust_update_record",
+        "surface": "trust_update_record",
+    }
     assert entrypoints["codex_hook_bridge"] == {
         "cli": "aitp-v5 adapter hook-bridge codex <session-id> <args>",
         "mcp": "aitp_v5_write_codex_hook_bridge",

@@ -158,6 +158,16 @@ def require_valid_trust_update_apply(payload: dict[str, Any]) -> dict[str, Any]:
     return _require_valid_trust_update_apply(payload)
 
 
+def validate_trust_update_record(payload: dict[str, Any], *, path: str = "trust_update_record") -> ContractResult:
+    from brain.v5.record_contracts import validate_trust_update_record as _validate
+    return _validate(payload, path=path)
+
+
+def require_valid_trust_update_record(payload: dict[str, Any]) -> dict[str, Any]:
+    from brain.v5.record_contracts import require_valid_trust_update_record as _require
+    return _require(payload)
+
+
 def validate_claim_trust_audit(payload: dict[str, Any], *, path: str = "claim_trust_audit") -> ContractResult:
     from brain.v5.trust_audit_contracts import validate_claim_trust_audit as _validate
     return _validate(payload, path=path)

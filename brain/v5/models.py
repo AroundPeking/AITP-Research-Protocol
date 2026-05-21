@@ -71,6 +71,35 @@ class TrustUpdateRequest:
 
 
 @dataclass
+class TrustUpdateRecord:
+    update_id: str
+    request_id: str
+    action: str
+    session_id: str
+    topic_id: str
+    claim_id: str
+    previous_state: str
+    new_state: str
+    applied: bool
+    preflight_allowed: bool
+    requested_state: str = ""
+    source_kind: str = ""
+    source_ref: str = ""
+    evidence_refs: list[str] = field(default_factory=list)
+    code_state_ids: list[str] = field(default_factory=list)
+    required_actions: list[str] = field(default_factory=list)
+    policy_reason_ids: list[str] = field(default_factory=list)
+    preflight_token: str = ""
+    status: str = "blocked"
+    rationale: str = ""
+    kind: str = "trust_update"
+
+    @property
+    def record_id(self) -> str:
+        return self.update_id
+
+
+@dataclass
 class FlowDecision:
     profile: str
     reason: str

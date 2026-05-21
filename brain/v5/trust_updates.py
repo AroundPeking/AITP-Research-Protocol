@@ -6,10 +6,11 @@ import hashlib
 import json
 from dataclasses import asdict, replace
 
-from brain.v5.models import ClaimRecord, CodeStateRecord, TrustUpdateRequest
+from brain.v5.ids import prefixed_id
+from brain.v5.models import ClaimRecord, CodeStateRecord, TrustUpdateRecord, TrustUpdateRequest
 from brain.v5.paths import WorkspacePaths
 from brain.v5.policy import evaluate_policy
-from brain.v5.store import list_records, write_record
+from brain.v5.store import list_records, read_record, write_record
 from brain.v5.workspace import get_claim
 
 _SUMMARY_SOURCE_KINDS = {
@@ -81,6 +82,7 @@ def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
     claim = get_claim(ws, request.claim_id)
     if not preflight["allowed"]:
         return _apply_payload(
+            ws,
             request,
             preflight=preflight,
             applied=False,
@@ -90,6 +92,7 @@ def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
         )
     if request.preflight_token != preflight["preflight_token"]:
         return _apply_payload(
+            ws,
             request,
             preflight=preflight,
             applied=False,
@@ -99,6 +102,7 @@ def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
         )
     if request.action != "change_claim_confidence":
         return _apply_payload(
+            ws,
             request,
             preflight=preflight,
             applied=False,
@@ -108,6 +112,7 @@ def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
         )
     if not request.requested_state:
         return _apply_payload(
+            ws,
             request,
             preflight=preflight,
             applied=False,
@@ -119,6 +124,7 @@ def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
     updated = replace(claim, confidence_state=request.requested_state)
     _write_claim(ws, updated)
     return _apply_payload(
+        ws,
         request,
         preflight=preflight,
         applied=True,
@@ -126,6 +132,12 @@ def apply_trust_update(ws: WorkspacePaths, request: TrustUpdateRequest) -> dict:
         new_state=updated.confidence_state,
         required_actions=[],
     )
+
+
+def get_trust_update_record(ws: WorkspacePaths, update_id: str) -> TrustUpdateRecord:
+    """Read a durable trust-update history record by id."""
+
+    return read_record(ws.registry_dir("trust_updates") / f"{update_id}.md", TrustUpdateRecord)
 
 
 def _resolve_code_states(
@@ -147,6 +159,7 @@ def _write_claim(ws: WorkspacePaths, claim: ClaimRecord) -> None:
 
 
 def _apply_payload(
+    ws: WorkspacePaths,
     request: TrustUpdateRequest,
     *,
     preflight: dict,
@@ -155,7 +168,7 @@ def _apply_payload(
     new_state: str,
     required_actions: list[str],
 ) -> dict:
-    return {
+    payload = {
         "kind": "trust_update_apply",
         "request": asdict(request),
         "request_id": request.request_id,
@@ -172,6 +185,56 @@ def _apply_payload(
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
     }
+    record = _write_trust_update_record(ws, payload)
+    payload["trust_update_record_id"] = record.update_id
+    return payload
+
+
+def _write_trust_update_record(ws: WorkspacePaths, payload: dict) -> TrustUpdateRecord:
+    preflight = payload["preflight"]
+    update_id = prefixed_id(
+        "trust-update",
+        ":".join(
+            [
+                payload["request_id"],
+                payload["claim_id"],
+                payload["action"],
+                payload["previous_state"],
+                payload["new_state"],
+                preflight["preflight_token"],
+                str(payload["applied"]),
+            ]
+        ),
+        max_slug=72,
+    )
+    record = TrustUpdateRecord(
+        update_id=update_id,
+        request_id=payload["request_id"],
+        action=payload["action"],
+        session_id=payload["session_id"],
+        topic_id=payload["topic_id"],
+        claim_id=payload["claim_id"],
+        requested_state=payload["request"].get("requested_state", ""),
+        source_kind=payload["request"].get("source_kind", ""),
+        source_ref=payload["request"].get("source_ref", ""),
+        evidence_refs=list(preflight.get("evidence_refs", [])),
+        code_state_ids=list(preflight.get("code_state_ids", [])),
+        previous_state=payload["previous_state"],
+        new_state=payload["new_state"],
+        applied=payload["applied"],
+        preflight_allowed=preflight["allowed"],
+        required_actions=list(payload["required_actions"]),
+        policy_reason_ids=[
+            reason.get("policy_id", "")
+            for reason in preflight.get("policy_reasons", [])
+            if reason.get("policy_id")
+        ],
+        preflight_token=preflight["preflight_token"],
+        status="applied" if payload["applied"] else "blocked",
+        rationale=payload["request"].get("rationale", ""),
+    )
+    write_record(ws.registry_dir("trust_updates") / f"{update_id}.md", record)
+    return record
 
 
 def _record_links_to_claim(linked_records: dict, claim_id: str) -> bool:

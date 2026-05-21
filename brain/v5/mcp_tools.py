@@ -38,7 +38,7 @@ from brain.v5.summaries import read_summary_orientation, write_session_summary
 from brain.v5.tool_executors import describe_tool_executors, execute_registered_tool_result
 from brain.v5.tools import record_tool_run, register_tool_recipe
 from brain.v5.trace import persist_hook_trace_event
-from brain.v5.trust_updates import apply_trust_update, preflight_trust_update
+from brain.v5.trust_updates import apply_trust_update, get_trust_update_record, preflight_trust_update
 from brain.v5.workspace import bind_session, create_claim, create_topic, get_claim, init_workspace
 
 
@@ -469,6 +469,11 @@ def aitp_v5_apply_trust_update(
 ) -> dict:
     return {"ok": True, **require_valid_public_surface("trust_update_apply",
         apply_trust_update(_ws(base), _trust_request(locals())))}
+
+
+def aitp_v5_get_trust_update_record(base: str, *, update_id: str) -> dict:
+    record = get_trust_update_record(_ws(base), update_id)
+    return require_valid_public_surface("trust_update_record", {"ok": True, **asdict(record)})
 
 
 def _trust_request(ns: dict) -> TrustUpdateRequest:

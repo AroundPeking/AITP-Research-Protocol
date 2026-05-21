@@ -28,6 +28,7 @@ _LAYOUT_DIRS = [
     "registry/attempts",
     "registry/tool_recipes",
     "registry/tool_runs",
+    "registry/trust_updates",
     "registry/checkpoints",
     "registry/promotion_packets",
     "registry/outputs",

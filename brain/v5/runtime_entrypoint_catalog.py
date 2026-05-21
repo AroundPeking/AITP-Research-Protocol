@@ -135,6 +135,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_apply_trust_update",
         "surface": "trust_update_apply",
     },
+    "get_trust_update_record": {
+        "cli": "aitp-v5 trust update-record <args>",
+        "mcp": "aitp_v5_get_trust_update_record",
+        "surface": "trust_update_record",
+    },
     "audit_claim_trust": {
         "cli": "aitp-v5 trust audit <args>",
         "mcp": "aitp_v5_audit_claim_trust",
@@ -204,6 +209,10 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
 
 
 def sample_args_for_template(template: str) -> list[str]:
+    if template.startswith("trust update-record"):
+        return [
+            "trust-update-sample",
+        ]
     if template.startswith("trust audit"):
         return [
             "--claim",

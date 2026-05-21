@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from brain.v5.evidence import list_evidence_for_claim
 from brain.v5.memory import list_memory_entries_for_claim
-from brain.v5.models import CodeStateRecord, ToolRunRecord, ValidationResultRecord
+from brain.v5.models import CodeStateRecord, ToolRunRecord, TrustUpdateRecord, ValidationResultRecord
 from brain.v5.store import list_records
 from brain.v5.workspace import WorkspacePaths, get_claim
 
@@ -41,6 +41,7 @@ def audit_claim_trust(ws: WorkspacePaths, *, claim_id: str) -> dict:
     ]
     memory_entries = list_memory_entries_for_claim(ws, claim_id)
     code_state_ids = _code_state_ids_for_claim(ws, claim_id, evidence_records)
+    trust_update_record_ids = _trust_update_record_ids_for_claim(ws, claim_id)
     support_state = _support_state(
         supporting_evidence_refs=supporting_evidence_refs,
         passed_validation_result_ids=passed_validation_result_ids,
@@ -60,6 +61,7 @@ def audit_claim_trust(ws: WorkspacePaths, *, claim_id: str) -> dict:
         "failed_validation_result_ids": failed_validation_result_ids,
         "l2_memory_entry_ids": [entry.entry_id for entry in memory_entries],
         "code_state_ids": code_state_ids,
+        "trust_update_record_ids": trust_update_record_ids,
         "review_actions": _review_actions(
             confidence_state=claim.confidence_state,
             evidence_profile=claim.evidence_profile,
@@ -68,7 +70,7 @@ def audit_claim_trust(ws: WorkspacePaths, *, claim_id: str) -> dict:
             l2_memory_entry_ids=[entry.entry_id for entry in memory_entries],
             code_state_ids=code_state_ids,
         ),
-        "mutation_history_available": False,
+        "mutation_history_available": bool(trust_update_record_ids),
         "truth_source": "typed_records",
         "summary_inputs_trusted": False,
         "can_update_kernel_state": False,
@@ -92,6 +94,15 @@ def _code_state_ids_for_claim(ws: WorkspacePaths, claim_id: str, evidence_record
         if _record_links_to_claim(state.linked_records, claim_id):
             _append_unique(result, [state.code_state_id])
     return result
+
+
+def _trust_update_record_ids_for_claim(ws: WorkspacePaths, claim_id: str) -> list[str]:
+    records = [
+        record
+        for record in list_records(ws.registry_dir("trust_updates"), TrustUpdateRecord)
+        if record.claim_id == claim_id
+    ]
+    return [record.update_id for record in sorted(records, key=lambda item: item.update_id)]
 
 
 def _support_state(

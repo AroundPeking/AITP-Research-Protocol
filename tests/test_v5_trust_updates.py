@@ -188,11 +188,13 @@ def test_apply_confidence_change_requires_matching_preflight_token(tmp_path):
 
 
 def test_apply_confidence_change_updates_registry_and_topic_ledger(tmp_path):
+    from dataclasses import asdict
     from dataclasses import replace
 
     from brain.v5.contracts import validate_trust_update_apply
-    from brain.v5.models import ClaimRecord
-    from brain.v5.store import read_record
+    from brain.v5.models import ClaimRecord, TrustUpdateRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import list_records, read_record
     from brain.v5.trust_updates import TrustUpdateRequest, apply_trust_update, preflight_trust_update
     from brain.v5.workspace import get_claim
 
@@ -227,10 +229,56 @@ def test_apply_confidence_change_updates_registry_and_topic_ledger(tmp_path):
     assert registry_claim.confidence_state == "locally_checked"
     assert ledger_claim.confidence_state == "locally_checked"
     assert validate_trust_update_apply(payload).ok is True
+    records = list_records(ws.registry_dir("trust_updates"), TrustUpdateRecord)
+    assert len(records) == 1
+    record = records[0]
+    assert payload["trust_update_record_id"] == record.update_id
+    assert record.applied is True
+    assert record.status == "applied"
+    assert record.previous_state == "hypothesis"
+    assert record.new_state == "locally_checked"
+    assert record.preflight_allowed is True
+    assert record.preflight_token == preflight["preflight_token"]
+    assert require_valid_public_surface("trust_update_record", {"ok": True, **asdict(record)})
+
+
+def test_can_read_persisted_trust_update_record_by_id(tmp_path):
+    from dataclasses import replace
+
+    from brain.v5.trust_updates import (
+        TrustUpdateRequest,
+        apply_trust_update,
+        get_trust_update_record,
+        preflight_trust_update,
+    )
+
+    ws, claim = _seed_claim(tmp_path)
+    request = TrustUpdateRequest(
+        request_id="trust-req-read-record",
+        action="change_claim_confidence",
+        session_id="s1",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        requested_state="locally_checked",
+        source_kind="execution_brief",
+        source_ref="brief:s1",
+        rationale="Read back the typed trust-update history record.",
+    )
+    preflight = preflight_trust_update(ws, request)
+    request = replace(request, preflight_token=preflight["preflight_token"])
+
+    payload = apply_trust_update(ws, request)
+    record = get_trust_update_record(ws, payload["trust_update_record_id"])
+
+    assert record.update_id == payload["trust_update_record_id"]
+    assert record.request_id == "trust-req-read-record"
+    assert record.applied is True
 
 
 def test_apply_confidence_change_blocks_summary_source_without_mutating(tmp_path):
     from brain.v5.contracts import validate_trust_update_apply
+    from brain.v5.models import TrustUpdateRecord
+    from brain.v5.store import list_records
     from brain.v5.trust_updates import TrustUpdateRequest, apply_trust_update
     from brain.v5.workspace import get_claim
 
@@ -256,6 +304,12 @@ def test_apply_confidence_change_blocks_summary_source_without_mutating(tmp_path
     assert "query_execution_brief_or_typed_record" in payload["required_actions"]
     assert persisted.confidence_state == "hypothesis"
     assert validate_trust_update_apply(payload).ok is True
+    records = list_records(ws.registry_dir("trust_updates"), TrustUpdateRecord)
+    assert len(records) == 1
+    assert payload["trust_update_record_id"] == records[0].update_id
+    assert records[0].applied is False
+    assert records[0].status == "blocked"
+    assert records[0].required_actions == ["query_execution_brief_or_typed_record"]
 
 
 def test_trust_update_apply_contract_rejects_summary_trusted_or_invalid_preflight_payloads():
@@ -387,6 +441,67 @@ def test_cli_trust_apply_confidence_change_updates_claim(tmp_path, capsys):
     assert validate_trust_update_apply(payload).ok is True
 
 
+def test_cli_trust_update_record_returns_contract_payload(tmp_path, capsys):
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    _, claim = _seed_claim(tmp_path)
+    preflight = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "trust",
+            "preflight",
+            "change_claim_confidence",
+            "--session",
+            "s1",
+            "--topic",
+            "fqhe",
+            "--claim",
+            claim.claim_id,
+            "--requested-state",
+            "locally_checked",
+            "--source-kind",
+            "execution_brief",
+            "--source-ref",
+            "brief:s1",
+        ],
+        capsys,
+    )
+    applied = _invoke(
+        [
+            "--base",
+            str(tmp_path),
+            "trust",
+            "apply",
+            "change_claim_confidence",
+            "--session",
+            "s1",
+            "--topic",
+            "fqhe",
+            "--claim",
+            claim.claim_id,
+            "--requested-state",
+            "locally_checked",
+            "--source-kind",
+            "execution_brief",
+            "--source-ref",
+            "brief:s1",
+            "--preflight-token",
+            preflight["preflight_token"],
+        ],
+        capsys,
+    )
+
+    record = _invoke(
+        ["--base", str(tmp_path), "trust", "update-record", applied["trust_update_record_id"]],
+        capsys,
+    )
+
+    assert record["ok"] is True
+    assert record["update_id"] == applied["trust_update_record_id"]
+    assert require_valid_public_surface("trust_update_record", record) == record
+
+
 def test_mcp_preflight_trust_update_returns_contract_payload(tmp_path):
     from brain.v5.contracts import validate_trust_update_preflight
     from brain.v5.mcp_tools import aitp_v5_preflight_trust_update
@@ -448,6 +563,44 @@ def test_mcp_apply_trust_update_accepts_matching_preflight_token(tmp_path):
     assert payload["preflight_token"] == preflight["preflight_token"]
     assert persisted.confidence_state == "locally_checked"
     assert validate_trust_update_apply(payload).ok is True
+
+
+def test_mcp_get_trust_update_record_returns_contract_payload(tmp_path):
+    from brain.v5.mcp_tools import (
+        aitp_v5_apply_trust_update,
+        aitp_v5_get_trust_update_record,
+        aitp_v5_preflight_trust_update,
+    )
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    _, claim = _seed_claim(tmp_path)
+    preflight = aitp_v5_preflight_trust_update(
+        str(tmp_path),
+        action="change_claim_confidence",
+        session_id="s1",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        requested_state="locally_checked",
+        source_kind="execution_brief",
+        source_ref="brief:s1",
+    )
+    applied = aitp_v5_apply_trust_update(
+        str(tmp_path),
+        action="change_claim_confidence",
+        session_id="s1",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        requested_state="locally_checked",
+        source_kind="execution_brief",
+        source_ref="brief:s1",
+        preflight_token=preflight["preflight_token"],
+    )
+
+    record = aitp_v5_get_trust_update_record(str(tmp_path), update_id=applied["trust_update_record_id"])
+
+    assert record["ok"] is True
+    assert record["update_id"] == applied["trust_update_record_id"]
+    assert require_valid_public_surface("trust_update_record", record) == record
 
 
 def test_mcp_apply_trust_update_blocks_summary_source(tmp_path):

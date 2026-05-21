@@ -264,6 +264,30 @@ def require_valid_memory_entry_record(payload: dict[str, Any]) -> dict[str, Any]
     return _require_valid(validate_memory_entry_record(payload), payload)
 
 
+def validate_trust_update_record(payload: dict[str, Any], *, path: str = "trust_update_record") -> ContractResult:
+    result = _validate_base_record(payload, path, kind="trust_update")
+    if result.issues:
+        return result
+    for key in ("update_id", "request_id", "action", "session_id", "topic_id", "claim_id", "previous_state", "new_state", "status", "preflight_token"):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("status") not in {"applied", "blocked"}:
+        result.add(f"{path}.status", "must be 'applied' or 'blocked'")
+    for key in ("applied", "preflight_allowed"):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    if payload.get("applied") is True and payload.get("status") != "applied":
+        result.add(f"{path}.status", "must be 'applied' when applied is true")
+    if payload.get("applied") is False and payload.get("status") != "blocked":
+        result.add(f"{path}.status", "must be 'blocked' when applied is false")
+    for key in ("evidence_refs", "code_state_ids", "required_actions", "policy_reason_ids"):
+        _require_list(payload.get(key), f"{path}.{key}", result)
+    return result
+
+
+def require_valid_trust_update_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return _require_valid(validate_trust_update_record(payload), payload)
+
+
 def _validate_base_record(payload: Any, path: str, *, kind: str) -> ContractResult:
     result = ContractResult()
     _require_mapping(payload, path, result)

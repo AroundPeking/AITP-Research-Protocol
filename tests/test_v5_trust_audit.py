@@ -143,7 +143,9 @@ def test_claim_trust_audit_reports_typed_support_for_current_confidence(tmp_path
     assert payload["l2_memory_entry_ids"] == [memory.entry_id]
     assert payload["code_state_ids"] == [code_state.code_state_id]
     assert payload["review_actions"] == []
-    assert payload["mutation_history_available"] is False
+    assert payload["mutation_history_available"] is True
+    assert len(payload["trust_update_record_ids"]) == 1
+    assert payload["trust_update_record_ids"][0].startswith("trust-update-")
 
 
 def test_claim_trust_audit_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
@@ -190,6 +192,7 @@ def test_claim_trust_audit_contract_rejects_summary_truth_source():
                 "failed_validation_result_ids": [],
                 "l2_memory_entry_ids": [],
                 "code_state_ids": [],
+                "trust_update_record_ids": [],
                 "review_actions": [],
                 "mutation_history_available": False,
                 "truth_source": "summary",

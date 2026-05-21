@@ -39,6 +39,7 @@ def validate_claim_trust_audit(payload: dict[str, Any], *, path: str = "claim_tr
         "failed_validation_result_ids",
         "l2_memory_entry_ids",
         "code_state_ids",
+        "trust_update_record_ids",
         "review_actions",
         "mutation_history_available",
         "truth_source",
@@ -63,15 +64,12 @@ def validate_claim_trust_audit(payload: dict[str, Any], *, path: str = "claim_tr
         "failed_validation_result_ids",
         "l2_memory_entry_ids",
         "code_state_ids",
+        "trust_update_record_ids",
         "review_actions",
     ):
         _require_list(payload.get(key), f"{path}.{key}", result)
-    _require_bool_value(
-        payload.get("mutation_history_available"),
-        False,
-        f"{path}.mutation_history_available",
-        result,
-    )
+    if not isinstance(payload.get("mutation_history_available"), bool):
+        result.add(f"{path}.mutation_history_available", "must be a boolean")
     if payload.get("truth_source") != "typed_records":
         result.add(f"{path}.truth_source", "must be 'typed_records'")
     _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)

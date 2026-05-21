@@ -35,6 +35,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "tool_executor_catalog",
         "tool_recipe_record",
         "tool_run_record",
+        "trust_update_record",
         "trust_update_apply",
         "trust_update_preflight",
         "validation_contract_record",

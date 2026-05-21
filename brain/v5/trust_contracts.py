@@ -46,6 +46,7 @@ _TRUST_APPLY_REQUIRED_KEYS = (
     "previous_state",
     "new_state",
     "required_actions",
+    "trust_update_record_id",
     "preflight",
     "preflight_token",
     "truth_source",
@@ -124,6 +125,7 @@ def validate_trust_update_apply(payload: dict[str, Any], *, path: str = "trust_a
         result.add(f"{path}.kind", "must be 'trust_update_apply'")
     for key in ("request_id", "action", "session_id", "topic_id", "claim_id", "previous_state", "new_state"):
         _require_nonempty_str(payload, key, path, result)
+    _require_nonempty_str(payload, "trust_update_record_id", path, result)
 
     _require_mapping(payload.get("request"), f"{path}.request", result)
     if not isinstance(payload.get("applied"), bool):
