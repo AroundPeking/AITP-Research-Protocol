@@ -125,6 +125,12 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `runtime_hook_installation_paths` surface lists preferred and alternate
   Codex/Claude Code/OpenCode install targets plus matching install/audit
   commands. It is convention metadata, not kernel state.
+- Runtime hook smoke coverage can be reviewed with
+  `aitp-v5 adapter smoke-coverage` or
+  `aitp_v5_report_hook_smoke_coverage`. The returned
+  `runtime_hook_smoke_coverage` surface is orientation-only and lists
+  test-backed Codex/OpenCode/Claude Code hook smoke checks plus remaining
+  real-host gaps.
 - Codex native `hooks.json` installation now writes command strings with the
   active Python interpreter and an absolute
   `hooks/aitp_v5_adapter_event_runner.py` path. Tests execute those commands

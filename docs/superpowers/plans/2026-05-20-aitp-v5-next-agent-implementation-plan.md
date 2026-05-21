@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-8c11abb feat(v5): smoke test opencode local plugin lifecycle
+b3cdeb5 feat(v5): report runtime hook smoke coverage
 ```
 
 Current focused v5 verification:
@@ -37,10 +37,10 @@ $files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullNa
 pytest $files -q
 ```
 
-Expected baseline as of `8c11abb`:
+Expected baseline as of `b3cdeb5`:
 
 ```text
-424 passed
+427 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -206,6 +206,12 @@ Implemented:
   `runtime_hook_installation_paths` surface reports workspace-local preferred
   and alternate install targets plus matching install/audit commands for Codex,
   Claude Code, and OpenCode.
+- Runtime hook smoke coverage can now be reported through
+  `aitp-v5 adapter smoke-coverage` and
+  `aitp_v5_report_hook_smoke_coverage`; the contracted
+  `runtime_hook_smoke_coverage` surface reports which Codex, Claude Code, and
+  OpenCode hook paths have test-backed smoke coverage and which real-host gaps
+  remain.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_code_state`, `record_evidence`,
   `record_tool_run`, `execute_tool`, `ingest_subagent_result`,
@@ -298,9 +304,10 @@ Major remaining gaps:
   `hooks.json` commands are now smoke-tested from a user workspace cwd rather
   than the AITP repository cwd, and generated OpenCode local plugins are
   smoke-tested by loading the JavaScript module and invoking before/after
-  lifecycle handlers. The remaining gap is broader end-to-end host smoke tests
-  inside real app processes plus any non-workspace/global host config discovery
-  that proves useful.
+  lifecycle handlers. A `runtime_hook_smoke_coverage` surface now reports these
+  checks and remaining real-host gaps for reviewers. The remaining gap is
+  broader end-to-end host smoke tests inside real app processes plus any
+  non-workspace/global host config discovery that proves useful.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion-packet/promotion context, and summary-sourced
   code-state/evidence/tool-run/tool-execution/tool-recipe/reference-location/

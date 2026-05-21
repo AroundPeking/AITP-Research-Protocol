@@ -544,6 +544,23 @@ The returned `runtime_hook_installation_audit` surface reports
 `summary_inputs_trusted=false`, `orientation_only=true`,
 `can_update_kernel_state=false`, and `can_update_claim_trust=false`.
 
+Smoke-test coverage for generated hook paths is reported separately:
+
+```powershell
+aitp-v5 adapter smoke-coverage
+```
+
+MCP clients use:
+
+```text
+aitp_v5_report_hook_smoke_coverage()
+```
+
+The returned `runtime_hook_smoke_coverage` surface is orientation-only. It
+lists test-backed Codex/OpenCode/Claude Code smoke checks and the remaining
+real-host process gaps without treating tests or generated runtime files as
+kernel truth.
+
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:

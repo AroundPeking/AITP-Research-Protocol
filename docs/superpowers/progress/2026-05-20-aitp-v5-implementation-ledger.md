@@ -4216,3 +4216,64 @@ Each entry should record:
     which generated host smoke checks exist for Codex/OpenCode/Claude Code, or
     continue broadening pre-tool policy coverage for remaining MCP inputs and
     active risk dimensions.
+
+### b3cdeb5 - Report Runtime Hook Smoke Coverage
+
+- Task: expose a machine-readable, orientation-only report of which generated
+  runtime hook paths have test-backed smoke coverage and which real-host gaps
+  remain.
+- Planning source:
+  - previous ledger recommendation after `8c11abb`;
+  - hook-installation plan residual gap for reviewable host smoke coverage;
+  - v5 invariant that summaries, generated hook files, and test reports are
+    not kernel truth sources.
+- Changed files:
+  - `brain/v5/hook_smoke_coverage.py`
+  - `brain/v5/hook_install_contracts.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+- Public/runtime behavior changes:
+  - new helper `runtime_hook_smoke_coverage_report()`;
+  - new CLI command `aitp-v5 adapter smoke-coverage`;
+  - new MCP wrapper `aitp_v5_report_hook_smoke_coverage`;
+  - new public surface `runtime_hook_smoke_coverage`;
+  - new runtime entrypoint catalog item
+    `runtime_hook_smoke_coverage`;
+  - report lists test-backed Codex native hooks, Codex fixture, OpenCode
+    fixture, OpenCode local plugin, and Claude Code settings coverage, plus
+    remaining real-host process gaps.
+- Tests:
+  - direct helper validates the contracted coverage report;
+  - CLI and MCP wrappers return the contracted payload;
+  - public-surface and runtime-entrypoint registries advertise the new surface.
+- Verification:
+  - red target set:
+    `python -m pytest tests\test_v5_adapters.py::test_runtime_hook_smoke_coverage_reports_test_backed_host_smokes tests\test_v5_adapters.py::test_cli_adapter_smoke_coverage_returns_contract_payload tests\test_v5_adapters.py::test_mcp_hook_smoke_coverage_returns_contract_payload tests\test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads tests\test_v5_runtime_entrypoints.py::test_runtime_entrypoints_advertise_typed_write_surfaces -q`:
+    5 failed because the module, CLI subcommand, MCP wrapper, public surface,
+    and runtime entrypoint did not exist;
+  - target green set:
+    same command: 5 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_adapters.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_architecture_boundaries.py -q`:
+    107 passed;
+  - full v5 regression set:
+    `$files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullName }; python -m pytest $files -q`:
+    427 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with line-ending warnings only.
+- Residual risks:
+  - report is a static contract registry of known smoke tests; it does not
+    execute those tests or prove real app host integration;
+  - broader in-host smoke tests remain a separate implementation task.
+- Next recommended task:
+  - deepen real app host smoke coverage where feasible, or continue broadening
+    pre-tool policy coverage for remaining MCP inputs and active risk
+    dimensions.

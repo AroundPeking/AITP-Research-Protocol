@@ -225,6 +225,10 @@ kernel truth.
 Default workspace-local hook targets can be listed with
 `aitp-v5 adapter install-paths`, which returns preferred install/audit commands
 for Codex, Claude Code, and OpenCode.
+Generated-hook smoke coverage can be reviewed with
+`aitp-v5 adapter smoke-coverage` or `aitp_v5_report_hook_smoke_coverage`; the
+report is orientation-only and lists which Codex/OpenCode/Claude Code hook paths
+have test-backed smoke checks and which real-host gaps remain.
 Both fixtures write the bridge and sidecar, then point pre-tool hooks at the
 stdin runner and post-tool hooks at the trace-persistence runner with a declared
 repository `cwd`, without granting generated files authority over typed records.
