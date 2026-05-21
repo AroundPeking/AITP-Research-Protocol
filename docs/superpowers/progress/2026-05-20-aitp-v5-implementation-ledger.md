@@ -2765,3 +2765,60 @@ Each entry should record:
   - use the new audit as a guard while moving to the next remaining v5 gap:
     native hook lifecycle wiring, migration completeness, or broader active-risk
     policy inputs.
+
+### 2c52781 - Migrate Legacy L3 Process Notes
+
+- Task: preserve old-topic L3 process artifacts during explicit v5 migration,
+  not only final L3 candidates and L4 reviews.
+- Planning source:
+  - goal invariant that old topic content should migrate into v5 typed records
+    rather than remain a long-term compatibility truth source;
+  - user concern that research process, wrong attempts, gap audits, and
+    derivation work must not disappear when old topics move into the new
+    architecture;
+  - architecture-boundary constraint that v5 modules should stay small.
+- Changed files:
+  - `brain/v5/legacy_bridge.py`
+  - `brain/v5/legacy_l3_process_records.py`
+  - `tests/test_v5_legacy_bridge.py`
+- Public/runtime behavior changes:
+  - legacy migration dry-run now maps L3 process notes under `L3/ideate`,
+    `L3/plan`, `L3/derive`, `L3/trace-derivation`, `L3/gap-audit`,
+    `L3/diagnose`, `L3/integrate`, `L3/distill`, and `L3/runs`;
+  - explicit migration converts those notes into `legacy_l3_*_process_note`
+    evidence records plus linked sensemaking reports on the active migrated
+    claim;
+  - migrated reports carry `review_legacy_l3_process_note` as the next action,
+    making old derivation routes, failed comparisons, and gap-audit findings
+    visible for v5 review before any trust promotion.
+- Tests:
+  - dry-run maps `L3/derive/active_derivation.md`,
+    `L3/gap-audit/active_gaps.md`, and `L3/diagnose/failed-route.md`;
+  - migration writes typed evidence for derive, gap-audit, and diagnose process
+    notes;
+  - migration writes sensemaking reports preserving the note summaries and
+    provenance refs.
+- Verification:
+  - red test failed as expected:
+    `python -m pytest tests\test_v5_legacy_bridge.py -q -k "l3_process"`:
+    1 failed with `KeyError: 'L3/derive/active_derivation.md'`;
+  - target green set:
+    same command: 1 passed;
+  - focused related set:
+    `python -m pytest tests\test_v5_legacy_bridge.py tests\test_v5_public_surfaces.py tests\test_v5_contracts.py tests\test_v5_architecture_boundaries.py -q`:
+    76 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 370 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - migrated process notes preserve summaries and provenance refs; full
+    original prose remains available through the referenced legacy file until a
+    future archival-content-copy policy is defined;
+  - old process notes are imported as `legacy_seed` evidence, not validation or
+    L2 memory.
+- Next recommended task:
+  - continue migration completeness by deciding whether old L3 process-note
+    bodies should be copied into v5 archival records or remain provenance-linked
+    summaries, then move to the next gap if that policy is intentionally deferred.
