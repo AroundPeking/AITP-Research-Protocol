@@ -168,6 +168,7 @@ def apply_promotion_packet(
         memory_kind=packet.proposed_memory_kind,
         scope=packet.scope,
         evidence_refs=list(packet.evidence_refs),
+        validation_result_ids=list(packet.validation_result_ids),
         non_claims=list(packet.non_claims),
         known_failure_modes=list(packet.known_failure_modes),
         source_packet_id=packet_id,
@@ -212,6 +213,8 @@ def memory_entry_brief_payload(
         "human_checkpoint_id": entry.human_checkpoint_id,
         "orientation_only": True,
     }
+    if entry.validation_result_ids:
+        payload["validation_result_ids"] = list(entry.validation_result_ids)
     code_state_ids = _code_state_ids_for_memory_entry(
         entry,
         evidence_records or [],

@@ -133,6 +133,7 @@ def test_fqhe_learning_to_idea_to_toy_check_workflow(tmp_path):
             "memory_kind": "scoped_claim",
             "scope": "recorded finite-size sector",
             "evidence_refs": [result.evidence.evidence_id],
+            "validation_result_ids": [validation.result_id],
             "source_packet_id": packet.packet_id,
             "human_checkpoint_id": checkpoint.checkpoint_id,
             "orientation_only": True,
@@ -256,6 +257,7 @@ def test_gw_formula_code_translation_records_code_state_and_benchmark(tmp_path):
             "memory_kind": "code_method_claim",
             "scope": "librpa commit abc123 self-energy worktree",
             "evidence_refs": [result.evidence.evidence_id],
+            "validation_result_ids": [validation.result_id],
             "code_state_ids": [code_state.code_state_id],
             "source_packet_id": packet.packet_id,
             "human_checkpoint_id": checkpoint.checkpoint_id,
@@ -334,6 +336,103 @@ def test_gw_high_risk_promotion_uses_tool_backed_failure_mode_review_basis(tmp_p
         evidence_refs=[benchmark.evidence.evidence_id],
         summary="GW benchmark table stayed within tolerance.",
     )
+    formula_contract = create_validation_contract(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        required_checks=["Formula-code invariant is explicitly matched"],
+        failure_modes=["formula-code translation"],
+        required_evidence_outputs=["all_invariants_checked"],
+        tool_recipe_ids=["recipe-librpa-gw-formula-code-invariant"],
+        executor_ids=["formula_code_invariant_check"],
+        validator_role="formula_code_validator",
+    )
+    formula = execute_registered_tool_result(
+        ws,
+        executor_id="formula_code_invariant_check",
+        recipe_id="recipe-librpa-gw-formula-code-invariant",
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        inputs={
+            "invariants": [
+                {
+                    "name": "self-energy frequency sum",
+                    "formula_ref": "Sigma_c(omega)",
+                    "code_ref": "src/gw/self_energy.cpp:accumulate_sigma",
+                    "expected_relation": "frequency-grid weights enter the self-energy sum once per grid point",
+                    "observed_relation": "code path multiplies each sampled omega by the recorded quadrature weight exactly once",
+                    "status": "matched",
+                }
+            ]
+        },
+        code_state_ids=[code_state.code_state_id],
+        supports_outputs=["formula_code_invariant", "minimal_check"],
+        evidence_type="code_method",
+        evidence_summary="Formula-code invariant check matched the self-energy frequency sum.",
+    )
+    formula_validation = record_validation_result(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        contract_id=formula_contract.contract_id,
+        tool_run_id=formula.run.run_id,
+        status="passed",
+        checked_outputs=["all_invariants_checked"],
+        evidence_refs=[formula.evidence.evidence_id],
+        summary="Formula-code invariant check passed for the recorded code state.",
+    )
+    metadata_contract = create_validation_contract(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        required_checks=["GW run metadata meets reproduction thresholds"],
+        failure_modes=["frequency grid mismatch"],
+        required_evidence_outputs=["all_metadata_checks_passed"],
+        tool_recipe_ids=["recipe-librpa-gw-run-metadata-diagnostic"],
+        executor_ids=["librpa_gw_run_metadata_check"],
+        validator_role="metadata_validator",
+    )
+    metadata = execute_registered_tool_result(
+        ws,
+        executor_id="librpa_gw_run_metadata_check",
+        recipe_id="recipe-librpa-gw-run-metadata-diagnostic",
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        inputs={
+            "frequency_grid": {
+                "source_ref": "artifact:gw-run-output",
+                "grid_type": "gauss_legendre",
+                "n_points": 96,
+            },
+            "basis_cutoff": {
+                "source_ref": "artifact:gw-input",
+                "cutoff_ev": 120.0,
+                "band_count": 320,
+            },
+            "expected": {
+                "grid_type": "gauss_legendre",
+                "min_frequency_points": 64,
+                "min_basis_cutoff_ev": 100.0,
+                "min_band_count": 256,
+            },
+        },
+        code_state_ids=[code_state.code_state_id],
+        artifact_ids=["artifact:gw-input", "artifact:gw-run-output"],
+        supports_outputs=["librpa_gw_run_metadata", "minimal_check"],
+        evidence_type="code_method",
+        evidence_summary="GW run metadata matched the reproduction thresholds.",
+    )
+    metadata_validation = record_validation_result(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        contract_id=metadata_contract.contract_id,
+        tool_run_id=metadata.run.run_id,
+        status="passed",
+        checked_outputs=["all_metadata_checks_passed"],
+        evidence_refs=[metadata.evidence.evidence_id],
+        summary="GW run metadata diagnostic passed for the recorded input/output artifacts.",
+    )
     basis_contract = create_validation_contract(
         ws,
         topic_id="librpa-gw",
@@ -356,9 +455,9 @@ def test_gw_high_risk_promotion_uses_tool_backed_failure_mode_review_basis(tmp_p
             "basis_items": [
                 {
                     "failure_mode": "frequency grid mismatch",
-                    "basis_ref": benchmark_validation.result_id,
+                    "basis_ref": metadata_validation.result_id,
                     "basis_type": "validation_result",
-                    "question_answered": "The frequency-grid-sensitive benchmark stayed inside tolerance.",
+                    "question_answered": "The recorded run used the expected frequency grid and enough points.",
                 }
             ],
         },
@@ -403,8 +502,16 @@ def test_gw_high_risk_promotion_uses_tool_backed_failure_mode_review_basis(tmp_p
         session_id="s1",
         action="create_promotion_packet",
         claim_id=claim.claim_id,
-        evidence_refs=[benchmark.evidence.evidence_id],
-        validation_result_ids=[benchmark_validation.result_id],
+        evidence_refs=[
+            benchmark.evidence.evidence_id,
+            formula.evidence.evidence_id,
+            metadata.evidence.evidence_id,
+        ],
+        validation_result_ids=[
+            benchmark_validation.result_id,
+            formula_validation.result_id,
+            metadata_validation.result_id,
+        ],
         known_failure_modes=["frequency grid mismatch"],
         failure_mode_review_checkpoint_id=approved_review.checkpoint_id,
         failure_mode_review_result_id=review_result.result_id,
@@ -417,8 +524,16 @@ def test_gw_high_risk_promotion_uses_tool_backed_failure_mode_review_basis(tmp_p
         claim_id=claim.claim_id,
         proposed_memory_kind="code_method_claim",
         scope="librpa commit abc123 with reviewed frequency-grid risk",
-        evidence_refs=[benchmark.evidence.evidence_id],
-        validation_result_ids=[benchmark_validation.result_id],
+        evidence_refs=[
+            benchmark.evidence.evidence_id,
+            formula.evidence.evidence_id,
+            metadata.evidence.evidence_id,
+        ],
+        validation_result_ids=[
+            benchmark_validation.result_id,
+            formula_validation.result_id,
+            metadata_validation.result_id,
+        ],
         known_failure_modes=["frequency grid mismatch"],
         failure_mode_review_checkpoint_id=approved_review.checkpoint_id,
         failure_mode_review_result_id=review_result.result_id,
@@ -450,10 +565,27 @@ def test_gw_high_risk_promotion_uses_tool_backed_failure_mode_review_basis(tmp_p
 
     assert policy["block"] is False
     assert memory.failure_mode_review_result_id == review_result.result_id
+    assert memory.validation_result_ids == [
+        benchmark_validation.result_id,
+        formula_validation.result_id,
+        metadata_validation.result_id,
+    ]
+    assert "formula_code_invariant" in brief["evidence_coverage"]["satisfied_outputs"]
+    assert "librpa_gw_run_metadata" in brief["evidence_coverage"]["satisfied_outputs"]
     assert "failure_mode_review_basis" in brief["evidence_coverage"]["satisfied_outputs"]
     brief_entry = brief["known_context"]["memory_entries"][0]
+    assert brief_entry["validation_result_ids"] == [
+        benchmark_validation.result_id,
+        formula_validation.result_id,
+        metadata_validation.result_id,
+    ]
     assert brief_entry["failure_mode_review_checkpoint_id"] == approved_review.checkpoint_id
     assert brief_entry["failure_mode_review_result_id"] == review_result.result_id
     audit_entry = audit["memory_entries"][0]
+    assert audit_entry["validation_result_ids"] == [
+        benchmark_validation.result_id,
+        formula_validation.result_id,
+        metadata_validation.result_id,
+    ]
     assert audit_entry["failure_mode_review_result_ids"] == [review_result.result_id]
     assert audit_entry["failure_mode_review_results"][0]["tool_run_ids"] == [basis.run.run_id]

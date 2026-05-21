@@ -406,6 +406,7 @@ class MemoryEntryRecord:
     memory_kind: str = "scoped_claim"
     scope: str = ""
     evidence_refs: list[str] = field(default_factory=list)
+    validation_result_ids: list[str] = field(default_factory=list)
     non_claims: list[str] = field(default_factory=list)
     known_failure_modes: list[str] = field(default_factory=list)
     source_packet_id: str = ""

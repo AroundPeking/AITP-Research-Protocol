@@ -294,6 +294,7 @@ def validate_memory_entry_record(payload: dict[str, Any], *, path: str = "memory
     _require_list(evidence, f"{path}.evidence_refs", result)
     if isinstance(evidence, list) and len(evidence) == 0:
         result.add(f"{path}.evidence_refs", "must not be empty — memory entries require evidence")
+    _require_list(payload.get("validation_result_ids"), f"{path}.validation_result_ids", result)
     for key in ("non_claims", "known_failure_modes"):
         _require_list(payload.get(key), f"{path}.{key}", result)
     for key in ("failure_mode_review_checkpoint_id", "failure_mode_review_result_id"):

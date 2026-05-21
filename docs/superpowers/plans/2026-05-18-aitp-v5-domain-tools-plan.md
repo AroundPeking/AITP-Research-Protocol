@@ -17,7 +17,10 @@ in-process review-basis checker. The LibRPA/GW domain pack recommends
 also recommend `recipe-fqhe-failure-mode-review-basis` and
 `recipe-librpa-gw-failure-mode-review-basis`, so a passed
 `failure_mode_review_result_record` can cite concrete tool/validation basis
-rather than only prose.
+rather than only prose. Real-workflow acceptance now exercises GW promotion
+with benchmark evidence, formula-code invariant evidence, run-metadata
+diagnostic evidence, and typed validation-result links preserved through L2
+memory and execution briefs.
 
 **Tech Stack:** Python dataclasses, pytest, Markdown+YAML store, built-in deterministic executors.
 

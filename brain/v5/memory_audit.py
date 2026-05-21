@@ -95,6 +95,7 @@ def _audit_entry(
 
     validation_result_ids: list[str] = []
     code_state_ids: list[str] = []
+    _append_unique(validation_result_ids, entry.validation_result_ids)
     if packet is not None:
         _append_unique(validation_result_ids, packet.validation_result_ids)
     for evidence_id in entry.evidence_refs:

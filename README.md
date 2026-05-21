@@ -173,7 +173,9 @@ orientation-only `known_context.memory_entries`, so agents can see previously
 promoted scoped memory without treating the brief itself as the authority. For
 code-method memory, those brief entries include `code_state_ids` derived from
 the linked evidence's tool runs, so version-sensitive conclusions keep their
-code provenance visible in subsequent sessions. When a promoted memory entry
+code provenance visible in subsequent sessions. Promoted memory entries also
+preserve `validation_result_ids`, and the execution brief exposes those IDs as
+orientation-only links back to typed validation records. When a promoted memory entry
 used a failure-mode review checkpoint/result, the brief entry also exposes
 `failure_mode_review_checkpoint_id` and `failure_mode_review_result_id` as
 orientation-only pointers to the typed records. The public execution-brief

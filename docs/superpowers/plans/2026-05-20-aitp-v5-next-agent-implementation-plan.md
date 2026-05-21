@@ -90,6 +90,8 @@ Implemented:
 - Local sense-making reports.
 - Validation contracts and human checkpoint records.
 - L2 promotion packets, memory entries, and promotion governance.
+- L2 memory entries preserve promotion validation-result IDs, and execution
+  briefs expose those validation links as orientation-only resumption context.
 - Real FQHE and GW workflow acceptance tests.
 - Session summaries as orientation-only derived files.
 - CLI, MCP wrappers, public surface contracts, runtime entrypoints, adapter packets.

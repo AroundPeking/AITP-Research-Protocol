@@ -110,6 +110,8 @@ def _validate_memory_entry(payload: Any, path: str, result: ContractResult) -> N
     for key in ("entry_id", "memory_kind", "scope", "source_packet_id", "human_checkpoint_id"):
         _require_nonempty_str(payload, key, path, result)
     _require_list(payload.get("evidence_refs"), f"{path}.evidence_refs", result)
+    if "validation_result_ids" in payload:
+        _require_list(payload.get("validation_result_ids"), f"{path}.validation_result_ids", result)
     if "code_state_ids" in payload:
         _require_list(payload.get("code_state_ids"), f"{path}.code_state_ids", result)
     _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)

@@ -208,7 +208,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `memory/l2/entries` remain authoritative. Code-method memory brief entries
   include `code_state_ids` derived from linked evidence tool runs so version
   provenance stays visible without making the brief a truth source. Memory
-  brief entries also include `failure_mode_review_checkpoint_id` and
+  entries preserve `validation_result_ids` from promotion packets, and memory
+  briefs expose those ids as orientation-only links back to typed validation
+  records. Memory brief entries also include `failure_mode_review_checkpoint_id` and
   `failure_mode_review_result_id` when those typed links exist on the promoted
   memory entry. The
   execution-brief contract lives in `brain/v5/brief_contracts.py` and validates

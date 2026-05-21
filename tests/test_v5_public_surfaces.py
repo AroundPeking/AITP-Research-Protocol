@@ -441,6 +441,7 @@ def test_public_surface_validator_accepts_typed_write_records():
         "memory_kind": "scoped_claim",
         "scope": "N<=10 ED",
         "evidence_refs": ["evidence-counting"],
+        "validation_result_ids": ["validation-result-ed"],
         "non_claims": ["Does not prove thermodynamic limit."],
         "known_failure_modes": ["sector misassignment"],
         "source_packet_id": "packet-fqhe-counting",
