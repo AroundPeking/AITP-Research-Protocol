@@ -18,6 +18,7 @@ from brain.v5.hook_install_templates import (
     write_codex_hook_bridge,
     write_opencode_plugin_bridge,
 )
+from brain.v5.hook_smoke_coverage import runtime_hook_smoke_coverage_report
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
@@ -296,6 +297,16 @@ def aitp_v5_discover_hook_install_paths(base: str) -> dict:
     return {
         "ok": True,
         **require_valid_public_surface("runtime_hook_installation_paths", discover_hook_install_paths(_ws(base))),
+    }
+
+
+def aitp_v5_report_hook_smoke_coverage() -> dict:
+    return {
+        "ok": True,
+        **require_valid_public_surface(
+            "runtime_hook_smoke_coverage",
+            runtime_hook_smoke_coverage_report(),
+        ),
     }
 
 

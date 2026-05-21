@@ -20,6 +20,7 @@ from brain.v5.hook_install_templates import (
 )
 from brain.v5.hook_install_audit import audit_hook_installation
 from brain.v5.hook_install_paths import discover_hook_install_paths
+from brain.v5.hook_smoke_coverage import runtime_hook_smoke_coverage_report
 from brain.v5.hook_opencode_install import install_opencode_plugin_file
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
 
@@ -43,6 +44,14 @@ def dispatch_adapter_command(args: Namespace, ws: Any | None) -> dict[str, Any]:
             "record_gate_coverage_audit": require_valid_public_surface(
                 "record_gate_coverage_audit",
                 record_gate_coverage_audit(),
+            ),
+        }
+    if args.adapter_command == "smoke-coverage":
+        return {
+            "ok": True,
+            **require_valid_public_surface(
+                "runtime_hook_smoke_coverage",
+                runtime_hook_smoke_coverage_report(),
             ),
         }
     if ws is None:

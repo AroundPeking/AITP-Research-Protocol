@@ -93,6 +93,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "mcp": "aitp_v5_discover_hook_install_paths",
         "surface": "runtime_hook_installation_paths",
     }
+    assert entrypoints["runtime_hook_smoke_coverage"] == {
+        "cli": "aitp-v5 adapter smoke-coverage",
+        "mcp": "aitp_v5_report_hook_smoke_coverage",
+        "surface": "runtime_hook_smoke_coverage",
+    }
 
 
 def test_runtime_entrypoint_validation_reports_bad_mcp_and_cli_targets():

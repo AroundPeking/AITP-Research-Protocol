@@ -31,6 +31,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "reference_location_record",
         "runtime_hook_installation_audit",
         "runtime_hook_installation_paths",
+        "runtime_hook_smoke_coverage",
         "sensemaking_report_record",
         "session_summary_bundle",
         "summary_orientation",

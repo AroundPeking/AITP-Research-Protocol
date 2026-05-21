@@ -2141,6 +2141,50 @@ def test_mcp_hook_installation_paths_returns_contract_payload(tmp_path):
     assert payload["paths"][0]["runtime"] == "codex"
 
 
+def test_runtime_hook_smoke_coverage_reports_test_backed_host_smokes():
+    from brain.v5.hook_smoke_coverage import runtime_hook_smoke_coverage_report
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    payload = runtime_hook_smoke_coverage_report()
+
+    assert payload["kind"] == "runtime_hook_smoke_coverage"
+    assert payload["truth_source"] == "v5_test_contract_registry"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert payload["overall_status"] == "partial"
+    by_runtime = {entry["runtime"]: entry for entry in payload["runtimes"]}
+    assert {runtime for runtime in by_runtime} == {"codex", "claude_code", "opencode"}
+    assert "native_hooks_json_workspace_cwd" in {check["name"] for check in by_runtime["codex"]["checks"]}
+    assert "local_plugin_node_lifecycle" in {check["name"] for check in by_runtime["opencode"]["checks"]}
+    assert "real_host_process_smoke" in by_runtime["claude_code"]["gaps"]
+    for entry in payload["runtimes"]:
+        for check in entry["checks"]:
+            assert check["runtime_metadata_only"] is True
+            assert check["test_ids"]
+    assert require_valid_public_surface("runtime_hook_smoke_coverage", payload) == payload
+
+
+def test_cli_adapter_smoke_coverage_returns_contract_payload(capsys):
+    payload = _invoke(["adapter", "smoke-coverage"], capsys)
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "runtime_hook_smoke_coverage"
+    assert payload["overall_status"] == "partial"
+    assert {entry["runtime"] for entry in payload["runtimes"]} == {"codex", "claude_code", "opencode"}
+
+
+def test_mcp_hook_smoke_coverage_returns_contract_payload():
+    from brain.v5.mcp_tools import aitp_v5_report_hook_smoke_coverage
+
+    payload = aitp_v5_report_hook_smoke_coverage()
+
+    assert payload["ok"] is True
+    assert payload["kind"] == "runtime_hook_smoke_coverage"
+    assert payload["runtimes"][0]["runtime"] == "codex"
+
+
 def test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet(tmp_path, capsys):
     _seed_session(tmp_path)
 

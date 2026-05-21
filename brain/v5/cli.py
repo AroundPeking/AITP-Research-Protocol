@@ -172,7 +172,7 @@ def _build_parser() -> argparse.ArgumentParser:
     aih.add_argument("--plugin", default=""); aih.add_argument("--bridge-output", default="")
     aia = aps.add_parser("install-audit"); aia.add_argument("runtime")
     aia.add_argument("--settings", default=""); aia.add_argument("--output", default=""); aia.add_argument("--plugin", default="")
-    aps.add_parser("install-paths")
+    aps.add_parser("install-paths"); aps.add_parser("smoke-coverage")
     ape = aps.add_parser("pre-tool-event"); ape.add_argument("runtime"); ape.add_argument("session_id")
     ape.add_argument("--bridge-json", default=""); ape.add_argument("--bridge-path", default="")
     ape.add_argument("--event-json", required=True)
@@ -255,7 +255,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "init":
         return {"ok": True, "workspace_root": str(init_workspace(Path(args.base)).root)}
-    if args.command == "adapter" and args.adapter_command in {"registry", "public-surfaces", "record-gate-audit"}:
+    if args.command == "adapter" and args.adapter_command in {"registry", "public-surfaces", "record-gate-audit", "smoke-coverage"}:
         return dispatch_adapter_command(args, None)
 
     ws = init_workspace(Path(args.base))

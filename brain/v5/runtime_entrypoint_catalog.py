@@ -1,5 +1,4 @@
 """Runtime entrypoint catalog data and CLI sample arguments."""
-
 from __future__ import annotations
 
 from typing import Any
@@ -30,6 +29,7 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_discover_hook_install_paths",
         "surface": "runtime_hook_installation_paths",
     },
+    "runtime_hook_smoke_coverage": {"cli": "aitp-v5 adapter smoke-coverage", "mcp": "aitp_v5_report_hook_smoke_coverage", "surface": "runtime_hook_smoke_coverage"},
     "adapter_packet": {
         "cli": "aitp-v5 adapter packet <runtime> <session-id>",
         "mcp": "aitp_v5_get_adapter_packet",
