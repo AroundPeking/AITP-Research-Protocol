@@ -140,7 +140,9 @@ policy hard-blocks rigorous/adversarial promotion attempts that omit or mismatch
 those links. The same pre-tool surface now also carries `known_failure_modes`
 and blocks promotion-packet creation until the agent states at least one way the
 claim could still fail, matching the durable promotion packet contract instead
-of letting an evidence citation alone pass the gate. Execution briefs expose active claim L2 memory entries as
+of letting an evidence citation alone pass the gate. When the claim records a
+`strongest_failure_mode`, the supplied `known_failure_modes` must cover that
+recorded risk before the packet can be created. Execution briefs expose active claim L2 memory entries as
 orientation-only `known_context.memory_entries`, so agents can see previously
 promoted scoped memory without treating the brief itself as the authority. For
 code-method memory, those brief entries include `code_state_ids` derived from

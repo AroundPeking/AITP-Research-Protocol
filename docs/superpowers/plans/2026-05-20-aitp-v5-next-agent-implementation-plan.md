@@ -247,7 +247,9 @@ Implemented:
 - Promotion-packet pre-tool policy now carries `known_failure_modes` and blocks
   packet creation until the agent names at least one way the claim may fail,
   keeping L2 promotion aligned with the durable promotion packet contract rather
-  than reducing the gate to evidence-link attachment.
+  than reducing the gate to evidence-link attachment. If the claim already has a
+  `strongest_failure_mode`, those supplied failure modes must cover the recorded
+  risk.
 - Execution briefs now expose active-claim L2 memory entries as
   orientation-only `known_context.memory_entries`, with typed memory records
   remaining authoritative. Code-method memory brief entries include

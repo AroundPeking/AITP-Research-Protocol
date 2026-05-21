@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 
-def _seed_claim(tmp_path, *, evidence_profile: str = "toy_numeric"):
+def _seed_claim(tmp_path, *, evidence_profile: str = "toy_numeric", strongest_failure_mode: str = ""):
     from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
 
     ws = init_workspace(tmp_path)
@@ -15,6 +15,7 @@ def _seed_claim(tmp_path, *, evidence_profile: str = "toy_numeric"):
         evidence_profile=evidence_profile,
         confidence_state="locally_checked",
         active_uncertainty="finite-size artifact may mimic counting",
+        strongest_failure_mode=strongest_failure_mode,
     )
     bind_session(
         ws,
@@ -78,6 +79,53 @@ def _seed_tool_evidence_for_promotion(tmp_path, *, link_result_to_evidence: bool
         validation_result_ids=[result.result_id] if link_result_to_evidence else [],
     )
     return ws, claim, evidence, result
+
+
+def _seed_grid_validation_evidence(ws, claim):
+    from brain.v5.evidence import record_evidence
+    from brain.v5.tools import record_tool_run
+    from brain.v5.validation import create_validation_contract, record_validation_result
+
+    contract = create_validation_contract(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        required_checks=["frequency grid benchmark"],
+        failure_modes=["frequency grid mismatch"],
+        required_evidence_outputs=["grid_table"],
+        tool_recipe_ids=["recipe-fqhe-ed"],
+        executor_ids=["pytest"],
+    )
+    run = record_tool_run(
+        ws,
+        recipe_id="recipe-fqhe-ed",
+        tool_family="numerical",
+        tool_name="pytest",
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        outputs={"grid_table": "ok"},
+    )
+    result = record_validation_result(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        contract_id=contract.contract_id,
+        tool_run_id=run.run_id,
+        status="passed",
+        checked_outputs=["grid_table"],
+        summary="Frequency grid output was checked.",
+    )
+    evidence = record_evidence(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        evidence_type="toy_numeric",
+        status="supports",
+        summary="Tool-derived grid evidence.",
+        tool_run_ids=[run.run_id],
+        validation_result_ids=[result.result_id],
+    )
+    return evidence, result
 
 
 def _invoke(args, capsys):
@@ -844,6 +892,63 @@ def test_cli_pre_tool_policy_accepts_promotion_packet_known_failure_mode(tmp_pat
     )
 
     assert payload["known_failure_modes"] == ["finite-size aliasing"]
+    assert payload["mode"] == "log"
+    assert payload["block"] is False
+    assert payload["policy_reasons"] == []
+
+
+def test_mcp_pre_tool_policy_blocks_promotion_failure_mode_that_misses_claim_risk(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    ws, claim = _seed_claim(
+        tmp_path,
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    evidence, result = _seed_grid_validation_evidence(ws, claim)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="create_promotion_packet",
+        claim_id=claim.claim_id,
+        evidence_refs=[evidence.evidence_id],
+        validation_result_ids=[result.result_id],
+        known_failure_modes=["finite-size aliasing"],
+        source_kind="typed_records",
+        risk_level="rigorous",
+    )
+
+    assert payload["known_failure_modes"] == ["finite-size aliasing"]
+    assert payload["mode"] == "block"
+    assert payload["block"] is True
+    assert payload["required_actions"] == ["align_failure_mode_with_claim_risk"]
+    assert [reason["policy_id"] for reason in payload["policy_reasons"]] == [
+        "promotion_failure_modes_must_cover_claim_failure_mode"
+    ]
+
+
+def test_mcp_pre_tool_policy_accepts_promotion_failure_mode_covering_claim_risk(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_evaluate_pre_tool_policy
+
+    ws, claim = _seed_claim(
+        tmp_path,
+        strongest_failure_mode="frequency grid mismatch",
+    )
+    evidence, result = _seed_grid_validation_evidence(ws, claim)
+
+    payload = aitp_v5_evaluate_pre_tool_policy(
+        str(tmp_path),
+        session_id="s1",
+        action="create_promotion_packet",
+        claim_id=claim.claim_id,
+        evidence_refs=[evidence.evidence_id],
+        validation_result_ids=[result.result_id],
+        known_failure_modes=["frequency grid mismatch"],
+        source_kind="typed_records",
+        risk_level="rigorous",
+    )
+
+    assert payload["known_failure_modes"] == ["frequency grid mismatch"]
     assert payload["mode"] == "log"
     assert payload["block"] is False
     assert payload["policy_reasons"] == []

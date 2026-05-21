@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Any
 
 from brain.v5.evolution import EvolutionProposal
@@ -105,7 +106,7 @@ def evaluate_policy(
         _guard_high_risk_promotion_requires_validation_result(decision, risk_level, records, results)
 
     if action == "create_promotion_packet":
-        _guard_promotion_packet_requires_known_failure_modes(decision, ctx)
+        _guard_promotion_packet_requires_known_failure_modes(decision, claim, ctx)
 
     if action in {"execute_tool", "record_tool_run"}:
         _guard_high_risk_tool_requires_validation_contract(decision, action, risk_level, contracts, ctx)
@@ -188,16 +189,43 @@ def _guard_l2_promotion_requires_evidence(decision: PolicyDecision, evidence_ref
 
 def _guard_promotion_packet_requires_known_failure_modes(
     decision: PolicyDecision,
+    claim: ClaimRecord | None,
     context: dict[str, Any],
 ) -> None:
-    if _context_list(context.get("known_failure_modes")):
+    modes = _context_list(context.get("known_failure_modes"))
+    if not modes:
+        decision.add_block(
+            "promotion_packet_requires_known_failure_mode",
+            "promotion packets must name at least one known failure mode before L2 memory promotion",
+            "record_known_failure_mode",
+            severity="hard_block",
+        )
+        return
+    if not claim or not claim.strongest_failure_mode.strip():
+        return
+    if _failure_modes_cover_claim_risk(claim.strongest_failure_mode, modes):
         return
     decision.add_block(
-        "promotion_packet_requires_known_failure_mode",
-        "promotion packets must name at least one known failure mode before L2 memory promotion",
-        "record_known_failure_mode",
+        "promotion_failure_modes_must_cover_claim_failure_mode",
+        "promotion packet known failure modes must cover the claim's strongest recorded failure mode",
+        "align_failure_mode_with_claim_risk",
         severity="hard_block",
     )
+
+
+def _failure_modes_cover_claim_risk(strongest_failure_mode: str, known_failure_modes: list[str]) -> bool:
+    target_tokens = _failure_mode_tokens(strongest_failure_mode)
+    if not target_tokens:
+        return True
+    mode_tokens = set()
+    for mode in known_failure_modes:
+        mode_tokens.update(_failure_mode_tokens(mode))
+    return target_tokens.issubset(mode_tokens)
+
+
+def _failure_mode_tokens(text: str) -> set[str]:
+    generic = {"failure", "mode", "modes", "risk", "mismatch", "artifact", "possible", "may", "can"}
+    return {token for token in re.findall(r"[a-z0-9]+", text.lower()) if len(token) > 2 and token not in generic}
 
 
 def _guard_high_risk_promotion_requires_validation_result(

@@ -183,7 +183,9 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   mismatch those links. Pre-tool policy calls also carry `known_failure_modes`
   and block promotion-packet creation until at least one failure mode is named,
   so agents cannot treat evidence attachment alone as enough for L2 memory
-  promotion. Execution briefs expose active claim L2 memory entries
+  promotion. When the active claim has `strongest_failure_mode`, the supplied
+  failure modes must cover that recorded risk before the policy allows packet
+  creation. Execution briefs expose active claim L2 memory entries
   as orientation-only `known_context.memory_entries`; typed memory records under
   `memory/l2/entries` remain authoritative. Code-method memory brief entries
   include `code_state_ids` derived from linked evidence tool runs so version
