@@ -177,6 +177,7 @@ Implemented:
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_evidence`, `record_tool_run`,
   `execute_tool`, `ingest_subagent_result`, `create_validation_contract`, and
+  `request_human_checkpoint`/`decide_human_checkpoint`, plus
   `create_promotion_packet`/`apply_promotion_packet` trust-changing attempts.
 - The shared CLI/MCP/runtime pre-tool policy now carries `risk_level` and
   optional `human_checkpoint_id`; adversarial-risk trust-changing actions are
@@ -204,8 +205,8 @@ Major remaining gaps:
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion-packet/promotion context, and summary-sourced
   evidence/tool-run/tool-execution/subagent-ingestion/validation-contract/
-  promotion-packet creation/application attempts through CLI/MCP/runtime/bridge
-  metadata, and
+  human-checkpoint request/decision/promotion-packet creation/application
+  attempts through CLI/MCP/runtime/bridge metadata, and
   adversarial-risk trust changes require approved typed human checkpoints. It
   still does not yet cover every MCP input or every active risk dimension;
   bridge metadata now advertises the current policy input schema explicitly.

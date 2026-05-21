@@ -2353,3 +2353,70 @@ Each entry should record:
 - Next recommended task:
   - add host-side installation documentation/tests for native hook APIs, or
     continue scanning remaining public MCP inputs for pre-tool policy gaps.
+
+### 9066c34 - Gate Human Checkpoint Request/Decision Through Pre-Tool Policy
+
+- Task: make typed human checkpoint request/decision actions first-class
+  pre-tool/gate actions instead of leaving them as record-only MCP writes.
+- Planning source:
+  - v5 invariant that trust-changing actions must go through typed kernel
+    records, pre-tool policy, validation, or explicit human checkpoint records;
+  - previous ledger recommendation to continue scanning remaining public MCP
+    inputs for pre-tool policy gaps;
+  - human checkpoints are the authorization boundary for risky research steps,
+    so the request/decision records themselves must not be driven by generated
+    summaries.
+- Changed files:
+  - `brain/v5/policy.py`
+  - `brain/v5/pretool_policy.py`
+  - `brain/v5/hooks.py`
+  - `brain/v5/adapter_protocols.py`
+  - `brain/v5/adapter_runtime.py`
+  - `brain/v5/gate_protocols.py`
+  - `hooks/aitp_v5_claude_hook.py`
+  - `tests/test_v5_pretool_policy.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_hooks.py`
+- Public/runtime behavior changes:
+  - `request_human_checkpoint` and `decide_human_checkpoint` participate in
+    context-aware pre-tool policy evaluation;
+  - summary/task-plan/findings/progress orientation surfaces cannot directly
+    drive checkpoint request or decision records;
+  - adapter `trust_changing_actions` and `requires_kernel_call_before` include
+    checkpoint request/decision actions;
+  - generated bridge `runtime_gate_protocols` include checkpoint request and
+    decision sequences with `evaluate_pre_tool_policy` before the typed write;
+  - Codex/OpenCode platform event normalization maps the checkpoint MCP tool
+    names to explicit v5 actions;
+  - Claude Code `PreToolUse` maps checkpoint MCP calls through the shared
+    typed-record-backed policy path, so summary-sourced approvals are denied
+    before the MCP tool runs.
+- Tests:
+  - MCP pre-tool policy blocks summary/task-plan sourced checkpoint request;
+  - MCP pre-tool policy blocks findings-sourced checkpoint decision;
+  - adapter pre-tool event path infers checkpoint request/decision actions from
+    MCP tool names and returns the bridge gate protocol;
+  - Claude hook test denies a summary-sourced checkpoint approval attempt.
+- Verification:
+  - red tests failed as expected:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_hooks.py -q -k "human_checkpoint_request_policy or human_checkpoint_decision_policy or human_checkpoint_request_from_task_plan_source or human_checkpoint_decision_from_findings_source or summary_sourced_human_checkpoint_decision"`:
+    5 failed because direct policy returned `log`, adapter runtime could not
+    infer checkpoint actions, and Claude hook allowed the decision;
+  - target green set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_hooks.py -q -k "human_checkpoint_request_policy or human_checkpoint_decision_policy or human_checkpoint_request_from_task_plan_source or human_checkpoint_decision_from_findings_source or summary_sourced_human_checkpoint_decision"`:
+    5 passed;
+  - focused related set:
+    `python -m pytest tests/test_v5_pretool_policy.py tests/test_v5_adapters.py tests/test_v5_hooks.py tests/test_v5_public_surfaces.py tests/test_v5_contracts.py -q`:
+    128 passed;
+  - full v5 regression set:
+    `python -m pytest tests/test_v5_*.py -q`: 349 passed;
+  - `python -m compileall -q brain\v5 hooks\aitp_v5_adapter_event_runner.py hooks\aitp_v5_claude_hook.py`:
+    passed;
+  - `git diff --check -- .`: passed, with only line-ending warnings.
+- Residual risks:
+  - native Codex/OpenCode hosts still need true lifecycle installer wiring;
+  - pre-tool coverage still does not cover every possible public MCP input or
+    active risk dimension.
+- Next recommended task:
+  - continue scanning remaining public MCP inputs for pre-tool policy gaps, or
+    add host-side installation documentation/tests for native hook APIs.

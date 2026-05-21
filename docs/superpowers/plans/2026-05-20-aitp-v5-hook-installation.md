@@ -253,13 +253,15 @@ Both surfaces return a contracted `codex_hook_bridge` payload and keep
 `pre_tool_policy_decision` CLI/MCP surface for validation and L2-promotion
 pre-tool checks. It also carries `gate_protocols` generated from the adapter
 packet's `runtime_gate_protocols`, and the generated Markdown renders the
-validation-contract, promotion-packet creation/application, and validate/promote
-sequences including `evaluate_pre_tool_policy` before typed record creation,
-preflight, or promotion.
+validation-contract, human-checkpoint request/decision, promotion-packet
+creation/application, and validate/promote sequences including
+`evaluate_pre_tool_policy` before typed record creation, preflight, or
+promotion.
 
 Adapter packets also encode the same rule in `runtime_gate_protocols`:
 `create_validation_contract`, `create_promotion_packet`,
-`apply_promotion_packet`, `validate_claim`, and `promote_to_l2` sequence
+`apply_promotion_packet`, `request_human_checkpoint`,
+`decide_human_checkpoint`, `validate_claim`, and `promote_to_l2` sequence
 `evaluate_pre_tool_policy` before the trust-relevant step and name
 `policy_reasons` as the machine-readable routing field.
 
@@ -271,7 +273,8 @@ typed-record-backed pre-tool policy surface. The bridge remains orientation-only
 the returned decision is still backed by typed kernel records.
 Generated gate protocols now cover record-evidence, record-tool-run,
 execute-tool, subagent-ingestion, validation-contract, promotion-packet
-creation/application, validation, and L2-promotion actions.
+creation/application, human-checkpoint request/decision, validation, and
+L2-promotion actions.
 The shared policy carries `risk_level` and optional `human_checkpoint_id`.
 Adversarial-risk trust-changing actions are hard-blocked unless that checkpoint
 is a decided typed human checkpoint with `decision=approve` for the active
