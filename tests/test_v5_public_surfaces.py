@@ -7,6 +7,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
     assert set(public_surface_names()) == {
         "adapter_packet",
         "adapter_protocol_registry",
+        "claim_trust_audit",
         "claude_code_hook_installation",
         "claude_code_hook_settings",
         "codex_hook_bridge",

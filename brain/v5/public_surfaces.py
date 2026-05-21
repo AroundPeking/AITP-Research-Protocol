@@ -7,6 +7,7 @@ from typing import Any, Callable
 _PUBLIC_SURFACE_NAMES = (
     "adapter_packet",
     "adapter_protocol_registry",
+    "claim_trust_audit",
     "claude_code_hook_installation",
     "claude_code_hook_settings",
     "codex_hook_bridge",
@@ -43,6 +44,7 @@ _PUBLIC_SURFACE_VALIDATOR_REF = "brain.v5.public_surfaces.require_valid_public_s
 _PUBLIC_SURFACE_PURPOSES = {
     "adapter_packet": "runtime adapter packet carrying brief, summary orientation, and trust protocol metadata",
     "adapter_protocol_registry": "auditable registry metadata for adapter protocol fields and validator surfaces",
+    "claim_trust_audit": "read-only typed-record audit of whether a claim confidence state has evidence, validation, memory, and code provenance support",
     "claude_code_hook_installation": "contracted safe merge of AITP hooks into Claude Code settings without treating settings as truth",
     "claude_code_hook_settings": "contracted Claude Code hook settings generated from runtime hook installation metadata",
     "codex_hook_bridge": "contracted Codex hook bridge generated from runtime hook installation metadata",
@@ -122,6 +124,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     from brain.v5.contracts import (
         require_valid_adapter_packet,
         require_valid_adapter_protocol_registry,
+        require_valid_claim_trust_audit,
         require_valid_codex_hook_bridge,
         require_valid_code_state_record,
         require_valid_evidence_record,
@@ -162,6 +165,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     return {
         "adapter_packet": require_valid_adapter_packet,
         "adapter_protocol_registry": require_valid_adapter_protocol_registry,
+        "claim_trust_audit": require_valid_claim_trust_audit,
         "claude_code_hook_installation": require_valid_claude_code_hook_installation,
         "claude_code_hook_settings": require_valid_claude_code_hook_settings,
         "codex_hook_bridge": require_valid_codex_hook_bridge,
