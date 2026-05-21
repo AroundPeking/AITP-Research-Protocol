@@ -27,7 +27,7 @@ codex/aitp-v5-kernel-mvp
 Current baseline commit:
 
 ```text
-68ba87b feat(v5): install opencode local plugin hooks
+cb78039 feat(v5): audit runtime hook installation
 ```
 
 Current focused v5 verification:
@@ -37,10 +37,10 @@ $files = Get-ChildItem tests -Filter 'test_v5_*.py' | ForEach-Object { $_.FullNa
 pytest $files -q
 ```
 
-Expected baseline as of `68ba87b`:
+Expected baseline as of `cb78039`:
 
 ```text
-412 passed
+416 passed
 ```
 
 Do not treat old full-suite failures as blockers unless a task modifies legacy code. The v5 focused suite is the working regression gate for this plan.
@@ -189,6 +189,13 @@ Implemented:
   plugin uses OpenCode `tool.execute.before`/`tool.execute.after` lifecycle
   hooks to call the v5 adapter event runner, block through typed pre-tool
   policy, and persist post-tool trace events.
+- Runtime hook installation can now be audited through
+  `aitp-v5 adapter install-audit <runtime> <args>` and
+  `aitp_v5_audit_hook_installation`; the contracted
+  `runtime_hook_installation_audit` surface inspects supplied Codex, Claude
+  Code, or OpenCode runtime files, reports installed/partial/missing/conflict
+  status, and remains orientation-only with no kernel or claim-trust mutation
+  authority.
 - The shared CLI/MCP pre-tool policy now also blocks summary/task-plan/findings
   orientation surfaces from driving `record_code_state`, `record_evidence`,
   `record_tool_run`, `execute_tool`, `ingest_subagent_result`,
@@ -275,9 +282,10 @@ Major remaining gaps:
   CLI/MCP-callable runtime event normalizer advertised in generated bridges plus
   a generated bridge JSON sidecar, runner argv, advertised stdin host-runner;
   Codex and OpenCode also have generated installation fixtures for pre-tool
-  policy decisions and post-tool trace persistence. The remaining gap is
-  packaged host-path discovery, conflict reporting, and end-to-end host smoke
-  tests for each runtime.
+  policy decisions and post-tool trace persistence. A read-only install-audit
+  surface can inspect supplied host files and report conflicts. The remaining
+  gap is packaged host-path discovery and end-to-end host smoke tests for each
+  runtime.
 - Pre-tool policy coverage is still partial. It checks trust-apply token
   presence, validation/promotion-packet/promotion context, and summary-sourced
   code-state/evidence/tool-run/tool-execution/tool-recipe/reference-location/
@@ -309,7 +317,7 @@ Expected:
 ```text
 branch = codex/aitp-v5-kernel-mvp
 working tree has no unrelated dirty v5 files
-latest commit is 68ba87b or a later commit from this plan
+latest commit is cb78039 or a later commit from this plan
 ```
 
 After each task:

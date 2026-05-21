@@ -109,6 +109,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `tool.execute.after`, calls `hooks/aitp_v5_adapter_event_runner.py`, blocks
   through the typed `pre_tool_policy_decision`, and persists post-tool trace
   events without treating the plugin file as a truth source.
+- Installed runtime hook files can be inspected with
+  `aitp-v5 adapter install-audit <runtime> <args>` or
+  `aitp_v5_audit_hook_installation`. The audit checks supplied Codex
+  `hooks.json`, Claude Code settings, OpenCode plugin files, or generated
+  fixtures for expected AITP runner tokens and returns the contracted
+  `runtime_hook_installation_audit` surface. It is read-only and
+  orientation-only.
 - Claude Code can materialize native hook settings with
   `aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`.
 - Claude Code can also merge AITP v5 hooks into an existing settings file with

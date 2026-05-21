@@ -25,6 +25,8 @@ Implemented:
   actual adapter packet;
 - CLI/MCP materializers for an OpenCode project-local plugin file under
   `.opencode/plugins/`, using `tool.execute.before` and `tool.execute.after`;
+- CLI/MCP read-only install audit for supplied Codex, Claude Code, and OpenCode
+  runtime hook files;
 - Claude Code hook settings writer derived from `runtime_hook_installation`;
 - Claude Code safe settings merge installer that preserves existing settings and
   deduplicates AITP v5 hook commands;
@@ -58,8 +60,8 @@ Documented here:
 
 Not implemented in this slice:
 
-- packaged host-specific installer UX around the existing Codex and Claude Code
-  merge installers and OpenCode local plugin installer.
+- packaged host-specific installer UX that discovers default host config paths
+  before calling the existing installer/audit surfaces.
 
 ## Invariants
 
@@ -496,11 +498,33 @@ That command writes `.opencode/plugins/aitp-v5.js`, plus
 `pre_tool_policy_decision` output, and logs post-tool trace persistence
 failures without giving generated files authority over typed kernel records.
 
+## Install Audit
+
+After installation, audit the supplied runtime file without trusting it as
+kernel state:
+
+```powershell
+aitp-v5 --base <workspace> adapter install-audit codex --settings .codex/hooks.json
+aitp-v5 --base <workspace> adapter install-audit claude-code --settings .claude/settings.local.json
+aitp-v5 --base <workspace> adapter install-audit opencode --plugin .opencode/plugins/aitp-v5.js
+```
+
+MCP clients use:
+
+```text
+aitp_v5_audit_hook_installation(base, runtime, settings_path?, plugin_path?, output_path?)
+```
+
+The returned `runtime_hook_installation_audit` surface reports
+`installed`, `partial`, `missing`, or `conflict`, lists checked paths, and keeps
+`summary_inputs_trusted=false`, `orientation_only=true`,
+`can_update_kernel_state=false`, and `can_update_claim_trust=false`.
+
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:
 
 - packaged runtime installer UX that chooses the correct Codex/Claude/OpenCode
-  host config path and reports conflicts before writing;
+  host config path before invoking the existing installers and audit surface;
 - in-host smoke tests that execute the generated Codex/OpenCode lifecycle hooks
   in their real host runtimes rather than only through repo-level runner tests.

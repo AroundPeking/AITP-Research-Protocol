@@ -213,6 +213,11 @@ For a real OpenCode project-local plugin, use
 the generated plugin subscribes to `tool.execute.before` and
 `tool.execute.after`, invokes the same sidecar-backed runner, blocks through
 typed pre-tool policy decisions, and records post-tool traces.
+Installed hook files can be checked with
+`aitp-v5 adapter install-audit <runtime> --settings <path>`,
+`--plugin <path>`, or `--output <path>`; the audit reports
+installed/partial/missing/conflict status without treating runtime files as
+kernel truth.
 Both fixtures write the bridge and sidecar, then point pre-tool hooks at the
 stdin runner and post-tool hooks at the trace-persistence runner with a declared
 repository `cwd`, without granting generated files authority over typed records.
