@@ -5545,3 +5545,45 @@ Each entry should record:
   - add the focused relation empty-`failure_modes` regression for
     `object_relation_failure_mode_check`, then fix `brief.py` or
     `question_intents.py` only if that regression is red.
+
+### 41c13f6 - Cover Empty Relation Failure-Mode Reflection
+
+- Task: close the remaining review-audit gap for relation failure-mode prompts
+  at the execution-brief layer.
+- Planning source:
+  - active goal review finding P2 for relation failure-mode question
+    mis-triggers;
+  - AITP v5 invariant that structured typed relation records should drive
+    question intents, while generated brief text remains orientation-only.
+- Changed files:
+  - `tests/test_v5_physics_objects.py`
+- Public/runtime behavior changes:
+  - no runtime behavior changed; existing `question_intents.py` logic already
+    used structured relation payloads and only emitted
+    `object_relation_failure_mode_check` when `failure_modes` was non-empty.
+- Tests:
+  - added an end-to-end execution-brief regression using a real typed
+    object-relation record with `failure_modes=[]`;
+  - the regression proves mandatory reflection keeps the ordinary
+    `object_relation_check`, preserves the typed relation id target, and does
+    not emit `object_relation_failure_mode_check` or the phrase
+    "recorded object-relation failure mode".
+- Verification:
+  - focused regression:
+    `pytest tests\test_v5_physics_objects.py::test_mandatory_reflection_ignores_empty_relation_failure_modes -q`:
+    1 passed immediately because the implementation was already guarded;
+  - focused review set:
+    `pytest tests\test_v5_memory.py tests\test_v5_validation.py tests\test_v5_physics_objects.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py -q`:
+    87 passed;
+  - full v5 regression set:
+    explicit `pytest` file list for all `tests/test_v5_*.py` files:
+    461 passed in 98.49s;
+  - `python -m compileall -q brain\v5`: passed;
+  - `git diff --check -- .`: passed, with CRLF conversion warnings only.
+- Residual risks:
+  - this slice proves the empty-relation failure-mode review finding through
+    tests only; no code path required modification.
+- Next recommended task:
+  - perform a requirement-by-requirement review audit over the five active
+    review findings and update the implementation ledger/readme status if any
+    remaining evidence is missing.
