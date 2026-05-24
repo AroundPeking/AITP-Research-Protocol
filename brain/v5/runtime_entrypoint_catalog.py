@@ -108,6 +108,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_migrate_legacy_topic_to_v5",
         "surface": "legacy_migration_result",
     },
+    "legacy_migration_coverage_audit": {
+        "cli": "aitp-v5 legacy migration-audit <args>",
+        "mcp": "aitp_v5_audit_legacy_migration_coverage",
+        "surface": "legacy_migration_coverage_audit",
+    },
     "summary_orientation": {
         "cli": "aitp-v5 summary orientation <session-id>",
         "mcp": "aitp_v5_read_summary_orientation",
@@ -329,6 +334,11 @@ def sample_args_for_template(template: str) -> list[str]:
             "legacy-context",
             "--session",
             "s1",
+        ]
+    if template.startswith("legacy migration-audit"):
+        return [
+            "--migration-dir",
+            "D:/aitp/.aitp/migrations/legacy-v5-lossless-run",
         ]
     if template.startswith("adapter hook-bridge"):
         return [

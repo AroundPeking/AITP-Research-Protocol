@@ -19,9 +19,9 @@ from brain.v5.hook_install_templates import (
     write_opencode_plugin_bridge,
 )
 from brain.v5.mcp_kimi_hooks import aitp_v5_install_kimi_code_hook_config, aitp_v5_write_kimi_code_hook_config
+from brain.v5.mcp_legacy import aitp_v5_audit_legacy_migration_coverage, aitp_v5_migrate_legacy_topic_to_v5
 from brain.v5.hook_smoke_coverage import runtime_hook_smoke_coverage_report
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
-from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
 from brain.v5.pretool_policy import evaluate_context_pre_tool_policy
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
@@ -176,22 +176,6 @@ def aitp_v5_record_reference_location(
         source_ref=source_ref, external_id=external_id, status=status, summary=summary,
         metadata=metadata, linked_records=linked_records)
     return require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})
-
-
-def aitp_v5_migrate_legacy_topic_to_v5(
-    base: str,
-    *,
-    topic_dir: str,
-    context_id: str,
-    session_id: str,
-) -> dict:
-    result = migrate_legacy_topic_to_v5(
-        _ws(base),
-        topic_dir,
-        context_id=context_id,
-        session_id=session_id,
-    )
-    return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
 
 
 def aitp_v5_get_adapter_packet(base: str, *, runtime: str, session_id: str) -> dict:

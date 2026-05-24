@@ -276,6 +276,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   It regenerates the workspace summary, replay packet, and active-session L2
   Obsidian view in a contracted `workspace_refresh_bundle`, remains
   orientation-only, and cannot update kernel state or claim trust.
+- Agents can call `aitp-v5 legacy migration-audit` or
+  `aitp_v5_audit_legacy_migration_coverage` against a completed
+  `legacy-v5-lossless-*` migration run. The audit proves file accounting,
+  archive-reference coverage, Markdown readability, and per-topic coverage
+  status, but it must keep `semantic_lossless_proven=false` and
+  `semantic_review_required=true`; semantic correctness of old physics content
+  requires human/v5 review, not manifest accounting alone.
 - Agents can call `aitp-v5 memory failure-modes --claim <claim-id>` or
   `aitp_v5_audit_failure_mode_coverage` for a read-only
   `failure_mode_audit` surface. It reports active uncertainty,

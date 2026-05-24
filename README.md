@@ -226,6 +226,14 @@ Host adapters that want one startup refresh point can call
 `workspace_refresh_bundle` regenerates the workspace summary, replay packet,
 and an active-session L2 Obsidian view in one orientation-only operation, with
 `can_update_kernel_state=false` and `can_update_claim_trust=false`.
+For legacy migration review, `aitp-v5 legacy migration-audit` and
+`aitp_v5_audit_legacy_migration_coverage` read a completed
+`legacy-v5-lossless-*` migration run and report file accounting, archive
+reference coverage, Markdown readability, per-topic typed/archival coverage,
+and noncanonical legacy seeds. This surface is deliberately conservative:
+`semantic_lossless_proven=false` and `semantic_review_required=true` even when
+all files are accounted for, because manifests can prove preservation and
+coverage, not that every physics claim was correctly interpreted.
 `aitp-v5 memory failure-mode-review --claim <claim-id>` and
 `aitp_v5_build_failure_mode_review_packet` turn that typed audit into a
 read-only `failure_mode_review_packet`: per-mode physical adequacy questions,

@@ -17,7 +17,7 @@ from brain.v5.cli_source import add_source_parser, dispatch_source_command
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
-from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
+from brain.v5.cli_legacy import add_legacy_parser, dispatch_legacy_command
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.cli_policy import add_policy_parser, dispatch_policy_command
 from brain.v5.cli_validation import add_validation_parser, dispatch_validation_command
@@ -152,10 +152,7 @@ def _build_parser() -> argparse.ArgumentParser:
     rlr.add_argument("--status", default="located"); rlr.add_argument("--summary", default="")
     rlr.add_argument("--metadata-json", default="{}"); rlr.add_argument("--linked-records-json", default="{}")
 
-    lp = sp.add_parser("legacy"); ls = lp.add_subparsers(dest="legacy_command", required=True)
-    lm = ls.add_parser("migrate"); lm.add_argument("topic_dir")
-    lm.add_argument("--context", required=True, dest="context_id")
-    lm.add_argument("--session", required=True, dest="session_id")
+    add_legacy_parser(sp)
 
     add_summary_parser(sp)
     add_source_parser(sp)
@@ -338,14 +335,8 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             metadata=_j(args.metadata_json), linked_records=_j(args.linked_records_json))
         return {"ok": True, **require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})}
 
-    if args.command == "legacy" and args.legacy_command == "migrate":
-        result = migrate_legacy_topic_to_v5(
-            ws,
-            args.topic_dir,
-            context_id=args.context_id,
-            session_id=args.session_id,
-        )
-        return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
+    if args.command == "legacy":
+        return dispatch_legacy_command(args, ws)
 
     if args.command == "summary":
         return dispatch_summary_command(args, ws)

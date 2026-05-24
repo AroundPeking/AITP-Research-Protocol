@@ -5880,3 +5880,63 @@ Each entry should record:
   - run a real Theoretical-Physics workspace install/audit pass for Claude Code
     and Kimi Code config files, then perform the remaining final-goal audit for
     migration coverage, UX weight, and old-topic semantic completeness.
+
+### TBD - Add Legacy Migration Coverage Audit
+
+- Task: add a conservative public audit for completed `legacy-v5-lossless-*`
+  migration runs so old-topic migration can be reviewed without overclaiming
+  semantic losslessness.
+- Planning source:
+  - final-engineering gap for old content migration semantic audit;
+  - prior migration reports proved file accounting and archive references but
+    did not expose a stable v5 public surface for per-topic coverage;
+  - user requirement that old AITP research contents be migrated without
+    omission while not pretending machine accounting proves every physics
+    interpretation.
+- Changed files:
+  - `brain/v5/legacy_migration_audit.py`
+  - `brain/v5/legacy_migration_audit_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `legacy_migration_coverage_audit`;
+  - added `audit_legacy_migration_coverage`;
+  - added CLI `aitp-v5 legacy migration-audit`;
+  - added MCP wrapper `aitp_v5_audit_legacy_migration_coverage`;
+  - added runtime entrypoint `legacy_migration_coverage_audit`;
+  - split legacy CLI/MCP dispatch into focused modules so `cli.py` and
+    `mcp_tools.py` remain thin entrypoints.
+- Tests:
+  - synthetic migration run reports accounted file/reference/readability
+    coverage while keeping `semantic_lossless_proven=false`;
+  - noncanonical legacy seeds are reported as accounted but still needing
+    semantic review;
+  - CLI/MCP/runtime/public-surface contracts expose the same audit.
+- Verification:
+  - focused related set:
+    `pytest tests\test_v5_legacy_bridge.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_cli.py tests\test_v5_architecture_boundaries.py -q`:
+    76 passed.
+  - real workspace smoke on
+    `D:\BaiduSyncdisk\Theoretical-Physics\.aitp\migrations\legacy-v5-lossless-20260524-031743`:
+    `legacy_migration_coverage_audit accounted_needs_review 18 topics,
+    1871 legacy files, 1871 post files, 1487 archive refs checked, 4289
+    Markdown files checked, gap_topic_count=0,
+    semantic_lossless_proven=false, semantic_review_required=true`.
+- Residual risks:
+  - this audit proves preservation/coverage accounting, not physics-level
+    semantic correctness;
+  - old `legacy_seed` topics still require per-topic human/v5 review before
+    claims can become trusted memory.
+- Next recommended task:
+  - add a lightweight interaction/UX audit or command that helps users see
+    exactly what AITP will do in a natural research conversation before it
+    writes heavy typed records.

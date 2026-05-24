@@ -34,6 +34,105 @@ def _write_legacy_topic(root):
     return topic
 
 
+def _write_migration_run(ws):
+    import json
+
+    run = ws.root / "migrations" / "legacy-v5-lossless-test"
+    run.mkdir(parents=True)
+    summary = {
+        "kind": "legacy_v5_lossless_migration_report",
+        "run_id": "legacy-v5-lossless-test",
+        "workspace": str(ws.base),
+        "legacy_root": str(ws.base / "research" / "aitp-topics"),
+        "v5_root": str(ws.root),
+        "output_dir": str(run),
+        "totals": {
+            "topic_count": 2,
+            "legacy_file_count": 4,
+            "post_legacy_file_count": 4,
+            "legacy_manifest_hash_stable": True,
+            "legacy_manifest_change_count": 0,
+            "structured_file_count": 3,
+            "archive_reference_count": 1,
+            "accounted_file_count": 4,
+            "topics_with_errors": 0,
+            "missing_archive_record_files": 0,
+            "summary_inputs_trusted": False,
+        },
+        "topics": [
+            {
+                "topic": "canonical-topic",
+                "status": "ok",
+                "file_count": 3,
+                "audit_mapped_file_count": 2,
+                "structured_file_count": 2,
+                "archive_reference_count": 1,
+                "accounted_file_count": 3,
+                "missing_expected_paths": [],
+                "can_write_v5_records": True,
+                "active_claim_id": "claim-canonical",
+                "written_records": {
+                    "topics": 1,
+                    "claims": 1,
+                    "evidence": 2,
+                    "reference_locations": 1,
+                    "sensemaking_reports": 1,
+                    "trace_events": 0,
+                    "memory_entries": 0,
+                },
+                "preserved_source_refs": 1,
+                "summary_inputs_trusted": False,
+            },
+            {
+                "topic": "legacy-l2",
+                "status": "ok",
+                "file_count": 1,
+                "audit_mapped_file_count": 1,
+                "structured_file_count": 1,
+                "archive_reference_count": 0,
+                "accounted_file_count": 1,
+                "missing_expected_paths": ["state.md"],
+                "can_write_v5_records": False,
+                "active_claim_id": "claim-l2",
+                "written_records": {
+                    "topics": 1,
+                    "claims": 1,
+                    "evidence": 1,
+                    "reference_locations": 0,
+                    "sensemaking_reports": 1,
+                    "trace_events": 0,
+                    "memory_entries": 1,
+                },
+                "preserved_source_refs": 0,
+                "summary_inputs_trusted": False,
+            },
+        ],
+    }
+    verification = {
+        "kind": "legacy_v5_lossless_migration_verification",
+        "run_id": "legacy-v5-lossless-test",
+        "file_accounting_ok": True,
+        "manifest_check": {"pre_count": 4, "post_count": 4, "missing": 0, "extra": 0, "changed": 0},
+        "archive_reference_check": {
+            "archive_records_checked": 1,
+            "archive_records_expected": 1,
+            "registry_archive_reference_count": 1,
+            "problem_count": 0,
+            "problems": [],
+        },
+        "markdown_readability_check": {
+            "markdown_files_checked": 4,
+            "problem_count": 0,
+            "problems": [],
+        },
+        "brief_check": [],
+        "all_checks_ok": True,
+    }
+    (run / "migration_summary.json").write_text(json.dumps(summary), encoding="utf-8")
+    (run / "verification_report.json").write_text(json.dumps(verification), encoding="utf-8")
+    return run
+
+
 def test_legacy_bridge_reads_legacy_artifacts_without_rewriting(tmp_path):
     from brain.v5.legacy_bridge import scan_legacy_topic
 
@@ -278,6 +377,61 @@ def test_legacy_migration_cli_mcp_and_runtime_surface(tmp_path, capsys):
     assert mcp_payload["ok"] is True
     assert mcp_payload["kind"] == "legacy_topic_migration_result"
     assert runtime_entrypoints()["migrate_legacy_topic"]["surface"] == "legacy_migration_result"
+
+
+def test_legacy_migration_coverage_audit_reports_accounting_without_semantic_overclaim(tmp_path):
+    from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+
+    audit = audit_legacy_migration_coverage(ws, migration_dir=run)
+
+    assert audit["kind"] == "legacy_migration_coverage_audit"
+    assert audit["coverage_status"] == "accounted_needs_review"
+    assert audit["file_preservation"]["ok"] is True
+    assert audit["archive_reference_coverage"]["ok"] is True
+    assert audit["markdown_readability"]["ok"] is True
+    assert audit["gap_topic_count"] == 0
+    assert audit["semantic_lossless_proven"] is False
+    assert audit["semantic_review_required"] is True
+    assert audit["can_update_claim_trust"] is False
+    by_topic = {topic["topic"]: topic for topic in audit["topics"]}
+    assert by_topic["canonical-topic"]["legacy_shape"] == "canonical_topic"
+    assert by_topic["legacy-l2"]["legacy_shape"] == "noncanonical_seed"
+    assert by_topic["legacy-l2"]["missing_expected_paths"] == ["state.md"]
+    assert by_topic["legacy-l2"]["coverage_status"] == "accounted_needs_review"
+    assert require_valid_public_surface("legacy_migration_coverage_audit", audit) == audit
+
+
+def test_legacy_migration_coverage_audit_cli_mcp_and_runtime_surface(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_audit_legacy_migration_coverage
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+
+    assert main([
+        "--base", str(base), "legacy", "migration-audit", "--migration-dir", str(run),
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    assert cli_payload["ok"] is True
+    assert cli_payload["kind"] == "legacy_migration_coverage_audit"
+    assert cli_payload["coverage_status"] == "accounted_needs_review"
+
+    mcp_payload = aitp_v5_audit_legacy_migration_coverage(str(base), migration_dir=str(run))
+    assert mcp_payload["ok"] is True
+    assert mcp_payload["kind"] == "legacy_migration_coverage_audit"
+    assert runtime_entrypoints()["legacy_migration_coverage_audit"]["surface"] == (
+        "legacy_migration_coverage_audit"
+    )
 
 
 def test_legacy_migration_converts_all_candidates_and_reviews_to_typed_records(tmp_path):
