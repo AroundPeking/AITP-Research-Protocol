@@ -6107,5 +6107,49 @@ Each entry should record:
     honest;
   - OpenCode remains unchanged because it is deferred by current priority.
 - Verification:
-  - targeted related set to be run before commit:
-    `python -m pytest tests/test_v5_adapters.py tests/test_v5_host_readiness.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`.
+  - targeted related set:
+    `python -m pytest tests/test_v5_adapters.py tests/test_v5_host_readiness.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    112 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 499 passed.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+  - current `runtime_hook_smoke_coverage` output:
+    - Codex, Claude Code, and Kimi Code include
+      `dynamic_host_readiness_audit_surface`;
+    - their remaining gap is `real_interactive_lifecycle_event_smoke`;
+    - OpenCode still reports `real_host_process_smoke` because OpenCode is
+      deferred by current user priority.
+- Residual risks:
+  - this clarifies static coverage wording; the separate dynamic readiness
+    surface still cannot prove every proprietary interactive host UI will fire
+    lifecycle hooks in every future session mode.
+  - OpenCode remains intentionally deferred.
+- Next recommended task:
+  - update stale planning docs so the next agent sees the current closure
+    state rather than the older host-process and pre-tool partial-gap wording.
+
+### pending - Update Final Engineering Gap Audit Docs
+
+- Task: update stale planning and orientation docs after the closure pass so
+  they distinguish implemented kernel surfaces from remaining future
+  hardening.
+- Planning source:
+  - final residual-gap audit found that
+    `2026-05-20-aitp-v5-next-agent-implementation-plan.md` still described
+    host process smoke and pre-tool policy coverage using older wording;
+  - README and project memory omitted Kimi Code from a few host-target lists
+    even though Kimi install/readiness surfaces now exist.
+- Changed files:
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `docs/superpowers/progress/2026-05-20-aitp-v5-implementation-ledger.md`
+- Public/runtime behavior changes:
+  - none; docs-only correction.
+- Verification:
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 499 passed in 139.17s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.

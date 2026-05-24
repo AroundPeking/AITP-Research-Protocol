@@ -562,16 +562,17 @@ aitp_v5_report_hook_smoke_coverage()
 ```
 
 The returned `runtime_hook_smoke_coverage` surface is orientation-only. It
-lists test-backed Codex/OpenCode/Claude Code smoke checks and the remaining
-real-host process gaps without treating tests or generated runtime files as
-kernel truth.
+lists test-backed Codex/Claude Code/Kimi Code/OpenCode smoke checks, dynamic
+host-readiness coverage, and the remaining real interactive lifecycle-event
+gaps without treating tests or generated runtime files as kernel truth.
 
 ## Installer Work Still Needed
 
 Future implementation should add tests and installer assets for:
 
 - broader in-host smoke tests that execute generated lifecycle hooks in their
-  real Codex/OpenCode host runtimes rather than only through repo-level runner
-  tests. Codex native `hooks.json` command strings are already smoke-tested from
-  a user workspace cwd, and the generated OpenCode local plugin is smoke-tested
-  by loading the JavaScript module and invoking both lifecycle handlers.
+  real Codex, Claude Code, and Kimi Code interactive host runtimes rather than
+  only through repo-level runner tests or direct `SessionStart` smokes. Codex
+  native `hooks.json` command strings are already smoke-tested from a user
+  workspace cwd, Claude/Kimi `SessionStart` refresh is smoke-tested directly,
+  and OpenCode remains intentionally deferred by current user priority.

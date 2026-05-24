@@ -123,13 +123,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp-v5 adapter install-paths` or
   `aitp_v5_discover_hook_install_paths`. The returned
   `runtime_hook_installation_paths` surface lists preferred and alternate
-  Codex/Claude Code/OpenCode install targets plus matching install/audit
+  Codex/Claude Code/Kimi Code/OpenCode install targets plus matching install/audit
   commands. It is convention metadata, not kernel state.
 - Runtime hook smoke coverage can be reviewed with
   `aitp-v5 adapter smoke-coverage` or
   `aitp_v5_report_hook_smoke_coverage`. The returned
   `runtime_hook_smoke_coverage` surface is orientation-only and lists
-  test-backed Codex/OpenCode/Claude Code hook smoke checks, dynamic
+  test-backed Codex/Claude Code/Kimi Code/OpenCode hook smoke checks, dynamic
   host-readiness coverage, and remaining real interactive lifecycle-event gaps.
 - Dynamic host readiness can be checked with
   `aitp-v5 adapter host-readiness <runtime>` or
