@@ -60,7 +60,7 @@ def install_kimi_code_hook_config(
         "config_kind": generated["kind"],
         "created": created,
         "merged": True,
-        "added_hooks": 2 if changed else 0,
+        "added_hooks": len(generated["events"]) if changed else 0,
         "config_text": merged_text,
     }
 
@@ -79,6 +79,12 @@ def _kimi_config_payload(
         f'--base "{workspace_base}" --session-id {session_id}'
     )
     events = [
+        {
+            "hook_event_name": "SessionStart",
+            "matcher": "startup|resume",
+            "protocol_hook": "session_start",
+            "command": command_base.format(command="session-start"),
+        },
         {
             "hook_event_name": "PreToolUse",
             "matcher": "*",

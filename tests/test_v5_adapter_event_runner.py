@@ -93,6 +93,13 @@ def _kimi_hook_command(installation, event_name):
     raise AssertionError(f"missing Kimi command for {event_name}")
 
 
+def _claude_hook_command(installation, event_name):
+    for event in installation["events"]:
+        if event["hook_event_name"] == event_name:
+            return event["command"]
+    raise AssertionError(f"missing Claude command for {event_name}")
+
+
 def _run_node_script(script_path, *args):
     return subprocess.run(
         ["node", str(script_path), *[str(arg) for arg in args]],
@@ -405,6 +412,60 @@ def test_kimi_code_hook_pre_tool_command_executes_from_workspace_cwd(tmp_path):
     assert payload["aitp"]["action"] == "record_evidence"
     assert payload["aitp"]["block"] is True
     assert payload["aitp"]["policy_reasons"][0]["policy_id"] == "no_summary_surface_as_truth_source"
+
+
+def test_kimi_code_hook_session_start_refreshes_workspace_views(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_install_kimi_code_hook_config
+
+    _seed_session(tmp_path)
+    config_path = tmp_path / ".kimi" / "config.toml"
+    installation = aitp_v5_install_kimi_code_hook_config(
+        str(tmp_path),
+        session_id="s1",
+        settings_path=str(config_path),
+    )
+    command = _kimi_hook_command(installation, "SessionStart")
+
+    result = _run_kimi_command(command, {"source": "startup"}, cwd=tmp_path)
+
+    assert result.stdout, result.stderr
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["continue"] is True
+    assert payload["suppressOutput"] is True
+    assert payload["aitp"]["kind"] == "workspace_refresh_bundle"
+    assert payload["aitp"]["truth_source"] is False
+    assert payload["aitp"]["orientation_only"] is True
+    assert (tmp_path / ".aitp" / "surfaces" / "workspace_summary" / "overview.md").exists()
+    assert (tmp_path / ".aitp" / "surfaces" / "workspace_replay" / "replay_packet.md").exists()
+    assert (tmp_path / ".aitp" / "surfaces" / "obsidian_l2_active" / "L2 Memory Overview.md").exists()
+
+
+def test_claude_code_hook_session_start_refreshes_workspace_views(tmp_path):
+    from brain.v5.mcp_tools import aitp_v5_install_claude_code_hook_settings
+
+    _seed_session(tmp_path)
+    settings_path = tmp_path / ".claude" / "settings.local.json"
+    installation = aitp_v5_install_claude_code_hook_settings(
+        str(tmp_path),
+        session_id="s1",
+        settings_path=str(settings_path),
+    )
+    command = _claude_hook_command(installation, "SessionStart")
+
+    result = _run_kimi_command(command, {"source": "startup"}, cwd=tmp_path)
+
+    assert result.stdout, result.stderr
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0
+    assert payload["continue"] is True
+    assert payload["suppressOutput"] is True
+    assert payload["aitp"]["kind"] == "workspace_refresh_bundle"
+    assert payload["aitp"]["truth_source"] is False
+    assert payload["aitp"]["orientation_only"] is True
+    assert (tmp_path / ".aitp" / "surfaces" / "workspace_summary" / "overview.md").exists()
+    assert (tmp_path / ".aitp" / "surfaces" / "workspace_replay" / "replay_packet.md").exists()
+    assert (tmp_path / ".aitp" / "surfaces" / "obsidian_l2_active" / "L2 Memory Overview.md").exists()
 
 
 def test_kimi_code_hook_post_tool_command_persists_trace_event(tmp_path):

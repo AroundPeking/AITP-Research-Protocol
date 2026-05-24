@@ -5817,3 +5817,66 @@ Each entry should record:
   - run the refresh surface against the real Theoretical-Physics workspace and
     use the resulting bundle as the common startup target for Codex, Claude
     Code, and Kimi Code adapters.
+
+### TBD - Add Claude/Kimi SessionStart Host Refresh Hooks
+
+- Task: wire the workspace refresh bundle into Claude Code and Kimi Code host
+  lifecycle hooks so startup/resume can regenerate the current orientation
+  surfaces automatically.
+- Planning source:
+  - final-engineering gap for production host loops across Codex, Claude Code,
+    and Kimi Code;
+  - previous workspace-refresh residual risk that refresh was callable but not
+    installed into every native lifecycle path;
+  - official Kimi Code hooks documentation verified on 2026-05-24, including
+    `[[hooks]]`, `SessionStart`, `PreToolUse`, and `PostToolUse`.
+- Changed files:
+  - `brain/v5/hook_install_templates.py`
+  - `brain/v5/hook_kimi_install.py`
+  - `brain/v5/hook_kimi_contracts.py`
+  - `brain/v5/hook_install_audit.py`
+  - `brain/v5/hook_smoke_coverage.py`
+  - `hooks/aitp_v5_claude_hook.py`
+  - `hooks/aitp_v5_kimi_hook.py`
+  - `tests/test_v5_adapters.py`
+  - `tests/test_v5_adapter_event_runner.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - Claude Code hook settings now include `SessionStart`, `PreToolUse`, and
+    `PostToolUse` commands with the active Python interpreter and absolute hook
+    script path;
+  - Kimi Code TOML generation/merge now includes the same three lifecycle
+    events in official `[[hooks]]` form;
+  - `hooks/aitp_v5_claude_hook.py session-start` and
+    `hooks/aitp_v5_kimi_hook.py session-start` call `refresh_workspace_views`;
+  - hook JSON output is ASCII-safe for Windows consoles;
+  - install audits require the generated SessionStart tokens;
+  - hook smoke coverage reports SessionStart workspace-refresh checks for
+    Claude Code and Kimi Code.
+- Tests:
+  - generated Claude/Kimi settings/config include SessionStart plus Pre/Post;
+  - merge installers preserve existing settings/config and remain idempotent;
+  - generated Claude/Kimi `session-start` commands execute from a temporary user
+    workspace cwd and write workspace summary, replay packet, and active L2
+    Obsidian view surfaces;
+  - Kimi config contract requires all three lifecycle events.
+- Verification:
+  - official Kimi docs fetch:
+    `Invoke-WebRequest -UseBasicParsing https://www.kimi.com/code/docs/kimi-code-cli/customization/hooks.html`:
+    HTTP 200 and found `SessionStart`, `PreToolUse`, `PostToolUse`, and
+    `[[hooks]]`;
+  - target related set:
+    `pytest tests\test_v5_adapters.py tests\test_v5_adapter_event_runner.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py -q`:
+    117 passed.
+- Residual risks:
+  - Codex still uses explicit guard/native PreTool/PostTool paths rather than a
+    SessionStart host hook;
+  - OpenCode remains intentionally deferred in this pass;
+  - smoke tests execute generated commands directly, but they do not launch a
+    real interactive Claude Code or Kimi Code process.
+- Next recommended task:
+  - run a real Theoretical-Physics workspace install/audit pass for Claude Code
+    and Kimi Code config files, then perform the remaining final-goal audit for
+    migration coverage, UX weight, and old-topic semantic completeness.

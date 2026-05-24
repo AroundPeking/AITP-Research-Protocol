@@ -141,6 +141,17 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
 - Claude Code can also merge AITP v5 hooks into an existing settings file with
   `aitp-v5 adapter install-hooks claude-code <session-id> --settings .claude/settings.local.json`;
   this preserves existing hook entries and avoids duplicate AITP hook commands.
+- Kimi Code can materialize or merge native TOML hook config with
+  `aitp-v5 adapter hook-settings kimi-code <session-id> --output .kimi/AITP_V5_HOOKS.toml`
+  and
+  `aitp-v5 adapter install-hooks kimi-code <session-id> --settings .kimi/config.toml`.
+- Claude Code and Kimi Code host installers now emit `SessionStart`,
+  `PreToolUse`, and `PostToolUse` lifecycle commands with absolute hook script
+  paths and the active Python interpreter. Their `SessionStart` commands call
+  `refresh_workspace_views`, regenerating workspace summary, replay packet, and
+  active-session L2 Obsidian views as orientation-only startup context. Tests
+  execute the generated `session-start` commands from a temporary user
+  workspace cwd.
 - `hooks/aitp_v5_claude_hook.py` reads Claude Code hook JSON from stdin. Its
   `PreToolUse` path maps destructive, remote, and expensive Bash commands to a
   v5 typed policy block and returns Claude `permissionDecision=deny`. It also
@@ -149,6 +160,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   and `trust-preflight-*` token are present, while typed writes such as
   `aitp_v5_record_evidence` are logged as their v5 actions. Its `PostToolUse`
   path persists process trace events through `.aitp/runtime/hook_trace_events.jsonl`.
+- `hooks/aitp_v5_kimi_hook.py` reads Kimi hook JSON from stdin and mirrors the
+  Claude Code lifecycle bridge for Kimi Code TOML hooks. Generated Kimi hooks
+  follow the official `[[hooks]]` config shape and keep config files as runtime
+  metadata, not research truth.
 - Shared context-aware pre-tool policy is exposed through
   `aitp-v5 policy pre-tool <args>` and `aitp_v5_evaluate_pre_tool_policy`.
   It returns the contracted `pre_tool_policy_decision` public surface with

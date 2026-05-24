@@ -72,6 +72,7 @@ def _audit_runtime_path(
         return _audit_text_path(
             settings_path or str(Path(workspace_base) / ".claude" / "settings.local.json"),
             expected=[
+                ("SessionStart Claude hook", ["SessionStart", "hooks/aitp_v5_claude_hook.py", "session-start", workspace_base]),
                 ("PreToolUse Claude hook", ["PreToolUse", "hooks/aitp_v5_claude_hook.py", "pre-tool", workspace_base]),
                 ("PostToolUse Claude hook", ["PostToolUse", "hooks/aitp_v5_claude_hook.py", "post-tool", workspace_base]),
             ],
@@ -80,6 +81,7 @@ def _audit_runtime_path(
         return _audit_text_path(
             settings_path or output_path or str(Path(workspace_base) / ".kimi" / "config.toml"),
             expected=[
+                ("SessionStart Kimi hook", ["[[hooks]]", "SessionStart", "hooks/aitp_v5_kimi_hook.py", "session-start", workspace_base]),
                 ("PreToolUse Kimi hook", ["[[hooks]]", "PreToolUse", "hooks/aitp_v5_kimi_hook.py", "pre-tool", workspace_base]),
                 ("PostToolUse Kimi hook", ["[[hooks]]", "PostToolUse", "hooks/aitp_v5_kimi_hook.py", "post-tool", workspace_base]),
             ],

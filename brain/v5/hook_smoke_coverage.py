@@ -41,11 +41,18 @@ def runtime_hook_smoke_coverage_report() -> dict[str, Any]:
                     "Generated and merged Claude Code settings preserve hook contracts.",
                     [
                         "tests/test_v5_adapters.py::test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet",
-                        "tests/test_v5_adapters.py::test_claude_code_hook_settings_installer_merges_existing_settings",
+                        "tests/test_v5_adapters.py::test_claude_code_hook_installer_merges_existing_settings_without_clobbering",
+                    ],
+                ),
+                _check(
+                    "session_start_workspace_refresh",
+                    "Generated Claude Code SessionStart command refreshes workspace review views.",
+                    [
+                        "tests/test_v5_adapter_event_runner.py::test_claude_code_hook_session_start_refreshes_workspace_views",
                     ],
                 ),
             ],
-            "gaps": ["real_host_process_smoke", "native_hook_process_smoke"],
+            "gaps": ["real_host_process_smoke"],
         },
         {
             "runtime": "kimi_code",
@@ -65,6 +72,13 @@ def runtime_hook_smoke_coverage_report() -> dict[str, Any]:
                     [
                         "tests/test_v5_adapter_event_runner.py::test_kimi_code_hook_pre_tool_command_executes_from_workspace_cwd",
                         "tests/test_v5_adapter_event_runner.py::test_kimi_code_hook_post_tool_command_persists_trace_event",
+                    ],
+                ),
+                _check(
+                    "session_start_workspace_refresh",
+                    "Generated Kimi Code SessionStart command refreshes workspace review views.",
+                    [
+                        "tests/test_v5_adapter_event_runner.py::test_kimi_code_hook_session_start_refreshes_workspace_views",
                     ],
                 ),
             ],

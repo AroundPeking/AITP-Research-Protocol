@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -288,11 +289,16 @@ def _claude_settings_payload(
     session_id: str,
 ) -> dict[str, Any]:
     hook_script = (Path(__file__).resolve().parents[2] / "hooks" / "aitp_v5_claude_hook.py").as_posix()
-    command_base = f'python "{hook_script}" {{command}} --base "{workspace_base}" --session-id {session_id}'
+    python_exe = Path(sys.executable).as_posix()
+    command_base = f'"{python_exe}" "{hook_script}" {{command}} --base "{workspace_base}" --session-id {session_id}'
+    session_start_command = command_base.format(command="session-start")
+    pre_tool_command = command_base.format(command="pre-tool")
+    post_tool_command = command_base.format(command="post-tool")
     settings = {
         "hooks": {
-            "PreToolUse": [_claude_event("*", command_base.format(command="pre-tool"))],
-            "PostToolUse": [_claude_event("*", command_base.format(command="post-tool"))],
+            "SessionStart": [_claude_event("startup|resume", session_start_command)],
+            "PreToolUse": [_claude_event("*", pre_tool_command)],
+            "PostToolUse": [_claude_event("*", post_tool_command)],
         }
     }
     return {
@@ -306,8 +312,24 @@ def _claude_settings_payload(
         "can_write_trace_events": True,
         "path": str(settings_path),
         "events": [
-            {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
-            {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
+            {
+                "hook_event_name": "SessionStart",
+                "matcher": "startup|resume",
+                "protocol_hook": "session_start",
+                "command": session_start_command,
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "matcher": "*",
+                "protocol_hook": "pre_tool",
+                "command": pre_tool_command,
+            },
+            {
+                "hook_event_name": "PostToolUse",
+                "matcher": "*",
+                "protocol_hook": "post_tool",
+                "command": post_tool_command,
+            },
         ],
         "settings": settings,
     }

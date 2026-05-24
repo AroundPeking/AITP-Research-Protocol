@@ -17,6 +17,7 @@ from brain.v5.policy import PolicyDecision, PolicyReason
 from brain.v5.pretool_policy import context_policy_decision
 from brain.v5.trace import persist_hook_trace_event
 from brain.v5.workspace import get_session_binding, init_workspace
+from brain.v5.workspace_refresh import refresh_workspace_views
 
 
 _AITP_MCP_ACTIONS = {
@@ -52,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     payload = _dispatch(args, _read_stdin_payload())
-    json.dump(payload, sys.stdout, ensure_ascii=False, sort_keys=True)
+    json.dump(payload, sys.stdout, ensure_ascii=True, sort_keys=True)
     sys.stdout.write("\n")
     return 0
 
@@ -63,12 +64,16 @@ def _build_parser() -> argparse.ArgumentParser:
     parent.add_argument("--base", required=True)
     parent.add_argument("--session-id", required=True)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("session-start", parents=[parent])
     subparsers.add_parser("pre-tool", parents=[parent])
     subparsers.add_parser("post-tool", parents=[parent])
     return parser
 
 
 def _dispatch(args: argparse.Namespace, kimi_payload: dict[str, Any]) -> dict[str, Any]:
+    if args.command == "session-start":
+        ws = init_workspace(args.base)
+        return _kimi_continue({"aitp": refresh_workspace_views(ws)})
     if args.command == "pre-tool":
         action = _action_from_kimi_tool(kimi_payload)
         policy_decision = _policy_from_kimi_tool(

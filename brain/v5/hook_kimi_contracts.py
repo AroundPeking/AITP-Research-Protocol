@@ -92,13 +92,13 @@ def _validate_kimi_events(payload: Any, path: str, result: ContractResult) -> No
     if not isinstance(payload, list):
         return
     event_names = [event.get("hook_event_name") for event in payload if isinstance(event, dict)]
-    if event_names != ["PreToolUse", "PostToolUse"]:
-        result.add(f"{path}.events", "must include PreToolUse and PostToolUse in order")
+    if event_names != ["SessionStart", "PreToolUse", "PostToolUse"]:
+        result.add(f"{path}.events", "must include SessionStart, PreToolUse, and PostToolUse in order")
 
 
 def _validate_config_text(payload: Any, path: str, result: ContractResult) -> None:
     if not isinstance(payload, str):
         return
-    for token in ("[[hooks]]", "PreToolUse", "PostToolUse", "aitp_v5_kimi_hook.py"):
+    for token in ("[[hooks]]", "SessionStart", "PreToolUse", "PostToolUse", "aitp_v5_kimi_hook.py"):
         if token not in payload:
             result.add(f"{path}.config_text", f"must contain {token!r}")

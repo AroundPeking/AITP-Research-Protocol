@@ -184,10 +184,26 @@ def test_public_surface_validator_accepts_claude_code_hook_settings():
         "can_write_trace_events": True,
         "path": ".claude/settings.local.json",
         "events": [
-            {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
-            {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
+            {
+                "hook_event_name": "SessionStart",
+                "matcher": "startup|resume",
+                "protocol_hook": "session_start",
+                "command": "python hooks/aitp_v5_claude_hook.py session-start",
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "matcher": "*",
+                "protocol_hook": "pre_tool",
+                "command": "python hooks/aitp_v5_claude_hook.py pre-tool",
+            },
+            {
+                "hook_event_name": "PostToolUse",
+                "matcher": "*",
+                "protocol_hook": "post_tool",
+                "command": "python hooks/aitp_v5_claude_hook.py post-tool",
+            },
         ],
-        "settings": {"hooks": {"PreToolUse": [], "PostToolUse": []}},
+        "settings": {"hooks": {"SessionStart": [], "PreToolUse": [], "PostToolUse": []}},
     }
 
     assert require_valid_public_surface("claude_code_hook_settings", payload) == payload
@@ -208,13 +224,29 @@ def test_public_surface_validator_accepts_claude_code_hook_installation():
         "can_write_trace_events": True,
         "created": False,
         "merged": True,
-        "added_hooks": 2,
+        "added_hooks": 3,
         "path": ".claude/settings.local.json",
         "events": [
-            {"hook_event_name": "PreToolUse", "matcher": "*", "protocol_hook": "pre_tool"},
-            {"hook_event_name": "PostToolUse", "matcher": "*", "protocol_hook": "post_tool"},
+            {
+                "hook_event_name": "SessionStart",
+                "matcher": "startup|resume",
+                "protocol_hook": "session_start",
+                "command": "python hooks/aitp_v5_claude_hook.py session-start",
+            },
+            {
+                "hook_event_name": "PreToolUse",
+                "matcher": "*",
+                "protocol_hook": "pre_tool",
+                "command": "python hooks/aitp_v5_claude_hook.py pre-tool",
+            },
+            {
+                "hook_event_name": "PostToolUse",
+                "matcher": "*",
+                "protocol_hook": "post_tool",
+                "command": "python hooks/aitp_v5_claude_hook.py post-tool",
+            },
         ],
-        "settings": {"hooks": {"PreToolUse": [], "PostToolUse": []}},
+        "settings": {"hooks": {"SessionStart": [], "PreToolUse": [], "PostToolUse": []}},
     }
 
     assert require_valid_public_surface("claude_code_hook_installation", payload) == payload
@@ -236,6 +268,12 @@ def test_public_surface_validator_accepts_kimi_code_hook_config():
         "path": ".kimi/config.toml",
         "events": [
             {
+                "hook_event_name": "SessionStart",
+                "matcher": "startup|resume",
+                "protocol_hook": "session_start",
+                "command": "python hooks/aitp_v5_kimi_hook.py session-start",
+            },
+            {
                 "hook_event_name": "PreToolUse",
                 "matcher": "*",
                 "protocol_hook": "pre_tool",
@@ -248,7 +286,7 @@ def test_public_surface_validator_accepts_kimi_code_hook_config():
                 "command": "python hooks/aitp_v5_kimi_hook.py post-tool",
             },
         ],
-        "config_text": '[[hooks]]\nevent = "PreToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py pre-tool"\n[[hooks]]\nevent = "PostToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py post-tool"\n',
+        "config_text": '[[hooks]]\nevent = "SessionStart"\ncommand = "python hooks/aitp_v5_kimi_hook.py session-start"\n[[hooks]]\nevent = "PreToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py pre-tool"\n[[hooks]]\nevent = "PostToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py post-tool"\n',
     }
 
     assert require_valid_public_surface("kimi_code_hook_config", payload) == payload
@@ -270,9 +308,15 @@ def test_public_surface_validator_accepts_kimi_code_hook_installation():
         "can_write_trace_events": True,
         "created": False,
         "merged": True,
-        "added_hooks": 2,
+        "added_hooks": 3,
         "path": ".kimi/config.toml",
         "events": [
+            {
+                "hook_event_name": "SessionStart",
+                "matcher": "startup|resume",
+                "protocol_hook": "session_start",
+                "command": "python hooks/aitp_v5_kimi_hook.py session-start",
+            },
             {
                 "hook_event_name": "PreToolUse",
                 "matcher": "*",
@@ -286,7 +330,7 @@ def test_public_surface_validator_accepts_kimi_code_hook_installation():
                 "command": "python hooks/aitp_v5_kimi_hook.py post-tool",
             },
         ],
-        "config_text": '[[hooks]]\nevent = "PreToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py pre-tool"\n[[hooks]]\nevent = "PostToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py post-tool"\n',
+        "config_text": '[[hooks]]\nevent = "SessionStart"\ncommand = "python hooks/aitp_v5_kimi_hook.py session-start"\n[[hooks]]\nevent = "PreToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py pre-tool"\n[[hooks]]\nevent = "PostToolUse"\ncommand = "python hooks/aitp_v5_kimi_hook.py post-tool"\n',
     }
 
     assert require_valid_public_surface("kimi_code_hook_installation", payload) == payload

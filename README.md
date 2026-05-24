@@ -94,12 +94,14 @@ CLI 强制 ──── MCP 便利 ──── Skill 指导 ──── Hook �
 AITP v5 is the current typed-kernel implementation track. It keeps durable
 research state in structured v5 records under `brain/v5/`; generated summaries,
 adapter packets, README text, and external note pointers are orientation-only.
-The v5 hook path exposes pre-commit/pre-tool/post-tool shell adapters, a shared
-context-aware pre-tool policy surface, Codex hook bridge materialization, Claude
-Code hook settings generation and safe settings merge installation, Claude
-`PreToolUse` typed policy mapping for high-risk tool calls and trust-changing
-AITP MCP calls, OpenCode plugin bridge materialization, and post-tool
-trace-event persistence through CLI/MCP/runtime public surfaces.
+The v5 hook path exposes pre-commit/pre-tool/post-tool shell adapters, host
+`SessionStart` refresh commands, a shared context-aware pre-tool policy surface,
+Codex hook bridge materialization, Claude Code hook settings generation and
+safe settings merge installation, Kimi Code TOML hook generation and safe config
+merge installation, Claude/Kimi `PreToolUse` typed policy mapping for high-risk
+tool calls and trust-changing AITP MCP calls, OpenCode plugin bridge
+materialization, and post-tool trace-event persistence through
+CLI/MCP/runtime public surfaces.
 For code-state provenance, tool-recipe registration, reference-location
 pointers, physics-object/relation graph writes, sensemaking reports, validation,
 human-checkpoint request/decision, promotion-packet creation/application, and
@@ -313,6 +315,23 @@ the AITP v5 adapter event runner via an absolute script path, and writes the
 bridge sidecar used by the pre-tool policy runner. Those native command strings
 are smoke-tested from a user workspace cwd, so they do not depend on Codex
 starting in the AITP repository root.
+Claude Code can materialize native lifecycle settings with
+`aitp-v5 adapter hook-settings claude-code <session-id> --output .claude/settings.local.json`
+or merge them into an existing settings file with
+`aitp-v5 adapter install-hooks claude-code <session-id> --settings .claude/settings.local.json`.
+Kimi Code can materialize the corresponding TOML block with
+`aitp-v5 adapter hook-settings kimi-code <session-id> --output .kimi/AITP_V5_HOOKS.toml`
+or merge it into `.kimi/config.toml` with
+`aitp-v5 adapter install-hooks kimi-code <session-id> --settings .kimi/config.toml`.
+Both native host installers emit `SessionStart`, `PreToolUse`, and
+`PostToolUse` commands with absolute hook script paths and the active Python
+interpreter. `SessionStart` calls the contracted `workspace_refresh_bundle`, so
+Claude/Kimi sessions can refresh workspace summary, replay packet, and
+active-session L2 Obsidian views at startup/resume without granting those
+generated files truth authority. Kimi hook generation follows the official Kimi
+Code hook model of `[[hooks]]` entries in `~/.kimi/config.toml`, stdin JSON
+input, and `SessionStart`/`PreToolUse`/`PostToolUse` lifecycle events:
+[Kimi Code hooks](https://www.kimi.com/code/docs/kimi-code-cli/customization/hooks.html).
 OpenCode has the matching plugin fixture at
 `aitp-v5 adapter install-hooks opencode <session-id> --output .opencode/AITP_V5_PLUGIN_HOOKS.json`.
 For a real OpenCode project-local plugin, use

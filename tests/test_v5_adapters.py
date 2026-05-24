@@ -2408,12 +2408,19 @@ def test_cli_adapter_hook_settings_writes_claude_code_settings_from_packet(tmp_p
     assert payload["can_update_claim_trust"] is False
     assert payload["can_write_trace_events"] is True
     assert payload["path"] == str(settings_path)
-    assert [event["hook_event_name"] for event in payload["events"]] == ["PreToolUse", "PostToolUse"]
+    assert [event["hook_event_name"] for event in payload["events"]] == [
+        "SessionStart",
+        "PreToolUse",
+        "PostToolUse",
+    ]
 
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
-    assert set(settings["hooks"]) == {"PreToolUse", "PostToolUse"}
+    assert set(settings["hooks"]) == {"SessionStart", "PreToolUse", "PostToolUse"}
+    session_command = settings["hooks"]["SessionStart"][0]["hooks"][0]["command"]
     pre_command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
     post_command = settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+    assert "hooks/aitp_v5_claude_hook.py" in session_command
+    assert "session-start" in session_command
     assert "hooks/aitp_v5_claude_hook.py" in pre_command
     assert str(Path.cwd() / "hooks" / "aitp_v5_claude_hook.py").replace("\\", "/") in pre_command
     assert "pre-tool" in pre_command
@@ -2483,14 +2490,16 @@ def test_claude_code_hook_installer_merges_existing_settings_without_clobbering(
     assert payload["kind"] == "claude_code_hook_installation"
     assert payload["settings_kind"] == "claude_code_hook_settings"
     assert payload["created"] is False
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert payload["summary_inputs_trusted"] is False
     assert payload["can_update_claim_trust"] is False
     assert merged["permissions"] == {"allow": ["Bash(git status)"]}
     assert merged["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == "echo existing-pre"
     assert merged["hooks"]["Stop"][0]["hooks"][0]["command"] == "echo existing-stop"
+    assert len(merged["hooks"]["SessionStart"]) == 1
     assert len(merged["hooks"]["PreToolUse"]) == 2
     assert len(merged["hooks"]["PostToolUse"]) == 1
+    assert "session-start" in merged["hooks"]["SessionStart"][0]["hooks"][0]["command"]
 
     second_payload = install_claude_code_hook_settings(
         settings_path,
@@ -2556,13 +2565,19 @@ def test_claude_code_hook_installer_replaces_stale_relative_v5_hooks(tmp_path):
     )
 
     merged = json.loads(settings_path.read_text(encoding="utf-8"))
+    session_commands = [entry["hooks"][0]["command"] for entry in merged["hooks"]["SessionStart"]]
     pre_commands = [entry["hooks"][0]["command"] for entry in merged["hooks"]["PreToolUse"]]
     post_commands = [entry["hooks"][0]["command"] for entry in merged["hooks"]["PostToolUse"]]
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert "echo keep-existing" in pre_commands
+    assert sum("aitp_v5_claude_hook.py" in command for command in session_commands) == 1
     assert sum("aitp_v5_claude_hook.py" in command for command in pre_commands) == 1
     assert sum("aitp_v5_claude_hook.py" in command for command in post_commands) == 1
-    assert all("python hooks/aitp_v5_claude_hook.py" not in command for command in pre_commands + post_commands)
+    assert "session-start" in session_commands[0]
+    assert all(
+        "python hooks/aitp_v5_claude_hook.py" not in command
+        for command in session_commands + pre_commands + post_commands
+    )
 
 
 def test_cli_adapter_install_hooks_merges_claude_code_settings(tmp_path, capsys):
@@ -2602,8 +2617,9 @@ def test_cli_adapter_install_hooks_merges_claude_code_settings(tmp_path, capsys)
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
     assert payload["ok"] is True
     assert payload["kind"] == "claude_code_hook_installation"
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"] == "echo keep-me"
+    assert "session-start" in settings["hooks"]["SessionStart"][0]["hooks"][0]["command"]
     assert "hooks/aitp_v5_claude_hook.py" in settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
 
 
@@ -2622,7 +2638,7 @@ def test_mcp_claude_code_hook_installer_returns_contract_payload(tmp_path):
     assert payload["ok"] is True
     assert payload["kind"] == "claude_code_hook_installation"
     assert payload["created"] is True
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert settings_path.exists()
 
 
@@ -2652,14 +2668,20 @@ def test_cli_adapter_hook_settings_writes_kimi_code_config_from_packet(tmp_path,
     assert payload["can_update_claim_trust"] is False
     assert payload["can_write_trace_events"] is True
     assert payload["path"] == str(config_path)
-    assert [event["hook_event_name"] for event in payload["events"]] == ["PreToolUse", "PostToolUse"]
+    assert [event["hook_event_name"] for event in payload["events"]] == [
+        "SessionStart",
+        "PreToolUse",
+        "PostToolUse",
+    ]
 
     text = config_path.read_text(encoding="utf-8")
     assert "# BEGIN AITP V5 KIMI HOOKS" in text
-    assert text.count("[[hooks]]") == 2
+    assert text.count("[[hooks]]") == 3
+    assert 'event = "SessionStart"' in text
     assert 'event = "PreToolUse"' in text
     assert 'event = "PostToolUse"' in text
     assert "hooks/aitp_v5_kimi_hook.py" in text
+    assert "session-start" in text
     assert "pre-tool" in text
     assert "post-tool" in text
 
@@ -2678,7 +2700,13 @@ def test_mcp_kimi_code_hook_config_wrapper_returns_contract_payload(tmp_path):
 
     assert payload["ok"] is True
     assert payload["kind"] == "kimi_code_hook_config"
-    assert payload["events"][0]["matcher"] == "*"
+    assert [event["hook_event_name"] for event in payload["events"]] == [
+        "SessionStart",
+        "PreToolUse",
+        "PostToolUse",
+    ]
+    assert payload["events"][0]["matcher"] == "startup|resume"
+    assert payload["events"][1]["matcher"] == "*"
     assert config_path.exists()
 
 
@@ -2715,13 +2743,15 @@ def test_kimi_code_hook_config_installer_merges_existing_config(tmp_path):
     assert payload["config_kind"] == "kimi_code_hook_config"
     assert payload["created"] is False
     assert payload["merged"] is True
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert payload["summary_inputs_trusted"] is False
     assert payload["can_update_claim_trust"] is False
     assert 'model = "kimi-k2-turbo-preview"' in merged
     assert "[mcpServers.keep_me]" in merged
     assert "# BEGIN AITP V5 KIMI HOOKS" in merged
-    assert merged.count("aitp_v5_kimi_hook.py") == 2
+    assert merged.count("aitp_v5_kimi_hook.py") == 3
+    assert 'event = "SessionStart"' in merged
+    assert "session-start" in merged
 
     second_payload = install_kimi_code_hook_config(
         config_path,
@@ -2758,8 +2788,9 @@ def test_cli_adapter_install_hooks_merges_kimi_code_config(tmp_path, capsys):
     text = config_path.read_text(encoding="utf-8")
     assert payload["ok"] is True
     assert payload["kind"] == "kimi_code_hook_installation"
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert 'model = "kimi-k2"' in text
+    assert "session-start" in text
     assert "hooks/aitp_v5_kimi_hook.py" in text
 
 
@@ -2778,7 +2809,7 @@ def test_mcp_kimi_code_hook_installer_returns_contract_payload(tmp_path):
     assert payload["ok"] is True
     assert payload["kind"] == "kimi_code_hook_installation"
     assert payload["created"] is True
-    assert payload["added_hooks"] == 2
+    assert payload["added_hooks"] == 3
     assert config_path.exists()
 
 
