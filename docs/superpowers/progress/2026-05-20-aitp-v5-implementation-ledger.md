@@ -5881,7 +5881,7 @@ Each entry should record:
     and Kimi Code config files, then perform the remaining final-goal audit for
     migration coverage, UX weight, and old-topic semantic completeness.
 
-### TBD - Add Legacy Migration Coverage Audit
+### 072bd48 - Add Legacy Migration Coverage Audit
 
 - Task: add a conservative public audit for completed `legacy-v5-lossless-*`
   migration runs so old-topic migration can be reviewed without overclaiming
