@@ -276,6 +276,14 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   It regenerates the workspace summary, replay packet, and active-session L2
   Obsidian view in a contracted `workspace_refresh_bundle`, remains
   orientation-only, and cannot update kernel state or claim trust.
+- Agents can call `aitp-v5 interaction preview <session-id>` or
+  `aitp_v5_preview_interaction_recording` before or during a natural research
+  conversation. The contracted `interaction_recording_preview` is read-only
+  and derived from the typed execution brief. It reports whether the current
+  session can stay lightweight, which records are recommended rather than
+  required, which trust-changing records are deferred, and which triggers make
+  the workflow heavier. It keeps `summary_inputs_trusted=false` and cannot
+  update kernel state or claim trust.
 - Agents can call `aitp-v5 legacy migration-audit` or
   `aitp_v5_audit_legacy_migration_coverage` against a completed
   `legacy-v5-lossless-*` migration run. The audit proves file accounting,

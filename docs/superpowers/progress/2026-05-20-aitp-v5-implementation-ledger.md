@@ -5940,3 +5940,75 @@ Each entry should record:
   - add a lightweight interaction/UX audit or command that helps users see
     exactly what AITP will do in a natural research conversation before it
     writes heavy typed records.
+
+### pending - Add Interaction Recording Preview
+
+- Task: add a lightweight natural-conversation preview surface so host adapters
+  and agents can see what AITP v5 will record, defer, or escalate before
+  writing heavy typed records.
+- Planning source:
+  - final-engineering gap for reducing UX weight in early theoretical-physics
+    exploration;
+  - previous legacy-audit recommendation to expose a command that explains
+    recording boundaries before heavy record writes;
+  - real HS/Yangian OTOC workflow feedback that broad validation and schema
+    categories can interrupt natural research flow.
+- Changed files:
+  - `brain/v5/interaction_preview.py`
+  - `brain/v5/interaction_preview_contracts.py`
+  - `brain/v5/cli_interaction.py`
+  - `brain/v5/mcp_interaction.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_interaction.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `interaction_recording_preview`;
+  - added read-only builder `build_interaction_recording_preview`;
+  - added CLI `aitp-v5 interaction preview <session-id>`;
+  - added MCP wrapper `aitp_v5_preview_interaction_recording`;
+  - added runtime entrypoint `interaction_recording_preview`;
+  - preview reports `can_stay_lightweight`, recommended records, deferred
+    trust-changing records, heavier triggers, question budget, and interaction
+    profile while keeping `summary_inputs_trusted=false`,
+    `orientation_only=true`, `can_update_kernel_state=false`, and
+    `can_update_claim_trust=false`.
+- Tests:
+  - preview validates as a public surface and preserves read-only flags;
+  - no-active-claim sessions remain orientation-only and recommend only an
+    execution brief read;
+  - CLI and MCP wrappers return the contracted preview;
+  - runtime entrypoint validation advertises the CLI/MCP pair.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_interaction.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    66 passed.
+  - real workspace smoke on
+    `D:\BaiduSyncdisk\Theoretical-Physics` session
+    `codex-20260524-hs-yangian-otoc`: CLI preview returned
+    `interaction_recording_preview`, `risk_level=adversarial`,
+    recommended records `execution_brief,sensemaking_report_record,validation_contract_record`,
+    deferred records `promotion_packet_record,trust_update_apply,human_checkpoint_record`,
+    and `.aitp` file count stayed 4413 before and after the call.
+  - MCP smoke on the same real session returned `orientation_only=true`,
+    `summary_inputs_trusted=false`, `can_update_kernel_state=false`, and
+    `can_update_claim_trust=false`.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 497 passed.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - preview makes interaction boundaries explicit, but host agents still need
+    to call it or read the startup adapter packet; it is not a GUI prompt.
+  - adversarial/high-risk sessions correctly remain heavy at trust boundaries;
+    the preview does not relax validation or promotion gates.
+- Next recommended task:
+  - run a final residual-gap audit for Codex/Claude/Kimi host-process closure,
+    source/knowledge stack status, legacy semantic review state, and long-term
+    replay before deciding whether the active AITP v5 goal can be marked
+    complete.

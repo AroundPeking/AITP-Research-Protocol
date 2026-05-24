@@ -53,6 +53,7 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_get_execution_brief",
         "surface": "execution_brief",
     },
+    "interaction_recording_preview": {"cli": "aitp-v5 interaction preview <session-id>", "mcp": "aitp_v5_preview_interaction_recording", "surface": "interaction_recording_preview"},
     "record_code_state": {
         "cli": "aitp-v5 code state record <args>",
         "mcp": "aitp_v5_record_code_state",
@@ -341,10 +342,7 @@ def sample_args_for_template(template: str) -> list[str]:
             "D:/aitp/.aitp/migrations/legacy-v5-lossless-run",
         ]
     if template.startswith("adapter hook-bridge"):
-        return [
-            "--output",
-            "AITP_V5_HOOK_BRIDGE.md",
-        ]
+        return ["--output", "AITP_V5_HOOK_BRIDGE.md"]
     if template.startswith("adapter hook-settings"):
         return [
             "--output",

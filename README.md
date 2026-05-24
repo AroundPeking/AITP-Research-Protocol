@@ -226,6 +226,13 @@ Host adapters that want one startup refresh point can call
 `workspace_refresh_bundle` regenerates the workspace summary, replay packet,
 and an active-session L2 Obsidian view in one orientation-only operation, with
 `can_update_kernel_state=false` and `can_update_claim_trust=false`.
+For lighter natural conversations, `aitp-v5 interaction preview <session-id>`
+and `aitp_v5_preview_interaction_recording` expose a read-only
+`interaction_recording_preview`. It tells the host which records are merely
+recommended, which trust-changing records are deferred, which triggers make the
+workflow heavier, and whether the current session can stay in lightweight mode.
+The preview is derived from the typed execution brief, keeps
+`summary_inputs_trusted=false`, and cannot update kernel state or claim trust.
 For legacy migration review, `aitp-v5 legacy migration-audit` and
 `aitp_v5_audit_legacy_migration_coverage` read a completed
 `legacy-v5-lossless-*` migration run and report file accounting, archive

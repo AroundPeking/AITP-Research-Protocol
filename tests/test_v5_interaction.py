@@ -124,3 +124,81 @@ def test_execution_brief_includes_interaction_profile_and_keeps_policy_guards(tm
     assert brief["interaction_profile"]["effective_risk_level"] == brief["risk_assessment"]["level"]
     assert len(brief["mandatory_reflection"]) <= brief["interaction_profile"]["effective_max_questions"]
     assert "policy:no_code_method_validation_without_code_state" in brief["forbidden_now"]
+
+
+def test_interaction_recording_preview_is_read_only_and_defers_heavy_records(tmp_path):
+    from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "hs-otoc", context_id="quantum-chaos", title="HS OTOC")
+    claim = create_claim(
+        ws,
+        topic_id="hs-otoc",
+        statement="The fixed-Sz OTOC definition is the correct finite-size baseline.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size and operator-choice artifacts remain possible",
+    )
+    bind_session(
+        ws,
+        "s1",
+        topic_id="hs-otoc",
+        context_id="quantum-chaos",
+        active_claim=claim.claim_id,
+        interaction_profile="collaborator",
+        interaction_steering="lighter, keep it moving",
+    )
+
+    preview = build_interaction_recording_preview(ws, "s1")
+    validated = require_valid_public_surface("interaction_recording_preview", preview)
+
+    assert validated["orientation_only"] is True
+    assert validated["summary_inputs_trusted"] is False
+    assert validated["can_update_kernel_state"] is False
+    assert validated["can_update_claim_trust"] is False
+    assert validated["mandatory_question_count"] <= validated["max_questions"]
+    assert "continue_natural_research_conversation" in validated["natural_workflow"]
+    assert "trust_update_apply" in {item["record_type"] for item in validated["deferred_records"]}
+    assert "source_is_only_a_summary_task_plan_findings_or_progress_file" in validated["heavier_triggers"]
+
+
+def test_interaction_recording_preview_without_claim_stays_orientation_only(tmp_path):
+    from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "new-topic", context_id="scratch", title="New Topic")
+    bind_session(ws, "s1", topic_id="new-topic", context_id="scratch")
+
+    preview = build_interaction_recording_preview(ws, "s1")
+
+    assert preview["active_claim"] == ""
+    assert preview["can_stay_lightweight"] is True
+    assert [item["record_type"] for item in preview["recommended_records"]] == ["execution_brief"]
+    assert preview["natural_workflow"] == [
+        "continue_natural_research_conversation",
+        "bind_or_create_a_claim_only_after_a_stable_research_question_emerges",
+    ]
+
+
+def test_interaction_recording_preview_cli_and_mcp(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_preview_interaction_recording
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "new-topic", context_id="scratch", title="New Topic")
+    bind_session(ws, "s1", topic_id="new-topic", context_id="scratch")
+
+    assert main(["--base", str(tmp_path), "interaction", "preview", "s1"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_preview_interaction_recording(str(tmp_path), session_id="s1")
+
+    assert cli_payload["kind"] == "interaction_recording_preview"
+    assert mcp_payload["kind"] == "interaction_recording_preview"
+    assert cli_payload["can_update_kernel_state"] is False
+    assert mcp_payload["can_update_claim_trust"] is False

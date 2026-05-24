@@ -110,6 +110,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "mcp": "aitp_v5_report_hook_smoke_coverage",
         "surface": "runtime_hook_smoke_coverage",
     }
+    assert entrypoints["interaction_recording_preview"] == {
+        "cli": "aitp-v5 interaction preview <session-id>",
+        "mcp": "aitp_v5_preview_interaction_recording",
+        "surface": "interaction_recording_preview",
+    }
 
 
 def test_runtime_entrypoint_validation_reports_bad_mcp_and_cli_targets():
