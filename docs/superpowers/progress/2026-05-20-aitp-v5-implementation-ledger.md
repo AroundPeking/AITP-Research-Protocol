@@ -5818,7 +5818,7 @@ Each entry should record:
     use the resulting bundle as the common startup target for Codex, Claude
     Code, and Kimi Code adapters.
 
-### TBD - Add Claude/Kimi SessionStart Host Refresh Hooks
+### 34007a6 - Add Claude/Kimi SessionStart Host Refresh Hooks
 
 - Task: wire the workspace refresh bundle into Claude Code and Kimi Code host
   lifecycle hooks so startup/resume can regenerate the current orientation
