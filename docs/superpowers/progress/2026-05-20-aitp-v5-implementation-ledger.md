@@ -5588,7 +5588,7 @@ Each entry should record:
     review findings and update the implementation ledger/readme status if any
     remaining evidence is missing.
 
-### d303254 - Add Source Reconstruction Audit
+### 6e9a22b - Add Source Reconstruction Audit
 
 - Task: close the source-stack/reconstruction coverage gap with a read-only
   typed audit surface for active claims.
