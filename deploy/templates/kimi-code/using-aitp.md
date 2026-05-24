@@ -16,7 +16,8 @@ Do not treat chat summaries, Markdown notes, or generated hook config as scienti
 - AITP v5 runs through the native MCP entrypoint at `{{REPO_ROOT}}/brain/v5/native_mcp.py`.
 - Kimi Code should expose the MCP server as `aitp`; tools are named `aitp_v5_*`.
 - Kimi Code project hooks live in `.kimi/config.toml` using `[[hooks]]` entries.
-- Project Kimi config may need `kimi trust` before Kimi Code loads it.
+- On Kimi CLI 1.35.0, load project assets explicitly with `--config-file .kimi/config.toml --mcp-config-file ~/.kimi/mcp.json --skills-dir .kimi/skills`.
+- On Windows terminals, set `PYTHONIOENCODING=utf-8` and `PYTHONUTF8=1` before `kimi mcp test` if the CLI crashes while printing Unicode status symbols.
 
 ## Entry Procedure
 

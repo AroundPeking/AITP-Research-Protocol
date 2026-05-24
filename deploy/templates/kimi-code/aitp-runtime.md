@@ -54,6 +54,14 @@ Smoke coverage is visible through:
 python -m brain.v5.cli adapter smoke-coverage
 ```
 
+For a real Kimi CLI session on 1.35.0, launch with the project assets explicitly:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
+kimi --work-dir <workspace> --config-file .kimi/config.toml --mcp-config-file $env:USERPROFILE\.kimi\mcp.json --skills-dir .kimi\skills
+```
+
 ## Research Workflow
 
 For a natural physics conversation, keep the user-facing flow simple:

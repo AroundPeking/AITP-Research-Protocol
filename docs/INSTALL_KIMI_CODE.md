@@ -6,7 +6,7 @@ Kimi Code integration has three parts:
 2. MCP: configure Kimi Code to expose `brain/v5/native_mcp.py` as the `aitp` MCP server.
 3. Hooks: merge AITP v5 lifecycle hooks into `.kimi/config.toml`.
 
-Kimi's official docs describe user and project config files (`~/.kimi/config.toml`, `.kimi/config.toml`), MCP JSON files (`~/.kimi/mcp.json`, `.kimi/mcp.json`), lifecycle `[[hooks]]`, and project trust via `kimi trust`: <https://www.kimi.com/code/docs/>.
+Kimi's official docs describe configuration, MCP, hooks, and skills: <https://www.kimi.com/code/docs/>. The verified local CLI path for Kimi CLI 1.35.0 is explicit loading with `--config-file`, `--mcp-config-file`, and `--skills-dir`.
 
 ## MCP
 
@@ -25,6 +25,17 @@ Example project `.kimi/mcp.json`:
 }
 ```
 
+The current Kimi CLI also supports global MCP registration:
+
+```powershell
+kimi mcp add --transport stdio aitp -- python C:/path/to/AITP-Research-Protocol/brain/v5/native_mcp.py
+$env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONUTF8 = "1"
+kimi mcp test aitp
+```
+
+The UTF-8 variables avoid Windows GBK console failures when Kimi prints Unicode status symbols.
+
 ## Hooks
 
 From the AITP repo root:
@@ -33,6 +44,12 @@ From the AITP repo root:
 python -m brain.v5.cli --base <workspace> adapter install-hooks kimi-code <session-id> --settings .kimi/config.toml
 python -m brain.v5.cli --base <workspace> adapter install-audit kimi-code --settings .kimi/config.toml
 python -m brain.v5.cli adapter smoke-coverage
+```
+
+Run Kimi with the project assets:
+
+```powershell
+kimi --work-dir <workspace> --config-file .kimi/config.toml --mcp-config-file $env:USERPROFILE\.kimi\mcp.json --skills-dir .kimi\skills
 ```
 
 The installer preserves existing TOML by replacing only the marked AITP block:
