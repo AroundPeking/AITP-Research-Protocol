@@ -148,7 +148,7 @@ def _proposed_repairs(
         *[str(ref) for ref in latest_review.get("reviewed_legacy_refs", []) if str(ref)],
         str(latest_review.get("review_id") or ""),
     ])
-    actions = {str(action) for action in latest_review.get("remaining_actions", [])}
+    actions = _semantic_action_tokens(latest_review.get("remaining_actions", []))
     repairs: list[dict[str, Any]] = []
     legacy_topic = legacy_root / topic
     if not str(active_claim.get("statement") or ""):
@@ -355,6 +355,31 @@ def _repair_status(latest_review: dict[str, Any], proposed_repairs: list[dict[st
     if latest_review.get("status") != "needs_revision":
         return "awaiting_needs_revision_review"
     return "no_repair_candidates"
+
+
+def _semantic_action_tokens(raw_actions: list[str] | None) -> set[str]:
+    tokens: set[str] = set()
+    for action in raw_actions or []:
+        text = str(action).strip()
+        if not text:
+            continue
+        tokens.add(text)
+        normalized = " ".join(text.lower().replace("_", " ").split())
+        if "backfill" in normalized and "claim statement" in normalized and "research question" in normalized:
+            tokens.add("backfill_active_claim_statement_from_legacy_state_question")
+        if "l3" in normalized and "distilled claim" in normalized and "claim statement" in normalized:
+            tokens.add("backfill_active_claim_statement_from_legacy_l3_distilled_claim")
+        if "l1" in normalized and "bounded question" in normalized and "claim statement" in normalized:
+            tokens.add("backfill_active_claim_statement_from_legacy_l1_bounded_question")
+        if "scope" in normalized and "question contract" in normalized:
+            tokens.add("backfill_active_claim_scope_from_legacy_l1_question_contract")
+        if "scope" in normalized and "candidate" in normalized and "regime" in normalized:
+            tokens.add("backfill_active_claim_scope_from_legacy_candidate_regime")
+        if "failure" in normalized and "non success" in normalized:
+            tokens.add("backfill_active_claim_failure_mode_from_legacy_l1_non_success_conditions")
+        if "failure" in normalized and "legacy review" in normalized:
+            tokens.add("backfill_active_claim_failure_mode_from_legacy_review")
+    return tokens
 
 
 def _unique(values: list[str]) -> list[str]:

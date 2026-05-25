@@ -146,6 +146,32 @@ def test_legacy_source_reconstruction_plan_uses_reviewed_l3_refs(tmp_path):
     ]
 
 
+def test_legacy_source_reconstruction_plan_accepts_review_action_phrase(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_plan
+
+    ws, run, _review, candidate, derivation = _seed_reviewed_legacy_topic(tmp_path)
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="Natural-language review action asks for reconstruction-path completion.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=[f"legacy_candidate:{candidate}", f"legacy_l3_process:{derivation}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=[
+            "Complete definitions, assumptions_or_scope, dependency_graph, reconstruction_path, and failure_conditions before promotion."
+        ],
+    )
+
+    plan = build_legacy_source_reconstruction_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["repair_status"] == "proposed_repairs"
+    assert plan["latest_semantic_review"]["review_id"] == review.review_id
+    assert plan["proposed_repairs"][0]["repair_type"] == "reconstruction_path_evidence_backfill"
+
+
 def test_legacy_source_reconstruction_apply_writes_reconstruction_path_evidence(tmp_path):
     from brain.v5.evidence import list_evidence_for_claim
     from brain.v5.legacy_source_reconstruction import apply_legacy_source_reconstruction_repair

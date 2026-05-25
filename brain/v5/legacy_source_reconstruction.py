@@ -109,7 +109,9 @@ def _queue_item(queue: dict[str, Any], topic: str) -> dict[str, Any]:
 def _proposed_repairs(item: dict[str, Any], latest_review: dict[str, Any]) -> list[dict[str, Any]]:
     if latest_review.get("status") != "needs_revision":
         return []
-    if "complete_source_reconstruction" not in set(latest_review.get("remaining_actions", [])):
+    if "complete_source_reconstruction" not in _source_reconstruction_action_tokens(
+        latest_review.get("remaining_actions", [])
+    ):
         return []
     missing_components = set(item.get("source_reconstruction", {}).get("missing_components", []))
     if "reconstruction_path" not in missing_components:
@@ -143,6 +145,19 @@ def _repair_status(latest_review: dict[str, Any], proposed_repairs: list[dict[st
     if latest_review.get("status") != "needs_revision":
         return "awaiting_needs_revision_review"
     return "no_repair_candidates"
+
+
+def _source_reconstruction_action_tokens(raw_actions: list[str] | None) -> set[str]:
+    tokens: set[str] = set()
+    for action in raw_actions or []:
+        text = str(action).strip()
+        if not text:
+            continue
+        tokens.add(text)
+        normalized = " ".join(text.lower().replace("_", " ").split())
+        if "source reconstruction" in normalized or "reconstruction path" in normalized:
+            tokens.add("complete_source_reconstruction")
+    return tokens
 
 
 def _matching_repair(plan: dict[str, Any], *, repair_type: str) -> dict[str, Any] | None:

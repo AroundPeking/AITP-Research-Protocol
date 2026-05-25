@@ -856,6 +856,56 @@ def test_legacy_semantic_repair_plan_proposes_question_backfill_from_reviewed_re
     assert require_valid_public_surface("legacy_semantic_repair_plan", plan) == plan
 
 
+def test_legacy_semantic_repair_plan_accepts_review_action_phrase_for_question_backfill(tmp_path):
+    from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    legacy_topic.mkdir(parents=True)
+    question = "Which AdS Einstein-equation boundary conditions should be classified?"
+    (legacy_topic / "state.md").write_text(
+        "# Canonical Topic\n\n"
+        "## Research Question\n"
+        f"{question}\n\n"
+        "## Notes\n"
+        "The typed migration kept this topic but the claim statement was empty.\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="Active claim statement is empty while legacy state.md preserves the research question.",
+        reviewed_legacy_refs=[f"legacy_candidate:{legacy_topic / 'state.md'}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["Backfill the active claim statement from the legacy Research Question."],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["repair_status"] == "proposed_repairs"
+    assert plan["latest_semantic_review"]["review_id"] == review.review_id
+    assert plan["proposed_repairs"][0]["repair_type"] == "claim_statement_backfill"
+    assert plan["proposed_repairs"][0]["proposed_value"] == question
+
+
 def test_legacy_semantic_repair_plan_cli_mcp_and_runtime_surface(tmp_path, capsys):
     import json
 
