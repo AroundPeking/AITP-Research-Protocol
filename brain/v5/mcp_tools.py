@@ -10,6 +10,7 @@ from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
+from brain.v5.final_readiness import audit_final_engineering_readiness
 from brain.v5.hook_install_audit import audit_hook_installation
 from brain.v5.hook_install_paths import discover_hook_install_paths
 from brain.v5.hook_install_templates import (
@@ -294,6 +295,16 @@ def aitp_v5_report_hook_smoke_coverage() -> dict:
         **require_valid_public_surface(
             "runtime_hook_smoke_coverage",
             runtime_hook_smoke_coverage_report(),
+        ),
+    }
+
+
+def aitp_v5_audit_final_engineering_readiness(base: str, *, migration_dir: str = "") -> dict:
+    return {
+        "ok": True,
+        **require_valid_public_surface(
+            "final_engineering_readiness_audit",
+            audit_final_engineering_readiness(_ws(base), migration_dir=migration_dir or None),
         ),
     }
 

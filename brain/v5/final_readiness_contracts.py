@@ -1,0 +1,72 @@
+"""Contracts for the final engineering readiness audit surface."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from brain.v5.contracts import ContractError, ContractResult
+
+
+def validate_final_engineering_readiness_audit(
+    payload: dict[str, Any],
+    *,
+    path: str = "final_engineering_readiness_audit",
+) -> ContractResult:
+    result = ContractResult()
+    if payload.get("kind") != "final_engineering_readiness_audit":
+        result.add(f"{path}.kind", "must be 'final_engineering_readiness_audit'")
+    if payload.get("summary_inputs_trusted") is not False:
+        result.add(f"{path}.summary_inputs_trusted", "must be false")
+    if payload.get("orientation_only") is not True:
+        result.add(f"{path}.orientation_only", "must be true")
+    if payload.get("can_update_kernel_state") is not False:
+        result.add(f"{path}.can_update_kernel_state", "must be false")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
+    _require_nonempty_str(payload, "completion_status", path, result)
+    _require_nonempty_str(payload, "kernel_capability_status", path, result)
+    _require_nonempty_str(payload, "content_backlog_status", path, result)
+    _require_mapping(payload.get("kernel_capabilities"), f"{path}.kernel_capabilities", result)
+    _require_mapping(payload.get("content_backlog"), f"{path}.content_backlog", result)
+    _require_list(payload.get("blocking_gaps"), f"{path}.blocking_gaps", result)
+    _require_list(payload.get("residual_risks"), f"{path}.residual_risks", result)
+    _require_list(payload.get("evidence_refs"), f"{path}.evidence_refs", result)
+    _require_list(payload.get("backlog_refs"), f"{path}.backlog_refs", result)
+    legacy = _mapping(payload.get("content_backlog")).get("legacy_semantic_review")
+    _require_mapping(legacy, f"{path}.content_backlog.legacy_semantic_review", result)
+    if isinstance(legacy, dict):
+        if legacy.get("semantic_lossless_proven") is not False:
+            result.add(
+                f"{path}.content_backlog.legacy_semantic_review.semantic_lossless_proven",
+                "must be false",
+            )
+        for key in ["review_item_count", "pending_count", "passed_count", "needs_revision_count", "inconclusive_count"]:
+            if not isinstance(legacy.get(key), int):
+                result.add(f"{path}.content_backlog.legacy_semantic_review.{key}", "must be an integer")
+    return result
+
+
+def require_valid_final_engineering_readiness_audit(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_final_engineering_readiness_audit(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
+def _require_mapping(value: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(value, dict):
+        result.add(path, "must be a mapping")
+
+
+def _require_list(value: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(value, list):
+        result.add(path, "must be a list")
+
+
+def _require_nonempty_str(payload: dict[str, Any], key: str, path: str, result: ContractResult) -> None:
+    if not isinstance(payload.get(key), str) or not payload.get(key):
+        result.add(f"{path}.{key}", "must be a non-empty string")
+
+
+def _mapping(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}

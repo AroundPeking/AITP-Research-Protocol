@@ -371,7 +371,10 @@ def validate_failure_mode_review_result_record(payload: dict[str, Any], *, path:
     from brain.v5.record_contracts import validate_failure_mode_review_result_record as _validate; return _validate(payload, path=path)
 def require_valid_failure_mode_review_result_record(payload: dict[str, Any]) -> dict[str, Any]:
     from brain.v5.record_contracts import require_valid_failure_mode_review_result_record as _require; return _require(payload)
-
+def validate_final_engineering_readiness_audit(payload: dict[str, Any], *, path: str = "final_engineering_readiness_audit") -> ContractResult:
+    from brain.v5.final_readiness_contracts import validate_final_engineering_readiness_audit as _validate; return _validate(payload, path=path)
+def require_valid_final_engineering_readiness_audit(payload: dict[str, Any]) -> dict[str, Any]:
+    from brain.v5.final_readiness_contracts import require_valid_final_engineering_readiness_audit as _require; return _require(payload)
 def validate_promotion_packet_record(payload: dict[str, Any], *, path: str = "promotion_packet_record") -> ContractResult:
     from brain.v5.record_contracts import validate_promotion_packet_record as _validate
     return _validate(payload, path=path)
