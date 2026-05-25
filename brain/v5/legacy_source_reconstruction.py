@@ -6,8 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from brain.v5.evidence import record_evidence
+from brain.v5.ids import prefixed_id
 from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
+from brain.v5.legacy_source_reconstruction_models import LegacySourceReconstructionRepairRecord
+from brain.v5.models import EvidenceRecord
 from brain.v5.paths import WorkspacePaths
+from brain.v5.store import list_records, write_record
 
 _RECONSTRUCTION_REF_PREFIXES = ("legacy_candidate:", "legacy_l3_process:")
 _REPAIR_TYPE = "reconstruction_path_evidence_backfill"
@@ -55,8 +59,36 @@ def apply_legacy_source_reconstruction_repair(
     """Apply a single guarded reconstruction-path evidence backfill."""
 
     plan = build_legacy_source_reconstruction_plan(ws, migration_dir=migration_dir, topic=topic)
+    latest_review = plan["latest_semantic_review"]
     repair = _matching_repair(plan, repair_type=repair_type)
+    if review_id != latest_review.get("review_id"):
+        return _apply_payload(
+            plan,
+            repair_type=repair_type,
+            review_id=review_id,
+            evidence_id="",
+            applied=False,
+            required_actions=["match_latest_needs_revision_review_id"],
+            basis_refs=_review_basis_refs(latest_review),
+            ws=ws,
+        )
     if repair is None:
+        existing = _existing_reconstruction_path_evidence(ws, plan, latest_review)
+        if (
+            repair_type == _REPAIR_TYPE
+            and existing is not None
+            and _latest_review_requests_source_reconstruction(latest_review)
+        ):
+            return _apply_payload(
+                plan,
+                repair_type=repair_type,
+                review_id=review_id,
+                evidence_id=existing.evidence_id,
+                applied=True,
+                required_actions=[],
+                basis_refs=_review_basis_refs(latest_review),
+                ws=ws,
+            )
         return _apply_payload(
             plan,
             repair_type=repair_type,
@@ -65,16 +97,7 @@ def apply_legacy_source_reconstruction_repair(
             applied=False,
             required_actions=["select_available_repair"],
             basis_refs=[],
-        )
-    if review_id != plan["latest_semantic_review"].get("review_id"):
-        return _apply_payload(
-            plan,
-            repair_type=repair_type,
-            review_id=review_id,
-            evidence_id="",
-            applied=False,
-            required_actions=["match_latest_needs_revision_review_id"],
-            basis_refs=repair["basis_refs"],
+            ws=ws,
         )
     summary = f"Reviewed legacy reconstruction path for {plan['topic']} from {len(repair['source_refs'])} L3/candidate refs."
     evidence = record_evidence(
@@ -96,6 +119,7 @@ def apply_legacy_source_reconstruction_repair(
         applied=True,
         required_actions=[],
         basis_refs=repair["basis_refs"],
+        ws=ws,
     )
 
 
@@ -109,21 +133,15 @@ def _queue_item(queue: dict[str, Any], topic: str) -> dict[str, Any]:
 def _proposed_repairs(item: dict[str, Any], latest_review: dict[str, Any]) -> list[dict[str, Any]]:
     if latest_review.get("status") != "needs_revision":
         return []
-    if "complete_source_reconstruction" not in _source_reconstruction_action_tokens(
-        latest_review.get("remaining_actions", [])
-    ):
+    if not _latest_review_requests_source_reconstruction(latest_review):
         return []
     missing_components = set(item.get("source_reconstruction", {}).get("missing_components", []))
     if "reconstruction_path" not in missing_components:
         return []
-    source_refs = [
-        ref
-        for ref in _clean_refs(latest_review.get("reviewed_legacy_refs", []))
-        if ref.startswith(_RECONSTRUCTION_REF_PREFIXES)
-    ]
+    source_refs = _reviewed_reconstruction_refs(latest_review)
     if not source_refs:
         return []
-    basis_refs = _unique([*source_refs, str(latest_review.get("review_id") or "")])
+    basis_refs = _review_basis_refs(latest_review)
     return [
         {
             "repair_type": _REPAIR_TYPE,
@@ -160,6 +178,47 @@ def _source_reconstruction_action_tokens(raw_actions: list[str] | None) -> set[s
     return tokens
 
 
+def _latest_review_requests_source_reconstruction(latest_review: dict[str, Any]) -> bool:
+    return (
+        latest_review.get("status") == "needs_revision"
+        and "complete_source_reconstruction"
+        in _source_reconstruction_action_tokens(latest_review.get("remaining_actions", []))
+    )
+
+
+def _reviewed_reconstruction_refs(latest_review: dict[str, Any]) -> list[str]:
+    return [
+        ref
+        for ref in _clean_refs(latest_review.get("reviewed_legacy_refs", []))
+        if ref.startswith(_RECONSTRUCTION_REF_PREFIXES)
+    ]
+
+
+def _review_basis_refs(latest_review: dict[str, Any]) -> list[str]:
+    return _unique([*_reviewed_reconstruction_refs(latest_review), str(latest_review.get("review_id") or "")])
+
+
+def _existing_reconstruction_path_evidence(
+    ws: WorkspacePaths,
+    plan: dict[str, Any],
+    latest_review: dict[str, Any],
+) -> EvidenceRecord | None:
+    reviewed_refs = set(_reviewed_reconstruction_refs(latest_review))
+    for record in list_records(ws.registry_dir("evidence"), EvidenceRecord):
+        if record.claim_id != plan["active_claim_id"]:
+            continue
+        if record.evidence_type != "source_reconstruction":
+            continue
+        if record.status in {"failed", "refutes", "invalid"}:
+            continue
+        if "reconstruction_path" not in set(record.supports_outputs):
+            continue
+        if reviewed_refs and not reviewed_refs.intersection(set(record.source_refs)):
+            continue
+        return record
+    return None
+
+
 def _matching_repair(plan: dict[str, Any], *, repair_type: str) -> dict[str, Any] | None:
     for repair in plan["proposed_repairs"]:
         if repair["repair_type"] == repair_type:
@@ -176,9 +235,37 @@ def _apply_payload(
     applied: bool,
     required_actions: list[str],
     basis_refs: list[str],
+    ws: WorkspacePaths,
 ) -> dict[str, Any]:
+    repair_id = prefixed_id(
+        "legacy-source-repair",
+        f"{plan['run_id']}:{plan['topic']}:{plan['active_claim_id']}:{repair_type}:{review_id}:{evidence_id}:{applied}",
+        max_slug=40,
+    )
+    record = LegacySourceReconstructionRepairRecord(
+        repair_id=repair_id,
+        migration_run_id=plan["run_id"],
+        migration_dir=plan["migration_dir"],
+        topic=plan["topic"],
+        active_claim_id=plan["active_claim_id"],
+        review_id=review_id,
+        repair_type=repair_type,
+        evidence_id=evidence_id,
+        basis_refs=list(basis_refs),
+        applied=applied,
+        required_actions=list(required_actions),
+    )
+    write_record(
+        ws.registry_dir("legacy_source_reconstruction_repairs") / f"{repair_id}.md",
+        record,
+        body=(
+            f"# Legacy Source Reconstruction Repair: {plan['topic']}\n\n"
+            f"**Applied:** {applied}\n\n{repair_type}\n"
+        ),
+    )
     return {
         "kind": "legacy_source_reconstruction_apply",
+        "repair_id": repair_id,
         "run_id": plan["run_id"],
         "migration_dir": plan["migration_dir"],
         "topic": plan["topic"],

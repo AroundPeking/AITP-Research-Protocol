@@ -33,6 +33,7 @@ _LAYOUT_DIRS = [
     "registry/promotion_packets",
     "registry/legacy_semantic_reviews",
     "registry/legacy_semantic_repairs",
+    "registry/legacy_source_reconstruction_repairs",
     "registry/outputs",
     "memory/l2/entries",
     "memory/l2/graph",

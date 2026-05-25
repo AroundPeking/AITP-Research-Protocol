@@ -72,7 +72,7 @@ def validate_legacy_source_reconstruction_apply(
         return result
     if payload.get("kind") != "legacy_source_reconstruction_apply":
         result.add(f"{path}.kind", "must be 'legacy_source_reconstruction_apply'")
-    for key in ("run_id", "migration_dir", "topic", "active_claim_id", "review_id", "repair_type"):
+    for key in ("repair_id", "run_id", "migration_dir", "topic", "active_claim_id", "review_id", "repair_type"):
         _require_nonempty_str(payload, key, path, result)
     if payload.get("repair_type") not in _REPAIR_TYPES:
         result.add(f"{path}.repair_type", "must be an allowed repair type")

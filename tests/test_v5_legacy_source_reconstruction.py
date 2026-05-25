@@ -77,7 +77,12 @@ def _write_migration_run(ws, *, topic="canonical-topic", claim_id="claim-canonic
     return run
 
 
-def _seed_reviewed_legacy_topic(tmp_path):
+def _seed_reviewed_legacy_topic(
+    tmp_path,
+    *,
+    summary="Claim statement was reviewed; source reconstruction still needs a typed reconstruction path.",
+    remaining_actions=None,
+):
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.models import ClaimRecord
     from brain.v5.store import write_record
@@ -109,11 +114,11 @@ def _seed_reviewed_legacy_topic(tmp_path):
         migration_dir=run,
         topic="canonical-topic",
         status="needs_revision",
-        summary="Claim statement was reviewed; source reconstruction still needs a typed reconstruction path.",
+        summary=summary,
         active_claim_id="claim-canonical",
         reviewed_legacy_refs=[f"legacy_candidate:{candidate}", f"legacy_l3_process:{derivation}"],
         reviewed_typed_refs=["claim-canonical"],
-        remaining_actions=["complete_source_reconstruction"],
+        remaining_actions=remaining_actions or ["complete_source_reconstruction"],
     )
     return ws, run, review, candidate, derivation
 
@@ -147,19 +152,11 @@ def test_legacy_source_reconstruction_plan_uses_reviewed_l3_refs(tmp_path):
 
 
 def test_legacy_source_reconstruction_plan_accepts_review_action_phrase(tmp_path):
-    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_plan
 
-    ws, run, _review, candidate, derivation = _seed_reviewed_legacy_topic(tmp_path)
-    review = record_legacy_semantic_review_result(
-        ws,
-        migration_dir=run,
-        topic="canonical-topic",
-        status="needs_revision",
+    ws, run, review, _candidate, _derivation = _seed_reviewed_legacy_topic(
+        tmp_path,
         summary="Natural-language review action asks for reconstruction-path completion.",
-        active_claim_id="claim-canonical",
-        reviewed_legacy_refs=[f"legacy_candidate:{candidate}", f"legacy_l3_process:{derivation}"],
-        reviewed_typed_refs=["claim-canonical"],
         remaining_actions=[
             "Complete definitions, assumptions_or_scope, dependency_graph, reconstruction_path, and failure_conditions before promotion."
         ],
@@ -175,8 +172,10 @@ def test_legacy_source_reconstruction_plan_accepts_review_action_phrase(tmp_path
 def test_legacy_source_reconstruction_apply_writes_reconstruction_path_evidence(tmp_path):
     from brain.v5.evidence import list_evidence_for_claim
     from brain.v5.legacy_source_reconstruction import apply_legacy_source_reconstruction_repair
+    from brain.v5.legacy_source_reconstruction_models import LegacySourceReconstructionRepairRecord
     from brain.v5.public_surfaces import require_valid_public_surface
     from brain.v5.source_reconstruction import audit_source_reconstruction
+    from brain.v5.store import list_records
 
     ws, run, review, _candidate, _derivation = _seed_reviewed_legacy_topic(tmp_path)
 
@@ -197,8 +196,58 @@ def test_legacy_source_reconstruction_apply_writes_reconstruction_path_evidence(
     assert [record.evidence_id for record in evidence] == [payload["evidence_id"]]
     assert evidence[0].evidence_type == "source_reconstruction"
     assert evidence[0].supports_outputs == ["reconstruction_path"]
+    repairs = list_records(
+        ws.registry_dir("legacy_source_reconstruction_repairs"),
+        LegacySourceReconstructionRepairRecord,
+    )
+    assert [repair.repair_id for repair in repairs] == [payload["repair_id"]]
+    assert repairs[0].evidence_id == payload["evidence_id"]
+    assert repairs[0].review_id == review.review_id
+    assert repairs[0].applied is True
+    assert repairs[0].can_update_claim_trust is False
     audit = audit_source_reconstruction(ws, claim_id="claim-canonical")
     assert "reconstruction_path" not in audit["missing_components"]
+
+
+def test_legacy_source_reconstruction_apply_is_idempotent_after_existing_evidence(tmp_path):
+    from brain.v5.evidence import list_evidence_for_claim
+    from brain.v5.legacy_source_reconstruction import apply_legacy_source_reconstruction_repair
+    from brain.v5.legacy_source_reconstruction_models import LegacySourceReconstructionRepairRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import list_records
+
+    ws, run, review, _candidate, _derivation = _seed_reviewed_legacy_topic(tmp_path)
+    first = apply_legacy_source_reconstruction_repair(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        repair_type="reconstruction_path_evidence_backfill",
+        review_id=review.review_id,
+    )
+
+    second = apply_legacy_source_reconstruction_repair(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        repair_type="reconstruction_path_evidence_backfill",
+        review_id=review.review_id,
+    )
+
+    assert require_valid_public_surface("legacy_source_reconstruction_apply", second) == second
+    assert second["applied"] is True
+    assert second["required_actions"] == []
+    assert second["evidence_id"] == first["evidence_id"]
+    assert second["repair_id"] == first["repair_id"]
+    assert second["can_update_claim_trust"] is False
+    evidence = [record for record in list_evidence_for_claim(ws, "claim-canonical") if record.evidence_type == "source_reconstruction"]
+    assert [record.evidence_id for record in evidence] == [first["evidence_id"]]
+    repairs = list_records(
+        ws.registry_dir("legacy_source_reconstruction_repairs"),
+        LegacySourceReconstructionRepairRecord,
+    )
+    assert [repair.repair_id for repair in repairs] == [first["repair_id"]]
+    assert repairs[0].applied is True
+    assert repairs[0].evidence_id == first["evidence_id"]
 
 
 def test_legacy_source_reconstruction_cli_mcp_and_runtime_surface(tmp_path, capsys):
