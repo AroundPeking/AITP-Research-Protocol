@@ -337,8 +337,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `claim_failure_mode_backfill`. Repairs require the matching review id, use
   reviewed legacy refs as their basis, can recover an empty statement from a
   reviewed L3 distillation's `distilled_claim` when the review action requests
-  it, and can recover scope either from a legacy candidate's
-  `regime_of_validity` or from an L1 question contract's `scope_boundaries`.
+  it, can recover an empty statement from an L1 question contract's
+  `bounded_question` when the review action requests it, and can recover scope
+  either from a legacy candidate's `regime_of_validity` or from an L1 question
+  contract's `scope_boundaries`.
   They update only the migrated claim and topic ledger, and write a durable
   `legacy_semantic_repair` record. The repair apply surface may update kernel
   content state, but it cannot update claim trust or prove semantic

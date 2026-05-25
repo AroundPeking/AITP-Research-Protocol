@@ -1185,6 +1185,70 @@ def test_legacy_semantic_repair_backfills_scope_from_reviewed_l1_question_contra
     assert claims["claim-canonical"].confidence_state == "legacy_seed"
 
 
+def test_legacy_semantic_repair_prefers_reviewed_l1_bounded_question_for_statement(tmp_path):
+    from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    legacy_topic.mkdir(parents=True)
+    (legacy_topic / "state.md").write_text(
+        "# Canonical Topic\n\n## Research Question\nWhat was the broad topic question?\n",
+        encoding="utf-8",
+    )
+    l1_contract = legacy_topic / "L1" / "question_contract.md"
+    l1_contract.parent.mkdir(parents=True)
+    l1_contract.write_text(
+        "---\n"
+        "artifact_kind: l1_question_contract\n"
+        "bounded_question: How does the reviewed L1 contract sharpen the imported claim?\n"
+        "scope_boundaries: L1-only scope.\n"
+        "---\n"
+        "# Question Contract\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="The reviewed L1 bounded question is sharper than the broad legacy state question.",
+        reviewed_legacy_refs=[f"legacy_candidate:{legacy_topic / 'state.md'}", f"legacy_l1:{l1_contract}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["backfill_active_claim_statement_from_legacy_l1_bounded_question"],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["proposed_repairs"][0] == {
+        "repair_type": "claim_statement_backfill",
+        "target_ref": "claim-canonical",
+        "current_value": "",
+        "proposed_value": "How does the reviewed L1 contract sharpen the imported claim?",
+        "basis_refs": [
+            f"legacy_candidate:{legacy_topic / 'state.md'}",
+            f"legacy_l1:{l1_contract}",
+            review.review_id,
+        ],
+        "mutation_authority": "none_review_and_apply_separately",
+    }
+
+
 def test_legacy_semantic_repair_prefers_reviewed_l3_distilled_claim_for_statement(tmp_path):
     from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result

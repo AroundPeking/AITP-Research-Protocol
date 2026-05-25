@@ -157,6 +157,11 @@ def _proposed_repairs(
             question = _reviewed_l3_distilled_claim(latest_review)
         if (
             not question
+            and "backfill_active_claim_statement_from_legacy_l1_bounded_question" in actions
+        ):
+            question = _reviewed_l1_bounded_question(latest_review)
+        if (
+            not question
             and (
                 not actions
                 or "backfill_active_claim_statement_from_legacy_state_question" in actions
@@ -216,6 +221,18 @@ def _reviewed_l1_scope(latest_review: dict[str, Any]) -> str:
         scope = _markdown_section(body, "Scope Boundaries")
         if scope:
             return scope
+    return ""
+
+
+def _reviewed_l1_bounded_question(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l1:",)):
+        frontmatter, body = read_md(path)
+        bounded_question = _clean_text(str(frontmatter.get("bounded_question") or ""))
+        if bounded_question:
+            return bounded_question
+        bounded_question = _markdown_section(body, "Bounded Question")
+        if bounded_question:
+            return bounded_question
     return ""
 
 
