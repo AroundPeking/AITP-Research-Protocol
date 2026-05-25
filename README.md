@@ -212,6 +212,12 @@ typed records make the claim reconstructable and cannot update claim trust.
 `aitp_v5_build_source_reconstruction_manifest` batch this across active claims
 and include aggregate missing-component counts so source-stack closeout can be
 prioritized without hand-aggregating per-claim audits.
+For reviewed legacy migrations, `aitp-v5 legacy source-reconstruction-plan`
+and `aitp_v5_build_legacy_source_reconstruction_plan` can propose a guarded
+reconstruction-path evidence backfill from typed semantic review results that
+cited L3/candidate refs. `aitp-v5 legacy source-reconstruction-apply` writes
+only a `source_reconstruction` evidence record; it cannot update claim trust or
+prove semantic losslessness.
 For long-running multi-topic resumption, `aitp-v5 summary replay` and
 `aitp_v5_write_workspace_replay_packet` write an orientation-only
 `workspace_replay_packet`. It lists active session claims, confidence states,

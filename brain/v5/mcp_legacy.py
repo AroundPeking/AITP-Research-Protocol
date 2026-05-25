@@ -9,6 +9,10 @@ from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
 from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_legacy_semantic_repair_plan
+from brain.v5.legacy_source_reconstruction import (
+    apply_legacy_source_reconstruction_repair,
+    build_legacy_source_reconstruction_plan,
+)
 from brain.v5.legacy_semantic_review import (
     build_legacy_semantic_review_packet,
     build_legacy_semantic_review_queue,
@@ -84,6 +88,29 @@ def aitp_v5_apply_legacy_semantic_repair(
         review_id=review_id,
     )
     return {"ok": True, **require_valid_public_surface("legacy_semantic_repair_apply", result)}
+
+
+def aitp_v5_build_legacy_source_reconstruction_plan(base: str, *, migration_dir: str, topic: str) -> dict:
+    result = build_legacy_source_reconstruction_plan(_ws(base), migration_dir=migration_dir, topic=topic)
+    return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_plan", result)}
+
+
+def aitp_v5_apply_legacy_source_reconstruction_repair(
+    base: str,
+    *,
+    migration_dir: str,
+    topic: str,
+    repair_type: str,
+    review_id: str,
+) -> dict:
+    result = apply_legacy_source_reconstruction_repair(
+        _ws(base),
+        migration_dir=migration_dir,
+        topic=topic,
+        repair_type=repair_type,
+        review_id=review_id,
+    )
+    return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_apply", result)}
 
 
 def aitp_v5_record_legacy_semantic_review_result(

@@ -30,6 +30,8 @@ _PUBLIC_SURFACE_NAMES = (
     "legacy_l2_graph_manifest",
     "legacy_migration_coverage_audit",
     "legacy_migration_result",
+    "legacy_source_reconstruction_apply",
+    "legacy_source_reconstruction_plan",
     "legacy_semantic_review_manifest",
     "legacy_semantic_review_packet",
     "legacy_semantic_repair_apply",
@@ -94,6 +96,8 @@ _PUBLIC_SURFACE_PURPOSES = {
     "legacy_l2_graph_manifest": "read-only manifest for planning legacy global L2 graph/index migration into typed L2 memory and Obsidian views",
     "legacy_migration_coverage_audit": "read-only audit of legacy migration file accounting, archive references, and per-topic coverage without claiming semantic proof",
     "legacy_migration_result": "contracted explicit migration result from legacy topic files into v5 typed records",
+    "legacy_source_reconstruction_apply": "guarded evidence backfill for reconstruction-path coverage derived from typed legacy semantic reviews without changing claim trust",
+    "legacy_source_reconstruction_plan": "read-only plan for reconstruction-path evidence backfills derived from typed legacy semantic reviews",
     "legacy_semantic_review_manifest": "orientation-only batch manifest listing per-topic semantic review packets, statuses, and result-record commands",
     "legacy_semantic_review_packet": "orientation-only per-topic packet collecting migrated legacy refs, typed records, and checklist for actual semantic review",
     "legacy_semantic_repair_apply": "guarded content repair application derived from typed legacy semantic review results without changing claim trust",
@@ -217,6 +221,10 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     from brain.v5.legacy_contracts import require_valid_legacy_migration_result
     from brain.v5.legacy_l2_graph_contracts import require_valid_legacy_l2_graph_manifest
     from brain.v5.legacy_migration_audit_contracts import require_valid_legacy_migration_coverage_audit
+    from brain.v5.legacy_source_reconstruction_contracts import (
+        require_valid_legacy_source_reconstruction_apply,
+        require_valid_legacy_source_reconstruction_plan,
+    )
     from brain.v5.source_reconstruction_contracts import require_valid_source_reconstruction_manifest
     from brain.v5.legacy_semantic_review_contracts import (
         require_valid_legacy_semantic_review_manifest,
@@ -273,6 +281,8 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "legacy_l2_graph_manifest": require_valid_legacy_l2_graph_manifest,
         "legacy_migration_coverage_audit": require_valid_legacy_migration_coverage_audit,
         "legacy_migration_result": require_valid_legacy_migration_result,
+        "legacy_source_reconstruction_apply": require_valid_legacy_source_reconstruction_apply,
+        "legacy_source_reconstruction_plan": require_valid_legacy_source_reconstruction_plan,
         "legacy_semantic_review_manifest": require_valid_legacy_semantic_review_manifest,
         "legacy_semantic_review_packet": require_valid_legacy_semantic_review_packet,
         "legacy_semantic_repair_apply": require_valid_legacy_semantic_repair_apply,

@@ -30,6 +30,8 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "legacy_l2_graph_manifest",
         "legacy_migration_coverage_audit",
         "legacy_migration_result",
+        "legacy_source_reconstruction_apply",
+        "legacy_source_reconstruction_plan",
         "legacy_semantic_review_manifest",
         "legacy_semantic_review_packet",
         "legacy_semantic_repair_apply",

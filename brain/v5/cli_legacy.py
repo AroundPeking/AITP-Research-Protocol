@@ -7,6 +7,10 @@ from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
 from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_legacy_semantic_repair_plan
+from brain.v5.legacy_source_reconstruction import (
+    apply_legacy_source_reconstruction_repair,
+    build_legacy_source_reconstruction_plan,
+)
 from brain.v5.legacy_semantic_review import (
     build_legacy_semantic_review_packet,
     build_legacy_semantic_review_queue,
@@ -41,6 +45,14 @@ def add_legacy_parser(subparsers) -> None:
     repair_apply.add_argument("--topic", required=True)
     repair_apply.add_argument("--repair-type", required=True)
     repair_apply.add_argument("--review-id", required=True)
+    source_repair = legacy_subparsers.add_parser("source-reconstruction-plan")
+    source_repair.add_argument("--migration-dir", required=True)
+    source_repair.add_argument("--topic", required=True)
+    source_repair_apply = legacy_subparsers.add_parser("source-reconstruction-apply")
+    source_repair_apply.add_argument("--migration-dir", required=True)
+    source_repair_apply.add_argument("--topic", required=True)
+    source_repair_apply.add_argument("--repair-type", required=True)
+    source_repair_apply.add_argument("--review-id", required=True)
     result = legacy_subparsers.add_parser("semantic-review-result")
     result.add_argument("--migration-dir", required=True)
     result.add_argument("--topic", required=True)
@@ -92,6 +104,18 @@ def dispatch_legacy_command(args, ws) -> dict:
             review_id=args.review_id,
         )
         return {"ok": True, **require_valid_public_surface("legacy_semantic_repair_apply", result)}
+    if args.legacy_command == "source-reconstruction-plan":
+        plan = build_legacy_source_reconstruction_plan(ws, migration_dir=args.migration_dir, topic=args.topic)
+        return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_plan", plan)}
+    if args.legacy_command == "source-reconstruction-apply":
+        result = apply_legacy_source_reconstruction_repair(
+            ws,
+            migration_dir=args.migration_dir,
+            topic=args.topic,
+            repair_type=args.repair_type,
+            review_id=args.review_id,
+        )
+        return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_apply", result)}
     if args.legacy_command == "semantic-review-result":
         result = record_legacy_semantic_review_result(
             ws,

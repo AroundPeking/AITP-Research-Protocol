@@ -283,6 +283,16 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   for source-stack closeout. It is orientation-only, handles empty
   legacy-import claim statements without rejecting the backlog, and cannot
   update kernel state or claim trust.
+- Agents can call `aitp-v5 legacy source-reconstruction-plan` or
+  `aitp_v5_build_legacy_source_reconstruction_plan` to derive a read-only
+  reconstruction-path evidence backfill plan from the latest typed
+  `needs_revision` legacy semantic review. The guarded apply surface,
+  `aitp-v5 legacy source-reconstruction-apply` or
+  `aitp_v5_apply_legacy_source_reconstruction_repair`, can write a narrow
+  `source_reconstruction` evidence record with
+  `supports_outputs=["reconstruction_path"]` when reviewed L3/candidate refs
+  exist. It can update typed evidence coverage but cannot update claim trust or
+  prove semantic losslessness.
 - Agents can call `aitp-v5 summary replay` or
   `aitp_v5_write_workspace_replay_packet` for an orientation-only
   `workspace_replay_packet` across active sessions. It lists active claims,
