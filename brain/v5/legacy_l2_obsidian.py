@@ -26,6 +26,7 @@ def write_legacy_l2_obsidian_view(
     overview_path = view_dir / "Legacy L2 Overview.md"
     entries_path = view_dir / "Legacy L2 Entries.md"
     graph_path = view_dir / "Legacy L2 Graph.md"
+    worklist_path = view_dir / "Legacy L2 Migration Worklist.md"
     write_md(
         overview_path,
         _frontmatter("legacy_l2_overview", str(l2_dir)),
@@ -41,6 +42,11 @@ def write_legacy_l2_obsidian_view(
         _frontmatter("legacy_l2_graph_index", str(l2_dir / "graph")),
         _graph_body(graph_files),
     )
+    write_md(
+        worklist_path,
+        _frontmatter("legacy_l2_migration_worklist", str(l2_dir)),
+        _worklist_body(manifest),
+    )
     return {
         "ok": True,
         "kind": "legacy_l2_obsidian_view_bundle",
@@ -51,8 +57,11 @@ def write_legacy_l2_obsidian_view(
             "entries_index": str(entries_path),
             "graph_index": str(graph_path),
         },
+        "worklist_file": str(worklist_path),
         "legacy_entry_count": len(entries),
         "memory_entry_count": 0,
+        "migration_work_item_count": int(manifest.get("work_item_count") or 0),
+        "obsidian_view_maturity": dict(manifest.get("obsidian_view_maturity") or {}),
         "entries_by_role": _counts_by(entries, "role"),
         "entries_by_status": _counts_by(entries, "status"),
         "graph_counts": {
@@ -109,6 +118,28 @@ def _overview_body(l2_dir: Path, manifest: dict[str, Any], entries: list[dict[st
         "",
         "Use this view for browsing and triage only. Promote reusable knowledge through typed L2 memory records before trust updates.",
     ])
+    return "\n".join(lines) + "\n"
+
+
+def _worklist_body(manifest: dict[str, Any]) -> str:
+    items = list(manifest.get("migration_work_items") or [])
+    lines = [
+        "# Legacy L2 Migration Worklist",
+        "",
+        "This worklist is orientation-only. Review each legacy item before creating typed v5 memory, objects, relations, or reports.",
+        "",
+        "| Work Item | Kind | Role | Status | Target Surface | Action | Source |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    if not items:
+        lines.append("| None |  |  |  |  |  |  |")
+        return "\n".join(lines) + "\n"
+    for item in items:
+        lines.append(
+            f"| `{item['work_item_id']}` | {item['work_item_kind']} | {item['role']} | "
+            f"{item['status']} | `{item['recommended_target_surface']}` | "
+            f"`{item['migration_action']}` | `{item['source_path']}` |"
+        )
     return "\n".join(lines) + "\n"
 
 

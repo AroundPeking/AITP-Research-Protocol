@@ -20,8 +20,10 @@ def build_legacy_l2_graph_manifest(
     if not l2_dir.exists():
         return _empty_manifest(l2_dir, status="missing_legacy_l2_dir")
     entries = _scan_entries(l2_dir / "entries")
-    graph_counts = _graph_counts(l2_dir / "graph")
+    graph_files = _scan_graph_files(l2_dir / "graph")
+    graph_counts = _graph_counts(graph_files)
     has_graph = any(graph_counts.values())
+    migration_work_items = _migration_work_items(entries, graph_files)
     counts = {
         "entries": len(entries),
         **graph_counts,
@@ -39,6 +41,13 @@ def build_legacy_l2_graph_manifest(
         "entries_by_status": _counts_by(entries, "status"),
         "entry_samples": entries[:10],
         "obsidian_view_targets": _obsidian_view_targets(l2_dir),
+        "obsidian_view_maturity": _obsidian_view_maturity(l2_dir),
+        "migration_worklist_status": (
+            "pending_typed_migration" if migration_work_items else "no_legacy_l2_work_items"
+        ),
+        "work_item_count": len(migration_work_items),
+        "work_item_counts_by_kind": _work_item_counts_by_kind(migration_work_items),
+        "migration_work_items": migration_work_items[:100],
         "next_actions": _next_actions(entries=entries, has_graph=has_graph),
         "truth_source": "legacy_l2_filesystem",
         "summary_inputs_trusted": False,
@@ -66,6 +75,22 @@ def _empty_manifest(l2_dir: Path, *, status: str) -> dict[str, Any]:
         "entries_by_status": {},
         "entry_samples": [],
         "obsidian_view_targets": [],
+        "obsidian_view_maturity": {
+            "status": "missing_core_legacy_views",
+            "core_views_available": False,
+            "available_targets": [],
+            "missing_core_targets": ["index.md", "entries/INDEX.md", "graph/index.html"],
+        },
+        "migration_worklist_status": "missing_legacy_l2_dir",
+        "work_item_count": 0,
+        "work_item_counts_by_kind": {
+            "entry": 0,
+            "graph_edge": 0,
+            "graph_node": 0,
+            "graph_step": 0,
+            "graph_tower": 0,
+        },
+        "migration_work_items": [],
         "next_actions": ["locate_legacy_l2_directory"],
         "truth_source": "legacy_l2_filesystem",
         "summary_inputs_trusted": False,
@@ -94,19 +119,44 @@ def _scan_entries(entries_dir: Path) -> list[dict[str, str]]:
     return entries
 
 
-def _graph_counts(graph_dir: Path) -> dict[str, int]:
+def _scan_graph_files(graph_dir: Path) -> list[dict[str, str]]:
+    graph_files: list[dict[str, str]] = []
+    for work_item_kind, dirname in (
+        ("graph_node", "nodes"),
+        ("graph_edge", "edges"),
+        ("graph_step", "steps"),
+        ("graph_tower", "towers"),
+    ):
+        path = graph_dir / dirname
+        if not path.exists():
+            continue
+        for item in sorted(path.glob("*.md")):
+            frontmatter, _body = read_md(item)
+            legacy_id = (
+                _text(frontmatter.get("node_id"))
+                or _text(frontmatter.get("edge_id"))
+                or _text(frontmatter.get("step_id"))
+                or _text(frontmatter.get("tower_id"))
+                or item.stem
+            )
+            graph_files.append({
+                "work_item_kind": work_item_kind,
+                "legacy_id": legacy_id,
+                "role": _text(frontmatter.get("type")) or work_item_kind.removeprefix("graph_"),
+                "status": _text(frontmatter.get("status")) or "legacy_graph",
+                "path": str(item),
+            })
+    return graph_files
+
+
+def _graph_counts(graph_files: list[dict[str, str]]) -> dict[str, int]:
+    by_kind = _work_item_counts_by_kind(graph_files)
     return {
-        "graph_nodes": _md_count(graph_dir / "nodes"),
-        "graph_edges": _md_count(graph_dir / "edges"),
-        "graph_steps": _md_count(graph_dir / "steps"),
-        "graph_towers": _md_count(graph_dir / "towers"),
+        "graph_nodes": by_kind["graph_node"],
+        "graph_edges": by_kind["graph_edge"],
+        "graph_steps": by_kind["graph_step"],
+        "graph_towers": by_kind["graph_tower"],
     }
-
-
-def _md_count(path: Path) -> int:
-    if not path.exists():
-        return 0
-    return len(list(path.glob("*.md")))
 
 
 def _obsidian_view_targets(l2_dir: Path) -> list[str]:
@@ -119,6 +169,111 @@ def _obsidian_view_targets(l2_dir: Path) -> list[str]:
         "graph/index.html",
     ]
     return [rel for rel in candidates if (l2_dir / rel).exists()]
+
+
+def _obsidian_view_maturity(l2_dir: Path) -> dict[str, Any]:
+    core_targets = ["index.md", "entries/INDEX.md", "graph/index.html"]
+    available = _obsidian_view_targets(l2_dir)
+    missing = [target for target in core_targets if target not in set(available)]
+    if not missing:
+        status = "core_legacy_views_available"
+    elif available:
+        status = "partial_legacy_views_available"
+    else:
+        status = "missing_core_legacy_views"
+    return {
+        "status": status,
+        "core_views_available": not missing,
+        "available_targets": available,
+        "missing_core_targets": missing,
+    }
+
+
+def _migration_work_items(
+    entries: list[dict[str, str]],
+    graph_files: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    items = [
+        _work_item(
+            work_item_kind="entry",
+            legacy_id=entry["entry_id"],
+            role=entry["role"],
+            status=entry["status"],
+            source_path=entry["path"],
+            recommended_target_surface="memory_entry_record",
+            migration_action="review_and_promote_into_typed_l2_memory",
+        )
+        for entry in entries
+    ]
+    items.extend(
+        _work_item(
+            work_item_kind=item["work_item_kind"],
+            legacy_id=item["legacy_id"],
+            role=item["role"],
+            status=item["status"],
+            source_path=item["path"],
+            recommended_target_surface=_target_surface_for_graph_kind(item["work_item_kind"]),
+            migration_action=_migration_action_for_graph_kind(item["work_item_kind"]),
+        )
+        for item in graph_files
+    )
+    return items
+
+
+def _work_item(
+    *,
+    work_item_kind: str,
+    legacy_id: str,
+    role: str,
+    status: str,
+    source_path: str,
+    recommended_target_surface: str,
+    migration_action: str,
+) -> dict[str, Any]:
+    return {
+        "work_item_id": f"legacy_l2_{work_item_kind}:{legacy_id}",
+        "work_item_kind": work_item_kind,
+        "legacy_id": legacy_id,
+        "role": role,
+        "status": status,
+        "source_path": source_path,
+        "recommended_target_surface": recommended_target_surface,
+        "migration_action": migration_action,
+        "can_update_claim_trust": False,
+    }
+
+
+def _target_surface_for_graph_kind(work_item_kind: str) -> str:
+    return {
+        "graph_node": "physics_object_record",
+        "graph_edge": "object_relation_record",
+        "graph_step": "sensemaking_report_record",
+        "graph_tower": "memory_entry_record",
+    }.get(work_item_kind, "memory_entry_record")
+
+
+def _migration_action_for_graph_kind(work_item_kind: str) -> str:
+    return {
+        "graph_node": "review_and_convert_legacy_l2_node_to_typed_physics_object",
+        "graph_edge": "review_and_convert_legacy_l2_edge_to_typed_object_relation",
+        "graph_step": "review_and_convert_legacy_l2_step_to_sensemaking_or_trace",
+        "graph_tower": "review_and_convert_legacy_l2_tower_to_memory_entry",
+    }.get(work_item_kind, "review_and_convert_legacy_l2_graph_file")
+
+
+def _work_item_counts_by_kind(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {
+        "entry": 0,
+        "graph_edge": 0,
+        "graph_node": 0,
+        "graph_step": 0,
+        "graph_tower": 0,
+    }
+    for item in items:
+        kind = item.get("work_item_kind")
+        if kind in counts:
+            counts[kind] += 1
+    return counts
 
 
 def _next_actions(*, entries: list[dict[str, str]], has_graph: bool) -> list[str]:

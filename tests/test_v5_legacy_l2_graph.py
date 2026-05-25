@@ -64,6 +64,37 @@ def test_legacy_l2_graph_manifest_scans_entries_graph_and_obsidian_targets(tmp_p
     assert payload["counts"]["graph_towers"] == 1
     assert payload["entries_by_role"] == {"claim": 1, "method": 1}
     assert payload["entries_by_status"] == {"unverified": 1, "verified": 1}
+    assert payload["migration_worklist_status"] == "pending_typed_migration"
+    assert payload["work_item_count"] == 6
+    assert payload["work_item_counts_by_kind"] == {
+        "entry": 2,
+        "graph_edge": 1,
+        "graph_node": 1,
+        "graph_step": 1,
+        "graph_tower": 1,
+    }
+    assert payload["migration_work_items"][0] == {
+        "work_item_id": "legacy_l2_entry:claim-headwing",
+        "work_item_kind": "entry",
+        "legacy_id": "claim-headwing",
+        "role": "claim",
+        "status": "verified",
+        "source_path": str(l2 / "entries" / "claim-headwing.md"),
+        "recommended_target_surface": "memory_entry_record",
+        "migration_action": "review_and_promote_into_typed_l2_memory",
+        "can_update_claim_trust": False,
+    }
+    assert any(
+        item["work_item_id"] == "legacy_l2_graph_edge:e-headwing-method"
+        and item["recommended_target_surface"] == "object_relation_record"
+        for item in payload["migration_work_items"]
+    )
+    assert payload["obsidian_view_maturity"] == {
+        "status": "core_legacy_views_available",
+        "core_views_available": True,
+        "available_targets": ["index.md", "entries/INDEX.md", "graph/index.html"],
+        "missing_core_targets": [],
+    }
     assert "entries/INDEX.md" in payload["obsidian_view_targets"]
     assert "graph/index.html" in payload["obsidian_view_targets"]
     assert payload["next_actions"] == [

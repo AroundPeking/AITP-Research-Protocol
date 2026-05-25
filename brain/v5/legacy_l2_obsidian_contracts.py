@@ -25,12 +25,27 @@ def validate_legacy_l2_obsidian_view_bundle(
     for key in ("legacy_entry_count", "memory_entry_count"):
         if not isinstance(payload.get(key), int) or payload[key] < 0:
             result.add(f"{path}.{key}", "must be a non-negative integer")
+    if not isinstance(payload.get("migration_work_item_count"), int) or payload["migration_work_item_count"] < 0:
+        result.add(f"{path}.migration_work_item_count", "must be a non-negative integer")
+    _require_nonempty_str(payload, "worklist_file", path, result)
     _require_mapping(payload.get("files"), f"{path}.files", result)
     if isinstance(payload.get("files"), dict):
         for key in ("overview", "entries_index", "graph_index"):
             _require_nonempty_str(payload["files"], key, f"{path}.files", result)
-    for key in ("entries_by_role", "entries_by_status", "graph_counts", "source_records"):
+    for key in ("entries_by_role", "entries_by_status", "graph_counts", "source_records", "obsidian_view_maturity"):
         _require_mapping(payload.get(key), f"{path}.{key}", result)
+    if isinstance(payload.get("obsidian_view_maturity"), dict):
+        maturity = payload["obsidian_view_maturity"]
+        if maturity.get("status") not in {
+            "core_legacy_views_available",
+            "partial_legacy_views_available",
+            "missing_core_legacy_views",
+        }:
+            result.add(f"{path}.obsidian_view_maturity.status", "must be an allowed maturity status")
+        if not isinstance(maturity.get("core_views_available"), bool):
+            result.add(f"{path}.obsidian_view_maturity.core_views_available", "must be a boolean")
+        _require_list(maturity.get("available_targets"), f"{path}.obsidian_view_maturity.available_targets", result)
+        _require_list(maturity.get("missing_core_targets"), f"{path}.obsidian_view_maturity.missing_core_targets", result)
     if isinstance(payload.get("graph_counts"), dict):
         for key in ("graph_nodes", "graph_edges", "graph_steps", "graph_towers"):
             if not isinstance(payload["graph_counts"].get(key), int) or payload["graph_counts"][key] < 0:

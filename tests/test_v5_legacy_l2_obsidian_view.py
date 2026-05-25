@@ -59,14 +59,19 @@ def test_legacy_l2_obsidian_view_writes_orientation_only_index(tmp_path):
     assert payload["graph_counts"]["graph_edges"] == 1
     assert payload["graph_counts"]["graph_steps"] == 1
     assert payload["graph_counts"]["graph_towers"] == 1
+    assert payload["worklist_file"] == str((tmp_path / ".aitp" / "surfaces" / "legacy_l2_obsidian" / "Legacy L2 Migration Worklist.md"))
+    assert payload["migration_work_item_count"] == 6
+    assert payload["obsidian_view_maturity"]["status"] == "partial_legacy_views_available"
     assert payload["orientation_only"] is True
     assert payload["can_update_kernel_state"] is False
     overview_fm, overview = read_md(payload["files"]["overview"])
     entries_fm, entries = read_md(payload["files"]["entries_index"])
     graph_fm, graph = read_md(payload["files"]["graph_index"])
+    worklist_fm, worklist = read_md(payload["worklist_file"])
     assert overview_fm["truth_source"] is False
     assert entries_fm["view_role"] == "legacy_l2_entries_index"
     assert graph_fm["view_role"] == "legacy_l2_graph_index"
+    assert worklist_fm["view_role"] == "legacy_l2_migration_worklist"
     assert "orientation-only" in overview
     assert "claim-headwing" in entries
     assert "pitfall-threads" in entries
@@ -74,6 +79,10 @@ def test_legacy_l2_obsidian_view_writes_orientation_only_index(tmp_path):
     assert "e-headwing-pitfall.md" in graph
     assert "step-headwing.md" in graph
     assert "tower-screened-interaction.md" in graph
+    assert "legacy_l2_entry:claim-headwing" in worklist
+    assert "memory_entry_record" in worklist
+    assert "legacy_l2_graph_edge:e-headwing-pitfall" in worklist
+    assert "object_relation_record" in worklist
     assert "migrate_legacy_l2_entries_into_memory_records" in overview
 
 

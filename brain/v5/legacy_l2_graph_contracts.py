@@ -39,6 +39,36 @@ def validate_legacy_l2_graph_manifest(
         _require_mapping(payload.get(key), f"{path}.{key}", result)
     for key in ("entry_samples", "obsidian_view_targets", "next_actions"):
         _require_list(payload.get(key), f"{path}.{key}", result)
+    _require_mapping(payload.get("obsidian_view_maturity"), f"{path}.obsidian_view_maturity", result)
+    if isinstance(payload.get("obsidian_view_maturity"), dict):
+        maturity = payload["obsidian_view_maturity"]
+        if maturity.get("status") not in {
+            "core_legacy_views_available",
+            "partial_legacy_views_available",
+            "missing_core_legacy_views",
+        }:
+            result.add(f"{path}.obsidian_view_maturity.status", "must be an allowed maturity status")
+        if not isinstance(maturity.get("core_views_available"), bool):
+            result.add(f"{path}.obsidian_view_maturity.core_views_available", "must be a boolean")
+        _require_list(maturity.get("available_targets"), f"{path}.obsidian_view_maturity.available_targets", result)
+        _require_list(maturity.get("missing_core_targets"), f"{path}.obsidian_view_maturity.missing_core_targets", result)
+    if payload.get("migration_worklist_status") not in {
+        "pending_typed_migration",
+        "no_legacy_l2_work_items",
+        "missing_legacy_l2_dir",
+    }:
+        result.add(f"{path}.migration_worklist_status", "must be an allowed worklist status")
+    if not isinstance(payload.get("work_item_count"), int) or payload["work_item_count"] < 0:
+        result.add(f"{path}.work_item_count", "must be a non-negative integer")
+    _require_mapping(payload.get("work_item_counts_by_kind"), f"{path}.work_item_counts_by_kind", result)
+    if isinstance(payload.get("work_item_counts_by_kind"), dict):
+        for key in ("entry", "graph_edge", "graph_node", "graph_step", "graph_tower"):
+            if not isinstance(payload["work_item_counts_by_kind"].get(key), int) or payload["work_item_counts_by_kind"][key] < 0:
+                result.add(f"{path}.work_item_counts_by_kind.{key}", "must be a non-negative integer")
+    _require_list(payload.get("migration_work_items"), f"{path}.migration_work_items", result)
+    if isinstance(payload.get("migration_work_items"), list):
+        for index, item in enumerate(payload["migration_work_items"]):
+            _validate_work_item(item, f"{path}.migration_work_items[{index}]", result)
     for key in ("summary_inputs_trusted", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):
         if not isinstance(payload.get(key), bool):
             result.add(f"{path}.{key}", "must be a boolean")
@@ -54,3 +84,24 @@ def require_valid_legacy_l2_graph_manifest(payload: dict[str, Any]) -> dict[str,
     if not result.ok:
         raise ContractError(result)
     return payload
+
+
+def _validate_work_item(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in (
+        "work_item_id",
+        "work_item_kind",
+        "legacy_id",
+        "role",
+        "status",
+        "source_path",
+        "recommended_target_surface",
+        "migration_action",
+    ):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("work_item_kind") not in {"entry", "graph_edge", "graph_node", "graph_step", "graph_tower"}:
+        result.add(f"{path}.work_item_kind", "must be an allowed work item kind")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
