@@ -201,6 +201,19 @@ def _natural_interaction() -> dict[str, Any]:
     return {
         "surface": "interaction_recording_preview",
         "default_mode": "natural_conversation_with_escalation_at_trust_boundaries",
+        "recording_decision_modes": [
+            "lightweight_trace",
+            "guarded_recording",
+            "trust_boundary_checkpoint",
+        ],
+        "next_kernel_entrypoints": [
+            "aitp_v5_record_sensemaking_report",
+            "aitp_v5_request_human_checkpoint",
+            "aitp_v5_preflight_trust_update",
+        ],
+        "summary_can_drive_trust": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
         "summary_inputs_trusted": False,
     }
 

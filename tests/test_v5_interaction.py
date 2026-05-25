@@ -160,6 +160,19 @@ def test_interaction_recording_preview_is_read_only_and_defers_heavy_records(tmp
     assert validated["can_update_claim_trust"] is False
     assert validated["mandatory_question_count"] <= validated["max_questions"]
     assert "continue_natural_research_conversation" in validated["natural_workflow"]
+    assert validated["recording_decision"] == {
+        "mode": "guarded_recording",
+        "can_continue_without_kernel_write": True,
+        "next_kernel_entrypoint": "aitp_v5_record_sensemaking_report",
+        "required_before_trust_change": [
+            "aitp_v5_record_evidence_or_tool_run",
+            "aitp_v5_preflight_trust_update",
+        ],
+        "why": "active claim can continue naturally, but missing evidence outputs require typed provenance before trust changes",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
     assert "trust_update_apply" in {item["record_type"] for item in validated["deferred_records"]}
     assert "source_is_only_a_summary_task_plan_findings_or_progress_file" in validated["heavier_triggers"]
 
@@ -176,6 +189,16 @@ def test_interaction_recording_preview_without_claim_stays_orientation_only(tmp_
 
     assert preview["active_claim"] == ""
     assert preview["can_stay_lightweight"] is True
+    assert preview["recording_decision"] == {
+        "mode": "lightweight_trace",
+        "can_continue_without_kernel_write": True,
+        "next_kernel_entrypoint": "",
+        "required_before_trust_change": ["bind_or_create_claim", "aitp_v5_preflight_trust_update"],
+        "why": "no active claim is bound, so natural exploration can stay lightweight until a stable research question emerges",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
     assert [item["record_type"] for item in preview["recommended_records"]] == ["execution_brief"]
     assert preview["natural_workflow"] == [
         "continue_natural_research_conversation",
@@ -200,5 +223,44 @@ def test_interaction_recording_preview_cli_and_mcp(tmp_path, capsys):
 
     assert cli_payload["kind"] == "interaction_recording_preview"
     assert mcp_payload["kind"] == "interaction_recording_preview"
+    assert cli_payload["recording_decision"]["mode"] == "lightweight_trace"
+    assert mcp_payload["recording_decision"]["mode"] == "lightweight_trace"
     assert cli_payload["can_update_kernel_state"] is False
     assert mcp_payload["can_update_claim_trust"] is False
+
+
+def test_interaction_recording_preview_blocks_natural_recording_at_adversarial_checkpoint(tmp_path):
+    from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "gw-conflict", context_id="gw-methods", title="GW Conflict")
+    claim = create_claim(
+        ws,
+        topic_id="gw-conflict",
+        statement="This publication-ready QSGW proof contradicts the benchmark.",
+        evidence_profile="code_method",
+        confidence_state="hypothesis",
+        active_uncertainty="conflict with reference paper and formula-code kernel mismatch",
+    )
+    bind_session(ws, "s1", topic_id="gw-conflict", context_id="gw-methods", active_claim=claim.claim_id)
+
+    preview = require_valid_public_surface("interaction_recording_preview", build_interaction_recording_preview(ws, "s1"))
+
+    assert preview["risk_level"] == "adversarial"
+    assert preview["can_stay_lightweight"] is False
+    assert preview["recording_decision"] == {
+        "mode": "trust_boundary_checkpoint",
+        "can_continue_without_kernel_write": False,
+        "next_kernel_entrypoint": "aitp_v5_request_human_checkpoint",
+        "required_before_trust_change": [
+            "aitp_v5_request_human_checkpoint",
+            "aitp_v5_record_evidence_or_tool_run",
+            "aitp_v5_preflight_trust_update",
+        ],
+        "why": "adversarial risk requires a human checkpoint before recording content that could drive trust changes",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }

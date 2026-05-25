@@ -40,6 +40,12 @@ def build_interaction_recording_preview(ws, session_id: str) -> dict[str, Any]:
         "max_questions": interaction["effective_max_questions"],
         "mandatory_question_count": len(brief["mandatory_reflection"]),
         "natural_workflow": _natural_workflow(risk_level, bool(focus["active_claim"])),
+        "recording_decision": _recording_decision(
+            active_claim=bool(focus["active_claim"]),
+            risk_level=risk_level,
+            missing_outputs=missing_outputs,
+            checkpoint_needed=checkpoint_needed,
+        ),
         "recommended_records": _recommended_records(
             active_claim=bool(focus["active_claim"]),
             risk_level=risk_level,
@@ -72,6 +78,73 @@ def _natural_workflow(risk_level: str, active_claim: bool) -> list[str]:
         steps.append("pause_at_evidence_validation_or_trust_boundaries_before_recording")
     steps.append("treat_summaries_as_orientation_not_evidence")
     return steps
+
+
+def _recording_decision(
+    *,
+    active_claim: bool,
+    risk_level: str,
+    missing_outputs: list[str],
+    checkpoint_needed: bool,
+) -> dict[str, Any]:
+    if not active_claim:
+        return _decision(
+            mode="lightweight_trace",
+            can_continue_without_kernel_write=True,
+            next_kernel_entrypoint="",
+            required_before_trust_change=["bind_or_create_claim", "aitp_v5_preflight_trust_update"],
+            why="no active claim is bound, so natural exploration can stay lightweight until a stable research question emerges",
+        )
+    if checkpoint_needed or risk_level == "adversarial":
+        return _decision(
+            mode="trust_boundary_checkpoint",
+            can_continue_without_kernel_write=False,
+            next_kernel_entrypoint="aitp_v5_request_human_checkpoint",
+            required_before_trust_change=[
+                "aitp_v5_request_human_checkpoint",
+                "aitp_v5_record_evidence_or_tool_run",
+                "aitp_v5_preflight_trust_update",
+            ],
+            why="adversarial risk requires a human checkpoint before recording content that could drive trust changes",
+        )
+    if missing_outputs:
+        return _decision(
+            mode="guarded_recording",
+            can_continue_without_kernel_write=True,
+            next_kernel_entrypoint="aitp_v5_record_sensemaking_report",
+            required_before_trust_change=[
+                "aitp_v5_record_evidence_or_tool_run",
+                "aitp_v5_preflight_trust_update",
+            ],
+            why="active claim can continue naturally, but missing evidence outputs require typed provenance before trust changes",
+        )
+    return _decision(
+        mode="lightweight_trace",
+        can_continue_without_kernel_write=True,
+        next_kernel_entrypoint="aitp_v5_record_sensemaking_report",
+        required_before_trust_change=["aitp_v5_preflight_trust_update"],
+        why="active claim has no missing required outputs, so natural conversation can stay lightweight until trust changes are requested",
+    )
+
+
+def _decision(
+    *,
+    mode: str,
+    can_continue_without_kernel_write: bool,
+    next_kernel_entrypoint: str,
+    required_before_trust_change: list[str],
+    why: str,
+) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        "can_continue_without_kernel_write": can_continue_without_kernel_write,
+        "next_kernel_entrypoint": next_kernel_entrypoint,
+        "required_before_trust_change": required_before_trust_change,
+        "why": why,
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
 
 
 def _recommended_records(

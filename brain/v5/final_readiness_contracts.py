@@ -27,6 +27,27 @@ def validate_final_engineering_readiness_audit(
     _require_nonempty_str(payload, "kernel_capability_status", path, result)
     _require_nonempty_str(payload, "content_backlog_status", path, result)
     _require_mapping(payload.get("kernel_capabilities"), f"{path}.kernel_capabilities", result)
+    natural = _mapping(payload.get("kernel_capabilities")).get("natural_interaction")
+    _require_mapping(natural, f"{path}.kernel_capabilities.natural_interaction", result)
+    if isinstance(natural, dict):
+        if natural.get("surface") != "interaction_recording_preview":
+            result.add(
+                f"{path}.kernel_capabilities.natural_interaction.surface",
+                "must be interaction_recording_preview",
+            )
+        _require_list(
+            natural.get("recording_decision_modes"),
+            f"{path}.kernel_capabilities.natural_interaction.recording_decision_modes",
+            result,
+        )
+        _require_list(
+            natural.get("next_kernel_entrypoints"),
+            f"{path}.kernel_capabilities.natural_interaction.next_kernel_entrypoints",
+            result,
+        )
+        for key in ("summary_can_drive_trust", "can_update_kernel_state", "can_update_claim_trust"):
+            if natural.get(key) is not False:
+                result.add(f"{path}.kernel_capabilities.natural_interaction.{key}", "must be false")
     _require_mapping(payload.get("content_backlog"), f"{path}.content_backlog", result)
     _require_list(payload.get("blocking_gaps"), f"{path}.blocking_gaps", result)
     _require_list(payload.get("residual_risks"), f"{path}.residual_risks", result)

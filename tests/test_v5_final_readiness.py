@@ -161,6 +161,18 @@ def test_final_readiness_audit_keeps_kernel_capability_separate_from_content_bac
     assert payload["kernel_capabilities"]["source_stack"]["incomplete_claim_ids"] == []
     assert payload["kernel_capabilities"]["knowledge_stack"]["obsidian_view_surface"] == "l2_obsidian_view_bundle"
     assert payload["kernel_capabilities"]["long_term_replay"]["surface"] == "workspace_replay_packet"
+    assert payload["kernel_capabilities"]["natural_interaction"]["surface"] == "interaction_recording_preview"
+    assert payload["kernel_capabilities"]["natural_interaction"]["recording_decision_modes"] == [
+        "lightweight_trace",
+        "guarded_recording",
+        "trust_boundary_checkpoint",
+    ]
+    assert payload["kernel_capabilities"]["natural_interaction"]["next_kernel_entrypoints"] == [
+        "aitp_v5_record_sensemaking_report",
+        "aitp_v5_request_human_checkpoint",
+        "aitp_v5_preflight_trust_update",
+    ]
+    assert payload["kernel_capabilities"]["natural_interaction"]["can_update_claim_trust"] is False
     assert payload["kernel_capabilities"]["host_integration"]["priority_hosts"] == ["codex", "claude_code", "kimi_code"]
     assert payload["kernel_capabilities"]["host_integration"]["deferred_hosts"] == ["opencode"]
     assert payload["content_backlog"]["legacy_semantic_review"]["review_item_count"] == 2
