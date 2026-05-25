@@ -97,6 +97,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_audit_source_reconstruction",
         "surface": "source_reconstruction_audit",
     },
+    "source_reconstruction_manifest": {
+        "cli": "aitp-v5 source reconstruction-manifest",
+        "mcp": "aitp_v5_build_source_reconstruction_manifest",
+        "surface": "source_reconstruction_manifest",
+    },
     "persist_hook_trace_event": {
         "cli": "aitp-v5 trace hook-event persist <args>",
         "mcp": "aitp_v5_persist_hook_trace_event",

@@ -52,6 +52,7 @@ _PUBLIC_SURFACE_NAMES = (
     "sensemaking_report_record",
     "session_summary_bundle",
     "source_reconstruction_audit",
+    "source_reconstruction_manifest",
     "summary_orientation",
     "tool_executor_catalog",
     "tool_recipe_record",
@@ -114,6 +115,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "sensemaking_report_record": "contracted local sense-making report — orientation-only, never a validation gate",
     "session_summary_bundle": "orientation-only summary files regenerated from typed kernel records",
     "source_reconstruction_audit": "read-only typed-record audit of whether a claim has definition, scope, source, dependency, reconstruction, and failure-condition coverage",
+    "source_reconstruction_manifest": "read-only backlog manifest batching source reconstruction gaps and next actions across active claims",
     "summary_orientation": "read-only summary view with explicit truth-source protections",
     "tool_executor_catalog": "contracted catalog of safe built-in tool executors and input schemas",
     "tool_recipe_record": "contracted reusable tool recipe record with inputs, outputs, and invariants",
@@ -212,6 +214,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     )
     from brain.v5.legacy_contracts import require_valid_legacy_migration_result
     from brain.v5.legacy_migration_audit_contracts import require_valid_legacy_migration_coverage_audit
+    from brain.v5.source_reconstruction_contracts import require_valid_source_reconstruction_manifest
     from brain.v5.legacy_semantic_review_contracts import (
         require_valid_legacy_semantic_review_manifest,
         require_valid_legacy_semantic_review_packet,
@@ -289,6 +292,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "sensemaking_report_record": require_valid_sensemaking_report_record,
         "session_summary_bundle": require_valid_session_summary_bundle,
         "source_reconstruction_audit": require_valid_source_reconstruction_audit,
+        "source_reconstruction_manifest": require_valid_source_reconstruction_manifest,
         "summary_orientation": require_valid_summary_orientation,
         "tool_executor_catalog": require_valid_tool_executor_catalog,
         "tool_recipe_record": require_valid_tool_recipe_record,

@@ -30,6 +30,38 @@ def audit_source_reconstruction(ws: WorkspacePaths, *, claim_id: str) -> dict:
     return audit_source_reconstruction_batch(ws, [claim_id])[claim_id]
 
 
+def build_source_reconstruction_manifest(ws: WorkspacePaths) -> dict:
+    """Build an actionable read-only manifest for source reconstruction gaps."""
+
+    claims = list_records(ws.registry_dir("claims"), ClaimRecord)
+    audits = audit_source_reconstruction_batch(ws, [claim.claim_id for claim in claims])
+    references_by_claim = _group_by_claim(list_records(ws.registry_dir("reference_locations"), ReferenceLocationRecord))
+    items = [
+        _manifest_item(
+            claim,
+            audits[claim.claim_id],
+            has_direct_reference=bool(references_by_claim.get(claim.claim_id)),
+        )
+        for claim in claims
+    ]
+    items.sort(key=lambda item: (item["status"] == "complete", item["topic_id"], item["claim_id"]))
+    incomplete = [item for item in items if item["status"] == "incomplete"]
+    complete = [item for item in items if item["status"] == "complete"]
+    return {
+        "kind": "source_reconstruction_manifest",
+        "claim_count": len(items),
+        "complete_claim_count": len(complete),
+        "incomplete_claim_count": len(incomplete),
+        "items": items,
+        "next_actions": [f"source_reconstruction:{item['claim_id']}" for item in incomplete],
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
 def audit_source_reconstruction_batch(ws: WorkspacePaths, claim_ids: list[str]) -> dict[str, dict]:
     """Batch source reconstruction audits without repeated registry scans."""
 
@@ -59,6 +91,45 @@ def audit_source_reconstruction_batch(ws: WorkspacePaths, claim_ids: list[str]) 
             contracts=contracts_by_claim.get(claim_id, []),
         )
     return audits
+
+
+def _manifest_item(claim: ClaimRecord, audit: dict, *, has_direct_reference: bool) -> dict:
+    missing_components = list(audit["missing_components"])
+    complete = bool(audit["complete"])
+    return {
+        "topic_id": claim.topic_id,
+        "claim_id": claim.claim_id,
+        "claim_statement": claim.statement,
+        "status": "complete" if complete else "incomplete",
+        "review_priority": "low" if complete else "high",
+        "missing_components": missing_components,
+        "satisfied_components": [
+            name for name in audit["required_components"] if name not in set(missing_components)
+        ],
+        "source_refs": list(audit["source_refs"]),
+        "recommended_actions": _recommended_actions_for_missing(
+            missing_components,
+            has_direct_reference=has_direct_reference,
+        ),
+        "audit_cli": f"aitp-v5 source reconstruction-audit --claim {claim.claim_id}",
+        "audit_mcp": "aitp_v5_audit_source_reconstruction",
+        "can_update_claim_trust": False,
+    }
+
+
+def _recommended_actions_for_missing(missing_components: list[str], *, has_direct_reference: bool = True) -> list[str]:
+    action_map = {
+        "definitions": "record_physics_object",
+        "assumptions_or_scope": "record_claim_scope_or_object_assumptions",
+        "source_locations": "record_reference_location",
+        "dependency_graph": "record_object_relation",
+        "reconstruction_path": "record_evidence_with_reconstruction_path",
+        "failure_conditions": "record_failure_conditions_or_validation_contract",
+    }
+    actions = [action_map[component] for component in missing_components if component in action_map]
+    if not has_direct_reference:
+        actions.append("record_reference_location")
+    return _unique(actions)
 
 
 def _audit_claim_source_reconstruction(

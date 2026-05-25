@@ -139,3 +139,162 @@ def test_source_reconstruction_audit_cli_mcp_and_runtime(tmp_path, capsys):
     assert cli_payload["kind"] == "source_reconstruction_audit"
     assert mcp_payload["kind"] == "source_reconstruction_audit"
     assert runtime_entrypoints()["source_reconstruction_audit"]["mcp"] == "aitp_v5_audit_source_reconstruction"
+
+
+def test_source_reconstruction_manifest_prioritizes_incomplete_claims(tmp_path):
+    from brain.v5.evidence import record_evidence
+    from brain.v5.physics_objects import record_object_relation, record_physics_object
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.references import record_reference_location
+    from brain.v5.source_reconstruction import build_source_reconstruction_manifest
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    incomplete = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+    complete = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The source stack is reconstructable in the recorded sector.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="sector mismatch",
+        scope="Fixed sector only.",
+        strongest_failure_mode="wrong sector assignment",
+    )
+    record_reference_location(
+        ws,
+        topic_id="fqhe",
+        claim_id=complete.claim_id,
+        connector_id="zotero",
+        location_type="paper",
+        uri="zotero://select/items/ABC",
+        label="Counting reference",
+        source_ref="paper:fqhe-counting",
+    )
+    counting = record_physics_object(
+        ws,
+        topic_id="fqhe",
+        object_type="observable",
+        name="counting sequence",
+        definition="Degeneracy sequence in the fixed sector.",
+        assumptions=["fixed sector"],
+        source_refs=["paper:fqhe-counting"],
+    )
+    cft = record_physics_object(
+        ws,
+        topic_id="fqhe",
+        object_type="theory",
+        name="edge CFT",
+        definition="Candidate chiral edge CFT.",
+        source_refs=["paper:fqhe-counting"],
+    )
+    record_object_relation(
+        ws,
+        topic_id="fqhe",
+        relation_type="matches",
+        subject_id=counting.object_id,
+        object_id=cft.object_id,
+        statement="The counting sequence matches the edge CFT character.",
+        claim_id=complete.claim_id,
+        assumptions=["same sector convention"],
+        failure_modes=["wrong sector assignment"],
+        source_refs=["paper:fqhe-counting"],
+    )
+    record_evidence(
+        ws,
+        topic_id="fqhe",
+        claim_id=complete.claim_id,
+        evidence_type="source_reconstruction",
+        status="supports",
+        summary="The typed source stack reconstructs the claim.",
+        supports_outputs=["reconstruction_path"],
+        source_refs=["paper:fqhe-counting"],
+    )
+
+    manifest = build_source_reconstruction_manifest(ws)
+
+    assert manifest["kind"] == "source_reconstruction_manifest"
+    assert manifest["claim_count"] == 2
+    assert manifest["complete_claim_count"] == 1
+    assert manifest["incomplete_claim_count"] == 1
+    assert manifest["can_update_claim_trust"] is False
+    assert manifest["can_update_kernel_state"] is False
+    assert manifest["truth_source"] == "typed_records"
+    assert manifest["next_actions"] == [f"source_reconstruction:{incomplete.claim_id}"]
+    by_claim = {item["claim_id"]: item for item in manifest["items"]}
+    assert by_claim[incomplete.claim_id]["status"] == "incomplete"
+    assert by_claim[incomplete.claim_id]["review_priority"] == "high"
+    assert "record_reference_location" in by_claim[incomplete.claim_id]["recommended_actions"]
+    assert "aitp-v5 source reconstruction-audit --claim" in by_claim[incomplete.claim_id]["audit_cli"]
+    assert by_claim[complete.claim_id]["status"] == "complete"
+    assert by_claim[complete.claim_id]["review_priority"] == "low"
+    assert require_valid_public_surface("source_reconstruction_manifest", manifest) == manifest
+
+
+def test_source_reconstruction_manifest_reports_empty_migrated_claim_statements(tmp_path):
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.source_reconstruction import build_source_reconstruction_manifest
+    from brain.v5.store import write_record
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "legacy-topic", context_id="legacy-context", title="Legacy Topic")
+    write_record(
+        ws.registry_dir("claims") / "claim-empty.md",
+        ClaimRecord(
+            claim_id="claim-empty",
+            topic_id="legacy-topic",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="semantic review required",
+        ),
+    )
+
+    manifest = build_source_reconstruction_manifest(ws)
+
+    assert manifest["items"][0]["claim_id"] == "claim-empty"
+    assert manifest["items"][0]["claim_statement"] == ""
+    assert manifest["items"][0]["status"] == "incomplete"
+    assert require_valid_public_surface("source_reconstruction_manifest", manifest) == manifest
+
+
+def test_source_reconstruction_manifest_cli_mcp_and_runtime(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_source_reconstruction_manifest
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main(["--base", str(tmp_path), "source", "reconstruction-manifest"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_source_reconstruction_manifest(str(tmp_path))
+
+    assert cli_payload["kind"] == "source_reconstruction_manifest"
+    assert cli_payload["incomplete_claim_count"] == 1
+    assert mcp_payload["ok"] is True
+    assert mcp_payload["kind"] == "source_reconstruction_manifest"
+    assert runtime_entrypoints()["source_reconstruction_manifest"] == {
+        "cli": "aitp-v5 source reconstruction-manifest",
+        "mcp": "aitp_v5_build_source_reconstruction_manifest",
+        "surface": "source_reconstruction_manifest",
+    }
