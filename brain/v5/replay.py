@@ -9,7 +9,7 @@ from brain.v5.evidence import required_output_coverage
 from brain.v5.flow import resolve_flow_profile
 from brain.v5.markdown import write_md
 from brain.v5.memory_index import MemoryEntrySummary, scan_memory_entry_summaries
-from brain.v5.models import ClaimRecord, CodeStateRecord, EvidenceRecord, SessionBinding
+from brain.v5.models import ClaimRecord, CodeStateRecord, EvidenceRecord, SessionBinding, SourceReconstructionReviewResultRecord
 from brain.v5.paths import WorkspacePaths
 from brain.v5.risk import action_budget_for_level, assess_claim_risk
 from brain.v5.source_reconstruction import audit_source_reconstruction_batch
@@ -42,11 +42,14 @@ def write_workspace_replay_packet(ws: WorkspacePaths) -> WorkspaceReplayPacket:
     claims = {claim.claim_id: claim for claim in list_records(ws.registry_dir("claims"), ClaimRecord)}
     evidence = _group_by_claim(list_records(ws.registry_dir("evidence"), EvidenceRecord))
     code_states = list_records(ws.registry_dir("code_states"), CodeStateRecord)
+    source_reviews = _group_source_reviews_by_claim(
+        list_records(ws.registry_dir("source_reconstruction_reviews"), SourceReconstructionReviewResultRecord)
+    )
     active_claim_ids = [session.active_claim for session in sessions if session.active_claim]
     memory_entries = scan_memory_entry_summaries(ws, claim_ids=active_claim_ids, active_only=True)
     source_audits = audit_source_reconstruction_batch(ws, active_claim_ids)
     entries = [
-        _entry_for_session(session, claims, memory_entries, evidence, code_states, source_audits)
+        _entry_for_session(session, claims, memory_entries, evidence, code_states, source_audits, source_reviews)
         for session in sessions
     ]
     attention = [entry for entry in entries if entry["attention_reasons"]]
@@ -56,6 +59,9 @@ def write_workspace_replay_packet(ws: WorkspacePaths) -> WorkspaceReplayPacket:
         "claims": [entry["claim_id"] for entry in entries if entry["claim_id"]],
         "memory_entries": _unique([mid for entry in entries for mid in entry["memory_entry_ids"]]),
         "validation_results": _unique([vid for entry in entries for vid in entry["validation_result_ids"]]),
+        "source_reconstruction_reviews": _unique([
+            rid for entry in entries for rid in entry["source_reconstruction_review_result_ids"]
+        ]),
     }
     write_md(
         replay_path,
@@ -79,6 +85,7 @@ def _entry_for_session(
     evidence_by_claim: dict[str, list[EvidenceRecord]],
     code_states: list[CodeStateRecord],
     source_audits: dict[str, dict],
+    source_reviews_by_claim: dict[str, list[SourceReconstructionReviewResultRecord]],
 ) -> dict[str, Any]:
     claim = claims.get(session.active_claim)
     if claim is None:
@@ -93,6 +100,8 @@ def _entry_for_session(
             "satisfied_outputs": [],
             "next_actions": [],
             "source_reconstruction_complete": False,
+            "source_reconstruction_review_status": "missing_claim_record",
+            "source_reconstruction_review_result_ids": [],
             "missing_source_components": ["claim_record"],
             "memory_entry_ids": [],
             "validation_result_ids": [],
@@ -106,6 +115,9 @@ def _entry_for_session(
         required_outputs=action_budget.required_outputs,
     )
     source_audit = source_audits[claim.claim_id]
+    source_reviews = source_reviews_by_claim.get(claim.claim_id, [])
+    latest_source_review = source_reviews[-1] if source_reviews else None
+    source_review_status = latest_source_review.status if latest_source_review else "pending"
     claim_memory = [entry for entry in memory_entries if entry.source_claim_id == claim.claim_id]
     missing_outputs = evidence_coverage.missing_outputs
     missing_source = source_audit["missing_components"]
@@ -116,6 +128,8 @@ def _entry_for_session(
         reasons.append("missing_evidence_outputs")
     if missing_source:
         reasons.append("missing_source_reconstruction")
+    if source_review_status != "passed":
+        reasons.append("source_reconstruction_review_pending")
     return {
         "session_id": session.session_id,
         "topic_id": session.topic_id,
@@ -125,8 +139,10 @@ def _entry_for_session(
         "risk_level": risk.level,
         "missing_outputs": list(missing_outputs),
         "satisfied_outputs": list(evidence_coverage.satisfied_outputs),
-        "next_actions": _next_actions(flow.profile, missing_outputs, missing_source),
+        "next_actions": _next_actions(flow.profile, missing_outputs, missing_source, source_review_status),
         "source_reconstruction_complete": source_audit["complete"],
+        "source_reconstruction_review_status": source_review_status,
+        "source_reconstruction_review_result_ids": [review.result_id for review in source_reviews],
         "missing_source_components": list(missing_source),
         "memory_entry_ids": [entry.entry_id for entry in claim_memory],
         "validation_result_ids": _unique([vid for entry in claim_memory for vid in entry.validation_result_ids]),
@@ -164,6 +180,7 @@ def _body(entries: list[dict[str, Any]]) -> str:
         lines.append(f"- Risk: `{entry['risk_level']}`")
         lines.append(f"- Missing evidence outputs: {', '.join(entry['missing_outputs']) or 'none'}")
         lines.append(f"- Missing source components: {', '.join(entry['missing_source_components']) or 'none'}")
+        lines.append(f"- Source review: `{entry['source_reconstruction_review_status']}`")
         lines.append(f"- Attention: {', '.join(entry['attention_reasons']) or 'none'}")
         lines.append(f"- Next actions: {', '.join(entry['next_actions']) or 'none'}")
         lines.append("")
@@ -187,6 +204,17 @@ def _group_by_claim(records: list[EvidenceRecord]) -> dict[str, list[EvidenceRec
     return grouped
 
 
+def _group_source_reviews_by_claim(
+    records: list[SourceReconstructionReviewResultRecord],
+) -> dict[str, list[SourceReconstructionReviewResultRecord]]:
+    grouped: dict[str, list[SourceReconstructionReviewResultRecord]] = {}
+    for record in records:
+        grouped.setdefault(record.claim_id, []).append(record)
+    for reviews in grouped.values():
+        reviews.sort(key=lambda review: review.result_id)
+    return grouped
+
+
 def _linked_code_states(code_states: list[CodeStateRecord], claim_id: str) -> list[CodeStateRecord]:
     return [state for state in code_states if _record_links_to_claim(state.linked_records, claim_id)]
 
@@ -200,12 +228,19 @@ def _record_links_to_claim(linked_records: dict, claim_id: str) -> bool:
     return False
 
 
-def _next_actions(profile: str, missing_outputs: list[str], missing_source: list[str]) -> list[str]:
+def _next_actions(
+    profile: str,
+    missing_outputs: list[str],
+    missing_source: list[str],
+    source_review_status: str = "pending",
+) -> list[str]:
     actions: list[str] = []
     if missing_outputs:
         actions.append("collect_required_evidence_or_provenance")
     if missing_source:
         actions.append("complete_source_reconstruction")
+    if source_review_status != "passed":
+        actions.append("record_source_reconstruction_review_result")
     if profile == "adversarial":
         actions.append("design_falsification_or_counterargument")
     elif profile == "rigorous":

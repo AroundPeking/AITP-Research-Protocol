@@ -91,8 +91,17 @@ def test_workspace_replay_packet_lists_resume_queue_and_source_gaps(tmp_path):
     from brain.v5.markdown import read_md
     from brain.v5.public_surfaces import require_valid_public_surface
     from brain.v5.replay import write_workspace_replay_packet
+    from brain.v5.source_reconstruction_review import record_source_reconstruction_review_result
 
     ws, claim, gw_claim, _ = _seed_replay_workspace(tmp_path)
+    record_source_reconstruction_review_result(
+        ws,
+        claim_id=claim.claim_id,
+        status="passed",
+        reviewed_components=["definitions", "dependency_graph", "reconstruction_path"],
+        basis_refs=["paper:fqhe-counting"],
+        summary="The source stack was reviewed for replay context.",
+    )
 
     packet = write_workspace_replay_packet(ws)
     payload = asdict(packet)
@@ -109,15 +118,22 @@ def test_workspace_replay_packet_lists_resume_queue_and_source_gaps(tmp_path):
     complete = next(entry for entry in packet.entries if entry["claim_id"] == claim.claim_id)
     incomplete = next(entry for entry in packet.entries if entry["claim_id"] == gw_claim.claim_id)
     assert complete["source_reconstruction_complete"] is True
+    assert complete["source_reconstruction_review_status"] == "passed"
+    assert complete["source_reconstruction_review_result_ids"]
+    assert "record_source_reconstruction_review_result" not in complete["next_actions"]
     assert complete["missing_source_components"] == []
     assert incomplete["source_reconstruction_complete"] is False
+    assert incomplete["source_reconstruction_review_status"] == "pending"
+    assert incomplete["source_reconstruction_review_result_ids"] == []
     assert "definitions" in incomplete["missing_source_components"]
-    assert incomplete["attention_reasons"]
+    assert "source_reconstruction_review_pending" in incomplete["attention_reasons"]
+    assert "record_source_reconstruction_review_result" in incomplete["next_actions"]
 
     _, body = read_md(packet.files["replay_packet"])
     assert "Workspace Replay Packet" in body
     assert claim.claim_id in body
     assert gw_claim.claim_id in body
+    assert "Source review: `pending`" in body
     assert "orientation only" in body
 
 

@@ -55,11 +55,14 @@ def _validate_entry(payload: Any, path: str, result: ContractResult) -> None:
     for key in ("claim_id", "claim_statement", "confidence_state", "risk_level"):
         if not isinstance(payload.get(key), str):
             result.add(f"{path}.{key}", "must be a string")
+    if not isinstance(payload.get("source_reconstruction_review_status"), str):
+        result.add(f"{path}.source_reconstruction_review_status", "must be a string")
     for key in (
         "missing_outputs",
         "satisfied_outputs",
         "next_actions",
         "missing_source_components",
+        "source_reconstruction_review_result_ids",
         "memory_entry_ids",
         "validation_result_ids",
         "attention_reasons",
