@@ -7,6 +7,7 @@ from typing import Any
 
 from brain.v5.legacy_bridge import scan_legacy_topic
 from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
+from brain.v5.markdown import read_md
 from brain.v5.models import ClaimRecord
 from brain.v5.paths import WorkspacePaths
 from brain.v5.store import list_records
@@ -62,7 +63,18 @@ def _manifest_item(
     status = item["semantic_review_status"].removeprefix("reviewed_")
     if status == item["semantic_review_status"]:
         status = "pending"
+    latest_review = item.get("latest_semantic_review", {})
+    if not isinstance(latest_review, dict):
+        latest_review = {}
+    active_claim = claims_by_id.get(str(item.get("active_claim_id") or ""))
     repair_candidates = _repair_candidates(ws, migration_dir, legacy_root, item, claims_by_id=claims_by_id)
+    satisfied_review_actions = _satisfied_review_actions(
+        legacy_root,
+        topic,
+        latest_review,
+        active_claim,
+    )
+    followup_review_actions = _followup_review_actions(satisfied_review_actions)
     packet_cli = (
         f"aitp-v5 --base {ws.base} legacy semantic-review-packet "
         f"--migration-dir {migration_dir} --topic {topic}"
@@ -81,7 +93,9 @@ def _manifest_item(
         "recommended_actions": item["recommended_actions"],
         "missing_source_components": list(item.get("source_reconstruction", {}).get("missing_components", [])),
         "source_reconstruction": item.get("source_reconstruction", {}),
-        "latest_semantic_review": item.get("latest_semantic_review", {}),
+        "latest_semantic_review": latest_review,
+        "satisfied_review_actions": satisfied_review_actions,
+        "followup_review_actions": followup_review_actions,
         "packet_cli": packet_cli,
         "result_cli_template": result_cli,
         "packet_mcp": "aitp_v5_build_legacy_semantic_review_packet",
@@ -105,6 +119,11 @@ def _next_actions(items: list[dict[str, Any]]) -> list[str]:
         for item in items
         if item["review_status"] in {"pending", "needs_revision", "inconclusive"}
     ]
+    actions.extend(
+        f"followup_review:{item['topic']}:{action}"
+        for item in items
+        for action in item.get("followup_review_actions", [])
+    )
     actions.extend(
         f"repair_candidate:{item['topic']}:{candidate['repair_type']}"
         for item in items
@@ -199,9 +218,75 @@ def _action_tokens(raw_actions: list[str] | None) -> set[str]:
         normalized = " ".join(text.lower().replace("_", " ").split())
         if "backfill" in normalized and "claim statement" in normalized and "research question" in normalized:
             tokens.add("backfill_active_claim_statement_from_legacy_state_question")
+        if "l3" in normalized and "distilled claim" in normalized and "claim statement" in normalized:
+            tokens.add("backfill_active_claim_statement_from_legacy_l3_distilled_claim")
+        if "l1" in normalized and "bounded question" in normalized and "claim statement" in normalized:
+            tokens.add("backfill_active_claim_statement_from_legacy_l1_bounded_question")
+        if "scope" in normalized and "question contract" in normalized:
+            tokens.add("backfill_active_claim_scope_from_legacy_l1_question_contract")
+        if "scope" in normalized and "candidate" in normalized and "regime" in normalized:
+            tokens.add("backfill_active_claim_scope_from_legacy_candidate_regime")
+        if "failure" in normalized and "non success" in normalized:
+            tokens.add("backfill_active_claim_failure_mode_from_legacy_l1_non_success_conditions")
+        if "failure" in normalized and "legacy review" in normalized:
+            tokens.add("backfill_active_claim_failure_mode_from_legacy_review")
         if "source reconstruction" in normalized or "reconstruction path" in normalized:
             tokens.add("complete_source_reconstruction")
     return tokens
+
+
+def _satisfied_review_actions(
+    legacy_root: Path,
+    topic: str,
+    latest_review: dict[str, Any],
+    active_claim: ClaimRecord | None,
+) -> list[str]:
+    if latest_review.get("status") != "needs_revision" or active_claim is None:
+        return []
+    actions = _action_tokens(latest_review.get("remaining_actions", []))
+    satisfied: list[str] = []
+    if "backfill_active_claim_statement_from_legacy_state_question" in actions and _text_matches(
+        active_claim.statement,
+        _legacy_state_question(legacy_root, topic),
+    ):
+        satisfied.append("backfill_active_claim_statement_from_legacy_state_question")
+    if "backfill_active_claim_statement_from_legacy_l1_bounded_question" in actions and _text_matches(
+        active_claim.statement,
+        _reviewed_l1_bounded_question(latest_review),
+    ):
+        satisfied.append("backfill_active_claim_statement_from_legacy_l1_bounded_question")
+    if "backfill_active_claim_statement_from_legacy_l3_distilled_claim" in actions and _text_matches(
+        active_claim.statement,
+        _reviewed_l3_distilled_claim(latest_review),
+    ):
+        satisfied.append("backfill_active_claim_statement_from_legacy_l3_distilled_claim")
+    if "backfill_active_claim_scope_from_legacy_l1_question_contract" in actions and _text_matches(
+        active_claim.scope,
+        _reviewed_l1_scope(latest_review),
+    ):
+        satisfied.append("backfill_active_claim_scope_from_legacy_l1_question_contract")
+    if "backfill_active_claim_scope_from_legacy_candidate_regime" in actions and _text_matches(
+        active_claim.scope,
+        _reviewed_candidate_scope(latest_review),
+    ):
+        satisfied.append("backfill_active_claim_scope_from_legacy_candidate_regime")
+    if "backfill_active_claim_failure_mode_from_legacy_review" in actions and _text_matches(
+        active_claim.strongest_failure_mode,
+        _reviewed_failure_mode(latest_review),
+    ):
+        satisfied.append("backfill_active_claim_failure_mode_from_legacy_review")
+    if "backfill_active_claim_failure_mode_from_legacy_l1_non_success_conditions" in actions and _text_matches(
+        active_claim.strongest_failure_mode,
+        _reviewed_l1_non_success_conditions(latest_review),
+    ):
+        satisfied.append("backfill_active_claim_failure_mode_from_legacy_l1_non_success_conditions")
+    return _unique(satisfied)
+
+
+def _followup_review_actions(satisfied_review_actions: list[str]) -> list[str]:
+    if not satisfied_review_actions:
+        return []
+    return ["record_followup_semantic_review_result_for_satisfied_actions"]
 
 
 def _reviewed_reconstruction_refs(latest_review: dict[str, Any]) -> list[str]:
@@ -217,3 +302,142 @@ def _legacy_state_question(legacy_root: Path, topic: str) -> str:
     if not (legacy_topic / "state.md").exists():
         return ""
     return scan_legacy_topic(legacy_topic).question
+
+
+def _reviewed_l1_scope(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l1:",)):
+        frontmatter, body = read_md(path)
+        scope = _frontmatter_text(frontmatter.get("scope_boundaries"))
+        if scope:
+            return scope
+        scope = _markdown_section(body, "Scope Boundaries")
+        if scope:
+            return scope
+    return ""
+
+
+def _reviewed_l1_non_success_conditions(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l1:",)):
+        frontmatter, body = read_md(path)
+        failure_mode = _frontmatter_text(frontmatter.get("non_success_conditions"))
+        if failure_mode:
+            return failure_mode
+        failure_mode = _frontmatter_text(frontmatter.get("failure_conditions"))
+        if failure_mode:
+            return failure_mode
+        failure_mode = _markdown_section(body, "Non-Success Conditions")
+        if failure_mode:
+            return failure_mode
+    return ""
+
+
+def _reviewed_l1_bounded_question(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l1:",)):
+        frontmatter, body = read_md(path)
+        bounded_question = _frontmatter_text(frontmatter.get("bounded_question"))
+        if bounded_question:
+            return bounded_question
+        bounded_question = _markdown_section(body, "Bounded Question")
+        if bounded_question:
+            return bounded_question
+    return ""
+
+
+def _reviewed_l3_distilled_claim(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l3_process:",)):
+        frontmatter, body = read_md(path)
+        distilled_claim = _frontmatter_text(frontmatter.get("distilled_claim"))
+        if distilled_claim:
+            return distilled_claim
+        distilled_claim = _markdown_section(body, "Distilled Claim")
+        if distilled_claim:
+            return distilled_claim
+    return ""
+
+
+def _reviewed_candidate_scope(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_candidate:",)):
+        frontmatter, body = read_md(path)
+        scope = _frontmatter_text(frontmatter.get("regime_of_validity"))
+        if scope:
+            return scope
+        assumptions = _markdown_section(body, "Assumptions")
+        if assumptions:
+            return assumptions
+    return ""
+
+
+def _reviewed_failure_mode(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l4_review:",)):
+        frontmatter, body = read_md(path)
+        failure_mode = _frontmatter_text(frontmatter.get("devils_advocate"))
+        if failure_mode:
+            return failure_mode
+        failure_mode = _markdown_section(body, "Devil's Advocate")
+        if failure_mode:
+            return failure_mode
+    return ""
+
+
+def _reviewed_paths(latest_review: dict[str, Any], *, prefixes: tuple[str, ...]) -> list[Path]:
+    paths: list[Path] = []
+    for ref in latest_review.get("reviewed_legacy_refs", []):
+        text = str(ref)
+        for prefix in prefixes:
+            if text.startswith(prefix):
+                path = Path(text.removeprefix(prefix))
+                if path.exists():
+                    paths.append(path)
+    return paths
+
+
+def _markdown_section(body: str, heading: str) -> str:
+    lines = body.splitlines()
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if line.strip().lower() == f"## {heading}".lower():
+            start = index + 1
+            break
+    if start is None:
+        return ""
+    selected: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        selected.append(line)
+    return _clean_text("\n".join(selected))
+
+
+def _frontmatter_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        parts = [_frontmatter_text(item) for item in value]
+        return _clean_text("; ".join(part for part in parts if part))
+    if isinstance(value, dict):
+        parts: list[str] = []
+        for key, nested in value.items():
+            nested_text = _frontmatter_text(nested)
+            parts.append(f"{key}: {nested_text}" if nested_text else str(key))
+        return _clean_text("; ".join(parts))
+    return _clean_text(str(value))
+
+
+def _text_matches(current: str, expected: str) -> bool:
+    current_text = _clean_text(current)
+    expected_text = _clean_text(expected)
+    return bool(current_text and expected_text and current_text == expected_text)
+
+
+def _clean_text(value: str) -> str:
+    return " ".join(str(value).split())
+
+
+def _unique(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result

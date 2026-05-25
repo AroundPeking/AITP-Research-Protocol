@@ -419,7 +419,7 @@ def _validate_manifest_item(payload: Any, path: str, result: ContractResult) -> 
             result.add(f"{path}.{key}", "must be a non-empty string")
     if payload.get("review_status") not in {"passed", "inconclusive", "needs_revision", "pending"}:
         result.add(f"{path}.review_status", "must be an allowed review status")
-    for key in ("review_reasons", "recommended_actions"):
+    for key in ("review_reasons", "recommended_actions", "satisfied_review_actions", "followup_review_actions"):
         if not isinstance(payload.get(key), list):
             result.add(f"{path}.{key}", "must be a list")
     if payload.get("can_update_claim_trust") is not False:

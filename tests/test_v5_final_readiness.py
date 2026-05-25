@@ -176,6 +176,12 @@ def test_final_readiness_audit_keeps_kernel_capability_separate_from_content_bac
         "legacy-topic-0"
     )
     assert payload["content_backlog"]["legacy_semantic_review"]["top_work_items"][0]["review_status"] == "pending"
+    assert payload["content_backlog"]["legacy_semantic_review"]["top_work_items"][0][
+        "satisfied_review_actions"
+    ] == []
+    assert payload["content_backlog"]["legacy_semantic_review"]["top_work_items"][0][
+        "followup_review_actions"
+    ] == []
     assert payload["content_backlog"]["legacy_semantic_review"]["top_work_items"][0]["can_update_claim_trust"] is False
     assert payload["content_backlog"]["legacy_semantic_review"]["pending_count"] == 2
     assert payload["content_backlog"]["legacy_semantic_review"]["passed_count"] == 0

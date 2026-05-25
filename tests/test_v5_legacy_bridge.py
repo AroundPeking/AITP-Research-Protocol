@@ -813,6 +813,65 @@ def test_legacy_semantic_review_worklist_prioritizes_backlog_without_writing(tmp
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_worklist_flags_satisfied_backfill_actions_for_followup(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
+    from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    state = legacy_topic / "state.md"
+    state.parent.mkdir(parents=True)
+    question = "Which claim has already been restored from the legacy question?"
+    state.write_text("# Canonical\n\n## Research Question\n" f"{question}\n", encoding="utf-8")
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement=question,
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="The active claim statement was missing and needed the legacy research question.",
+        reviewed_legacy_refs=[f"legacy_candidate:{state}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["Backfill the active claim statement from the legacy Research Question."],
+    )
+
+    manifest = build_legacy_semantic_review_manifest(ws, migration_dir=run)
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=run)
+
+    manifest_item = next(item for item in manifest["items"] if item["topic"] == "canonical-topic")
+    work_item = next(item for item in worklist["items"] if item["topic"] == "canonical-topic")
+    assert manifest_item["latest_semantic_review"]["review_id"] == review.review_id
+    assert manifest_item["repair_candidate_count"] == 0
+    assert manifest_item["satisfied_review_actions"] == [
+        "backfill_active_claim_statement_from_legacy_state_question"
+    ]
+    assert manifest_item["followup_review_actions"] == [
+        "record_followup_semantic_review_result_for_satisfied_actions"
+    ]
+    assert work_item["satisfied_review_actions"] == manifest_item["satisfied_review_actions"]
+    assert work_item["followup_review_actions"] == manifest_item["followup_review_actions"]
+    assert "record_followup_semantic_review_result_for_satisfied_actions" in work_item["review_focus"]
+    assert work_item["can_update_claim_trust"] is False
+    assert require_valid_public_surface("legacy_semantic_review_manifest", manifest) == manifest
+    assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
+
+
 def test_legacy_semantic_review_worklist_cli_mcp_and_runtime_surface(tmp_path, capsys):
     import json
 

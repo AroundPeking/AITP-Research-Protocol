@@ -65,6 +65,18 @@ def validate_final_engineering_readiness_audit(
             f"{path}.content_backlog.legacy_semantic_review.top_work_items",
             result,
         )
+        for index, item in enumerate(legacy.get("top_work_items") or []):
+            if isinstance(item, dict):
+                _require_list(
+                    item.get("satisfied_review_actions"),
+                    f"{path}.content_backlog.legacy_semantic_review.top_work_items[{index}].satisfied_review_actions",
+                    result,
+                )
+                _require_list(
+                    item.get("followup_review_actions"),
+                    f"{path}.content_backlog.legacy_semantic_review.top_work_items[{index}].followup_review_actions",
+                    result,
+                )
     source = _mapping(payload.get("content_backlog")).get("source_reconstruction")
     _require_mapping(source, f"{path}.content_backlog.source_reconstruction", result)
     if isinstance(source, dict):

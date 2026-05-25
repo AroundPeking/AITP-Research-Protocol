@@ -45,7 +45,13 @@ def build_legacy_semantic_review_worklist(
 def _work_item(item: dict[str, Any]) -> dict[str, Any]:
     repair_count = int(item.get("repair_candidate_count") or 0)
     missing = list(item.get("missing_source_components") or _missing_source_components_from_reasons(item))
-    focus = _review_focus(item, repair_count=repair_count, missing_components=missing)
+    followup_actions = list(item.get("followup_review_actions", []))
+    focus = _review_focus(
+        item,
+        repair_count=repair_count,
+        missing_components=missing,
+        followup_review_actions=followup_actions,
+    )
     priority_score = _priority_score(item, repair_count=repair_count, missing_components=missing)
     latest = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
     return {
@@ -58,6 +64,8 @@ def _work_item(item: dict[str, Any]) -> dict[str, Any]:
         "latest_review_id": str(latest.get("review_id") or ""),
         "review_focus": focus,
         "missing_source_components": missing,
+        "satisfied_review_actions": list(item.get("satisfied_review_actions", [])),
+        "followup_review_actions": followup_actions,
         "repair_candidate_count": repair_count,
         "repair_candidates": list(item.get("repair_candidates", [])),
         "packet_cli": item["packet_cli"],
@@ -105,10 +113,12 @@ def _review_focus(
     *,
     repair_count: int,
     missing_components: list[str],
+    followup_review_actions: list[str],
 ) -> list[str]:
     focus: list[str] = []
     if repair_count:
         focus.append("apply_or_review_typed_repair_candidates")
+    focus.extend(followup_review_actions)
     if missing_components:
         focus.append("complete_source_reconstruction_components")
     if "archive_only_records_require_sampling" in set(item.get("review_reasons", [])):

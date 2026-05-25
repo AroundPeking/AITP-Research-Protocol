@@ -80,7 +80,14 @@ def _validate_worklist_item(payload: Any, path: str, result: ContractResult) -> 
         result.add(f"{path}.review_status", "must be a backlog review status")
     if payload.get("review_priority") not in {"critical", "high", "medium", "low"}:
         result.add(f"{path}.review_priority", "must be an allowed review priority")
-    for key in ("priority_reasons", "review_focus", "missing_source_components", "repair_candidates"):
+    for key in (
+        "priority_reasons",
+        "review_focus",
+        "missing_source_components",
+        "satisfied_review_actions",
+        "followup_review_actions",
+        "repair_candidates",
+    ):
         if not isinstance(payload.get(key), list):
             result.add(f"{path}.{key}", "must be a list")
     for key in ("priority_score", "repair_candidate_count"):
