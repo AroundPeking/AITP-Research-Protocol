@@ -304,6 +304,9 @@ def _manifest_item(claim: ClaimRecord, audit: dict, *, has_direct_reference: boo
         ),
         "audit_cli": f"aitp-v5 source reconstruction-audit --claim {claim.claim_id}",
         "audit_mcp": "aitp_v5_audit_source_reconstruction",
+        "review_packet_cli": f"aitp-v5 source reconstruction-review --claim {claim.claim_id}",
+        "review_packet_mcp": "aitp_v5_build_source_reconstruction_review_packet",
+        "review_packet_surface": "source_reconstruction_review_packet",
         "can_update_claim_trust": False,
     }
 

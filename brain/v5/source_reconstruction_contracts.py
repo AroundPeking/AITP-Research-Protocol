@@ -182,7 +182,17 @@ def _validate_manifest_item(payload: Any, path: str, result: ContractResult) -> 
     _require_mapping(payload, path, result)
     if not isinstance(payload, dict):
         return
-    for key in ("topic_id", "claim_id", "status", "review_priority", "audit_cli", "audit_mcp"):
+    for key in (
+        "topic_id",
+        "claim_id",
+        "status",
+        "review_priority",
+        "audit_cli",
+        "audit_mcp",
+        "review_packet_cli",
+        "review_packet_mcp",
+        "review_packet_surface",
+    ):
         if not isinstance(payload.get(key), str) or not payload.get(key):
             result.add(f"{path}.{key}", "must be a non-empty string")
     if not isinstance(payload.get("claim_statement"), str):

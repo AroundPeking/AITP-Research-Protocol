@@ -234,6 +234,11 @@ def test_source_reconstruction_manifest_prioritizes_incomplete_claims(tmp_path):
     assert by_claim[incomplete.claim_id]["review_priority"] == "high"
     assert "record_reference_location" in by_claim[incomplete.claim_id]["recommended_actions"]
     assert "aitp-v5 source reconstruction-audit --claim" in by_claim[incomplete.claim_id]["audit_cli"]
+    assert by_claim[incomplete.claim_id]["review_packet_cli"] == (
+        f"aitp-v5 source reconstruction-review --claim {incomplete.claim_id}"
+    )
+    assert by_claim[incomplete.claim_id]["review_packet_mcp"] == "aitp_v5_build_source_reconstruction_review_packet"
+    assert by_claim[incomplete.claim_id]["review_packet_surface"] == "source_reconstruction_review_packet"
     assert by_claim[complete.claim_id]["status"] == "complete"
     assert by_claim[complete.claim_id]["review_priority"] == "low"
     assert require_valid_public_surface("source_reconstruction_manifest", manifest) == manifest
