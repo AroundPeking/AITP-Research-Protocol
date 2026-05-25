@@ -21,6 +21,8 @@ def sample_args_for_template(template: str) -> list[str]:
         return ["--claim", "claim-fqhe"]
     if template.startswith("source reconstruction-audit"):
         return ["--claim", "claim-fqhe"]
+    if template.startswith("source reconstruction-review"):
+        return ["--claim", "claim-fqhe"]
     if template.startswith("code state record"):
         return ["--repo-id", "librpa", "--upstream-remote", "origin", "--upstream-branch", "master", "--upstream-commit", "abc123", "--local-branch", "topic/gw", "--worktree-path", "D:/worktrees/librpa/gw"]
     if template.startswith("evidence record"):

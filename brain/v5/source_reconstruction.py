@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from brain.v5.models import (
     ClaimRecord,
     EvidenceRecord,
@@ -63,6 +65,52 @@ def build_source_reconstruction_manifest(ws: WorkspacePaths) -> dict:
     }
 
 
+def build_source_reconstruction_review_packet(ws: WorkspacePaths, *, claim_id: str) -> dict:
+    """Build a read-only packet for manually filling source reconstruction gaps."""
+
+    claim = get_claim(ws, claim_id)
+    audit = audit_source_reconstruction(ws, claim_id=claim_id)
+    typed = _typed_records_for_review(ws, claim)
+    missing = list(audit["missing_components"])
+    satisfied = [name for name in audit["required_components"] if name not in set(missing)]
+    component_reviews = [
+        _component_review(
+            component,
+            audit["components"][component],
+            topic_id=claim.topic_id,
+            claim_id=claim.claim_id,
+            claim_statement=claim.statement,
+            source_refs=audit["source_refs"],
+        )
+        for component in audit["required_components"]
+    ]
+    return {
+        "ok": True,
+        "kind": "source_reconstruction_review_packet",
+        "topic_id": claim.topic_id,
+        "claim_id": claim.claim_id,
+        "claim": _claim_payload(claim),
+        "reconstruction_audit": audit,
+        "missing_components": missing,
+        "satisfied_components": satisfied,
+        "typed_records": typed,
+        "component_reviews": component_reviews,
+        "review_scope": "source_stack_reconstruction_before_trust_promotion",
+        "requires_human_or_adversarial_review": bool(missing),
+        "recommended_actions": _unique([
+            action
+            for item in component_reviews
+            if item["status"] == "missing"
+            for action in item["recommended_actions"]
+        ]),
+        "truth_source": "typed_records",
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
 def audit_source_reconstruction_batch(ws: WorkspacePaths, claim_ids: list[str]) -> dict[str, dict]:
     """Batch source reconstruction audits without repeated registry scans."""
 
@@ -92,6 +140,148 @@ def audit_source_reconstruction_batch(ws: WorkspacePaths, claim_ids: list[str]) 
             contracts=contracts_by_claim.get(claim_id, []),
         )
     return audits
+
+
+def _typed_records_for_review(ws: WorkspacePaths, claim: ClaimRecord) -> dict[str, list[dict]]:
+    return {
+        "reference_locations": [
+            _record_payload(record, "location_id")
+            for record in list_records(ws.registry_dir("reference_locations"), ReferenceLocationRecord)
+            if record.claim_id == claim.claim_id
+        ],
+        "evidence": [
+            _record_payload(record, "evidence_id")
+            for record in list_records(ws.registry_dir("evidence"), EvidenceRecord)
+            if record.claim_id == claim.claim_id
+        ],
+        "physics_objects": [
+            _record_payload(record, "object_id")
+            for record in list_records(ws.registry_dir("physics_objects"), PhysicsObjectRecord)
+            if record.topic_id == claim.topic_id
+        ],
+        "object_relations": [
+            _record_payload(record, "relation_id")
+            for record in list_records(ws.registry_dir("object_relations"), ObjectRelationRecord)
+            if record.topic_id == claim.topic_id and (not record.claim_id or record.claim_id == claim.claim_id)
+        ],
+        "validation_contracts": [
+            _record_payload(record, "contract_id")
+            for record in list_records(ws.registry_dir("validation_contracts"), ValidationContractRecord)
+            if record.claim_id == claim.claim_id
+        ],
+    }
+
+
+def _record_payload(record, id_attr: str) -> dict:
+    payload = asdict(record)
+    payload["record_id"] = getattr(record, id_attr)
+    return payload
+
+
+def _claim_payload(claim: ClaimRecord) -> dict:
+    return {
+        "claim_id": claim.claim_id,
+        "topic_id": claim.topic_id,
+        "statement": claim.statement,
+        "evidence_profile": claim.evidence_profile,
+        "confidence_state": claim.confidence_state,
+        "active_uncertainty": claim.active_uncertainty,
+        "scope": claim.scope,
+        "non_claims": claim.non_claims,
+        "strongest_failure_mode": claim.strongest_failure_mode,
+    }
+
+
+def _component_review(
+    component: str,
+    audit_component: dict,
+    *,
+    topic_id: str,
+    claim_id: str,
+    claim_statement: str,
+    source_refs: list[str],
+) -> dict:
+    status = audit_component["status"]
+    return {
+        "component": component,
+        "status": status,
+        "record_ids": list(audit_component["record_ids"]),
+        "review_questions": _component_questions(component, claim_statement),
+        "recommended_actions": _recommended_actions_for_missing([component]) if status == "missing" else [],
+        "recommended_record_commands": _recommended_record_commands(
+            component,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            source_ref=_first_or_placeholder(source_refs),
+        )
+        if status == "missing"
+        else [],
+        "can_update_claim_trust": False,
+    }
+
+
+def _component_questions(component: str, claim_statement: str) -> list[str]:
+    claim_hint = claim_statement.strip() or "<empty claim statement>"
+    questions = {
+        "definitions": [
+            f"Which physics objects, operators, sectors, or quantities must be defined to reconstruct: {claim_hint}?",
+            "Do the proposed definitions cite concrete source locations rather than summary prose?",
+        ],
+        "assumptions_or_scope": [
+            "Which assumptions, regimes, boundary conditions, or non-claims bound this claim?",
+            "Are scope limits attached to the claim, objects, or relations as typed records?",
+        ],
+        "source_locations": [
+            "Which paper, note, code, or legacy file locations are the authoritative sources?",
+            "Can each source ref be resolved through a typed reference location?",
+        ],
+        "dependency_graph": [
+            "Which typed object relations connect the definitions into the claim's reconstruction path?",
+            "Do relation statements cite sources and name assumptions or failure modes when needed?",
+        ],
+        "reconstruction_path": [
+            "What typed evidence record explains the path from source material to the claim?",
+            "Does that evidence explicitly support the reconstruction_path output?",
+        ],
+        "failure_conditions": [
+            "Which concrete failure mode could invalidate the reconstruction while preserving superficial agreement?",
+            "Is the failure mode captured on the claim, relation, or validation contract?",
+        ],
+    }
+    return questions.get(component, [f"What typed records are needed to satisfy {component}?"])
+
+
+def _recommended_record_commands(component: str, *, topic_id: str, claim_id: str, source_ref: str) -> list[str]:
+    commands = {
+        "definitions": [
+            f"aitp-v5 object record --topic {topic_id} --type <object_type> --name <name> --definition <definition> --source-ref {source_ref}",
+        ],
+        "assumptions_or_scope": [
+            f"aitp-v5 object record --topic {topic_id} --type <object_type> --name <name> --definition <definition> --assumption <assumption> --source-ref {source_ref}",
+            f"aitp-v5 relation record --topic {topic_id} --type <relation_type> --subject <object-id> --object <object-id> --statement <statement> --claim {claim_id} --assumption <assumption> --source-ref {source_ref}",
+        ],
+        "source_locations": [
+            f"aitp-v5 reference location record --topic {topic_id} --claim {claim_id} --connector <connector_id> --type <location_type> --uri <uri> --label <label> --source-ref {source_ref}",
+        ],
+        "dependency_graph": [
+            f"aitp-v5 relation record --topic {topic_id} --type <relation_type> --subject <object-id> --object <object-id> --statement <statement> --claim {claim_id} --source-ref {source_ref}",
+        ],
+        "reconstruction_path": [
+            f"aitp-v5 evidence record --topic {topic_id} --claim {claim_id} --type source_reconstruction --status supports --summary <summary> --supports-output reconstruction_path --source-ref {source_ref}",
+        ],
+        "failure_conditions": [
+            f"aitp-v5 validation contract create --topic {topic_id} --claim {claim_id} --required-check <check> --failure-mode <failure-mode> --required-output source_reconstruction",
+            f"aitp-v5 relation record --topic {topic_id} --type <relation_type> --subject <object-id> --object <object-id> --statement <statement> --claim {claim_id} --failure-mode <failure-mode> --source-ref {source_ref}",
+        ],
+    }
+    return commands.get(component, [])
+
+
+def _first_or_placeholder(values: list[str]) -> str:
+    for value in values:
+        if value:
+            return value
+    return "<source-ref>"
 
 
 def _manifest_item(claim: ClaimRecord, audit: dict, *, has_direct_reference: bool) -> dict:

@@ -335,3 +335,98 @@ def test_source_reconstruction_manifest_cli_mcp_and_runtime(tmp_path, capsys):
         "mcp": "aitp_v5_build_source_reconstruction_manifest",
         "surface": "source_reconstruction_manifest",
     }
+
+
+def test_source_reconstruction_review_packet_guides_missing_typed_records(tmp_path):
+    from brain.v5.evidence import record_evidence
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.references import record_reference_location
+    from brain.v5.source_reconstruction import build_source_reconstruction_review_packet
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "scrpa", context_id="many-body", title="SCRPA")
+    claim = create_claim(
+        ws,
+        topic_id="scrpa",
+        statement="The finite-temperature SCRPA closure is stationary under the recorded variational constraints.",
+        evidence_profile="legacy_import",
+        confidence_state="legacy_seed",
+        active_uncertainty="semantic review required",
+        scope="Finite-temperature variational ansatz only.",
+        strongest_failure_mode="missing operator definitions",
+    )
+    source = record_reference_location(
+        ws,
+        topic_id="scrpa",
+        claim_id=claim.claim_id,
+        connector_id="local_markdown",
+        location_type="legacy_note",
+        uri="file:///legacy/scrpa/state.md",
+        label="Legacy SCRPA state",
+        source_ref="legacy:scrpa/state.md",
+    )
+    evidence = record_evidence(
+        ws,
+        topic_id="scrpa",
+        claim_id=claim.claim_id,
+        evidence_type="source_reconstruction",
+        status="supports",
+        summary="Reviewed L3 notes preserve the reconstruction path but not object definitions.",
+        supports_outputs=["reconstruction_path"],
+        source_refs=["legacy:scrpa/L3.md"],
+    )
+
+    packet = build_source_reconstruction_review_packet(ws, claim_id=claim.claim_id)
+
+    assert packet["kind"] == "source_reconstruction_review_packet"
+    assert packet["missing_components"] == ["definitions", "dependency_graph"]
+    assert packet["satisfied_components"] == [
+        "assumptions_or_scope",
+        "source_locations",
+        "reconstruction_path",
+        "failure_conditions",
+    ]
+    assert packet["typed_records"]["reference_locations"][0]["record_id"] == source.location_id
+    assert packet["typed_records"]["evidence"][0]["record_id"] == evidence.evidence_id
+    by_component = {item["component"]: item for item in packet["component_reviews"]}
+    assert "aitp-v5 object record" in by_component["definitions"]["recommended_record_commands"][0]
+    assert "aitp-v5 relation record" in by_component["dependency_graph"]["recommended_record_commands"][0]
+    assert by_component["definitions"]["status"] == "missing"
+    assert by_component["source_locations"]["status"] == "satisfied"
+    assert packet["requires_human_or_adversarial_review"] is True
+    assert packet["summary_inputs_trusted"] is False
+    assert packet["orientation_only"] is True
+    assert packet["can_update_kernel_state"] is False
+    assert packet["can_update_claim_trust"] is False
+    assert require_valid_public_surface("source_reconstruction_review_packet", packet) == packet
+
+
+def test_source_reconstruction_review_packet_cli_mcp_and_runtime(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_source_reconstruction_review_packet
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main(["--base", str(tmp_path), "source", "reconstruction-review", "--claim", claim.claim_id]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_source_reconstruction_review_packet(str(tmp_path), claim_id=claim.claim_id)
+
+    assert cli_payload["kind"] == "source_reconstruction_review_packet"
+    assert mcp_payload["kind"] == "source_reconstruction_review_packet"
+    assert runtime_entrypoints()["source_reconstruction_review_packet"] == {
+        "cli": "aitp-v5 source reconstruction-review <args>",
+        "mcp": "aitp_v5_build_source_reconstruction_review_packet",
+        "surface": "source_reconstruction_review_packet",
+    }
