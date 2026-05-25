@@ -6218,7 +6218,7 @@ Each entry should record:
     specific invocation; it does not by itself prove every proprietary host UI
     mode will fire lifecycle hooks.
 
-### pending - Add Legacy Semantic Review Queue
+### a764fc2 - Add Legacy Semantic Review Queue
 
 - Task: turn conservative legacy migration coverage into an actionable
   per-topic semantic review queue.
