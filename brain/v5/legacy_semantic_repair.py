@@ -151,8 +151,19 @@ def _proposed_repairs(
     actions = {str(action) for action in latest_review.get("remaining_actions", [])}
     repairs: list[dict[str, Any]] = []
     legacy_topic = legacy_root / topic
-    if not str(active_claim.get("statement") or "") and (legacy_topic / "state.md").exists():
-        question = scan_legacy_topic(legacy_topic).question
+    if not str(active_claim.get("statement") or ""):
+        question = ""
+        if "backfill_active_claim_statement_from_legacy_l3_distilled_claim" in actions:
+            question = _reviewed_l3_distilled_claim(latest_review)
+        if (
+            not question
+            and (
+                not actions
+                or "backfill_active_claim_statement_from_legacy_state_question" in actions
+            )
+            and (legacy_topic / "state.md").exists()
+        ):
+            question = scan_legacy_topic(legacy_topic).question
         if question:
             repairs.append({
                 "repair_type": "claim_statement_backfill",
@@ -205,6 +216,18 @@ def _reviewed_l1_scope(latest_review: dict[str, Any]) -> str:
         scope = _markdown_section(body, "Scope Boundaries")
         if scope:
             return scope
+    return ""
+
+
+def _reviewed_l3_distilled_claim(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l3_process:",)):
+        frontmatter, body = read_md(path)
+        distilled_claim = _clean_text(str(frontmatter.get("distilled_claim") or ""))
+        if distilled_claim:
+            return distilled_claim
+        distilled_claim = _markdown_section(body, "Distilled Claim")
+        if distilled_claim:
+            return distilled_claim
     return ""
 
 

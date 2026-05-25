@@ -1185,6 +1185,66 @@ def test_legacy_semantic_repair_backfills_scope_from_reviewed_l1_question_contra
     assert claims["claim-canonical"].confidence_state == "legacy_seed"
 
 
+def test_legacy_semantic_repair_prefers_reviewed_l3_distilled_claim_for_statement(tmp_path):
+    from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    legacy_topic.mkdir(parents=True)
+    (legacy_topic / "state.md").write_text(
+        "# Canonical Topic\n\n## Research Question\nWhich research question was asked?\n",
+        encoding="utf-8",
+    )
+    distillation = legacy_topic / "L3" / "distill" / "active_distillation.md"
+    distillation.parent.mkdir(parents=True)
+    distillation.write_text(
+        "---\n"
+        "artifact_kind: l3_active_distillation\n"
+        "distilled_claim: The reviewed derivation establishes a reusable topological Hamiltonian pipeline.\n"
+        "---\n"
+        "# Active Distillation\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="The legacy L3 distillation has a claim but the migrated claim statement is empty.",
+        reviewed_legacy_refs=[f"legacy_candidate:{legacy_topic / 'state.md'}", f"legacy_l3_process:{distillation}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["backfill_active_claim_statement_from_legacy_l3_distilled_claim"],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["proposed_repairs"][0]["repair_type"] == "claim_statement_backfill"
+    assert plan["proposed_repairs"][0]["proposed_value"] == (
+        "The reviewed derivation establishes a reusable topological Hamiltonian pipeline."
+    )
+    assert plan["proposed_repairs"][0]["basis_refs"] == [
+        f"legacy_candidate:{legacy_topic / 'state.md'}",
+        f"legacy_l3_process:{distillation}",
+        review.review_id,
+    ]
+
+
 def test_legacy_semantic_repair_apply_cli_mcp_and_runtime_surface(tmp_path, capsys):
     import json
 
