@@ -5,6 +5,7 @@ from __future__ import annotations
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
+from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
 from brain.v5.legacy_semantic_review import (
     build_legacy_semantic_review_packet,
     build_legacy_semantic_review_queue,
@@ -29,6 +30,9 @@ def add_legacy_parser(subparsers) -> None:
     packet = legacy_subparsers.add_parser("semantic-review-packet")
     packet.add_argument("--migration-dir", required=True)
     packet.add_argument("--topic", required=True)
+    repair = legacy_subparsers.add_parser("semantic-repair-plan")
+    repair.add_argument("--migration-dir", required=True)
+    repair.add_argument("--topic", required=True)
     result = legacy_subparsers.add_parser("semantic-review-result")
     result.add_argument("--migration-dir", required=True)
     result.add_argument("--topic", required=True)
@@ -65,6 +69,9 @@ def dispatch_legacy_command(args, ws) -> dict:
     if args.legacy_command == "semantic-review-packet":
         packet = build_legacy_semantic_review_packet(ws, migration_dir=args.migration_dir, topic=args.topic)
         return {"ok": True, **require_valid_public_surface("legacy_semantic_review_packet", packet)}
+    if args.legacy_command == "semantic-repair-plan":
+        plan = build_legacy_semantic_repair_plan(ws, migration_dir=args.migration_dir, topic=args.topic)
+        return {"ok": True, **require_valid_public_surface("legacy_semantic_repair_plan", plan)}
     if args.legacy_command == "semantic-review-result":
         result = record_legacy_semantic_review_result(
             ws,

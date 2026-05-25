@@ -218,6 +218,57 @@ def require_valid_legacy_semantic_review_result_record(payload: dict[str, Any]) 
     return payload
 
 
+def validate_legacy_semantic_repair_plan(
+    payload: dict[str, Any],
+    *,
+    path: str = "legacy_semantic_repair_plan",
+) -> ContractResult:
+    result = ContractResult()
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return result
+    if payload.get("kind") != "legacy_semantic_repair_plan":
+        result.add(f"{path}.kind", "must be 'legacy_semantic_repair_plan'")
+    for key in ("run_id", "migration_dir", "topic", "active_claim_id", "repair_status", "truth_source"):
+        if not isinstance(payload.get(key), str) or not payload.get(key):
+            result.add(f"{path}.{key}", "must be a non-empty string")
+    if payload.get("repair_status") not in {
+        "proposed_repairs",
+        "awaiting_needs_revision_review",
+        "no_repair_candidates",
+    }:
+        result.add(f"{path}.repair_status", "must be an allowed repair status")
+    if payload.get("truth_source") != "typed_review_results_and_legacy_refs":
+        result.add(f"{path}.truth_source", "must be 'typed_review_results_and_legacy_refs'")
+    for key, expected in (
+        ("can_apply", False),
+        ("semantic_lossless_proven", False),
+        ("semantic_review_required", True),
+        ("summary_inputs_trusted", False),
+        ("orientation_only", True),
+        ("can_update_kernel_state", False),
+        ("can_update_claim_trust", False),
+    ):
+        if payload.get(key) is not expected:
+            result.add(f"{path}.{key}", f"must be {expected}")
+    if not isinstance(payload.get("latest_semantic_review"), dict):
+        result.add(f"{path}.latest_semantic_review", "must be a mapping")
+    repairs = payload.get("proposed_repairs")
+    if not isinstance(repairs, list):
+        result.add(f"{path}.proposed_repairs", "must be a list")
+    else:
+        for index, repair in enumerate(repairs):
+            _validate_repair(repair, f"{path}.proposed_repairs[{index}]", result)
+    return result
+
+
+def require_valid_legacy_semantic_repair_plan(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_legacy_semantic_repair_plan(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def _validate_priority_counts(payload: Any, path: str, result: ContractResult) -> None:
     if not isinstance(payload, dict):
         result.add(path, "must be a mapping")
@@ -318,3 +369,26 @@ def _validate_manifest_item(payload: Any, path: str, result: ContractResult) -> 
             result.add(f"{path}.{key}", "must be a list")
     if payload.get("can_update_claim_trust") is not False:
         result.add(f"{path}.can_update_claim_trust", "must be false")
+
+
+def _validate_repair(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return
+    for key in (
+        "repair_type",
+        "target_ref",
+        "current_value",
+        "proposed_value",
+        "mutation_authority",
+    ):
+        if not isinstance(payload.get(key), str):
+            result.add(f"{path}.{key}", "must be a string")
+    if payload.get("repair_type") != "claim_statement_backfill":
+        result.add(f"{path}.repair_type", "must be 'claim_statement_backfill'")
+    if payload.get("mutation_authority") != "none_review_and_apply_separately":
+        result.add(f"{path}.mutation_authority", "must be 'none_review_and_apply_separately'")
+    if not isinstance(payload.get("basis_refs"), list) or not all(
+        isinstance(value, str) and value for value in payload.get("basis_refs", [])
+    ):
+        result.add(f"{path}.basis_refs", "must be a non-empty list of strings")
