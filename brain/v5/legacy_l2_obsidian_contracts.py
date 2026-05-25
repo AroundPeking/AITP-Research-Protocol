@@ -27,7 +27,7 @@ def validate_legacy_l2_obsidian_view_bundle(
             result.add(f"{path}.{key}", "must be a non-negative integer")
     _require_mapping(payload.get("files"), f"{path}.files", result)
     if isinstance(payload.get("files"), dict):
-        for key in ("overview", "entries_index"):
+        for key in ("overview", "entries_index", "graph_index"):
             _require_nonempty_str(payload["files"], key, f"{path}.files", result)
     for key in ("entries_by_role", "entries_by_status", "graph_counts", "source_records"):
         _require_mapping(payload.get(key), f"{path}.{key}", result)
@@ -36,7 +36,7 @@ def validate_legacy_l2_obsidian_view_bundle(
             if not isinstance(payload["graph_counts"].get(key), int) or payload["graph_counts"][key] < 0:
                 result.add(f"{path}.graph_counts.{key}", "must be a non-negative integer")
     if isinstance(payload.get("source_records"), dict):
-        for key in ("legacy_entries", "memory_entries"):
+        for key in ("legacy_entries", "legacy_graph_files", "memory_entries"):
             _require_list(payload["source_records"].get(key), f"{path}.source_records.{key}", result)
     _require_list(payload.get("next_actions"), f"{path}.next_actions", result)
     for key in ("truth_source", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):

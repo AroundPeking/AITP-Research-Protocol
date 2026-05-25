@@ -21,9 +21,11 @@ def write_legacy_l2_obsidian_view(
     l2_dir = Path(legacy_l2_dir) if legacy_l2_dir else ws.base / "research" / "aitp-topics" / "L2"
     view_dir = Path(output_dir) if output_dir else ws.root / "surfaces" / "legacy_l2_obsidian"
     entries = _scan_entries(l2_dir / "entries")
+    graph_files = _scan_graph_files(l2_dir / "graph")
     manifest = build_legacy_l2_graph_manifest(ws, legacy_l2_dir=l2_dir)
     overview_path = view_dir / "Legacy L2 Overview.md"
     entries_path = view_dir / "Legacy L2 Entries.md"
+    graph_path = view_dir / "Legacy L2 Graph.md"
     write_md(
         overview_path,
         _frontmatter("legacy_l2_overview", str(l2_dir)),
@@ -34,6 +36,11 @@ def write_legacy_l2_obsidian_view(
         _frontmatter("legacy_l2_entries_index", str(l2_dir / "entries")),
         _entries_body(entries),
     )
+    write_md(
+        graph_path,
+        _frontmatter("legacy_l2_graph_index", str(l2_dir / "graph")),
+        _graph_body(graph_files),
+    )
     return {
         "ok": True,
         "kind": "legacy_l2_obsidian_view_bundle",
@@ -42,6 +49,7 @@ def write_legacy_l2_obsidian_view(
         "files": {
             "overview": str(overview_path),
             "entries_index": str(entries_path),
+            "graph_index": str(graph_path),
         },
         "legacy_entry_count": len(entries),
         "memory_entry_count": 0,
@@ -53,6 +61,7 @@ def write_legacy_l2_obsidian_view(
         },
         "source_records": {
             "legacy_entries": [entry["entry_id"] for entry in entries],
+            "legacy_graph_files": [item["path"] for item in graph_files],
             "memory_entries": [],
         },
         "next_actions": list(manifest["next_actions"]),
@@ -123,6 +132,23 @@ def _entries_body(entries: list[dict[str, str]]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _graph_body(graph_files: list[dict[str, str]]) -> str:
+    lines = [
+        "# Legacy L2 Graph",
+        "",
+        "This graph index is orientation-only; graph files remain source material until typed migration.",
+        "",
+        "| Kind | File | Source |",
+        "|---|---|---|",
+    ]
+    if not graph_files:
+        lines.append("| None |  |  |")
+        return "\n".join(lines) + "\n"
+    for item in graph_files:
+        lines.append(f"| {item['kind']} | `{item['file_name']}` | `{item['path']}` |")
+    return "\n".join(lines) + "\n"
+
+
 def _scan_entries(entries_dir: Path) -> list[dict[str, str]]:
     if not entries_dir.exists():
         return []
@@ -140,6 +166,26 @@ def _scan_entries(entries_dir: Path) -> list[dict[str, str]]:
             "path": str(path),
         })
     return entries
+
+
+def _scan_graph_files(graph_dir: Path) -> list[dict[str, str]]:
+    graph_files: list[dict[str, str]] = []
+    for kind, dirname in (
+        ("node", "nodes"),
+        ("edge", "edges"),
+        ("step", "steps"),
+        ("tower", "towers"),
+    ):
+        path = graph_dir / dirname
+        if not path.exists():
+            continue
+        for item in sorted(path.glob("*.md")):
+            graph_files.append({
+                "kind": kind,
+                "file_name": item.name,
+                "path": str(item),
+            })
+    return graph_files
 
 
 def _counts_by(entries: list[dict[str, str]], field: str) -> dict[str, int]:

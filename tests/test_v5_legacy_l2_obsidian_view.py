@@ -8,6 +8,8 @@ def _write_legacy_l2(base):
     (l2 / "entries").mkdir(parents=True)
     (l2 / "graph" / "nodes").mkdir(parents=True)
     (l2 / "graph" / "edges").mkdir(parents=True)
+    (l2 / "graph" / "steps").mkdir(parents=True)
+    (l2 / "graph" / "towers").mkdir(parents=True)
     (l2 / "index.md").write_text("---\nkind: global_l2_index\n---\n# Global L2\n", encoding="utf-8")
     (l2 / "entries" / "INDEX.md").write_text("# Entries\n", encoding="utf-8")
     (l2 / "entries" / "claim-headwing.md").write_text(
@@ -33,6 +35,8 @@ def _write_legacy_l2(base):
     )
     (l2 / "graph" / "nodes" / "claim-headwing.md").write_text("# Node\n", encoding="utf-8")
     (l2 / "graph" / "edges" / "e-headwing-pitfall.md").write_text("# Edge\n", encoding="utf-8")
+    (l2 / "graph" / "steps" / "step-headwing.md").write_text("# Step\n", encoding="utf-8")
+    (l2 / "graph" / "towers" / "tower-screened-interaction.md").write_text("# Tower\n", encoding="utf-8")
     return l2
 
 
@@ -53,15 +57,23 @@ def test_legacy_l2_obsidian_view_writes_orientation_only_index(tmp_path):
     assert payload["legacy_entry_count"] == 2
     assert payload["graph_counts"]["graph_nodes"] == 1
     assert payload["graph_counts"]["graph_edges"] == 1
+    assert payload["graph_counts"]["graph_steps"] == 1
+    assert payload["graph_counts"]["graph_towers"] == 1
     assert payload["orientation_only"] is True
     assert payload["can_update_kernel_state"] is False
     overview_fm, overview = read_md(payload["files"]["overview"])
     entries_fm, entries = read_md(payload["files"]["entries_index"])
+    graph_fm, graph = read_md(payload["files"]["graph_index"])
     assert overview_fm["truth_source"] is False
     assert entries_fm["view_role"] == "legacy_l2_entries_index"
+    assert graph_fm["view_role"] == "legacy_l2_graph_index"
     assert "orientation-only" in overview
     assert "claim-headwing" in entries
     assert "pitfall-threads" in entries
+    assert "claim-headwing.md" in graph
+    assert "e-headwing-pitfall.md" in graph
+    assert "step-headwing.md" in graph
+    assert "tower-screened-interaction.md" in graph
     assert "migrate_legacy_l2_entries_into_memory_records" in overview
 
 
