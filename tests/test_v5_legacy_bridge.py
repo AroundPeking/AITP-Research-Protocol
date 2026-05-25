@@ -1004,6 +1004,111 @@ def test_legacy_semantic_repair_apply_backfills_claim_statement_and_records_prov
     assert repairs[0].can_update_claim_trust is False
 
 
+def test_legacy_semantic_repair_applies_scope_and_failure_mode_from_reviewed_legacy_refs(tmp_path):
+    from brain.v5.legacy_semantic_repair import (
+        apply_legacy_semantic_repair,
+        build_legacy_semantic_repair_plan,
+    )
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import list_records, write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    candidate = legacy_topic / "L3" / "candidates" / "candidate-counting.md"
+    review_file = legacy_topic / "L4" / "reviews" / "candidate-counting.md"
+    candidate.parent.mkdir(parents=True)
+    review_file.parent.mkdir(parents=True)
+    candidate.write_text(
+        "---\n"
+        "candidate_id: candidate-counting\n"
+        "claim: Finite-size counting identifies the FQHE edge sector.\n"
+        "regime_of_validity: N<=10 fixed sector only.\n"
+        "---\n"
+        "# Candidate\n\n"
+        "## Assumptions\n"
+        "Same sector convention.\n",
+        encoding="utf-8",
+    )
+    review_file.write_text(
+        "---\n"
+        "artifact_kind: l4_review\n"
+        "candidate_id: candidate-counting\n"
+        "outcome: pass\n"
+        "devils_advocate: Wrong sector assignment breaks the counting match.\n"
+        "---\n"
+        "# Review\n\n"
+        "## Devil's Advocate\n"
+        "Wrong sector assignment breaks the counting match.\n",
+        encoding="utf-8",
+    )
+    claim = ClaimRecord(
+        claim_id="claim-canonical",
+        topic_id="canonical-topic",
+        statement="Finite-size counting identifies the FQHE edge sector.",
+        evidence_profile="legacy_import",
+        confidence_state="legacy_seed",
+        active_uncertainty="Semantic review required.",
+    )
+    write_record(ws.registry_dir("claims") / "claim-canonical.md", claim)
+    write_record(ws.topic_dir("canonical-topic") / "claims" / "ledger" / "claim-canonical.md", claim)
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="Claim statement is preserved, but candidate scope and failure mode were not backfilled.",
+        reviewed_legacy_refs=[f"legacy_candidate:{candidate}", f"legacy_l4_review:{review_file}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=[
+            "backfill_active_claim_scope_from_legacy_candidate_regime",
+            "backfill_active_claim_failure_mode_from_legacy_review",
+        ],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert {
+        (repair["repair_type"], repair["proposed_value"])
+        for repair in plan["proposed_repairs"]
+    } == {
+        ("claim_scope_backfill", "N<=10 fixed sector only."),
+        ("claim_failure_mode_backfill", "Wrong sector assignment breaks the counting match."),
+    }
+    assert require_valid_public_surface("legacy_semantic_repair_plan", plan) == plan
+
+    scope_result = apply_legacy_semantic_repair(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        repair_type="claim_scope_backfill",
+        review_id=review.review_id,
+    )
+    failure_result = apply_legacy_semantic_repair(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        repair_type="claim_failure_mode_backfill",
+        review_id=review.review_id,
+    )
+
+    assert scope_result["applied"] is True
+    assert scope_result["repair_type"] == "claim_scope_backfill"
+    assert scope_result["can_update_claim_trust"] is False
+    assert require_valid_public_surface("legacy_semantic_repair_apply", scope_result) == scope_result
+    assert failure_result["applied"] is True
+    assert failure_result["repair_type"] == "claim_failure_mode_backfill"
+    assert require_valid_public_surface("legacy_semantic_repair_apply", failure_result) == failure_result
+    claims = {record.claim_id: record for record in list_records(ws.registry_dir("claims"), ClaimRecord)}
+    assert claims["claim-canonical"].statement == "Finite-size counting identifies the FQHE edge sector."
+    assert claims["claim-canonical"].scope == "N<=10 fixed sector only."
+    assert claims["claim-canonical"].strongest_failure_mode == "Wrong sector assignment breaks the counting match."
+    assert claims["claim-canonical"].confidence_state == "legacy_seed"
+
+
 def test_legacy_semantic_repair_apply_cli_mcp_and_runtime_surface(tmp_path, capsys):
     import json
 

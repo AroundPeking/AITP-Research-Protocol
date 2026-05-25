@@ -6,6 +6,12 @@ from typing import Any
 
 from brain.v5.contracts import ContractError, ContractResult
 
+_LEGACY_SEMANTIC_REPAIR_TYPES = {
+    "claim_statement_backfill",
+    "claim_scope_backfill",
+    "claim_failure_mode_backfill",
+}
+
 
 def validate_legacy_semantic_review_queue(
     payload: dict[str, Any],
@@ -291,8 +297,8 @@ def validate_legacy_semantic_repair_apply(
     ):
         if not isinstance(payload.get(key), str) or not payload.get(key):
             result.add(f"{path}.{key}", "must be a non-empty string")
-    if payload.get("repair_type") != "claim_statement_backfill":
-        result.add(f"{path}.repair_type", "must be 'claim_statement_backfill'")
+    if payload.get("repair_type") not in _LEGACY_SEMANTIC_REPAIR_TYPES:
+        result.add(f"{path}.repair_type", "must be an allowed repair type")
     for key in ("previous_value", "new_value"):
         if not isinstance(payload.get(key), str):
             result.add(f"{path}.{key}", "must be a string")
@@ -433,8 +439,8 @@ def _validate_repair(payload: Any, path: str, result: ContractResult) -> None:
     ):
         if not isinstance(payload.get(key), str):
             result.add(f"{path}.{key}", "must be a string")
-    if payload.get("repair_type") != "claim_statement_backfill":
-        result.add(f"{path}.repair_type", "must be 'claim_statement_backfill'")
+    if payload.get("repair_type") not in _LEGACY_SEMANTIC_REPAIR_TYPES:
+        result.add(f"{path}.repair_type", "must be an allowed repair type")
     if payload.get("mutation_authority") != "none_review_and_apply_separately":
         result.add(f"{path}.mutation_authority", "must be 'none_review_and_apply_separately'")
     if not isinstance(payload.get("basis_refs"), list) or not all(

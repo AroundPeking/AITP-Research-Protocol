@@ -10,9 +10,16 @@ from brain.v5.ids import prefixed_id
 from brain.v5.legacy_bridge import scan_legacy_topic
 from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
 from brain.v5.legacy_semantic_review_packet import build_legacy_semantic_review_packet
+from brain.v5.markdown import read_md
 from brain.v5.models import ClaimRecord, LegacySemanticRepairRecord
 from brain.v5.paths import WorkspacePaths
 from brain.v5.store import list_records, write_record
+
+_REPAIR_FIELD = {
+    "claim_statement_backfill": "statement",
+    "claim_scope_backfill": "scope",
+    "claim_failure_mode_backfill": "strongest_failure_mode",
+}
 
 
 def build_legacy_semantic_repair_plan(
@@ -90,27 +97,28 @@ def apply_legacy_semantic_repair(
             required_actions=["match_latest_needs_revision_review_id"],
         )
     claim = _claim_for_repair(ws, repair["target_ref"])
-    if claim.statement != repair["current_value"]:
+    current_value = _claim_repair_value(claim, repair_type)
+    if current_value != repair["current_value"]:
         return _apply_payload(
             ws,
             plan,
             repair_type=repair_type,
             review_id=review_id,
-            previous_value=claim.statement,
+            previous_value=current_value,
             new_value=repair["proposed_value"],
             basis_refs=repair["basis_refs"],
             applied=False,
-            required_actions=["refresh_repair_plan_for_current_claim_statement"],
+            required_actions=["refresh_repair_plan_for_current_claim_value"],
         )
-    updated = replace(claim, statement=repair["proposed_value"])
+    updated = _replace_claim_repair_value(claim, repair_type=repair_type, value=repair["proposed_value"])
     _write_claim(ws, updated)
     return _apply_payload(
         ws,
         plan,
         repair_type=repair_type,
         review_id=review_id,
-        previous_value=claim.statement,
-        new_value=updated.statement,
+        previous_value=current_value,
+        new_value=_claim_repair_value(updated, repair_type),
         basis_refs=repair["basis_refs"],
         applied=True,
         required_actions=[],
@@ -134,28 +142,112 @@ def _proposed_repairs(
     if latest_review.get("status") != "needs_revision":
         return []
     claim_id = str(active_claim.get("claim_id") or "")
-    if not claim_id or str(active_claim.get("statement") or ""):
-        return []
-    legacy_topic = legacy_root / topic
-    if not (legacy_topic / "state.md").exists():
-        return []
-    question = scan_legacy_topic(legacy_topic).question
-    if not question:
+    if not claim_id:
         return []
     basis_refs = _unique([
         *[str(ref) for ref in latest_review.get("reviewed_legacy_refs", []) if str(ref)],
         str(latest_review.get("review_id") or ""),
     ])
-    return [
-        {
-            "repair_type": "claim_statement_backfill",
-            "target_ref": claim_id,
-            "current_value": "",
-            "proposed_value": question,
-            "basis_refs": basis_refs,
-            "mutation_authority": "none_review_and_apply_separately",
-        }
-    ]
+    actions = {str(action) for action in latest_review.get("remaining_actions", [])}
+    repairs: list[dict[str, Any]] = []
+    legacy_topic = legacy_root / topic
+    if not str(active_claim.get("statement") or "") and (legacy_topic / "state.md").exists():
+        question = scan_legacy_topic(legacy_topic).question
+        if question:
+            repairs.append({
+                "repair_type": "claim_statement_backfill",
+                "target_ref": claim_id,
+                "current_value": "",
+                "proposed_value": question,
+                "basis_refs": basis_refs,
+                "mutation_authority": "none_review_and_apply_separately",
+            })
+    if (
+        "backfill_active_claim_scope_from_legacy_candidate_regime" in actions
+        and not str(active_claim.get("scope") or "")
+    ):
+        scope = _reviewed_candidate_scope(latest_review)
+        if scope:
+            repairs.append({
+                "repair_type": "claim_scope_backfill",
+                "target_ref": claim_id,
+                "current_value": "",
+                "proposed_value": scope,
+                "basis_refs": basis_refs,
+                "mutation_authority": "none_review_and_apply_separately",
+            })
+    if (
+        "backfill_active_claim_failure_mode_from_legacy_review" in actions
+        and not str(active_claim.get("strongest_failure_mode") or "")
+    ):
+        failure_mode = _reviewed_failure_mode(latest_review)
+        if failure_mode:
+            repairs.append({
+                "repair_type": "claim_failure_mode_backfill",
+                "target_ref": claim_id,
+                "current_value": "",
+                "proposed_value": failure_mode,
+                "basis_refs": basis_refs,
+                "mutation_authority": "none_review_and_apply_separately",
+            })
+    return repairs
+
+
+def _reviewed_candidate_scope(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_candidate:",)):
+        frontmatter, body = read_md(path)
+        scope = _clean_text(str(frontmatter.get("regime_of_validity") or ""))
+        if scope:
+            return scope
+        assumptions = _markdown_section(body, "Assumptions")
+        if assumptions:
+            return assumptions
+    return ""
+
+
+def _reviewed_failure_mode(latest_review: dict[str, Any]) -> str:
+    for path in _reviewed_paths(latest_review, prefixes=("legacy_l4_review:",)):
+        frontmatter, body = read_md(path)
+        failure_mode = _clean_text(str(frontmatter.get("devils_advocate") or ""))
+        if failure_mode:
+            return failure_mode
+        failure_mode = _markdown_section(body, "Devil's Advocate")
+        if failure_mode:
+            return failure_mode
+    return ""
+
+
+def _reviewed_paths(latest_review: dict[str, Any], *, prefixes: tuple[str, ...]) -> list[Path]:
+    paths: list[Path] = []
+    for ref in latest_review.get("reviewed_legacy_refs", []):
+        text = str(ref)
+        for prefix in prefixes:
+            if text.startswith(prefix):
+                path = Path(text.removeprefix(prefix))
+                if path.exists():
+                    paths.append(path)
+    return paths
+
+
+def _markdown_section(body: str, heading: str) -> str:
+    lines = body.splitlines()
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if line.strip().lower() == f"## {heading}".lower():
+            start = index + 1
+            break
+    if start is None:
+        return ""
+    selected: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        selected.append(line)
+    return _clean_text("\n".join(selected))
+
+
+def _clean_text(value: str) -> str:
+    return " ".join(value.split())
 
 
 def _repair_status(latest_review: dict[str, Any], proposed_repairs: list[dict[str, Any]]) -> str:
@@ -188,6 +280,20 @@ def _claim_for_repair(ws: WorkspacePaths, claim_id: str) -> ClaimRecord:
     if claim_id not in claims:
         raise ValueError(f"unknown repair target claim: {claim_id}")
     return claims[claim_id]
+
+
+def _claim_repair_value(claim: ClaimRecord, repair_type: str) -> str:
+    field = _REPAIR_FIELD.get(repair_type)
+    if not field:
+        return ""
+    return str(getattr(claim, field) or "")
+
+
+def _replace_claim_repair_value(claim: ClaimRecord, *, repair_type: str, value: str) -> ClaimRecord:
+    field = _REPAIR_FIELD.get(repair_type)
+    if not field:
+        return claim
+    return replace(claim, **{field: value})
 
 
 def _write_claim(ws: WorkspacePaths, claim: ClaimRecord) -> None:
