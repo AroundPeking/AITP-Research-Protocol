@@ -412,6 +412,7 @@ class LegacySemanticReviewResultRecord:
     validation_result_ids: list[str] = field(default_factory=list)
     remaining_actions: list[str] = field(default_factory=list)
     checkpoint_id: str = ""
+    created_at: str = ""
     summary_inputs_trusted: bool = False
     can_update_claim_trust: bool = False
     kind: str = "legacy_semantic_review_result"

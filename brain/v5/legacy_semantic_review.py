@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from dataclasses import asdict
+from datetime import datetime, timezone
 
 from brain.v5.ids import prefixed_id
 from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
@@ -184,6 +185,7 @@ def record_legacy_semantic_review_result(
         validation_result_ids=validations,
         remaining_actions=actions,
         checkpoint_id=checkpoint_id,
+        created_at=_now_utc(),
     )
     write_record(
         ws.registry_dir("legacy_semantic_reviews") / f"{review_id}.md",
@@ -316,7 +318,7 @@ def _group_review_results(
             continue
         grouped.setdefault(record.topic, []).append(record)
     for results in grouped.values():
-        results.sort(key=lambda record: record.review_id)
+        results.sort(key=_review_sort_key)
     return grouped
 
 
@@ -327,6 +329,21 @@ def _latest_review_payload(records: list[LegacySemanticReviewResultRecord]) -> d
     payload = asdict(record)
     payload["orientation_only"] = True
     return payload
+
+
+def _review_sort_key(record: LegacySemanticReviewResultRecord) -> tuple[str, str]:
+    return (record.created_at or _review_file_mtime(record), record.review_id)
+
+
+def _review_file_mtime(record: LegacySemanticReviewResultRecord) -> str:
+    path = Path(record.migration_dir).parent.parent / "registry" / "legacy_semantic_reviews" / f"{record.review_id}.md"
+    if not path.exists():
+        return ""
+    return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat()
+
+
+def _now_utc() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _semantic_review_status(latest_review: dict[str, Any]) -> str:

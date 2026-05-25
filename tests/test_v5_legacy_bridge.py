@@ -890,6 +890,59 @@ def test_legacy_semantic_review_worklist_flags_satisfied_backfill_actions_for_fo
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_queue_uses_latest_written_review_not_lexicographic_id(tmp_path):
+    from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
+    from brain.v5.models import ClaimRecord, LegacySemanticReviewResultRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="Migrated canonical claim.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review_dir = ws.registry_dir("legacy_semantic_reviews")
+    old = LegacySemanticReviewResultRecord(
+        review_id="legacy-semantic-review-z-old",
+        migration_run_id="legacy-v5-lossless-test",
+        migration_dir=str(run),
+        topic="canonical-topic",
+        active_claim_id="claim-canonical",
+        status="needs_revision",
+        summary="Older review sorted later by id.",
+        reviewed_typed_refs=["claim-canonical"],
+        created_at="2026-05-24T00:00:00Z",
+    )
+    new = LegacySemanticReviewResultRecord(
+        review_id="legacy-semantic-review-a-new",
+        migration_run_id="legacy-v5-lossless-test",
+        migration_dir=str(run),
+        topic="canonical-topic",
+        active_claim_id="claim-canonical",
+        status="inconclusive",
+        summary="Newer follow-up review sorted earlier by id.",
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["complete_source_reconstruction_components"],
+        created_at="2026-05-25T00:00:00Z",
+    )
+    write_record(review_dir / f"{old.review_id}.md", old)
+    write_record(review_dir / f"{new.review_id}.md", new)
+
+    queue = build_legacy_semantic_review_queue(ws, migration_dir=run)
+
+    canonical = next(item for item in queue["items"] if item["topic"] == "canonical-topic")
+    assert canonical["semantic_review_status"] == "reviewed_inconclusive"
+    assert canonical["latest_semantic_review"]["review_id"] == new.review_id
+
+
 def test_legacy_semantic_review_worklist_cli_mcp_and_runtime_surface(tmp_path, capsys):
     import json
 
@@ -959,6 +1012,7 @@ def test_legacy_semantic_review_result_records_basis_and_updates_queue(tmp_path)
     assert result.topic == "canonical-topic"
     assert result.status == "inconclusive"
     assert result.reviewed_legacy_refs == ["legacy-topic:canonical-topic/state.md"]
+    assert result.created_at
     assert result.summary_inputs_trusted is False
     assert result.can_update_claim_trust is False
 

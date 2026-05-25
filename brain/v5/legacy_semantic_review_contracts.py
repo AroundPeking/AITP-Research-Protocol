@@ -210,6 +210,8 @@ def validate_legacy_semantic_review_result_record(
     for key in ("active_claim_id", "checkpoint_id"):
         if not isinstance(payload.get(key, ""), str):
             result.add(f"{path}.{key}", "must be a string")
+    if "created_at" in payload and not isinstance(payload.get("created_at"), str):
+        result.add(f"{path}.created_at", "must be a string")
     if payload.get("summary_inputs_trusted") is not False:
         result.add(f"{path}.summary_inputs_trusted", "must be false")
     if payload.get("can_update_claim_trust") is not False:
