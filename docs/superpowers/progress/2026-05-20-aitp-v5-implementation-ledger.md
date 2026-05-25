@@ -6312,3 +6312,65 @@ Each entry should record:
 - Residual risks:
   - this adds the durable result mechanism; it does not perform the actual
     human/physics semantic review of all migrated topics by itself.
+
+### 9a08fea - Add Final Engineering Readiness Audit
+
+- Task: add a single read-only final-gap audit surface so agents can distinguish
+  implemented AITP v5 kernel capability from remaining content/host backlog
+  before deciding whether the long-running goal can be marked complete.
+- Planning source:
+  - final residual-gap note in this ledger and
+    `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`;
+  - user requirement to avoid reassurance-only status reports and to keep
+    legacy semantic review separate from migration accounting.
+- Changed files:
+  - `brain/v5/final_readiness.py`
+  - `brain/v5/final_readiness_contracts.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/runtime_entrypoint_samples.py`
+  - `tests/test_v5_final_readiness.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - added public surface `final_engineering_readiness_audit`;
+  - added CLI `aitp-v5 adapter final-readiness`;
+  - added MCP wrapper `aitp_v5_audit_final_engineering_readiness`;
+  - added runtime entrypoint `final_engineering_readiness_audit`;
+  - split runtime sample-argument dispatch out of
+    `runtime_entrypoint_catalog.py` to keep the catalog module below the
+    architecture line-count boundary.
+- Tests:
+  - audit reports kernel capability and content backlog separately;
+  - audit keeps `summary_inputs_trusted=false`, `orientation_only=true`,
+    `can_update_kernel_state=false`, and `can_update_claim_trust=false`;
+  - missing legacy migration run is reported as backlog, not success;
+  - CLI/MCP/runtime/public-surface registry expose the contracted surface.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_final_readiness.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    60 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 508 passed in 265.74s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed with only Windows CRLF warnings.
+  - real Theoretical-Physics smoke:
+    `aitp-v5 --base D:/BaiduSyncdisk/Theoretical-Physics adapter final-readiness --migration-dir D:/BaiduSyncdisk/Theoretical-Physics/.aitp/migrations/legacy-v5-lossless-20260524-031743`
+    returned `completion_status=kernel_ready_content_backlog`,
+    `kernel_capability_status=ready_for_priority_hosts`,
+    `content_backlog_status=legacy_semantic_review_backlog`,
+    `blocking_gaps=["legacy_semantic_review_backlog"]`, priority hosts
+    `codex,claude_code,kimi_code`, deferred host `opencode`, and legacy review
+    counts `review_item_count=18`, `pending_count=17`,
+    `inconclusive_count=1`, `passed_count=0`.
+  - the same real smoke preserved `.aitp` file count before/after:
+    `4426 -> 4426`, confirming the surface is read-only.
+- Residual risks:
+  - this is an audit surface, not completion itself. It currently proves that
+    the kernel can report the remaining backlog; it also confirms that actual
+    per-topic semantic review remains unfinished in the real workspace.
+  - priority host integration still has the residual
+    `real_interactive_lifecycle_event_smoke` gap for proprietary interactive UI
+    modes, while OpenCode remains intentionally deferred.
