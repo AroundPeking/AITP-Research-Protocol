@@ -1,0 +1,141 @@
+"""Contracts for legacy migration semantic review queues."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from brain.v5.contracts import ContractError, ContractResult
+
+
+def validate_legacy_semantic_review_queue(
+    payload: dict[str, Any],
+    *,
+    path: str = "legacy_semantic_review_queue",
+) -> ContractResult:
+    result = ContractResult()
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return result
+
+    for key in ("kind", "run_id", "migration_dir", "queue_status", "truth_source"):
+        if not isinstance(payload.get(key), str) or not payload.get(key):
+            result.add(f"{path}.{key}", "must be a non-empty string")
+    if payload.get("kind") != "legacy_semantic_review_queue":
+        result.add(f"{path}.kind", "must be 'legacy_semantic_review_queue'")
+    if payload.get("queue_status") not in {"ready_for_semantic_review", "coverage_gaps_first"}:
+        result.add(f"{path}.queue_status", "must be an allowed queue status")
+    if payload.get("truth_source") != "migration_manifests_and_typed_records":
+        result.add(f"{path}.truth_source", "must be 'migration_manifests_and_typed_records'")
+    for key in (
+        "semantic_lossless_proven",
+        "semantic_review_required",
+        "summary_inputs_trusted",
+        "orientation_only",
+        "can_update_kernel_state",
+        "can_update_claim_trust",
+    ):
+        if payload.get(key) not in {False, True}:
+            result.add(f"{path}.{key}", "must be a boolean")
+    if payload.get("semantic_lossless_proven") is not False:
+        result.add(f"{path}.semantic_lossless_proven", "must be false")
+    if payload.get("semantic_review_required") is not True:
+        result.add(f"{path}.semantic_review_required", "must be true")
+    if payload.get("summary_inputs_trusted") is not False:
+        result.add(f"{path}.summary_inputs_trusted", "must be false")
+    if payload.get("orientation_only") is not True:
+        result.add(f"{path}.orientation_only", "must be true")
+    if payload.get("can_update_kernel_state") is not False:
+        result.add(f"{path}.can_update_kernel_state", "must be false")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
+    for key in ("topic_count", "legacy_file_count", "review_item_count"):
+        if not isinstance(payload.get(key), int) or payload[key] < 0:
+            result.add(f"{path}.{key}", "must be a non-negative integer")
+    _validate_priority_counts(payload.get("priority_counts"), f"{path}.priority_counts", result)
+    _validate_coverage_audit(payload.get("coverage_audit"), f"{path}.coverage_audit", result)
+    items = payload.get("items")
+    if not isinstance(items, list):
+        result.add(f"{path}.items", "must be a list")
+    else:
+        for index, item in enumerate(items):
+            _validate_item(item, f"{path}.items[{index}]", result)
+    return result
+
+
+def require_valid_legacy_semantic_review_queue(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_legacy_semantic_review_queue(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
+def _validate_priority_counts(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return
+    for key in ("critical", "high", "medium", "low"):
+        if not isinstance(payload.get(key), int) or payload[key] < 0:
+            result.add(f"{path}.{key}", "must be a non-negative integer")
+
+
+def _validate_coverage_audit(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return
+    if payload.get("coverage_status") not in {"accounted_needs_review", "coverage_gaps"}:
+        result.add(f"{path}.coverage_status", "must be an allowed coverage status")
+    for key in (
+        "file_preservation_ok",
+        "archive_reference_coverage_ok",
+        "markdown_readability_ok",
+    ):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    if not isinstance(payload.get("gap_topic_count"), int) or payload["gap_topic_count"] < 0:
+        result.add(f"{path}.gap_topic_count", "must be a non-negative integer")
+    if not isinstance(payload.get("gap_topics"), list):
+        result.add(f"{path}.gap_topics", "must be a list")
+
+
+def _validate_item(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return
+    for key in ("topic", "legacy_shape", "coverage_status", "review_priority"):
+        if not isinstance(payload.get(key), str):
+            result.add(f"{path}.{key}", "must be a string")
+    if payload.get("review_priority") not in {"critical", "high", "medium", "low"}:
+        result.add(f"{path}.review_priority", "must be an allowed review priority")
+    if payload.get("coverage_status") not in {"accounted_needs_review", "coverage_gaps"}:
+        result.add(f"{path}.coverage_status", "must be an allowed coverage status")
+    for key in (
+        "file_count",
+        "structured_file_count",
+        "archive_reference_count",
+        "preserved_source_refs",
+    ):
+        if not isinstance(payload.get(key), int) or payload[key] < 0:
+            result.add(f"{path}.{key}", "must be a non-negative integer")
+    if not isinstance(payload.get("written_records"), dict):
+        result.add(f"{path}.written_records", "must be a mapping")
+    _validate_source_reconstruction(payload.get("source_reconstruction"), f"{path}.source_reconstruction", result)
+    for key in ("review_reasons", "recommended_actions"):
+        if not isinstance(payload.get(key), list) or not all(isinstance(value, str) for value in payload[key]):
+            result.add(f"{path}.{key}", "must be a list of strings")
+    if payload.get("semantic_review_required") is not True:
+        result.add(f"{path}.semantic_review_required", "must be true")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
+
+
+def _validate_source_reconstruction(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return
+    if payload.get("status") not in {"complete", "incomplete", "missing_claim_id", "missing_claim_record", "not_audited"}:
+        result.add(f"{path}.status", "must be an allowed source reconstruction status")
+    if not isinstance(payload.get("complete"), bool):
+        result.add(f"{path}.complete", "must be a boolean")
+    for key in ("missing_components", "source_refs"):
+        if not isinstance(payload.get(key), list) or not all(isinstance(value, str) for value in payload[key]):
+            result.add(f"{path}.{key}", "must be a list of strings")

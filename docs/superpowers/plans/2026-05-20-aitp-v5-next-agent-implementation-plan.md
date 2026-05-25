@@ -369,11 +369,15 @@ Major remaining gaps after the 2026-05-24/25 closure pass:
   replay may still surface scientific content gaps such as missing
   reconstruction paths on older claims; those are content backlog discovered by
   the kernel, not a missing kernel capability.
-- Legacy migration now has a coverage audit that proves file accounting,
-  archive-reference coverage, Markdown readability, and per-topic coverage.
-  It deliberately does not claim physics-level semantic proof:
-  `semantic_lossless_proven=false` means each important topic still needs
-  human/v5 semantic review before treating migrated statements as fully trusted.
+- Legacy migration now has both a coverage audit and an operational semantic
+  review queue. The coverage audit proves file accounting, archive-reference
+  coverage, Markdown readability, and per-topic coverage. The
+  `semantic-review-queue` surface turns those topics into review items with
+  source-reconstruction status, review priority, review reasons, and
+  recommended actions. Both surfaces deliberately keep
+  `semantic_lossless_proven=false`: the remaining work is per-topic physics
+  content review before migrated statements can become trusted memory, not a
+  missing accounting surface.
 - Domain tools remain intentionally lightweight: formal-theory checks are
   checklist/provenance checks, not automated theorem proving. Subagent packet
   planning and result ingestion exist; live external-subagent orchestration

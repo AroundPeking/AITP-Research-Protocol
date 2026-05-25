@@ -307,6 +307,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   status, but it must keep `semantic_lossless_proven=false` and
   `semantic_review_required=true`; semantic correctness of old physics content
   requires human/v5 review, not manifest accounting alone.
+- Agents can call `aitp-v5 legacy semantic-review-queue` or
+  `aitp_v5_build_legacy_semantic_review_queue` against the same migration run
+  to turn accounting coverage into per-topic review work items. Each item
+  reports legacy shape, active claim id, typed/archive coverage counts,
+  source-reconstruction status, review priority, review reasons, and
+  recommended actions. The queue is orientation-only and cannot update kernel
+  state or claim trust; it operationalizes semantic review without proving it.
 - Agents can call `aitp-v5 memory failure-modes --claim <claim-id>` or
   `aitp_v5_audit_failure_mode_coverage` for a read-only
   `failure_mode_audit` surface. It reports active uncertainty,

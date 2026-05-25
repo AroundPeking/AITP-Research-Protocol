@@ -241,6 +241,14 @@ and noncanonical legacy seeds. This surface is deliberately conservative:
 `semantic_lossless_proven=false` and `semantic_review_required=true` even when
 all files are accounted for, because manifests can prove preservation and
 coverage, not that every physics claim was correctly interpreted.
+`aitp-v5 legacy semantic-review-queue` and
+`aitp_v5_build_legacy_semantic_review_queue` turn that accounting audit into a
+per-topic review queue. Each item includes the legacy shape, active claim id,
+typed/archive coverage counts, source-reconstruction status, review priority,
+review reasons, and recommended actions such as source reconstruction,
+archive-reference sampling, validation/failure-mode recording, and a human
+checkpoint before promotion. This queue is also orientation-only: it makes
+semantic review operational but still keeps `semantic_lossless_proven=false`.
 `aitp-v5 memory failure-mode-review --claim <claim-id>` and
 `aitp_v5_build_failure_mode_review_packet` turn that typed audit into a
 read-only `failure_mode_review_packet`: per-mode physical adequacy questions,

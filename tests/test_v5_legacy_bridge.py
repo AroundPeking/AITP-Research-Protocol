@@ -434,6 +434,75 @@ def test_legacy_migration_coverage_audit_cli_mcp_and_runtime_surface(tmp_path, c
     )
 
 
+def test_legacy_semantic_review_queue_operationalizes_per_topic_review(tmp_path):
+    from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    create_topic(ws, "canonical-topic", context_id="legacy-context", title="Canonical Topic")
+    claim = ClaimRecord(
+        claim_id="claim-canonical",
+        topic_id="canonical-topic",
+        statement="Migrated canonical claim.",
+        evidence_profile="legacy_import",
+        confidence_state="hypothesis",
+        active_uncertainty="Semantic review required.",
+    )
+    write_record(ws.registry_dir("claims") / "claim-canonical.md", claim)
+
+    queue = build_legacy_semantic_review_queue(ws, migration_dir=run)
+
+    assert queue["kind"] == "legacy_semantic_review_queue"
+    assert queue["queue_status"] == "ready_for_semantic_review"
+    assert queue["semantic_lossless_proven"] is False
+    assert queue["semantic_review_required"] is True
+    assert queue["can_update_claim_trust"] is False
+    assert queue["review_item_count"] == 2
+    by_topic = {item["topic"]: item for item in queue["items"]}
+    canonical = by_topic["canonical-topic"]
+    assert canonical["semantic_review_required"] is True
+    assert canonical["source_reconstruction"]["status"] == "incomplete"
+    assert "complete_source_reconstruction" in canonical["recommended_actions"]
+    assert "archive_only_records_require_sampling" in canonical["review_reasons"]
+    assert by_topic["legacy-l2"]["review_priority"] == "critical"
+    assert "source_reconstruction_missing_claim_record" in by_topic["legacy-l2"]["review_reasons"]
+    assert "classify_noncanonical_seed_before_promotion" in by_topic["legacy-l2"]["recommended_actions"]
+    assert require_valid_public_surface("legacy_semantic_review_queue", queue) == queue
+
+
+def test_legacy_semantic_review_queue_cli_mcp_and_runtime_surface(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_legacy_semantic_review_queue
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+
+    assert main([
+        "--base", str(base), "legacy", "semantic-review-queue", "--migration-dir", str(run),
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    assert cli_payload["ok"] is True
+    assert cli_payload["kind"] == "legacy_semantic_review_queue"
+    assert cli_payload["semantic_lossless_proven"] is False
+    assert cli_payload["items"]
+
+    mcp_payload = aitp_v5_build_legacy_semantic_review_queue(str(base), migration_dir=str(run))
+    assert mcp_payload["ok"] is True
+    assert mcp_payload["kind"] == "legacy_semantic_review_queue"
+    assert runtime_entrypoints()["legacy_semantic_review_queue"]["surface"] == (
+        "legacy_semantic_review_queue"
+    )
+
+
 def test_legacy_migration_converts_all_candidates_and_reviews_to_typed_records(tmp_path):
     from brain.v5.evidence import list_evidence_for_claim
     from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5

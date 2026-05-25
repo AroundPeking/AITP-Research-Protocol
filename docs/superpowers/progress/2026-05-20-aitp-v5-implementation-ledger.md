@@ -6217,3 +6217,51 @@ Each entry should record:
   - this proves the probe surface and can capture lifecycle evidence for a
     specific invocation; it does not by itself prove every proprietary host UI
     mode will fire lifecycle hooks.
+
+### pending - Add Legacy Semantic Review Queue
+
+- Task: turn conservative legacy migration coverage into an actionable
+  per-topic semantic review queue.
+- Planning source:
+  - remaining final-engineering gap after coverage audit: file accounting
+    proved 1871 migrated legacy files were accounted for, but
+    `semantic_lossless_proven=false` still needed an operational review path;
+  - user requirement that old AITP research contents not be treated as lost,
+    while not overclaiming that every physics interpretation was already
+    semantically reviewed.
+- Changed files:
+  - `brain/v5/legacy_semantic_review.py`
+  - `brain/v5/legacy_semantic_review_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `docs/superpowers/progress/2026-05-20-aitp-v5-implementation-ledger.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `legacy_semantic_review_queue`;
+  - added CLI `aitp-v5 legacy semantic-review-queue`;
+  - added MCP wrapper `aitp_v5_build_legacy_semantic_review_queue`;
+  - added runtime entrypoint `legacy_semantic_review_queue`;
+  - queue items include topic, legacy shape, active claim id,
+    typed/archive coverage counts, source-reconstruction status, review
+    priority, review reasons, and recommended actions;
+  - the queue is orientation-only, cannot update kernel state or claim trust,
+    and keeps `semantic_lossless_proven=false`.
+- Tests:
+  - synthetic migration run produces per-topic review items and flags
+    noncanonical/missing-claim/source-reconstruction cases;
+  - CLI, MCP, runtime, and public-surface registry expose the contracted queue.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_legacy_bridge.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    54 passed.
+- Residual risks:
+  - the queue makes semantic review auditable and actionable; it does not
+    complete the human/physics review for every migrated topic.
