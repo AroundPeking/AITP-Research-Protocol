@@ -866,6 +866,24 @@ def test_legacy_semantic_review_worklist_flags_satisfied_backfill_actions_for_fo
     ]
     assert work_item["satisfied_review_actions"] == manifest_item["satisfied_review_actions"]
     assert work_item["followup_review_actions"] == manifest_item["followup_review_actions"]
+    assert work_item["followup_review_commands"] == [
+        {
+            "action": "record_followup_semantic_review_result_for_satisfied_actions",
+            "latest_review_id": review.review_id,
+            "satisfied_review_actions": [
+                "backfill_active_claim_statement_from_legacy_state_question"
+            ],
+            "result_cli": (
+                f"aitp-v5 --base {ws.base} legacy semantic-review-result "
+                f"--migration-dir {run} --topic canonical-topic "
+                "--status <passed|inconclusive> "
+                f"--typed-ref claim-canonical --legacy-ref legacy_candidate:{state} "
+                "--summary <reviewed satisfied actions; explain any remaining semantic gaps>"
+            ),
+            "result_mcp": "aitp_v5_record_legacy_semantic_review_result",
+            "can_update_claim_trust": False,
+        }
+    ]
     assert "record_followup_semantic_review_result_for_satisfied_actions" in work_item["review_focus"]
     assert work_item["can_update_claim_trust"] is False
     assert require_valid_public_surface("legacy_semantic_review_manifest", manifest) == manifest

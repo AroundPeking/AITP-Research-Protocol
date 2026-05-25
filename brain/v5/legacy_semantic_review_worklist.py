@@ -18,7 +18,7 @@ def build_legacy_semantic_review_worklist(
 
     manifest = build_legacy_semantic_review_manifest(ws, migration_dir=migration_dir)
     candidates = [
-        _work_item(item)
+        _work_item(item, workspace=manifest["workspace"], migration_dir=manifest["migration_dir"])
         for item in manifest["items"]
         if item["review_status"] in {"pending", "needs_revision", "inconclusive"}
     ]
@@ -42,7 +42,7 @@ def build_legacy_semantic_review_worklist(
     }
 
 
-def _work_item(item: dict[str, Any]) -> dict[str, Any]:
+def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> dict[str, Any]:
     repair_count = int(item.get("repair_candidate_count") or 0)
     missing = list(item.get("missing_source_components") or _missing_source_components_from_reasons(item))
     followup_actions = list(item.get("followup_review_actions", []))
@@ -54,6 +54,7 @@ def _work_item(item: dict[str, Any]) -> dict[str, Any]:
     )
     priority_score = _priority_score(item, repair_count=repair_count, missing_components=missing)
     latest = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
+    satisfied_actions = list(item.get("satisfied_review_actions", []))
     return {
         "topic": item["topic"],
         "active_claim_id": item["active_claim_id"],
@@ -64,8 +65,16 @@ def _work_item(item: dict[str, Any]) -> dict[str, Any]:
         "latest_review_id": str(latest.get("review_id") or ""),
         "review_focus": focus,
         "missing_source_components": missing,
-        "satisfied_review_actions": list(item.get("satisfied_review_actions", [])),
+        "satisfied_review_actions": satisfied_actions,
         "followup_review_actions": followup_actions,
+        "followup_review_commands": _followup_review_commands(
+            item,
+            latest_review=latest,
+            satisfied_review_actions=satisfied_actions,
+            followup_review_actions=followup_actions,
+            workspace=workspace,
+            migration_dir=migration_dir,
+        ),
         "repair_candidate_count": repair_count,
         "repair_candidates": list(item.get("repair_candidates", [])),
         "packet_cli": item["packet_cli"],
@@ -129,6 +138,58 @@ def _review_focus(
         focus.append("resolve_inconclusive_semantic_review")
     focus.append("record_next_legacy_semantic_review_result")
     return _unique(focus)
+
+
+def _followup_review_commands(
+    item: dict[str, Any],
+    *,
+    latest_review: dict[str, Any],
+    satisfied_review_actions: list[str],
+    followup_review_actions: list[str],
+    workspace: str,
+    migration_dir: str,
+) -> list[dict[str, Any]]:
+    if not followup_review_actions:
+        return []
+    legacy_refs = [str(ref) for ref in latest_review.get("reviewed_legacy_refs", []) if str(ref)]
+    typed_refs = [str(ref) for ref in latest_review.get("reviewed_typed_refs", []) if str(ref)]
+    return [
+        {
+            "action": action,
+            "latest_review_id": str(latest_review.get("review_id") or ""),
+            "satisfied_review_actions": list(satisfied_review_actions),
+            "result_cli": _followup_result_cli(
+                item,
+                workspace=workspace,
+                migration_dir=migration_dir,
+                legacy_refs=legacy_refs,
+                typed_refs=typed_refs,
+            ),
+            "result_mcp": "aitp_v5_record_legacy_semantic_review_result",
+            "can_update_claim_trust": False,
+        }
+        for action in followup_review_actions
+    ]
+
+
+def _followup_result_cli(
+    item: dict[str, Any],
+    *,
+    workspace: str,
+    migration_dir: str,
+    legacy_refs: list[str],
+    typed_refs: list[str],
+) -> str:
+    refs = " ".join([*(f"--typed-ref {ref}" for ref in typed_refs), *(f"--legacy-ref {ref}" for ref in legacy_refs)])
+    if refs:
+        refs = f" {refs}"
+    return (
+        f"aitp-v5 --base {workspace} legacy semantic-review-result "
+        f"--migration-dir {migration_dir} --topic {item['topic']} "
+        "--status <passed|inconclusive>"
+        f"{refs} "
+        "--summary <reviewed satisfied actions; explain any remaining semantic gaps>"
+    )
 
 
 def _missing_source_components_from_reasons(item: dict[str, Any]) -> list[str]:
