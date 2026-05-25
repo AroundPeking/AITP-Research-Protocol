@@ -340,7 +340,11 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   it, can recover an empty statement from an L1 question contract's
   `bounded_question` when the review action requests it, and can recover scope
   either from a legacy candidate's `regime_of_validity` or from an L1 question
-  contract's `scope_boundaries`.
+  contract's `scope_boundaries`. Source selection follows the typed review
+  action, so an L1 scope action is not allowed to be satisfied by candidate
+  assumptions merely because both refs were reviewed. Claim failure modes can be
+  recovered from L4 review basis or from L1 `Non-Success Conditions` when the
+  review action requests that source.
   They update only the migrated claim and topic ledger, and write a durable
   `legacy_semantic_repair` record. The repair apply surface may update kernel
   content state, but it cannot update claim trust or prove semantic

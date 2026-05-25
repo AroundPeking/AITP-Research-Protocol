@@ -1109,6 +1109,65 @@ def test_legacy_semantic_repair_applies_scope_and_failure_mode_from_reviewed_leg
     assert claims["claim-canonical"].confidence_state == "legacy_seed"
 
 
+def test_legacy_semantic_repair_backfills_failure_mode_from_l1_non_success_conditions(tmp_path):
+    from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    l1_contract = legacy_topic / "L1" / "question_contract.md"
+    l1_contract.parent.mkdir(parents=True)
+    l1_contract.write_text(
+        "---\n"
+        "artifact_kind: l1_question_contract\n"
+        "bounded_question: Which runtime failure modes should remain visible?\n"
+        "---\n"
+        "# Question Contract\n\n"
+        "## Non-Success Conditions\n\n"
+        "- Code compiles but produces NaN gaps.\n"
+        "- Iteration diverges or exceeds memory limits.\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="Head-wing recomputation should be checked.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="The reviewed L1 contract names failure conditions missing from the claim.",
+        reviewed_legacy_refs=[f"legacy_l1:{l1_contract}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["backfill_active_claim_failure_mode_from_legacy_l1_non_success_conditions"],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["proposed_repairs"] == [
+        {
+            "repair_type": "claim_failure_mode_backfill",
+            "target_ref": "claim-canonical",
+            "current_value": "",
+            "proposed_value": "- Code compiles but produces NaN gaps. - Iteration diverges or exceeds memory limits.",
+            "basis_refs": [f"legacy_l1:{l1_contract}", review.review_id],
+            "mutation_authority": "none_review_and_apply_separately",
+        }
+    ]
+
+
 def test_legacy_semantic_repair_backfills_scope_from_reviewed_l1_question_contract(tmp_path):
     from brain.v5.legacy_semantic_repair import (
         apply_legacy_semantic_repair,
@@ -1183,6 +1242,74 @@ def test_legacy_semantic_repair_backfills_scope_from_reviewed_l1_question_contra
     claims = {record.claim_id: record for record in list_records(ws.registry_dir("claims"), ClaimRecord)}
     assert claims["claim-canonical"].scope == "Single-shot QSGW cycle only; no vertex corrections."
     assert claims["claim-canonical"].confidence_state == "legacy_seed"
+
+
+def test_legacy_semantic_repair_l1_scope_action_ignores_candidate_assumptions(tmp_path):
+    from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    candidate = legacy_topic / "L3" / "candidates" / "candidate.md"
+    l1_contract = legacy_topic / "L1" / "question_contract.md"
+    candidate.parent.mkdir(parents=True)
+    l1_contract.parent.mkdir(parents=True)
+    candidate.write_text(
+        "---\n"
+        "candidate_id: candidate\n"
+        "claim: Candidate claim.\n"
+        "---\n"
+        "# Candidate\n\n"
+        "## Assumptions\n"
+        "Candidate assumptions are not the L1 scope.\n",
+        encoding="utf-8",
+    )
+    l1_contract.write_text(
+        "---\n"
+        "artifact_kind: l1_question_contract\n"
+        "scope_boundaries: L1 scope is the requested repair source.\n"
+        "---\n"
+        "# Question Contract\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="Candidate claim.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="needs_revision",
+        summary="The reviewed action asks for L1 scope, not candidate assumptions.",
+        reviewed_legacy_refs=[f"legacy_candidate:{candidate}", f"legacy_l1:{l1_contract}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["backfill_active_claim_scope_from_legacy_l1_question_contract"],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["proposed_repairs"] == [
+        {
+            "repair_type": "claim_scope_backfill",
+            "target_ref": "claim-canonical",
+            "current_value": "",
+            "proposed_value": "L1 scope is the requested repair source.",
+            "basis_refs": [f"legacy_candidate:{candidate}", f"legacy_l1:{l1_contract}", review.review_id],
+            "mutation_authority": "none_review_and_apply_separately",
+        }
+    ]
 
 
 def test_legacy_semantic_repair_prefers_reviewed_l1_bounded_question_for_statement(tmp_path):
