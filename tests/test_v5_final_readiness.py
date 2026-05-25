@@ -186,6 +186,40 @@ def test_final_readiness_audit_reports_missing_legacy_review_without_migration_r
     assert payload["content_backlog"]["legacy_semantic_review"]["semantic_lossless_proven"] is False
 
 
+def test_final_readiness_audit_reports_source_reconstruction_content_backlog(tmp_path):
+    from brain.v5.final_readiness import audit_final_engineering_readiness
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source reconstruction missing",
+    )
+    run = _write_migration_run(ws, topic_count=0)
+
+    payload = audit_final_engineering_readiness(ws, migration_dir=run)
+
+    assert payload["completion_status"] == "kernel_ready_content_backlog"
+    assert payload["content_backlog_status"] == "source_reconstruction_backlog"
+    assert payload["blocking_gaps"] == []
+    source_backlog = payload["content_backlog"]["source_reconstruction"]
+    assert source_backlog["surface"] == "source_reconstruction_manifest"
+    assert source_backlog["status"] == "reconstruction_backlog"
+    assert source_backlog["active_claim_count"] == 1
+    assert source_backlog["complete_claim_count"] == 0
+    assert source_backlog["incomplete_claim_count"] == 1
+    assert source_backlog["next_actions"] == [f"source_reconstruction:{claim.claim_id}"]
+    assert source_backlog["can_update_claim_trust"] is False
+    assert f"source_reconstruction:incomplete=1" in payload["backlog_refs"]
+    assert require_valid_public_surface("final_engineering_readiness_audit", payload) == payload
+
+
 def test_final_readiness_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.mcp_tools import aitp_v5_audit_final_engineering_readiness

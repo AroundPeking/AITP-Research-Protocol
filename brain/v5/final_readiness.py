@@ -31,9 +31,10 @@ def audit_final_engineering_readiness(
     record_gates = record_gate_coverage_audit()
     host_smoke = runtime_hook_smoke_coverage_report()
     source_stack = _source_stack(ws)
+    source_backlog = _source_reconstruction_backlog(source_stack)
     legacy_review = _legacy_semantic_review(ws, migration_dir=migration_dir)
     blocking_gaps = _blocking_gaps(record_gates, host_smoke, legacy_review)
-    content_backlog_status = _content_backlog_status(legacy_review)
+    content_backlog_status = _content_backlog_status(legacy_review, source_backlog)
     completion_status = (
         "complete"
         if not blocking_gaps and content_backlog_status == "none"
@@ -54,11 +55,12 @@ def audit_final_engineering_readiness(
         },
         "content_backlog": {
             "legacy_semantic_review": legacy_review,
+            "source_reconstruction": source_backlog,
         },
         "blocking_gaps": blocking_gaps,
         "residual_risks": _residual_risks(host_smoke, legacy_review),
         "evidence_refs": _evidence_refs(source_stack),
-        "backlog_refs": _backlog_refs(legacy_review),
+        "backlog_refs": _backlog_refs(legacy_review, source_backlog),
         "truth_source": "typed_records_and_contract_audits",
         "summary_inputs_trusted": False,
         "orientation_only": True,
@@ -139,6 +141,23 @@ def _knowledge_stack(ws: WorkspacePaths) -> dict[str, Any]:
         "memory_entry_count": len(entries),
         "active_memory_entry_count": len(active_entries),
         "summary_inputs_trusted": False,
+    }
+
+
+def _source_reconstruction_backlog(source_stack: dict[str, Any]) -> dict[str, Any]:
+    incomplete_claim_ids = list(source_stack["incomplete_claim_ids"])
+    return {
+        "surface": "source_reconstruction_manifest",
+        "status": "reconstruction_backlog" if incomplete_claim_ids else "complete",
+        "active_claim_count": source_stack["active_claim_count"],
+        "complete_claim_count": source_stack["complete_claim_count"],
+        "incomplete_claim_count": source_stack["incomplete_claim_count"],
+        "next_actions": [f"source_reconstruction:{claim_id}" for claim_id in incomplete_claim_ids],
+        "missing_components_by_claim": dict(source_stack["missing_components_by_claim"]),
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
     }
 
 
@@ -227,11 +246,13 @@ def _kernel_capability_status(record_gates: dict[str, Any], host_smoke: dict[str
     return "ready_for_priority_hosts"
 
 
-def _content_backlog_status(legacy_review: dict[str, Any]) -> str:
+def _content_backlog_status(legacy_review: dict[str, Any], source_backlog: dict[str, Any]) -> str:
     if legacy_review["status"] == "missing_migration_run":
         return "legacy_semantic_review_backlog"
     if legacy_review["pending_count"] or legacy_review["needs_revision_count"] or legacy_review["inconclusive_count"]:
         return "legacy_semantic_review_backlog"
+    if source_backlog["incomplete_claim_count"]:
+        return "source_reconstruction_backlog"
     return "none"
 
 
@@ -274,12 +295,13 @@ def _evidence_refs(source_stack: dict[str, Any]) -> list[str]:
     return refs
 
 
-def _backlog_refs(legacy_review: dict[str, Any]) -> list[str]:
+def _backlog_refs(legacy_review: dict[str, Any], source_backlog: dict[str, Any]) -> list[str]:
     run_id = legacy_review.get("run_id") or "missing"
     return [
         f"semantic_review:{run_id}:pending={legacy_review['pending_count']}",
         f"semantic_review:{run_id}:needs_revision={legacy_review['needs_revision_count']}",
         f"semantic_review:{run_id}:inconclusive={legacy_review['inconclusive_count']}",
+        f"source_reconstruction:incomplete={source_backlog['incomplete_claim_count']}",
     ]
 
 

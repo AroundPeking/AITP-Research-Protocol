@@ -43,6 +43,26 @@ def validate_final_engineering_readiness_audit(
         for key in ["review_item_count", "pending_count", "passed_count", "needs_revision_count", "inconclusive_count"]:
             if not isinstance(legacy.get(key), int):
                 result.add(f"{path}.content_backlog.legacy_semantic_review.{key}", "must be an integer")
+    source = _mapping(payload.get("content_backlog")).get("source_reconstruction")
+    _require_mapping(source, f"{path}.content_backlog.source_reconstruction", result)
+    if isinstance(source, dict):
+        if source.get("surface") != "source_reconstruction_manifest":
+            result.add(f"{path}.content_backlog.source_reconstruction.surface", "must be source_reconstruction_manifest")
+        if source.get("status") not in {"complete", "reconstruction_backlog"}:
+            result.add(f"{path}.content_backlog.source_reconstruction.status", "must be complete or reconstruction_backlog")
+        for key in ["active_claim_count", "complete_claim_count", "incomplete_claim_count"]:
+            if not isinstance(source.get(key), int):
+                result.add(f"{path}.content_backlog.source_reconstruction.{key}", "must be an integer")
+        _require_list(source.get("next_actions"), f"{path}.content_backlog.source_reconstruction.next_actions", result)
+        _require_mapping(
+            source.get("missing_components_by_claim"),
+            f"{path}.content_backlog.source_reconstruction.missing_components_by_claim",
+            result,
+        )
+        if source.get("can_update_kernel_state") is not False:
+            result.add(f"{path}.content_backlog.source_reconstruction.can_update_kernel_state", "must be false")
+        if source.get("can_update_claim_trust") is not False:
+            result.add(f"{path}.content_backlog.source_reconstruction.can_update_claim_trust", "must be false")
     return result
 
 
