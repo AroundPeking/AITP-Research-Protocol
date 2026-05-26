@@ -86,6 +86,30 @@ def test_legacy_l2_obsidian_view_writes_orientation_only_index(tmp_path):
     assert "migrate_legacy_l2_entries_into_memory_records" in overview
 
 
+def test_legacy_l2_obsidian_view_worklist_uses_full_typed_packet(tmp_path):
+    from brain.v5.legacy_l2_obsidian import write_legacy_l2_obsidian_view
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path)
+    l2 = _write_legacy_l2(tmp_path)
+    for index in range(2, 121):
+        (l2 / "graph" / "steps" / f"s{index:03d}.md").write_text(
+            f"# Step {index}\n",
+            encoding="utf-8",
+        )
+
+    payload = write_legacy_l2_obsidian_view(ws, legacy_l2_dir=l2)
+    worklist = (tmp_path / ".aitp" / "surfaces" / "legacy_l2_obsidian" / "Legacy L2 Migration Worklist.md").read_text(
+        encoding="utf-8",
+    )
+
+    assert payload["migration_work_item_count"] == 125
+    assert "legacy_l2_graph_step:s120" in worklist
+    assert "legacy_l2_graph_tower:tower-screened-interaction" in worklist
+    assert "sensemaking_report_record" in worklist
+    assert "review_legacy_l2_steps_for_sensemaking_reports" in payload["next_actions"]
+
+
 def test_legacy_l2_obsidian_view_cli_mcp_and_runtime_surface(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.mcp_tools import aitp_v5_write_legacy_l2_obsidian_view

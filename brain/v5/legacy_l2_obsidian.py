@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest
+from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest, build_legacy_l2_typed_migration_packet
 from brain.v5.markdown import read_md, write_md
 from brain.v5.paths import WorkspacePaths
 
@@ -23,6 +23,7 @@ def write_legacy_l2_obsidian_view(
     entries = _scan_entries(l2_dir / "entries")
     graph_files = _scan_graph_files(l2_dir / "graph")
     manifest = build_legacy_l2_graph_manifest(ws, legacy_l2_dir=l2_dir)
+    typed_packet = build_legacy_l2_typed_migration_packet(ws, legacy_l2_dir=l2_dir)
     overview_path = view_dir / "Legacy L2 Overview.md"
     entries_path = view_dir / "Legacy L2 Entries.md"
     graph_path = view_dir / "Legacy L2 Graph.md"
@@ -45,7 +46,7 @@ def write_legacy_l2_obsidian_view(
     write_md(
         worklist_path,
         _frontmatter("legacy_l2_migration_worklist", str(l2_dir)),
-        _worklist_body(manifest),
+        _worklist_body(typed_packet),
     )
     return {
         "ok": True,
@@ -73,7 +74,7 @@ def write_legacy_l2_obsidian_view(
             "legacy_graph_files": [item["path"] for item in graph_files],
             "memory_entries": [],
         },
-        "next_actions": list(manifest["next_actions"]),
+        "next_actions": list(typed_packet["next_actions"]),
         "derived_from": "legacy_l2_filesystem",
         "truth_source": False,
         "orientation_only": True,

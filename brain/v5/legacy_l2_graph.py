@@ -80,6 +80,7 @@ def build_legacy_l2_typed_migration_packet(
         "typed_migration_status": _typed_packet_status(work_items),
         "work_item_count": len(work_items),
         "work_item_counts_by_kind": dict(manifest.get("work_item_counts_by_kind") or {}),
+        "migration_work_items": [_packet_work_item(item) for item in work_items],
         "review_groups": groups,
         "recommended_commands": _recommended_commands(),
         "next_actions": _typed_packet_next_actions(groups),
@@ -164,6 +165,7 @@ def _packet_work_item(item: dict[str, Any]) -> dict[str, Any]:
         "role": str(item.get("role") or ""),
         "status": str(item.get("status") or ""),
         "source_path": str(item.get("source_path") or ""),
+        "recommended_target_surface": str(item.get("recommended_target_surface") or "memory_entry_record"),
         "migration_action": str(item.get("migration_action") or ""),
         "can_update_claim_trust": False,
     }
