@@ -2486,7 +2486,35 @@ def test_legacy_semantic_review_worklist_cli_compact_progress(tmp_path, capsys):
         "worklist_item:legacy-l2",
     ]
     assert cli_payload["top_work_item_topics"] == ["canonical-topic", "legacy-l2"]
+    assert cli_payload["top_work_item_active_claim_ids"] == ["claim-canonical", "claim-l2"]
     assert cli_payload["top_work_item_review_statuses"] == ["pending", "pending"]
+    assert cli_payload["top_work_item_blockers"] == [
+        [
+            "active_claim_statement_empty",
+            "source_reconstruction_incomplete",
+            "initial_semantic_review_not_recorded",
+            "archive_reference_sampling_required",
+        ],
+        [
+            "active_claim_statement_empty",
+            "source_reconstruction_incomplete",
+            "initial_semantic_review_not_recorded",
+        ],
+    ]
+    assert cli_payload["top_work_item_remaining_actions"] == [[], []]
+    assert cli_payload["top_work_item_review_focus"] == [
+        [
+            "complete_source_reconstruction_components",
+            "sample_archive_reference_readback",
+            "perform_initial_semantic_review",
+            "record_next_legacy_semantic_review_result",
+        ],
+        [
+            "complete_source_reconstruction_components",
+            "perform_initial_semantic_review",
+            "record_next_legacy_semantic_review_result",
+        ],
+    ]
     assert cli_payload["open_human_checkpoint_refs"] == []
     assert cli_payload["semantic_lossless_proven"] is False
     assert cli_payload["can_update_claim_trust"] is False

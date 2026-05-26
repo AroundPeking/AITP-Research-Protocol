@@ -180,10 +180,34 @@ def compact_legacy_semantic_review_worklist(payload: dict[str, Any]) -> dict[str
             for item in top_items
             if str(item.get("topic") or "")
         ],
+        "top_work_item_active_claim_ids": [
+            str(item.get("active_claim_id") or "")
+            for item in top_items
+            if str(item.get("active_claim_id") or "")
+        ],
         "top_work_item_review_statuses": [
             str(item.get("review_status") or "")
             for item in top_items
             if str(item.get("review_status") or "")
+        ],
+        "top_work_item_blockers": [
+            _limited_strings(
+                item.get("pass_readiness", {}).get("blockers")
+                if isinstance(item.get("pass_readiness"), dict)
+                else []
+            )
+            for item in top_items
+        ],
+        "top_work_item_remaining_actions": [
+            _limited_strings(
+                item.get("pass_readiness", {}).get("remaining_actions")
+                if isinstance(item.get("pass_readiness"), dict)
+                else []
+            )
+            for item in top_items
+        ],
+        "top_work_item_review_focus": [
+            _limited_strings(item.get("review_focus")) for item in top_items
         ],
         "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
         "semantic_review_required": bool(payload.get("semantic_review_required", True)),
