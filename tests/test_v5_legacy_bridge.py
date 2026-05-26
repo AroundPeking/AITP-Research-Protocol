@@ -539,7 +539,7 @@ def test_legacy_semantic_review_queue_cli_mcp_and_runtime_surface(tmp_path, caps
 
 def test_legacy_semantic_review_packet_collects_review_basis_without_writing(tmp_path):
     from brain.v5.evidence import record_evidence
-    from brain.v5.legacy_semantic_review import build_legacy_semantic_review_packet
+    from brain.v5.legacy_semantic_review import build_legacy_semantic_review_packet, record_legacy_semantic_review_result
     from brain.v5.models import ClaimRecord
     from brain.v5.public_surfaces import require_valid_public_surface
     from brain.v5.store import write_record
@@ -567,6 +567,18 @@ def test_legacy_semantic_review_packet_collects_review_basis_without_writing(tmp
         supports_outputs=["legacy_migration"],
         source_refs=["legacy_source:canonical-topic/state.md"],
     )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="Packet should surface latest review basis for reviewer continuity.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy_l1:canonical-topic/L1/question_contract.md"],
+        reviewed_typed_refs=["claim-canonical"],
+        evidence_refs=[evidence.evidence_id],
+        remaining_actions=["complete_source_reconstruction"],
+    )
     before = {path.as_posix() for path in ws.root.rglob("*") if path.is_file()}
 
     packet = build_legacy_semantic_review_packet(ws, migration_dir=run, topic="canonical-topic")
@@ -577,9 +589,15 @@ def test_legacy_semantic_review_packet_collects_review_basis_without_writing(tmp
     assert packet["topic"] == "canonical-topic"
     assert packet["active_claim"]["claim_id"] == "claim-canonical"
     assert packet["active_claim"]["statement"] == "Migrated canonical claim."
-    assert packet["queue_item"]["semantic_review_status"] == "pending"
+    assert packet["queue_item"]["semantic_review_status"] == "reviewed_inconclusive"
     assert packet["typed_records"]["evidence"][0]["evidence_id"] == evidence.evidence_id
     assert "legacy_source:canonical-topic/state.md" in packet["legacy_review_refs"]
+    assert packet["latest_semantic_review"]["review_id"] == review.review_id
+    assert packet["latest_semantic_review"] == packet["queue_item"]["latest_semantic_review"]
+    assert "legacy_source:canonical-topic/state.md" in packet["review_basis_refs"]
+    assert "legacy_l1:canonical-topic/L1/question_contract.md" in packet["review_basis_refs"]
+    assert f"legacy_semantic_review:{review.review_id}" in packet["review_basis_refs"]
+    assert f"evidence:{evidence.evidence_id}" in packet["review_basis_refs"]
     assert packet["review_checklist"]
     assert packet["semantic_lossless_proven"] is False
     assert packet["orientation_only"] is True

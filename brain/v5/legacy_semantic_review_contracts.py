@@ -105,6 +105,8 @@ def validate_legacy_semantic_review_packet(
     _validate_item(payload.get("queue_item"), f"{path}.queue_item", result)
     if not isinstance(payload.get("active_claim"), dict):
         result.add(f"{path}.active_claim", "must be a mapping")
+    if not isinstance(payload.get("latest_semantic_review"), dict):
+        result.add(f"{path}.latest_semantic_review", "must be a mapping")
     typed = payload.get("typed_records")
     if not isinstance(typed, dict):
         result.add(f"{path}.typed_records", "must be a mapping")
@@ -112,7 +114,7 @@ def validate_legacy_semantic_review_packet(
         for key in ("reference_locations", "evidence", "physics_objects", "object_relations", "sensemaking_reports", "validation_results"):
             if not isinstance(typed.get(key), list):
                 result.add(f"{path}.typed_records.{key}", "must be a list")
-    for key in ("legacy_review_refs", "review_checklist"):
+    for key in ("legacy_review_refs", "review_basis_refs", "review_checklist"):
         if not isinstance(payload.get(key), list) or not all(isinstance(value, str) for value in payload[key]):
             result.add(f"{path}.{key}", "must be a list of strings")
     return result

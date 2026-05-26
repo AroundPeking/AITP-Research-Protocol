@@ -33,15 +33,18 @@ def build_legacy_semantic_review_packet(
     claim = _claim_payload(ws, item["active_claim_id"])
     typed = _typed_records_for_claim(ws, item["topic"], item["active_claim_id"])
     legacy_refs = _legacy_review_refs(item, typed)
+    latest_review = _latest_semantic_review(item)
     return {
         "kind": "legacy_semantic_review_packet",
         "run_id": queue["run_id"],
         "migration_dir": queue["migration_dir"],
         "topic": item["topic"],
         "queue_item": item,
+        "latest_semantic_review": latest_review,
         "active_claim": claim,
         "typed_records": typed,
         "legacy_review_refs": legacy_refs,
+        "review_basis_refs": _review_basis_refs(legacy_refs, latest_review),
         "review_checklist": _review_checklist(item, typed, legacy_refs),
         "semantic_lossless_proven": False,
         "semantic_review_required": True,
@@ -130,6 +133,29 @@ def _legacy_review_refs(item: dict[str, Any], typed: dict[str, list[dict[str, An
             source_ref = record.get("source_ref")
             if source_ref:
                 refs.append(source_ref)
+    return _unique(refs)
+
+
+def _latest_semantic_review(item: dict[str, Any]) -> dict[str, Any]:
+    latest = item.get("latest_semantic_review")
+    if isinstance(latest, dict):
+        return dict(latest)
+    return {}
+
+
+def _review_basis_refs(legacy_refs: list[str], latest_review: dict[str, Any]) -> list[str]:
+    refs = list(legacy_refs)
+    refs.extend(str(ref) for ref in latest_review.get("reviewed_legacy_refs", []) if str(ref))
+    refs.extend(str(ref) for ref in latest_review.get("reviewed_typed_refs", []) if str(ref))
+    refs.extend(f"evidence:{ref}" for ref in latest_review.get("evidence_refs", []) if str(ref))
+    refs.extend(
+        f"validation_result:{ref}"
+        for ref in latest_review.get("validation_result_ids", [])
+        if str(ref)
+    )
+    review_id = str(latest_review.get("review_id") or "")
+    if review_id:
+        refs.append(f"legacy_semantic_review:{review_id}")
     return _unique(refs)
 
 
