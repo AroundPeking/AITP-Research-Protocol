@@ -1028,6 +1028,7 @@ def test_legacy_semantic_review_worklist_maps_validation_remaining_actions(tmp_p
         remaining_actions=[
             "trace_compute_Wc_freq_q_accepts_chi_r_substitution_on_actual_LibRPA_code",
             "validate_static_U_and_J_against_SrVO3_reference",
+            "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs",
         ],
     )
 
@@ -1060,6 +1061,18 @@ def test_legacy_semantic_review_worklist_maps_validation_remaining_actions(tmp_p
     )
     assert srvo3["surface"] == "validation_result_record"
     assert srvo3["can_update_claim_trust"] is False
+    executable_srvo3 = commands[
+        "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs"
+    ]
+    assert executable_srvo3["cli"] == (
+        f"aitp-v5 --base {ws.base} validation result record "
+        "--topic canonical-topic --claim claim-canonical --contract validation-contract-canonical "
+        "--tool-run <srvo3-crpa-benchmark-tool-run-id> --status <partial|passed|failed|inconclusive> "
+        "--checked-output validation_result "
+        "--summary <executable SrVO3 t2g cRPA benchmark with Wannier U/J outputs>"
+    )
+    assert executable_srvo3["surface"] == "validation_result_record"
+    assert executable_srvo3["can_update_claim_trust"] is False
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 

@@ -200,6 +200,24 @@ def _review_action_command(
             effect="typed_record_write",
             can_update_kernel_state=True,
         )
+    if action == "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} validation result record "
+                f"--topic {item['topic']} --claim {item['active_claim_id']} "
+                f"--contract {_validation_contract_id(latest_review)} "
+                "--tool-run <srvo3-crpa-benchmark-tool-run-id> "
+                "--status <partial|passed|failed|inconclusive> "
+                "--checked-output validation_result "
+                "--summary <executable SrVO3 t2g cRPA benchmark with Wannier U/J outputs>"
+            ),
+            mcp="aitp_v5_record_validation_result",
+            surface="validation_result_record",
+            effect="typed_record_write",
+            can_update_kernel_state=True,
+        )
     qsgw_command = qsgw_review_action_command(
         action,
         item,
