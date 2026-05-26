@@ -7,7 +7,9 @@ from typing import Any
 
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
 from brain.v5.legacy_semantic_worklist_commands import followup_review_commands, review_action_commands
+from brain.v5.models import HumanCheckpointRecord
 from brain.v5.paths import WorkspacePaths
+from brain.v5.store import list_records
 
 
 def build_legacy_semantic_review_worklist(
@@ -18,8 +20,16 @@ def build_legacy_semantic_review_worklist(
     """Build a read-only prioritized queue for remaining legacy semantic reviews."""
 
     manifest = build_legacy_semantic_review_manifest(ws, migration_dir=migration_dir)
+    checkpoints_by_claim = _group_open_human_checkpoints(
+        list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord)
+    )
     candidates = [
-        _work_item(item, workspace=manifest["workspace"], migration_dir=manifest["migration_dir"])
+        _work_item(
+            item,
+            workspace=manifest["workspace"],
+            migration_dir=manifest["migration_dir"],
+            open_human_checkpoints=checkpoints_by_claim.get(str(item.get("active_claim_id") or ""), []),
+        )
         for item in manifest["items"]
         if item["review_status"] in {"pending", "needs_revision", "inconclusive"}
     ]
@@ -45,7 +55,13 @@ def build_legacy_semantic_review_worklist(
     }
 
 
-def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> dict[str, Any]:
+def _work_item(
+    item: dict[str, Any],
+    *,
+    workspace: str,
+    migration_dir: str,
+    open_human_checkpoints: list[HumanCheckpointRecord],
+) -> dict[str, Any]:
     repair_count = int(item.get("repair_candidate_count") or 0)
     missing = list(item.get("missing_source_components") or _missing_source_components_from_reasons(item))
     followup_actions = list(item.get("followup_review_actions", []))
@@ -61,6 +77,8 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
     source_review_refs = [
         str(ref) for ref in item.get("source_reconstruction_review_refs", []) if str(ref)
     ]
+    open_checkpoints = _open_checkpoint_payloads(item, open_human_checkpoints)
+    command_item = {**item, "open_human_checkpoints": open_checkpoints}
     pass_readiness = _pass_readiness(
         item,
         latest_review=latest,
@@ -68,7 +86,7 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
         followup_review_actions=followup_actions,
     )
     commands = review_action_commands(
-        item,
+        command_item,
         latest_review=latest,
         workspace=workspace,
         migration_dir=migration_dir,
@@ -84,6 +102,9 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
         "review_focus": focus,
         "missing_source_components": missing,
         "source_reconstruction_review_refs": source_review_refs,
+        "open_human_checkpoint_refs": [
+            f"human-checkpoint:{checkpoint['checkpoint_id']}" for checkpoint in open_checkpoints
+        ],
         "satisfied_review_actions": satisfied_actions,
         "followup_review_actions": followup_actions,
         "pass_readiness": pass_readiness,
@@ -102,6 +123,39 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
         "result_cli_template": item["result_cli_template"],
         "can_update_claim_trust": False,
     }
+
+
+def _group_open_human_checkpoints(
+    records: list[HumanCheckpointRecord],
+) -> dict[str, list[HumanCheckpointRecord]]:
+    grouped: dict[str, list[HumanCheckpointRecord]] = {}
+    for record in records:
+        if record.status != "open":
+            continue
+        grouped.setdefault(record.claim_id, []).append(record)
+    for checkpoints in grouped.values():
+        checkpoints.sort(key=lambda checkpoint: checkpoint.checkpoint_id)
+    return grouped
+
+
+def _open_checkpoint_payloads(
+    item: dict[str, Any],
+    checkpoints: list[HumanCheckpointRecord],
+) -> list[dict[str, Any]]:
+    topic = str(item.get("topic") or "")
+    return [
+        {
+            "checkpoint_id": checkpoint.checkpoint_id,
+            "topic_id": checkpoint.topic_id,
+            "claim_id": checkpoint.claim_id,
+            "reason": checkpoint.reason,
+            "requested_by": checkpoint.requested_by,
+            "options": list(checkpoint.options),
+            "status": checkpoint.status,
+        }
+        for checkpoint in checkpoints
+        if checkpoint.topic_id == topic
+    ]
 
 
 def _pass_readiness(

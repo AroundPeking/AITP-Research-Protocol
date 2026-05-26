@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from brain.v5.legacy_semantic_checkpoint_commands import human_checkpoint_command
+
 
 def generic_review_action_command(
     action: str,
@@ -188,19 +190,13 @@ def _choice_checkpoint_command(
     workspace: str,
     reason: str,
 ) -> dict[str, Any]:
-    return _command(
+    return human_checkpoint_command(
         action,
+        item,
         review_id=review_id,
-        cli=(
-            f"aitp-v5 --base {workspace} checkpoint request "
-            f"--topic {item['topic']} --claim {item['active_claim_id']} "
-            f"--reason <{reason}> --requested-by legacy_semantic_review "
-            "--option record_choice --option keep_backlog_blocking"
-        ),
-        mcp="aitp_v5_request_human_checkpoint",
-        surface="human_checkpoint_record",
-        effect="typed_record_write",
-        can_update_kernel_state=True,
+        workspace=workspace,
+        reason=reason,
+        options=["record_choice", "keep_backlog_blocking"],
     )
 
 
@@ -358,3 +354,4 @@ def _command(
         "can_update_kernel_state": can_update_kernel_state,
         "can_update_claim_trust": False,
     }
+

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from brain.v5.legacy_semantic_checkpoint_commands import human_checkpoint_command
 from brain.v5.legacy_semantic_generic_commands import generic_review_action_command
 from brain.v5.legacy_semantic_qsgw_commands import qsgw_review_action_command
 from brain.v5.legacy_semantic_source_commands import source_reconstruction_review_command
@@ -166,36 +167,22 @@ def _review_action_command(
             can_update_kernel_state=True,
         )
     if action == "require_human_topic_question_before_claim_backfill":
-        return _command(
+        return human_checkpoint_command(
             action,
+            item,
             review_id=review_id,
-            cli=(
-                f"aitp-v5 --base {workspace} checkpoint request "
-                f"--topic {item['topic']} --claim {item['active_claim_id']} "
-                "--reason <human topic question required before claim backfill> "
-                "--requested-by legacy_semantic_review --option provide_topic_question "
-                "--option keep_backlog_blocking"
-            ),
-            mcp="aitp_v5_request_human_checkpoint",
-            surface="human_checkpoint_record",
-            effect="typed_record_write",
-            can_update_kernel_state=True,
+            workspace=workspace,
+            reason="human topic question required before claim backfill",
+            options=["provide_topic_question", "keep_backlog_blocking"],
         )
     if action.startswith("decide_archive_or_delete_"):
-        return _command(
+        return human_checkpoint_command(
             action,
+            item,
             review_id=review_id,
-            cli=(
-                f"aitp-v5 --base {workspace} checkpoint request "
-                f"--topic {item['topic']} --claim {item['active_claim_id']} "
-                "--reason <archive or delete noncanonical legacy seed> "
-                "--requested-by legacy_semantic_review --option archive_seed "
-                "--option delete_seed --option keep_backlog_blocking"
-            ),
-            mcp="aitp_v5_request_human_checkpoint",
-            surface="human_checkpoint_record",
-            effect="typed_record_write",
-            can_update_kernel_state=True,
+            workspace=workspace,
+            reason="archive or delete noncanonical legacy seed",
+            options=["archive_seed", "delete_seed", "keep_backlog_blocking"],
         )
     if action.startswith("keep_semantic_review_blocking_until_"):
         return _command(
@@ -214,19 +201,13 @@ def _review_action_command(
             can_update_kernel_state=True,
         )
     if action.startswith("decide_human_checkpoint_before"):
-        return _command(
+        return human_checkpoint_command(
             action,
+            item,
             review_id=review_id,
-            cli=(
-                f"aitp-v5 --base {workspace} checkpoint request "
-                f"--topic {item['topic']} --claim {item['active_claim_id']} "
-                "--reason <legacy semantic review promotion decision> --requested-by legacy_semantic_review "
-                "--option approve_semantic_review --option keep_backlog_blocking"
-            ),
-            mcp="aitp_v5_request_human_checkpoint",
-            surface="human_checkpoint_record",
-            effect="typed_record_write",
-            can_update_kernel_state=True,
+            workspace=workspace,
+            reason="legacy semantic review promotion decision",
+            options=["approve_semantic_review", "keep_backlog_blocking"],
         )
     if action == "trace_compute_Wc_freq_q_accepts_chi_r_substitution_on_actual_LibRPA_code":
         return _command(

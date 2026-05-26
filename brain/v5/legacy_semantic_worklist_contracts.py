@@ -107,6 +107,7 @@ def _validate_worklist_item(payload: Any, path: str, result: ContractResult) -> 
         "review_focus",
         "missing_source_components",
         "source_reconstruction_review_refs",
+        "open_human_checkpoint_refs",
         "satisfied_review_actions",
         "followup_review_actions",
         "review_action_commands",
