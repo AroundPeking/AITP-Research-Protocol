@@ -229,6 +229,7 @@ def test_workspace_replay_packet_uses_temporal_source_review_order(tmp_path):
 def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_path):
     from dataclasses import asdict
 
+    from brain.v5.checkpoints import request_human_checkpoint
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.markdown import read_md
     from brain.v5.models import ClaimRecord
@@ -336,7 +337,18 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
         active_claim_id="claim-l2",
         reviewed_legacy_refs=["legacy_archive:L2/index.md"],
         reviewed_typed_refs=["claim-l2"],
-        remaining_actions=["review_legacy_l2_memory_entry_candidates"],
+        remaining_actions=[
+            "review_legacy_l2_memory_entry_candidates",
+            "decide_human_checkpoint_before_promotion",
+        ],
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="legacy-l2",
+        claim_id="claim-l2",
+        reason="legacy semantic review promotion decision",
+        requested_by="legacy_semantic_review",
+        options=["approve_semantic_review", "keep_backlog_blocking"],
     )
 
     packet = write_workspace_replay_packet(ws, migration_dir=migration)
@@ -355,6 +367,23 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
             "pending": 0,
         },
         "semantic_lossless_proven": False,
+        "open_human_checkpoint_count": 1,
+        "open_human_checkpoints": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "checkpoint_id": checkpoint.checkpoint_id,
+                "checkpoint_ref": f"human-checkpoint:{checkpoint.checkpoint_id}",
+                "action": "decide_human_checkpoint_before_promotion",
+                "decision_cli": (
+                    f"aitp-v5 --base {ws.base} checkpoint decide {checkpoint.checkpoint_id} "
+                    "--decision <approve_semantic_review|keep_backlog_blocking> "
+                    "--rationale <human rationale> --decided-by <reviewer>"
+                ),
+                "decision_mcp": "aitp_v5_decide_human_checkpoint",
+                "can_update_claim_trust": False,
+            }
+        ],
         "top_backlog_items": [
             {
                 "topic": "legacy-l2",
@@ -376,6 +405,8 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
     }
     _, body = read_md(packet.files["replay_packet"])
     assert "Legacy Semantic Review Backlog" in body
+    assert "Open human checkpoints: 1" in body
+    assert checkpoint.checkpoint_id in body
     assert "semantic lossless proven: False" in body
     assert "legacy-l2" in body
 

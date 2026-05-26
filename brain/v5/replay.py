@@ -10,6 +10,7 @@ from typing import Any
 from brain.v5.evidence import required_output_coverage
 from brain.v5.flow import resolve_flow_profile
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
+from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
 from brain.v5.markdown import write_md
 from brain.v5.memory_index import MemoryEntrySummary, scan_memory_entry_summaries
 from brain.v5.models import ClaimRecord, CodeStateRecord, EvidenceRecord, SessionBinding, SourceReconstructionReviewResultRecord
@@ -207,9 +208,17 @@ def _body(entries: list[dict[str, Any]], workspace_backlog_summary: dict[str, An
             f"- Migration dir: `{legacy['migration_dir']}`",
             f"- Review items: {legacy['review_item_count']}",
             f"- Review progress: `{legacy['review_progress']}`",
+            f"- Open human checkpoints: {legacy.get('open_human_checkpoint_count', 0)}",
             f"- semantic lossless proven: {legacy['semantic_lossless_proven']}",
             "",
         ])
+        for checkpoint in legacy.get("open_human_checkpoints", []):
+            lines.append(
+                f"- Open checkpoint `{checkpoint['checkpoint_id']}` for `{checkpoint['topic']}`: "
+                f"{checkpoint['action']}; decide via `{checkpoint['decision_cli']}`"
+            )
+        if legacy.get("open_human_checkpoints"):
+            lines.append("")
         for item in legacy["top_backlog_items"]:
             lines.append(
                 f"- `{item['topic']}`: {item['review_status']} priority {item['review_priority']}; "
@@ -277,6 +286,7 @@ def _legacy_semantic_review_summary(ws: WorkspacePaths, migration_dir: str | Non
     if not migration_dir:
         return None
     manifest = build_legacy_semantic_review_manifest(ws, migration_dir=migration_dir)
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=migration_dir)
     backlog = [
         item
         for item in manifest["items"]
@@ -288,6 +298,8 @@ def _legacy_semantic_review_summary(ws: WorkspacePaths, migration_dir: str | Non
         "review_item_count": manifest["review_item_count"],
         "review_progress": dict(manifest["review_progress"]),
         "semantic_lossless_proven": bool(manifest["semantic_lossless_proven"]),
+        "open_human_checkpoint_count": int(worklist.get("open_human_checkpoint_count") or 0),
+        "open_human_checkpoints": list(worklist.get("open_human_checkpoints") or []),
         "top_backlog_items": [_legacy_backlog_item(item) for item in backlog[:5]],
         "summary_inputs_trusted": False,
         "orientation_only": True,

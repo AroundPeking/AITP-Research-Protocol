@@ -143,6 +143,12 @@ def _validate_legacy_semantic_review_backlog(payload: Any, path: str, result: Co
     _require_mapping(payload.get("review_progress"), f"{path}.review_progress", result)
     if not isinstance(payload.get("semantic_lossless_proven"), bool):
         result.add(f"{path}.semantic_lossless_proven", "must be a boolean")
+    if not isinstance(payload.get("open_human_checkpoint_count"), int) or payload["open_human_checkpoint_count"] < 0:
+        result.add(f"{path}.open_human_checkpoint_count", "must be a non-negative integer")
+    _require_list(payload.get("open_human_checkpoints"), f"{path}.open_human_checkpoints", result)
+    if isinstance(payload.get("open_human_checkpoints"), list):
+        for index, item in enumerate(payload["open_human_checkpoints"]):
+            _validate_open_checkpoint(item, f"{path}.open_human_checkpoints[{index}]", result)
     _require_list(payload.get("top_backlog_items"), f"{path}.top_backlog_items", result)
     if isinstance(payload.get("top_backlog_items"), list):
         for index, item in enumerate(payload["top_backlog_items"]):
@@ -153,6 +159,24 @@ def _validate_legacy_semantic_review_backlog(payload: Any, path: str, result: Co
     _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
     _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)
     _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+
+
+def _validate_open_checkpoint(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in (
+        "topic",
+        "active_claim_id",
+        "checkpoint_id",
+        "checkpoint_ref",
+        "action",
+        "decision_cli",
+        "decision_mcp",
+    ):
+        if not isinstance(payload.get(key), str):
+            result.add(f"{path}.{key}", "must be a string")
     _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
 
 
