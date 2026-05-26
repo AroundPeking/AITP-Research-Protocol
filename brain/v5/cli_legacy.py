@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest
+from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest, build_legacy_l2_typed_migration_packet
 from brain.v5.legacy_l2_obsidian import write_legacy_l2_obsidian_view
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
@@ -32,6 +32,8 @@ def add_legacy_parser(subparsers) -> None:
     audit.add_argument("--migration-dir", default="")
     l2_graph = legacy_subparsers.add_parser("l2-graph-manifest")
     l2_graph.add_argument("--legacy-l2-dir", default="")
+    l2_typed = legacy_subparsers.add_parser("l2-typed-migration-packet")
+    l2_typed.add_argument("--legacy-l2-dir", default="")
     l2_obsidian = legacy_subparsers.add_parser("l2-obsidian-view")
     l2_obsidian.add_argument("--legacy-l2-dir", default="")
     l2_obsidian.add_argument("--output-dir", default="")
@@ -90,6 +92,9 @@ def dispatch_legacy_command(args, ws) -> dict:
     if args.legacy_command == "l2-graph-manifest":
         manifest = build_legacy_l2_graph_manifest(ws, legacy_l2_dir=args.legacy_l2_dir)
         return {"ok": True, **require_valid_public_surface("legacy_l2_graph_manifest", manifest)}
+    if args.legacy_command == "l2-typed-migration-packet":
+        packet = build_legacy_l2_typed_migration_packet(ws, legacy_l2_dir=args.legacy_l2_dir)
+        return {"ok": True, **require_valid_public_surface("legacy_l2_typed_migration_packet", packet)}
     if args.legacy_command == "l2-obsidian-view":
         bundle = write_legacy_l2_obsidian_view(
             ws,

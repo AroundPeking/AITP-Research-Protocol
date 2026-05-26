@@ -13,6 +13,7 @@ def build_legacy_l2_graph_manifest(
     ws: WorkspacePaths,
     *,
     legacy_l2_dir: str | Path = "",
+    migration_work_item_limit: int | None = 100,
 ) -> dict[str, Any]:
     """Scan legacy L2 files without promoting them into typed memory."""
 
@@ -47,8 +48,41 @@ def build_legacy_l2_graph_manifest(
         ),
         "work_item_count": len(migration_work_items),
         "work_item_counts_by_kind": _work_item_counts_by_kind(migration_work_items),
-        "migration_work_items": migration_work_items[:100],
+        "migration_work_items": _limit_work_items(migration_work_items, migration_work_item_limit),
         "next_actions": _next_actions(entries=entries, has_graph=has_graph),
+        "truth_source": "legacy_l2_filesystem",
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def build_legacy_l2_typed_migration_packet(
+    ws: WorkspacePaths,
+    *,
+    legacy_l2_dir: str | Path = "",
+) -> dict[str, Any]:
+    """Build a review packet for converting legacy L2 graph items into typed records."""
+
+    manifest = build_legacy_l2_graph_manifest(
+        ws,
+        legacy_l2_dir=legacy_l2_dir,
+        migration_work_item_limit=None,
+    )
+    work_items = list(manifest.get("migration_work_items") or [])
+    groups = _review_groups(work_items)
+    return {
+        "ok": True,
+        "kind": "legacy_l2_typed_migration_packet",
+        "legacy_l2_dir": manifest["legacy_l2_dir"],
+        "legacy_shape": manifest["legacy_shape"],
+        "typed_migration_status": _typed_packet_status(work_items),
+        "work_item_count": len(work_items),
+        "work_item_counts_by_kind": dict(manifest.get("work_item_counts_by_kind") or {}),
+        "review_groups": groups,
+        "recommended_commands": _recommended_commands(),
+        "next_actions": _typed_packet_next_actions(groups),
         "truth_source": "legacy_l2_filesystem",
         "summary_inputs_trusted": False,
         "orientation_only": True,
@@ -98,6 +132,119 @@ def _empty_manifest(l2_dir: Path, *, status: str) -> dict[str, Any]:
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+
+
+def _typed_packet_status(work_items: list[dict[str, Any]]) -> str:
+    return "needs_review" if work_items else "no_legacy_l2_work_items"
+
+
+def _review_groups(work_items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    by_surface: dict[str, list[dict[str, Any]]] = {}
+    for item in work_items:
+        surface = str(item.get("recommended_target_surface") or "memory_entry_record")
+        by_surface.setdefault(surface, []).append(item)
+    return {
+        surface: {
+            "target_surface": surface,
+            "count": len(items),
+            "work_item_kinds": _unique([str(item.get("work_item_kind") or "") for item in items]),
+            "sample_work_items": [_packet_work_item(item) for item in items[:5]],
+            "review_questions": _review_questions_for_surface(surface),
+            "can_update_claim_trust": False,
+        }
+        for surface, items in sorted(by_surface.items())
+    }
+
+
+def _packet_work_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "work_item_id": str(item.get("work_item_id") or ""),
+        "work_item_kind": str(item.get("work_item_kind") or ""),
+        "legacy_id": str(item.get("legacy_id") or ""),
+        "role": str(item.get("role") or ""),
+        "status": str(item.get("status") or ""),
+        "source_path": str(item.get("source_path") or ""),
+        "migration_action": str(item.get("migration_action") or ""),
+        "can_update_claim_trust": False,
+    }
+
+
+def _review_questions_for_surface(surface: str) -> list[str]:
+    questions = {
+        "memory_entry_record": [
+            "Does the legacy L2 entry have enough evidence and human review to become typed memory?",
+            "Which legacy entries should remain orientation-only because their status is unverified?",
+        ],
+        "physics_object_record": [
+            "Does the legacy node define a physical object, method, system, regime, or only a UI node?",
+            "Which source refs or typed records anchor the definition before recording it?",
+        ],
+        "object_relation_record": [
+            "Does the legacy edge encode a real load-bearing relation, or only an index hyperlink?",
+            "Which typed object or memory records should become the relation endpoints after review?",
+        ],
+        "sensemaking_report_record": [
+            "Does the legacy step describe reusable reasoning, a workflow trace, or only navigation state?",
+            "Which claim or topic should own the sensemaking report after review?",
+        ],
+    }
+    return questions.get(surface, ["Review the legacy L2 item before writing typed records."])
+
+
+def _recommended_commands() -> dict[str, dict[str, Any]]:
+    return {
+        "memory_entry_record": {
+            "effect": "review_only",
+            "cli": "aitp-v5 memory audit --claim <claim-id>",
+            "mcp": "aitp_v5_audit_l2_memory_context",
+            "note": "Legacy L2 entries require evidence-backed promotion packets and human checkpoints before memory writes.",
+            "can_update_kernel_state": False,
+            "can_update_claim_trust": False,
+        },
+        "physics_object_record": {
+            "effect": "typed_record_write_after_review",
+            "cli": "aitp-v5 object record --topic <topic> --type <object_type> --name <name> --definition <definition> --source-ref <legacy-l2-ref>",
+            "mcp": "aitp_v5_record_physics_object",
+            "can_update_kernel_state": True,
+            "can_update_claim_trust": False,
+        },
+        "object_relation_record": {
+            "effect": "typed_record_write_after_review",
+            "cli": "aitp-v5 relation record --topic <topic> --type <relation_type> --subject <object-id> --object <object-id> --statement <statement> --source-ref <legacy-l2-ref>",
+            "mcp": "aitp_v5_record_object_relation",
+            "can_update_kernel_state": True,
+            "can_update_claim_trust": False,
+        },
+        "sensemaking_report_record": {
+            "effect": "typed_record_write_after_review",
+            "cli": "aitp-v5 sensemaking report --topic <topic> --claim <claim-id> --title <title> --summary <summary>",
+            "mcp": "aitp_v5_record_sensemaking_report",
+            "can_update_kernel_state": True,
+            "can_update_claim_trust": False,
+        },
+    }
+
+
+def _typed_packet_next_actions(groups: dict[str, dict[str, Any]]) -> list[str]:
+    actions: list[str] = []
+    if "memory_entry_record" in groups:
+        actions.append("review_legacy_l2_memory_entry_candidates")
+    if "physics_object_record" in groups:
+        actions.append("review_legacy_l2_graph_nodes_for_physics_objects")
+    if "object_relation_record" in groups:
+        actions.append("review_legacy_l2_graph_edges_for_object_relations")
+    if "sensemaking_report_record" in groups:
+        actions.append("review_legacy_l2_steps_for_sensemaking_reports")
+    if "memory_entry_record" in groups:
+        actions.append("review_legacy_l2_towers_for_memory_entries")
+    if actions:
+        actions.extend([
+            "record_legacy_semantic_review_result_for_l2",
+            "keep_legacy_l2_orientation_only_until_reviewed",
+        ])
+    else:
+        actions.append("locate_legacy_l2_directory")
+    return actions
 
 
 def _scan_entries(entries_dir: Path) -> list[dict[str, str]]:
@@ -220,6 +367,12 @@ def _migration_work_items(
     return items
 
 
+def _limit_work_items(items: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:
+    if limit is None or limit < 0:
+        return items
+    return items[:limit]
+
+
 def _work_item(
     *,
     work_item_kind: str,
@@ -298,6 +451,16 @@ def _counts_by(entries: list[dict[str, str]], field: str) -> dict[str, int]:
         value = entry.get(field) or "unknown"
         counts[value] = counts.get(value, 0) + 1
     return {key: counts[key] for key in sorted(counts)}
+
+
+def _unique(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
 
 
 def _text(value: Any) -> str:

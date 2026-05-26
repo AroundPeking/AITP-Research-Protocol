@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest
+from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest, build_legacy_l2_typed_migration_packet
 from brain.v5.legacy_l2_obsidian import write_legacy_l2_obsidian_view
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.legacy_migration_audit import audit_legacy_migration_coverage
@@ -52,6 +52,11 @@ def aitp_v5_audit_legacy_migration_coverage(base: str, *, migration_dir: str = "
 def aitp_v5_build_legacy_l2_graph_manifest(base: str, *, legacy_l2_dir: str = "") -> dict:
     result = build_legacy_l2_graph_manifest(_ws(base), legacy_l2_dir=legacy_l2_dir)
     return {"ok": True, **require_valid_public_surface("legacy_l2_graph_manifest", result)}
+
+
+def aitp_v5_build_legacy_l2_typed_migration_packet(base: str, *, legacy_l2_dir: str = "") -> dict:
+    result = build_legacy_l2_typed_migration_packet(_ws(base), legacy_l2_dir=legacy_l2_dir)
+    return {"ok": True, **require_valid_public_surface("legacy_l2_typed_migration_packet", result)}
 
 
 def aitp_v5_write_legacy_l2_obsidian_view(

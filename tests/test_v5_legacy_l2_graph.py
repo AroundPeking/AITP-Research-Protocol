@@ -127,3 +127,101 @@ def test_legacy_l2_graph_manifest_cli_mcp_and_runtime_surface(tmp_path, capsys):
         "mcp": "aitp_v5_build_legacy_l2_graph_manifest",
         "surface": "legacy_l2_graph_manifest",
     }
+
+
+def test_legacy_l2_typed_migration_packet_groups_review_targets(tmp_path):
+    from brain.v5.legacy_l2_graph import build_legacy_l2_typed_migration_packet
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path)
+    l2 = _write_legacy_l2(tmp_path)
+
+    packet = build_legacy_l2_typed_migration_packet(ws, legacy_l2_dir=l2)
+
+    assert require_valid_public_surface("legacy_l2_typed_migration_packet", packet) == packet
+    assert packet["kind"] == "legacy_l2_typed_migration_packet"
+    assert packet["legacy_l2_dir"] == str(l2)
+    assert packet["typed_migration_status"] == "needs_review"
+    assert packet["work_item_count"] == 6
+    assert packet["truth_source"] == "legacy_l2_filesystem"
+    assert packet["summary_inputs_trusted"] is False
+    assert packet["orientation_only"] is True
+    assert packet["can_update_kernel_state"] is False
+    assert packet["can_update_claim_trust"] is False
+    assert packet["review_groups"]["memory_entry_record"]["count"] == 3
+    assert packet["review_groups"]["physics_object_record"]["count"] == 1
+    assert packet["review_groups"]["object_relation_record"]["count"] == 1
+    assert packet["review_groups"]["sensemaking_report_record"]["count"] == 1
+    assert packet["review_groups"]["memory_entry_record"]["sample_work_items"][0]["legacy_id"] == "claim-headwing"
+    assert packet["review_groups"]["object_relation_record"]["review_questions"] == [
+        "Does the legacy edge encode a real load-bearing relation, or only an index hyperlink?",
+        "Which typed object or memory records should become the relation endpoints after review?",
+    ]
+    assert packet["recommended_commands"]["memory_entry_record"]["effect"] == "review_only"
+    assert packet["recommended_commands"]["object_relation_record"]["effect"] == "typed_record_write_after_review"
+    assert packet["next_actions"] == [
+        "review_legacy_l2_memory_entry_candidates",
+        "review_legacy_l2_graph_nodes_for_physics_objects",
+        "review_legacy_l2_graph_edges_for_object_relations",
+        "review_legacy_l2_steps_for_sensemaking_reports",
+        "review_legacy_l2_towers_for_memory_entries",
+        "record_legacy_semantic_review_result_for_l2",
+        "keep_legacy_l2_orientation_only_until_reviewed",
+    ]
+
+
+def test_legacy_l2_typed_migration_packet_uses_full_worklist_not_manifest_sample(tmp_path):
+    from brain.v5.legacy_l2_graph import build_legacy_l2_typed_migration_packet
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path)
+    l2 = _write_legacy_l2(tmp_path)
+    for index in range(2, 121):
+        (l2 / "graph" / "steps" / f"s{index:03d}.md").write_text(
+            f"# Step {index}\n",
+            encoding="utf-8",
+        )
+
+    packet = build_legacy_l2_typed_migration_packet(ws, legacy_l2_dir=l2)
+
+    assert packet["work_item_count"] == 125
+    assert packet["work_item_counts_by_kind"] == {
+        "entry": 2,
+        "graph_edge": 1,
+        "graph_node": 1,
+        "graph_step": 120,
+        "graph_tower": 1,
+    }
+    assert packet["review_groups"]["memory_entry_record"]["count"] == 3
+    assert packet["review_groups"]["sensemaking_report_record"]["count"] == 120
+    assert packet["review_groups"]["physics_object_record"]["count"] == 1
+    assert packet["review_groups"]["object_relation_record"]["count"] == 1
+
+
+def test_legacy_l2_typed_migration_packet_cli_mcp_and_runtime_surface(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_legacy_l2_typed_migration_packet
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+
+    l2 = _write_legacy_l2(tmp_path)
+
+    assert main([
+        "--base",
+        str(tmp_path),
+        "legacy",
+        "l2-typed-migration-packet",
+        "--legacy-l2-dir",
+        str(l2),
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_legacy_l2_typed_migration_packet(str(tmp_path), legacy_l2_dir=str(l2))
+
+    assert cli_payload["kind"] == "legacy_l2_typed_migration_packet"
+    assert cli_payload["review_groups"]["memory_entry_record"]["count"] == 3
+    assert mcp_payload["kind"] == "legacy_l2_typed_migration_packet"
+    assert runtime_entrypoints()["legacy_l2_typed_migration_packet"] == {
+        "cli": "aitp-v5 legacy l2-typed-migration-packet <args>",
+        "mcp": "aitp_v5_build_legacy_l2_typed_migration_packet",
+        "surface": "legacy_l2_typed_migration_packet",
+    }

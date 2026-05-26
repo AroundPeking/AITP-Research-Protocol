@@ -29,6 +29,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "l2_memory_audit",
         "legacy_l2_graph_manifest",
         "legacy_l2_obsidian_view_bundle",
+        "legacy_l2_typed_migration_packet",
         "legacy_migration_coverage_audit",
         "legacy_migration_result",
         "legacy_source_reconstruction_apply",
