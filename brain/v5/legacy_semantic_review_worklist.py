@@ -158,7 +158,8 @@ def _review_action_command(
             cli=(
                 f"aitp-v5 --base {workspace} source reconstruction-review-result "
                 f"--claim {item['active_claim_id']} --status <passed|needs_revision|inconclusive> "
-                "--reviewed-component <component> --basis-ref <source-or-typed-ref> "
+                f"{_source_review_component_args(item)} "
+                f"{_source_review_basis_args(item)} "
                 "--summary <source reconstruction review basis>"
             ),
             mcp="aitp_v5_record_source_reconstruction_review_result",
@@ -204,6 +205,24 @@ def _review_action_command(
             surface="source_reconstruction_review_packet",
         )
     return None
+
+
+def _source_review_component_args(item: dict[str, Any]) -> str:
+    components = list(item.get("missing_source_components") or _missing_source_components_from_reasons(item))
+    if not components:
+        return "--reviewed-component <component>"
+    return " ".join(f"--reviewed-component {component}" for component in components)
+
+
+def _source_review_basis_args(item: dict[str, Any]) -> str:
+    source = item.get("source_reconstruction")
+    refs = []
+    if isinstance(source, dict):
+        refs = [str(ref) for ref in source.get("source_refs", []) if str(ref)]
+    refs = _unique(refs)[:5]
+    if not refs:
+        return "--basis-ref <source-or-typed-ref>"
+    return " ".join(f"--basis-ref {ref}" for ref in refs)
 
 
 def _command(

@@ -984,6 +984,7 @@ def test_legacy_semantic_review_worklist_exposes_inconclusive_followup_commands(
 
 
 def test_legacy_semantic_review_worklist_maps_source_review_result_action_to_result_record(tmp_path):
+    from brain.v5.evidence import record_evidence
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
     from brain.v5.models import ClaimRecord
@@ -1004,6 +1005,16 @@ def test_legacy_semantic_review_worklist_maps_source_review_result_action_to_res
             active_uncertainty="Semantic review required.",
         ),
     )
+    source_ref = "legacy-topic:canonical-topic/state.md"
+    record_evidence(
+        ws,
+        topic_id="canonical-topic",
+        claim_id="claim-canonical",
+        evidence_type="legacy_source",
+        status="legacy_seed",
+        summary="Legacy source basis preserved for review.",
+        source_refs=[source_ref],
+    )
     review = record_legacy_semantic_review_result(
         ws,
         migration_dir=run,
@@ -1011,7 +1022,7 @@ def test_legacy_semantic_review_worklist_maps_source_review_result_action_to_res
         status="inconclusive",
         summary="The legacy claim needs a typed source reconstruction review result before semantic pass.",
         active_claim_id="claim-canonical",
-        reviewed_legacy_refs=["legacy-topic:canonical-topic/state.md"],
+        reviewed_legacy_refs=[source_ref],
         reviewed_typed_refs=["claim-canonical"],
         remaining_actions=[
             "complete_source_reconstruction_components",
@@ -1041,7 +1052,10 @@ def test_legacy_semantic_review_worklist_maps_source_review_result_action_to_res
         "cli": (
             f"aitp-v5 --base {ws.base} source reconstruction-review-result "
             "--claim claim-canonical --status <passed|needs_revision|inconclusive> "
-            "--reviewed-component <component> --basis-ref <source-or-typed-ref> "
+            "--reviewed-component definitions --reviewed-component assumptions_or_scope "
+            "--reviewed-component dependency_graph --reviewed-component reconstruction_path "
+            "--reviewed-component failure_conditions "
+            f"--basis-ref {source_ref} "
             "--summary <source reconstruction review basis>"
         ),
         "mcp": "aitp_v5_record_source_reconstruction_review_result",
