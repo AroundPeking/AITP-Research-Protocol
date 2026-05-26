@@ -226,6 +226,64 @@ def _review_action_command(
             surface="human_checkpoint_record",
         )
     normalized = " ".join(action.lower().replace("_", " ").split())
+    if _requests_physics_object_backfill(normalized):
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} object record --topic {item['topic']} "
+                "--type <object_type> --name <name> --definition <source-grounded-definition> "
+                "--source-ref <legacy-or-typed-source-ref>"
+            ),
+            mcp="aitp_v5_record_physics_object",
+            surface="physics_object_record",
+            effect="typed_record_write",
+            can_update_kernel_state=True,
+        )
+    if _requests_scope_or_assumption_backfill(normalized):
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} object record --topic {item['topic']} "
+                "--type <object_type> --name <scoped-object-or-regime> "
+                "--definition <source-grounded-definition> --assumption <assumption-or-scope-limit> "
+                "--source-ref <legacy-or-typed-source-ref>"
+            ),
+            mcp="aitp_v5_record_physics_object",
+            surface="physics_object_record",
+            effect="typed_record_write",
+            can_update_kernel_state=True,
+        )
+    if _requests_object_relation_backfill(normalized):
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} relation record --topic {item['topic']} "
+                "--type <relation_type> --subject <object-id> --object <object-id> "
+                f"--statement <source-grounded-relation> --claim {item['active_claim_id']} "
+                "--source-ref <legacy-or-typed-source-ref>"
+            ),
+            mcp="aitp_v5_record_object_relation",
+            surface="object_relation_record",
+            effect="typed_record_write",
+            can_update_kernel_state=True,
+        )
+    if _requests_failure_condition_backfill(normalized):
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} validation contract create --topic {item['topic']} "
+                f"--claim {item['active_claim_id']} --required-check <check> "
+                "--failure-mode <failure-mode> --required-output source_reconstruction"
+            ),
+            mcp="aitp_v5_create_validation_contract",
+            surface="validation_contract_record",
+            effect="typed_record_write",
+            can_update_kernel_state=True,
+        )
     if "source reconstruction" in normalized or "reconstruction path" in normalized:
         return _command(
             action,
@@ -235,6 +293,35 @@ def _review_action_command(
             surface="source_reconstruction_review_packet",
         )
     return None
+
+
+def _requests_physics_object_backfill(normalized_action: str) -> bool:
+    return (
+        "physics object" in normalized_action
+        or "object definitions" in normalized_action
+        or "definition" in normalized_action
+    ) and "relation" not in normalized_action
+
+
+def _requests_scope_or_assumption_backfill(normalized_action: str) -> bool:
+    return "scope" in normalized_action or "assumption" in normalized_action
+
+
+def _requests_object_relation_backfill(normalized_action: str) -> bool:
+    return (
+        "object relation" in normalized_action
+        or "relation" in normalized_action
+        or "dependency graph" in normalized_action
+        or "workflow" in normalized_action
+    )
+
+
+def _requests_failure_condition_backfill(normalized_action: str) -> bool:
+    return (
+        "failure condition" in normalized_action
+        or "failure mode" in normalized_action
+        or "validation contract" in normalized_action
+    )
 
 
 def _source_review_component_args(item: dict[str, Any]) -> str:

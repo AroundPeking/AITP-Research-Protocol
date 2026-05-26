@@ -1241,6 +1241,111 @@ def test_legacy_semantic_review_manifest_flags_completed_source_review_result_fo
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_worklist_maps_typed_source_stack_backfill_actions(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="A canonical legacy claim needs typed source-stack backfill.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="The source reconstruction review identified concrete typed source-stack backfill actions.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy_l1:canonical-topic/L1/question_contract.md"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=[
+            "record_physics_object_definitions_for_crpa_core_quantities",
+            "record_claim_scope_or_object_assumptions_for_selected_crpa_variant",
+            "record_object_relations_for_chi0_chitilde_wr_u_workflow",
+            "record_failure_conditions_or_validation_contract_for_projection_and_wannier_transform",
+        ],
+    )
+
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=run)
+
+    item = next(item for item in worklist["items"] if item["topic"] == "canonical-topic")
+    commands_by_action = {
+        command["action"]: command for command in item["review_action_commands"]
+    }
+    assert commands_by_action["record_physics_object_definitions_for_crpa_core_quantities"] == {
+        "action": "record_physics_object_definitions_for_crpa_core_quantities",
+        "latest_review_id": review.review_id,
+        "cli": (
+            f"aitp-v5 --base {ws.base} object record --topic canonical-topic "
+            "--type <object_type> --name <name> --definition <source-grounded-definition> "
+            "--source-ref <legacy-or-typed-source-ref>"
+        ),
+        "mcp": "aitp_v5_record_physics_object",
+        "surface": "physics_object_record",
+        "effect": "typed_record_write",
+        "can_update_kernel_state": True,
+        "can_update_claim_trust": False,
+    }
+    assert commands_by_action["record_claim_scope_or_object_assumptions_for_selected_crpa_variant"] == {
+        "action": "record_claim_scope_or_object_assumptions_for_selected_crpa_variant",
+        "latest_review_id": review.review_id,
+        "cli": (
+            f"aitp-v5 --base {ws.base} object record --topic canonical-topic "
+            "--type <object_type> --name <scoped-object-or-regime> "
+            "--definition <source-grounded-definition> --assumption <assumption-or-scope-limit> "
+            "--source-ref <legacy-or-typed-source-ref>"
+        ),
+        "mcp": "aitp_v5_record_physics_object",
+        "surface": "physics_object_record",
+        "effect": "typed_record_write",
+        "can_update_kernel_state": True,
+        "can_update_claim_trust": False,
+    }
+    assert commands_by_action["record_object_relations_for_chi0_chitilde_wr_u_workflow"] == {
+        "action": "record_object_relations_for_chi0_chitilde_wr_u_workflow",
+        "latest_review_id": review.review_id,
+        "cli": (
+            f"aitp-v5 --base {ws.base} relation record --topic canonical-topic "
+            "--type <relation_type> --subject <object-id> --object <object-id> "
+            "--statement <source-grounded-relation> --claim claim-canonical "
+            "--source-ref <legacy-or-typed-source-ref>"
+        ),
+        "mcp": "aitp_v5_record_object_relation",
+        "surface": "object_relation_record",
+        "effect": "typed_record_write",
+        "can_update_kernel_state": True,
+        "can_update_claim_trust": False,
+    }
+    assert commands_by_action["record_failure_conditions_or_validation_contract_for_projection_and_wannier_transform"] == {
+        "action": "record_failure_conditions_or_validation_contract_for_projection_and_wannier_transform",
+        "latest_review_id": review.review_id,
+        "cli": (
+            f"aitp-v5 --base {ws.base} validation contract create --topic canonical-topic "
+            "--claim claim-canonical --required-check <check> --failure-mode <failure-mode> "
+            "--required-output source_reconstruction"
+        ),
+        "mcp": "aitp_v5_create_validation_contract",
+        "surface": "validation_contract_record",
+        "effect": "typed_record_write",
+        "can_update_kernel_state": True,
+        "can_update_claim_trust": False,
+    }
+    assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
+
+
 def test_legacy_semantic_review_queue_uses_latest_written_review_not_lexicographic_id(tmp_path):
     from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
     from brain.v5.models import ClaimRecord, LegacySemanticReviewResultRecord

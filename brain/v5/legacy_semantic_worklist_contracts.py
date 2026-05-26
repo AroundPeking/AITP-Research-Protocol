@@ -110,12 +110,14 @@ def _validate_review_action_command(payload: Any, path: str, result: ContractRes
     for key in ("action", "latest_review_id", "cli", "mcp", "surface", "effect"):
         if not isinstance(payload.get(key), str) or not payload.get(key):
             result.add(f"{path}.{key}", "must be a non-empty string")
-    if payload.get("effect") not in {"orientation_only", "typed_review_record_write"}:
+    if payload.get("effect") not in {"orientation_only", "typed_review_record_write", "typed_record_write"}:
         result.add(f"{path}.effect", "must be an allowed effect")
     if payload.get("effect") == "orientation_only" and payload.get("can_update_kernel_state") is not False:
         result.add(f"{path}.can_update_kernel_state", "must be false for orientation-only commands")
     if payload.get("effect") == "typed_review_record_write" and payload.get("can_update_kernel_state") is not True:
         result.add(f"{path}.can_update_kernel_state", "must be true for typed review record writes")
+    if payload.get("effect") == "typed_record_write" and payload.get("can_update_kernel_state") is not True:
+        result.add(f"{path}.can_update_kernel_state", "must be true for typed record writes")
     if payload.get("can_update_claim_trust") is not False:
         result.add(f"{path}.can_update_claim_trust", "must be false")
 
