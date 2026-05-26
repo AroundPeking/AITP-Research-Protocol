@@ -342,6 +342,32 @@ def test_source_reconstruction_manifest_cli_mcp_and_runtime(tmp_path, capsys):
     }
 
 
+def test_source_reconstruction_manifest_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main(["--base", str(tmp_path), "source", "reconstruction-manifest", "--compact"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "source_reconstruction_manifest_progress"
+    assert cli_payload["source_surface"] == "source_reconstruction_manifest"
+    assert cli_payload["claim_count"] == 1
+    assert cli_payload["incomplete_claim_count"] == 1
+    assert cli_payload["can_update_claim_trust"] is False
+    assert "items" not in cli_payload
+
+
 def test_source_reconstruction_review_packet_guides_missing_typed_records(tmp_path):
     from brain.v5.evidence import record_evidence
     from brain.v5.public_surfaces import require_valid_public_surface
@@ -723,3 +749,30 @@ def test_source_reconstruction_review_manifest_cli_mcp_and_runtime(tmp_path, cap
         "mcp": "aitp_v5_build_source_reconstruction_review_manifest",
         "surface": "source_reconstruction_review_manifest",
     }
+
+
+def test_source_reconstruction_review_manifest_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main(["--base", str(tmp_path), "source", "reconstruction-review-manifest", "--compact"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "source_reconstruction_review_manifest_progress"
+    assert cli_payload["source_surface"] == "source_reconstruction_review_manifest"
+    assert cli_payload["claim_count"] == 1
+    assert cli_payload["review_progress"]["pending"] == 1
+    assert cli_payload["pending_review_count"] == 1
+    assert cli_payload["can_update_claim_trust"] is False
+    assert "items" not in cli_payload

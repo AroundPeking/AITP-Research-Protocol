@@ -358,3 +358,22 @@ def test_final_readiness_cli_mcp_and_runtime_entrypoint(tmp_path, capsys):
         "mcp": "aitp_v5_audit_final_engineering_readiness",
         "surface": "final_engineering_readiness_audit",
     }
+
+
+def test_final_readiness_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path)
+    _write_migration_run(ws, topic_count=1)
+
+    assert main(["--base", str(tmp_path), "adapter", "final-readiness", "--compact"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "final_engineering_readiness_progress"
+    assert cli_payload["source_surface"] == "final_engineering_readiness_audit"
+    assert cli_payload["completion_status"] == "kernel_ready_content_backlog"
+    assert "legacy_semantic_review_backlog" in cli_payload["blocking_gaps"]
+    assert cli_payload["legacy_semantic_review"]["semantic_lossless_proven"] is False
+    assert cli_payload["can_update_claim_trust"] is False
+    assert "kernel_capabilities" not in cli_payload

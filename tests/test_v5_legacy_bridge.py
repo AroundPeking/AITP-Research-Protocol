@@ -742,6 +742,32 @@ def test_legacy_semantic_review_manifest_cli_mcp_and_runtime_surface(tmp_path, c
     }
 
 
+def test_legacy_semantic_review_manifest_cli_compact_progress(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+
+    assert main([
+        "--base", str(base), "legacy", "semantic-review-manifest",
+        "--migration-dir", str(run),
+        "--compact",
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "legacy_semantic_review_manifest_progress"
+    assert cli_payload["source_surface"] == "legacy_semantic_review_manifest"
+    assert cli_payload["review_item_count"] == 2
+    assert cli_payload["review_progress"]["pending"] == 2
+    assert cli_payload["semantic_lossless_proven"] is False
+    assert cli_payload["can_update_claim_trust"] is False
+    assert "items" not in cli_payload
+
+
 def test_legacy_semantic_review_worklist_prioritizes_backlog_without_writing(tmp_path):
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist

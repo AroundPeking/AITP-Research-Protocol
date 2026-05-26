@@ -6,6 +6,10 @@ import argparse
 from dataclasses import asdict
 
 from brain.v5.public_surfaces import require_valid_public_surface
+from brain.v5.cli_progress import (
+    compact_source_reconstruction_manifest,
+    compact_source_reconstruction_review_manifest,
+)
 from brain.v5.source_reconstruction import (
     audit_source_reconstruction,
     build_source_reconstruction_manifest,
@@ -22,8 +26,10 @@ def add_source_parser(sp: argparse._SubParsersAction) -> None:
     commands = source.add_subparsers(dest="source_command", required=True)
     audit = commands.add_parser("reconstruction-audit")
     audit.add_argument("--claim", required=True, dest="claim_id")
-    commands.add_parser("reconstruction-manifest")
-    commands.add_parser("reconstruction-review-manifest")
+    manifest = commands.add_parser("reconstruction-manifest")
+    manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
+    review_manifest = commands.add_parser("reconstruction-review-manifest")
+    review_manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
     review = commands.add_parser("reconstruction-review")
     review.add_argument("--claim", required=True, dest="claim_id")
     result = commands.add_parser("reconstruction-review-result")
@@ -48,15 +54,21 @@ def dispatch_source_command(args: argparse.Namespace, ws) -> dict:
             audit_source_reconstruction(ws, claim_id=args.claim_id),
         )
     if args.source_command == "reconstruction-manifest":
-        return require_valid_public_surface(
+        manifest = require_valid_public_surface(
             "source_reconstruction_manifest",
             build_source_reconstruction_manifest(ws),
         )
+        if getattr(args, "compact", False):
+            return compact_source_reconstruction_manifest(manifest)
+        return manifest
     if args.source_command == "reconstruction-review-manifest":
-        return require_valid_public_surface(
+        manifest = require_valid_public_surface(
             "source_reconstruction_review_manifest",
             build_source_reconstruction_review_manifest(ws),
         )
+        if getattr(args, "compact", False):
+            return compact_source_reconstruction_review_manifest(manifest)
+        return manifest
     if args.source_command == "reconstruction-review":
         return require_valid_public_surface(
             "source_reconstruction_review_packet",

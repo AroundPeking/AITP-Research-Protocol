@@ -11,6 +11,7 @@ from typing import Any
 from brain.v5.adapter_protocols import adapter_protocol_registry, record_gate_coverage_audit
 from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
+from brain.v5.cli_progress import compact_final_readiness
 from brain.v5.final_readiness import audit_final_engineering_readiness
 from brain.v5.hook_codex_install import install_codex_hooks_json
 from brain.v5.hook_fixture_templates import install_codex_hook_fixture, install_opencode_hook_fixture
@@ -50,6 +51,7 @@ def add_adapter_parser(sp) -> None:
     ahl = aps.add_parser("host-lifecycle"); ahl.add_argument("runtime")
     ahl.add_argument("--command", default="", dest="host_command"); ahl.add_argument("--arg", action="append", default=[], dest="host_args"); ahl.add_argument("--timeout", type=int, default=60)
     afr = aps.add_parser("final-readiness"); afr.add_argument("--migration-dir", default="")
+    afr.add_argument("--compact", "--progress", action="store_true", dest="compact")
     aps.add_parser("install-paths"); aps.add_parser("smoke-coverage")
     ape = aps.add_parser("pre-tool-event"); ape.add_argument("runtime"); ape.add_argument("session_id")
     ape.add_argument("--bridge-json", default=""); ape.add_argument("--bridge-path", default="")
@@ -90,13 +92,16 @@ def dispatch_adapter_command(args: Namespace, ws: Any | None) -> dict[str, Any]:
         raise SystemExit("adapter command requires an initialized v5 workspace")
 
     if args.adapter_command == "final-readiness":
-        return {
+        payload = {
             "ok": True,
             **require_valid_public_surface(
                 "final_engineering_readiness_audit",
                 audit_final_engineering_readiness(ws, migration_dir=args.migration_dir or None),
             ),
         }
+        if getattr(args, "compact", False):
+            return compact_final_readiness(payload)
+        return payload
 
     if args.adapter_command == "install-paths":
         return {
