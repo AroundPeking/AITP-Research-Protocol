@@ -169,6 +169,50 @@ def test_legacy_source_reconstruction_plan_accepts_review_action_phrase(tmp_path
     assert plan["proposed_repairs"][0]["repair_type"] == "reconstruction_path_evidence_backfill"
 
 
+def test_legacy_source_reconstruction_review_packet_carries_legacy_refs(tmp_path):
+    from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_review_packet
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    ws, run, review, candidate, derivation = _seed_reviewed_legacy_topic(tmp_path)
+
+    packet = build_legacy_source_reconstruction_review_packet(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+    )
+
+    assert require_valid_public_surface("legacy_source_reconstruction_review_packet", packet) == packet
+    assert packet["kind"] == "legacy_source_reconstruction_review_packet"
+    assert packet["run_id"] == "legacy-v5-lossless-source-test"
+    assert packet["topic"] == "canonical-topic"
+    assert packet["active_claim_id"] == "claim-canonical"
+    assert packet["can_update_kernel_state"] is False
+    assert packet["can_update_claim_trust"] is False
+    assert packet["semantic_lossless_proven"] is False
+    assert packet["latest_semantic_review"]["review_id"] == review.review_id
+    assert packet["source_reconstruction_review_packet"]["kind"] == "source_reconstruction_review_packet"
+    assert packet["source_reconstruction_review_packet"]["claim_id"] == "claim-canonical"
+    assert packet["legacy_refs"]["reviewed_legacy_refs"] == [
+        f"legacy_candidate:{candidate}",
+        f"legacy_l3_process:{derivation}",
+    ]
+    assert packet["legacy_refs"]["refs_by_prefix"]["legacy_candidate"] == [f"legacy_candidate:{candidate}"]
+    assert packet["legacy_refs"]["refs_by_prefix"]["legacy_l3_process"] == [f"legacy_l3_process:{derivation}"]
+    by_component = {
+        item["component"]: item
+        for item in packet["legacy_component_review_guidance"]
+    }
+    assert by_component["reconstruction_path"]["legacy_refs_to_inspect"] == [
+        f"legacy_candidate:{candidate}",
+        f"legacy_l3_process:{derivation}",
+    ]
+    assert by_component["reconstruction_path"]["record_result_cli"] == (
+        "aitp-v5 source reconstruction-review-result --claim claim-canonical "
+        "--status <passed|needs_revision|inconclusive> --reviewed-component reconstruction_path "
+        "--basis-ref <legacy-ref-or-typed-record> --summary <source reconstruction review basis>"
+    )
+
+
 def test_legacy_source_reconstruction_apply_writes_reconstruction_path_evidence(tmp_path):
     from brain.v5.evidence import list_evidence_for_claim
     from brain.v5.legacy_source_reconstruction import apply_legacy_source_reconstruction_repair
@@ -252,7 +296,10 @@ def test_legacy_source_reconstruction_apply_is_idempotent_after_existing_evidenc
 
 def test_legacy_source_reconstruction_cli_mcp_and_runtime_surface(tmp_path, capsys):
     from brain.v5.cli import main
-    from brain.v5.mcp_tools import aitp_v5_build_legacy_source_reconstruction_plan
+    from brain.v5.mcp_tools import (
+        aitp_v5_build_legacy_source_reconstruction_plan,
+        aitp_v5_build_legacy_source_reconstruction_review_packet,
+    )
     from brain.v5.runtime_entrypoints import runtime_entrypoints
 
     ws, run, _review, _candidate, _derivation = _seed_reviewed_legacy_topic(tmp_path)
@@ -280,4 +327,29 @@ def test_legacy_source_reconstruction_cli_mcp_and_runtime_surface(tmp_path, caps
         "cli": "aitp-v5 legacy source-reconstruction-plan <args>",
         "mcp": "aitp_v5_build_legacy_source_reconstruction_plan",
         "surface": "legacy_source_reconstruction_plan",
+    }
+
+    assert main([
+        "--base",
+        str(ws.base),
+        "legacy",
+        "source-reconstruction-review",
+        "--migration-dir",
+        str(run),
+        "--topic",
+        "canonical-topic",
+    ]) == 0
+    cli_review_payload = json.loads(capsys.readouterr().out)
+    mcp_review_payload = aitp_v5_build_legacy_source_reconstruction_review_packet(
+        str(ws.base),
+        migration_dir=str(run),
+        topic="canonical-topic",
+    )
+
+    assert cli_review_payload["kind"] == "legacy_source_reconstruction_review_packet"
+    assert mcp_review_payload["kind"] == "legacy_source_reconstruction_review_packet"
+    assert runtime_entrypoints()["legacy_source_reconstruction_review_packet"] == {
+        "cli": "aitp-v5 legacy source-reconstruction-review <args>",
+        "mcp": "aitp_v5_build_legacy_source_reconstruction_review_packet",
+        "surface": "legacy_source_reconstruction_review_packet",
     }

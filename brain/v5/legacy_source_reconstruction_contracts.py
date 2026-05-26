@@ -61,6 +61,57 @@ def require_valid_legacy_source_reconstruction_plan(payload: dict[str, Any]) -> 
     return payload
 
 
+def validate_legacy_source_reconstruction_review_packet(
+    payload: dict[str, Any],
+    *,
+    path: str = "legacy_source_reconstruction_review_packet",
+) -> ContractResult:
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return result
+    if payload.get("kind") != "legacy_source_reconstruction_review_packet":
+        result.add(f"{path}.kind", "must be 'legacy_source_reconstruction_review_packet'")
+    for key in ("run_id", "migration_dir", "topic", "active_claim_id", "truth_source"):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("truth_source") != "typed_review_results_legacy_refs_and_source_reconstruction_packet":
+        result.add(f"{path}.truth_source", "must be 'typed_review_results_legacy_refs_and_source_reconstruction_packet'")
+    _require_mapping(payload.get("latest_semantic_review"), f"{path}.latest_semantic_review", result)
+    _require_mapping(payload.get("source_reconstruction_review_packet"), f"{path}.source_reconstruction_review_packet", result)
+    _require_mapping(payload.get("legacy_refs"), f"{path}.legacy_refs", result)
+    if isinstance(payload.get("legacy_refs"), dict):
+        _require_list(payload["legacy_refs"].get("reviewed_legacy_refs"), f"{path}.legacy_refs.reviewed_legacy_refs", result)
+        _require_list(payload["legacy_refs"].get("source_reconstruction_refs"), f"{path}.legacy_refs.source_reconstruction_refs", result)
+        _require_mapping(payload["legacy_refs"].get("refs_by_prefix"), f"{path}.legacy_refs.refs_by_prefix", result)
+    _require_list(payload.get("legacy_component_review_guidance"), f"{path}.legacy_component_review_guidance", result)
+    if isinstance(payload.get("legacy_component_review_guidance"), list):
+        for index, guidance in enumerate(payload["legacy_component_review_guidance"]):
+            _validate_legacy_component_guidance(guidance, f"{path}.legacy_component_review_guidance[{index}]", result)
+    _require_list(payload.get("recommended_actions"), f"{path}.recommended_actions", result)
+    for key in (
+        "semantic_lossless_proven",
+        "summary_inputs_trusted",
+        "orientation_only",
+        "can_update_kernel_state",
+        "can_update_claim_trust",
+    ):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    _require_bool_value(payload.get("semantic_lossless_proven"), False, f"{path}.semantic_lossless_proven", result)
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    return result
+
+
+def require_valid_legacy_source_reconstruction_review_packet(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_legacy_source_reconstruction_review_packet(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def validate_legacy_source_reconstruction_apply(
     payload: dict[str, Any],
     *,
@@ -125,3 +176,15 @@ def _validate_plan_repair(payload: Any, path: str, result: ContractResult) -> No
         result.add(f"{path}.mutation_authority", "must be typed_review_and_apply_separately")
     for key in ("proposed_supports_outputs", "source_refs", "basis_refs"):
         _require_list(payload.get(key), f"{path}.{key}", result)
+
+
+def _validate_legacy_component_guidance(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in ("component", "review_decision", "record_result_cli"):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("review_decision") != "record_passed_needs_revision_or_inconclusive":
+        result.add(f"{path}.review_decision", "must be record_passed_needs_revision_or_inconclusive")
+    _require_list(payload.get("legacy_refs_to_inspect"), f"{path}.legacy_refs_to_inspect", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)

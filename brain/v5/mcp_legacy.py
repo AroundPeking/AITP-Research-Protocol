@@ -14,6 +14,7 @@ from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_
 from brain.v5.legacy_source_reconstruction import (
     apply_legacy_source_reconstruction_repair,
     build_legacy_source_reconstruction_plan,
+    build_legacy_source_reconstruction_review_packet,
 )
 from brain.v5.legacy_semantic_review import (
     build_legacy_semantic_review_packet,
@@ -119,6 +120,11 @@ def aitp_v5_apply_legacy_semantic_repair(
 def aitp_v5_build_legacy_source_reconstruction_plan(base: str, *, migration_dir: str, topic: str) -> dict:
     result = build_legacy_source_reconstruction_plan(_ws(base), migration_dir=migration_dir, topic=topic)
     return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_plan", result)}
+
+
+def aitp_v5_build_legacy_source_reconstruction_review_packet(base: str, *, migration_dir: str, topic: str) -> dict:
+    result = build_legacy_source_reconstruction_review_packet(_ws(base), migration_dir=migration_dir, topic=topic)
+    return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_review_packet", result)}
 
 
 def aitp_v5_apply_legacy_source_reconstruction_repair(

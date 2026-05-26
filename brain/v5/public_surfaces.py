@@ -34,6 +34,7 @@ _PUBLIC_SURFACE_NAMES = (
     "legacy_migration_result",
     "legacy_source_reconstruction_apply",
     "legacy_source_reconstruction_plan",
+    "legacy_source_reconstruction_review_packet",
     "legacy_semantic_review_manifest",
     "legacy_semantic_review_packet",
     "legacy_semantic_review_worklist",
@@ -106,6 +107,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "legacy_migration_result": "contracted explicit migration result from legacy topic files into v5 typed records",
     "legacy_source_reconstruction_apply": "guarded evidence backfill for reconstruction-path coverage derived from typed legacy semantic reviews without changing claim trust",
     "legacy_source_reconstruction_plan": "read-only plan for reconstruction-path evidence backfills derived from typed legacy semantic reviews",
+    "legacy_source_reconstruction_review_packet": "read-only legacy-aware source reconstruction review packet that maps migrated refs onto typed reconstruction components without mutating trust",
     "legacy_semantic_review_manifest": "orientation-only batch manifest listing per-topic semantic review packets, statuses, and result-record commands",
     "legacy_semantic_review_packet": "orientation-only per-topic packet collecting migrated legacy refs, typed records, and checklist for actual semantic review",
     "legacy_semantic_review_worklist": "orientation-only prioritized worklist for remaining legacy semantic-review backlog without claiming semantic losslessness",
@@ -238,6 +240,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     from brain.v5.legacy_source_reconstruction_contracts import (
         require_valid_legacy_source_reconstruction_apply,
         require_valid_legacy_source_reconstruction_plan,
+        require_valid_legacy_source_reconstruction_review_packet,
     )
     from brain.v5.source_reconstruction_contracts import (
         require_valid_source_reconstruction_manifest,
@@ -305,6 +308,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "legacy_migration_result": require_valid_legacy_migration_result,
         "legacy_source_reconstruction_apply": require_valid_legacy_source_reconstruction_apply,
         "legacy_source_reconstruction_plan": require_valid_legacy_source_reconstruction_plan,
+        "legacy_source_reconstruction_review_packet": require_valid_legacy_source_reconstruction_review_packet,
         "legacy_semantic_review_manifest": require_valid_legacy_semantic_review_manifest,
         "legacy_semantic_review_packet": require_valid_legacy_semantic_review_packet,
         "legacy_semantic_review_worklist": require_valid_legacy_semantic_review_worklist,

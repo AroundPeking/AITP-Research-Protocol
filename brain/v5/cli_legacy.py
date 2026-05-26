@@ -12,6 +12,7 @@ from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_
 from brain.v5.legacy_source_reconstruction import (
     apply_legacy_source_reconstruction_repair,
     build_legacy_source_reconstruction_plan,
+    build_legacy_source_reconstruction_review_packet,
 )
 from brain.v5.legacy_semantic_review import (
     build_legacy_semantic_review_packet,
@@ -57,6 +58,9 @@ def add_legacy_parser(subparsers) -> None:
     source_repair = legacy_subparsers.add_parser("source-reconstruction-plan")
     source_repair.add_argument("--migration-dir", required=True)
     source_repair.add_argument("--topic", required=True)
+    source_review = legacy_subparsers.add_parser("source-reconstruction-review")
+    source_review.add_argument("--migration-dir", required=True)
+    source_review.add_argument("--topic", required=True)
     source_repair_apply = legacy_subparsers.add_parser("source-reconstruction-apply")
     source_repair_apply.add_argument("--migration-dir", required=True)
     source_repair_apply.add_argument("--topic", required=True)
@@ -129,6 +133,9 @@ def dispatch_legacy_command(args, ws) -> dict:
     if args.legacy_command == "source-reconstruction-plan":
         plan = build_legacy_source_reconstruction_plan(ws, migration_dir=args.migration_dir, topic=args.topic)
         return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_plan", plan)}
+    if args.legacy_command == "source-reconstruction-review":
+        packet = build_legacy_source_reconstruction_review_packet(ws, migration_dir=args.migration_dir, topic=args.topic)
+        return {"ok": True, **require_valid_public_surface("legacy_source_reconstruction_review_packet", packet)}
     if args.legacy_command == "source-reconstruction-apply":
         result = apply_legacy_source_reconstruction_repair(
             ws,
