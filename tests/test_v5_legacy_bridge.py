@@ -1146,7 +1146,8 @@ def test_legacy_semantic_review_manifest_flags_completed_source_review_result_fo
                 f"aitp-v5 --base {ws.base} legacy semantic-review-result "
                 f"--migration-dir {run} --topic canonical-topic "
                 "--status <passed|inconclusive> "
-                f"--typed-ref claim-canonical --legacy-ref {source_ref} "
+                f"--typed-ref claim-canonical --typed-ref source-reconstruction-review:{source_review.result_id} "
+                f"--legacy-ref {source_ref} "
                 f"--summary <reviewed satisfied actions; explain any remaining semantic gaps>"
             ),
             "result_mcp": "aitp_v5_record_legacy_semantic_review_result",

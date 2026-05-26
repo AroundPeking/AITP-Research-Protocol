@@ -110,6 +110,9 @@ def _manifest_item(
         "source_reconstruction": item.get("source_reconstruction", {}),
         "latest_semantic_review": latest_review,
         "satisfied_review_actions": satisfied_review_actions,
+        "source_reconstruction_review_refs": _source_reconstruction_review_refs(
+            source_reviews_by_claim.get(str(item.get("active_claim_id") or ""), [])
+        ),
         "followup_review_actions": followup_review_actions,
         "packet_cli": packet_cli,
         "result_cli_template": result_cli,
@@ -308,6 +311,12 @@ def _group_source_reviews_by_claim(
     for record in records:
         grouped.setdefault(record.claim_id, []).append(record)
     return grouped
+
+
+def _source_reconstruction_review_refs(
+    records: list[SourceReconstructionReviewResultRecord],
+) -> list[str]:
+    return [f"source-reconstruction-review:{record.result_id}" for record in records]
 
 
 def _followup_review_actions(satisfied_review_actions: list[str]) -> list[str]:

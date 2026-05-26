@@ -317,6 +317,7 @@ def _followup_review_commands(
         return []
     legacy_refs = [str(ref) for ref in latest_review.get("reviewed_legacy_refs", []) if str(ref)]
     typed_refs = [str(ref) for ref in latest_review.get("reviewed_typed_refs", []) if str(ref)]
+    typed_refs.extend(str(ref) for ref in item.get("source_reconstruction_review_refs", []) if str(ref))
     return [
         {
             "action": action,
