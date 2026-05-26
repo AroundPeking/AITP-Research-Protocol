@@ -466,6 +466,49 @@ def test_source_reconstruction_review_packet_cli_mcp_and_runtime(tmp_path, capsy
     }
 
 
+def test_source_reconstruction_review_packet_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main([
+        "--base", str(tmp_path), "source", "reconstruction-review",
+        "--claim", claim.claim_id,
+        "--compact",
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "source_reconstruction_review_packet_progress"
+    assert cli_payload["source_surface"] == "source_reconstruction_review_packet"
+    assert cli_payload["topic_id"] == "fqhe"
+    assert cli_payload["claim_id"] == claim.claim_id
+    assert cli_payload["source_reconstruction_status"] == "incomplete"
+    assert cli_payload["missing_components"] == [
+        "definitions",
+        "assumptions_or_scope",
+        "source_locations",
+        "dependency_graph",
+        "reconstruction_path",
+        "failure_conditions",
+    ]
+    assert cli_payload["component_review_count"] == 6
+    assert "source reconstruction-review-result --claim" in cli_payload["review_result_cli"]
+    assert cli_payload["requires_human_or_adversarial_review"] is True
+    assert cli_payload["can_update_claim_trust"] is False
+    assert "typed_records" not in cli_payload
+    assert "component_reviews" not in cli_payload
+
+
 def test_source_reconstruction_review_result_records_typed_basis(tmp_path):
     from brain.v5.evidence import record_evidence
     from brain.v5.models import SourceReconstructionReviewResultRecord

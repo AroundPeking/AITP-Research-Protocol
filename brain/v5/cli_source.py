@@ -9,6 +9,7 @@ from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.cli_progress import (
     compact_source_reconstruction_manifest,
     compact_source_reconstruction_review_manifest,
+    compact_source_reconstruction_review_packet,
 )
 from brain.v5.source_reconstruction import (
     audit_source_reconstruction,
@@ -32,6 +33,7 @@ def add_source_parser(sp: argparse._SubParsersAction) -> None:
     review_manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
     review = commands.add_parser("reconstruction-review")
     review.add_argument("--claim", required=True, dest="claim_id")
+    review.add_argument("--compact", "--progress", action="store_true", dest="compact")
     result = commands.add_parser("reconstruction-review-result")
     result.add_argument("--claim", required=True, dest="claim_id")
     result.add_argument("--status", required=True)
@@ -70,10 +72,13 @@ def dispatch_source_command(args: argparse.Namespace, ws) -> dict:
             return compact_source_reconstruction_review_manifest(manifest)
         return manifest
     if args.source_command == "reconstruction-review":
-        return require_valid_public_surface(
+        packet = require_valid_public_surface(
             "source_reconstruction_review_packet",
             build_source_reconstruction_review_packet(ws, claim_id=args.claim_id),
         )
+        if getattr(args, "compact", False):
+            return compact_source_reconstruction_review_packet(packet)
+        return packet
     if args.source_command == "reconstruction-review-result":
         result = record_source_reconstruction_review_result(
             ws,
