@@ -39,6 +39,13 @@ def build_legacy_semantic_review_packet(
         "run_id": queue["run_id"],
         "migration_dir": queue["migration_dir"],
         "topic": item["topic"],
+        "active_claim_id": item["active_claim_id"],
+        "semantic_review_status": item["semantic_review_status"],
+        "review_status": _compact_review_status(item["semantic_review_status"]),
+        "review_priority": item["review_priority"],
+        "latest_review_id": str(latest_review.get("review_id") or ""),
+        "source_reconstruction": dict(item.get("source_reconstruction") or {}),
+        "recommended_actions": list(item.get("recommended_actions") or []),
         "queue_item": item,
         "latest_semantic_review": latest_review,
         "active_claim": claim,
@@ -141,6 +148,10 @@ def _latest_semantic_review(item: dict[str, Any]) -> dict[str, Any]:
     if isinstance(latest, dict):
         return dict(latest)
     return {}
+
+
+def _compact_review_status(status: str) -> str:
+    return status.removeprefix("reviewed_") if status else ""
 
 
 def _review_basis_refs(legacy_refs: list[str], latest_review: dict[str, Any]) -> list[str]:

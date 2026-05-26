@@ -87,7 +87,16 @@ def validate_legacy_semantic_review_packet(
         return result
     if payload.get("kind") != "legacy_semantic_review_packet":
         result.add(f"{path}.kind", "must be 'legacy_semantic_review_packet'")
-    for key in ("run_id", "migration_dir", "topic", "truth_source"):
+    for key in (
+        "run_id",
+        "migration_dir",
+        "topic",
+        "active_claim_id",
+        "semantic_review_status",
+        "review_status",
+        "review_priority",
+        "truth_source",
+    ):
         if not isinstance(payload.get(key), str) or not payload.get(key):
             result.add(f"{path}.{key}", "must be a non-empty string")
     if payload.get("truth_source") != "migration_manifests_and_typed_records":
@@ -103,6 +112,13 @@ def validate_legacy_semantic_review_packet(
         if payload.get(key) is not expected:
             result.add(f"{path}.{key}", f"must be {expected}")
     _validate_item(payload.get("queue_item"), f"{path}.queue_item", result)
+    _validate_source_reconstruction(payload.get("source_reconstruction"), f"{path}.source_reconstruction", result)
+    if not isinstance(payload.get("latest_review_id"), str):
+        result.add(f"{path}.latest_review_id", "must be a string")
+    if not isinstance(payload.get("recommended_actions"), list) or not all(
+        isinstance(value, str) for value in payload.get("recommended_actions", [])
+    ):
+        result.add(f"{path}.recommended_actions", "must be a list of strings")
     if not isinstance(payload.get("active_claim"), dict):
         result.add(f"{path}.active_claim", "must be a mapping")
     if not isinstance(payload.get("latest_semantic_review"), dict):

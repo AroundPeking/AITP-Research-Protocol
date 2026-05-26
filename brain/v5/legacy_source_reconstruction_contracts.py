@@ -72,8 +72,25 @@ def validate_legacy_source_reconstruction_review_packet(
         return result
     if payload.get("kind") != "legacy_source_reconstruction_review_packet":
         result.add(f"{path}.kind", "must be 'legacy_source_reconstruction_review_packet'")
-    for key in ("run_id", "migration_dir", "topic", "active_claim_id", "truth_source"):
+    for key in (
+        "run_id",
+        "migration_dir",
+        "topic",
+        "active_claim_id",
+        "source_reconstruction_status",
+        "review_result_cli",
+        "truth_source",
+    ):
         _require_nonempty_str(payload, key, path, result)
+    if not isinstance(payload.get("latest_review_id"), str):
+        result.add(f"{path}.latest_review_id", "must be a string")
+    _require_list(payload.get("missing_components"), f"{path}.missing_components", result)
+    if isinstance(payload.get("missing_components"), list):
+        for index, component in enumerate(payload["missing_components"]):
+            if not isinstance(component, str) or not component:
+                result.add(f"{path}.missing_components[{index}]", "must be a non-empty string")
+    if not isinstance(payload.get("component_review_count"), int) or payload["component_review_count"] < 0:
+        result.add(f"{path}.component_review_count", "must be a non-negative integer")
     if payload.get("truth_source") != "typed_review_results_legacy_refs_and_source_reconstruction_packet":
         result.add(f"{path}.truth_source", "must be 'typed_review_results_legacy_refs_and_source_reconstruction_packet'")
     _require_mapping(payload.get("latest_semantic_review"), f"{path}.latest_semantic_review", result)

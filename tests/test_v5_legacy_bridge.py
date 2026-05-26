@@ -587,6 +587,13 @@ def test_legacy_semantic_review_packet_collects_review_basis_without_writing(tmp
     assert before == after
     assert packet["kind"] == "legacy_semantic_review_packet"
     assert packet["topic"] == "canonical-topic"
+    assert packet["active_claim_id"] == "claim-canonical"
+    assert packet["semantic_review_status"] == "reviewed_inconclusive"
+    assert packet["review_status"] == "inconclusive"
+    assert packet["review_priority"] == "high"
+    assert packet["latest_review_id"] == review.review_id
+    assert packet["source_reconstruction"]["status"] == "incomplete"
+    assert "complete_source_reconstruction" in packet["recommended_actions"]
     assert packet["active_claim"]["claim_id"] == "claim-canonical"
     assert packet["active_claim"]["statement"] == "Migrated canonical claim."
     assert packet["queue_item"]["semantic_review_status"] == "reviewed_inconclusive"
@@ -604,6 +611,68 @@ def test_legacy_semantic_review_packet_collects_review_basis_without_writing(tmp
     assert packet["can_update_kernel_state"] is False
     assert packet["can_update_claim_trust"] is False
     assert require_valid_public_surface("legacy_semantic_review_packet", packet) == packet
+
+
+def test_legacy_source_reconstruction_review_packet_exposes_summary_fields(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_review_packet
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="Migrated canonical claim.",
+            evidence_profile="legacy_import",
+            confidence_state="hypothesis",
+            active_uncertainty="Semantic review required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="Source reconstruction still needs component review.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy_l1:canonical-topic/L1/question_contract.md"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["complete_source_reconstruction"],
+    )
+
+    packet = build_legacy_source_reconstruction_review_packet(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+    )
+
+    assert packet["kind"] == "legacy_source_reconstruction_review_packet"
+    assert packet["active_claim_id"] == "claim-canonical"
+    assert packet["latest_review_id"] == review.review_id
+    assert packet["source_reconstruction_status"] == "incomplete"
+    assert packet["missing_components"] == [
+        "definitions",
+        "assumptions_or_scope",
+        "source_locations",
+        "dependency_graph",
+        "reconstruction_path",
+        "failure_conditions",
+    ]
+    assert packet["component_review_count"] == 6
+    assert packet["review_result_cli"] == (
+        "aitp-v5 source reconstruction-review-result --claim claim-canonical "
+        "--status <passed|needs_revision|inconclusive> "
+        "--reviewed-component <component> --basis-ref <legacy-ref-or-typed-record> "
+        "--summary <source reconstruction review basis>"
+    )
+    assert packet["can_update_claim_trust"] is False
+    assert require_valid_public_surface("legacy_source_reconstruction_review_packet", packet) == packet
 
 
 def test_legacy_semantic_review_packet_cli_mcp_and_runtime_surface(tmp_path, capsys):

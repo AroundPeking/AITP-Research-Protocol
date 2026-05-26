@@ -74,6 +74,9 @@ def build_legacy_source_reconstruction_review_packet(
         if active_claim_id
         else {}
     )
+    source_reconstruction = item.get("source_reconstruction") if isinstance(item.get("source_reconstruction"), dict) else {}
+    missing_components = list(source_packet.get("missing_components") or source_reconstruction.get("missing_components") or [])
+    component_reviews = list(source_packet.get("component_reviews") or [])
     reviewed_refs = _clean_refs(latest_review.get("reviewed_legacy_refs", []))
     all_source_refs = _unique([
         *reviewed_refs,
@@ -86,6 +89,13 @@ def build_legacy_source_reconstruction_review_packet(
         "migration_dir": queue["migration_dir"],
         "topic": item["topic"],
         "active_claim_id": active_claim_id,
+        "latest_review_id": str(latest_review.get("review_id") or ""),
+        "source_reconstruction_status": str(
+            source_reconstruction.get("status") or ("incomplete" if missing_components else "complete")
+        ),
+        "missing_components": missing_components,
+        "component_review_count": len(component_reviews),
+        "review_result_cli": _review_result_cli(active_claim_id),
         "latest_semantic_review": latest_review,
         "source_reconstruction_review_packet": source_packet,
         "legacy_refs": {
@@ -294,6 +304,15 @@ def _legacy_component_guidance(component: str, claim_id: str, refs: list[str]) -
         ),
         "can_update_claim_trust": False,
     }
+
+
+def _review_result_cli(claim_id: str) -> str:
+    return (
+        f"aitp-v5 source reconstruction-review-result --claim {claim_id} "
+        "--status <passed|needs_revision|inconclusive> "
+        "--reviewed-component <component> --basis-ref <legacy-ref-or-typed-record> "
+        "--summary <source reconstruction review basis>"
+    )
 
 
 def _legacy_refs_for_component(component: str, refs: list[str]) -> list[str]:
