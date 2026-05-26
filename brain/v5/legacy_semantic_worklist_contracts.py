@@ -33,6 +33,13 @@ def validate_legacy_semantic_review_worklist(
             result.add(f"{path}.{key}", f"must be {expected}")
     if not isinstance(payload.get("work_item_count"), int) or payload["work_item_count"] < 0:
         result.add(f"{path}.work_item_count", "must be a non-negative integer")
+    if not isinstance(payload.get("open_human_checkpoint_count"), int) or payload["open_human_checkpoint_count"] < 0:
+        result.add(f"{path}.open_human_checkpoint_count", "must be a non-negative integer")
+    _validate_open_checkpoint_summaries(
+        payload.get("open_human_checkpoints"),
+        f"{path}.open_human_checkpoints",
+        result,
+    )
     _validate_status_counts(payload.get("status_counts"), f"{path}.status_counts", result)
     _validate_pass_readiness_counts(payload.get("pass_readiness_counts"), f"{path}.pass_readiness_counts", result)
     _validate_pass_blocker_counts(payload.get("pass_blocker_counts"), f"{path}.pass_blocker_counts", result)
@@ -81,6 +88,29 @@ def _validate_pass_blocker_counts(payload: Any, path: str, result: ContractResul
             result.add(path, "keys must be non-empty strings")
         if not isinstance(value, int) or value < 0:
             result.add(f"{path}.{key}", "must be a non-negative integer")
+
+
+def _validate_open_checkpoint_summaries(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, list):
+        result.add(path, "must be a list")
+        return
+    for index, item in enumerate(payload):
+        if not isinstance(item, dict):
+            result.add(f"{path}[{index}]", "must be a mapping")
+            continue
+        for key in (
+            "topic",
+            "active_claim_id",
+            "checkpoint_id",
+            "checkpoint_ref",
+            "action",
+            "decision_cli",
+            "decision_mcp",
+        ):
+            if not isinstance(item.get(key), str):
+                result.add(f"{path}[{index}].{key}", "must be a string")
+        if item.get("can_update_claim_trust") is not False:
+            result.add(f"{path}[{index}].can_update_claim_trust", "must be false")
 
 
 def _validate_worklist_item(payload: Any, path: str, result: ContractResult) -> None:

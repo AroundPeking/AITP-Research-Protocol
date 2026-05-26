@@ -88,6 +88,7 @@ def validate_final_engineering_readiness_audit(
         for key in [
             "review_item_count",
             "work_item_count",
+            "open_human_checkpoint_count",
             "pending_count",
             "passed_count",
             "needs_revision_count",
@@ -98,6 +99,11 @@ def validate_final_engineering_readiness_audit(
         _require_mapping(
             legacy.get("pass_readiness_counts"),
             f"{path}.content_backlog.legacy_semantic_review.pass_readiness_counts",
+            result,
+        )
+        _require_list(
+            legacy.get("open_human_checkpoints"),
+            f"{path}.content_backlog.legacy_semantic_review.open_human_checkpoints",
             result,
         )
         if isinstance(legacy.get("pass_readiness_counts"), dict):

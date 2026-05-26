@@ -285,6 +285,23 @@ def test_final_readiness_top_legacy_items_include_open_checkpoint_commands(tmp_p
 
     item = payload["content_backlog"]["legacy_semantic_review"]["top_work_items"][0]
     assert item["topic"] == "legacy-topic-0"
+    assert payload["content_backlog"]["legacy_semantic_review"]["open_human_checkpoint_count"] == 1
+    assert payload["content_backlog"]["legacy_semantic_review"]["open_human_checkpoints"] == [
+        {
+            "topic": "legacy-topic-0",
+            "active_claim_id": "claim-legacy-0",
+            "checkpoint_id": checkpoint.checkpoint_id,
+            "checkpoint_ref": f"human-checkpoint:{checkpoint.checkpoint_id}",
+            "action": "decide_human_checkpoint_before_promotion",
+            "decision_cli": (
+                f"aitp-v5 --base {ws.base} checkpoint decide {checkpoint.checkpoint_id} "
+                "--decision <approve_semantic_review|keep_backlog_blocking> "
+                "--rationale <human rationale> --decided-by <reviewer>"
+            ),
+            "decision_mcp": "aitp_v5_decide_human_checkpoint",
+            "can_update_claim_trust": False,
+        }
+    ]
     assert item["open_human_checkpoint_refs"] == [f"human-checkpoint:{checkpoint.checkpoint_id}"]
     assert item["review_action_commands"] == [
         {

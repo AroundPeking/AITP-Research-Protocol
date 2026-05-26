@@ -34,12 +34,15 @@ def build_legacy_semantic_review_worklist(
         if item["review_status"] in {"pending", "needs_revision", "inconclusive"}
     ]
     items = sorted(candidates, key=lambda item: (-item["priority_score"], item["topic"]))
+    open_checkpoints = _open_human_checkpoint_summary(items)
     return {
         "kind": "legacy_semantic_review_worklist",
         "run_id": manifest["run_id"],
         "migration_dir": manifest["migration_dir"],
         "workspace": manifest["workspace"],
         "work_item_count": len(items),
+        "open_human_checkpoint_count": len(open_checkpoints),
+        "open_human_checkpoints": open_checkpoints,
         "status_counts": _status_counts(items),
         "pass_readiness_counts": _pass_readiness_counts(items),
         "pass_blocker_counts": _pass_blocker_counts(items),
@@ -123,6 +126,30 @@ def _work_item(
         "result_cli_template": item["result_cli_template"],
         "can_update_claim_trust": False,
     }
+
+
+def _open_human_checkpoint_summary(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for item in items:
+        for command in item.get("review_action_commands", []):
+            if not isinstance(command, dict):
+                continue
+            checkpoint_id = str(command.get("checkpoint_id") or "")
+            if not checkpoint_id:
+                continue
+            summaries.append(
+                {
+                    "topic": str(item.get("topic") or ""),
+                    "active_claim_id": str(item.get("active_claim_id") or ""),
+                    "checkpoint_id": checkpoint_id,
+                    "checkpoint_ref": f"human-checkpoint:{checkpoint_id}",
+                    "action": str(command.get("action") or ""),
+                    "decision_cli": str(command.get("cli") or ""),
+                    "decision_mcp": str(command.get("mcp") or ""),
+                    "can_update_claim_trust": False,
+                }
+            )
+    return summaries
 
 
 def _group_open_human_checkpoints(

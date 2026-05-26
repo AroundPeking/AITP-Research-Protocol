@@ -1786,6 +1786,23 @@ def test_legacy_semantic_review_worklist_surfaces_open_human_checkpoint_for_deci
 
     item = next(item for item in worklist["items"] if item["topic"] == "canonical-topic")
     assert item["open_human_checkpoint_refs"] == [f"human-checkpoint:{checkpoint.checkpoint_id}"]
+    assert worklist["open_human_checkpoint_count"] == 1
+    assert worklist["open_human_checkpoints"] == [
+        {
+            "topic": "canonical-topic",
+            "active_claim_id": "claim-canonical",
+            "checkpoint_id": checkpoint.checkpoint_id,
+            "checkpoint_ref": f"human-checkpoint:{checkpoint.checkpoint_id}",
+            "action": "decide_human_checkpoint_before_promotion",
+            "decision_cli": (
+                f"aitp-v5 --base {ws.base} checkpoint decide {checkpoint.checkpoint_id} "
+                "--decision <approve_semantic_review|keep_backlog_blocking> "
+                "--rationale <human rationale> --decided-by <reviewer>"
+            ),
+            "decision_mcp": "aitp_v5_decide_human_checkpoint",
+            "can_update_claim_trust": False,
+        }
+    ]
     command = item["review_action_commands"][0]
     assert command == {
         "action": "decide_human_checkpoint_before_promotion",
