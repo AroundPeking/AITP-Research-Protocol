@@ -151,6 +151,21 @@ def _review_action_command(
             mcp="aitp_v5_build_source_reconstruction_review_packet",
             surface="source_reconstruction_review_packet",
         )
+    if action == "record_source_reconstruction_review_result":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} source reconstruction-review-result "
+                f"--claim {item['active_claim_id']} --status <passed|needs_revision|inconclusive> "
+                "--reviewed-component <component> --basis-ref <source-or-typed-ref> "
+                "--summary <source reconstruction review basis>"
+            ),
+            mcp="aitp_v5_record_source_reconstruction_review_result",
+            surface="source_reconstruction_review_result_record",
+            effect="typed_review_record_write",
+            can_update_kernel_state=True,
+        )
     if action == "classify_noncanonical_seed_before_promotion":
         return _command(
             action,
@@ -196,6 +211,8 @@ def _command(
     cli: str,
     mcp: str,
     surface: str,
+    effect: str = "orientation_only",
+    can_update_kernel_state: bool = False,
 ) -> dict[str, Any]:
     return {
         "action": action,
@@ -203,8 +220,8 @@ def _command(
         "cli": cli,
         "mcp": mcp,
         "surface": surface,
-        "effect": "orientation_only",
-        "can_update_kernel_state": False,
+        "effect": effect,
+        "can_update_kernel_state": can_update_kernel_state,
         "can_update_claim_trust": False,
     }
 
