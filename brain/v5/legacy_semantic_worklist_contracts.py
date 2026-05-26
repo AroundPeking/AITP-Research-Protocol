@@ -86,16 +86,34 @@ def _validate_worklist_item(payload: Any, path: str, result: ContractResult) -> 
         "missing_source_components",
         "satisfied_review_actions",
         "followup_review_actions",
+        "review_action_commands",
         "followup_review_commands",
         "repair_candidates",
     ):
         if not isinstance(payload.get(key), list):
             result.add(f"{path}.{key}", "must be a list")
+    for index, command in enumerate(payload.get("review_action_commands") or []):
+        _validate_review_action_command(command, f"{path}.review_action_commands[{index}]", result)
     for index, command in enumerate(payload.get("followup_review_commands") or []):
         _validate_followup_command(command, f"{path}.followup_review_commands[{index}]", result)
     for key in ("priority_score", "repair_candidate_count"):
         if not isinstance(payload.get(key), int) or payload[key] < 0:
             result.add(f"{path}.{key}", "must be a non-negative integer")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
+
+
+def _validate_review_action_command(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, dict):
+        result.add(path, "must be a mapping")
+        return
+    for key in ("action", "latest_review_id", "cli", "mcp", "surface", "effect"):
+        if not isinstance(payload.get(key), str) or not payload.get(key):
+            result.add(f"{path}.{key}", "must be a non-empty string")
+    if payload.get("effect") != "orientation_only":
+        result.add(f"{path}.effect", "must be orientation_only")
+    if payload.get("can_update_kernel_state") is not False:
+        result.add(f"{path}.can_update_kernel_state", "must be false")
     if payload.get("can_update_claim_trust") is not False:
         result.add(f"{path}.can_update_claim_trust", "must be false")
 

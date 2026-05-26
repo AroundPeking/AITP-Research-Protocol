@@ -890,6 +890,91 @@ def test_legacy_semantic_review_worklist_flags_satisfied_backfill_actions_for_fo
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_worklist_exposes_inconclusive_followup_commands(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-l2.md",
+        ClaimRecord(
+            claim_id="claim-l2",
+            topic_id="legacy-l2",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Legacy L2 graph needs typed migration before promotion.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="legacy-l2",
+        status="inconclusive",
+        summary="Legacy L2 is a global graph/index seed, not a claim; route it through typed L2 migration and source review.",
+        active_claim_id="claim-l2",
+        reviewed_legacy_refs=[
+            "legacy_archive:L2/index.md",
+            "legacy_archive:L2/entries/INDEX.md",
+        ],
+        reviewed_typed_refs=["claim-l2"],
+        remaining_actions=[
+            "classify_noncanonical_seed_before_promotion",
+            "migrate_legacy_l2_graph_entries_into_typed_l2_records",
+            "rebuild_l2_obsidian_view_from_typed_graph",
+            "complete_source_reconstruction",
+            "decide_human_checkpoint_before_promotion",
+        ],
+    )
+
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=run)
+
+    item = next(item for item in worklist["items"] if item["topic"] == "legacy-l2")
+    assert item["review_status"] == "inconclusive"
+    assert item["latest_review_id"] == review.review_id
+    assert [command["action"] for command in item["review_action_commands"]] == [
+        "classify_noncanonical_seed_before_promotion",
+        "migrate_legacy_l2_graph_entries_into_typed_l2_records",
+        "rebuild_l2_obsidian_view_from_typed_graph",
+        "complete_source_reconstruction",
+        "decide_human_checkpoint_before_promotion",
+    ]
+    commands_by_action = {
+        command["action"]: command for command in item["review_action_commands"]
+    }
+    assert commands_by_action["migrate_legacy_l2_graph_entries_into_typed_l2_records"] == {
+        "action": "migrate_legacy_l2_graph_entries_into_typed_l2_records",
+        "latest_review_id": review.review_id,
+        "cli": f"aitp-v5 --base {ws.base} legacy l2-graph-manifest",
+        "mcp": "aitp_v5_build_legacy_l2_graph_manifest",
+        "surface": "legacy_l2_graph_manifest",
+        "effect": "orientation_only",
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert commands_by_action["rebuild_l2_obsidian_view_from_typed_graph"]["surface"] == (
+        "legacy_l2_obsidian_view_bundle"
+    )
+    assert commands_by_action["complete_source_reconstruction"] == {
+        "action": "complete_source_reconstruction",
+        "latest_review_id": review.review_id,
+        "cli": f"aitp-v5 --base {ws.base} source reconstruction-review --claim claim-l2",
+        "mcp": "aitp_v5_build_source_reconstruction_review_packet",
+        "surface": "source_reconstruction_review_packet",
+        "effect": "orientation_only",
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert commands_by_action["decide_human_checkpoint_before_promotion"]["surface"] == "human_checkpoint_record"
+    assert all(command["can_update_claim_trust"] is False for command in item["review_action_commands"])
+    assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
+
+
 def test_legacy_semantic_review_queue_uses_latest_written_review_not_lexicographic_id(tmp_path):
     from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
     from brain.v5.models import ClaimRecord, LegacySemanticReviewResultRecord

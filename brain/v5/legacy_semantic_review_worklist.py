@@ -55,6 +55,12 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
     priority_score = _priority_score(item, repair_count=repair_count, missing_components=missing)
     latest = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
     satisfied_actions = list(item.get("satisfied_review_actions", []))
+    review_action_commands = _review_action_commands(
+        item,
+        latest_review=latest,
+        workspace=workspace,
+        migration_dir=migration_dir,
+    )
     return {
         "topic": item["topic"],
         "active_claim_id": item["active_claim_id"],
@@ -67,6 +73,7 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
         "missing_source_components": missing,
         "satisfied_review_actions": satisfied_actions,
         "followup_review_actions": followup_actions,
+        "review_action_commands": review_action_commands,
         "followup_review_commands": _followup_review_commands(
             item,
             latest_review=latest,
@@ -79,6 +86,125 @@ def _work_item(item: dict[str, Any], *, workspace: str, migration_dir: str) -> d
         "repair_candidates": list(item.get("repair_candidates", [])),
         "packet_cli": item["packet_cli"],
         "result_cli_template": item["result_cli_template"],
+        "can_update_claim_trust": False,
+    }
+
+
+def _review_action_commands(
+    item: dict[str, Any],
+    *,
+    latest_review: dict[str, Any],
+    workspace: str,
+    migration_dir: str,
+) -> list[dict[str, Any]]:
+    if not latest_review:
+        return []
+    return [
+        command
+        for action in latest_review.get("remaining_actions", [])
+        for command in [
+            _review_action_command(
+                str(action),
+                item,
+                latest_review=latest_review,
+                workspace=workspace,
+                migration_dir=migration_dir,
+            )
+        ]
+        if command is not None
+    ]
+
+
+def _review_action_command(
+    action: str,
+    item: dict[str, Any],
+    *,
+    latest_review: dict[str, Any],
+    workspace: str,
+    migration_dir: str,
+) -> dict[str, Any] | None:
+    action = action.strip()
+    if not action:
+        return None
+    review_id = str(latest_review.get("review_id") or "")
+    if action == "migrate_legacy_l2_graph_entries_into_typed_l2_records":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=f"aitp-v5 --base {workspace} legacy l2-graph-manifest",
+            mcp="aitp_v5_build_legacy_l2_graph_manifest",
+            surface="legacy_l2_graph_manifest",
+        )
+    if action == "rebuild_l2_obsidian_view_from_typed_graph":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=f"aitp-v5 --base {workspace} legacy l2-obsidian-view",
+            mcp="aitp_v5_write_legacy_l2_obsidian_view",
+            surface="legacy_l2_obsidian_view_bundle",
+        )
+    if action == "complete_source_reconstruction":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=f"aitp-v5 --base {workspace} source reconstruction-review --claim {item['active_claim_id']}",
+            mcp="aitp_v5_build_source_reconstruction_review_packet",
+            surface="source_reconstruction_review_packet",
+        )
+    if action == "classify_noncanonical_seed_before_promotion":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} legacy semantic-review-result "
+                f"--migration-dir {migration_dir} --topic {item['topic']} "
+                "--status <passed|inconclusive> --legacy-ref <reviewed-noncanonical-ref> "
+                "--summary <classify noncanonical seed and remaining promotion boundary>"
+            ),
+            mcp="aitp_v5_record_legacy_semantic_review_result",
+            surface="legacy_semantic_review_result_record",
+        )
+    if action == "decide_human_checkpoint_before_promotion":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} checkpoint request "
+                f"--topic {item['topic']} --claim {item['active_claim_id']} "
+                "--reason <legacy semantic review promotion decision> --requested-by legacy_semantic_review "
+                "--option approve_semantic_review --option keep_backlog_blocking"
+            ),
+            mcp="aitp_v5_request_human_checkpoint",
+            surface="human_checkpoint_record",
+        )
+    normalized = " ".join(action.lower().replace("_", " ").split())
+    if "source reconstruction" in normalized or "reconstruction path" in normalized:
+        return _command(
+            action,
+            review_id=review_id,
+            cli=f"aitp-v5 --base {workspace} source reconstruction-review --claim {item['active_claim_id']}",
+            mcp="aitp_v5_build_source_reconstruction_review_packet",
+            surface="source_reconstruction_review_packet",
+        )
+    return None
+
+
+def _command(
+    action: str,
+    *,
+    review_id: str,
+    cli: str,
+    mcp: str,
+    surface: str,
+) -> dict[str, Any]:
+    return {
+        "action": action,
+        "latest_review_id": review_id,
+        "cli": cli,
+        "mcp": mcp,
+        "surface": surface,
+        "effect": "orientation_only",
+        "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
 
