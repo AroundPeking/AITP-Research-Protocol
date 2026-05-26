@@ -178,6 +178,8 @@ def _review_action_command(
             ),
             mcp="aitp_v5_record_legacy_semantic_review_result",
             surface="legacy_semantic_review_result_record",
+            effect="typed_review_record_write",
+            can_update_kernel_state=True,
         )
     if action == "decide_human_checkpoint_before_promotion":
         return _command(

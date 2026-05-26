@@ -957,6 +957,14 @@ def test_legacy_semantic_review_worklist_exposes_inconclusive_followup_commands(
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+    assert commands_by_action["classify_noncanonical_seed_before_promotion"]["surface"] == (
+        "legacy_semantic_review_result_record"
+    )
+    assert commands_by_action["classify_noncanonical_seed_before_promotion"]["effect"] == (
+        "typed_review_record_write"
+    )
+    assert commands_by_action["classify_noncanonical_seed_before_promotion"]["can_update_kernel_state"] is True
+    assert commands_by_action["classify_noncanonical_seed_before_promotion"]["can_update_claim_trust"] is False
     assert commands_by_action["rebuild_l2_obsidian_view_from_typed_graph"]["surface"] == (
         "legacy_l2_obsidian_view_bundle"
     )
