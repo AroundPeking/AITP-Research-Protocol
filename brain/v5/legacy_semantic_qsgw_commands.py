@@ -14,7 +14,14 @@ def qsgw_review_action_command(
     workspace: str,
     migration_dir: str,
 ) -> dict[str, Any] | None:
-    if action == "verify_runtime_logs_for_recomputed_head_wing_each_qsgw_iteration":
+    runtime_log_marker_actions = {
+        "verify_runtime_logs_for_recomputed_head_wing_each_qsgw_iteration",
+        "provide_raw_runtime_logs",
+        "provide_raw_runtime_logs_or_compute_node_output_for_recomputed_head_wing_marker_audit",
+        "rerun_runtime_log_marker_audit",
+        "rerun_runtime_log_marker_audit_with_expected_qsgw_iteration_count",
+    }
+    if action in runtime_log_marker_actions:
         return _runtime_log_marker_audit_command(
             action,
             item,

@@ -1239,6 +1239,57 @@ def test_legacy_semantic_review_worklist_maps_qsgw_runtime_log_marker_action(tmp
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_worklist_maps_refined_runtime_log_audit_actions(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="LibRPA QSGW updates require raw head-wing runtime-log verification.",
+            evidence_profile="code_method",
+            confidence_state="legacy_seed",
+            active_uncertainty="Summary or binary-string evidence is not a raw per-iteration runtime log.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="Raw runtime logs are still missing after an orientation-only marker audit.",
+        active_claim_id="claim-canonical",
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=[
+            "provide_raw_runtime_logs_or_compute_node_output_for_recomputed_head_wing_marker_audit",
+            "rerun_runtime_log_marker_audit_with_expected_qsgw_iteration_count",
+        ],
+    )
+
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=run)
+
+    item = next(item for item in worklist["items"] if item["topic"] == "canonical-topic")
+    commands = {command["action"]: command for command in item["review_action_commands"]}
+    assert sorted(commands) == sorted(review.remaining_actions)
+    for action in review.remaining_actions:
+        assert commands[action]["latest_review_id"] == review.review_id
+        assert "legacy runtime-log-marker-audit" in commands[action]["cli"]
+        assert "--marker \"Recomputed head-wing\"" in commands[action]["cli"]
+        assert "--raw-log-file <raw-runtime-log>" in commands[action]["cli"]
+        assert commands[action]["mcp"] == "aitp_v5_build_legacy_runtime_log_marker_audit"
+        assert commands[action]["surface"] == "legacy_runtime_log_marker_audit"
+        assert commands[action]["can_update_claim_trust"] is False
+    assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
+
+
 def test_legacy_semantic_review_worklist_maps_generic_readback_and_validation_actions(tmp_path):
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
