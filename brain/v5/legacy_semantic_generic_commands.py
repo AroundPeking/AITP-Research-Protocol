@@ -22,7 +22,7 @@ def generic_review_action_command(
             workspace=workspace,
             tool_name=_tool_name(action),
         )
-    if normalized.startswith("design or import "):
+    if normalized.startswith(("design or import ", "implement or import ")):
         return _implementation_boundary_command(
             action,
             item,
@@ -30,7 +30,7 @@ def generic_review_action_command(
             workspace=workspace,
             tool_name=_tool_name(action),
         )
-    if normalized.startswith(("verify ", "validate ", "compare ")):
+    if _requests_validation_result(normalized):
         return _validation_result_command(
             action,
             item,
@@ -38,6 +38,22 @@ def generic_review_action_command(
             review_id=review_id,
             workspace=workspace,
             summary=normalized,
+        )
+    if normalized.startswith("separate "):
+        return _scope_partition_command(
+            action,
+            item,
+            review_id=review_id,
+            workspace=workspace,
+            name=_tool_name(action),
+        )
+    if _requests_sensemaking_report(normalized):
+        return _sensemaking_report_command(
+            action,
+            item,
+            review_id=review_id,
+            workspace=workspace,
+            title=normalized,
         )
     return None
 
@@ -116,6 +132,54 @@ def _validation_result_command(
     )
 
 
+def _scope_partition_command(
+    action: str,
+    item: dict[str, Any],
+    *,
+    review_id: str,
+    workspace: str,
+    name: str,
+) -> dict[str, Any]:
+    return _command(
+        action,
+        review_id=review_id,
+        cli=(
+            f"aitp-v5 --base {workspace} object record "
+            f"--topic {item['topic']} --type <scope_boundary_or_claim_partition> "
+            f"--name {name} --definition <source-grounded scope partition> "
+            "--assumption <separate claim scopes before promotion> --source-ref <legacy-or-typed-source-ref>"
+        ),
+        mcp="aitp_v5_record_physics_object",
+        surface="physics_object_record",
+        effect="typed_record_write",
+        can_update_kernel_state=True,
+    )
+
+
+def _sensemaking_report_command(
+    action: str,
+    item: dict[str, Any],
+    *,
+    review_id: str,
+    workspace: str,
+    title: str,
+) -> dict[str, Any]:
+    return _command(
+        action,
+        review_id=review_id,
+        cli=(
+            f"aitp-v5 --base {workspace} sensemaking report "
+            f"--topic {item['topic']} --claim {item['active_claim_id']} "
+            f"--title <{title}> --summary <source-grounded review of {title}> "
+            "--next-action <record-legacy-semantic-review-result>"
+        ),
+        mcp="aitp_v5_record_sensemaking_report",
+        surface="sensemaking_report_record",
+        effect="typed_record_write",
+        can_update_kernel_state=True,
+    )
+
+
 def _validation_contract_id(latest_review: dict[str, Any]) -> str:
     for ref in latest_review.get("reviewed_typed_refs", []):
         text = str(ref)
@@ -130,9 +194,33 @@ def _tool_name(action: str) -> str:
 
 def _requests_source_readback(normalized_action: str) -> bool:
     return (
-        normalized_action.startswith(("readback ", "extract ", "map "))
+        normalized_action.startswith(("readback ", "extract ", "map ", "trace "))
         or " archive readback" in normalized_action
         or normalized_action.endswith(" readback")
+    )
+
+
+def _requests_validation_result(normalized_action: str) -> bool:
+    return normalized_action.startswith(
+        (
+            "verify ",
+            "validate ",
+            "compare ",
+            "reproduce ",
+            "reproduce or audit ",
+            "test ",
+        )
+    )
+
+
+def _requests_sensemaking_report(normalized_action: str) -> bool:
+    return (
+        normalized_action.startswith(("prove ", "prove or refute ", "construct ", "derive "))
+        or (
+            normalized_action.startswith("resolve ")
+            and "scope limit" not in normalized_action
+            and "or record scope" not in normalized_action
+        )
     )
 
 
