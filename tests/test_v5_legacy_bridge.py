@@ -983,6 +983,88 @@ def test_legacy_semantic_review_worklist_exposes_inconclusive_followup_commands(
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_worklist_maps_l2_typed_review_actions(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-l2.md",
+        ClaimRecord(
+            claim_id="claim-l2",
+            topic_id="legacy-l2",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Legacy L2 graph needs typed review before promotion.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="legacy-l2",
+        status="inconclusive",
+        summary="The L2 typed migration packet groups legacy graph work items but remains review-only.",
+        active_claim_id="claim-l2",
+        reviewed_legacy_refs=["legacy_archive:L2/index.md"],
+        reviewed_typed_refs=["claim-l2", "legacy_l2_typed_migration_packet:work_items=153"],
+        remaining_actions=[
+            "review_legacy_l2_memory_entry_candidates",
+            "review_legacy_l2_graph_nodes_for_physics_objects",
+            "review_legacy_l2_graph_edges_for_object_relations",
+            "review_legacy_l2_steps_for_sensemaking_reports",
+            "review_legacy_l2_towers_for_memory_entries",
+            "record_reviewed_typed_l2_records_or_keep_orientation_only",
+        ],
+    )
+
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=run)
+
+    item = next(item for item in worklist["items"] if item["topic"] == "legacy-l2")
+    commands_by_action = {
+        command["action"]: command for command in item["review_action_commands"]
+    }
+    for action in [
+        "review_legacy_l2_memory_entry_candidates",
+        "review_legacy_l2_graph_nodes_for_physics_objects",
+        "review_legacy_l2_graph_edges_for_object_relations",
+        "review_legacy_l2_steps_for_sensemaking_reports",
+        "review_legacy_l2_towers_for_memory_entries",
+    ]:
+        assert commands_by_action[action] == {
+            "action": action,
+            "latest_review_id": review.review_id,
+            "cli": f"aitp-v5 --base {ws.base} legacy l2-typed-migration-packet",
+            "mcp": "aitp_v5_build_legacy_l2_typed_migration_packet",
+            "surface": "legacy_l2_typed_migration_packet",
+            "effect": "orientation_only",
+            "can_update_kernel_state": False,
+            "can_update_claim_trust": False,
+        }
+    assert commands_by_action["record_reviewed_typed_l2_records_or_keep_orientation_only"] == {
+        "action": "record_reviewed_typed_l2_records_or_keep_orientation_only",
+        "latest_review_id": review.review_id,
+        "cli": (
+            f"aitp-v5 --base {ws.base} legacy semantic-review-result "
+            f"--migration-dir {run} --topic legacy-l2 "
+            "--status <inconclusive|passed> --legacy-ref <reviewed-l2-ref> "
+            "--typed-ref <reviewed-typed-l2-record-or-packet-ref> "
+            "--summary <reviewed typed L2 migration basis and remaining gaps>"
+        ),
+        "mcp": "aitp_v5_record_legacy_semantic_review_result",
+        "surface": "legacy_semantic_review_result_record",
+        "effect": "typed_review_record_write",
+        "can_update_kernel_state": True,
+        "can_update_claim_trust": False,
+    }
+    assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
+
+
 def test_legacy_semantic_review_worklist_maps_source_review_result_action_to_result_record(tmp_path):
     from brain.v5.evidence import record_evidence
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result

@@ -135,6 +135,36 @@ def _review_action_command(
             mcp="aitp_v5_build_legacy_l2_graph_manifest",
             surface="legacy_l2_graph_manifest",
         )
+    if action in {
+        "review_legacy_l2_memory_entry_candidates",
+        "review_legacy_l2_graph_nodes_for_physics_objects",
+        "review_legacy_l2_graph_edges_for_object_relations",
+        "review_legacy_l2_steps_for_sensemaking_reports",
+        "review_legacy_l2_towers_for_memory_entries",
+    }:
+        return _command(
+            action,
+            review_id=review_id,
+            cli=f"aitp-v5 --base {workspace} legacy l2-typed-migration-packet",
+            mcp="aitp_v5_build_legacy_l2_typed_migration_packet",
+            surface="legacy_l2_typed_migration_packet",
+        )
+    if action == "record_reviewed_typed_l2_records_or_keep_orientation_only":
+        return _command(
+            action,
+            review_id=review_id,
+            cli=(
+                f"aitp-v5 --base {workspace} legacy semantic-review-result "
+                f"--migration-dir {migration_dir} --topic {item['topic']} "
+                "--status <inconclusive|passed> --legacy-ref <reviewed-l2-ref> "
+                "--typed-ref <reviewed-typed-l2-record-or-packet-ref> "
+                "--summary <reviewed typed L2 migration basis and remaining gaps>"
+            ),
+            mcp="aitp_v5_record_legacy_semantic_review_result",
+            surface="legacy_semantic_review_result_record",
+            effect="typed_review_record_write",
+            can_update_kernel_state=True,
+        )
     if action == "rebuild_l2_obsidian_view_from_typed_graph":
         return _command(
             action,
