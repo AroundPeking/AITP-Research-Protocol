@@ -10,6 +10,7 @@ _LEGACY_SEMANTIC_REPAIR_TYPES = {
     "claim_statement_backfill",
     "claim_scope_backfill",
     "claim_failure_mode_backfill",
+    "validation_result_revision",
 }
 
 

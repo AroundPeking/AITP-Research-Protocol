@@ -7,6 +7,11 @@ from typing import Any
 
 from brain.v5.legacy_bridge import scan_legacy_topic
 from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
+from brain.v5.legacy_semantic_repair_candidates import (
+    failed_validation_result_ids,
+    manifest_repair_candidate,
+    validation_results_by_id,
+)
 from brain.v5.markdown import read_md
 from brain.v5.models import ClaimRecord, SourceReconstructionReviewResultRecord
 from brain.v5.paths import WorkspacePaths
@@ -24,6 +29,7 @@ def build_legacy_semantic_review_manifest(
     migration = str(queue["migration_dir"])
     legacy_root = Path(queue["legacy_root"])
     claims_by_id = {claim.claim_id: claim for claim in list_records(ws.registry_dir("claims"), ClaimRecord)}
+    results_by_id = validation_results_by_id(ws)
     source_reviews_by_claim = _group_source_reviews_by_claim(
         list_records(ws.registry_dir("source_reconstruction_reviews"), SourceReconstructionReviewResultRecord)
     )
@@ -34,6 +40,7 @@ def build_legacy_semantic_review_manifest(
             legacy_root,
             item,
             claims_by_id=claims_by_id,
+            validation_results_by_id=results_by_id,
             source_reviews_by_claim=source_reviews_by_claim,
         )
         for item in queue["items"]
@@ -71,6 +78,7 @@ def _manifest_item(
     item: dict[str, Any],
     *,
     claims_by_id: dict[str, ClaimRecord],
+    validation_results_by_id: dict[str, Any],
     source_reviews_by_claim: dict[str, list[SourceReconstructionReviewResultRecord]],
 ) -> dict[str, Any]:
     topic = item["topic"]
@@ -81,7 +89,14 @@ def _manifest_item(
     if not isinstance(latest_review, dict):
         latest_review = {}
     active_claim = claims_by_id.get(str(item.get("active_claim_id") or ""))
-    repair_candidates = _repair_candidates(ws, migration_dir, legacy_root, item, claims_by_id=claims_by_id)
+    repair_candidates = _repair_candidates(
+        ws,
+        migration_dir,
+        legacy_root,
+        item,
+        claims_by_id=claims_by_id,
+        validation_results_by_id=validation_results_by_id,
+    )
     satisfied_review_actions = _satisfied_review_actions(
         legacy_root,
         topic,
@@ -159,6 +174,7 @@ def _repair_candidates(
     item: dict[str, Any],
     *,
     claims_by_id: dict[str, ClaimRecord],
+    validation_results_by_id: dict[str, Any],
 ) -> list[dict[str, Any]]:
     topic = item["topic"]
     latest_review = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
@@ -168,6 +184,18 @@ def _repair_candidates(
     review_id = str(latest_review.get("review_id") or "")
     candidates: list[dict[str, Any]] = []
     active_claim = claims_by_id.get(str(item.get("active_claim_id") or ""))
+    if failed_validation_result_ids(latest_review, validation_results_by_id):
+        candidates.append(
+            manifest_repair_candidate(
+                ws,
+                migration_dir,
+                topic,
+                review_id,
+                surface="legacy_semantic_repair_apply",
+                command="semantic-repair-apply",
+                repair_type="validation_result_revision",
+            )
+        )
     if (
         "backfill_active_claim_statement_from_legacy_state_question" in actions
         and active_claim is not None
@@ -175,7 +203,7 @@ def _repair_candidates(
         and _legacy_state_question(legacy_root, topic)
     ):
         candidates.append(
-            _candidate(
+            manifest_repair_candidate(
                 ws,
                 migration_dir,
                 topic,
@@ -192,7 +220,7 @@ def _repair_candidates(
         and _reviewed_reconstruction_refs(latest_review)
     ):
         candidates.append(
-            _candidate(
+            manifest_repair_candidate(
                 ws,
                 migration_dir,
                 topic,
@@ -203,29 +231,6 @@ def _repair_candidates(
             )
         )
     return candidates
-
-
-def _candidate(
-    ws: WorkspacePaths,
-    migration_dir: str,
-    topic: str,
-    review_id: str,
-    *,
-    surface: str,
-    command: str,
-    repair_type: str,
-) -> dict[str, Any]:
-    return {
-        "repair_surface": surface,
-        "repair_type": repair_type,
-        "review_id": review_id,
-        "apply_cli": (
-            f"aitp-v5 --base {ws.base} legacy {command} "
-            f"--migration-dir {migration_dir} --topic {topic} "
-            f"--repair-type {repair_type} --review-id {review_id}"
-        ),
-        "can_update_claim_trust": False,
-    }
 
 
 def _action_tokens(raw_actions: list[str] | None) -> set[str]:

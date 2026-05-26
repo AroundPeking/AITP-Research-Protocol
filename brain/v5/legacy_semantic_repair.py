@@ -10,6 +10,12 @@ from brain.v5.ids import prefixed_id
 from brain.v5.legacy_bridge import scan_legacy_topic
 from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
 from brain.v5.legacy_semantic_review_packet import build_legacy_semantic_review_packet
+from brain.v5.legacy_semantic_repair_candidates import (
+    non_claim_repair_actions,
+    semantic_action_tokens,
+    validation_result_revision_repairs,
+    validation_results_by_id,
+)
 from brain.v5.markdown import read_md
 from brain.v5.models import ClaimRecord, LegacySemanticRepairRecord
 from brain.v5.paths import WorkspacePaths
@@ -34,11 +40,13 @@ def build_legacy_semantic_repair_plan(
     item = _queue_item(queue, topic)
     packet = build_legacy_semantic_review_packet(ws, migration_dir=migration_dir, topic=topic)
     latest_review = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
+    results_by_id = validation_results_by_id(ws)
     proposed_repairs = _proposed_repairs(
         legacy_root=Path(queue["legacy_root"]),
         topic=item["topic"],
         active_claim=packet.get("active_claim", {}),
         latest_review=latest_review,
+        validation_results_by_id=results_by_id,
     )
     return {
         "kind": "legacy_semantic_repair_plan",
@@ -96,6 +104,18 @@ def apply_legacy_semantic_repair(
             applied=False,
             required_actions=["match_latest_needs_revision_review_id"],
         )
+    if repair_type not in _REPAIR_FIELD:
+        return _apply_payload(
+            ws,
+            plan,
+            repair_type=repair_type,
+            review_id=review_id,
+            previous_value=repair["current_value"],
+            new_value=repair["proposed_value"],
+            basis_refs=repair["basis_refs"],
+            applied=False,
+            required_actions=non_claim_repair_actions(repair_type),
+        )
     claim = _claim_for_repair(ws, repair["target_ref"])
     current_value = _claim_repair_value(claim, repair_type)
     if current_value != repair["current_value"]:
@@ -138,6 +158,7 @@ def _proposed_repairs(
     topic: str,
     active_claim: dict[str, Any],
     latest_review: dict[str, Any],
+    validation_results_by_id: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if latest_review.get("status") != "needs_revision":
         return []
@@ -148,8 +169,9 @@ def _proposed_repairs(
         *[str(ref) for ref in latest_review.get("reviewed_legacy_refs", []) if str(ref)],
         str(latest_review.get("review_id") or ""),
     ])
-    actions = _semantic_action_tokens(latest_review.get("remaining_actions", []))
+    actions = semantic_action_tokens(latest_review.get("remaining_actions", []))
     repairs: list[dict[str, Any]] = []
+    repairs.extend(validation_result_revision_repairs(latest_review, validation_results_by_id or {}))
     legacy_topic = legacy_root / topic
     if not str(active_claim.get("statement") or ""):
         question = ""
@@ -355,31 +377,6 @@ def _repair_status(latest_review: dict[str, Any], proposed_repairs: list[dict[st
     if latest_review.get("status") != "needs_revision":
         return "awaiting_needs_revision_review"
     return "no_repair_candidates"
-
-
-def _semantic_action_tokens(raw_actions: list[str] | None) -> set[str]:
-    tokens: set[str] = set()
-    for action in raw_actions or []:
-        text = str(action).strip()
-        if not text:
-            continue
-        tokens.add(text)
-        normalized = " ".join(text.lower().replace("_", " ").split())
-        if "backfill" in normalized and "claim statement" in normalized and "research question" in normalized:
-            tokens.add("backfill_active_claim_statement_from_legacy_state_question")
-        if "l3" in normalized and "distilled claim" in normalized and "claim statement" in normalized:
-            tokens.add("backfill_active_claim_statement_from_legacy_l3_distilled_claim")
-        if "l1" in normalized and "bounded question" in normalized and "claim statement" in normalized:
-            tokens.add("backfill_active_claim_statement_from_legacy_l1_bounded_question")
-        if "scope" in normalized and "question contract" in normalized:
-            tokens.add("backfill_active_claim_scope_from_legacy_l1_question_contract")
-        if "scope" in normalized and "candidate" in normalized and "regime" in normalized:
-            tokens.add("backfill_active_claim_scope_from_legacy_candidate_regime")
-        if "failure" in normalized and "non success" in normalized:
-            tokens.add("backfill_active_claim_failure_mode_from_legacy_l1_non_success_conditions")
-        if "failure" in normalized and "legacy review" in normalized:
-            tokens.add("backfill_active_claim_failure_mode_from_legacy_review")
-    return tokens
 
 
 def _unique(values: list[str]) -> list[str]:
