@@ -15,7 +15,10 @@ from brain.v5.legacy_source_reconstruction import (
     build_legacy_source_reconstruction_plan,
     build_legacy_source_reconstruction_review_packet,
 )
-from brain.v5.cli_progress import compact_legacy_semantic_review_manifest
+from brain.v5.cli_progress import (
+    compact_legacy_semantic_review_manifest,
+    compact_legacy_semantic_review_worklist,
+)
 from brain.v5.legacy_semantic_review import (
     build_legacy_semantic_review_packet,
     build_legacy_semantic_review_queue,
@@ -54,6 +57,7 @@ def add_legacy_parser(subparsers) -> None:
     manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
     worklist = legacy_subparsers.add_parser("semantic-review-worklist")
     worklist.add_argument("--migration-dir", required=True)
+    worklist.add_argument("--compact", "--progress", action="store_true", dest="compact")
     packet = legacy_subparsers.add_parser("semantic-review-packet")
     packet.add_argument("--migration-dir", required=True)
     packet.add_argument("--topic", required=True)
@@ -138,7 +142,10 @@ def dispatch_legacy_command(args, ws) -> dict:
         return payload
     if args.legacy_command == "semantic-review-worklist":
         worklist = build_legacy_semantic_review_worklist(ws, migration_dir=args.migration_dir)
-        return {"ok": True, **require_valid_public_surface("legacy_semantic_review_worklist", worklist)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_semantic_review_worklist", worklist)}
+        if getattr(args, "compact", False):
+            return compact_legacy_semantic_review_worklist(payload)
+        return payload
     if args.legacy_command == "semantic-review-packet":
         packet = build_legacy_semantic_review_packet(ws, migration_dir=args.migration_dir, topic=args.topic)
         return {"ok": True, **require_valid_public_surface("legacy_semantic_review_packet", packet)}

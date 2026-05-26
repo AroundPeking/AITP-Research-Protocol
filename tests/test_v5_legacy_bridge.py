@@ -2271,6 +2271,39 @@ def test_legacy_semantic_review_worklist_cli_mcp_and_runtime_surface(tmp_path, c
     }
 
 
+def test_legacy_semantic_review_worklist_cli_compact_progress(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+
+    assert main([
+        "--base", str(base), "legacy", "semantic-review-worklist",
+        "--migration-dir", str(run),
+        "--compact",
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "legacy_semantic_review_worklist_progress"
+    assert cli_payload["source_surface"] == "legacy_semantic_review_worklist"
+    assert cli_payload["work_item_count"] == 2
+    assert cli_payload["status_counts"]["pending"] == 2
+    assert cli_payload["next_action_refs"] == [
+        "worklist_item:canonical-topic",
+        "worklist_item:legacy-l2",
+    ]
+    assert cli_payload["top_work_item_topics"] == ["canonical-topic", "legacy-l2"]
+    assert cli_payload["top_work_item_review_statuses"] == ["pending", "pending"]
+    assert cli_payload["open_human_checkpoint_refs"] == []
+    assert cli_payload["semantic_lossless_proven"] is False
+    assert cli_payload["can_update_claim_trust"] is False
+    assert "items" not in cli_payload
+
+
 def test_legacy_runtime_log_marker_audit_counts_only_raw_logs_for_satisfaction(tmp_path):
     from brain.v5.legacy_runtime_log_audit import build_legacy_runtime_log_marker_audit
     from brain.v5.public_surfaces import require_valid_public_surface

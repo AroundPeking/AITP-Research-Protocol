@@ -109,6 +109,62 @@ def compact_legacy_semantic_review_manifest(payload: dict[str, Any]) -> dict[str
     }
 
 
+def compact_legacy_semantic_review_worklist(payload: dict[str, Any]) -> dict[str, Any]:
+    top_items = [
+        item for item in payload.get("items", []) if isinstance(item, dict)
+    ][:5]
+    open_checkpoints = [
+        item for item in payload.get("open_human_checkpoints", []) if isinstance(item, dict)
+    ][:5]
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "legacy_semantic_review_worklist_progress",
+        "source_surface": "legacy_semantic_review_worklist",
+        "run_id": str(payload.get("run_id") or ""),
+        "migration_dir": str(payload.get("migration_dir") or ""),
+        "workspace": str(payload.get("workspace") or ""),
+        "work_item_count": int(payload.get("work_item_count") or 0),
+        "open_human_checkpoint_count": int(payload.get("open_human_checkpoint_count") or 0),
+        "open_human_checkpoint_refs": [
+            str(item.get("checkpoint_ref") or "")
+            for item in open_checkpoints
+            if str(item.get("checkpoint_ref") or "")
+        ],
+        "open_human_checkpoint_topics": [
+            str(item.get("topic") or "")
+            for item in open_checkpoints
+            if str(item.get("topic") or "")
+        ],
+        "status_counts": dict(payload.get("status_counts") or {}),
+        "pass_readiness_counts": dict(payload.get("pass_readiness_counts") or {}),
+        "pass_blocker_counts": dict(payload.get("pass_blocker_counts") or {}),
+        "next_action_count": len(payload.get("next_actions") or []),
+        "next_action_refs": _limited_strings(payload.get("next_actions")),
+        "top_work_item_refs": [
+            f"worklist_item:{topic}"
+            for topic in [str(item.get("topic") or "") for item in top_items]
+            if topic
+        ],
+        "top_work_item_topics": [
+            str(item.get("topic") or "")
+            for item in top_items
+            if str(item.get("topic") or "")
+        ],
+        "top_work_item_review_statuses": [
+            str(item.get("review_status") or "")
+            for item in top_items
+            if str(item.get("review_status") or "")
+        ],
+        "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
+        "semantic_review_required": bool(payload.get("semantic_review_required", True)),
+        "truth_source": str(payload.get("truth_source") or ""),
+        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
+        "orientation_only": bool(payload.get("orientation_only", True)),
+        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }
+
+
 def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
     backlog = payload.get("content_backlog") if isinstance(payload.get("content_backlog"), dict) else {}
     legacy = backlog.get("legacy_semantic_review") if isinstance(backlog.get("legacy_semantic_review"), dict) else {}
