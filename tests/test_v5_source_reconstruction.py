@@ -141,6 +141,54 @@ def test_source_reconstruction_audit_cli_mcp_and_runtime(tmp_path, capsys):
     assert runtime_entrypoints()["source_reconstruction_audit"]["mcp"] == "aitp_v5_audit_source_reconstruction"
 
 
+def test_source_reconstruction_audit_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main([
+        "--base",
+        str(tmp_path),
+        "source",
+        "reconstruction-audit",
+        "--claim",
+        claim.claim_id,
+        "--compact",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "source_reconstruction_audit_progress"
+    assert payload["source_surface"] == "source_reconstruction_audit"
+    assert payload["topic_id"] == "fqhe"
+    assert payload["claim_id"] == claim.claim_id
+    assert payload["complete"] is False
+    assert payload["missing_component_count"] == 6
+    assert payload["missing_components"] == [
+        "definitions",
+        "assumptions_or_scope",
+        "source_locations",
+        "dependency_graph",
+        "reconstruction_path",
+        "failure_conditions",
+    ]
+    assert payload["required_component_count"] == 6
+    assert payload["source_ref_count"] == 0
+    assert payload["truth_source"] == "typed_records"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert "components" not in payload
+
+
 def test_source_reconstruction_manifest_prioritizes_incomplete_claims(tmp_path):
     from brain.v5.evidence import record_evidence
     from brain.v5.physics_objects import record_object_relation, record_physics_object

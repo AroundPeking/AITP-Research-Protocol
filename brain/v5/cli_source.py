@@ -9,6 +9,7 @@ from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.source_reconstruction_obsidian import write_source_reconstruction_obsidian_view
 from brain.v5.cli_progress import (
     compact_source_stack_coverage_manifest,
+    compact_source_reconstruction_audit,
     compact_source_reconstruction_manifest,
     compact_source_reconstruction_obsidian_view_bundle,
     compact_source_reconstruction_review_manifest,
@@ -31,6 +32,7 @@ def add_source_parser(sp: argparse._SubParsersAction) -> None:
     commands = source.add_subparsers(dest="source_command", required=True)
     audit = commands.add_parser("reconstruction-audit")
     audit.add_argument("--claim", required=True, dest="claim_id")
+    audit.add_argument("--compact", "--progress", action="store_true", dest="compact")
     manifest = commands.add_parser("reconstruction-manifest")
     manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
     coverage = commands.add_parser("coverage-manifest")
@@ -60,10 +62,13 @@ def add_source_parser(sp: argparse._SubParsersAction) -> None:
 
 def dispatch_source_command(args: argparse.Namespace, ws) -> dict:
     if args.source_command == "reconstruction-audit":
-        return require_valid_public_surface(
+        audit = require_valid_public_surface(
             "source_reconstruction_audit",
             audit_source_reconstruction(ws, claim_id=args.claim_id),
         )
+        if getattr(args, "compact", False):
+            return compact_source_reconstruction_audit(audit)
+        return audit
     if args.source_command == "reconstruction-manifest":
         manifest = require_valid_public_surface(
             "source_reconstruction_manifest",

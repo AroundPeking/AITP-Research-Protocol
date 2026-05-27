@@ -41,6 +41,25 @@ def compact_source_reconstruction_manifest(payload: dict[str, Any]) -> dict[str,
     }
 
 
+def compact_source_reconstruction_audit(payload: dict[str, Any]) -> dict[str, Any]:
+    missing = _limited_strings(payload.get("missing_components"), limit=10)
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "source_reconstruction_audit_progress",
+        "source_surface": "source_reconstruction_audit",
+        "topic_id": str(payload.get("topic_id") or ""),
+        "claim_id": str(payload.get("claim_id") or ""),
+        "complete": bool(payload.get("complete", False)),
+        "missing_component_count": len(payload.get("missing_components") or []),
+        "missing_components": missing,
+        "required_component_count": len(payload.get("required_components") or []),
+        "source_ref_count": len(payload.get("source_refs") or []),
+        "truth_source": str(payload.get("truth_source") or ""),
+        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }
+
+
 def compact_source_reconstruction_review_manifest(payload: dict[str, Any]) -> dict[str, Any]:
     progress = dict(payload.get("review_progress") or {})
     top_review_items = [
