@@ -140,6 +140,9 @@ def _source_stack(ws: WorkspacePaths) -> dict[str, Any]:
     incomplete = [claim_id for claim_id, audit in audits.items() if audit.get("complete") is not True]
     return {
         "surface": "source_reconstruction_audit",
+        "review_surface": "source_reconstruction_review_manifest",
+        "obsidian_review_view_surface": "source_reconstruction_obsidian_view_bundle",
+        "host_refresh_review_view_supported": True,
         "active_claim_count": len(claims),
         "complete_claim_count": len(complete),
         "incomplete_claim_count": len(incomplete),
