@@ -303,6 +303,15 @@ def test_final_readiness_top_legacy_items_include_open_checkpoint_commands(tmp_p
         }
     ]
     assert item["open_human_checkpoint_refs"] == [f"human-checkpoint:{checkpoint.checkpoint_id}"]
+    assert item["blocking_classes"] == [
+        "source_reconstruction_required",
+        "semantic_review_followup_required",
+        "archive_sampling_required",
+        "human_checkpoint_required",
+    ]
+    assert payload["content_backlog"]["legacy_semantic_review"]["blocking_class_counts"][
+        "human_checkpoint_required"
+    ] == 1
     assert item["review_action_commands"] == [
         {
             "action": "decide_human_checkpoint_before_promotion",
@@ -503,6 +512,7 @@ def test_final_readiness_cli_compact_progress(tmp_path, capsys):
     assert cli_payload["legacy_semantic_review"]["open_human_checkpoint_refs"] == [
         f"human-checkpoint:{checkpoint.checkpoint_id}"
     ]
+    assert cli_payload["legacy_semantic_review"]["blocking_class_counts"]["human_checkpoint_required"] == 1
     assert cli_payload["source_reconstruction"]["top_incomplete_claim_refs"] == [
         "source_reconstruction:claim-legacy-0"
     ]

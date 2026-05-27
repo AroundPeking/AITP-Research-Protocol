@@ -125,6 +125,18 @@ def validate_final_engineering_readiness_audit(
                         f"{path}.content_backlog.legacy_semantic_review.pass_blocker_counts",
                         "must map strings to integers",
                     )
+        _require_mapping(
+            legacy.get("blocking_class_counts"),
+            f"{path}.content_backlog.legacy_semantic_review.blocking_class_counts",
+            result,
+        )
+        if isinstance(legacy.get("blocking_class_counts"), dict):
+            for key, value in legacy["blocking_class_counts"].items():
+                if not isinstance(key, str) or not isinstance(value, int):
+                    result.add(
+                        f"{path}.content_backlog.legacy_semantic_review.blocking_class_counts",
+                        "must map strings to integers",
+                    )
         _require_list(
             legacy.get("worklist_next_actions"),
             f"{path}.content_backlog.legacy_semantic_review.worklist_next_actions",
@@ -155,6 +167,11 @@ def validate_final_engineering_readiness_audit(
                 _require_list(
                     item.get("followup_review_actions"),
                     f"{path}.content_backlog.legacy_semantic_review.top_work_items[{index}].followup_review_actions",
+                    result,
+                )
+                _require_list(
+                    item.get("blocking_classes"),
+                    f"{path}.content_backlog.legacy_semantic_review.top_work_items[{index}].blocking_classes",
                     result,
                 )
                 _require_mapping(

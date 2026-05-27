@@ -168,6 +168,7 @@ def compact_legacy_semantic_review_worklist(payload: dict[str, Any]) -> dict[str
         "status_counts": dict(payload.get("status_counts") or {}),
         "pass_readiness_counts": dict(payload.get("pass_readiness_counts") or {}),
         "pass_blocker_counts": dict(payload.get("pass_blocker_counts") or {}),
+        "blocking_class_counts": dict(payload.get("blocking_class_counts") or {}),
         "next_action_count": len(payload.get("next_actions") or []),
         "next_action_refs": _limited_strings(payload.get("next_actions")),
         "top_work_item_refs": [
@@ -197,6 +198,9 @@ def compact_legacy_semantic_review_worklist(payload: dict[str, Any]) -> dict[str
                 else []
             )
             for item in top_items
+        ],
+        "top_work_item_blocking_classes": [
+            _limited_strings(item.get("blocking_classes")) for item in top_items
         ],
         "top_work_item_remaining_actions": [
             _limited_strings(
@@ -317,6 +321,7 @@ def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
             ],
             "pass_readiness_counts": dict(legacy.get("pass_readiness_counts") or {}),
             "pass_blocker_counts": dict(legacy.get("pass_blocker_counts") or {}),
+            "blocking_class_counts": dict(legacy.get("blocking_class_counts") or {}),
             "review_progress": legacy_progress,
             "pending_count": int(legacy.get("pending_count") or legacy_progress.get("pending") or 0),
             "needs_revision_count": int(

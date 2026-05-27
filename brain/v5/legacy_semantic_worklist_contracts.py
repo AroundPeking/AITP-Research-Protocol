@@ -43,6 +43,7 @@ def validate_legacy_semantic_review_worklist(
     _validate_status_counts(payload.get("status_counts"), f"{path}.status_counts", result)
     _validate_pass_readiness_counts(payload.get("pass_readiness_counts"), f"{path}.pass_readiness_counts", result)
     _validate_pass_blocker_counts(payload.get("pass_blocker_counts"), f"{path}.pass_blocker_counts", result)
+    _validate_pass_blocker_counts(payload.get("blocking_class_counts"), f"{path}.blocking_class_counts", result)
     if not isinstance(payload.get("next_actions"), list):
         result.add(f"{path}.next_actions", "must be a list")
     items = payload.get("items")
@@ -140,6 +141,7 @@ def _validate_worklist_item(payload: Any, path: str, result: ContractResult) -> 
         "open_human_checkpoint_refs",
         "satisfied_review_actions",
         "followup_review_actions",
+        "blocking_classes",
         "review_action_commands",
         "followup_review_commands",
         "repair_candidates",

@@ -46,6 +46,7 @@ def build_legacy_semantic_review_worklist(
         "status_counts": _status_counts(items),
         "pass_readiness_counts": _pass_readiness_counts(items),
         "pass_blocker_counts": _pass_blocker_counts(items),
+        "blocking_class_counts": _blocking_class_counts(items),
         "items": items,
         "next_actions": [f"worklist_item:{item['topic']}" for item in items],
         "semantic_lossless_proven": False,
@@ -92,6 +93,7 @@ def _work_item(
         followup_review_actions=followup_actions,
         open_human_checkpoint_refs=open_checkpoint_refs,
     )
+    blocking_classes = _blocking_classes(pass_readiness, review_focus=focus)
     commands = review_action_commands(
         command_item,
         latest_review=latest,
@@ -113,6 +115,7 @@ def _work_item(
         "satisfied_review_actions": satisfied_actions,
         "followup_review_actions": followup_actions,
         "pass_readiness": pass_readiness,
+        "blocking_classes": blocking_classes,
         "review_action_commands": commands,
         "followup_review_commands": followup_review_commands(
             item,
@@ -341,6 +344,55 @@ def _pass_blocker_counts(items: list[dict[str, Any]]) -> dict[str, int]:
             if key:
                 counts[key] = counts.get(key, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _blocking_class_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        for key in item.get("blocking_classes") or []:
+            if isinstance(key, str) and key:
+                counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _blocking_classes(pass_readiness: dict[str, Any], *, review_focus: list[str]) -> list[str]:
+    blockers = {
+        str(blocker)
+        for blocker in pass_readiness.get("blockers", [])
+        if str(blocker)
+    }
+    action_text = " ".join(
+        [
+            *[str(action) for action in pass_readiness.get("remaining_actions", [])],
+            *[str(action) for action in pass_readiness.get("followup_review_actions", [])],
+            *[str(action) for action in review_focus],
+        ]
+    ).lower()
+    classes: list[str] = []
+
+    def add(name: str) -> None:
+        if name not in classes:
+            classes.append(name)
+
+    if "source_reconstruction_incomplete" in blockers:
+        add("source_reconstruction_required")
+    if "active_claim_statement_empty" in blockers or "topic_question" in action_text:
+        add("claim_statement_backfill_required")
+    if "initial_semantic_review_not_recorded" in blockers:
+        add("initial_semantic_review_required")
+    if "latest_review_needs_revision" in blockers:
+        add("semantic_review_revision_required")
+    if blockers.intersection({"latest_review_remaining_actions", "followup_review_actions_pending"}):
+        add("semantic_review_followup_required")
+    if "archive_reference_sampling_required" in blockers:
+        add("archive_sampling_required")
+    if "open_human_checkpoint_pending" in blockers or "human_checkpoint" in action_text:
+        add("human_checkpoint_required")
+    if "executable" in action_text or "benchmark" in action_text:
+        add("executable_evidence_required")
+    if not classes and pass_readiness.get("status") == "blocked":
+        add("unclassified_semantic_blocker")
+    return classes
 
 
 def _unique(values: list[str]) -> list[str]:

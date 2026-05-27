@@ -1976,8 +1976,15 @@ def test_legacy_semantic_review_worklist_surfaces_open_human_checkpoint_for_deci
     item = next(item for item in worklist["items"] if item["topic"] == "canonical-topic")
     assert item["open_human_checkpoint_refs"] == [f"human-checkpoint:{checkpoint.checkpoint_id}"]
     assert "open_human_checkpoint_pending" in item["pass_readiness"]["blockers"]
+    assert item["blocking_classes"] == [
+        "source_reconstruction_required",
+        "semantic_review_followup_required",
+        "archive_sampling_required",
+        "human_checkpoint_required",
+    ]
     assert item["pass_readiness"]["requirements"]["no_open_human_checkpoints"] is False
     assert worklist["open_human_checkpoint_count"] == 1
+    assert worklist["blocking_class_counts"]["human_checkpoint_required"] == 1
     assert worklist["open_human_checkpoints"] == [
         {
             "topic": "canonical-topic",
@@ -2499,6 +2506,25 @@ def test_legacy_semantic_review_worklist_cli_compact_progress(tmp_path, capsys):
             "active_claim_statement_empty",
             "source_reconstruction_incomplete",
             "initial_semantic_review_not_recorded",
+        ],
+    ]
+    assert cli_payload["blocking_class_counts"] == {
+        "archive_sampling_required": 1,
+        "claim_statement_backfill_required": 2,
+        "initial_semantic_review_required": 2,
+        "source_reconstruction_required": 2,
+    }
+    assert cli_payload["top_work_item_blocking_classes"] == [
+        [
+            "source_reconstruction_required",
+            "claim_statement_backfill_required",
+            "initial_semantic_review_required",
+            "archive_sampling_required",
+        ],
+        [
+            "source_reconstruction_required",
+            "claim_statement_backfill_required",
+            "initial_semantic_review_required",
         ],
     ]
     assert cli_payload["top_work_item_remaining_actions"] == [[], []]
