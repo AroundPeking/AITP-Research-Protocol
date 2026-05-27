@@ -154,6 +154,30 @@ def compact_source_reconstruction_review_packet(payload: dict[str, Any]) -> dict
     }
 
 
+def compact_source_reconstruction_obsidian_view_bundle(payload: dict[str, Any]) -> dict[str, Any]:
+    files = payload.get("files") if isinstance(payload.get("files"), dict) else {}
+    view_files = [str(path) for path in files.values() if str(path)]
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "source_reconstruction_obsidian_view_bundle_progress",
+        "source_surface": "source_reconstruction_obsidian_view_bundle",
+        "view_dir": str(payload.get("view_dir") or ""),
+        "claim_count": int(payload.get("claim_count") or 0),
+        "incomplete_claim_count": int(payload.get("incomplete_claim_count") or 0),
+        "review_progress": dict(payload.get("review_progress") or {}),
+        "next_action_count": len(payload.get("next_actions") or []),
+        "next_action_refs": _limited_strings(payload.get("next_actions")),
+        "view_file_count": len(view_files),
+        "view_files": view_files,
+        "derived_from": str(payload.get("derived_from") or ""),
+        "truth_source": bool(payload.get("truth_source", False)),
+        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
+        "orientation_only": bool(payload.get("orientation_only", True)),
+        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }
+
+
 def _limited_strings(value: Any, *, limit: int = 5) -> list[str]:
     if not isinstance(value, list):
         return []

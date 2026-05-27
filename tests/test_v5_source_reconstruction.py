@@ -1125,3 +1125,41 @@ def test_source_reconstruction_obsidian_view_cli_mcp_and_runtime(tmp_path, capsy
         "mcp": "aitp_v5_write_source_reconstruction_obsidian_view",
         "surface": "source_reconstruction_obsidian_view_bundle",
     }
+
+
+def test_source_reconstruction_obsidian_view_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source coverage",
+    )
+
+    assert main(["--base", str(tmp_path), "source", "reconstruction-obsidian-view", "--compact"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "source_reconstruction_obsidian_view_bundle_progress"
+    assert payload["source_surface"] == "source_reconstruction_obsidian_view_bundle"
+    assert payload["view_dir"] == str(ws.root / "surfaces" / "source_reconstruction")
+    assert payload["claim_count"] == 1
+    assert payload["incomplete_claim_count"] == 1
+    assert payload["review_progress"]["pending"] == 1
+    assert payload["next_action_count"] == 1
+    assert payload["next_action_refs"] == [f"source_reconstruction_review:{claim.claim_id}"]
+    assert payload["view_file_count"] == 1
+    assert payload["view_files"] == [
+        str(ws.root / "surfaces" / "source_reconstruction" / "Source Reconstruction Review Worklist.md")
+    ]
+    assert payload["derived_from"] == "source_reconstruction_review_manifest"
+    assert payload["truth_source"] is False
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
