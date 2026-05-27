@@ -462,6 +462,33 @@ def compact_legacy_human_checkpoint_packet(payload: dict[str, Any]) -> dict[str,
     }
 
 
+def compact_legacy_human_checkpoint_obsidian_view_bundle(payload: dict[str, Any]) -> dict[str, Any]:
+    files = payload.get("files") if isinstance(payload.get("files"), dict) else {}
+    view_files = [str(path) for path in files.values() if str(path)]
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "legacy_human_checkpoint_obsidian_view_bundle_progress",
+        "source_surface": "legacy_human_checkpoint_obsidian_view_bundle",
+        "view_dir": str(payload.get("view_dir") or ""),
+        "migration_dir": str(payload.get("migration_dir") or ""),
+        "workspace": str(payload.get("workspace") or ""),
+        "topic_filter": str(payload.get("topic_filter") or ""),
+        "checkpoint_item_count": int(payload.get("checkpoint_item_count") or 0),
+        "open_decision_count": int(payload.get("open_decision_count") or 0),
+        "pending_request_count": int(payload.get("pending_request_count") or 0),
+        "next_action_count": len(payload.get("next_actions") or []),
+        "next_action_refs": _limited_strings(payload.get("next_actions")),
+        "view_file_count": len(view_files),
+        "view_files": view_files,
+        "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
+        "derived_from": str(payload.get("derived_from") or ""),
+        "truth_source": bool(payload.get("truth_source", False)),
+        "orientation_only": bool(payload.get("orientation_only", True)),
+        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }
+
+
 def _limited_strings(value: Any, *, limit: int = 5) -> list[str]:
     if not isinstance(value, list):
         return []

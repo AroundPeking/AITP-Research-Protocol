@@ -25,6 +25,7 @@ from brain.v5.legacy_source_reconstruction import (
 )
 from brain.v5.cli_legacy_progress import (
     compact_legacy_executable_evidence_packet,
+    compact_legacy_human_checkpoint_obsidian_view_bundle,
     compact_legacy_human_checkpoint_packet,
     compact_legacy_semantic_review_packet,
     compact_legacy_semantic_review_manifest,
@@ -136,6 +137,7 @@ def add_legacy_parser(subparsers) -> None:
     human_checkpoint_obsidian.add_argument("--migration-dir", required=True)
     human_checkpoint_obsidian.add_argument("--topic", default="")
     human_checkpoint_obsidian.add_argument("--output-dir", default="")
+    human_checkpoint_obsidian.add_argument("--compact", "--progress", action="store_true", dest="compact")
     source_repair_apply = legacy_subparsers.add_parser("source-reconstruction-apply")
     source_repair_apply.add_argument("--migration-dir", required=True)
     source_repair_apply.add_argument("--topic", required=True)
@@ -315,7 +317,10 @@ def dispatch_legacy_command(args, ws) -> dict:
             topic=args.topic,
             output_dir=args.output_dir,
         )
-        return {"ok": True, **require_valid_public_surface("legacy_human_checkpoint_obsidian_view_bundle", bundle)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_human_checkpoint_obsidian_view_bundle", bundle)}
+        if getattr(args, "compact", False):
+            return compact_legacy_human_checkpoint_obsidian_view_bundle(payload)
+        return payload
     if args.legacy_command == "source-reconstruction-apply":
         result = apply_legacy_source_reconstruction_repair(
             ws,
