@@ -118,6 +118,13 @@ def test_workspace_replay_packet_lists_resume_queue_and_source_gaps(tmp_path):
     assert packet.workspace_backlog_summary["active_topic_count"] == 2
     assert packet.workspace_backlog_summary["active_claim_count"] == 2
     assert packet.workspace_backlog_summary["attention_count"] == 2
+    coverage_summary = packet.workspace_backlog_summary["source_stack_coverage"]
+    assert coverage_summary["surface"] == "source_stack_coverage_manifest"
+    assert coverage_summary["claim_count"] == 2
+    assert coverage_summary["coverage_status_counts"]["evidence_gap"] == 2
+    assert coverage_summary["top_gap_items"][0]["claim_id"] == claim.claim_id
+    assert "failure_mode" in coverage_summary["top_gap_items"][0]["missing_required_outputs"]
+    assert coverage_summary["can_update_claim_trust"] is False
     source_summary = packet.workspace_backlog_summary["source_reconstruction"]
     assert source_summary["surface"] == "source_reconstruction_manifest"
     assert source_summary["complete_claim_count"] == 1
@@ -172,6 +179,7 @@ def test_workspace_replay_packet_lists_resume_queue_and_source_gaps(tmp_path):
     assert claim.claim_id in body
     assert gw_claim.claim_id in body
     assert "Cross-Topic Backlog" in body
+    assert "Source Stack Coverage" in body
     assert f"`{gw_claim.claim_id}`" in body
     assert "Source review: `pending`" in body
     assert "orientation only" in body

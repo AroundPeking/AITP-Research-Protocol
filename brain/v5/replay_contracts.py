@@ -103,6 +103,13 @@ def _validate_workspace_backlog_summary(payload: dict[str, Any], path: str, resu
         if not isinstance(attention.get("attention_count"), int) or attention["attention_count"] < 0:
             result.add(f"{path}.resume_attention.attention_count", "must be a non-negative integer")
         _require_list(attention.get("top_items"), f"{path}.resume_attention.top_items", result)
+    _require_mapping(payload.get("source_stack_coverage"), f"{path}.source_stack_coverage", result)
+    if isinstance(payload.get("source_stack_coverage"), dict):
+        _validate_source_stack_coverage_backlog(
+            payload["source_stack_coverage"],
+            f"{path}.source_stack_coverage",
+            result,
+        )
     if payload.get("truth_source") != "kernel_state":
         result.add(f"{path}.truth_source", "must be kernel_state")
     if "legacy_semantic_review" in payload:
@@ -145,6 +152,53 @@ def _validate_source_backlog_item(payload: Any, path: str, result: ContractResul
     for key in ("session_id", "topic_id", "claim_id", "review_status", "review_packet_cli"):
         _require_nonempty_str(payload, key, path, result)
     for key in ("missing_components", "next_actions"):
+        _require_list(payload.get(key), f"{path}.{key}", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+
+
+def _validate_source_stack_coverage_backlog(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    if payload.get("surface") != "source_stack_coverage_manifest":
+        result.add(f"{path}.surface", "must be source_stack_coverage_manifest")
+    if not isinstance(payload.get("claim_count"), int) or payload["claim_count"] < 0:
+        result.add(f"{path}.claim_count", "must be a non-negative integer")
+    for key in (
+        "coverage_status_counts",
+        "missing_required_output_counts",
+        "source_component_gap_counts",
+        "source_review_status_counts",
+    ):
+        _require_mapping(payload.get(key), f"{path}.{key}", result)
+    _require_list(payload.get("top_gap_items"), f"{path}.top_gap_items", result)
+    if isinstance(payload.get("top_gap_items"), list):
+        for index, item in enumerate(payload["top_gap_items"]):
+            _validate_source_stack_coverage_item(item, f"{path}.top_gap_items[{index}]", result)
+    for key in ("summary_inputs_trusted", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+
+
+def _validate_source_stack_coverage_item(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in (
+        "topic_id",
+        "claim_id",
+        "risk_level",
+        "coverage_status",
+        "source_reconstruction_review_status",
+    ):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("coverage_status") not in {"complete", "evidence_gap", "reconstruction_gap", "review_gap"}:
+        result.add(f"{path}.coverage_status", "must be an allowed source-stack coverage status")
+    for key in ("missing_required_outputs", "missing_source_components", "next_actions"):
         _require_list(payload.get(key), f"{path}.{key}", result)
     _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
 

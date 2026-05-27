@@ -19,6 +19,7 @@ from brain.v5.memory_index import MemoryEntrySummary, scan_memory_entry_summarie
 from brain.v5.models import ClaimRecord, CodeStateRecord, EvidenceRecord, SessionBinding, SourceReconstructionReviewResultRecord
 from brain.v5.paths import WorkspacePaths
 from brain.v5.risk import action_budget_for_level, assess_claim_risk
+from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
 from brain.v5.source_reconstruction import audit_source_reconstruction_batch
 from brain.v5.store import list_records
 
@@ -68,6 +69,7 @@ def write_workspace_replay_packet(
     attention = [entry for entry in entries if entry["attention_reasons"]]
     workspace_backlog_summary = _workspace_backlog_summary(
         entries,
+        source_stack_coverage=_source_stack_coverage_summary(ws),
         legacy_semantic_review=_legacy_semantic_review_summary(ws, migration_dir),
         legacy_source_reconstruction=_legacy_source_reconstruction_summary(ws, migration_dir),
         legacy_semantic_repair=_legacy_semantic_repair_summary(ws, migration_dir),
@@ -206,6 +208,22 @@ def _body(entries: list[dict[str, Any]], workspace_backlog_summary: dict[str, An
         )
     if workspace_backlog_summary["source_reconstruction"]["top_incomplete_claims"]:
         lines.append("")
+    source_stack = workspace_backlog_summary.get("source_stack_coverage")
+    if isinstance(source_stack, dict):
+        lines.extend([
+            "## Source Stack Coverage",
+            "",
+            f"- Claims: {source_stack['claim_count']}",
+            f"- Coverage status: `{source_stack['coverage_status_counts']}`",
+            f"- Missing required outputs: `{source_stack['missing_required_output_counts']}`",
+            "",
+        ])
+        for item in source_stack["top_gap_items"]:
+            lines.append(
+                f"- `{item['claim_id']}` in `{item['topic_id']}`: {item['coverage_status']}; missing outputs "
+                f"{', '.join(item['missing_required_outputs']) or 'none'}"
+            )
+        lines.append("")
     legacy = workspace_backlog_summary.get("legacy_semantic_review")
     if isinstance(legacy, dict):
         lines.extend([
@@ -306,6 +324,7 @@ def _body(entries: list[dict[str, Any]], workspace_backlog_summary: dict[str, An
 def _workspace_backlog_summary(
     entries: list[dict[str, Any]],
     *,
+    source_stack_coverage: dict[str, Any] | None = None,
     legacy_semantic_review: dict[str, Any] | None = None,
     legacy_source_reconstruction: dict[str, Any] | None = None,
     legacy_semantic_repair: dict[str, Any] | None = None,
@@ -341,6 +360,8 @@ def _workspace_backlog_summary(
     }
     if legacy_semantic_review is not None:
         summary["legacy_semantic_review"] = legacy_semantic_review
+    if source_stack_coverage is not None:
+        summary["source_stack_coverage"] = source_stack_coverage
     if legacy_source_reconstruction is not None:
         summary["legacy_source_reconstruction"] = legacy_source_reconstruction
     if legacy_semantic_repair is not None:
@@ -348,6 +369,26 @@ def _workspace_backlog_summary(
     if legacy_human_checkpoints is not None:
         summary["legacy_human_checkpoints"] = legacy_human_checkpoints
     return summary
+
+
+def _source_stack_coverage_summary(ws: WorkspacePaths) -> dict[str, Any]:
+    manifest = build_source_stack_coverage_manifest(ws)
+    gap_items = [
+        item for item in manifest["items"] if item.get("coverage_status") != "complete"
+    ]
+    return {
+        "surface": "source_stack_coverage_manifest",
+        "claim_count": int(manifest["claim_count"]),
+        "coverage_status_counts": dict(manifest["coverage_status_counts"]),
+        "missing_required_output_counts": dict(manifest["missing_required_output_counts"]),
+        "source_component_gap_counts": dict(manifest["source_component_gap_counts"]),
+        "source_review_status_counts": dict(manifest["source_review_status_counts"]),
+        "top_gap_items": [_source_stack_coverage_item(item) for item in gap_items[:5]],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
 
 
 def _legacy_semantic_review_summary(ws: WorkspacePaths, migration_dir: str | None) -> dict[str, Any] | None:
@@ -452,6 +493,22 @@ def _legacy_human_checkpoint_item(item: dict[str, Any]) -> dict[str, Any]:
         "options": list(item.get("options") or []),
         "cli": str(command.get("cli") or ""),
         "mcp": str(command.get("mcp") or ""),
+        "can_update_claim_trust": False,
+    }
+
+
+def _source_stack_coverage_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "topic_id": str(item.get("topic_id") or ""),
+        "claim_id": str(item.get("claim_id") or ""),
+        "risk_level": str(item.get("risk_level") or ""),
+        "coverage_status": str(item.get("coverage_status") or ""),
+        "missing_required_outputs": list(item.get("missing_required_outputs") or []),
+        "missing_source_components": list(item.get("missing_source_components") or []),
+        "source_reconstruction_review_status": str(
+            item.get("source_reconstruction_review_status") or ""
+        ),
+        "next_actions": list(item.get("next_actions") or []),
         "can_update_claim_trust": False,
     }
 
