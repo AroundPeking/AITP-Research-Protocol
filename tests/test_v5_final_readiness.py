@@ -508,11 +508,35 @@ def test_final_readiness_cli_compact_progress(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.models import ClaimRecord
+    from brain.v5.physics_objects import record_object_relation, record_physics_object
     from brain.v5.store import write_record
-    from brain.v5.workspace import init_workspace
+    from brain.v5.workspace import create_topic, init_workspace
 
     ws = init_workspace(tmp_path)
     run = _write_migration_run(ws, topic_count=1)
+    create_topic(ws, "graph-topic", context_id="knowledge-stack", title="Knowledge Graph")
+    object_a = record_physics_object(
+        ws,
+        topic_id="graph-topic",
+        object_type="observable",
+        name="compact observable",
+        definition="A typed object visible in compact final readiness.",
+    )
+    object_b = record_physics_object(
+        ws,
+        topic_id="graph-topic",
+        object_type="theory",
+        name="compact theory",
+        definition="A second typed object visible in compact final readiness.",
+    )
+    record_object_relation(
+        ws,
+        topic_id="graph-topic",
+        relation_type="supports",
+        subject_id=object_a.object_id,
+        object_id=object_b.object_id,
+        statement="The compact observable is related to the compact theory.",
+    )
     write_record(
         ws.registry_dir("claims") / "claim-legacy-0.md",
         ClaimRecord(
@@ -564,5 +588,39 @@ def test_final_readiness_cli_compact_progress(tmp_path, capsys):
     assert cli_payload["source_reconstruction"]["review_next_action_refs"] == [
         "source_reconstruction_review:claim-legacy-0"
     ]
+    assert cli_payload["knowledge_stack"] == {
+        "obsidian_view_surface": "l2_obsidian_view_bundle",
+        "obsidian_typed_graph_supported": True,
+        "memory_entry_count": 0,
+        "active_memory_entry_count": 0,
+        "physics_object_count": 2,
+        "object_relation_count": 1,
+        "sensemaking_report_count": 0,
+    }
+    assert cli_payload["long_term_replay"] == {
+        "surface": "workspace_replay_packet",
+        "workspace_refresh_surface": "workspace_refresh_bundle",
+        "legacy_semantic_backlog_surface": "legacy_semantic_review_manifest",
+        "legacy_source_reconstruction_backlog_surface": "legacy_source_reconstruction_manifest",
+        "legacy_human_checkpoint_backlog_surface": "legacy_human_checkpoint_packet",
+        "host_startup_checkpoint_packet_supported": True,
+    }
+    assert cli_payload["natural_interaction"] == {
+        "surface": "interaction_recording_preview",
+        "recording_worklist_surface": "interaction_recording_worklist",
+        "host_refresh_worklist_supported": True,
+        "recording_decision_modes": [
+            "lightweight_trace",
+            "guarded_recording",
+            "trust_boundary_checkpoint",
+        ],
+    }
+    assert cli_payload["host_integration"] == {
+        "priority_hosts": ["codex", "claude_code", "kimi_code"],
+        "deferred_hosts": ["opencode"],
+        "priority_host_batch_surface": "runtime_host_production_loop_audit",
+        "priority_host_batch_cli": "aitp-v5 adapter host-production-loop",
+        "priority_host_loop_count": 3,
+    }
     assert cli_payload["can_update_claim_trust"] is False
     assert "kernel_capabilities" not in cli_payload

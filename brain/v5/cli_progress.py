@@ -339,8 +339,33 @@ def compact_legacy_human_checkpoint_packet(payload: dict[str, Any]) -> dict[str,
 
 def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
     backlog = payload.get("content_backlog") if isinstance(payload.get("content_backlog"), dict) else {}
+    capabilities = (
+        payload.get("kernel_capabilities")
+        if isinstance(payload.get("kernel_capabilities"), dict)
+        else {}
+    )
     legacy = backlog.get("legacy_semantic_review") if isinstance(backlog.get("legacy_semantic_review"), dict) else {}
     source = backlog.get("source_reconstruction") if isinstance(backlog.get("source_reconstruction"), dict) else {}
+    knowledge = (
+        capabilities.get("knowledge_stack")
+        if isinstance(capabilities.get("knowledge_stack"), dict)
+        else {}
+    )
+    replay = (
+        capabilities.get("long_term_replay")
+        if isinstance(capabilities.get("long_term_replay"), dict)
+        else {}
+    )
+    natural = (
+        capabilities.get("natural_interaction")
+        if isinstance(capabilities.get("natural_interaction"), dict)
+        else {}
+    )
+    host = (
+        capabilities.get("host_integration")
+        if isinstance(capabilities.get("host_integration"), dict)
+        else {}
+    )
     legacy_progress = _legacy_progress(legacy)
     source_progress = dict(source.get("review_progress") or {})
     top_source_items = [
@@ -412,6 +437,51 @@ def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
                 str(action) for action in list(source.get("review_next_actions") or [])[:5] if str(action)
             ],
             "can_update_claim_trust": bool(source.get("can_update_claim_trust", False)),
+        },
+        "knowledge_stack": {
+            "obsidian_view_surface": str(knowledge.get("obsidian_view_surface") or ""),
+            "obsidian_typed_graph_supported": bool(
+                knowledge.get("obsidian_typed_graph_supported", False)
+            ),
+            "memory_entry_count": int(knowledge.get("memory_entry_count") or 0),
+            "active_memory_entry_count": int(knowledge.get("active_memory_entry_count") or 0),
+            "physics_object_count": int(knowledge.get("physics_object_count") or 0),
+            "object_relation_count": int(knowledge.get("object_relation_count") or 0),
+            "sensemaking_report_count": int(knowledge.get("sensemaking_report_count") or 0),
+        },
+        "long_term_replay": {
+            "surface": str(replay.get("surface") or ""),
+            "workspace_refresh_surface": str(replay.get("workspace_refresh_surface") or ""),
+            "legacy_semantic_backlog_surface": str(
+                replay.get("legacy_semantic_backlog_surface") or ""
+            ),
+            "legacy_source_reconstruction_backlog_surface": str(
+                replay.get("legacy_source_reconstruction_backlog_surface") or ""
+            ),
+            "legacy_human_checkpoint_backlog_surface": str(
+                replay.get("legacy_human_checkpoint_backlog_surface") or ""
+            ),
+            "host_startup_checkpoint_packet_supported": bool(
+                replay.get("host_startup_checkpoint_packet_supported", False)
+            ),
+        },
+        "natural_interaction": {
+            "surface": str(natural.get("surface") or ""),
+            "recording_worklist_surface": str(natural.get("recording_worklist_surface") or ""),
+            "host_refresh_worklist_supported": bool(
+                natural.get("host_refresh_worklist_supported", False)
+            ),
+            "recording_decision_modes": _limited_strings(
+                natural.get("recording_decision_modes"),
+                limit=10,
+            ),
+        },
+        "host_integration": {
+            "priority_hosts": _limited_strings(host.get("priority_hosts"), limit=10),
+            "deferred_hosts": _limited_strings(host.get("deferred_hosts"), limit=10),
+            "priority_host_batch_surface": str(host.get("priority_host_batch_surface") or ""),
+            "priority_host_batch_cli": str(host.get("priority_host_batch_cli") or ""),
+            "priority_host_loop_count": len(host.get("priority_host_production_loops") or []),
         },
         "backlog_refs": list(payload.get("backlog_refs") or []),
         "truth_source": str(payload.get("truth_source") or ""),
