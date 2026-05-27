@@ -358,6 +358,9 @@ def test_interaction_recording_worklist_translates_preview_into_kernel_actions(t
     empty_item = by_session["s-empty"]
     assert claim_item["action_kind"] == "record_sensemaking_then_evidence_before_trust"
     assert claim_item["required_now"] is False
+    assert claim_item["can_continue_without_kernel_write"] is True
+    assert claim_item["max_questions"] > 0
+    assert "active_claim_has_missing_required_evidence_outputs" in claim_item["heavier_triggers"]
     assert claim_item["next_kernel_entrypoint"] == "aitp_v5_record_sensemaking_report"
     assert claim_item["mcp_entrypoints"] == [
         "aitp_v5_record_sensemaking_report",
@@ -373,6 +376,9 @@ def test_interaction_recording_worklist_translates_preview_into_kernel_actions(t
     ]
     assert empty_item["action_kind"] == "keep_lightweight_until_claim_binding"
     assert empty_item["required_now"] is False
+    assert empty_item["can_continue_without_kernel_write"] is True
+    assert empty_item["max_questions"] > 0
+    assert "user_or_agent_requests_a_claim_trust_change" in empty_item["heavier_triggers"]
     assert empty_item["mcp_entrypoints"] == ["aitp_v5_create_claim", "aitp_v5_bind_session"]
     assert all(item["can_update_claim_trust"] is False for item in payload["items"])
     assert payload["orientation_only"] is True
@@ -411,6 +417,7 @@ def test_interaction_recording_worklist_cli_mcp_and_runtime(tmp_path, capsys):
 
 def test_interaction_recording_preview_blocks_natural_recording_at_adversarial_checkpoint(tmp_path):
     from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.interaction_worklist import build_interaction_recording_worklist
     from brain.v5.public_surfaces import require_valid_public_surface
     from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
 
@@ -444,3 +451,10 @@ def test_interaction_recording_preview_blocks_natural_recording_at_adversarial_c
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+
+    worklist = require_valid_public_surface("interaction_recording_worklist", build_interaction_recording_worklist(ws))
+    item = worklist["items"][0]
+    assert item["recording_mode"] == "trust_boundary_checkpoint"
+    assert item["required_now"] is True
+    assert item["can_continue_without_kernel_write"] is False
+    assert "claim_risk_requires_validation_or_adversarial_review" in item["heavier_triggers"]

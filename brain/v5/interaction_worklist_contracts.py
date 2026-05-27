@@ -118,9 +118,13 @@ def _validate_item(payload: Any, path: str, result: ContractResult) -> None:
         result.add(f"{path}.action_kind", "must be a supported interaction action kind")
     if not isinstance(payload.get("required_now"), bool):
         result.add(f"{path}.required_now", "must be a bool")
+    if not isinstance(payload.get("can_continue_without_kernel_write"), bool):
+        result.add(f"{path}.can_continue_without_kernel_write", "must be a bool")
+    if not isinstance(payload.get("max_questions"), int) or payload["max_questions"] < 0:
+        result.add(f"{path}.max_questions", "must be a non-negative integer")
     if not isinstance(payload.get("next_kernel_entrypoint"), str):
         result.add(f"{path}.next_kernel_entrypoint", "must be a string")
-    for key in ("mcp_entrypoints", "cli_templates", "before_trust_change"):
+    for key in ("heavier_triggers", "mcp_entrypoints", "cli_templates", "before_trust_change"):
         _require_list(payload.get(key), f"{path}.{key}", result)
     _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
     _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)
