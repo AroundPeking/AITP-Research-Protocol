@@ -187,7 +187,12 @@ used a failure-mode review checkpoint/result, the brief entry also exposes
 `failure_mode_review_checkpoint_id` and `failure_mode_review_result_id` as
 orientation-only pointers to the typed records. The public execution-brief
 contract validates these memory entries as orientation-only payloads with
-list-shaped evidence/code-state references. For review, `aitp-v5 memory audit
+list-shaped evidence/code-state references. Execution briefs also lift
+orientation-only strategy/runbook reference locations into
+`known_context.operating_notes`, so future agents can see active lane policies,
+forbidden roots, or workflow runbooks without scanning every reference. These
+operating notes remain reference pointers; they are not evidence and cannot
+change claim trust. For review, `aitp-v5 memory audit
 --claim <claim-id>` and `aitp_v5_audit_l2_memory_context` expose the contracted
 `l2_memory_audit` surface: active L2 memory entries plus their promotion
 packets, human checkpoint decisions, evidence refs, validation results, and

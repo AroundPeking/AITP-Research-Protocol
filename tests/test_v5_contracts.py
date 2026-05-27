@@ -115,6 +115,32 @@ def test_execution_brief_contract_requires_memory_entry_lists():
     assert "brief.known_context.memory_entries[0].code_state_ids" in paths
 
 
+def test_execution_brief_contract_requires_operating_notes_to_stay_orientation_only():
+    from brain.v5.contracts import validate_execution_brief
+
+    payload = _minimal_execution_brief_payload()
+    payload["known_context"]["operating_notes"] = [
+        {
+            "location_id": "reference-location-qsgw",
+            "label": "QSGW dual-lane strategy",
+            "uri": "file:///reports/qsgw.md",
+            "summary": "Final and diagnostic lanes.",
+            "status": "active_strategy_note",
+            "location_type": "strategy_note",
+            "diagnostic_lane_labels": ["diagnostic"],
+            "orientation_only": False,
+        }
+    ]
+
+    result = validate_execution_brief(payload)
+
+    assert result.ok is False
+    assert any(
+        issue.path == "brief.known_context.operating_notes[0].orientation_only"
+        for issue in result.issues
+    )
+
+
 def test_execution_brief_contract_rejects_missing_risk_assessment():
     from brain.v5.contracts import validate_execution_brief
 

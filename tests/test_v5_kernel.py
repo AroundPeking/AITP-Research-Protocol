@@ -159,6 +159,61 @@ def test_execution_brief_combines_session_claim_flow_and_questions(tmp_path):
     assert "forbidden_now" in brief
 
 
+def test_execution_brief_highlights_orientation_operating_notes(tmp_path):
+    from brain.v5.brief import build_execution_brief
+    from brain.v5.references import record_reference_location
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "qsgw-headwing-update-librpa", context_id="librpa-qsgw", title="QSGW")
+    claim = create_claim(
+        ws,
+        topic_id="qsgw-headwing-update-librpa",
+        statement="Final comparison uses final-lane rows only.",
+        evidence_profile="code_method",
+        confidence_state="partial",
+        active_uncertainty="diagnostic rows may be confused with final rows",
+    )
+    bind_session(
+        ws,
+        "qsgw-session",
+        topic_id="qsgw-headwing-update-librpa",
+        context_id="librpa-qsgw",
+        active_claim=claim.claim_id,
+    )
+    record_reference_location(
+        ws,
+        topic_id="qsgw-headwing-update-librpa",
+        claim_id=claim.claim_id,
+        connector_id="local_report",
+        location_type="strategy_note",
+        uri="file:///reports/aitp_qsgw_dual_lane.md",
+        label="QSGW dual-lane strategy",
+        status="active_strategy_note",
+        summary="Final lane uses usable_for_final rows; diagnostic lane is nonfinal.",
+        metadata={
+            "lane_policy": "final_vs_diagnostic",
+            "final_lane_gate": "usable_for_final=True for QSGW",
+            "diagnostic_lane_labels": ["diagnostic", "iter20_assumed", "nonfinal"],
+            "forbidden_root": "/bad/root",
+            "clean_mgo_root": "/clean/root",
+        },
+        linked_records={"artifact_role": "agent_operating_strategy"},
+    )
+
+    brief = build_execution_brief(ws, "qsgw-session")
+    notes = brief["known_context"]["operating_notes"]
+
+    assert [note["label"] for note in notes] == ["QSGW dual-lane strategy"]
+    assert notes[0]["orientation_only"] is True
+    assert notes[0]["lane_policy"] == "final_vs_diagnostic"
+    assert notes[0]["final_lane_gate"] == "usable_for_final=True for QSGW"
+    assert notes[0]["diagnostic_lane_labels"] == ["diagnostic", "iter20_assumed", "nonfinal"]
+    assert notes[0]["forbidden_root"] == "/bad/root"
+    assert notes[0]["clean_root"] == "/clean/root"
+    assert brief["known_context"]["reference_locations"][0]["orientation_only"] is True
+
+
 def test_code_state_and_workspace_records_make_code_results_reproducible(tmp_path):
     from brain.v5.code import record_code_state, record_code_workspace
     from brain.v5.workspace import init_workspace

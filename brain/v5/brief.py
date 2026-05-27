@@ -33,6 +33,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     recommended_tool_executors = []
     knowledge_connectors = []
     reference_locations = []
+    operating_notes = []
     object_relations = []
     memory_entries = []
 
@@ -49,9 +50,15 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         evidence_records = list_evidence_for_claim(ws, claim.claim_id)
         recommended_tool_executors = suggest_tool_executors_for_claim(claim)
         knowledge_connectors = suggest_knowledge_connectors_for_claim(claim)
+        raw_reference_locations = list_reference_locations_for_claim(ws, claim.claim_id)
         reference_locations = [
             reference_location_brief_payload(location)
-            for location in list_reference_locations_for_claim(ws, claim.claim_id)
+            for location in raw_reference_locations
+        ]
+        operating_notes = [
+            _operating_note_payload(location)
+            for location in raw_reference_locations
+            if _is_operating_note(location)
         ]
         memory_entries = [
             memory_entry_brief_payload(
@@ -158,6 +165,7 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "recommended_tool_executors": recommended_tool_executors,
             "knowledge_connectors": knowledge_connectors,
             "reference_locations": reference_locations,
+            "operating_notes": operating_notes,
             "object_relations": object_relations,
             "memory_entries": memory_entries,
         },
@@ -269,6 +277,40 @@ def _policy_forbidden_actions(claim: ClaimRecord, code_states: list[CodeStateRec
             continue
         blocked.extend(f"policy:{reason.policy_id}" for reason in decision.reasons)
     return _dedupe(blocked)
+
+
+def _is_operating_note(location) -> bool:
+    if location.orientation_only is not True:
+        return False
+    linked_records = location.linked_records or {}
+    role = str(linked_records.get("artifact_role", "")).lower()
+    kind = str(location.location_type).lower()
+    status = str(location.status).lower()
+    return (
+        role in {"agent_operating_strategy", "workflow_runbook", "lane_policy"}
+        or kind in {"strategy_note", "workflow_runbook", "lane_policy"}
+        or status in {"active_strategy_note", "active_runbook"}
+    )
+
+
+def _operating_note_payload(location) -> dict[str, Any]:
+    metadata = location.metadata or {}
+    linked_records = location.linked_records or {}
+    return {
+        "location_id": location.location_id,
+        "label": location.label,
+        "uri": location.uri,
+        "summary": location.summary,
+        "status": location.status,
+        "location_type": location.location_type,
+        "artifact_role": linked_records.get("artifact_role", ""),
+        "lane_policy": metadata.get("lane_policy", ""),
+        "final_lane_gate": metadata.get("final_lane_gate", ""),
+        "diagnostic_lane_labels": metadata.get("diagnostic_lane_labels", []),
+        "forbidden_root": metadata.get("forbidden_root", ""),
+        "clean_root": metadata.get("clean_mgo_root", metadata.get("clean_root", "")),
+        "orientation_only": True,
+    }
 
 
 def _dedupe(values: list[str]) -> list[str]:
