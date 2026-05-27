@@ -173,8 +173,13 @@ def test_workspace_refresh_can_include_legacy_semantic_backlog_in_replay(tmp_pat
         "interaction_recording_worklist",
         "legacy_source_reconstruction_obsidian_view_bundle",
         "legacy_semantic_review_obsidian_view_bundle",
+        "legacy_semantic_needs_revision_basis_obsidian_view_bundle",
         "legacy_human_checkpoint_obsidian_view_bundle",
     ]
+    assert payload["legacy_semantic_needs_revision_basis_obsidian_view"]["files"]["basis_worklist"].endswith(
+        "Legacy Needs-Revision Basis Worklist.md"
+    )
+    assert payload["legacy_semantic_needs_revision_basis_obsidian_view"]["basis_item_count"] == 0
     assert payload["legacy_source_reconstruction_obsidian_view"]["files"]["review_worklist"].endswith(
         "Legacy Source Reconstruction Worklist.md"
     )
@@ -362,6 +367,10 @@ def test_workspace_refresh_cli_mcp_accept_migration_dir(tmp_path, capsys):
     ] == 0
     assert mcp_payload["workspace_replay"]["workspace_backlog_summary"]["legacy_semantic_review"]["migration_dir"] == str(migration)
     assert mcp_payload["workspace_replay"]["workspace_backlog_summary"]["legacy_semantic_repair"]["surface"] == "legacy_semantic_repair_manifest"
+    assert cli_payload["legacy_semantic_needs_revision_basis_obsidian_view"]["basis_item_count"] == 0
+    assert mcp_payload["legacy_semantic_needs_revision_basis_obsidian_view"]["derived_from"] == (
+        "legacy_semantic_needs_revision_basis_queue"
+    )
     assert cli_payload["legacy_source_reconstruction_obsidian_view"]["work_item_count"] == 1
     assert mcp_payload["legacy_source_reconstruction_obsidian_view"]["derived_from"] == "legacy_source_reconstruction_manifest"
     assert cli_payload["workspace_interaction_preview"]["session_count"] == 1
@@ -442,7 +451,7 @@ def test_workspace_refresh_cli_compact_progress_accepts_migration_dir(tmp_path, 
     ]) == 0
     cli_payload = json.loads(capsys.readouterr().out)
 
-    assert cli_payload["refreshed_surface_count"] == 10
+    assert cli_payload["refreshed_surface_count"] == 11
     assert cli_payload["legacy_source_reconstruction"] == {
         "work_item_count": 1,
         "repair_status_counts": {
@@ -466,6 +475,11 @@ def test_workspace_refresh_cli_compact_progress_accepts_migration_dir(tmp_path, 
         },
     }
     assert cli_payload["legacy_semantic_needs_revision_basis"] == {
+        "basis_item_count": 0,
+        "status_counts": {},
+        "required_action_counts": {},
+    }
+    assert cli_payload["legacy_semantic_needs_revision_basis_obsidian_view"] == {
         "basis_item_count": 0,
         "status_counts": {},
         "required_action_counts": {},

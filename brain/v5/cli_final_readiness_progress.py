@@ -111,6 +111,9 @@ def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
             "legacy_semantic_needs_revision_basis_surface": str(
                 replay.get("legacy_semantic_needs_revision_basis_surface") or ""
             ),
+            "legacy_semantic_needs_revision_basis_view_surface": str(
+                replay.get("legacy_semantic_needs_revision_basis_view_surface") or ""
+            ),
             "legacy_executable_evidence_surface": str(replay.get("legacy_executable_evidence_surface") or ""),
             "legacy_human_checkpoint_backlog_surface": str(
                 replay.get("legacy_human_checkpoint_backlog_surface") or ""
@@ -120,6 +123,9 @@ def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
             ),
             "host_startup_needs_revision_basis_supported": bool(
                 replay.get("host_startup_needs_revision_basis_supported", False)
+            ),
+            "host_startup_needs_revision_basis_view_supported": bool(
+                replay.get("host_startup_needs_revision_basis_view_supported", False)
             ),
             "host_startup_executable_evidence_supported": bool(
                 replay.get("host_startup_executable_evidence_supported", False)

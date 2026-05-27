@@ -104,3 +104,31 @@ def compact_legacy_semantic_needs_revision_basis_queue(payload: dict[str, Any]) 
         "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
         "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
     }
+
+
+def compact_legacy_semantic_needs_revision_basis_obsidian_view_bundle(payload: dict[str, Any]) -> dict[str, Any]:
+    files = payload.get("files") if isinstance(payload.get("files"), dict) else {}
+    view_files = [str(path) for path in files.values() if str(path)]
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "legacy_semantic_needs_revision_basis_obsidian_view_bundle_progress",
+        "source_surface": "legacy_semantic_needs_revision_basis_obsidian_view_bundle",
+        "view_dir": str(payload.get("view_dir") or ""),
+        "migration_dir": str(payload.get("migration_dir") or ""),
+        "workspace": str(payload.get("workspace") or ""),
+        "basis_item_count": int(payload.get("basis_item_count") or 0),
+        "status_counts": dict(payload.get("status_counts") or {}),
+        "required_action_counts": dict(payload.get("required_action_counts") or {}),
+        "next_action_count": len(payload.get("next_actions") or []),
+        "next_action_refs": [str(action) for action in payload.get("next_actions", [])[:5] if str(action)],
+        "view_file_count": len(view_files),
+        "view_files": view_files,
+        "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
+        "semantic_review_required": bool(payload.get("semantic_review_required", True)),
+        "derived_from": str(payload.get("derived_from") or ""),
+        "truth_source": bool(payload.get("truth_source", False)),
+        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
+        "orientation_only": bool(payload.get("orientation_only", True)),
+        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }

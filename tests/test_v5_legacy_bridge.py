@@ -4649,6 +4649,148 @@ def test_legacy_semantic_needs_revision_basis_queue_cli_mcp_runtime_and_compact(
     assert "items" not in compact_payload
 
 
+def test_legacy_semantic_needs_revision_basis_obsidian_view_writes_review_worklist(tmp_path):
+    from brain.v5.legacy_semantic_needs_revision_obsidian import (
+        write_legacy_semantic_needs_revision_basis_obsidian_view,
+    )
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.markdown import read_md
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="A canonical legacy claim.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review needs a specific needs-revision basis.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="The review has not yet named the exact repair basis.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy-topic:canonical-topic/state.md"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["decide_human_checkpoint_before_promotion"],
+    )
+
+    payload = write_legacy_semantic_needs_revision_basis_obsidian_view(ws, migration_dir=run)
+
+    assert require_valid_public_surface("legacy_semantic_needs_revision_basis_obsidian_view_bundle", payload) == payload
+    assert payload["kind"] == "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
+    assert payload["basis_item_count"] == 1
+    assert payload["status_counts"] == {"inconclusive": 1}
+    assert payload["required_action_counts"] == {
+        "record_needs_revision_review_with_specific_repair_basis": 1,
+        "keep_semantic_review_blocking_until_typed_review_basis_exists": 1,
+    }
+    assert payload["source_records"]["topics"] == ["canonical-topic"]
+    assert payload["source_records"]["active_claim_ids"] == ["claim-canonical"]
+    assert payload["source_records"]["latest_review_ids"] == [review.review_id]
+    assert payload["semantic_lossless_proven"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_claim_trust"] is False
+    frontmatter, body = read_md(payload["files"]["basis_worklist"])
+    assert frontmatter["view_role"] == "legacy_semantic_needs_revision_basis_worklist"
+    assert frontmatter["truth_source"] is False
+    assert "canonical-topic" in body
+    assert review.review_id in body
+    assert "record_needs_revision_review_with_specific_repair_basis" in body
+    assert "semantic-review-result" in body
+    assert "Use typed legacy semantic review records for needs-revision results" in body
+
+
+def test_legacy_semantic_needs_revision_basis_obsidian_view_cli_mcp_runtime_and_compact(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.mcp_tools import aitp_v5_write_legacy_semantic_needs_revision_basis_obsidian_view
+    from brain.v5.models import ClaimRecord
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="A canonical legacy claim.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Semantic review needs a specific needs-revision basis.",
+        ),
+    )
+    record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="The review has not yet named the exact repair basis.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy-topic:canonical-topic/state.md"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["decide_human_checkpoint_before_promotion"],
+    )
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "semantic-needs-revision-basis-obsidian-view",
+        "--migration-dir",
+        str(run),
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_write_legacy_semantic_needs_revision_basis_obsidian_view(str(base), migration_dir=str(run))
+
+    assert cli_payload["kind"] == "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
+    assert cli_payload["basis_item_count"] == 1
+    assert mcp_payload["kind"] == "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
+    assert runtime_entrypoints()["legacy_semantic_needs_revision_basis_obsidian_view"] == {
+        "cli": "aitp-v5 legacy semantic-needs-revision-basis-obsidian-view <args>",
+        "mcp": "aitp_v5_write_legacy_semantic_needs_revision_basis_obsidian_view",
+        "surface": "legacy_semantic_needs_revision_basis_obsidian_view_bundle",
+    }
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "semantic-needs-revision-basis-obsidian-view",
+        "--migration-dir",
+        str(run),
+        "--compact",
+    ]) == 0
+    compact_payload = json.loads(capsys.readouterr().out)
+
+    assert compact_payload["kind"] == "legacy_semantic_needs_revision_basis_obsidian_view_bundle_progress"
+    assert compact_payload["source_surface"] == "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
+    assert compact_payload["basis_item_count"] == 1
+    assert compact_payload["required_action_counts"] == {
+        "record_needs_revision_review_with_specific_repair_basis": 1,
+        "keep_semantic_review_blocking_until_typed_review_basis_exists": 1,
+    }
+    assert compact_payload["view_file_count"] == 1
+    assert compact_payload["can_update_claim_trust"] is False
+    assert "items" not in compact_payload
+
+
 def test_legacy_semantic_repair_apply_backfills_claim_statement_and_records_provenance(tmp_path):
     from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result

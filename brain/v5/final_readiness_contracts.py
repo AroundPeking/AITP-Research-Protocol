@@ -154,6 +154,14 @@ def validate_final_engineering_readiness_audit(
                 f"{path}.kernel_capabilities.long_term_replay.legacy_semantic_needs_revision_basis_surface",
                 "must be legacy_semantic_needs_revision_basis_queue",
             )
+        if (
+            replay.get("legacy_semantic_needs_revision_basis_view_surface")
+            != "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
+        ):
+            result.add(
+                f"{path}.kernel_capabilities.long_term_replay.legacy_semantic_needs_revision_basis_view_surface",
+                "must be legacy_semantic_needs_revision_basis_obsidian_view_bundle",
+            )
         if replay.get("legacy_executable_evidence_surface") != "legacy_executable_evidence_packet":
             result.add(
                 f"{path}.kernel_capabilities.long_term_replay.legacy_executable_evidence_surface",
@@ -167,6 +175,11 @@ def validate_final_engineering_readiness_audit(
         if replay.get("host_startup_needs_revision_basis_supported") is not True:
             result.add(
                 f"{path}.kernel_capabilities.long_term_replay.host_startup_needs_revision_basis_supported",
+                "must be true",
+            )
+        if replay.get("host_startup_needs_revision_basis_view_supported") is not True:
+            result.add(
+                f"{path}.kernel_capabilities.long_term_replay.host_startup_needs_revision_basis_view_supported",
                 "must be true",
             )
         if replay.get("host_startup_executable_evidence_supported") is not True:

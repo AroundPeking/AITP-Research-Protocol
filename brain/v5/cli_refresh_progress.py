@@ -193,6 +193,11 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
         if isinstance(payload.get("legacy_semantic_review_obsidian_view"), dict)
         else {}
     )
+    needs_revision_view = (
+        payload.get("legacy_semantic_needs_revision_basis_obsidian_view")
+        if isinstance(payload.get("legacy_semantic_needs_revision_basis_obsidian_view"), dict)
+        else {}
+    )
     legacy_source = (
         payload.get("legacy_source_reconstruction_obsidian_view")
         if isinstance(payload.get("legacy_source_reconstruction_obsidian_view"), dict)
@@ -274,6 +279,12 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
             "pass_readiness_counts": dict(legacy.get("pass_readiness_counts") or {}),
             "open_human_checkpoint_count": int(legacy.get("open_human_checkpoint_count") or 0),
             "semantic_lossless_proven": bool(legacy.get("semantic_lossless_proven", False)),
+        }
+    if needs_revision_view:
+        compact["legacy_semantic_needs_revision_basis_obsidian_view"] = {
+            "basis_item_count": int(needs_revision_view.get("basis_item_count") or 0),
+            "status_counts": dict(needs_revision_view.get("status_counts") or {}),
+            "required_action_counts": dict(needs_revision_view.get("required_action_counts") or {}),
         }
     if legacy_source:
         compact["legacy_source_reconstruction"] = {

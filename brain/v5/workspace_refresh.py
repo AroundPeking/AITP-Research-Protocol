@@ -6,6 +6,7 @@ from dataclasses import asdict
 from typing import Any
 
 from brain.v5.legacy_human_checkpoint_obsidian import write_legacy_human_checkpoint_obsidian_view
+from brain.v5.legacy_semantic_needs_revision_obsidian import write_legacy_semantic_needs_revision_basis_obsidian_view
 from brain.v5.legacy_semantic_review_obsidian import write_legacy_semantic_review_obsidian_view
 from brain.v5.legacy_source_reconstruction_obsidian import write_legacy_source_reconstruction_obsidian_view
 from brain.v5.obsidian_views import write_l2_obsidian_view
@@ -54,6 +55,11 @@ def refresh_workspace_views(
         if migration_dir
         else None
     )
+    legacy_needs_revision_view = (
+        write_legacy_semantic_needs_revision_basis_obsidian_view(ws, migration_dir=migration_dir)
+        if migration_dir
+        else None
+    )
     legacy_source_reconstruction_view = (
         write_legacy_source_reconstruction_obsidian_view(ws, migration_dir=migration_dir)
         if migration_dir
@@ -69,6 +75,7 @@ def refresh_workspace_views(
         interaction_worklist.get("source_records", {}),
         legacy_source_reconstruction_view.get("source_records", {}) if legacy_source_reconstruction_view else {},
         legacy_semantic_view.get("source_records", {}) if legacy_semantic_view else {},
+        legacy_needs_revision_view.get("source_records", {}) if legacy_needs_revision_view else {},
         legacy_checkpoint_view.get("source_records", {}) if legacy_checkpoint_view else {},
     )
     refreshed_surfaces = [
@@ -84,6 +91,8 @@ def refresh_workspace_views(
         refreshed_surfaces.append(legacy_source_reconstruction_view["kind"])
     if legacy_semantic_view:
         refreshed_surfaces.append(legacy_semantic_view["kind"])
+    if legacy_needs_revision_view:
+        refreshed_surfaces.append(legacy_needs_revision_view["kind"])
     if legacy_checkpoint_view:
         refreshed_surfaces.append(legacy_checkpoint_view["kind"])
     payload = {
@@ -108,6 +117,8 @@ def refresh_workspace_views(
         payload["legacy_source_reconstruction_obsidian_view"] = legacy_source_reconstruction_view
     if legacy_semantic_view:
         payload["legacy_semantic_review_obsidian_view"] = legacy_semantic_view
+    if legacy_needs_revision_view:
+        payload["legacy_semantic_needs_revision_basis_obsidian_view"] = legacy_needs_revision_view
     if legacy_checkpoint_view:
         payload["legacy_human_checkpoint_obsidian_view"] = legacy_checkpoint_view
     return payload
