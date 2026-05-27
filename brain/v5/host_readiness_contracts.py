@@ -172,6 +172,9 @@ def _validate_production_item(payload: Any, path: str, result: ContractResult) -
             result.add(f"{path}.{key}", "must be a bool")
     if not isinstance(payload.get("lifecycle_smoke_status"), str):
         result.add(f"{path}.lifecycle_smoke_status", "must be a string")
+    if not isinstance(payload.get("lifecycle_command"), str):
+        result.add(f"{path}.lifecycle_command", "must be a string")
+    _require_list(payload.get("lifecycle_args"), f"{path}.lifecycle_args", result)
     if not isinstance(payload.get("lifecycle_trace_delta_count"), int) or payload["lifecycle_trace_delta_count"] < 0:
         result.add(f"{path}.lifecycle_trace_delta_count", "must be a non-negative integer")
     if not isinstance(payload.get("command_path"), str):

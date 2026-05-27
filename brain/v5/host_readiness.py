@@ -128,6 +128,8 @@ def audit_priority_host_production_loops(
     session_id: str = "",
     run_session_start_smoke: bool = False,
     run_lifecycle_smoke: bool = False,
+    lifecycle_command: str = "",
+    lifecycle_args: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run readiness audits for priority hosts as one production-loop packet."""
 
@@ -148,8 +150,8 @@ def audit_priority_host_production_loops(
         runtime: audit_runtime_host_lifecycle(
             ws,
             runtime=runtime,
-            command=command,
-            args=version_args,
+            command=lifecycle_command or command,
+            args=lifecycle_args if lifecycle_args is not None else version_args,
             timeout_seconds=timeout_seconds,
         )
         for runtime in _PRIORITY_HOST_ORDER
@@ -206,6 +208,8 @@ def _production_item(audit: dict[str, Any], *, lifecycle: dict[str, Any] | None 
         "lifecycle_smoke_ran": isinstance(lifecycle, dict),
         "lifecycle_smoke_status": str(lifecycle.get("status") or "not_run") if isinstance(lifecycle, dict) else "not_run",
         "lifecycle_process_ok": bool(lifecycle_process.get("ok")),
+        "lifecycle_command": str(lifecycle_process.get("command") or ""),
+        "lifecycle_args": list(lifecycle_process.get("args") or []),
         "lifecycle_trace_delta_count": int(lifecycle_trace.get("delta_count") or 0),
         "lifecycle_hook_output_observed": bool(lifecycle_hook.get("observed")),
         "next_actions": next_actions,
