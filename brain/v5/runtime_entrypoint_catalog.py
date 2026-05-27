@@ -197,6 +197,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_build_legacy_semantic_repair_plan",
         "surface": "legacy_semantic_repair_plan",
     },
+    "legacy_semantic_repair_manifest": {
+        "cli": "aitp-v5 legacy semantic-repair-manifest <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_repair_manifest",
+        "surface": "legacy_semantic_repair_manifest",
+    },
     "legacy_semantic_repair_apply": {
         "cli": "aitp-v5 legacy semantic-repair-apply <args>",
         "mcp": "aitp_v5_apply_legacy_semantic_repair",

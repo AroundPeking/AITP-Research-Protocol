@@ -16,6 +16,7 @@ from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_revie
 from brain.v5.legacy_semantic_review_obsidian import write_legacy_semantic_review_obsidian_view
 from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
 from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_legacy_semantic_repair_plan
+from brain.v5.legacy_semantic_repair_manifest import build_legacy_semantic_repair_manifest
 from brain.v5.legacy_source_metadata_repair import build_legacy_source_metadata_repair_packet
 from brain.v5.legacy_source_reconstruction import (
     apply_legacy_source_reconstruction_repair,
@@ -139,6 +140,11 @@ def aitp_v5_build_legacy_semantic_review_packet(base: str, *, migration_dir: str
 def aitp_v5_build_legacy_semantic_repair_plan(base: str, *, migration_dir: str, topic: str) -> dict:
     result = build_legacy_semantic_repair_plan(_ws(base), migration_dir=migration_dir, topic=topic)
     return {"ok": True, **require_valid_public_surface("legacy_semantic_repair_plan", result)}
+
+
+def aitp_v5_build_legacy_semantic_repair_manifest(base: str, *, migration_dir: str) -> dict:
+    result = build_legacy_semantic_repair_manifest(_ws(base), migration_dir=migration_dir)
+    return {"ok": True, **require_valid_public_surface("legacy_semantic_repair_manifest", result)}
 
 
 def aitp_v5_apply_legacy_semantic_repair(

@@ -14,6 +14,7 @@ from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_revie
 from brain.v5.legacy_semantic_review_obsidian import write_legacy_semantic_review_obsidian_view
 from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
 from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_legacy_semantic_repair_plan
+from brain.v5.legacy_semantic_repair_manifest import build_legacy_semantic_repair_manifest
 from brain.v5.legacy_source_metadata_repair import build_legacy_source_metadata_repair_packet
 from brain.v5.legacy_source_reconstruction import (
     apply_legacy_source_reconstruction_repair,
@@ -78,6 +79,8 @@ def add_legacy_parser(subparsers) -> None:
     repair.add_argument("--migration-dir", required=True)
     repair.add_argument("--topic", required=True)
     repair.add_argument("--compact", "--progress", action="store_true", dest="compact")
+    repair_manifest = legacy_subparsers.add_parser("semantic-repair-manifest")
+    repair_manifest.add_argument("--migration-dir", required=True)
     repair_apply = legacy_subparsers.add_parser("semantic-repair-apply")
     repair_apply.add_argument("--migration-dir", required=True)
     repair_apply.add_argument("--topic", required=True)
@@ -194,6 +197,9 @@ def dispatch_legacy_command(args, ws) -> dict:
         if getattr(args, "compact", False):
             return compact_legacy_semantic_repair_plan(payload)
         return payload
+    if args.legacy_command == "semantic-repair-manifest":
+        manifest = build_legacy_semantic_repair_manifest(ws, migration_dir=args.migration_dir)
+        return {"ok": True, **require_valid_public_surface("legacy_semantic_repair_manifest", manifest)}
     if args.legacy_command == "semantic-repair-apply":
         result = apply_legacy_semantic_repair(
             ws,
