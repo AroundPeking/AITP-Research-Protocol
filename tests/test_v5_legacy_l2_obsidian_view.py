@@ -135,3 +135,47 @@ def test_legacy_l2_obsidian_view_cli_mcp_and_runtime_surface(tmp_path, capsys):
         "mcp": "aitp_v5_write_legacy_l2_obsidian_view",
         "surface": "legacy_l2_obsidian_view_bundle",
     }
+
+
+def test_legacy_l2_obsidian_view_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+
+    l2 = _write_legacy_l2(tmp_path)
+
+    assert main([
+        "--base",
+        str(tmp_path),
+        "legacy",
+        "l2-obsidian-view",
+        "--legacy-l2-dir",
+        str(l2),
+        "--compact",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "legacy_l2_obsidian_view_bundle_progress"
+    assert payload["source_surface"] == "legacy_l2_obsidian_view_bundle"
+    assert payload["legacy_l2_dir"] == str(l2)
+    assert payload["legacy_entry_count"] == 2
+    assert payload["memory_entry_count"] == 0
+    assert payload["migration_work_item_count"] == 6
+    assert payload["graph_counts"] == {
+        "graph_edges": 1,
+        "graph_nodes": 1,
+        "graph_steps": 1,
+        "graph_towers": 1,
+    }
+    assert payload["obsidian_view_maturity_status"] == "partial_legacy_views_available"
+    assert payload["core_obsidian_views_available"] is False
+    assert payload["next_action_count"] == 7
+    assert payload["view_file_count"] == 4
+    assert payload["view_files"] == [
+        str(tmp_path / ".aitp" / "surfaces" / "legacy_l2_obsidian" / "Legacy L2 Overview.md"),
+        str(tmp_path / ".aitp" / "surfaces" / "legacy_l2_obsidian" / "Legacy L2 Entries.md"),
+        str(tmp_path / ".aitp" / "surfaces" / "legacy_l2_obsidian" / "Legacy L2 Graph.md"),
+        str(tmp_path / ".aitp" / "surfaces" / "legacy_l2_obsidian" / "Legacy L2 Migration Worklist.md"),
+    ]
+    assert payload["truth_source"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False

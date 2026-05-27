@@ -26,14 +26,17 @@ from brain.v5.legacy_source_reconstruction import (
 from brain.v5.cli_legacy_progress import (
     compact_legacy_executable_evidence_packet,
     compact_legacy_human_checkpoint_packet,
-    compact_legacy_l2_graph_manifest,
-    compact_legacy_l2_typed_migration_packet,
     compact_legacy_semantic_review_packet,
     compact_legacy_semantic_review_manifest,
     compact_legacy_semantic_review_worklist,
     compact_legacy_source_metadata_repair_packet,
     compact_legacy_source_reconstruction_manifest,
     compact_legacy_source_reconstruction_review_packet,
+)
+from brain.v5.cli_legacy_l2_progress import (
+    compact_legacy_l2_graph_manifest,
+    compact_legacy_l2_obsidian_view_bundle,
+    compact_legacy_l2_typed_migration_packet,
 )
 from brain.v5.cli_legacy_repair_progress import (
     compact_legacy_semantic_repair_manifest,
@@ -65,6 +68,7 @@ def add_legacy_parser(subparsers) -> None:
     l2_obsidian = legacy_subparsers.add_parser("l2-obsidian-view")
     l2_obsidian.add_argument("--legacy-l2-dir", default="")
     l2_obsidian.add_argument("--output-dir", default="")
+    l2_obsidian.add_argument("--compact", "--progress", action="store_true", dest="compact")
     runtime_log = legacy_subparsers.add_parser("runtime-log-marker-audit")
     runtime_log.add_argument("--migration-dir", default="")
     runtime_log.add_argument("--topic", required=True)
@@ -178,7 +182,10 @@ def dispatch_legacy_command(args, ws) -> dict:
             legacy_l2_dir=args.legacy_l2_dir,
             output_dir=args.output_dir,
         )
-        return {"ok": True, **require_valid_public_surface("legacy_l2_obsidian_view_bundle", bundle)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_l2_obsidian_view_bundle", bundle)}
+        if getattr(args, "compact", False):
+            return compact_legacy_l2_obsidian_view_bundle(payload)
+        return payload
     if args.legacy_command == "runtime-log-marker-audit":
         audit = build_legacy_runtime_log_marker_audit(
             ws,

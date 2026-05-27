@@ -350,68 +350,6 @@ def compact_legacy_source_metadata_repair_packet(payload: dict[str, Any]) -> dic
     }
 
 
-def compact_legacy_l2_typed_migration_packet(payload: dict[str, Any]) -> dict[str, Any]:
-    review_groups = payload.get("review_groups") if isinstance(payload.get("review_groups"), dict) else {}
-    return {
-        "ok": bool(payload.get("ok", True)),
-        "kind": "legacy_l2_typed_migration_packet_progress",
-        "source_surface": "legacy_l2_typed_migration_packet",
-        "legacy_l2_dir": str(payload.get("legacy_l2_dir") or ""),
-        "legacy_shape": str(payload.get("legacy_shape") or ""),
-        "typed_migration_status": str(payload.get("typed_migration_status") or ""),
-        "work_item_count": int(payload.get("work_item_count") or 0),
-        "work_item_counts_by_kind": dict(payload.get("work_item_counts_by_kind") or {}),
-        "review_group_counts": {
-            str(surface): int(group.get("count") or 0)
-            for surface, group in review_groups.items()
-            if isinstance(group, dict)
-        },
-        "next_action_count": len(payload.get("next_actions") or []),
-        "next_action_refs": _limited_strings(payload.get("next_actions")),
-        "top_review_group_surfaces": [
-            str(surface)
-            for surface in review_groups.keys()
-            if str(surface)
-        ][:5],
-        "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
-        "truth_source": str(payload.get("truth_source") or ""),
-        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
-        "orientation_only": bool(payload.get("orientation_only", True)),
-        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
-        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
-    }
-
-
-def compact_legacy_l2_graph_manifest(payload: dict[str, Any]) -> dict[str, Any]:
-    maturity = payload.get("obsidian_view_maturity") if isinstance(payload.get("obsidian_view_maturity"), dict) else {}
-    return {
-        "ok": bool(payload.get("ok", True)),
-        "kind": "legacy_l2_graph_manifest_progress",
-        "source_surface": "legacy_l2_graph_manifest",
-        "legacy_l2_dir": str(payload.get("legacy_l2_dir") or ""),
-        "legacy_shape": str(payload.get("legacy_shape") or ""),
-        "typed_migration_status": str(payload.get("typed_migration_status") or ""),
-        "migration_worklist_status": str(payload.get("migration_worklist_status") or ""),
-        "counts": dict(payload.get("counts") or {}),
-        "entries_by_role": dict(payload.get("entries_by_role") or {}),
-        "entries_by_status": dict(payload.get("entries_by_status") or {}),
-        "work_item_count": int(payload.get("work_item_count") or 0),
-        "work_item_counts_by_kind": dict(payload.get("work_item_counts_by_kind") or {}),
-        "obsidian_view_maturity_status": str(maturity.get("status") or ""),
-        "core_obsidian_views_available": bool(maturity.get("core_views_available", False)),
-        "available_obsidian_view_targets": _limited_strings(maturity.get("available_targets"), limit=10),
-        "missing_core_obsidian_view_targets": _limited_strings(maturity.get("missing_core_targets"), limit=10),
-        "next_action_count": len(payload.get("next_actions") or []),
-        "next_action_refs": _limited_strings(payload.get("next_actions")),
-        "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
-        "truth_source": str(payload.get("truth_source") or ""),
-        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
-        "orientation_only": bool(payload.get("orientation_only", True)),
-        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
-        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
-    }
-
-
 def compact_legacy_human_checkpoint_packet(payload: dict[str, Any]) -> dict[str, Any]:
     checkpoint_items = [
         item for item in payload.get("checkpoint_items", []) if isinstance(item, dict)
