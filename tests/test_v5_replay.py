@@ -368,6 +368,7 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
     legacy_repair = packet.workspace_backlog_summary["legacy_semantic_repair"]
     legacy_needs_revision = packet.workspace_backlog_summary["legacy_semantic_needs_revision_basis"]
     legacy_checkpoints = packet.workspace_backlog_summary["legacy_human_checkpoints"]
+    legacy_topic_question = packet.workspace_backlog_summary["legacy_topic_question_backfill"]
     legacy_executable = packet.workspace_backlog_summary["legacy_executable_evidence"]
     assert legacy == {
         "surface": "legacy_semantic_review_manifest",
@@ -565,6 +566,19 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
                 "can_update_claim_trust": False,
             }
         ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_topic_question == {
+        "surface": "legacy_topic_question_backfill_packet",
+        "migration_dir": str(migration),
+        "backfill_item_count": 0,
+        "open_decision_count": 0,
+        "pending_request_count": 0,
+        "top_backfill_items": [],
+        "auto_backfill_allowed": False,
         "summary_inputs_trusted": False,
         "orientation_only": True,
         "can_update_kernel_state": False,

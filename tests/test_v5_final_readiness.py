@@ -190,6 +190,9 @@ def test_final_readiness_audit_keeps_kernel_capability_separate_from_content_bac
     assert payload["kernel_capabilities"]["long_term_replay"]["legacy_semantic_needs_revision_basis_packet_surface"] == (
         "legacy_semantic_needs_revision_basis_packet"
     )
+    assert payload["kernel_capabilities"]["long_term_replay"]["legacy_topic_question_backfill_surface"] == (
+        "legacy_topic_question_backfill_packet"
+    )
     assert payload["kernel_capabilities"]["long_term_replay"]["legacy_semantic_needs_revision_basis_view_surface"] == (
         "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
     )
@@ -212,6 +215,10 @@ def test_final_readiness_audit_keeps_kernel_capability_separate_from_content_bac
     assert payload["kernel_capabilities"]["long_term_replay"]["host_startup_needs_revision_basis_supported"] is True
     assert (
         payload["kernel_capabilities"]["long_term_replay"]["host_startup_needs_revision_basis_packet_supported"]
+        is True
+    )
+    assert (
+        payload["kernel_capabilities"]["long_term_replay"]["host_startup_topic_question_backfill_supported"]
         is True
     )
     assert payload["kernel_capabilities"]["long_term_replay"]["host_startup_needs_revision_basis_view_supported"] is True
@@ -642,6 +649,7 @@ def test_final_readiness_cli_compact_progress(tmp_path, capsys):
         "legacy_semantic_repair_surface": "legacy_semantic_repair_manifest",
         "legacy_semantic_needs_revision_basis_surface": "legacy_semantic_needs_revision_basis_queue",
         "legacy_semantic_needs_revision_basis_packet_surface": "legacy_semantic_needs_revision_basis_packet",
+        "legacy_topic_question_backfill_surface": "legacy_topic_question_backfill_packet",
         "legacy_semantic_needs_revision_basis_view_surface": (
             "legacy_semantic_needs_revision_basis_obsidian_view_bundle"
         ),
@@ -650,6 +658,7 @@ def test_final_readiness_cli_compact_progress(tmp_path, capsys):
         "host_startup_semantic_repair_supported": True,
         "host_startup_needs_revision_basis_supported": True,
         "host_startup_needs_revision_basis_packet_supported": True,
+        "host_startup_topic_question_backfill_supported": True,
         "host_startup_needs_revision_basis_view_supported": True,
         "host_startup_executable_evidence_supported": True,
         "host_startup_checkpoint_packet_supported": True,

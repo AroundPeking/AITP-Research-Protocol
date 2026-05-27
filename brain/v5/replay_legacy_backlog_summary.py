@@ -128,6 +128,31 @@ def legacy_human_checkpoint_summary(context: LegacyBacklogContext) -> dict[str, 
     }
 
 
+def legacy_topic_question_backfill_summary(context: LegacyBacklogContext) -> dict[str, Any] | None:
+    worklist = context.worklist()
+    if worklist is None:
+        return None
+    items = [
+        _legacy_topic_question_backfill_item(item, command, checkpoints=context.checkpoints())
+        for item in worklist["items"]
+        for command in item.get("review_action_commands", [])
+        if _is_topic_question_command(command)
+    ]
+    return {
+        "surface": "legacy_topic_question_backfill_packet",
+        "migration_dir": worklist["migration_dir"],
+        "backfill_item_count": len(items),
+        "open_decision_count": sum(1 for item in items if item["mode"] == "decide_open_checkpoint"),
+        "pending_request_count": sum(1 for item in items if item["mode"] == "request_checkpoint"),
+        "top_backfill_items": [_legacy_topic_question_backfill_compact_item(item) for item in items[:5]],
+        "auto_backfill_allowed": False,
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
 def legacy_needs_revision_basis_summary(context: LegacyBacklogContext) -> dict[str, Any] | None:
     worklist = context.worklist()
     if worklist is None:
@@ -306,6 +331,51 @@ def _legacy_human_checkpoint_item(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _legacy_topic_question_backfill_item(
+    item: dict[str, Any],
+    command: dict[str, Any],
+    *,
+    checkpoints: dict[str, HumanCheckpointRecord],
+) -> dict[str, Any]:
+    checkpoint_id = str(command.get("checkpoint_id") or "")
+    checkpoint = checkpoints.get(checkpoint_id)
+    return {
+        "topic": str(item.get("topic") or ""),
+        "active_claim_id": str(item.get("active_claim_id") or ""),
+        "latest_review_id": str(command.get("latest_review_id") or item.get("latest_review_id") or ""),
+        "review_status": str(item.get("review_status") or ""),
+        "mode": "decide_open_checkpoint" if checkpoint_id else "request_checkpoint",
+        "checkpoint_id": checkpoint_id,
+        "reason": checkpoint.reason if checkpoint is not None else "human topic question required before claim backfill",
+        "options": (
+            list(checkpoint.options)
+            if checkpoint is not None
+            else ["provide_topic_question", "keep_backlog_blocking"]
+        ),
+        "command": dict(command),
+        "auto_backfill_allowed": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def _legacy_topic_question_backfill_compact_item(item: dict[str, Any]) -> dict[str, Any]:
+    command = item.get("command") if isinstance(item.get("command"), dict) else {}
+    return {
+        "topic": str(item.get("topic") or ""),
+        "active_claim_id": str(item.get("active_claim_id") or ""),
+        "latest_review_id": str(item.get("latest_review_id") or ""),
+        "review_status": str(item.get("review_status") or ""),
+        "mode": str(item.get("mode") or ""),
+        "checkpoint_id": str(item.get("checkpoint_id") or ""),
+        "reason": str(item.get("reason") or ""),
+        "options": list(item.get("options") or []),
+        "cli": str(command.get("cli") or ""),
+        "mcp": str(command.get("mcp") or ""),
+        "auto_backfill_allowed": False,
+        "can_update_claim_trust": False,
+    }
+
+
 def _is_executable_command(command: Any) -> bool:
     return (
         isinstance(command, dict)
@@ -324,6 +394,13 @@ def _is_human_checkpoint_command(command: Any) -> bool:
         and command.get("effect") == "typed_record_write"
         and isinstance(command.get("action"), str)
         and bool(command["action"])
+    )
+
+
+def _is_topic_question_command(command: Any) -> bool:
+    return (
+        _is_human_checkpoint_command(command)
+        and command.get("action") == "require_human_topic_question_before_claim_backfill"
     )
 
 

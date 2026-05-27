@@ -13,6 +13,7 @@ from brain.v5.replay_legacy_backlog_summary import (
     legacy_human_checkpoint_summary,
     legacy_needs_revision_basis_summary,
     legacy_semantic_review_summary,
+    legacy_topic_question_backfill_summary,
 )
 from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
 
@@ -58,6 +59,7 @@ def build_workspace_backlog_summary(
     _maybe_add(summary, "legacy_semantic_needs_revision_basis", legacy_needs_revision_basis_summary(legacy_context))
     _maybe_add(summary, "legacy_executable_evidence", legacy_executable_evidence_summary(legacy_context))
     _maybe_add(summary, "legacy_human_checkpoints", legacy_human_checkpoint_summary(legacy_context))
+    _maybe_add(summary, "legacy_topic_question_backfill", legacy_topic_question_backfill_summary(legacy_context))
     return summary
 
 def workspace_replay_body(entries: list[dict[str, Any]], workspace_backlog_summary: dict[str, Any]) -> str:

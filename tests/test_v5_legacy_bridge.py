@@ -3015,6 +3015,179 @@ def test_legacy_human_checkpoint_obsidian_view_cli_compact_progress(tmp_path, ca
     assert payload["can_update_claim_trust"] is False
 
 
+def test_legacy_topic_question_backfill_packet_blocks_ambiguous_claim_statement_repairs(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_topic_question_backfill import build_legacy_topic_question_backfill_packet
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-l2.md",
+        ClaimRecord(
+            claim_id="claim-l2",
+            topic_id="legacy-l2",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Legacy L2 graph must be split before claim backfill.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="legacy-l2",
+        status="inconclusive",
+        summary="Legacy L2 is an aggregate index, not a reviewed claim statement.",
+        active_claim_id="claim-l2",
+        reviewed_legacy_refs=["legacy_archive:L2/index.md"],
+        reviewed_typed_refs=["claim-l2"],
+        remaining_actions=[
+            "require_human_topic_question_before_claim_backfill",
+            "decide_human_checkpoint_before_promotion",
+        ],
+    )
+
+    packet = require_valid_public_surface(
+        "legacy_topic_question_backfill_packet",
+        build_legacy_topic_question_backfill_packet(ws, migration_dir=run),
+    )
+
+    assert packet["kind"] == "legacy_topic_question_backfill_packet"
+    assert packet["backfill_item_count"] == 1
+    assert packet["open_decision_count"] == 0
+    assert packet["pending_request_count"] == 1
+    assert packet["next_actions"] == [
+        "topic_question_backfill:legacy-l2:request_human_topic_question"
+    ]
+    item = packet["items"][0]
+    assert item["topic"] == "legacy-l2"
+    assert item["active_claim_id"] == "claim-l2"
+    assert item["latest_review_id"] == review.review_id
+    assert item["review_status"] == "inconclusive"
+    assert item["claim_statement_present"] is False
+    assert item["auto_backfill_allowed"] is False
+    assert item["required_actions"] == [
+        "request_or_decide_human_topic_question",
+        "record_needs_revision_review_after_topic_question_decision",
+        "keep_claim_statement_empty_until_human_topic_question_is_provided",
+    ]
+    assert item["review_basis"] == {
+        "reviewed_legacy_refs": ["legacy_archive:L2/index.md"],
+        "reviewed_typed_refs": ["claim-l2"],
+        "open_checkpoint_refs": [],
+    }
+    assert item["checkpoint"]["mode"] == "request_checkpoint"
+    assert item["checkpoint"]["reason"] == "human topic question required before claim backfill"
+    assert item["checkpoint"]["options"] == ["provide_topic_question", "keep_backlog_blocking"]
+    assert item["checkpoint"]["command"]["mcp"] == "aitp_v5_request_human_checkpoint"
+    assert item["needs_revision_result_cli"] == (
+        f"aitp-v5 --base {base} legacy semantic-review-result --migration-dir {run} "
+        "--topic legacy-l2 --status needs_revision --active-claim claim-l2 "
+        "--legacy-ref legacy_archive:L2/index.md --typed-ref claim-l2 "
+        "--remaining-action require_human_topic_question_before_claim_backfill "
+        "--summary <human-reviewed topic question basis; keep claim backfill blocked if unresolved>"
+    )
+    assert packet["semantic_lossless_proven"] is False
+    assert packet["orientation_only"] is True
+    assert packet["can_update_kernel_state"] is False
+    assert packet["can_update_claim_trust"] is False
+
+
+def test_legacy_topic_question_backfill_packet_cli_mcp_runtime_and_compact(tmp_path, capsys):
+    import json
+
+    from brain.v5.checkpoints import request_human_checkpoint
+    from brain.v5.cli import main
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.mcp_tools import aitp_v5_build_legacy_topic_question_backfill_packet
+    from brain.v5.models import ClaimRecord
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-l2.md",
+        ClaimRecord(
+            claim_id="claim-l2",
+            topic_id="legacy-l2",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Human topic question required.",
+        ),
+    )
+    record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="legacy-l2",
+        status="inconclusive",
+        summary="A human topic question is required before claim statement backfill.",
+        active_claim_id="claim-l2",
+        reviewed_typed_refs=["claim-l2"],
+        remaining_actions=["require_human_topic_question_before_claim_backfill"],
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="legacy-l2",
+        claim_id="claim-l2",
+        reason="human topic question required before claim backfill",
+        requested_by="legacy_semantic_review",
+        options=["provide_topic_question", "keep_backlog_blocking"],
+    )
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "topic-question-backfill-packet",
+        "--migration-dir",
+        str(run),
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_legacy_topic_question_backfill_packet(str(base), migration_dir=str(run))
+
+    assert cli_payload["kind"] == "legacy_topic_question_backfill_packet"
+    assert cli_payload["open_decision_count"] == 1
+    assert cli_payload["items"][0]["checkpoint"]["checkpoint_id"] == checkpoint.checkpoint_id
+    assert mcp_payload["ok"] is True
+    assert mcp_payload["kind"] == "legacy_topic_question_backfill_packet"
+    assert runtime_entrypoints()["legacy_topic_question_backfill_packet"] == {
+        "cli": "aitp-v5 legacy topic-question-backfill-packet <args>",
+        "mcp": "aitp_v5_build_legacy_topic_question_backfill_packet",
+        "surface": "legacy_topic_question_backfill_packet",
+    }
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "topic-question-backfill-packet",
+        "--migration-dir",
+        str(run),
+        "--compact",
+    ]) == 0
+    compact_payload = json.loads(capsys.readouterr().out)
+
+    assert compact_payload["kind"] == "legacy_topic_question_backfill_packet_progress"
+    assert compact_payload["source_surface"] == "legacy_topic_question_backfill_packet"
+    assert compact_payload["backfill_item_count"] == 1
+    assert compact_payload["open_decision_count"] == 1
+    assert compact_payload["pending_request_count"] == 0
+    assert compact_payload["top_topics"] == ["legacy-l2"]
+    assert compact_payload["open_checkpoint_refs"] == [f"human_checkpoint:{checkpoint.checkpoint_id}"]
+    assert compact_payload["auto_backfill_allowed"] is False
+    assert compact_payload["can_update_claim_trust"] is False
+    assert "items" not in compact_payload
+
+
 def test_legacy_semantic_review_worklist_maps_l2_typed_review_actions(tmp_path):
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist

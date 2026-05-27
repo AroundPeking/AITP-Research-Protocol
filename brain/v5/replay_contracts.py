@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from brain.v5.contracts import ContractError, ContractResult, _require_bool_value, _require_list, _require_mapping, _require_nonempty_str
+from brain.v5.replay_topic_question_contracts import validate_legacy_topic_question_backfill_backlog
 
 
 def validate_workspace_replay_packet(payload: dict[str, Any], *, path: str = "workspace_replay_packet") -> ContractResult:
@@ -146,6 +147,12 @@ def _validate_workspace_backlog_summary(payload: dict[str, Any], path: str, resu
         _validate_legacy_human_checkpoint_backlog(
             payload.get("legacy_human_checkpoints"),
             f"{path}.legacy_human_checkpoints",
+            result,
+        )
+    if "legacy_topic_question_backfill" in payload:
+        validate_legacy_topic_question_backfill_backlog(
+            payload.get("legacy_topic_question_backfill"),
+            f"{path}.legacy_topic_question_backfill",
             result,
         )
     for key in ("summary_inputs_trusted", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):

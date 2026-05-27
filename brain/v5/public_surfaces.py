@@ -32,6 +32,7 @@ _PUBLIC_SURFACE_NAMES = (
     "legacy_executable_evidence_packet",
     "legacy_human_checkpoint_obsidian_view_bundle",
     "legacy_human_checkpoint_packet",
+    "legacy_topic_question_backfill_packet",
     "legacy_l2_graph_manifest",
     "legacy_l2_obsidian_view_bundle",
     "legacy_l2_typed_migration_packet",
@@ -122,6 +123,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "legacy_executable_evidence_packet": "read-only packet grouping validation and tool-run evidence actions that block legacy semantic review pass without changing claim trust",
     "legacy_human_checkpoint_obsidian_view_bundle": "orientation-only Obsidian Markdown worklist over open and pending legacy semantic-review human checkpoints",
     "legacy_human_checkpoint_packet": "read-only packet grouping open and pending human checkpoint decisions required by legacy semantic review without changing claim trust",
+    "legacy_topic_question_backfill_packet": "read-only packet for ambiguous legacy topic-question claim-statement backfill blockers that require human confirmation before any repair",
     "legacy_l2_graph_manifest": "read-only manifest for planning legacy global L2 graph/index migration into typed L2 memory and Obsidian views",
     "legacy_l2_obsidian_view_bundle": "orientation-only Obsidian Markdown view over legacy global L2 entries and graph counts before typed migration",
     "legacy_l2_typed_migration_packet": "orientation-only grouped review packet for converting legacy L2 graph work items into typed records without trusting archive contents",
@@ -270,6 +272,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     from brain.v5.legacy_executable_evidence_contracts import require_valid_legacy_executable_evidence_packet
     from brain.v5.legacy_human_checkpoint_obsidian_contracts import require_valid_legacy_human_checkpoint_obsidian_view_bundle
     from brain.v5.legacy_human_checkpoint_packet_contracts import require_valid_legacy_human_checkpoint_packet
+    from brain.v5.legacy_topic_question_backfill_contracts import require_valid_legacy_topic_question_backfill_packet
     from brain.v5.legacy_l2_graph_contracts import require_valid_legacy_l2_graph_manifest
     from brain.v5.legacy_l2_obsidian_contracts import require_valid_legacy_l2_obsidian_view_bundle
     from brain.v5.legacy_l2_typed_migration_contracts import require_valid_legacy_l2_typed_migration_packet
@@ -359,6 +362,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "legacy_executable_evidence_packet": require_valid_legacy_executable_evidence_packet,
         "legacy_human_checkpoint_obsidian_view_bundle": require_valid_legacy_human_checkpoint_obsidian_view_bundle,
         "legacy_human_checkpoint_packet": require_valid_legacy_human_checkpoint_packet,
+        "legacy_topic_question_backfill_packet": require_valid_legacy_topic_question_backfill_packet,
         "legacy_l2_graph_manifest": require_valid_legacy_l2_graph_manifest,
         "legacy_l2_obsidian_view_bundle": require_valid_legacy_l2_obsidian_view_bundle,
         "legacy_l2_typed_migration_packet": require_valid_legacy_l2_typed_migration_packet,

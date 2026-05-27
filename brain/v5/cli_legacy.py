@@ -20,6 +20,7 @@ from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_
 from brain.v5.legacy_semantic_repair_manifest import build_legacy_semantic_repair_manifest
 from brain.v5.legacy_source_metadata_repair import build_legacy_source_metadata_repair_packet
 from brain.v5.legacy_source_reconstruction_obsidian import write_legacy_source_reconstruction_obsidian_view
+from brain.v5.legacy_topic_question_backfill import build_legacy_topic_question_backfill_packet
 from brain.v5.legacy_source_reconstruction import (
     apply_legacy_source_reconstruction_repair,
     build_legacy_source_reconstruction_manifest,
@@ -39,6 +40,7 @@ from brain.v5.cli_legacy_progress import (
     compact_legacy_source_reconstruction_obsidian_view_bundle,
     compact_legacy_source_reconstruction_review_packet,
 )
+from brain.v5.cli_legacy_topic_question_progress import compact_legacy_topic_question_backfill_packet
 from brain.v5.cli_legacy_coverage_progress import compact_legacy_migration_coverage_audit
 from brain.v5.cli_legacy_l2_progress import (
     compact_legacy_l2_graph_manifest,
@@ -152,6 +154,9 @@ def add_legacy_parser(subparsers) -> None:
     human_checkpoint.add_argument("--migration-dir", required=True)
     human_checkpoint.add_argument("--topic", default="")
     human_checkpoint.add_argument("--compact", "--progress", action="store_true", dest="compact")
+    topic_question = legacy_subparsers.add_parser("topic-question-backfill-packet")
+    topic_question.add_argument("--migration-dir", required=True)
+    topic_question.add_argument("--compact", "--progress", action="store_true", dest="compact")
     human_checkpoint_obsidian = legacy_subparsers.add_parser("human-checkpoint-obsidian-view")
     human_checkpoint_obsidian.add_argument("--migration-dir", required=True)
     human_checkpoint_obsidian.add_argument("--topic", default="")
@@ -363,6 +368,12 @@ def dispatch_legacy_command(args, ws) -> dict:
         payload = {"ok": True, **require_valid_public_surface("legacy_human_checkpoint_packet", packet)}
         if getattr(args, "compact", False):
             return compact_legacy_human_checkpoint_packet(payload)
+        return payload
+    if args.legacy_command == "topic-question-backfill-packet":
+        packet = build_legacy_topic_question_backfill_packet(ws, migration_dir=args.migration_dir)
+        payload = {"ok": True, **require_valid_public_surface("legacy_topic_question_backfill_packet", packet)}
+        if getattr(args, "compact", False):
+            return compact_legacy_topic_question_backfill_packet(payload)
         return payload
     if args.legacy_command == "human-checkpoint-obsidian-view":
         bundle = write_legacy_human_checkpoint_obsidian_view(

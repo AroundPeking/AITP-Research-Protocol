@@ -22,6 +22,7 @@ from brain.v5.legacy_semantic_repair import apply_legacy_semantic_repair, build_
 from brain.v5.legacy_semantic_repair_manifest import build_legacy_semantic_repair_manifest
 from brain.v5.legacy_source_metadata_repair import build_legacy_source_metadata_repair_packet
 from brain.v5.legacy_source_reconstruction_obsidian import write_legacy_source_reconstruction_obsidian_view
+from brain.v5.legacy_topic_question_backfill import build_legacy_topic_question_backfill_packet
 from brain.v5.legacy_source_reconstruction import (
     apply_legacy_source_reconstruction_repair,
     build_legacy_source_reconstruction_manifest,
@@ -255,6 +256,11 @@ def aitp_v5_build_legacy_human_checkpoint_packet(
 ) -> dict:
     result = build_legacy_human_checkpoint_packet(_ws(base), migration_dir=migration_dir, topic=topic)
     return {"ok": True, **require_valid_public_surface("legacy_human_checkpoint_packet", result)}
+
+
+def aitp_v5_build_legacy_topic_question_backfill_packet(base: str, *, migration_dir: str) -> dict:
+    result = build_legacy_topic_question_backfill_packet(_ws(base), migration_dir=migration_dir)
+    return {"ok": True, **require_valid_public_surface("legacy_topic_question_backfill_packet", result)}
 
 
 def aitp_v5_write_legacy_human_checkpoint_obsidian_view(

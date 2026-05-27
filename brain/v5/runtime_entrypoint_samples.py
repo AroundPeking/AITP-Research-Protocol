@@ -86,6 +86,8 @@ def sample_args_for_template(template: str) -> list[str]:
         return ["--migration-dir", "D:/aitp/.aitp/migrations/legacy-v5-lossless-run", "--topic", "fqhe"]
     if template.startswith("legacy human-checkpoint-packet"):
         return ["--migration-dir", "D:/aitp/.aitp/migrations/legacy-v5-lossless-run", "--topic", "fqhe"]
+    if template.startswith("legacy topic-question-backfill-packet"):
+        return ["--migration-dir", "D:/aitp/.aitp/migrations/legacy-v5-lossless-run"]
     if template.startswith("legacy human-checkpoint-obsidian-view"):
         return ["--migration-dir", "D:/aitp/.aitp/migrations/legacy-v5-lossless-run", "--topic", "fqhe"]
     if template.startswith("legacy source-reconstruction-apply"):
