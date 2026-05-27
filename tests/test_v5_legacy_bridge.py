@@ -468,6 +468,50 @@ def test_legacy_migration_coverage_audit_cli_mcp_and_runtime_surface(tmp_path, c
     )
 
 
+def test_legacy_migration_coverage_audit_cli_compact_progress(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "migration-audit",
+        "--migration-dir",
+        str(run),
+        "--compact",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "legacy_migration_coverage_audit_progress"
+    assert payload["source_surface"] == "legacy_migration_coverage_audit"
+    assert payload["run_id"] == "legacy-v5-lossless-test"
+    assert payload["migration_dir"] == str(run)
+    assert payload["workspace"] == str(ws.base)
+    assert payload["coverage_status"] == "accounted_needs_review"
+    assert payload["topic_count"] == 2
+    assert payload["legacy_file_count"] == 4
+    assert payload["file_preservation_ok"] is True
+    assert payload["archive_reference_coverage_ok"] is True
+    assert payload["markdown_readability_ok"] is True
+    assert payload["gap_topic_count"] == 0
+    assert payload["gap_topics"] == []
+    assert payload["topic_coverage_status_counts"] == {"accounted_needs_review": 2}
+    assert payload["semantic_lossless_proven"] is False
+    assert payload["semantic_review_required"] is True
+    assert payload["truth_source"] == "migration_manifests_and_v5_registry_refs"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+
+
 def test_legacy_semantic_review_queue_operationalizes_per_topic_review(tmp_path):
     from brain.v5.legacy_semantic_review import build_legacy_semantic_review_queue
     from brain.v5.models import ClaimRecord

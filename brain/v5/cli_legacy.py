@@ -36,6 +36,7 @@ from brain.v5.cli_legacy_progress import (
     compact_legacy_source_reconstruction_obsidian_view_bundle,
     compact_legacy_source_reconstruction_review_packet,
 )
+from brain.v5.cli_legacy_coverage_progress import compact_legacy_migration_coverage_audit
 from brain.v5.cli_legacy_l2_progress import (
     compact_legacy_l2_graph_manifest,
     compact_legacy_l2_obsidian_view_bundle,
@@ -62,6 +63,7 @@ def add_legacy_parser(subparsers) -> None:
     migrate.add_argument("--session", required=True, dest="session_id")
     audit = legacy_subparsers.add_parser("migration-audit")
     audit.add_argument("--migration-dir", default="")
+    audit.add_argument("--compact", "--progress", action="store_true", dest="compact")
     l2_graph = legacy_subparsers.add_parser("l2-graph-manifest")
     l2_graph.add_argument("--legacy-l2-dir", default="")
     l2_graph.add_argument("--compact", "--progress", action="store_true", dest="compact")
@@ -169,7 +171,10 @@ def dispatch_legacy_command(args, ws) -> dict:
         return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
     if args.legacy_command == "migration-audit":
         audit = audit_legacy_migration_coverage(ws, migration_dir=args.migration_dir or None)
-        return {"ok": True, **require_valid_public_surface("legacy_migration_coverage_audit", audit)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_migration_coverage_audit", audit)}
+        if getattr(args, "compact", False):
+            return compact_legacy_migration_coverage_audit(payload)
+        return payload
     if args.legacy_command == "l2-graph-manifest":
         manifest = build_legacy_l2_graph_manifest(ws, legacy_l2_dir=args.legacy_l2_dir)
         payload = {"ok": True, **require_valid_public_surface("legacy_l2_graph_manifest", manifest)}
