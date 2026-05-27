@@ -158,6 +158,8 @@ def _validate_production_item(payload: Any, path: str, result: ContractResult) -
         "process_found",
         "install_audit_required",
         "session_start_smoke_available",
+        "session_start_smoke_ran",
+        "session_start_smoke_ok",
         "can_update_kernel_state",
         "can_update_claim_trust",
     ):

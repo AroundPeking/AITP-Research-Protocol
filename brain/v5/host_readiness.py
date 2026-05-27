@@ -166,6 +166,7 @@ def _production_item(audit: dict[str, Any]) -> dict[str, Any]:
     loop = audit.get("production_loop") if isinstance(audit.get("production_loop"), dict) else {}
     process = audit.get("process") if isinstance(audit.get("process"), dict) else {}
     install = audit.get("installation_audit") if isinstance(audit.get("installation_audit"), dict) else {}
+    session_start = audit.get("session_start_smoke") if isinstance(audit.get("session_start_smoke"), dict) else {}
     return {
         "runtime": str(audit.get("runtime") or ""),
         "status": str(audit.get("status") or ""),
@@ -176,6 +177,8 @@ def _production_item(audit: dict[str, Any]) -> dict[str, Any]:
         "install_status": str(install.get("status") or ""),
         "install_audit_required": bool(loop.get("install_audit_required")),
         "session_start_smoke_available": bool(loop.get("session_start_smoke_available")),
+        "session_start_smoke_ran": bool(session_start.get("ran")),
+        "session_start_smoke_ok": bool(session_start.get("ok")),
         "lifecycle_probe_command": str(loop.get("lifecycle_probe_command") or ""),
         "next_actions": list(loop.get("next_actions") or []),
         "can_update_kernel_state": False,

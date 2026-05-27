@@ -154,6 +154,43 @@ def test_priority_host_production_loop_batches_codex_claude_and_kimi(tmp_path):
     assert validated["can_update_claim_trust"] is False
 
 
+def test_priority_host_production_loop_exposes_session_start_smoke_results(tmp_path):
+    from brain.v5.host_readiness import audit_priority_host_production_loops
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    bind_session(ws, "s1", topic_id="fqhe", context_id="topological-order")
+
+    payload = audit_priority_host_production_loops(
+        ws,
+        command=sys.executable,
+        version_args=["--version"],
+        check_installation=False,
+        session_id="s1",
+        run_session_start_smoke=True,
+    )
+    validated = require_valid_public_surface("runtime_host_production_loop_audit", payload)
+
+    by_runtime = {item["runtime"]: item for item in validated["items"]}
+    assert by_runtime["codex"]["session_start_smoke_available"] is False
+    assert by_runtime["codex"]["session_start_smoke_ran"] is False
+    assert by_runtime["codex"]["session_start_smoke_ok"] is False
+    assert by_runtime["claude_code"]["session_start_smoke_available"] is True
+    assert by_runtime["claude_code"]["session_start_smoke_ran"] is True
+    assert by_runtime["claude_code"]["session_start_smoke_ok"] is True
+    assert by_runtime["kimi_code"]["session_start_smoke_available"] is True
+    assert by_runtime["kimi_code"]["session_start_smoke_ran"] is True
+    assert by_runtime["kimi_code"]["session_start_smoke_ok"] is True
+    assert "run_session_start_smoke" not in validated["next_action_counts"]
+    assert validated["status_counts"] == {
+        "process_ready": 1,
+        "ready_with_session_start_smoke": 2,
+    }
+    assert validated["can_update_claim_trust"] is False
+
+
 def test_priority_host_production_loop_cli_mcp_and_runtime(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.mcp_tools import aitp_v5_audit_priority_host_production_loops
