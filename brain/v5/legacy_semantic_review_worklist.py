@@ -16,10 +16,12 @@ def build_legacy_semantic_review_worklist(
     ws: WorkspacePaths,
     *,
     migration_dir: str | Path,
+    manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a read-only prioritized queue for remaining legacy semantic reviews."""
 
-    manifest = build_legacy_semantic_review_manifest(ws, migration_dir=migration_dir)
+    if manifest is None:
+        manifest = build_legacy_semantic_review_manifest(ws, migration_dir=migration_dir)
     checkpoints_by_claim = _group_open_human_checkpoints(
         list_records(ws.registry_dir("checkpoints"), HumanCheckpointRecord)
     )

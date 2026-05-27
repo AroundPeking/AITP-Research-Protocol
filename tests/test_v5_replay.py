@@ -649,6 +649,149 @@ def test_workspace_replay_includes_legacy_executable_evidence_blockers(tmp_path)
     assert executable["can_update_claim_trust"] is False
 
 
+def test_workspace_replay_reuses_legacy_review_worklist_for_compact_backlog(monkeypatch, tmp_path):
+    import brain.v5.replay_backlog_summary as backlog_summary
+    import brain.v5.replay_legacy_backlog_summary as legacy_backlog_summary
+    from brain.v5.replay_backlog_summary import build_workspace_backlog_summary
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    migration = ws.root / "migrations" / "legacy-run"
+    migration.mkdir(parents=True)
+    calls = {"manifest": 0, "worklist": 0}
+
+    def fake_source_stack(_ws):
+        return {
+            "claim_count": 0,
+            "coverage_status_counts": {},
+            "missing_required_output_counts": {},
+            "source_component_gap_counts": {},
+            "source_review_status_counts": {},
+            "items": [],
+        }
+
+    def fake_manifest(_ws, *, migration_dir):
+        calls["manifest"] += 1
+        return {
+            "migration_dir": str(migration_dir),
+            "review_item_count": 1,
+            "review_progress": {
+                "passed": 0,
+                "inconclusive": 1,
+                "needs_revision": 0,
+                "pending": 0,
+            },
+            "semantic_lossless_proven": False,
+            "items": [
+                {
+                    "topic": "crpa",
+                    "active_claim_id": "claim-crpa",
+                    "review_status": "inconclusive",
+                    "review_priority": "high",
+                    "latest_semantic_review": {"review_id": "legacy-review-crpa"},
+                    "packet_cli": "aitp-v5 legacy semantic-review-packet crpa",
+                }
+            ],
+        }
+
+    def fake_worklist(_ws, *, migration_dir, manifest=None):
+        calls["worklist"] += 1
+        assert manifest is not None
+        return {
+            "run_id": "legacy-run",
+            "migration_dir": str(migration_dir),
+            "workspace": str(ws.base),
+            "open_human_checkpoint_count": 1,
+            "open_human_checkpoints": [
+                {
+                    "topic": "crpa",
+                    "active_claim_id": "claim-crpa",
+                    "checkpoint_id": "checkpoint-crpa",
+                    "checkpoint_ref": "human-checkpoint:checkpoint-crpa",
+                    "action": "decide_human_checkpoint_before_promotion",
+                    "decision_cli": "aitp-v5 checkpoint decide checkpoint-crpa --decision <approve|block>",
+                    "decision_mcp": "aitp_v5_decide_human_checkpoint",
+                    "can_update_claim_trust": False,
+                }
+            ],
+            "items": [
+                {
+                    "topic": "crpa",
+                    "active_claim_id": "claim-crpa",
+                    "latest_review_id": "legacy-review-crpa",
+                    "review_status": "inconclusive",
+                    "blocking_classes": ["executable_evidence_required"],
+                    "review_action_commands": [
+                        {
+                            "surface": "validation_result_record",
+                            "effect": "typed_record_write",
+                            "action": (
+                                "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs"
+                            ),
+                        },
+                        {
+                            "surface": "human_checkpoint_record",
+                            "effect": "typed_record_write",
+                            "action": "decide_human_checkpoint_before_promotion",
+                            "checkpoint_id": "checkpoint-crpa",
+                            "latest_review_id": "legacy-review-crpa",
+                            "cli": "aitp-v5 checkpoint decide checkpoint-crpa --decision <approve|block>",
+                            "mcp": "aitp_v5_decide_human_checkpoint",
+                        },
+                    ],
+                }
+            ],
+        }
+
+    def fake_source_reconstruction(_ws, *, migration_dir):
+        return {
+            "migration_dir": str(migration_dir),
+            "work_item_count": 0,
+            "repair_status_counts": {
+                "awaiting_needs_revision_review": 0,
+                "no_repair_candidates": 0,
+                "proposed_repairs": 0,
+            },
+            "proposed_repair_count": 0,
+            "items": [],
+        }
+
+    def fake_semantic_repair(_ws, *, migration_dir):
+        return {
+            "migration_dir": str(migration_dir),
+            "work_item_count": 0,
+            "repair_status_counts": {
+                "awaiting_needs_revision_review": 0,
+                "no_repair_candidates": 0,
+                "proposed_repairs": 0,
+            },
+            "proposed_repair_count": 0,
+            "required_action_counts": {},
+            "items": [],
+        }
+
+    def fail_packet_builder(*_args, **_kwargs):
+        raise AssertionError("compact replay should summarize from the shared legacy worklist")
+
+    monkeypatch.setattr(backlog_summary, "build_source_stack_coverage_manifest", fake_source_stack)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_semantic_review_manifest", fake_manifest)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_semantic_review_worklist", fake_worklist)
+    monkeypatch.setattr(backlog_summary, "build_legacy_source_reconstruction_manifest", fake_source_reconstruction)
+    monkeypatch.setattr(backlog_summary, "build_legacy_semantic_repair_manifest", fake_semantic_repair)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_executable_evidence_packet", fail_packet_builder, raising=False)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_human_checkpoint_packet", fail_packet_builder, raising=False)
+
+    summary = build_workspace_backlog_summary(ws, [], migration_dir=str(migration))
+
+    assert calls == {"manifest": 1, "worklist": 1}
+    assert summary["legacy_semantic_review"]["review_item_count"] == 1
+    assert summary["legacy_executable_evidence"]["evidence_item_count"] == 1
+    assert summary["legacy_executable_evidence"]["executable_action_count"] == 1
+    assert summary["legacy_executable_evidence"]["top_evidence_items"][0]["latest_review_id"] == "legacy-review-crpa"
+    assert summary["legacy_human_checkpoints"]["checkpoint_item_count"] == 1
+    assert summary["legacy_human_checkpoints"]["open_decision_count"] == 1
+
+
 def test_workspace_replay_packet_cli_mcp_and_runtime(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.mcp_tools import aitp_v5_write_workspace_replay_packet

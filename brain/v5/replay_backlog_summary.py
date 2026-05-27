@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from brain.v5.legacy_executable_evidence import build_legacy_executable_evidence_packet
-from brain.v5.legacy_human_checkpoint_packet import build_legacy_human_checkpoint_packet
 from brain.v5.legacy_semantic_repair_manifest import build_legacy_semantic_repair_manifest
-from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
-from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
 from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_manifest
 from brain.v5.paths import WorkspacePaths
+from brain.v5.replay_legacy_backlog_summary import (
+    LegacyBacklogContext,
+    legacy_executable_evidence_summary,
+    legacy_human_checkpoint_summary,
+    legacy_semantic_review_summary,
+)
 from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
 
 def build_workspace_backlog_summary(
@@ -48,11 +50,12 @@ def build_workspace_backlog_summary(
         "can_update_claim_trust": False,
     }
     _maybe_add(summary, "source_stack_coverage", _source_stack_coverage_summary(ws))
-    _maybe_add(summary, "legacy_semantic_review", _legacy_semantic_review_summary(ws, migration_dir))
+    legacy_context = LegacyBacklogContext(ws, migration_dir)
+    _maybe_add(summary, "legacy_semantic_review", legacy_semantic_review_summary(legacy_context))
     _maybe_add(summary, "legacy_source_reconstruction", _legacy_source_reconstruction_summary(ws, migration_dir))
     _maybe_add(summary, "legacy_semantic_repair", _legacy_semantic_repair_summary(ws, migration_dir))
-    _maybe_add(summary, "legacy_executable_evidence", _legacy_executable_evidence_summary(ws, migration_dir))
-    _maybe_add(summary, "legacy_human_checkpoints", _legacy_human_checkpoint_summary(ws, migration_dir))
+    _maybe_add(summary, "legacy_executable_evidence", legacy_executable_evidence_summary(legacy_context))
+    _maybe_add(summary, "legacy_human_checkpoints", legacy_human_checkpoint_summary(legacy_context))
     return summary
 
 def workspace_replay_body(entries: list[dict[str, Any]], workspace_backlog_summary: dict[str, Any]) -> str:
@@ -250,28 +253,6 @@ def _source_stack_coverage_summary(ws: WorkspacePaths) -> dict[str, Any]:
     }
 
 
-def _legacy_semantic_review_summary(ws: WorkspacePaths, migration_dir: str | None) -> dict[str, Any] | None:
-    if not migration_dir:
-        return None
-    manifest = build_legacy_semantic_review_manifest(ws, migration_dir=migration_dir)
-    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=migration_dir)
-    backlog = [item for item in manifest["items"] if item["review_status"] in {"pending", "needs_revision", "inconclusive"}]
-    return {
-        "surface": "legacy_semantic_review_manifest",
-        "migration_dir": manifest["migration_dir"],
-        "review_item_count": manifest["review_item_count"],
-        "review_progress": dict(manifest["review_progress"]),
-        "semantic_lossless_proven": bool(manifest["semantic_lossless_proven"]),
-        "open_human_checkpoint_count": int(worklist.get("open_human_checkpoint_count") or 0),
-        "open_human_checkpoints": list(worklist.get("open_human_checkpoints") or []),
-        "top_backlog_items": [_legacy_backlog_item(item) for item in backlog[:5]],
-        "summary_inputs_trusted": False,
-        "orientation_only": True,
-        "can_update_kernel_state": False,
-        "can_update_claim_trust": False,
-    }
-
-
 def _legacy_source_reconstruction_summary(ws: WorkspacePaths, migration_dir: str | None) -> dict[str, Any] | None:
     if not migration_dir:
         return None
@@ -309,42 +290,6 @@ def _legacy_semantic_repair_summary(ws: WorkspacePaths, migration_dir: str | Non
     }
 
 
-def _legacy_executable_evidence_summary(ws: WorkspacePaths, migration_dir: str | None) -> dict[str, Any] | None:
-    if not migration_dir:
-        return None
-    packet = build_legacy_executable_evidence_packet(ws, migration_dir=migration_dir)
-    return {
-        "surface": "legacy_executable_evidence_packet",
-        "migration_dir": packet["migration_dir"],
-        "evidence_item_count": int(packet["evidence_item_count"]),
-        "executable_action_count": int(packet["executable_action_count"]),
-        "top_evidence_items": [_legacy_executable_evidence_item(item) for item in packet.get("evidence_items", [])[:5]],
-        "summary_inputs_trusted": False,
-        "orientation_only": True,
-        "can_update_kernel_state": False,
-        "can_update_claim_trust": False,
-    }
-
-
-def _legacy_human_checkpoint_summary(ws: WorkspacePaths, migration_dir: str | None) -> dict[str, Any] | None:
-    if not migration_dir:
-        return None
-    packet = build_legacy_human_checkpoint_packet(ws, migration_dir=migration_dir)
-    return {
-        "surface": "legacy_human_checkpoint_packet",
-        "migration_dir": packet["migration_dir"],
-        "checkpoint_item_count": int(packet["checkpoint_item_count"]),
-        "open_decision_count": int(packet["open_decision_count"]),
-        "pending_request_count": int(packet["pending_request_count"]),
-        "next_action_count": len(packet.get("next_actions") or []),
-        "top_checkpoint_items": [_legacy_human_checkpoint_item(item) for item in packet.get("checkpoint_items", [])[:5]],
-        "summary_inputs_trusted": False,
-        "orientation_only": True,
-        "can_update_kernel_state": False,
-        "can_update_claim_trust": False,
-    }
-
-
 def _source_stack_coverage_item(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "topic_id": str(item.get("topic_id") or ""),
@@ -355,19 +300,6 @@ def _source_stack_coverage_item(item: dict[str, Any]) -> dict[str, Any]:
         "missing_source_components": list(item.get("missing_source_components") or []),
         "source_reconstruction_review_status": str(item.get("source_reconstruction_review_status") or ""),
         "next_actions": list(item.get("next_actions") or []),
-        "can_update_claim_trust": False,
-    }
-
-
-def _legacy_backlog_item(item: dict[str, Any]) -> dict[str, Any]:
-    latest = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
-    return {
-        "topic": item["topic"],
-        "active_claim_id": item["active_claim_id"],
-        "review_status": item["review_status"],
-        "review_priority": item["review_priority"],
-        "latest_review_id": str(latest.get("review_id") or ""),
-        "packet_cli": item["packet_cli"],
         "can_update_claim_trust": False,
     }
 
@@ -396,38 +328,6 @@ def _legacy_semantic_repair_item(item: dict[str, Any]) -> dict[str, Any]:
         "proposed_repair_types": list(item.get("proposed_repair_types") or []),
         "required_actions": list(item.get("required_actions") or []),
         "repair_plan_cli": str(item.get("repair_plan_cli") or ""),
-        "can_update_claim_trust": False,
-    }
-
-
-def _legacy_executable_evidence_item(item: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "topic": str(item.get("topic") or ""),
-        "active_claim_id": str(item.get("active_claim_id") or ""),
-        "latest_review_id": str(item.get("latest_review_id") or ""),
-        "review_status": str(item.get("review_status") or ""),
-        "executable_actions": list(item.get("executable_actions") or []),
-        "validation_command_count": len(item.get("validation_commands") or []),
-        "tool_run_command_count": len(item.get("tool_run_commands") or []),
-        "followup_result_cli": str(item.get("followup_result_cli") or ""),
-        "can_update_claim_trust": False,
-    }
-
-
-def _legacy_human_checkpoint_item(item: dict[str, Any]) -> dict[str, Any]:
-    command = item.get("command") if isinstance(item.get("command"), dict) else {}
-    return {
-        "topic": str(item.get("topic") or ""),
-        "active_claim_id": str(item.get("active_claim_id") or ""),
-        "latest_review_id": str(item.get("latest_review_id") or ""),
-        "review_status": str(item.get("review_status") or ""),
-        "action": str(item.get("action") or ""),
-        "mode": str(item.get("mode") or ""),
-        "checkpoint_id": str(item.get("checkpoint_id") or ""),
-        "reason": str(item.get("reason") or ""),
-        "options": list(item.get("options") or []),
-        "cli": str(command.get("cli") or ""),
-        "mcp": str(command.get("mcp") or ""),
         "can_update_claim_trust": False,
     }
 
