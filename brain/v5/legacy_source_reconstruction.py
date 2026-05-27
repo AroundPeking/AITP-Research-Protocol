@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,47 @@ def build_legacy_source_reconstruction_plan(
         "can_apply": False,
         "semantic_lossless_proven": False,
         "truth_source": "typed_review_results_and_legacy_refs",
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def build_legacy_source_reconstruction_manifest(
+    ws: WorkspacePaths,
+    *,
+    migration_dir: str | Path,
+) -> dict[str, Any]:
+    """Batch source-reconstruction repair/review triage for a legacy migration."""
+
+    queue = build_legacy_semantic_review_queue(ws, migration_dir=migration_dir)
+    items = [
+        _manifest_item(ws, queue, item)
+        for item in queue["items"]
+        if _source_reconstruction_incomplete(item)
+    ]
+    items.sort(key=lambda item: (_repair_sort_rank(item["repair_status"]), item["topic"], item["active_claim_id"]))
+    repair_status_counts = Counter(item["repair_status"] for item in items)
+    required_actions = Counter(action for item in items for action in item["required_actions"])
+    return {
+        "kind": "legacy_source_reconstruction_manifest",
+        "run_id": queue["run_id"],
+        "migration_dir": queue["migration_dir"],
+        "work_item_count": len(items),
+        "repair_status_counts": {
+            "awaiting_needs_revision_review": repair_status_counts.get("awaiting_needs_revision_review", 0),
+            "no_repair_candidates": repair_status_counts.get("no_repair_candidates", 0),
+            "proposed_repairs": repair_status_counts.get("proposed_repairs", 0),
+        },
+        "proposed_repair_count": sum(item["proposed_repair_count"] for item in items),
+        "missing_component_counts": _missing_component_counts(items),
+        "required_action_counts": dict(sorted(required_actions.items())),
+        "items": items,
+        "next_actions": [f"legacy_source_reconstruction:{item['topic']}" for item in items],
+        "semantic_lossless_proven": False,
+        "semantic_review_required": True,
+        "truth_source": "typed_review_results_legacy_refs_and_source_reconstruction_audit",
         "summary_inputs_trusted": False,
         "orientation_only": True,
         "can_update_kernel_state": False,
@@ -240,6 +282,97 @@ def _repair_status(latest_review: dict[str, Any], proposed_repairs: list[dict[st
     if latest_review.get("status") != "needs_revision":
         return "awaiting_needs_revision_review"
     return "no_repair_candidates"
+
+
+def _source_reconstruction_incomplete(item: dict[str, Any]) -> bool:
+    source_reconstruction = item.get("source_reconstruction") if isinstance(item.get("source_reconstruction"), dict) else {}
+    missing = source_reconstruction.get("missing_components") or []
+    return source_reconstruction.get("status") == "incomplete" or bool(missing)
+
+
+def _manifest_item(ws: WorkspacePaths, queue: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
+    latest_review = item.get("latest_semantic_review") if isinstance(item.get("latest_semantic_review"), dict) else {}
+    source_reconstruction = item.get("source_reconstruction") if isinstance(item.get("source_reconstruction"), dict) else {}
+    proposed_repairs = _proposed_repairs(item, latest_review)
+    repair_status = _repair_status(latest_review, proposed_repairs)
+    proposed_repair_types = _unique([repair["repair_type"] for repair in proposed_repairs])
+    return {
+        "topic": str(item.get("topic") or ""),
+        "active_claim_id": str(item.get("active_claim_id") or ""),
+        "latest_review_id": str(latest_review.get("review_id") or ""),
+        "latest_review_status": str(latest_review.get("status") or "pending"),
+        "source_reconstruction_status": str(source_reconstruction.get("status") or "incomplete"),
+        "missing_components": list(source_reconstruction.get("missing_components") or []),
+        "source_reconstruction_recommended_actions": list(source_reconstruction.get("recommended_actions") or []),
+        "source_refs": list(source_reconstruction.get("source_refs") or []),
+        "repair_status": repair_status,
+        "proposed_repair_count": len(proposed_repairs),
+        "proposed_repair_types": proposed_repair_types,
+        "required_actions": _manifest_required_actions(repair_status, proposed_repairs),
+        "plan_cli": (
+            f"aitp-v5 --base {ws.base} legacy source-reconstruction-plan "
+            f"--migration-dir {queue['migration_dir']} --topic {item.get('topic')}"
+        ),
+        "plan_mcp": "aitp_v5_build_legacy_source_reconstruction_plan",
+        "plan_surface": "legacy_source_reconstruction_plan",
+        "review_packet_cli": (
+            f"aitp-v5 --base {ws.base} legacy source-reconstruction-review "
+            f"--migration-dir {queue['migration_dir']} --topic {item.get('topic')}"
+        ),
+        "review_packet_mcp": "aitp_v5_build_legacy_source_reconstruction_review_packet",
+        "review_packet_surface": "legacy_source_reconstruction_review_packet",
+        "apply_cli": _apply_cli(ws, queue, item, latest_review, proposed_repair_types),
+        "apply_mcp": "aitp_v5_apply_legacy_source_reconstruction_repair",
+        "apply_surface": "legacy_source_reconstruction_apply",
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def _manifest_required_actions(repair_status: str, proposed_repairs: list[dict[str, Any]]) -> list[str]:
+    actions = [
+        "inspect_legacy_refs_for_source_reconstruction_components",
+        "record_source_reconstruction_review_result",
+    ]
+    if proposed_repairs:
+        actions.extend([
+            "review_proposed_source_reconstruction_repair_before_apply",
+            "apply_selected_source_reconstruction_repair_with_latest_review_id",
+        ])
+    elif repair_status == "awaiting_needs_revision_review":
+        actions.append("record_needs_revision_review_with_specific_source_reconstruction_basis")
+    else:
+        actions.append("record_review_basis_or_keep_source_reconstruction_inconclusive")
+    return _unique(actions)
+
+
+def _apply_cli(
+    ws: WorkspacePaths,
+    queue: dict[str, Any],
+    item: dict[str, Any],
+    latest_review: dict[str, Any],
+    repair_types: list[str],
+) -> str:
+    if not repair_types:
+        return ""
+    return (
+        f"aitp-v5 --base {ws.base} legacy source-reconstruction-apply "
+        f"--migration-dir {queue['migration_dir']} --topic {item.get('topic')} "
+        f"--repair-type {repair_types[0]} --review-id {latest_review.get('review_id')}"
+    )
+
+
+def _missing_component_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {component: 0 for component in _REVIEW_COMPONENTS}
+    for item in items:
+        for component in item["missing_components"]:
+            if component in counts:
+                counts[component] += 1
+    return counts
+
+
+def _repair_sort_rank(status: str) -> int:
+    return {"proposed_repairs": 0, "no_repair_candidates": 1, "awaiting_needs_revision_review": 2}.get(status, 3)
 
 
 def _source_reconstruction_action_tokens(raw_actions: list[str] | None) -> set[str]:

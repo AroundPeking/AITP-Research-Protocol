@@ -61,6 +61,60 @@ def require_valid_legacy_source_reconstruction_plan(payload: dict[str, Any]) -> 
     return payload
 
 
+def validate_legacy_source_reconstruction_manifest(
+    payload: dict[str, Any],
+    *,
+    path: str = "legacy_source_reconstruction_manifest",
+) -> ContractResult:
+    result = ContractResult()
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return result
+    if payload.get("kind") != "legacy_source_reconstruction_manifest":
+        result.add(f"{path}.kind", "must be 'legacy_source_reconstruction_manifest'")
+    for key in ("run_id", "migration_dir", "truth_source"):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("truth_source") != "typed_review_results_legacy_refs_and_source_reconstruction_audit":
+        result.add(
+            f"{path}.truth_source",
+            "must be 'typed_review_results_legacy_refs_and_source_reconstruction_audit'",
+        )
+    for key in ("work_item_count", "proposed_repair_count"):
+        if not isinstance(payload.get(key), int) or payload[key] < 0:
+            result.add(f"{path}.{key}", "must be a non-negative integer")
+    for key in ("repair_status_counts", "missing_component_counts", "required_action_counts"):
+        _require_mapping(payload.get(key), f"{path}.{key}", result)
+    _require_list(payload.get("items"), f"{path}.items", result)
+    if isinstance(payload.get("items"), list):
+        for index, item in enumerate(payload["items"]):
+            _validate_manifest_item(item, f"{path}.items[{index}]", result)
+    _require_list(payload.get("next_actions"), f"{path}.next_actions", result)
+    for key in (
+        "semantic_lossless_proven",
+        "semantic_review_required",
+        "summary_inputs_trusted",
+        "orientation_only",
+        "can_update_kernel_state",
+        "can_update_claim_trust",
+    ):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    _require_bool_value(payload.get("semantic_lossless_proven"), False, f"{path}.semantic_lossless_proven", result)
+    _require_bool_value(payload.get("semantic_review_required"), True, f"{path}.semantic_review_required", result)
+    _require_bool_value(payload.get("summary_inputs_trusted"), False, f"{path}.summary_inputs_trusted", result)
+    _require_bool_value(payload.get("orientation_only"), True, f"{path}.orientation_only", result)
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
+    return result
+
+
+def require_valid_legacy_source_reconstruction_manifest(payload: dict[str, Any]) -> dict[str, Any]:
+    result = validate_legacy_source_reconstruction_manifest(payload)
+    if not result.ok:
+        raise ContractError(result)
+    return payload
+
+
 def validate_legacy_source_reconstruction_review_packet(
     payload: dict[str, Any],
     *,
@@ -193,6 +247,52 @@ def _validate_plan_repair(payload: Any, path: str, result: ContractResult) -> No
         result.add(f"{path}.mutation_authority", "must be typed_review_and_apply_separately")
     for key in ("proposed_supports_outputs", "source_refs", "basis_refs"):
         _require_list(payload.get(key), f"{path}.{key}", result)
+
+
+def _validate_manifest_item(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in (
+        "topic",
+        "active_claim_id",
+        "latest_review_status",
+        "source_reconstruction_status",
+        "repair_status",
+        "plan_cli",
+        "plan_mcp",
+        "plan_surface",
+        "review_packet_cli",
+        "review_packet_mcp",
+        "review_packet_surface",
+        "apply_mcp",
+        "apply_surface",
+    ):
+        _require_nonempty_str(payload, key, path, result)
+    if not isinstance(payload.get("latest_review_id"), str):
+        result.add(f"{path}.latest_review_id", "must be a string")
+    if not isinstance(payload.get("apply_cli"), str):
+        result.add(f"{path}.apply_cli", "must be a string")
+    if payload.get("repair_status") not in {
+        "proposed_repairs",
+        "awaiting_needs_revision_review",
+        "no_repair_candidates",
+    }:
+        result.add(f"{path}.repair_status", "must be an allowed repair status")
+    if payload.get("source_reconstruction_status") != "incomplete":
+        result.add(f"{path}.source_reconstruction_status", "must be incomplete")
+    for key in (
+        "missing_components",
+        "source_reconstruction_recommended_actions",
+        "source_refs",
+        "proposed_repair_types",
+        "required_actions",
+    ):
+        _require_list(payload.get(key), f"{path}.{key}", result)
+    if not isinstance(payload.get("proposed_repair_count"), int) or payload["proposed_repair_count"] < 0:
+        result.add(f"{path}.proposed_repair_count", "must be a non-negative integer")
+    _require_bool_value(payload.get("can_update_kernel_state"), False, f"{path}.can_update_kernel_state", result)
+    _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
 
 
 def _validate_legacy_component_guidance(payload: Any, path: str, result: ContractResult) -> None:

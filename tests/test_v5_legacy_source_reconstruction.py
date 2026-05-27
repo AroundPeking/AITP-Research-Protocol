@@ -169,6 +169,56 @@ def test_legacy_source_reconstruction_plan_accepts_review_action_phrase(tmp_path
     assert plan["proposed_repairs"][0]["repair_type"] == "reconstruction_path_evidence_backfill"
 
 
+def test_legacy_source_reconstruction_manifest_batches_backlog(tmp_path):
+    from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_manifest
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    ws, run, review, _candidate, _derivation = _seed_reviewed_legacy_topic(tmp_path)
+
+    manifest = build_legacy_source_reconstruction_manifest(ws, migration_dir=run)
+
+    assert require_valid_public_surface("legacy_source_reconstruction_manifest", manifest) == manifest
+    assert manifest["kind"] == "legacy_source_reconstruction_manifest"
+    assert manifest["work_item_count"] == 1
+    assert manifest["repair_status_counts"] == {
+        "awaiting_needs_revision_review": 0,
+        "no_repair_candidates": 0,
+        "proposed_repairs": 1,
+    }
+    assert manifest["proposed_repair_count"] == 1
+    assert manifest["missing_component_counts"]["reconstruction_path"] == 1
+    assert manifest["required_action_counts"] == {
+        "apply_selected_source_reconstruction_repair_with_latest_review_id": 1,
+        "inspect_legacy_refs_for_source_reconstruction_components": 1,
+        "record_source_reconstruction_review_result": 1,
+        "review_proposed_source_reconstruction_repair_before_apply": 1,
+    }
+    assert manifest["semantic_lossless_proven"] is False
+    assert manifest["orientation_only"] is True
+    assert manifest["can_update_kernel_state"] is False
+    assert manifest["can_update_claim_trust"] is False
+    item = manifest["items"][0]
+    assert item["topic"] == "canonical-topic"
+    assert item["active_claim_id"] == "claim-canonical"
+    assert item["latest_review_id"] == review.review_id
+    assert item["source_reconstruction_status"] == "incomplete"
+    assert "reconstruction_path" in item["missing_components"]
+    assert item["repair_status"] == "proposed_repairs"
+    assert item["proposed_repair_count"] == 1
+    assert item["proposed_repair_types"] == ["reconstruction_path_evidence_backfill"]
+    assert item["review_packet_cli"] == (
+        f"aitp-v5 --base {ws.base} legacy source-reconstruction-review "
+        f"--migration-dir {run} --topic canonical-topic"
+    )
+    assert item["apply_cli"] == (
+        f"aitp-v5 --base {ws.base} legacy source-reconstruction-apply "
+        f"--migration-dir {run} --topic canonical-topic "
+        "--repair-type reconstruction_path_evidence_backfill "
+        f"--review-id {review.review_id}"
+    )
+    assert item["can_update_claim_trust"] is False
+
+
 def test_legacy_source_reconstruction_review_packet_carries_legacy_refs(tmp_path):
     from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_review_packet
     from brain.v5.public_surfaces import require_valid_public_surface
@@ -297,6 +347,7 @@ def test_legacy_source_reconstruction_apply_is_idempotent_after_existing_evidenc
 def test_legacy_source_reconstruction_cli_mcp_and_runtime_surface(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.mcp_tools import (
+        aitp_v5_build_legacy_source_reconstruction_manifest,
         aitp_v5_build_legacy_source_reconstruction_plan,
         aitp_v5_build_legacy_source_reconstruction_review_packet,
     )
@@ -327,6 +378,28 @@ def test_legacy_source_reconstruction_cli_mcp_and_runtime_surface(tmp_path, caps
         "cli": "aitp-v5 legacy source-reconstruction-plan <args>",
         "mcp": "aitp_v5_build_legacy_source_reconstruction_plan",
         "surface": "legacy_source_reconstruction_plan",
+    }
+
+    assert main([
+        "--base",
+        str(ws.base),
+        "legacy",
+        "source-reconstruction-manifest",
+        "--migration-dir",
+        str(run),
+    ]) == 0
+    cli_manifest_payload = json.loads(capsys.readouterr().out)
+    mcp_manifest_payload = aitp_v5_build_legacy_source_reconstruction_manifest(
+        str(ws.base),
+        migration_dir=str(run),
+    )
+
+    assert cli_manifest_payload["kind"] == "legacy_source_reconstruction_manifest"
+    assert mcp_manifest_payload["kind"] == "legacy_source_reconstruction_manifest"
+    assert runtime_entrypoints()["legacy_source_reconstruction_manifest"] == {
+        "cli": "aitp-v5 legacy source-reconstruction-manifest <args>",
+        "mcp": "aitp_v5_build_legacy_source_reconstruction_manifest",
+        "surface": "legacy_source_reconstruction_manifest",
     }
 
     assert main([

@@ -39,6 +39,7 @@ _PUBLIC_SURFACE_NAMES = (
     "legacy_runtime_log_marker_audit",
     "legacy_source_metadata_repair_packet",
     "legacy_source_reconstruction_apply",
+    "legacy_source_reconstruction_manifest",
     "legacy_source_reconstruction_plan",
     "legacy_source_reconstruction_review_packet",
     "legacy_semantic_review_manifest",
@@ -121,6 +122,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "legacy_runtime_log_marker_audit": "read-only marker audit over explicitly provided raw runtime logs, separating raw evidence from orientation summaries without changing claim trust",
     "legacy_source_metadata_repair_packet": "read-only packet grouping DOI, citation, and bibliography metadata repair work from legacy semantic-review blockers without changing claim trust",
     "legacy_source_reconstruction_apply": "guarded evidence backfill for reconstruction-path coverage derived from typed legacy semantic reviews without changing claim trust",
+    "legacy_source_reconstruction_manifest": "orientation-only batch triage manifest for legacy source reconstruction repair and review actions without changing claim trust",
     "legacy_source_reconstruction_plan": "read-only plan for reconstruction-path evidence backfills derived from typed legacy semantic reviews",
     "legacy_source_reconstruction_review_packet": "read-only legacy-aware source reconstruction review packet that maps migrated refs onto typed reconstruction components without mutating trust",
     "legacy_semantic_review_manifest": "orientation-only batch manifest listing per-topic semantic review packets, statuses, and result-record commands",
@@ -262,6 +264,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     from brain.v5.legacy_source_metadata_repair_contracts import require_valid_legacy_source_metadata_repair_packet
     from brain.v5.legacy_source_reconstruction_contracts import (
         require_valid_legacy_source_reconstruction_apply,
+        require_valid_legacy_source_reconstruction_manifest,
         require_valid_legacy_source_reconstruction_plan,
         require_valid_legacy_source_reconstruction_review_packet,
     )
@@ -340,6 +343,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "legacy_runtime_log_marker_audit": require_valid_legacy_runtime_log_marker_audit,
         "legacy_source_metadata_repair_packet": require_valid_legacy_source_metadata_repair_packet,
         "legacy_source_reconstruction_apply": require_valid_legacy_source_reconstruction_apply,
+        "legacy_source_reconstruction_manifest": require_valid_legacy_source_reconstruction_manifest,
         "legacy_source_reconstruction_plan": require_valid_legacy_source_reconstruction_plan,
         "legacy_source_reconstruction_review_packet": require_valid_legacy_source_reconstruction_review_packet,
         "legacy_semantic_review_manifest": require_valid_legacy_semantic_review_manifest,
