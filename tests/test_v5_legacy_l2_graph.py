@@ -129,6 +129,55 @@ def test_legacy_l2_graph_manifest_cli_mcp_and_runtime_surface(tmp_path, capsys):
     }
 
 
+def test_legacy_l2_graph_manifest_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+
+    l2 = _write_legacy_l2(tmp_path)
+
+    assert main([
+        "--base",
+        str(tmp_path),
+        "legacy",
+        "l2-graph-manifest",
+        "--legacy-l2-dir",
+        str(l2),
+        "--compact",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "legacy_l2_graph_manifest_progress"
+    assert payload["source_surface"] == "legacy_l2_graph_manifest"
+    assert payload["legacy_l2_dir"] == str(l2)
+    assert payload["typed_migration_status"] == "needs_typed_l2_migration"
+    assert payload["migration_worklist_status"] == "pending_typed_migration"
+    assert payload["counts"] == {
+        "entries": 2,
+        "graph_edges": 1,
+        "graph_nodes": 1,
+        "graph_steps": 1,
+        "graph_towers": 1,
+        "index_files": 3,
+    }
+    assert payload["work_item_count"] == 6
+    assert payload["work_item_counts_by_kind"] == {
+        "entry": 2,
+        "graph_edge": 1,
+        "graph_node": 1,
+        "graph_step": 1,
+        "graph_tower": 1,
+    }
+    assert payload["obsidian_view_maturity_status"] == "core_legacy_views_available"
+    assert payload["core_obsidian_views_available"] is True
+    assert payload["available_obsidian_view_targets"] == ["index.md", "entries/INDEX.md", "graph/index.html"]
+    assert payload["next_action_count"] == 4
+    assert payload["semantic_lossless_proven"] is False
+    assert payload["truth_source"] == "legacy_l2_filesystem"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+
+
 def test_legacy_l2_typed_migration_packet_groups_review_targets(tmp_path):
     from brain.v5.legacy_l2_graph import build_legacy_l2_typed_migration_packet
     from brain.v5.public_surfaces import require_valid_public_surface

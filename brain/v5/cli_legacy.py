@@ -26,6 +26,7 @@ from brain.v5.legacy_source_reconstruction import (
 from brain.v5.cli_legacy_progress import (
     compact_legacy_executable_evidence_packet,
     compact_legacy_human_checkpoint_packet,
+    compact_legacy_l2_graph_manifest,
     compact_legacy_l2_typed_migration_packet,
     compact_legacy_semantic_review_packet,
     compact_legacy_semantic_review_manifest,
@@ -57,6 +58,7 @@ def add_legacy_parser(subparsers) -> None:
     audit.add_argument("--migration-dir", default="")
     l2_graph = legacy_subparsers.add_parser("l2-graph-manifest")
     l2_graph.add_argument("--legacy-l2-dir", default="")
+    l2_graph.add_argument("--compact", "--progress", action="store_true", dest="compact")
     l2_typed = legacy_subparsers.add_parser("l2-typed-migration-packet")
     l2_typed.add_argument("--legacy-l2-dir", default="")
     l2_typed.add_argument("--compact", "--progress", action="store_true", dest="compact")
@@ -160,7 +162,10 @@ def dispatch_legacy_command(args, ws) -> dict:
         return {"ok": True, **require_valid_public_surface("legacy_migration_coverage_audit", audit)}
     if args.legacy_command == "l2-graph-manifest":
         manifest = build_legacy_l2_graph_manifest(ws, legacy_l2_dir=args.legacy_l2_dir)
-        return {"ok": True, **require_valid_public_surface("legacy_l2_graph_manifest", manifest)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_l2_graph_manifest", manifest)}
+        if getattr(args, "compact", False):
+            return compact_legacy_l2_graph_manifest(payload)
+        return payload
     if args.legacy_command == "l2-typed-migration-packet":
         packet = build_legacy_l2_typed_migration_packet(ws, legacy_l2_dir=args.legacy_l2_dir)
         payload = {"ok": True, **require_valid_public_surface("legacy_l2_typed_migration_packet", packet)}
