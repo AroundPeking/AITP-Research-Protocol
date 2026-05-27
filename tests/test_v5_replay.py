@@ -501,9 +501,11 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
         "surface": "legacy_semantic_needs_revision_basis_queue",
         "migration_dir": str(migration),
         "basis_item_count": 1,
+        "basis_status_counts": {"needs_revision_basis_required": 1},
         "status_counts": {"inconclusive": 1},
         "required_action_counts": {
             "record_needs_revision_review_with_specific_repair_basis": 1,
+            "supply_or_review_human_topic_question_before_claim_statement_backfill": 1,
             "keep_semantic_review_blocking_until_typed_review_basis_exists": 1,
         },
         "top_basis_items": [
@@ -512,8 +514,10 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
                 "active_claim_id": "claim-l2",
                 "latest_review_id": review.review_id,
                 "review_status": "inconclusive",
+                "basis_status": "needs_revision_basis_required",
                 "required_actions": [
                     "record_needs_revision_review_with_specific_repair_basis",
+                    "supply_or_review_human_topic_question_before_claim_statement_backfill",
                     "keep_semantic_review_blocking_until_typed_review_basis_exists",
                 ],
                 "needs_revision_result_cli": (

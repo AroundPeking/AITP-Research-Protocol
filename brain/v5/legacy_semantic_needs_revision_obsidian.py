@@ -37,6 +37,7 @@ def write_legacy_semantic_needs_revision_basis_obsidian_view(
             "basis_worklist": str(worklist_path),
         },
         "basis_item_count": queue["basis_item_count"],
+        "basis_status_counts": dict(queue["basis_status_counts"]),
         "status_counts": dict(queue["status_counts"]),
         "required_action_counts": dict(queue["required_action_counts"]),
         "source_records": {
@@ -98,15 +99,16 @@ def _worklist_body(queue: dict[str, Any]) -> str:
         "",
         "## Basis Worklist",
         "",
-        "| Topic | Claim | Latest Review | Required Actions | Basis Packet | Needs-Revision Result | Repair Plan |",
-        "|---|---|---|---|---|---|---|",
+        "| Topic | Claim | Latest Review | Basis Status | Required Actions | Basis Packet | Needs-Revision Result | Repair Plan |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     if not items:
-        lines.append("| None |  |  |  |  |  |  |")
+        lines.append("| None |  |  |  |  |  |  |  |")
     for item in items:
         lines.append(
             f"| `{_cell(item.get('topic'))}` | `{_cell(item.get('active_claim_id'))}` | "
             f"`{_cell(item.get('latest_review_id'))}` | "
+            f"`{_cell(item.get('basis_status'))}` | "
             f"`{_cell(', '.join(item.get('required_actions') or []))}` | "
             f"`{_cell(item.get('basis_packet_cli'))}` | "
             f"`{_cell(item.get('needs_revision_result_cli'))}` | "

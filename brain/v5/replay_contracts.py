@@ -340,6 +340,8 @@ def _validate_legacy_needs_revision_basis_backlog(payload: Any, path: str, resul
     if not isinstance(payload.get("basis_item_count"), int) or payload["basis_item_count"] < 0:
         result.add(f"{path}.basis_item_count", "must be a non-negative integer")
     _require_mapping(payload.get("status_counts"), f"{path}.status_counts", result)
+    if "basis_status_counts" in payload:
+        _require_mapping(payload.get("basis_status_counts"), f"{path}.basis_status_counts", result)
     _require_mapping(payload.get("required_action_counts"), f"{path}.required_action_counts", result)
     _require_list(payload.get("top_basis_items"), f"{path}.top_basis_items", result)
     if isinstance(payload.get("top_basis_items"), list):
@@ -367,6 +369,11 @@ def _validate_legacy_needs_revision_basis_item(payload: Any, path: str, result: 
         "repair_plan_cli",
     ):
         _require_nonempty_str(payload, key, path, result)
+    if "basis_status" in payload and payload.get("basis_status") not in {
+        "needs_revision_basis_required",
+        "human_checkpoint_only",
+    }:
+        result.add(f"{path}.basis_status", "must be needs_revision_basis_required or human_checkpoint_only")
     if payload.get("review_status") != "inconclusive":
         result.add(f"{path}.review_status", "must be inconclusive")
     _require_list(payload.get("required_actions"), f"{path}.required_actions", result)

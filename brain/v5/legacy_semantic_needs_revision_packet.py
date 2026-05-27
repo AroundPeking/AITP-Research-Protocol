@@ -57,7 +57,7 @@ def build_legacy_semantic_needs_revision_basis_packet(
         raise ValueError(f"unknown legacy needs-revision basis topic: {topic_filter}")
     return {
         "kind": "legacy_semantic_needs_revision_basis_packet",
-        "basis_packet_status": "needs_revision_basis_required",
+        "basis_packet_status": str(basis_item.get("basis_status") or "needs_revision_basis_required"),
         "run_id": queue["run_id"],
         "migration_dir": queue["migration_dir"],
         "workspace": queue["workspace"],
@@ -74,13 +74,11 @@ def build_legacy_semantic_needs_revision_basis_packet(
         "review_basis_refs": list(semantic_packet.get("review_basis_refs") or []),
         "review_action_commands": review_actions,
         "likely_repair_basis": _likely_repair_basis(basis_item, review_actions),
-        "needs_revision_result_cli": _needs_revision_result_cli(
+        "needs_revision_result_cli": _packet_needs_revision_result_cli(
             ws,
             migration_dir=queue["migration_dir"],
-            topic=basis_item["topic"],
-            active_claim_id=basis_item["active_claim_id"],
+            basis_item=basis_item,
             review_basis=review_basis,
-            remaining_actions=list(basis_item.get("remaining_actions") or []),
         ),
         "repair_plan": {
             "surface": "legacy_semantic_repair_plan",
@@ -263,6 +261,25 @@ def _needs_revision_result_cli(
     parts.extend(f"--remaining-action {action}" for action in remaining_actions if action)
     parts.append("--summary <specific repair basis and remaining semantic gaps>")
     return " ".join(parts)
+
+
+def _packet_needs_revision_result_cli(
+    ws: WorkspacePaths,
+    *,
+    migration_dir: str,
+    basis_item: dict[str, Any],
+    review_basis: dict[str, list[str]],
+) -> str:
+    if str(basis_item.get("basis_status") or "") == "human_checkpoint_only":
+        return "not_applicable:human_checkpoint_only"
+    return _needs_revision_result_cli(
+        ws,
+        migration_dir=migration_dir,
+        topic=str(basis_item.get("topic") or ""),
+        active_claim_id=str(basis_item.get("active_claim_id") or ""),
+        review_basis=review_basis,
+        remaining_actions=[str(action) for action in basis_item.get("remaining_actions", []) if str(action)],
+    )
 
 
 def _clean_refs(values: Any) -> list[str]:

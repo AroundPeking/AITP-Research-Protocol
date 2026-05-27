@@ -6,16 +6,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
+from brain.v5.legacy_semantic_needs_revision import legacy_semantic_needs_revision_basis_queue_from_worklist
 from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
 from brain.v5.models import HumanCheckpointRecord
 from brain.v5.paths import WorkspacePaths
 from brain.v5.store import list_records
 
 _EXECUTABLE_SURFACES = {"validation_result_record", "tool_run_record"}
-_NEEDS_REVISION_BASIS_ACTIONS = [
-    "record_needs_revision_review_with_specific_repair_basis",
-    "keep_semantic_review_blocking_until_typed_review_basis_exists",
-]
 
 
 @dataclass
@@ -157,16 +154,17 @@ def legacy_needs_revision_basis_summary(context: LegacyBacklogContext) -> dict[s
     worklist = context.worklist()
     if worklist is None:
         return None
-    items = [
-        _needs_revision_basis_item(context.ws, worklist, item)
-        for item in worklist["items"]
-        if item.get("review_status") == "inconclusive"
-    ]
+    queue = legacy_semantic_needs_revision_basis_queue_from_worklist(
+        context.ws,
+        worklist,
+    )
+    items = [item for item in queue["items"] if isinstance(item, dict)]
     return {
         "surface": "legacy_semantic_needs_revision_basis_queue",
-        "migration_dir": worklist["migration_dir"],
+        "migration_dir": queue["migration_dir"],
         "basis_item_count": len(items),
-        "status_counts": _status_counts(items),
+        "basis_status_counts": dict(queue.get("basis_status_counts") or {}),
+        "status_counts": dict(queue.get("status_counts") or {}),
         "required_action_counts": _required_action_counts(items),
         "top_basis_items": [_legacy_needs_revision_basis_item(item) for item in items[:5]],
         "summary_inputs_trusted": False,
@@ -200,7 +198,8 @@ def _needs_revision_basis_item(
         "active_claim_id": str(item.get("active_claim_id") or ""),
         "latest_review_id": str(item.get("latest_review_id") or ""),
         "review_status": str(item.get("review_status") or ""),
-        "required_actions": list(_NEEDS_REVISION_BASIS_ACTIONS),
+        "basis_status": str(item.get("basis_status") or "needs_revision_basis_required"),
+        "required_actions": list(item.get("required_actions") or []),
         "needs_revision_result_cli": (
             f"aitp-v5 --base {ws.base} legacy semantic-review-result "
             f"--migration-dir {worklist['migration_dir']} --topic {topic} "
@@ -226,6 +225,7 @@ def _legacy_needs_revision_basis_item(item: dict[str, Any]) -> dict[str, Any]:
         "active_claim_id": str(item.get("active_claim_id") or ""),
         "latest_review_id": str(item.get("latest_review_id") or ""),
         "review_status": str(item.get("review_status") or ""),
+        "basis_status": str(item.get("basis_status") or "needs_revision_basis_required"),
         "required_actions": list(item.get("required_actions") or []),
         "needs_revision_result_cli": str(item.get("needs_revision_result_cli") or ""),
         "basis_packet_cli": str(item.get("basis_packet_cli") or ""),

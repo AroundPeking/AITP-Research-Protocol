@@ -43,10 +43,11 @@ def validate_legacy_semantic_needs_revision_basis_packet(
     if payload.get("basis_packet_status") not in {
         "needs_revision_basis_required",
         "already_needs_revision",
+        "human_checkpoint_only",
     }:
         result.add(
             f"{path}.basis_packet_status",
-            "must be needs_revision_basis_required or already_needs_revision",
+            "must be needs_revision_basis_required, already_needs_revision, or human_checkpoint_only",
         )
     if payload.get("truth_source") not in {
         "legacy_semantic_needs_revision_basis_queue_and_review_packet",

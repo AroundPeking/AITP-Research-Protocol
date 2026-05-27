@@ -4826,6 +4826,190 @@ def test_legacy_semantic_needs_revision_basis_queue_cli_mcp_runtime_and_compact(
     assert "items" not in compact_payload
 
 
+def test_legacy_semantic_needs_revision_basis_queue_separates_checkpoint_only_items(tmp_path):
+    from brain.v5.legacy_semantic_needs_revision import build_legacy_semantic_needs_revision_basis_queue
+    from brain.v5.legacy_semantic_needs_revision_packet import (
+        build_legacy_semantic_needs_revision_basis_packet,
+    )
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import (
+        ClaimRecord,
+        EvidenceRecord,
+        HumanCheckpointRecord,
+        ObjectRelationRecord,
+        PhysicsObjectRecord,
+        ReferenceLocationRecord,
+        ValidationContractRecord,
+    )
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.source_reconstruction_review import record_source_reconstruction_review_result
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="A migrated claim with source reconstruction and review complete.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Only the human promotion checkpoint remains open.",
+            scope="The migrated claim is scoped to the reviewed legacy source stack.",
+            strongest_failure_mode="Human promotion approval is still required.",
+        ),
+    )
+    write_record(
+        ws.registry_dir("reference_locations") / "reference-canonical.md",
+        ReferenceLocationRecord(
+            location_id="reference-canonical",
+            topic_id="canonical-topic",
+            connector_id="legacy_import",
+            location_type="legacy_archive",
+            uri="legacy_archive:canonical-topic/state.md",
+            label="Canonical legacy archive sample",
+            claim_id="claim-canonical",
+            source_ref="legacy_archive:canonical-topic/state.md",
+        ),
+    )
+    write_record(
+        ws.registry_dir("evidence") / "evidence-canonical-reconstruction.md",
+        EvidenceRecord(
+            evidence_id="evidence-canonical-reconstruction",
+            topic_id="canonical-topic",
+            claim_id="claim-canonical",
+            evidence_type="source_reconstruction",
+            status="supports",
+            summary="Reviewed the reconstruction path from the canonical legacy archive sample.",
+            supports_outputs=["reconstruction_path"],
+            source_refs=["legacy_archive:canonical-topic/state.md"],
+        ),
+    )
+    write_record(
+        ws.registry_dir("physics_objects") / "object-canonical.md",
+        PhysicsObjectRecord(
+            object_id="object-canonical",
+            topic_id="canonical-topic",
+            object_type="legacy_semantic_unit",
+            name="Canonical migrated semantic unit",
+            definition="The source-grounded semantic unit preserved from the canonical legacy topic.",
+            assumptions=["Reviewed only for checkpoint-only queue behavior."],
+            source_refs=["legacy_archive:canonical-topic/state.md"],
+        ),
+    )
+    write_record(
+        ws.registry_dir("object_relations") / "relation-canonical.md",
+        ObjectRelationRecord(
+            relation_id="relation-canonical",
+            topic_id="canonical-topic",
+            relation_type="reconstructs",
+            subject_id="object-canonical",
+            object_id="claim-canonical",
+            claim_id="claim-canonical",
+            statement="The typed semantic unit reconstructs the canonical migrated claim.",
+            source_refs=["legacy_archive:canonical-topic/state.md"],
+        ),
+    )
+    write_record(
+        ws.registry_dir("validation_contracts") / "contract-canonical.md",
+        ValidationContractRecord(
+            contract_id="contract-canonical",
+            topic_id="canonical-topic",
+            claim_id="claim-canonical",
+            required_checks=["human checkpoint before promotion"],
+            failure_modes=["promotion without human approval"],
+            required_evidence_outputs=["source_reconstruction"],
+            status="open",
+        ),
+    )
+    record_source_reconstruction_review_result(
+        ws,
+        claim_id="claim-canonical",
+        status="passed",
+        reviewed_components=[
+            "definitions",
+            "assumptions_or_scope",
+            "source_locations",
+            "dependency_graph",
+            "reconstruction_path",
+            "failure_conditions",
+        ],
+        basis_refs=["legacy-topic:canonical-topic/state.md"],
+        summary="Source reconstruction is complete; only the human promotion checkpoint remains.",
+    )
+    write_record(
+        ws.registry_dir("checkpoints") / "checkpoint-only-approval.md",
+        HumanCheckpointRecord(
+            checkpoint_id="checkpoint-only-approval",
+            topic_id="canonical-topic",
+            claim_id="claim-canonical",
+            reason="legacy semantic review promotion decision",
+            requested_by="legacy_semantic_review",
+            options=["approve_semantic_review", "keep_backlog_blocking"],
+            status="open",
+        ),
+    )
+    record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="Source and semantic content appear preserved; only the human checkpoint remains.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy_archive:canonical-topic/state.md"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["decide_human_checkpoint_before_promotion"],
+    )
+
+    queue = require_valid_public_surface(
+        "legacy_semantic_needs_revision_basis_queue",
+        build_legacy_semantic_needs_revision_basis_queue(ws, migration_dir=run),
+    )
+
+    assert queue["basis_item_count"] == 1
+    assert queue["required_action_counts"] == {
+        "resolve_human_checkpoint_before_promotion": 1,
+        "do_not_record_needs_revision_without_specific_semantic_gap": 1,
+    }
+    item = queue["items"][0]
+    assert item["basis_status"] == "human_checkpoint_only"
+    assert item["required_actions"] == [
+        "resolve_human_checkpoint_before_promotion",
+        "do_not_record_needs_revision_without_specific_semantic_gap",
+    ]
+    assert item["needs_revision_result_cli"] == "not_applicable:human_checkpoint_only"
+    assert item["next_action_ref"] == "human_checkpoint_only:canonical-topic"
+    assert queue["next_actions"] == ["human_checkpoint_only:canonical-topic"]
+
+    packet = require_valid_public_surface(
+        "legacy_semantic_needs_revision_basis_packet",
+        build_legacy_semantic_needs_revision_basis_packet(
+            ws,
+            migration_dir=run,
+            topic="canonical-topic",
+        ),
+    )
+
+    assert packet["basis_packet_status"] == "human_checkpoint_only"
+    assert packet["required_actions"] == [
+        "resolve_human_checkpoint_before_promotion",
+        "do_not_record_needs_revision_without_specific_semantic_gap",
+    ]
+    assert packet["needs_revision_result_cli"] == "not_applicable:human_checkpoint_only"
+    assert packet["likely_repair_basis"] == [
+        {
+            "action": "decide_human_checkpoint_before_promotion",
+            "basis_kind": "human_checkpoint_record",
+            "candidate_command": packet["review_action_commands"][0],
+            "can_update_claim_trust": False,
+        }
+    ]
+    assert packet["can_update_claim_trust"] is False
+
+
 def test_legacy_semantic_needs_revision_basis_packet_collects_review_basis(tmp_path):
     from brain.v5.legacy_semantic_needs_revision_packet import (
         build_legacy_semantic_needs_revision_basis_packet,

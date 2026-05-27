@@ -82,6 +82,7 @@ def compact_legacy_semantic_needs_revision_basis_queue(payload: dict[str, Any]) 
         "migration_dir": str(payload.get("migration_dir") or ""),
         "workspace": str(payload.get("workspace") or ""),
         "basis_item_count": int(payload.get("basis_item_count") or 0),
+        "basis_status_counts": dict(payload.get("basis_status_counts") or {}),
         "status_counts": dict(payload.get("status_counts") or {}),
         "required_action_counts": dict(payload.get("required_action_counts") or {}),
         "next_action_count": len(payload.get("next_actions") or []),
@@ -91,6 +92,11 @@ def compact_legacy_semantic_needs_revision_basis_queue(payload: dict[str, Any]) 
             str(item.get("latest_review_id") or "")
             for item in top_items
             if str(item.get("latest_review_id") or "")
+        ],
+        "top_basis_statuses": [
+            str(item.get("basis_status") or "")
+            for item in top_items
+            if str(item.get("basis_status") or "")
         ],
         "top_required_actions": [
             [str(action) for action in item.get("required_actions", []) if str(action)]

@@ -31,6 +31,7 @@ def validate_legacy_semantic_needs_revision_basis_queue(
         result.add(f"{path}.truth_source", "must be 'legacy_semantic_review_worklist'")
     if not isinstance(payload.get("basis_item_count"), int) or payload["basis_item_count"] < 0:
         result.add(f"{path}.basis_item_count", "must be a non-negative integer")
+    _require_mapping(payload.get("basis_status_counts"), f"{path}.basis_status_counts", result)
     _require_mapping(payload.get("status_counts"), f"{path}.status_counts", result)
     _require_mapping(payload.get("required_action_counts"), f"{path}.required_action_counts", result)
     _require_list(payload.get("items"), f"{path}.items", result)
@@ -66,13 +67,17 @@ def _validate_item(payload: Any, path: str, result: ContractResult) -> None:
         "active_claim_id",
         "latest_review_id",
         "review_status",
+        "basis_status",
         "basis_packet_cli",
         "needs_revision_result_cli",
         "repair_plan_cli",
+        "next_action_ref",
     ):
         _require_nonempty_str(payload, key, path, result)
     if payload.get("review_status") != "inconclusive":
         result.add(f"{path}.review_status", "must be 'inconclusive'")
+    if payload.get("basis_status") not in {"needs_revision_basis_required", "human_checkpoint_only"}:
+        result.add(f"{path}.basis_status", "must be needs_revision_basis_required or human_checkpoint_only")
     for key in ("blocking_classes", "pass_blockers", "remaining_actions", "required_actions"):
         _require_list(payload.get(key), f"{path}.{key}", result)
     _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
