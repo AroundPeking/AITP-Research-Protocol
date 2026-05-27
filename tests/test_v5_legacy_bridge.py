@@ -2523,6 +2523,71 @@ def test_legacy_human_checkpoint_packet_cli_mcp_and_runtime_surface(tmp_path, ca
     }
 
 
+def test_legacy_human_checkpoint_packet_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.checkpoints import request_human_checkpoint
+    from brain.v5.cli import main
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+    import json
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="The human checkpoint packet should have compact progress output.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Human checkpoint required.",
+        ),
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="canonical-topic",
+        claim_id="claim-canonical",
+        reason="legacy semantic review promotion decision",
+        requested_by="legacy_semantic_review",
+        options=["approve_semantic_review", "keep_backlog_blocking"],
+    )
+    record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="A human checkpoint decision remains.",
+        active_claim_id="claim-canonical",
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["decide_human_checkpoint_before_promotion"],
+    )
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "human-checkpoint-packet",
+        "--migration-dir",
+        str(run),
+        "--compact",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "legacy_human_checkpoint_packet_progress"
+    assert payload["source_surface"] == "legacy_human_checkpoint_packet"
+    assert payload["checkpoint_item_count"] == 1
+    assert payload["open_decision_count"] == 1
+    assert payload["pending_request_count"] == 0
+    assert payload["open_checkpoint_refs"] == [f"human_checkpoint:{checkpoint.checkpoint_id}"]
+    assert payload["pending_checkpoint_actions"] == []
+    assert payload["semantic_lossless_proven"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_claim_trust"] is False
+
+
 def test_legacy_semantic_review_worklist_maps_l2_typed_review_actions(tmp_path):
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
     from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist

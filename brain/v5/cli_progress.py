@@ -285,6 +285,58 @@ def compact_legacy_source_reconstruction_review_packet(payload: dict[str, Any]) 
     }
 
 
+def compact_legacy_human_checkpoint_packet(payload: dict[str, Any]) -> dict[str, Any]:
+    checkpoint_items = [
+        item for item in payload.get("checkpoint_items", []) if isinstance(item, dict)
+    ]
+    open_items = [
+        item for item in checkpoint_items if item.get("mode") == "decide_open_checkpoint"
+    ][:5]
+    pending_items = [
+        item for item in checkpoint_items if item.get("mode") == "request_checkpoint"
+    ][:5]
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "legacy_human_checkpoint_packet_progress",
+        "source_surface": "legacy_human_checkpoint_packet",
+        "run_id": str(payload.get("run_id") or ""),
+        "migration_dir": str(payload.get("migration_dir") or ""),
+        "workspace": str(payload.get("workspace") or ""),
+        "topic_filter": str(payload.get("topic_filter") or ""),
+        "checkpoint_item_count": int(payload.get("checkpoint_item_count") or 0),
+        "open_decision_count": int(payload.get("open_decision_count") or 0),
+        "pending_request_count": int(payload.get("pending_request_count") or 0),
+        "open_checkpoint_refs": [
+            f"human_checkpoint:{checkpoint_id}"
+            for checkpoint_id in [str(item.get("checkpoint_id") or "") for item in open_items]
+            if checkpoint_id
+        ],
+        "open_checkpoint_topics": [
+            str(item.get("topic") or "")
+            for item in open_items
+            if str(item.get("topic") or "")
+        ],
+        "pending_checkpoint_actions": [
+            str(item.get("action") or "")
+            for item in pending_items
+            if str(item.get("action") or "")
+        ],
+        "pending_checkpoint_topics": [
+            str(item.get("topic") or "")
+            for item in pending_items
+            if str(item.get("topic") or "")
+        ],
+        "next_action_count": len(payload.get("next_actions") or []),
+        "next_action_refs": _limited_strings(payload.get("next_actions")),
+        "semantic_lossless_proven": bool(payload.get("semantic_lossless_proven", False)),
+        "truth_source": str(payload.get("truth_source") or ""),
+        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
+        "orientation_only": bool(payload.get("orientation_only", True)),
+        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }
+
+
 def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
     backlog = payload.get("content_backlog") if isinstance(payload.get("content_backlog"), dict) else {}
     legacy = backlog.get("legacy_semantic_review") if isinstance(backlog.get("legacy_semantic_review"), dict) else {}

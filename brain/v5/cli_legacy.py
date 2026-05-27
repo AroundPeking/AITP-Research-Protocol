@@ -19,6 +19,7 @@ from brain.v5.legacy_source_reconstruction import (
     build_legacy_source_reconstruction_review_packet,
 )
 from brain.v5.cli_progress import (
+    compact_legacy_human_checkpoint_packet,
     compact_legacy_semantic_review_packet,
     compact_legacy_semantic_review_manifest,
     compact_legacy_semantic_review_worklist,
@@ -91,6 +92,7 @@ def add_legacy_parser(subparsers) -> None:
     human_checkpoint = legacy_subparsers.add_parser("human-checkpoint-packet")
     human_checkpoint.add_argument("--migration-dir", required=True)
     human_checkpoint.add_argument("--topic", default="")
+    human_checkpoint.add_argument("--compact", "--progress", action="store_true", dest="compact")
     source_repair_apply = legacy_subparsers.add_parser("source-reconstruction-apply")
     source_repair_apply.add_argument("--migration-dir", required=True)
     source_repair_apply.add_argument("--topic", required=True)
@@ -209,7 +211,10 @@ def dispatch_legacy_command(args, ws) -> dict:
             migration_dir=args.migration_dir,
             topic=args.topic,
         )
-        return {"ok": True, **require_valid_public_surface("legacy_human_checkpoint_packet", packet)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_human_checkpoint_packet", packet)}
+        if getattr(args, "compact", False):
+            return compact_legacy_human_checkpoint_packet(payload)
+        return payload
     if args.legacy_command == "source-reconstruction-apply":
         result = apply_legacy_source_reconstruction_repair(
             ws,
