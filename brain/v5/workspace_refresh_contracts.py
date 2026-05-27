@@ -39,6 +39,7 @@ def validate_workspace_refresh_bundle(payload: dict[str, Any], *, path: str = "w
             "l2_obsidian_view_bundle",
             "source_reconstruction_obsidian_view_bundle",
             "workspace_interaction_preview_bundle",
+            "interaction_recording_worklist",
         ]
         legacy_expected = [
             *base_expected,
@@ -54,6 +55,7 @@ def validate_workspace_refresh_bundle(payload: dict[str, Any], *, path: str = "w
     _require_mapping(payload.get("l2_obsidian_view"), f"{path}.l2_obsidian_view", result)
     _require_mapping(payload.get("source_reconstruction_obsidian_view"), f"{path}.source_reconstruction_obsidian_view", result)
     _require_mapping(payload.get("workspace_interaction_preview"), f"{path}.workspace_interaction_preview", result)
+    _require_mapping(payload.get("interaction_recording_worklist"), f"{path}.interaction_recording_worklist", result)
     if "legacy_source_reconstruction_obsidian_view" in payload:
         _require_mapping(
             payload.get("legacy_source_reconstruction_obsidian_view"),

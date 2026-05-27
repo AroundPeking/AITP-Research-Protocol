@@ -238,8 +238,10 @@ def _natural_interaction() -> dict[str, Any]:
     return {
         "surface": "interaction_recording_preview",
         "workspace_preview_surface": "workspace_interaction_preview_bundle",
+        "recording_worklist_surface": "interaction_recording_worklist",
         "default_mode": "natural_conversation_with_escalation_at_trust_boundaries",
         "host_refresh_preview_supported": True,
+        "host_refresh_worklist_supported": True,
         "recording_decision_modes": [
             "lightweight_trace",
             "guarded_recording",

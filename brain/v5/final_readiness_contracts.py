@@ -40,9 +40,19 @@ def validate_final_engineering_readiness_audit(
                 f"{path}.kernel_capabilities.natural_interaction.workspace_preview_surface",
                 "must be workspace_interaction_preview_bundle",
             )
+        if natural.get("recording_worklist_surface") != "interaction_recording_worklist":
+            result.add(
+                f"{path}.kernel_capabilities.natural_interaction.recording_worklist_surface",
+                "must be interaction_recording_worklist",
+            )
         if natural.get("host_refresh_preview_supported") is not True:
             result.add(
                 f"{path}.kernel_capabilities.natural_interaction.host_refresh_preview_supported",
+                "must be true",
+            )
+        if natural.get("host_refresh_worklist_supported") is not True:
+            result.add(
+                f"{path}.kernel_capabilities.natural_interaction.host_refresh_worklist_supported",
                 "must be true",
             )
         _require_list(

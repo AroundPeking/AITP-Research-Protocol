@@ -66,6 +66,7 @@ def test_workspace_refresh_writes_summary_replay_and_obsidian_views(tmp_path):
         "l2_obsidian_view_bundle",
         "source_reconstruction_obsidian_view_bundle",
         "workspace_interaction_preview_bundle",
+        "interaction_recording_worklist",
     ]
     assert payload["source_records"]["sessions"] == ["s1"]
     assert payload["source_records"]["claims"] == [claim.claim_id]
@@ -88,6 +89,11 @@ def test_workspace_refresh_writes_summary_replay_and_obsidian_views(tmp_path):
     assert payload["workspace_interaction_preview"]["session_count"] == 1
     assert payload["workspace_interaction_preview"]["decision_mode_counts"] == {"guarded_recording": 1}
     assert payload["workspace_interaction_preview"]["can_update_claim_trust"] is False
+    assert payload["interaction_recording_worklist"]["work_item_count"] == 1
+    assert payload["interaction_recording_worklist"]["items"][0]["action_kind"] == (
+        "record_sensemaking_then_evidence_before_trust"
+    )
+    assert payload["interaction_recording_worklist"]["can_update_kernel_state"] is False
     assert require_valid_public_surface("workspace_refresh_bundle", payload) == payload
 
 
@@ -160,6 +166,7 @@ def test_workspace_refresh_can_include_legacy_semantic_backlog_in_replay(tmp_pat
         "l2_obsidian_view_bundle",
         "source_reconstruction_obsidian_view_bundle",
         "workspace_interaction_preview_bundle",
+        "interaction_recording_worklist",
         "legacy_source_reconstruction_obsidian_view_bundle",
         "legacy_semantic_review_obsidian_view_bundle",
         "legacy_human_checkpoint_obsidian_view_bundle",
@@ -176,6 +183,7 @@ def test_workspace_refresh_can_include_legacy_semantic_backlog_in_replay(tmp_pat
         "Legacy Human Checkpoints.md"
     )
     assert payload["workspace_interaction_preview"]["session_count"] == 1
+    assert payload["interaction_recording_worklist"]["work_item_count"] == 1
     assert legacy["surface"] == "legacy_semantic_review_manifest"
     assert legacy["review_item_count"] == 1
     assert legacy["semantic_lossless_proven"] is False
@@ -198,6 +206,8 @@ def test_workspace_refresh_cli_mcp_and_runtime(tmp_path, capsys):
     assert mcp_payload["kind"] == "workspace_refresh_bundle"
     assert cli_payload["workspace_interaction_preview"]["session_count"] == 1
     assert mcp_payload["workspace_interaction_preview"]["decision_mode_counts"] == {"guarded_recording": 1}
+    assert cli_payload["interaction_recording_worklist"]["work_item_count"] == 1
+    assert mcp_payload["interaction_recording_worklist"]["can_update_claim_trust"] is False
     assert runtime_entrypoints()["workspace_refresh"] == {
         "cli": "aitp-v5 summary refresh",
         "mcp": "aitp_v5_refresh_workspace_views",
@@ -215,13 +225,14 @@ def test_workspace_refresh_cli_compact_progress(tmp_path, capsys):
 
     assert cli_payload["kind"] == "workspace_refresh_progress"
     assert cli_payload["source_surface"] == "workspace_refresh_bundle"
-    assert cli_payload["refreshed_surface_count"] == 5
+    assert cli_payload["refreshed_surface_count"] == 6
     assert cli_payload["refreshed_surfaces"] == [
         "workspace_summary_bundle",
         "workspace_replay_packet",
         "l2_obsidian_view_bundle",
         "source_reconstruction_obsidian_view_bundle",
         "workspace_interaction_preview_bundle",
+        "interaction_recording_worklist",
     ]
     assert cli_payload["workspace_summary"] == {
         "session_count": 1,
@@ -232,6 +243,11 @@ def test_workspace_refresh_cli_compact_progress(tmp_path, capsys):
     assert cli_payload["workspace_replay"]["attention_count"] == 1
     assert cli_payload["workspace_interaction_preview"] == {
         "session_count": 1,
+        "decision_mode_counts": {"guarded_recording": 1},
+    }
+    assert cli_payload["interaction_recording_worklist"] == {
+        "work_item_count": 1,
+        "required_now_count": 0,
         "decision_mode_counts": {"guarded_recording": 1},
     }
     assert cli_payload["source_reconstruction"]["incomplete_claim_count"] == 1
@@ -328,6 +344,8 @@ def test_workspace_refresh_cli_mcp_accept_migration_dir(tmp_path, capsys):
     assert mcp_payload["legacy_source_reconstruction_obsidian_view"]["derived_from"] == "legacy_source_reconstruction_manifest"
     assert cli_payload["workspace_interaction_preview"]["session_count"] == 1
     assert mcp_payload["workspace_interaction_preview"]["can_update_kernel_state"] is False
+    assert cli_payload["interaction_recording_worklist"]["work_item_count"] == 1
+    assert mcp_payload["interaction_recording_worklist"]["can_update_claim_trust"] is False
     assert cli_payload["can_update_claim_trust"] is False
     assert mcp_payload["can_update_kernel_state"] is False
 
@@ -402,7 +420,7 @@ def test_workspace_refresh_cli_compact_progress_accepts_migration_dir(tmp_path, 
     ]) == 0
     cli_payload = json.loads(capsys.readouterr().out)
 
-    assert cli_payload["refreshed_surface_count"] == 8
+    assert cli_payload["refreshed_surface_count"] == 9
     assert cli_payload["legacy_source_reconstruction"] == {
         "work_item_count": 1,
         "repair_status_counts": {

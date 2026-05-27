@@ -28,6 +28,11 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
         if isinstance(payload.get("workspace_interaction_preview"), dict)
         else {}
     )
+    interaction_worklist = (
+        payload.get("interaction_recording_worklist")
+        if isinstance(payload.get("interaction_recording_worklist"), dict)
+        else {}
+    )
     legacy = (
         payload.get("legacy_semantic_review_obsidian_view")
         if isinstance(payload.get("legacy_semantic_review_obsidian_view"), dict)
@@ -81,6 +86,11 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
         "workspace_interaction_preview": {
             "session_count": int(interaction.get("session_count") or 0),
             "decision_mode_counts": dict(interaction.get("decision_mode_counts") or {}),
+        },
+        "interaction_recording_worklist": {
+            "work_item_count": int(interaction_worklist.get("work_item_count") or 0),
+            "required_now_count": int(interaction_worklist.get("required_now_count") or 0),
+            "decision_mode_counts": dict(interaction_worklist.get("decision_mode_counts") or {}),
         },
         "truth_source": str(payload.get("truth_source") or ""),
         "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
