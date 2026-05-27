@@ -356,6 +356,7 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
 
     assert require_valid_public_surface("workspace_replay_packet", {"ok": True, **payload})["ok"] is True
     legacy = packet.workspace_backlog_summary["legacy_semantic_review"]
+    legacy_source = packet.workspace_backlog_summary["legacy_source_reconstruction"]
     assert legacy == {
         "surface": "legacy_semantic_review_manifest",
         "migration_dir": str(migration),
@@ -403,8 +404,51 @@ def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+    assert legacy_source == {
+        "surface": "legacy_source_reconstruction_manifest",
+        "migration_dir": str(migration),
+        "work_item_count": 1,
+        "repair_status_counts": {
+            "awaiting_needs_revision_review": 1,
+            "no_repair_candidates": 0,
+            "proposed_repairs": 0,
+        },
+        "proposed_repair_count": 0,
+        "top_backlog_items": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "latest_review_id": review.review_id,
+                "repair_status": "awaiting_needs_revision_review",
+                "missing_components": [
+                    "definitions",
+                    "assumptions_or_scope",
+                    "source_locations",
+                    "dependency_graph",
+                    "reconstruction_path",
+                    "failure_conditions",
+                ],
+                "required_actions": [
+                    "inspect_legacy_refs_for_source_reconstruction_components",
+                    "record_source_reconstruction_review_result",
+                    "record_needs_revision_review_with_specific_source_reconstruction_basis",
+                ],
+                "review_packet_cli": (
+                    f"aitp-v5 --base {ws.base} legacy source-reconstruction-review "
+                    f"--migration-dir {migration} --topic legacy-l2"
+                ),
+                "can_update_claim_trust": False,
+            }
+        ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
     _, body = read_md(packet.files["replay_packet"])
     assert "Legacy Semantic Review Backlog" in body
+    assert "Legacy Source Reconstruction Backlog" in body
+    assert "Source reconstruction items: 1" in body
     assert "Open human checkpoints: 1" in body
     assert checkpoint.checkpoint_id in body
     assert "semantic lossless proven: False" in body
@@ -506,6 +550,8 @@ def test_workspace_replay_packet_cli_mcp_accept_migration_dir(tmp_path, capsys):
 
     assert cli_payload["kind"] == "workspace_replay_packet"
     assert cli_payload["workspace_backlog_summary"]["legacy_semantic_review"]["review_item_count"] == 1
+    assert cli_payload["workspace_backlog_summary"]["legacy_source_reconstruction"]["work_item_count"] == 1
     assert mcp_payload["workspace_backlog_summary"]["legacy_semantic_review"]["migration_dir"] == str(migration)
+    assert mcp_payload["workspace_backlog_summary"]["legacy_source_reconstruction"]["surface"] == "legacy_source_reconstruction_manifest"
     assert cli_payload["can_update_claim_trust"] is False
     assert mcp_payload["can_update_kernel_state"] is False

@@ -11,6 +11,7 @@ from brain.v5.evidence import required_output_coverage
 from brain.v5.flow import resolve_flow_profile
 from brain.v5.legacy_semantic_review_manifest import build_legacy_semantic_review_manifest
 from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+from brain.v5.legacy_source_reconstruction import build_legacy_source_reconstruction_manifest
 from brain.v5.markdown import write_md
 from brain.v5.memory_index import MemoryEntrySummary, scan_memory_entry_summaries
 from brain.v5.models import ClaimRecord, CodeStateRecord, EvidenceRecord, SessionBinding, SourceReconstructionReviewResultRecord
@@ -66,6 +67,7 @@ def write_workspace_replay_packet(
     workspace_backlog_summary = _workspace_backlog_summary(
         entries,
         legacy_semantic_review=_legacy_semantic_review_summary(ws, migration_dir),
+        legacy_source_reconstruction=_legacy_source_reconstruction_summary(ws, migration_dir),
     )
     source_records = {
         "sessions": [entry["session_id"] for entry in entries],
@@ -225,6 +227,23 @@ def _body(entries: list[dict[str, Any]], workspace_backlog_summary: dict[str, An
                 f"review via `{item['packet_cli']}`"
             )
         lines.append("")
+    legacy_source = workspace_backlog_summary.get("legacy_source_reconstruction")
+    if isinstance(legacy_source, dict):
+        lines.extend([
+            "## Legacy Source Reconstruction Backlog",
+            "",
+            f"- Migration dir: `{legacy_source['migration_dir']}`",
+            f"- Source reconstruction items: {legacy_source['work_item_count']}",
+            f"- Repair status: `{legacy_source['repair_status_counts']}`",
+            f"- Proposed repairs: {legacy_source['proposed_repair_count']}",
+            "",
+        ])
+        for item in legacy_source["top_backlog_items"]:
+            lines.append(
+                f"- `{item['topic']}`: {item['repair_status']}; missing "
+                f"{', '.join(item['missing_components']) or 'none'}; review via `{item['review_packet_cli']}`"
+            )
+        lines.append("")
     if not entries:
         lines.append("- No active session bindings are recorded.")
         return "\n".join(lines) + "\n"
@@ -248,6 +267,7 @@ def _workspace_backlog_summary(
     entries: list[dict[str, Any]],
     *,
     legacy_semantic_review: dict[str, Any] | None = None,
+    legacy_source_reconstruction: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     complete_entries = [entry for entry in entries if entry["claim_id"] and entry["source_reconstruction_complete"]]
     incomplete_entries = [
@@ -279,6 +299,8 @@ def _workspace_backlog_summary(
     }
     if legacy_semantic_review is not None:
         summary["legacy_semantic_review"] = legacy_semantic_review
+    if legacy_source_reconstruction is not None:
+        summary["legacy_source_reconstruction"] = legacy_source_reconstruction
     return summary
 
 
@@ -304,6 +326,37 @@ def _legacy_semantic_review_summary(ws: WorkspacePaths, migration_dir: str | Non
         "summary_inputs_trusted": False,
         "orientation_only": True,
         "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def _legacy_source_reconstruction_summary(ws: WorkspacePaths, migration_dir: str | None) -> dict[str, Any] | None:
+    if not migration_dir:
+        return None
+    manifest = build_legacy_source_reconstruction_manifest(ws, migration_dir=migration_dir)
+    return {
+        "surface": "legacy_source_reconstruction_manifest",
+        "migration_dir": manifest["migration_dir"],
+        "work_item_count": manifest["work_item_count"],
+        "repair_status_counts": dict(manifest["repair_status_counts"]),
+        "proposed_repair_count": int(manifest["proposed_repair_count"]),
+        "top_backlog_items": [_legacy_source_backlog_item(item) for item in manifest["items"][:5]],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def _legacy_source_backlog_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "topic": str(item.get("topic") or ""),
+        "active_claim_id": str(item.get("active_claim_id") or ""),
+        "latest_review_id": str(item.get("latest_review_id") or ""),
+        "repair_status": str(item.get("repair_status") or ""),
+        "missing_components": list(item.get("missing_components") or []),
+        "required_actions": list(item.get("required_actions") or []),
+        "review_packet_cli": str(item.get("review_packet_cli") or ""),
         "can_update_claim_trust": False,
     }
 
