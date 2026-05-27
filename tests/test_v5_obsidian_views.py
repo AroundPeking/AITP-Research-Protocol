@@ -142,6 +142,81 @@ def test_l2_obsidian_view_writes_orientation_only_memory_notes(tmp_path):
     assert "Use typed AITP records for trust updates" in entry
 
 
+def test_l2_obsidian_view_includes_global_typed_graph_without_active_entries(tmp_path):
+    from brain.v5.markdown import read_md
+    from brain.v5.physics_objects import record_object_relation, record_physics_object
+    from brain.v5.sensemaking import record_sensemaking_report
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+    from brain.v5.obsidian_views import write_l2_obsidian_view
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "ising", context_id="stat-mech", title="Ising Model")
+    claim = create_claim(
+        ws,
+        topic_id="ising",
+        statement="The typed graph can be reviewed before a claim is promoted into L2 memory.",
+        evidence_profile="mixed",
+        confidence_state="hypothesis",
+        active_uncertainty="graph review",
+    )
+    hamiltonian = record_physics_object(
+        ws,
+        topic_id="ising",
+        object_type="model",
+        name="Ising Hamiltonian",
+        definition="A spin model with nearest-neighbor coupling.",
+    )
+    order_parameter = record_physics_object(
+        ws,
+        topic_id="ising",
+        object_type="observable",
+        name="magnetization",
+        definition="The order parameter for spin alignment.",
+    )
+    relation = record_object_relation(
+        ws,
+        topic_id="ising",
+        relation_type="has_observable",
+        subject_id=hamiltonian.object_id,
+        object_id=order_parameter.object_id,
+        statement="The Ising Hamiltonian has magnetization as an observable.",
+        claim_id=claim.claim_id,
+    )
+    report = record_sensemaking_report(
+        ws,
+        topic_id="ising",
+        claim_id=claim.claim_id,
+        title="Typed graph review before L2 promotion",
+        summary="The graph exists as typed orientation material before any active memory entry.",
+        object_ids=[hamiltonian.object_id, order_parameter.object_id],
+        relation_ids=[relation.relation_id],
+    )
+
+    payload = write_l2_obsidian_view(ws)
+
+    assert payload["memory_entry_count"] == 0
+    assert payload["physics_object_count"] == 2
+    assert payload["object_relation_count"] == 1
+    assert payload["sensemaking_report_count"] == 1
+    assert payload["source_records"]["memory_entries"] == []
+    assert payload["source_records"]["claims"] == [claim.claim_id]
+    assert payload["source_records"]["physics_objects"] == [hamiltonian.object_id, order_parameter.object_id]
+    assert payload["source_records"]["object_relations"] == [relation.relation_id]
+    assert payload["source_records"]["sensemaking_reports"] == [report.report_id]
+    assert payload["truth_source"] is False
+    assert payload["can_update_claim_trust"] is False
+
+    _overview_fm, overview = read_md(payload["files"]["overview"])
+    _graph_fm, graph = read_md(payload["files"]["graph"])
+    assert "No active L2 memory entries." in overview
+    assert "Physics objects: 2" in overview
+    assert "Object relations: 1" in overview
+    assert "Sensemaking reports: 1" in overview
+    assert hamiltonian.name in graph
+    assert relation.statement in graph
+    assert report.title in graph
+
+
 def test_l2_obsidian_view_cli_mcp_and_runtime(tmp_path, capsys):
     from brain.v5.cli import main
     from brain.v5.mcp_tools import aitp_v5_write_l2_obsidian_view

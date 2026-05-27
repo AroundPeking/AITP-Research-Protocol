@@ -32,7 +32,7 @@ def write_l2_obsidian_view(
     entries = _active_memory_entries(ws, claim_ids=claim_ids)
     claims = {claim.claim_id: claim for claim in list_records(ws.registry_dir("claims"), ClaimRecord)}
     evidence = {record.evidence_id: record for record in list_records(ws.registry_dir("evidence"), EvidenceRecord)}
-    graph = _graph_context(ws, entries)
+    graph = _graph_context(ws, entries, claim_ids=claim_ids)
     entry_files = []
     for entry in entries:
         path = entries_dir / f"{_slug(entry.entry_id)}.md"
@@ -57,7 +57,7 @@ def write_l2_obsidian_view(
         "sensemaking_report_count": len(graph["reports"]),
         "source_records": {
             "memory_entries": [entry.entry_id for entry in entries],
-            "claims": _unique([entry.source_claim_id for entry in entries]),
+            "claims": _unique([entry.source_claim_id for entry in entries] + graph["claim_ids"]),
             "evidence": _unique([evidence_id for entry in entries for evidence_id in entry.evidence_refs]),
             "validation_results": _unique([result_id for entry in entries for result_id in entry.validation_result_ids]),
             "physics_objects": [obj.object_id for obj in graph["objects"]],
@@ -108,13 +108,13 @@ def _overview_body(
         "This Obsidian view is generated from typed AITP records. Use typed AITP records for trust updates.",
         "",
     ]
-    if not entries:
+    if entries:
+        for entry in entries:
+            claim = claims.get(entry.source_claim_id)
+            statement = claim.statement if claim else entry.statement
+            lines.append(f"- [[{_slug(entry.entry_id)}|{entry.entry_id}]]: {statement}")
+    else:
         lines.append("- No active L2 memory entries.")
-        return "\n".join(lines) + "\n"
-    for entry in entries:
-        claim = claims.get(entry.source_claim_id)
-        statement = claim.statement if claim else entry.statement
-        lines.append(f"- [[{_slug(entry.entry_id)}|{entry.entry_id}]]: {statement}")
     lines.extend([
         "",
         "## Typed Graph",
@@ -190,35 +190,85 @@ def _entry_body(
     return "\n".join(lines) + "\n"
 
 
-def _graph_context(ws: WorkspacePaths, entries: list[MemoryEntryRecord]) -> dict[str, list]:
-    claim_ids = {entry.source_claim_id for entry in entries if entry.source_claim_id}
-    topic_ids = {entry.topic_id for entry in entries if entry.topic_id}
-    objects = [
-        obj
-        for obj in list_records(ws.registry_dir("physics_objects"), PhysicsObjectRecord)
-        if obj.topic_id in topic_ids and obj.status == "active"
-    ]
+def _graph_context(
+    ws: WorkspacePaths,
+    entries: list[MemoryEntryRecord],
+    *,
+    claim_ids: list[str] | None = None,
+) -> dict[str, list]:
+    entry_claim_ids = _unique([entry.source_claim_id for entry in entries if entry.source_claim_id])
+    requested_claim_ids = _unique(claim_ids or [])
+    scoped_claim_ids = set(entry_claim_ids) | set(requested_claim_ids)
+    claims_by_id = {
+        claim.claim_id: claim
+        for claim in list_records(ws.registry_dir("claims"), ClaimRecord)
+    }
+    scoped_topic_ids = {entry.topic_id for entry in entries if entry.topic_id}
+    scoped_topic_ids.update(
+        claim.topic_id
+        for claim_id, claim in claims_by_id.items()
+        if claim_id in scoped_claim_ids and claim.topic_id
+    )
+    all_objects = list_records(ws.registry_dir("physics_objects"), PhysicsObjectRecord)
+    all_relations = list_records(ws.registry_dir("object_relations"), ObjectRelationRecord)
+    all_reports = list_records(ws.registry_dir("sensemaking_reports"), SensemakingReportRecord)
+
+    if scoped_claim_ids or scoped_topic_ids:
+        objects = [
+            obj
+            for obj in all_objects
+            if obj.topic_id in scoped_topic_ids and obj.status == "active"
+        ]
+    else:
+        objects = [
+            obj
+            for obj in all_objects
+            if obj.status == "active"
+        ]
     object_ids = {obj.object_id for obj in objects}
-    relations = [
-        relation
-        for relation in list_records(ws.registry_dir("object_relations"), ObjectRelationRecord)
-        if relation.claim_id in claim_ids
-        or relation.topic_id in topic_ids
-        or relation.subject_id in object_ids
-        or relation.object_id in object_ids
-    ]
+
+    if scoped_claim_ids or scoped_topic_ids:
+        relations = [
+            relation
+            for relation in all_relations
+            if relation.claim_id in scoped_claim_ids
+            or relation.topic_id in scoped_topic_ids
+            or relation.subject_id in object_ids
+            or relation.object_id in object_ids
+        ]
+    else:
+        relations = [relation for relation in all_relations if relation.status != "archived"]
     relation_ids = {relation.relation_id for relation in relations}
-    reports = [
-        report
-        for report in list_records(ws.registry_dir("sensemaking_reports"), SensemakingReportRecord)
-        if report.claim_id in claim_ids
-        or report.topic_id in topic_ids
-        or any(object_id in object_ids for object_id in report.object_ids)
-        or any(relation_id in relation_ids for relation_id in report.relation_ids)
-    ]
+
+    if scoped_claim_ids or scoped_topic_ids:
+        reports = [
+            report
+            for report in all_reports
+            if report.claim_id in scoped_claim_ids
+            or report.topic_id in scoped_topic_ids
+            or any(object_id in object_ids for object_id in report.object_ids)
+            or any(relation_id in relation_ids for relation_id in report.relation_ids)
+        ]
+    else:
+        reports = all_reports
     return {
-        "claim_ids": list(claim_ids),
-        "topic_ids": list(topic_ids),
+        "claim_ids": _unique(
+            entry_claim_ids
+            + requested_claim_ids
+            + [relation.claim_id for relation in relations if relation.claim_id]
+            + [report.claim_id for report in reports if report.claim_id]
+        ),
+        "topic_ids": _unique(
+            [entry.topic_id for entry in entries if entry.topic_id]
+            + [
+                claim.topic_id
+                for claim_id, claim in claims_by_id.items()
+                if claim_id in scoped_claim_ids and claim.topic_id
+            ]
+            + [obj.topic_id for obj in objects if obj.topic_id]
+            + [relation.topic_id for relation in relations if relation.topic_id]
+            + [report.topic_id for report in reports if report.topic_id]
+        ),
         "objects": objects,
         "relations": relations,
         "reports": reports,
