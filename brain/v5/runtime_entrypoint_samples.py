@@ -128,6 +128,23 @@ def sample_args_for_template(template: str) -> list[str]:
             "--answered-by",
             "human",
         ]
+    if template.startswith("strategy memory record"):
+        return [
+            "--topic",
+            "fqhe",
+            "--run",
+            "run-fqhe-strategy",
+            "--type",
+            "verification_guardrail",
+            "--outcome",
+            "helped",
+            "--lesson",
+            "Keep finite-size diagnostics separate from promoted claims.",
+            "--next-time-rule",
+            "Do not promote without a validation result and checkpoint.",
+            "--scope",
+            "finite-size evidence review",
+        ]
     if template.startswith("trace hook-event persist"):
         return ["--payload-json", '{"kind":"hook_trace_event","hook_name":"post_tool","event":{"event_id":"event-1","session_id":"s1","topic_id":"fqhe","event_type":"tool_run_recorded","risk_level":"guided","payload":{},"kind":"trace_event"},"exit_code":0,"summary_inputs_trusted":false}']
     if template.startswith("legacy migrate"):

@@ -97,6 +97,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_answer_operator_checkpoint",
         "surface": "operator_checkpoint_record",
     },
+    "record_strategy_memory": {
+        "cli": "aitp-v5 strategy memory record <args>",
+        "mcp": "aitp_v5_record_strategy_memory",
+        "surface": "strategy_memory_record",
+    },
     "record_research_intent_packet": {
         "cli": "aitp-v5 intent packet record <args>",
         "mcp": "aitp_v5_record_research_intent_packet",

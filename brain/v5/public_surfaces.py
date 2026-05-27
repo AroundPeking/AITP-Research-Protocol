@@ -87,6 +87,7 @@ _PUBLIC_SURFACE_NAMES = (
     "source_reconstruction_review_packet",
     "source_reconstruction_review_result_record",
     "steering_decision_record",
+    "strategy_memory_record",
     "summary_orientation",
     "tool_executor_catalog",
     "tool_recipe_record",
@@ -184,6 +185,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "source_reconstruction_review_packet": "read-only packet guiding human typed-record backfill for source reconstruction gaps without mutating kernel state or claim trust",
     "source_reconstruction_review_result_record": "contracted typed result preserving the basis for source reconstruction component review without changing claim trust",
     "steering_decision_record": "contracted durable steering redirect record that cannot update claim trust",
+    "strategy_memory_record": "contracted run-local workflow lesson for future topic continuation; non-promotional and not claim evidence",
     "summary_orientation": "read-only summary view with explicit truth-source protections",
     "tool_executor_catalog": "contracted catalog of safe built-in tool executors and input schemas",
     "tool_recipe_record": "contracted reusable tool recipe record with inputs, outputs, and invariants",
@@ -286,6 +288,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     )
     from brain.v5.output_stability_contracts import require_valid_final_output_profile
     from brain.v5.operator_checkpoint_contracts import require_valid_operator_checkpoint_record
+    from brain.v5.strategy_memory_contracts import require_valid_strategy_memory_record
     from brain.v5.legacy_contracts import require_valid_legacy_migration_result
     from brain.v5.legacy_executable_evidence_contracts import require_valid_legacy_executable_evidence_packet
     from brain.v5.legacy_human_checkpoint_obsidian_contracts import require_valid_legacy_human_checkpoint_obsidian_view_bundle
@@ -439,6 +442,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "source_reconstruction_review_packet": require_valid_source_reconstruction_review_packet,
         "source_reconstruction_review_result_record": require_valid_source_reconstruction_review_result_record,
         "steering_decision_record": require_valid_steering_decision_record,
+        "strategy_memory_record": require_valid_strategy_memory_record,
         "summary_orientation": require_valid_summary_orientation,
         "tool_executor_catalog": require_valid_tool_executor_catalog,
         "tool_recipe_record": require_valid_tool_recipe_record,

@@ -87,6 +87,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "source_reconstruction_review_packet",
         "source_reconstruction_review_result_record",
         "steering_decision_record",
+        "strategy_memory_record",
         "summary_orientation",
         "tool_executor_catalog",
         "tool_recipe_record",

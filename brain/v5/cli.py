@@ -25,6 +25,7 @@ from brain.v5.cli_output_stability import add_output_parser, dispatch_output_com
 from brain.v5.cli_research_intent import add_intent_parser, dispatch_intent_command
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.cli_policy import add_policy_parser, dispatch_policy_command
+from brain.v5.cli_strategy_memory import add_strategy_parser, dispatch_strategy_command
 from brain.v5.cli_validation import add_validation_parser, dispatch_validation_command
 from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.physics_objects import record_object_relation, record_physics_object
@@ -163,6 +164,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_operator_parser(sp)
     add_intent_parser(sp)
     add_output_parser(sp)
+    add_strategy_parser(sp)
 
     add_summary_parser(sp)
     add_source_parser(sp)
@@ -341,6 +343,8 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return dispatch_intent_command(args, ws)
     if args.command == "output":
         return dispatch_output_command(args, ws)
+    if args.command == "strategy":
+        return dispatch_strategy_command(args, ws)
 
     if args.command == "summary":
         return dispatch_summary_command(args, ws)
