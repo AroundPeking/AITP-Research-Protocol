@@ -120,6 +120,7 @@ def compact_legacy_semantic_needs_revision_basis_packet(payload: dict[str, Any])
         "active_claim_id": str(payload.get("active_claim_id") or ""),
         "latest_review_id": str(payload.get("latest_review_id") or ""),
         "review_status": str(payload.get("review_status") or ""),
+        "basis_packet_status": str(payload.get("basis_packet_status") or ""),
         "required_actions": [str(action) for action in payload.get("required_actions", []) if str(action)],
         "likely_repair_basis_count": len(likely),
         "likely_repair_basis_actions": [

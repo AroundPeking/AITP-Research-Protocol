@@ -22,7 +22,6 @@ def build_legacy_semantic_needs_revision_basis_packet(
 
     topic_filter = topic.strip()
     queue = build_legacy_semantic_needs_revision_basis_queue(ws, migration_dir=migration_dir)
-    basis_item = _topic_item(queue["items"], topic_filter)
     worklist = build_legacy_semantic_review_worklist(ws, migration_dir=migration_dir)
     work_item = _topic_item(worklist["items"], topic_filter)
     semantic_packet = build_legacy_semantic_review_packet(
@@ -35,6 +34,7 @@ def build_legacy_semantic_needs_revision_basis_packet(
         if isinstance(semantic_packet.get("latest_semantic_review"), dict)
         else {}
     )
+    basis_item = _optional_topic_item(queue["items"], topic_filter)
     review_actions = [
         dict(command)
         for command in work_item.get("review_action_commands", [])
@@ -42,8 +42,22 @@ def build_legacy_semantic_needs_revision_basis_packet(
     ]
     repair_plan = build_legacy_semantic_repair_plan(ws, migration_dir=migration_dir, topic=topic_filter)
     review_basis = _review_basis(latest_review, work_item)
+    if basis_item is None:
+        if str(work_item.get("review_status") or "") == "needs_revision":
+            return _already_needs_revision_packet(
+                ws,
+                queue=queue,
+                work_item=work_item,
+                semantic_packet=semantic_packet,
+                latest_review=latest_review,
+                review_actions=review_actions,
+                repair_plan=repair_plan,
+                review_basis=review_basis,
+            )
+        raise ValueError(f"unknown legacy needs-revision basis topic: {topic_filter}")
     return {
         "kind": "legacy_semantic_needs_revision_basis_packet",
+        "basis_packet_status": "needs_revision_basis_required",
         "run_id": queue["run_id"],
         "migration_dir": queue["migration_dir"],
         "workspace": queue["workspace"],
@@ -85,6 +99,76 @@ def build_legacy_semantic_needs_revision_basis_packet(
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+
+
+def _already_needs_revision_packet(
+    ws: WorkspacePaths,
+    *,
+    queue: dict[str, Any],
+    work_item: dict[str, Any],
+    semantic_packet: dict[str, Any],
+    latest_review: dict[str, Any],
+    review_actions: list[dict[str, Any]],
+    repair_plan: dict[str, Any],
+    review_basis: dict[str, list[str]],
+) -> dict[str, Any]:
+    remaining_actions = _remaining_actions(work_item) or _clean_refs(latest_review.get("remaining_actions", []))
+    latest_review_id = str(latest_review.get("review_id") or work_item.get("latest_review_id") or "")
+    topic = str(work_item.get("topic") or "")
+    return {
+        "kind": "legacy_semantic_needs_revision_basis_packet",
+        "basis_packet_status": "already_needs_revision",
+        "run_id": queue["run_id"],
+        "migration_dir": queue["migration_dir"],
+        "workspace": queue["workspace"],
+        "topic": topic,
+        "active_claim_id": str(work_item.get("active_claim_id") or ""),
+        "latest_review_id": latest_review_id,
+        "review_status": "needs_revision",
+        "blocking_classes": list(work_item.get("blocking_classes") or []),
+        "pass_blockers": list(_pass_readiness(work_item).get("blockers") or []),
+        "remaining_actions": remaining_actions,
+        "required_actions": [
+            "do_not_record_duplicate_needs_revision_basis",
+            "use_legacy_semantic_repair_plan_or_executable_evidence_packet",
+            "keep_semantic_review_blocking_until_remaining_actions_are_resolved",
+        ],
+        "review_basis": review_basis,
+        "legacy_review_refs": list(semantic_packet.get("legacy_review_refs") or []),
+        "review_basis_refs": list(semantic_packet.get("review_basis_refs") or []),
+        "review_action_commands": review_actions,
+        "likely_repair_basis": _likely_repair_basis(
+            {**work_item, "remaining_actions": remaining_actions},
+            review_actions,
+        ),
+        "needs_revision_result_cli": f"already_recorded:{latest_review_id}",
+        "repair_plan": {
+            "surface": "legacy_semantic_repair_plan",
+            "repair_status": str(repair_plan.get("repair_status") or ""),
+            "proposed_repair_count": len(repair_plan.get("proposed_repairs") or []),
+            "required_actions": list(repair_plan.get("required_actions") or []),
+            "cli": (
+                f"aitp-v5 --base {ws.base} legacy semantic-repair-plan "
+                f"--migration-dir {queue['migration_dir']} --topic {topic}"
+            ),
+            "mcp": "aitp_v5_build_legacy_semantic_repair_plan",
+            "can_update_claim_trust": False,
+        },
+        "semantic_lossless_proven": False,
+        "semantic_review_required": True,
+        "truth_source": "legacy_semantic_review_worklist_and_review_packet",
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+
+def _optional_topic_item(items: list[dict[str, Any]], topic: str) -> dict[str, Any] | None:
+    for item in items:
+        if item.get("topic") == topic:
+            return item
+    return None
 
 
 def _topic_item(items: list[dict[str, Any]], topic: str) -> dict[str, Any]:
@@ -129,6 +213,16 @@ def _likely_repair_basis(
             }
         )
     return result
+
+
+def _remaining_actions(work_item: dict[str, Any]) -> list[str]:
+    readiness = _pass_readiness(work_item)
+    return [str(action) for action in readiness.get("remaining_actions", []) if str(action)]
+
+
+def _pass_readiness(work_item: dict[str, Any]) -> dict[str, Any]:
+    value = work_item.get("pass_readiness")
+    return value if isinstance(value, dict) else {}
 
 
 def _basis_kind(action: str, command: dict[str, Any] | None) -> str:

@@ -33,16 +33,28 @@ def validate_legacy_semantic_needs_revision_basis_packet(
         "active_claim_id",
         "latest_review_id",
         "review_status",
+        "basis_packet_status",
         "needs_revision_result_cli",
         "truth_source",
     ):
         _require_nonempty_str(payload, key, path, result)
-    if payload.get("review_status") != "inconclusive":
-        result.add(f"{path}.review_status", "must be 'inconclusive'")
-    if payload.get("truth_source") != "legacy_semantic_needs_revision_basis_queue_and_review_packet":
+    if payload.get("review_status") not in {"inconclusive", "needs_revision"}:
+        result.add(f"{path}.review_status", "must be inconclusive or needs_revision")
+    if payload.get("basis_packet_status") not in {
+        "needs_revision_basis_required",
+        "already_needs_revision",
+    }:
+        result.add(
+            f"{path}.basis_packet_status",
+            "must be needs_revision_basis_required or already_needs_revision",
+        )
+    if payload.get("truth_source") not in {
+        "legacy_semantic_needs_revision_basis_queue_and_review_packet",
+        "legacy_semantic_review_worklist_and_review_packet",
+    }:
         result.add(
             f"{path}.truth_source",
-            "must be 'legacy_semantic_needs_revision_basis_queue_and_review_packet'",
+            "must be an allowed legacy semantic review truth source",
         )
     for key in (
         "blocking_classes",
