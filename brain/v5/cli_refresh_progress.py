@@ -18,6 +18,11 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
         if isinstance(backlog.get("source_reconstruction"), dict)
         else {}
     )
+    source_stack_coverage = (
+        payload.get("source_stack_coverage")
+        if isinstance(payload.get("source_stack_coverage"), dict)
+        else {}
+    )
     semantic_repair = (
         backlog.get("legacy_semantic_repair")
         if isinstance(backlog.get("legacy_semantic_repair"), dict)
@@ -73,6 +78,14 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
             "entry_count": int(replay.get("entry_count") or 0),
             "attention_count": int(replay.get("attention_count") or 0),
             "active_session_count": int(backlog.get("active_session_count") or 0),
+        },
+        "source_stack_coverage": {
+            "claim_count": int(source_stack_coverage.get("claim_count") or 0),
+            "coverage_status_counts": dict(source_stack_coverage.get("coverage_status_counts") or {}),
+            "missing_required_output_counts": dict(
+                source_stack_coverage.get("missing_required_output_counts") or {}
+            ),
+            "next_action_count": len(source_stack_coverage.get("next_actions") or []),
         },
         "l2_typed_graph": {
             "memory_entry_count": int(l2_view.get("memory_entry_count") or 0),

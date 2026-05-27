@@ -71,6 +71,7 @@ _PUBLIC_SURFACE_NAMES = (
     "sensemaking_report_record",
     "session_summary_bundle",
     "source_reconstruction_audit",
+    "source_stack_coverage_manifest",
     "source_reconstruction_manifest",
     "source_reconstruction_obsidian_view_bundle",
     "source_reconstruction_review_manifest",
@@ -157,6 +158,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "sensemaking_report_record": "contracted local sense-making report — orientation-only, never a validation gate",
     "session_summary_bundle": "orientation-only summary files regenerated from typed kernel records",
     "source_reconstruction_audit": "read-only typed-record audit of whether a claim has definition, scope, source, dependency, reconstruction, and failure-condition coverage",
+    "source_stack_coverage_manifest": "read-only manifest combining evidence required-output coverage, source reconstruction, and source review status across active claims",
     "source_reconstruction_manifest": "read-only backlog manifest batching source reconstruction gaps and next actions across active claims",
     "source_reconstruction_obsidian_view_bundle": "orientation-only Obsidian Markdown worklist over source reconstruction review gaps from typed records",
     "source_reconstruction_review_manifest": "orientation-only manifest of typed source reconstruction review results and remaining component-review actions",
@@ -280,6 +282,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_source_reconstruction_review_manifest,
         require_valid_source_reconstruction_review_packet,
         require_valid_source_reconstruction_review_result_record,
+        require_valid_source_stack_coverage_manifest,
     )
     from brain.v5.source_reconstruction_obsidian_contracts import require_valid_source_reconstruction_obsidian_view_bundle
     from brain.v5.legacy_semantic_review_contracts import (
@@ -386,6 +389,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "sensemaking_report_record": require_valid_sensemaking_report_record,
         "session_summary_bundle": require_valid_session_summary_bundle,
         "source_reconstruction_audit": require_valid_source_reconstruction_audit,
+        "source_stack_coverage_manifest": require_valid_source_stack_coverage_manifest,
         "source_reconstruction_manifest": require_valid_source_reconstruction_manifest,
         "source_reconstruction_obsidian_view_bundle": require_valid_source_reconstruction_obsidian_view_bundle,
         "source_reconstruction_review_manifest": require_valid_source_reconstruction_review_manifest,

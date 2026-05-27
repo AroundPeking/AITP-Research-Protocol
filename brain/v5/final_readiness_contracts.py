@@ -68,6 +68,19 @@ def validate_final_engineering_readiness_audit(
         for key in ("summary_can_drive_trust", "can_update_kernel_state", "can_update_claim_trust"):
             if natural.get(key) is not False:
                 result.add(f"{path}.kernel_capabilities.natural_interaction.{key}", "must be false")
+    source_stack = _mapping(payload.get("kernel_capabilities")).get("source_stack")
+    _require_mapping(source_stack, f"{path}.kernel_capabilities.source_stack", result)
+    if isinstance(source_stack, dict):
+        if source_stack.get("coverage_manifest_surface") != "source_stack_coverage_manifest":
+            result.add(
+                f"{path}.kernel_capabilities.source_stack.coverage_manifest_surface",
+                "must be source_stack_coverage_manifest",
+            )
+        if source_stack.get("host_refresh_coverage_manifest_supported") is not True:
+            result.add(
+                f"{path}.kernel_capabilities.source_stack.host_refresh_coverage_manifest_supported",
+                "must be true",
+            )
     knowledge = _mapping(payload.get("kernel_capabilities")).get("knowledge_stack")
     _require_mapping(knowledge, f"{path}.kernel_capabilities.knowledge_stack", result)
     if isinstance(knowledge, dict):

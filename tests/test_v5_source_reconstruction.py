@@ -371,6 +371,177 @@ def test_source_reconstruction_manifest_cli_compact_progress(tmp_path, capsys):
     assert "items" not in cli_payload
 
 
+def test_source_stack_coverage_manifest_combines_evidence_reconstruction_and_review(tmp_path):
+    from brain.v5.evidence import record_evidence
+    from brain.v5.physics_objects import record_object_relation, record_physics_object
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.references import record_reference_location
+    from brain.v5.source_reconstruction_review import record_source_reconstruction_review_result
+    from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    gap = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source stack coverage missing",
+    )
+    complete = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The source stack is reconstructable in the recorded sector.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source stack review",
+        scope="Fixed sector only.",
+        strongest_failure_mode="sector assignment mismatch",
+    )
+    reference = record_reference_location(
+        ws,
+        topic_id="fqhe",
+        claim_id=complete.claim_id,
+        connector_id="zotero",
+        location_type="paper",
+        uri="zotero://select/items/ABC",
+        label="Counting reference",
+        source_ref="paper:fqhe-counting",
+    )
+    counting = record_physics_object(
+        ws,
+        topic_id="fqhe",
+        object_type="observable",
+        name="counting sequence",
+        definition="Degeneracy sequence in the fixed sector.",
+        assumptions=["fixed sector"],
+        source_refs=["paper:fqhe-counting"],
+    )
+    cft = record_physics_object(
+        ws,
+        topic_id="fqhe",
+        object_type="theory",
+        name="edge CFT",
+        definition="Candidate chiral edge CFT.",
+        source_refs=["paper:fqhe-counting"],
+    )
+    relation = record_object_relation(
+        ws,
+        topic_id="fqhe",
+        relation_type="matches",
+        subject_id=counting.object_id,
+        object_id=cft.object_id,
+        statement="The counting sequence matches the edge CFT character.",
+        claim_id=complete.claim_id,
+        assumptions=["same sector convention"],
+        failure_modes=["sector assignment mismatch"],
+        source_refs=["paper:fqhe-counting"],
+    )
+    evidence = record_evidence(
+        ws,
+        topic_id="fqhe",
+        claim_id=complete.claim_id,
+        evidence_type="source_reconstruction",
+        status="supports",
+        summary="The typed source stack reconstructs the claim.",
+        supports_outputs=["scoped_claim", "evidence_or_provenance", "reconstruction_path"],
+        source_refs=["paper:fqhe-counting"],
+    )
+    review = record_source_reconstruction_review_result(
+        ws,
+        claim_id=complete.claim_id,
+        status="passed",
+        reviewed_components=[
+            "definitions",
+            "assumptions_or_scope",
+            "source_locations",
+            "dependency_graph",
+            "reconstruction_path",
+            "failure_conditions",
+        ],
+        evidence_refs=[evidence.evidence_id],
+        reference_location_ids=[reference.location_id],
+        object_ids=[counting.object_id, cft.object_id],
+        relation_ids=[relation.relation_id],
+        summary="All source stack components are reconstructable from typed records.",
+    )
+
+    manifest = build_source_stack_coverage_manifest(ws)
+
+    assert manifest["kind"] == "source_stack_coverage_manifest"
+    assert manifest["claim_count"] == 2
+    assert manifest["coverage_status_counts"] == {
+        "complete": 1,
+        "evidence_gap": 1,
+        "reconstruction_gap": 0,
+        "review_gap": 0,
+    }
+    assert manifest["missing_required_output_counts"] == {
+        "scoped_claim": 1,
+        "evidence_or_provenance": 1,
+    }
+    by_claim = {item["claim_id"]: item for item in manifest["items"]}
+    assert by_claim[gap.claim_id]["coverage_status"] == "evidence_gap"
+    assert by_claim[gap.claim_id]["source_reconstruction_complete"] is False
+    assert by_claim[gap.claim_id]["source_reconstruction_review_status"] == "pending"
+    assert by_claim[gap.claim_id]["next_actions"] == [
+        f"record_evidence_for_required_outputs:{gap.claim_id}",
+        f"complete_source_reconstruction:{gap.claim_id}",
+        f"review_source_reconstruction:{gap.claim_id}",
+    ]
+    assert by_claim[complete.claim_id]["coverage_status"] == "complete"
+    assert by_claim[complete.claim_id]["satisfied_required_outputs"] == [
+        "scoped_claim",
+        "evidence_or_provenance",
+    ]
+    assert by_claim[complete.claim_id]["source_reconstruction_complete"] is True
+    assert by_claim[complete.claim_id]["latest_source_review_result_id"] == review.result_id
+    assert manifest["can_update_claim_trust"] is False
+    assert require_valid_public_surface("source_stack_coverage_manifest", manifest) == manifest
+
+
+def test_source_stack_coverage_manifest_cli_mcp_runtime_and_compact(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_source_stack_coverage_manifest
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+    claim = create_claim(
+        ws,
+        topic_id="fqhe",
+        statement="The counting sequence identifies the edge CFT.",
+        evidence_profile="literature",
+        confidence_state="hypothesis",
+        active_uncertainty="source stack coverage missing",
+    )
+
+    assert main(["--base", str(tmp_path), "source", "coverage-manifest"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_source_stack_coverage_manifest(str(tmp_path))
+    assert main(["--base", str(tmp_path), "source", "coverage-manifest", "--compact"]) == 0
+    compact_payload = json.loads(capsys.readouterr().out)
+
+    assert cli_payload["kind"] == "source_stack_coverage_manifest"
+    assert mcp_payload["ok"] is True
+    assert mcp_payload["kind"] == "source_stack_coverage_manifest"
+    assert compact_payload["kind"] == "source_stack_coverage_manifest_progress"
+    assert compact_payload["source_surface"] == "source_stack_coverage_manifest"
+    assert compact_payload["claim_count"] == 1
+    assert compact_payload["coverage_status_counts"]["evidence_gap"] == 1
+    assert compact_payload["top_gap_claim_refs"] == [f"source_stack_coverage:{claim.claim_id}"]
+    assert compact_payload["can_update_claim_trust"] is False
+    assert "items" not in compact_payload
+    assert runtime_entrypoints()["source_stack_coverage_manifest"] == {
+        "cli": "aitp-v5 source coverage-manifest",
+        "mcp": "aitp_v5_build_source_stack_coverage_manifest",
+        "surface": "source_stack_coverage_manifest",
+    }
+
+
 def test_source_reconstruction_review_packet_guides_missing_typed_records(tmp_path):
     from brain.v5.evidence import record_evidence
     from brain.v5.public_surfaces import require_valid_public_surface

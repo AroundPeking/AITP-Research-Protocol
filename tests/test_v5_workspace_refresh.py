@@ -63,6 +63,7 @@ def test_workspace_refresh_writes_summary_replay_and_obsidian_views(tmp_path):
     assert payload["refreshed_surfaces"] == [
         "workspace_summary_bundle",
         "workspace_replay_packet",
+        "source_stack_coverage_manifest",
         "l2_obsidian_view_bundle",
         "source_reconstruction_obsidian_view_bundle",
         "workspace_interaction_preview_bundle",
@@ -75,6 +76,8 @@ def test_workspace_refresh_writes_summary_replay_and_obsidian_views(tmp_path):
     assert payload["workspace_summary"]["files"]["overview"].endswith("overview.md")
     assert payload["workspace_replay"]["files"]["replay_packet"].endswith("replay_packet.md")
     assert payload["workspace_replay"]["workspace_backlog_summary"]["active_session_count"] == 1
+    assert payload["source_stack_coverage"]["coverage_status_counts"]["evidence_gap"] == 1
+    assert payload["source_stack_coverage"]["can_update_claim_trust"] is False
     assert payload["workspace_replay"]["workspace_backlog_summary"]["source_reconstruction"][
         "incomplete_claim_count"
     ] == 1
@@ -163,6 +166,7 @@ def test_workspace_refresh_can_include_legacy_semantic_backlog_in_replay(tmp_pat
     assert payload["refreshed_surfaces"] == [
         "workspace_summary_bundle",
         "workspace_replay_packet",
+        "source_stack_coverage_manifest",
         "l2_obsidian_view_bundle",
         "source_reconstruction_obsidian_view_bundle",
         "workspace_interaction_preview_bundle",
@@ -183,6 +187,7 @@ def test_workspace_refresh_can_include_legacy_semantic_backlog_in_replay(tmp_pat
         "Legacy Human Checkpoints.md"
     )
     assert payload["workspace_interaction_preview"]["session_count"] == 1
+    assert payload["source_stack_coverage"]["claim_count"] == 2
     assert payload["interaction_recording_worklist"]["work_item_count"] == 1
     assert legacy["surface"] == "legacy_semantic_review_manifest"
     assert legacy["review_item_count"] == 1
@@ -225,10 +230,11 @@ def test_workspace_refresh_cli_compact_progress(tmp_path, capsys):
 
     assert cli_payload["kind"] == "workspace_refresh_progress"
     assert cli_payload["source_surface"] == "workspace_refresh_bundle"
-    assert cli_payload["refreshed_surface_count"] == 6
+    assert cli_payload["refreshed_surface_count"] == 7
     assert cli_payload["refreshed_surfaces"] == [
         "workspace_summary_bundle",
         "workspace_replay_packet",
+        "source_stack_coverage_manifest",
         "l2_obsidian_view_bundle",
         "source_reconstruction_obsidian_view_bundle",
         "workspace_interaction_preview_bundle",
@@ -241,6 +247,8 @@ def test_workspace_refresh_cli_compact_progress(tmp_path, capsys):
     }
     assert cli_payload["workspace_replay"]["entry_count"] == 1
     assert cli_payload["workspace_replay"]["attention_count"] == 1
+    assert cli_payload["source_stack_coverage"]["claim_count"] == 1
+    assert cli_payload["source_stack_coverage"]["coverage_status_counts"]["evidence_gap"] == 1
     assert cli_payload["l2_typed_graph"] == {
         "memory_entry_count": 1,
         "physics_object_count": 0,
@@ -428,7 +436,7 @@ def test_workspace_refresh_cli_compact_progress_accepts_migration_dir(tmp_path, 
     ]) == 0
     cli_payload = json.loads(capsys.readouterr().out)
 
-    assert cli_payload["refreshed_surface_count"] == 9
+    assert cli_payload["refreshed_surface_count"] == 10
     assert cli_payload["legacy_source_reconstruction"] == {
         "work_item_count": 1,
         "repair_status_counts": {
@@ -452,6 +460,7 @@ def test_workspace_refresh_cli_compact_progress_accepts_migration_dir(tmp_path, 
         },
     }
     assert cli_payload["legacy_semantic_review"]["work_item_count"] == 1
+    assert cli_payload["source_stack_coverage"]["claim_count"] == 2
     assert cli_payload["source_reconstruction_review"]["claim_count"] == 2
     assert cli_payload["source_reconstruction_review"]["incomplete_claim_count"] == 2
     assert cli_payload["source_reconstruction_review"]["review_progress"]["pending"] == 2

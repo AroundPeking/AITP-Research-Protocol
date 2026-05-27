@@ -36,6 +36,7 @@ def validate_workspace_refresh_bundle(payload: dict[str, Any], *, path: str = "w
         base_expected = [
             "workspace_summary_bundle",
             "workspace_replay_packet",
+            "source_stack_coverage_manifest",
             "l2_obsidian_view_bundle",
             "source_reconstruction_obsidian_view_bundle",
             "workspace_interaction_preview_bundle",
@@ -52,6 +53,7 @@ def validate_workspace_refresh_bundle(payload: dict[str, Any], *, path: str = "w
             result.add(f"{path}.refreshed_surfaces", "must list the refreshed workspace surfaces in order")
     _require_mapping(payload.get("workspace_summary"), f"{path}.workspace_summary", result)
     _require_mapping(payload.get("workspace_replay"), f"{path}.workspace_replay", result)
+    _require_mapping(payload.get("source_stack_coverage"), f"{path}.source_stack_coverage", result)
     _require_mapping(payload.get("l2_obsidian_view"), f"{path}.l2_obsidian_view", result)
     _require_mapping(payload.get("source_reconstruction_obsidian_view"), f"{path}.source_reconstruction_obsidian_view", result)
     _require_mapping(payload.get("workspace_interaction_preview"), f"{path}.workspace_interaction_preview", result)

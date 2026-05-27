@@ -26,6 +26,7 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
     assert entrypoints["legacy_semantic_repair_plan"]["surface"] == "legacy_semantic_repair_plan"
     assert entrypoints["legacy_semantic_repair_manifest"]["surface"] == "legacy_semantic_repair_manifest"
     assert entrypoints["source_reconstruction_manifest"]["surface"] == "source_reconstruction_manifest"
+    assert entrypoints["source_stack_coverage_manifest"]["surface"] == "source_stack_coverage_manifest"
     assert entrypoints["record_legacy_semantic_review_result"]["surface"] == (
         "legacy_semantic_review_result_record"
     )
@@ -48,6 +49,9 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "aitp_v5_build_legacy_semantic_repair_manifest"
     )
     assert entrypoints["source_reconstruction_manifest"]["mcp"] == "aitp_v5_build_source_reconstruction_manifest"
+    assert entrypoints["source_stack_coverage_manifest"]["mcp"] == (
+        "aitp_v5_build_source_stack_coverage_manifest"
+    )
     assert entrypoints["record_legacy_semantic_review_result"]["mcp"] == (
         "aitp_v5_record_legacy_semantic_review_result"
     )

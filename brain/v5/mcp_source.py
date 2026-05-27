@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from brain.v5.public_surfaces import require_valid_public_surface
+from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
 from brain.v5.source_reconstruction_obsidian import write_source_reconstruction_obsidian_view
 from brain.v5.source_reconstruction import (
     audit_source_reconstruction,
@@ -31,6 +32,11 @@ def aitp_v5_audit_source_reconstruction(base: str, *, claim_id: str) -> dict:
 def aitp_v5_build_source_reconstruction_manifest(base: str) -> dict:
     result = build_source_reconstruction_manifest(_ws(base))
     return {"ok": True, **require_valid_public_surface("source_reconstruction_manifest", result)}
+
+
+def aitp_v5_build_source_stack_coverage_manifest(base: str) -> dict:
+    result = build_source_stack_coverage_manifest(_ws(base))
+    return {"ok": True, **require_valid_public_surface("source_stack_coverage_manifest", result)}
 
 
 def aitp_v5_build_source_reconstruction_review_manifest(base: str) -> dict:

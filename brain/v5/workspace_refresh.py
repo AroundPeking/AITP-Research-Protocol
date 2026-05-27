@@ -11,6 +11,7 @@ from brain.v5.legacy_source_reconstruction_obsidian import write_legacy_source_r
 from brain.v5.obsidian_views import write_l2_obsidian_view
 from brain.v5.paths import WorkspacePaths
 from brain.v5.replay import write_workspace_replay_packet
+from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
 from brain.v5.source_reconstruction_obsidian import write_source_reconstruction_obsidian_view
 from brain.v5.summaries import write_workspace_summary
 from brain.v5.interaction_worklist import build_interaction_recording_worklist
@@ -30,6 +31,7 @@ def refresh_workspace_views(
 
     summary = asdict(write_workspace_summary(ws))
     replay = asdict(write_workspace_replay_packet(ws, migration_dir=migration_dir))
+    source_stack_coverage = build_source_stack_coverage_manifest(ws)
     active_claims = summary.get("source_records", {}).get("claims", [])
     obsidian = write_l2_obsidian_view(
         ws,
@@ -60,6 +62,7 @@ def refresh_workspace_views(
     source_records = _merge_source_records(
         summary.get("source_records", {}),
         replay.get("source_records", {}),
+        _source_records_from_coverage(source_stack_coverage),
         obsidian.get("source_records", {}),
         source_reconstruction.get("source_records", {}),
         workspace_interaction.get("source_records", {}),
@@ -71,6 +74,7 @@ def refresh_workspace_views(
     refreshed_surfaces = [
         summary["kind"],
         replay["kind"],
+        source_stack_coverage["kind"],
         obsidian["kind"],
         source_reconstruction["kind"],
         workspace_interaction["kind"],
@@ -87,6 +91,7 @@ def refresh_workspace_views(
         "refreshed_surfaces": refreshed_surfaces,
         "workspace_summary": summary,
         "workspace_replay": replay,
+        "source_stack_coverage": source_stack_coverage,
         "l2_obsidian_view": obsidian,
         "source_reconstruction_obsidian_view": source_reconstruction,
         "workspace_interaction_preview": workspace_interaction,
@@ -120,3 +125,18 @@ def _merge_source_records(*records: dict[str, list[str]]) -> dict[str, list[str]
                     seen[key].add(value)
                     merged[key].append(value)
     return merged
+
+
+def _source_records_from_coverage(payload: dict[str, Any]) -> dict[str, list[str]]:
+    return {
+        "claims": [
+            str(item.get("claim_id") or "")
+            for item in payload.get("items", [])
+            if isinstance(item, dict) and str(item.get("claim_id") or "")
+        ],
+        "topics": [
+            str(item.get("topic_id") or "")
+            for item in payload.get("items", [])
+            if isinstance(item, dict) and str(item.get("topic_id") or "")
+        ],
+    }

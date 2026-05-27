@@ -82,6 +82,46 @@ def compact_source_reconstruction_review_manifest(payload: dict[str, Any]) -> di
     }
 
 
+def compact_source_stack_coverage_manifest(payload: dict[str, Any]) -> dict[str, Any]:
+    top_gap_items = [
+        item
+        for item in payload.get("items", [])
+        if isinstance(item, dict) and item.get("coverage_status") != "complete"
+    ][:5]
+    return {
+        "ok": bool(payload.get("ok", True)),
+        "kind": "source_stack_coverage_manifest_progress",
+        "source_surface": "source_stack_coverage_manifest",
+        "claim_count": int(payload.get("claim_count") or 0),
+        "coverage_status_counts": dict(payload.get("coverage_status_counts") or {}),
+        "missing_required_output_counts": dict(payload.get("missing_required_output_counts") or {}),
+        "source_component_gap_counts": dict(payload.get("source_component_gap_counts") or {}),
+        "source_review_status_counts": dict(payload.get("source_review_status_counts") or {}),
+        "next_action_count": len(payload.get("next_actions") or []),
+        "next_action_refs": _limited_strings(payload.get("next_actions")),
+        "top_gap_claim_refs": [
+            f"source_stack_coverage:{claim_id}"
+            for claim_id in [str(item.get("claim_id") or "") for item in top_gap_items]
+            if claim_id
+        ],
+        "top_gap_claim_topics": [
+            str(item.get("topic_id") or "")
+            for item in top_gap_items
+            if str(item.get("topic_id") or "")
+        ],
+        "top_gap_statuses": [
+            str(item.get("coverage_status") or "")
+            for item in top_gap_items
+            if str(item.get("coverage_status") or "")
+        ],
+        "truth_source": str(payload.get("truth_source") or ""),
+        "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
+        "orientation_only": bool(payload.get("orientation_only", True)),
+        "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),
+        "can_update_claim_trust": bool(payload.get("can_update_claim_trust", False)),
+    }
+
+
 def compact_source_reconstruction_review_packet(payload: dict[str, Any]) -> dict[str, Any]:
     missing = _limited_strings(payload.get("missing_components"), limit=10)
     return {
@@ -351,6 +391,11 @@ def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
         if isinstance(capabilities.get("knowledge_stack"), dict)
         else {}
     )
+    source_stack = (
+        capabilities.get("source_stack")
+        if isinstance(capabilities.get("source_stack"), dict)
+        else {}
+    )
     replay = (
         capabilities.get("long_term_replay")
         if isinstance(capabilities.get("long_term_replay"), dict)
@@ -448,6 +493,12 @@ def compact_final_readiness(payload: dict[str, Any]) -> dict[str, Any]:
             "physics_object_count": int(knowledge.get("physics_object_count") or 0),
             "object_relation_count": int(knowledge.get("object_relation_count") or 0),
             "sensemaking_report_count": int(knowledge.get("sensemaking_report_count") or 0),
+        },
+        "source_stack": {
+            "coverage_manifest_surface": str(source_stack.get("coverage_manifest_surface") or ""),
+            "host_refresh_coverage_manifest_supported": bool(
+                source_stack.get("host_refresh_coverage_manifest_supported", False)
+            ),
         },
         "long_term_replay": {
             "surface": str(replay.get("surface") or ""),

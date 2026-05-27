@@ -8,10 +8,12 @@ from dataclasses import asdict
 from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.source_reconstruction_obsidian import write_source_reconstruction_obsidian_view
 from brain.v5.cli_progress import (
+    compact_source_stack_coverage_manifest,
     compact_source_reconstruction_manifest,
     compact_source_reconstruction_review_manifest,
     compact_source_reconstruction_review_packet,
 )
+from brain.v5.source_stack_coverage import build_source_stack_coverage_manifest
 from brain.v5.source_reconstruction import (
     audit_source_reconstruction,
     build_source_reconstruction_manifest,
@@ -30,6 +32,8 @@ def add_source_parser(sp: argparse._SubParsersAction) -> None:
     audit.add_argument("--claim", required=True, dest="claim_id")
     manifest = commands.add_parser("reconstruction-manifest")
     manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
+    coverage = commands.add_parser("coverage-manifest")
+    coverage.add_argument("--compact", "--progress", action="store_true", dest="compact")
     review_manifest = commands.add_parser("reconstruction-review-manifest")
     review_manifest.add_argument("--compact", "--progress", action="store_true", dest="compact")
     obsidian = commands.add_parser("reconstruction-obsidian-view")
@@ -65,6 +69,14 @@ def dispatch_source_command(args: argparse.Namespace, ws) -> dict:
         )
         if getattr(args, "compact", False):
             return compact_source_reconstruction_manifest(manifest)
+        return manifest
+    if args.source_command == "coverage-manifest":
+        manifest = require_valid_public_surface(
+            "source_stack_coverage_manifest",
+            build_source_stack_coverage_manifest(ws),
+        )
+        if getattr(args, "compact", False):
+            return compact_source_stack_coverage_manifest(manifest)
         return manifest
     if args.source_command == "reconstruction-review-manifest":
         manifest = require_valid_public_surface(
