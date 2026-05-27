@@ -2276,6 +2276,83 @@ def test_legacy_executable_evidence_packet_cli_mcp_and_runtime_surface(tmp_path,
     }
 
 
+def test_legacy_executable_evidence_packet_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+    import json
+
+    base = tmp_path / "v5"
+    ws = init_workspace(base)
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="Executable evidence packet compact progress is host-callable.",
+            evidence_profile="code_method",
+            confidence_state="legacy_seed",
+            active_uncertainty="Benchmark remains open.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="Executable benchmark and code trace evidence remain open.",
+        active_claim_id="claim-canonical",
+        reviewed_typed_refs=["claim:claim-canonical"],
+        remaining_actions=[
+            "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs",
+            "trace_compute_Wc_freq_q_accepts_chi_r_substitution_on_actual_LibRPA_code",
+        ],
+    )
+
+    assert main([
+        "--base",
+        str(base),
+        "legacy",
+        "executable-evidence-packet",
+        "--migration-dir",
+        str(run),
+        "--topic",
+        "canonical-topic",
+        "--compact",
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "legacy_executable_evidence_packet_progress"
+    assert payload["source_surface"] == "legacy_executable_evidence_packet"
+    assert payload["migration_dir"] == str(run)
+    assert payload["topic_filter"] == "canonical-topic"
+    assert payload["evidence_item_count"] == 1
+    assert payload["executable_action_count"] == 2
+    assert payload["next_action_count"] == 2
+    assert payload["top_evidence_item_refs"] == ["legacy_executable_evidence:canonical-topic"]
+    assert payload["top_evidence_item_topics"] == ["canonical-topic"]
+    assert payload["top_evidence_item_active_claim_ids"] == ["claim-canonical"]
+    assert payload["top_evidence_item_latest_review_ids"] == [review.review_id]
+    assert payload["top_evidence_item_review_statuses"] == ["inconclusive"]
+    assert payload["top_evidence_item_executable_actions"] == [
+        [
+            "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs",
+            "trace_compute_Wc_freq_q_accepts_chi_r_substitution_on_actual_LibRPA_code",
+        ]
+    ]
+    assert payload["top_evidence_item_validation_command_counts"] == [1]
+    assert payload["top_evidence_item_tool_run_command_counts"] == [1]
+    assert payload["semantic_lossless_proven"] is False
+    assert payload["truth_source"] == "legacy_semantic_review_worklist_validation_and_tool_run_commands"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+
+
 def test_legacy_semantic_review_worklist_surfaces_open_human_checkpoint_for_decision(tmp_path):
     from brain.v5.checkpoints import request_human_checkpoint
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result

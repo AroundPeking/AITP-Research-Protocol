@@ -23,7 +23,8 @@ from brain.v5.legacy_source_reconstruction import (
     build_legacy_source_reconstruction_plan,
     build_legacy_source_reconstruction_review_packet,
 )
-from brain.v5.cli_progress import (
+from brain.v5.cli_legacy_progress import (
+    compact_legacy_executable_evidence_packet,
     compact_legacy_human_checkpoint_packet,
     compact_legacy_semantic_review_packet,
     compact_legacy_semantic_review_manifest,
@@ -112,6 +113,7 @@ def add_legacy_parser(subparsers) -> None:
     executable = legacy_subparsers.add_parser("executable-evidence-packet")
     executable.add_argument("--migration-dir", required=True)
     executable.add_argument("--topic", default="")
+    executable.add_argument("--compact", "--progress", action="store_true", dest="compact")
     human_checkpoint = legacy_subparsers.add_parser("human-checkpoint-packet")
     human_checkpoint.add_argument("--migration-dir", required=True)
     human_checkpoint.add_argument("--topic", default="")
@@ -260,7 +262,10 @@ def dispatch_legacy_command(args, ws) -> dict:
             migration_dir=args.migration_dir,
             topic=args.topic,
         )
-        return {"ok": True, **require_valid_public_surface("legacy_executable_evidence_packet", packet)}
+        payload = {"ok": True, **require_valid_public_surface("legacy_executable_evidence_packet", packet)}
+        if getattr(args, "compact", False):
+            return compact_legacy_executable_evidence_packet(payload)
+        return payload
     if args.legacy_command == "human-checkpoint-packet":
         packet = build_legacy_human_checkpoint_packet(
             ws,
