@@ -258,6 +258,14 @@ def _review_action_command(
             effect="typed_record_write",
             can_update_kernel_state=True,
         )
+    normalized = " ".join(action.lower().replace("_", " ").split())
+    if _requests_source_metadata_repair(normalized):
+        return _source_metadata_repair_command(
+            action,
+            item,
+            review_id=review_id,
+            workspace=workspace,
+        )
     qsgw_command = qsgw_review_action_command(
         action,
         item,
@@ -295,6 +303,13 @@ def _normalized_action_command(
     migration_dir: str,
 ) -> dict[str, Any] | None:
     normalized = " ".join(action.lower().replace("_", " ").split())
+    if _requests_source_metadata_repair(normalized):
+        return _source_metadata_repair_command(
+            action,
+            item,
+            review_id=review_id,
+            workspace=workspace,
+        )
     if _requests_physics_object_backfill(normalized):
         return _command(
             action,
@@ -398,6 +413,42 @@ def _requests_failure_condition_backfill(normalized_action: str) -> bool:
         "failure condition" in normalized_action
         or "failure mode" in normalized_action
         or "validation contract" in normalized_action
+    )
+
+
+def _requests_source_metadata_repair(normalized_action: str) -> bool:
+    repair_word = any(
+        token in normalized_action
+        for token in ("repair", "resolve", "mismatch", "correct", "canonical")
+    )
+    metadata_word = any(
+        token in normalized_action
+        for token in ("doi", "bibliograph", "citation", "source metadata")
+    )
+    return repair_word and metadata_word
+
+
+def _source_metadata_repair_command(
+    action: str,
+    item: dict[str, Any],
+    *,
+    review_id: str,
+    workspace: str,
+) -> dict[str, Any]:
+    return _command(
+        action,
+        review_id=review_id,
+        cli=(
+            f"aitp-v5 --base {workspace} reference location record --topic {item['topic']} "
+            f"--claim {item['active_claim_id']} --connector <connector_id> "
+            "--type external_literature --uri <canonical-uri-or-doi> "
+            "--label <corrected-source-label> --source-ref <corrected-source-ref> "
+            "--status located --summary <source metadata repair basis>"
+        ),
+        mcp="aitp_v5_record_reference_location",
+        surface="reference_location_record",
+        effect="typed_record_write",
+        can_update_kernel_state=True,
     )
 
 

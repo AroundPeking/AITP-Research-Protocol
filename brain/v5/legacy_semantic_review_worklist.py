@@ -388,11 +388,25 @@ def _blocking_classes(pass_readiness: dict[str, Any], *, review_focus: list[str]
         add("archive_sampling_required")
     if "open_human_checkpoint_pending" in blockers or "human_checkpoint" in action_text:
         add("human_checkpoint_required")
+    if _mentions_source_metadata_repair(action_text):
+        add("source_metadata_repair_required")
     if "executable" in action_text or "benchmark" in action_text:
         add("executable_evidence_required")
     if not classes and pass_readiness.get("status") == "blocked":
         add("unclassified_semantic_blocker")
     return classes
+
+
+def _mentions_source_metadata_repair(action_text: str) -> bool:
+    repair_word = any(
+        token in action_text
+        for token in ("repair", "resolve", "mismatch", "correct", "canonical")
+    )
+    metadata_word = any(
+        token in action_text
+        for token in ("doi", "bibliograph", "citation", "source metadata")
+    )
+    return repair_word and metadata_word
 
 
 def _unique(values: list[str]) -> list[str]:

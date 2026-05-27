@@ -1930,6 +1930,70 @@ def test_legacy_semantic_review_worklist_exposes_pass_readiness_blockers(tmp_pat
     assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
 
 
+def test_legacy_semantic_review_worklist_classifies_source_metadata_repair(tmp_path):
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.legacy_semantic_review_worklist import build_legacy_semantic_review_worklist
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="The Green-function formula source genealogy needs DOI metadata repair.",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Bibliographic metadata mismatch blocks semantic pass.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="Formula source readback found an Ishikawa-Matsuyama DOI mismatch.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=["legacy_archive:canonical-topic/runtime/bibliography/key_papers.bib"],
+        reviewed_typed_refs=["claim:claim-canonical"],
+        remaining_actions=[
+            "resolve_ishikawa_matsuyama_doi_metadata_mismatch_before_formula_promotion",
+        ],
+    )
+
+    worklist = build_legacy_semantic_review_worklist(ws, migration_dir=run)
+
+    item = next(item for item in worklist["items"] if item["topic"] == "canonical-topic")
+    assert "source_metadata_repair_required" in item["blocking_classes"]
+    assert worklist["blocking_class_counts"]["source_metadata_repair_required"] == 1
+    commands_by_action = {
+        command["action"]: command for command in item["review_action_commands"]
+    }
+    assert commands_by_action[
+        "resolve_ishikawa_matsuyama_doi_metadata_mismatch_before_formula_promotion"
+    ] == {
+        "action": "resolve_ishikawa_matsuyama_doi_metadata_mismatch_before_formula_promotion",
+        "latest_review_id": review.review_id,
+        "cli": (
+            f"aitp-v5 --base {ws.base} reference location record --topic canonical-topic "
+            "--claim claim-canonical --connector <connector_id> --type external_literature "
+            "--uri <canonical-uri-or-doi> --label <corrected-source-label> "
+            "--source-ref <corrected-source-ref> --status located "
+            "--summary <source metadata repair basis>"
+        ),
+        "mcp": "aitp_v5_record_reference_location",
+        "surface": "reference_location_record",
+        "effect": "typed_record_write",
+        "can_update_kernel_state": True,
+        "can_update_claim_trust": False,
+    }
+    assert require_valid_public_surface("legacy_semantic_review_worklist", worklist) == worklist
+
+
 def test_legacy_semantic_review_worklist_surfaces_open_human_checkpoint_for_decision(tmp_path):
     from brain.v5.checkpoints import request_human_checkpoint
     from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
