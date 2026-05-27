@@ -68,6 +68,7 @@ _PUBLIC_SURFACE_NAMES = (
     "promotion_packet_record",
     "record_gate_coverage_audit",
     "reference_location_record",
+    "research_intent_packet",
     "runtime_hook_installation_audit",
     "runtime_host_lifecycle_audit",
     "runtime_host_production_loop_audit",
@@ -83,6 +84,7 @@ _PUBLIC_SURFACE_NAMES = (
     "source_reconstruction_review_manifest",
     "source_reconstruction_review_packet",
     "source_reconstruction_review_result_record",
+    "steering_decision_record",
     "summary_orientation",
     "tool_executor_catalog",
     "tool_recipe_record",
@@ -161,6 +163,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "promotion_packet_record": "contracted promotion packet requiring explicit evidence refs, known failure modes, and scope before L2 memory promotion",
     "record_gate_coverage_audit": "contracted audit that every runtime record protocol has a conscious runtime gate decision",
     "reference_location_record": "contracted orientation-only pointer to an external paper, note, or knowledge item",
+    "research_intent_packet": "contracted vNext idea gate packet for vague or materially redefined research topics",
     "runtime_hook_installation_audit": "read-only audit of installed runtime hook files; runtime metadata only, never kernel truth",
     "runtime_host_lifecycle_audit": "dynamic read-only probe that runs a host command and checks stdout/stderr plus hook trace deltas for lifecycle-event evidence",
     "runtime_host_production_loop_audit": "dynamic read-only batch audit over priority runtime host production loops without updating kernel truth",
@@ -176,6 +179,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "source_reconstruction_review_manifest": "orientation-only manifest of typed source reconstruction review results and remaining component-review actions",
     "source_reconstruction_review_packet": "read-only packet guiding human typed-record backfill for source reconstruction gaps without mutating kernel state or claim trust",
     "source_reconstruction_review_result_record": "contracted typed result preserving the basis for source reconstruction component review without changing claim trust",
+    "steering_decision_record": "contracted durable steering redirect record that cannot update claim trust",
     "summary_orientation": "read-only summary view with explicit truth-source protections",
     "tool_executor_catalog": "contracted catalog of safe built-in tool executors and input schemas",
     "tool_recipe_record": "contracted reusable tool recipe record with inputs, outputs, and invariants",
@@ -271,6 +275,10 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         require_valid_validation_result_record,
         require_valid_workspace_summary_bundle,
         require_valid_workspace_replay_packet,
+    )
+    from brain.v5.research_intent_contracts import (
+        require_valid_research_intent_packet,
+        require_valid_steering_decision_record,
     )
     from brain.v5.legacy_contracts import require_valid_legacy_migration_result
     from brain.v5.legacy_executable_evidence_contracts import require_valid_legacy_executable_evidence_packet
@@ -406,6 +414,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "promotion_packet_record": require_valid_promotion_packet_record,
         "record_gate_coverage_audit": require_valid_record_gate_coverage_audit,
         "reference_location_record": require_valid_reference_location_record,
+        "research_intent_packet": require_valid_research_intent_packet,
         "runtime_hook_installation_audit": require_valid_runtime_hook_installation_audit,
         "runtime_host_lifecycle_audit": require_valid_runtime_host_lifecycle_audit,
         "runtime_host_production_loop_audit": require_valid_runtime_host_production_loop_audit,
@@ -421,6 +430,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "source_reconstruction_review_manifest": require_valid_source_reconstruction_review_manifest,
         "source_reconstruction_review_packet": require_valid_source_reconstruction_review_packet,
         "source_reconstruction_review_result_record": require_valid_source_reconstruction_review_result_record,
+        "steering_decision_record": require_valid_steering_decision_record,
         "summary_orientation": require_valid_summary_orientation,
         "tool_executor_catalog": require_valid_tool_executor_catalog,
         "tool_recipe_record": require_valid_tool_recipe_record,

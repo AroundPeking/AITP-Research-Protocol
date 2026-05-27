@@ -16,6 +16,7 @@ from brain.v5.policy import evaluate_policy
 from brain.v5.question_engine import generate_questions
 from brain.v5.physics_objects import list_object_relations_for_claim, object_relation_brief_payload
 from brain.v5.references import list_reference_locations_for_claim, reference_location_brief_payload
+from brain.v5.research_intent import load_innovation_direction, load_research_intent_gate
 from brain.v5.risk import action_budget_for_level, assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.workspace import get_claim, get_session_binding
@@ -36,6 +37,8 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     operating_notes = []
     object_relations = []
     memory_entries = []
+    research_intent_gate = load_research_intent_gate(ws, session.topic_id)
+    innovation_direction = load_innovation_direction(ws, session.topic_id)
 
     if session.active_claim:
         claim = get_claim(ws, session.active_claim)
@@ -142,6 +145,20 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
                 }
             )
 
+    vnext_forbidden = []
+    if research_intent_gate.get("present") and not research_intent_gate.get("execution_ready"):
+        vnext_forbidden.append("vnext:execute_without_research_intent_approval")
+        next_action_candidates.insert(
+            0,
+            {
+                "action": "answer_research_intent_clarification",
+                "rank": 1,
+                "why": "vNext research-intent gate is not approved for execution",
+                "expected_evidence_gain": "materialize novelty target, non-goals, first validation route, and evidence bar before deeper work",
+                "clarification_questions": research_intent_gate.get("clarification_questions", []),
+            },
+        )
+
     return {
         "session": asdict(session),
         "current_focus": {
@@ -166,12 +183,14 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "knowledge_connectors": knowledge_connectors,
             "reference_locations": reference_locations,
             "operating_notes": operating_notes,
+            "research_intent_gate": research_intent_gate,
+            "innovation_direction": innovation_direction,
             "object_relations": object_relations,
             "memory_entries": memory_entries,
         },
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,
-        "forbidden_now": _forbidden_actions(flow.profile if flow else "guided") + policy_forbidden,
+        "forbidden_now": _forbidden_actions(flow.profile if flow else "guided") + policy_forbidden + vnext_forbidden,
         "human_checkpoint": {
             "needed": action_budget.requires_human_checkpoint,
             "reason": "risk budget requires human checkpoint" if action_budget.requires_human_checkpoint else None,

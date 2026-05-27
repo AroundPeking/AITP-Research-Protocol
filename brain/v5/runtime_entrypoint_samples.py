@@ -52,6 +52,38 @@ def sample_args_for_template(template: str) -> list[str]:
             "--detected-relevance",
             "close_prior_art",
         ]
+    if template.startswith("intent packet record"):
+        return [
+            "--topic",
+            "fqhe",
+            "--idea",
+            "Test whether a scoped finite-size invariant is stable.",
+            "--novelty-target",
+            "Find a falsifiable scoped claim before deeper execution.",
+            "--required-first-validation-route",
+            "toy_numeric_or_literature_check",
+            "--initial-evidence-bar",
+            "At least one concrete source or executable sanity check.",
+            "--clarification-question",
+            "What output would count as a failure?",
+        ]
+    if template.startswith("intent steering materialize"):
+        return [
+            "--topic",
+            "fqhe",
+            "--steering",
+            "Redirect toward a narrower falsifiable invariant.",
+            "--novelty-target",
+            "Avoid re-running known checks without a new scoped output.",
+            "--scope",
+            "finite-size diagnostic only",
+            "--acceptance-posture",
+            "diagnostic until independently validated",
+            "--control-note",
+            "Do not promote without a validation contract.",
+            "--session",
+            "s1",
+        ]
     if template.startswith("trace hook-event persist"):
         return ["--payload-json", '{"kind":"hook_trace_event","hook_name":"post_tool","event":{"event_id":"event-1","session_id":"s1","topic_id":"fqhe","event_type":"tool_run_recorded","risk_level":"guided","payload":{},"kind":"trace_event"},"exit_code":0,"summary_inputs_trusted":false}']
     if template.startswith("legacy migrate"):
