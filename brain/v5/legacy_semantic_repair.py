@@ -16,6 +16,7 @@ from brain.v5.legacy_semantic_repair_candidates import (
     validation_result_revision_repairs,
     validation_results_by_id,
 )
+from brain.v5.legacy_semantic_repair_actions import required_repair_actions
 from brain.v5.markdown import read_md
 from brain.v5.models import ClaimRecord, LegacySemanticRepairRecord
 from brain.v5.paths import WorkspacePaths
@@ -48,6 +49,11 @@ def build_legacy_semantic_repair_plan(
         latest_review=latest_review,
         validation_results_by_id=results_by_id,
     )
+    required_actions = required_repair_actions(
+        active_claim=packet.get("active_claim", {}),
+        latest_review=latest_review,
+        proposed_repairs=proposed_repairs,
+    )
     return {
         "kind": "legacy_semantic_repair_plan",
         "run_id": queue["run_id"],
@@ -57,6 +63,7 @@ def build_legacy_semantic_repair_plan(
         "repair_status": _repair_status(latest_review, proposed_repairs),
         "latest_semantic_review": latest_review,
         "proposed_repairs": proposed_repairs,
+        "required_actions": required_actions,
         "can_apply": False,
         "semantic_lossless_proven": False,
         "semantic_review_required": True,

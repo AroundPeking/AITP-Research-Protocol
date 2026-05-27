@@ -3650,6 +3650,59 @@ def test_legacy_semantic_repair_plan_accepts_review_action_phrase_for_question_b
     assert plan["proposed_repairs"][0]["proposed_value"] == question
 
 
+def test_legacy_semantic_repair_plan_explains_inconclusive_backfill_blocker(tmp_path):
+    from brain.v5.legacy_semantic_repair import build_legacy_semantic_repair_plan
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    run = _write_migration_run(ws)
+    legacy_topic = ws.base / "research" / "aitp-topics" / "canonical-topic"
+    legacy_topic.mkdir(parents=True)
+    (legacy_topic / "state.md").write_text(
+        "# Ambiguous Topic\n\n## Research Question\nWhich question should be reviewed first?\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-canonical.md",
+        ClaimRecord(
+            claim_id="claim-canonical",
+            topic_id="canonical-topic",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Human topic question review is still required.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=run,
+        topic="canonical-topic",
+        status="inconclusive",
+        summary="The legacy question exists, but the review did not approve it as the active claim statement.",
+        active_claim_id="claim-canonical",
+        reviewed_legacy_refs=[f"legacy_candidate:{legacy_topic / 'state.md'}"],
+        reviewed_typed_refs=["claim-canonical"],
+        remaining_actions=["require_human_topic_question_before_claim_backfill"],
+    )
+
+    plan = build_legacy_semantic_repair_plan(ws, migration_dir=run, topic="canonical-topic")
+
+    assert plan["repair_status"] == "awaiting_needs_revision_review"
+    assert plan["latest_semantic_review"]["review_id"] == review.review_id
+    assert plan["proposed_repairs"] == []
+    assert plan["required_actions"] == [
+        "record_needs_revision_review_with_specific_repair_basis",
+        "supply_or_review_human_topic_question_before_claim_statement_backfill",
+        "keep_semantic_review_blocking_until_typed_review_basis_exists",
+    ]
+    assert plan["can_update_claim_trust"] is False
+    assert require_valid_public_surface("legacy_semantic_repair_plan", plan) == plan
+
+
 def test_legacy_semantic_repair_plan_proposes_validation_revision_from_failed_result(tmp_path):
     from brain.v5.legacy_semantic_repair import (
         apply_legacy_semantic_repair,

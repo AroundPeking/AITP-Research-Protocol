@@ -280,6 +280,10 @@ def validate_legacy_semantic_repair_plan(
             result.add(f"{path}.{key}", f"must be {expected}")
     if not isinstance(payload.get("latest_semantic_review"), dict):
         result.add(f"{path}.latest_semantic_review", "must be a mapping")
+    if not isinstance(payload.get("required_actions"), list) or not all(
+        isinstance(value, str) for value in payload.get("required_actions", [])
+    ):
+        result.add(f"{path}.required_actions", "must be a list of strings")
     repairs = payload.get("proposed_repairs")
     if not isinstance(repairs, list):
         result.add(f"{path}.proposed_repairs", "must be a list")
