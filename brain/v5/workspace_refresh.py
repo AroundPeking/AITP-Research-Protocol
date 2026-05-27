@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from brain.v5.legacy_human_checkpoint_obsidian import write_legacy_human_checkpoint_obsidian_view
 from brain.v5.obsidian_views import write_l2_obsidian_view
 from brain.v5.paths import WorkspacePaths
 from brain.v5.replay import write_workspace_replay_packet
@@ -30,18 +31,27 @@ def refresh_workspace_views(
         output_dir=str(ws.root / "surfaces" / "obsidian_l2_active"),
         claim_ids=active_claims,
     )
+    legacy_checkpoint_view = (
+        write_legacy_human_checkpoint_obsidian_view(ws, migration_dir=migration_dir)
+        if migration_dir
+        else None
+    )
     source_records = _merge_source_records(
         summary.get("source_records", {}),
         replay.get("source_records", {}),
         obsidian.get("source_records", {}),
+        legacy_checkpoint_view.get("source_records", {}) if legacy_checkpoint_view else {},
     )
-    return {
+    refreshed_surfaces = [
+        summary["kind"],
+        replay["kind"],
+        obsidian["kind"],
+    ]
+    if legacy_checkpoint_view:
+        refreshed_surfaces.append(legacy_checkpoint_view["kind"])
+    payload = {
         "kind": "workspace_refresh_bundle",
-        "refreshed_surfaces": [
-            summary["kind"],
-            replay["kind"],
-            obsidian["kind"],
-        ],
+        "refreshed_surfaces": refreshed_surfaces,
         "workspace_summary": summary,
         "workspace_replay": replay,
         "l2_obsidian_view": obsidian,
@@ -53,6 +63,9 @@ def refresh_workspace_views(
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+    if legacy_checkpoint_view:
+        payload["legacy_human_checkpoint_obsidian_view"] = legacy_checkpoint_view
+    return payload
 
 
 def _merge_source_records(*records: dict[str, list[str]]) -> dict[str, list[str]]:

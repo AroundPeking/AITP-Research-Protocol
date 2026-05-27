@@ -33,12 +33,20 @@ def validate_workspace_refresh_bundle(payload: dict[str, Any], *, path: str = "w
     _require_bool_value(payload.get("can_update_claim_trust"), False, f"{path}.can_update_claim_trust", result)
     _require_list(payload.get("refreshed_surfaces"), f"{path}.refreshed_surfaces", result)
     if isinstance(payload.get("refreshed_surfaces"), list):
-        expected = ["workspace_summary_bundle", "workspace_replay_packet", "l2_obsidian_view_bundle"]
-        if payload["refreshed_surfaces"] != expected:
+        base_expected = ["workspace_summary_bundle", "workspace_replay_packet", "l2_obsidian_view_bundle"]
+        legacy_expected = [*base_expected, "legacy_human_checkpoint_obsidian_view_bundle"]
+        surfaces = tuple(payload["refreshed_surfaces"])
+        if surfaces not in {tuple(base_expected), tuple(legacy_expected)}:
             result.add(f"{path}.refreshed_surfaces", "must list the refreshed workspace surfaces in order")
     _require_mapping(payload.get("workspace_summary"), f"{path}.workspace_summary", result)
     _require_mapping(payload.get("workspace_replay"), f"{path}.workspace_replay", result)
     _require_mapping(payload.get("l2_obsidian_view"), f"{path}.l2_obsidian_view", result)
+    if "legacy_human_checkpoint_obsidian_view" in payload:
+        _require_mapping(
+            payload.get("legacy_human_checkpoint_obsidian_view"),
+            f"{path}.legacy_human_checkpoint_obsidian_view",
+            result,
+        )
     _require_mapping(payload.get("source_records"), f"{path}.source_records", result)
     return result
 

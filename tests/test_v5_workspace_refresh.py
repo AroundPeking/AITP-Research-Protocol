@@ -146,6 +146,15 @@ def test_workspace_refresh_can_include_legacy_semantic_backlog_in_replay(tmp_pat
     payload = refresh_workspace_views(ws, migration_dir=migration)
 
     legacy = payload["workspace_replay"]["workspace_backlog_summary"]["legacy_semantic_review"]
+    assert payload["refreshed_surfaces"] == [
+        "workspace_summary_bundle",
+        "workspace_replay_packet",
+        "l2_obsidian_view_bundle",
+        "legacy_human_checkpoint_obsidian_view_bundle",
+    ]
+    assert payload["legacy_human_checkpoint_obsidian_view"]["files"]["checkpoint_worklist"].endswith(
+        "Legacy Human Checkpoints.md"
+    )
     assert legacy["surface"] == "legacy_semantic_review_manifest"
     assert legacy["review_item_count"] == 1
     assert legacy["semantic_lossless_proven"] is False
