@@ -230,3 +230,45 @@ def test_literature_intake_cli_mcp_runtime_and_surface_contract(tmp_path, capsys
     assert runtime_entrypoints()["record_literature_candidate"]["surface"] == (
         "literature_intake_record_result"
     )
+
+
+def test_literature_intake_includes_output_profile_context_when_topic_has_profile(tmp_path):
+    from brain.v5.literature_intake import suggest_literature_intake
+    from brain.v5.output_stability import record_final_output_profile
+
+    ws, _ = _setup_topic(tmp_path, active_claim=False)
+    record_final_output_profile(
+        ws,
+        topic_id="quantum-chaos-long-range-spin-chains",
+        output_version="qsgw-headwing-dual-lane-v1",
+        audience="research_human",
+        stable_sections=["current_data_state", "final_lane", "diagnostic_lane"],
+        flexible_sections=["open_questions"],
+        change_policy="Additive changes only; never mix final and diagnostic lanes.",
+        compatibility_note="Final lane uses usable_for_final=True sources only.",
+    )
+    result = suggest_literature_intake(
+        ws,
+        session_id="chaos-lit",
+        uri="https://arxiv.org/abs/2605.99999",
+        label="New chaos paper",
+        short_summary="Relevant to diagnostic lane only.",
+        detected_relevance="scope",
+    )
+    assert result["output_profile_context"]["output_version"] == "qsgw-headwing-dual-lane-v1"
+    assert "final_lane" in result["output_profile_context"]["stable_sections"]
+    assert "usable_for_final" in result["output_profile_context"]["lane_boundary_note"]
+
+
+def test_literature_intake_output_profile_context_empty_without_profile(tmp_path):
+    from brain.v5.literature_intake import suggest_literature_intake
+
+    ws, _ = _setup_topic(tmp_path, active_claim=False)
+    result = suggest_literature_intake(
+        ws,
+        session_id="chaos-lit",
+        uri="https://arxiv.org/abs/2605.99999",
+        label="New chaos paper",
+        short_summary="Generic paper.",
+    )
+    assert result["output_profile_context"] == {}
