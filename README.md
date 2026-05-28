@@ -269,6 +269,15 @@ For chat-sensitive startup paths, `aitp-v5 status topic <session-id> --compact`
 or `aitp_v5_write_topic_status_surfaces_compact` writes the same topic-status
 files but returns only a small handoff projection instead of the full
 `topic_state` payload.
+For cross-session goal continuation, `aitp-v5 goal write --objective <text>`
+or `aitp_v5_write_goal_continuation` writes a local audit packet to
+`.aitp/surfaces/goal_continuation/` with JSON and Markdown files capturing the
+objective, changed files, test results, smoke commands, readiness outcome, next
+actions, trust boundary, and blocking backlog. Future agents can read the
+latest packet via `aitp-v5 goal latest` or `aitp_v5_read_latest_goal_continuation`
+to understand what was done, what passed, what's blocking, and what to do next
+— without relying on chat history. These packets are orientation-only and cannot
+update kernel state or claim trust.
 For lighter natural conversations, `aitp-v5 interaction preview <session-id>`
 and `aitp_v5_preview_interaction_recording` expose a read-only
 `interaction_recording_preview`. It tells the host which records are merely

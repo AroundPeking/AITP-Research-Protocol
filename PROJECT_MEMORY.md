@@ -330,6 +330,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   compact `workspace_refresh_progress` with topic-status handoff paths instead
   of dumping full `topic_status_bundles`; the full files are still written on
   disk.
+- Agents can write goal continuation audit packets via `aitp-v5 goal write` or
+  `aitp_v5_write_goal_continuation`. Each packet is written to
+  `.aitp/surfaces/goal_continuation/` as JSON+Markdown and contains the
+  objective, changed files, test results, smoke commands, readiness outcome,
+  next actions, trust boundary, and blocking backlog. Future sessions can read
+  the latest packet via `aitp-v5 goal latest` or `aitp_v5_read_latest_goal_continuation`
+  to reconstruct context without chat history. These packets are orientation-only.
 - Agents can call `aitp-v5 interaction preview <session-id>` or
   `aitp_v5_preview_interaction_recording` before or during a natural research
   conversation. The contracted `interaction_recording_preview` is read-only

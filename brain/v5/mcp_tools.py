@@ -48,6 +48,7 @@ from brain.v5.mcp_strategy_memory import aitp_v5_record_strategy_memory
 from brain.v5.mcp_summaries import aitp_v5_read_summary_orientation, aitp_v5_refresh_workspace_views, aitp_v5_write_session_summary, aitp_v5_write_workspace_replay_packet, aitp_v5_write_workspace_summary
 from brain.v5.mcp_topic_status import aitp_v5_write_topic_status_surfaces, aitp_v5_write_topic_status_surfaces_compact
 from brain.v5.mcp_trust_audit import aitp_v5_audit_claim_trust
+from brain.v5.mcp_goal import aitp_v5_list_goal_continuations, aitp_v5_read_latest_goal_continuation, aitp_v5_write_goal_continuation
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.subagents import ingest_subagent_result

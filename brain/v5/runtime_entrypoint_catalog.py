@@ -444,6 +444,9 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
     "build_failure_mode_review_packet": {"cli": "aitp-v5 memory failure-mode-review <args>", "mcp": "aitp_v5_build_failure_mode_review_packet", "surface": "failure_mode_review_packet"},
     "request_failure_mode_review_checkpoint": {"cli": "aitp-v5 memory request-failure-mode-review <args>", "mcp": "aitp_v5_request_failure_mode_review_checkpoint", "surface": "human_checkpoint_record"},
     "record_failure_mode_review_result": {"cli": "aitp-v5 memory failure-mode-review-result <args>", "mcp": "aitp_v5_record_failure_mode_review_result", "surface": "failure_mode_review_result_record"},
+    "goal_continuation_write": {"cli": "aitp-v5 goal write <args>", "mcp": "aitp_v5_write_goal_continuation", "surface": "goal_continuation_packet"},
+    "goal_continuation_latest": {"cli": "aitp-v5 goal latest", "mcp": "aitp_v5_read_latest_goal_continuation", "surface": "goal_continuation_packet"},
+    "goal_continuation_list": {"cli": "aitp-v5 goal list", "mcp": "aitp_v5_list_goal_continuations", "surface": "goal_continuation_packet"},
 }
 
 

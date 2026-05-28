@@ -24,6 +24,7 @@ from brain.v5.models import TrustUpdateRequest
 from brain.v5.cli_policy import add_policy_parser, dispatch_policy_command
 from brain.v5.cli_validation import add_validation_parser, dispatch_validation_command
 from brain.v5.cli_vnext import VNEXT_COMMANDS, add_vnext_parsers, dispatch_vnext_command
+from brain.v5.cli_goal import add_goal_parser, dispatch_goal_command
 from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.physics_objects import record_object_relation, record_physics_object
 from brain.v5.references import record_reference_location
@@ -159,6 +160,7 @@ def _build_parser() -> argparse.ArgumentParser:
     add_interaction_parser(sp)
     add_literature_parser(sp)
     add_vnext_parsers(sp)
+    add_goal_parser(sp)
 
     add_summary_parser(sp)
     add_source_parser(sp)
@@ -333,6 +335,8 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return dispatch_literature_command(args, ws)
     if args.command in VNEXT_COMMANDS:
         return dispatch_vnext_command(args, ws)
+    if args.command == "goal":
+        return dispatch_goal_command(args, ws)
 
     if args.command == "summary":
         return dispatch_summary_command(args, ws)
