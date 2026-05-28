@@ -328,11 +328,12 @@ def _session_start_payload(ws, *, runtime: str, session_id: str, run: bool, time
         check=False,
     )
     output = _parse_json_object(completed.stdout)
+    output_kind = output.get("aitp", {}).get("kind", "")
     return {
         "ran": True,
-        "ok": completed.returncode == 0 and output.get("aitp", {}).get("kind") == "workspace_refresh_bundle",
+        "ok": completed.returncode == 0 and output_kind in {"workspace_refresh_bundle", "workspace_refresh_progress"},
         "exit_code": completed.returncode,
-        "output_kind": output.get("aitp", {}).get("kind", ""),
+        "output_kind": output_kind,
         "stdout": _trim(completed.stdout),
         "stderr": _trim(completed.stderr),
     }
@@ -423,6 +424,7 @@ def _hook_output_payload(process: dict[str, Any]) -> dict[str, Any]:
         kind
         for kind in [
             "workspace_refresh_bundle",
+            "workspace_refresh_progress",
             "hook_trace_event_record",
             "hook_decision",
             "PreToolUse",

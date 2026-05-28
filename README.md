@@ -255,7 +255,10 @@ and an active-session L2 Obsidian view in one orientation-only operation, with
 Claude/Kimi `SessionStart` hooks use the lighter `startup_lightweight` mode of
 the same bundle: they refresh the workspace summary, interaction worklist, and
 current-session topic status, while deferring replay, source-stack, L2 Obsidian,
-and source-reconstruction views to explicit refresh commands.
+and source-reconstruction views to explicit refresh commands. The hook response
+returns compact `workspace_refresh_progress` so chat-native hosts do not ingest
+the full `topic_state` JSON; the full topic-status files are still written on
+disk for later inspection.
 The generated current-session topic status includes `session_start.generated.md`
 as a stable handoff surface for future agents. It renders the topic's active
 final-output profile, strategy-memory next-time rules, lane exemplars, and
@@ -442,11 +445,12 @@ or merge it into `.kimi/config.toml` with
 `aitp-v5 adapter install-hooks kimi-code <session-id> --settings .kimi/config.toml`.
 Both native host installers emit `SessionStart`, `PreToolUse`, and
 `PostToolUse` commands with absolute hook script paths and the active Python
-interpreter. `SessionStart` calls the contracted `workspace_refresh_bundle`, so
-Claude/Kimi sessions can refresh a lightweight current-session orientation at
-startup/resume without granting generated files truth authority. Heavy replay,
-source-stack, L2 Obsidian, and source-reconstruction refreshes remain available
-through explicit `summary refresh`/MCP calls. Kimi hook generation follows the
+interpreter. `SessionStart` calls the contracted startup refresh and returns a
+compact `workspace_refresh_progress` projection, so Claude/Kimi sessions can
+refresh current-session orientation at startup/resume without dumping large
+machine payloads into chat or granting generated files truth authority. Heavy
+replay, source-stack, L2 Obsidian, and source-reconstruction refreshes remain
+available through explicit `summary refresh`/MCP calls. Kimi hook generation follows the
 official Kimi Code hook model of `[[hooks]]` entries in `~/.kimi/config.toml`,
 stdin JSON input, and `SessionStart`/`PreToolUse`/`PostToolUse` lifecycle events:
 [Kimi Code hooks](https://www.kimi.com/code/docs/kimi-code-cli/customization/hooks.html).

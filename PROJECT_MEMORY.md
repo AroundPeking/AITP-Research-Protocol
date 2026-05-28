@@ -166,8 +166,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   paths and the active Python interpreter. Their `SessionStart` commands call
   `refresh_workspace_startup_views`, regenerating a lightweight workspace
   summary, interaction worklist, and current-session topic status as
-  orientation-only startup context. Full replay/source-stack/L2/source
-  reconstruction refresh remains explicit through `refresh_workspace_views`.
+  orientation-only startup context, then return compact
+  `workspace_refresh_progress` to avoid large chat payloads. Full
+  replay/source-stack/L2/source reconstruction refresh remains explicit through
+  `refresh_workspace_views`.
   Tests execute the generated `session-start` commands from a temporary user
   workspace cwd.
 - `hooks/aitp_v5_claude_hook.py` reads Claude Code hook JSON from stdin. Its
@@ -324,6 +326,10 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   It regenerates the workspace summary, replay packet, and active-session L2
   Obsidian view in a contracted `workspace_refresh_bundle`, remains
   orientation-only, and cannot update kernel state or claim trust.
+  Claude/Kimi SessionStart hooks call the lighter startup refresh and return
+  compact `workspace_refresh_progress` with topic-status handoff paths instead
+  of dumping full `topic_status_bundles`; the full files are still written on
+  disk.
 - Agents can call `aitp-v5 interaction preview <session-id>` or
   `aitp_v5_preview_interaction_recording` before or during a natural research
   conversation. The contracted `interaction_recording_preview` is read-only

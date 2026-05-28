@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from brain.v5.topic_status import compact_topic_status_bundle
+
 
 def compact_workspace_replay_packet(payload: dict[str, Any]) -> dict[str, Any]:
     backlog = (
@@ -193,6 +195,10 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
         for bundle in payload.get("topic_status_bundles", [])
         if isinstance(bundle, dict)
     ]
+    topic_status_handoffs = [
+        compact_topic_status_bundle(bundle)
+        for bundle in topic_status_bundles
+    ]
     legacy = (
         payload.get("legacy_semantic_review_obsidian_view")
         if isinstance(payload.get("legacy_semantic_review_obsidian_view"), dict)
@@ -217,6 +223,7 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
         "ok": bool(payload.get("ok", True)),
         "kind": "workspace_refresh_progress",
         "source_surface": "workspace_refresh_bundle",
+        "refresh_mode": str(payload.get("refresh_mode") or "full"),
         "refreshed_surface_count": len(payload.get("refreshed_surfaces") or []),
         "refreshed_surfaces": list(payload.get("refreshed_surfaces") or []),
         "workspace_summary": {
@@ -295,7 +302,8 @@ def compact_workspace_refresh(payload: dict[str, Any]) -> dict[str, Any]:
                 if bundle.get("can_update_claim_trust") is False
             ),
         },
-        "truth_source": str(payload.get("truth_source") or ""),
+        "topic_status_handoffs": topic_status_handoffs,
+        "truth_source": bool(payload.get("truth_source", False)),
         "summary_inputs_trusted": bool(payload.get("summary_inputs_trusted", False)),
         "orientation_only": bool(payload.get("orientation_only", True)),
         "can_update_kernel_state": bool(payload.get("can_update_kernel_state", False)),

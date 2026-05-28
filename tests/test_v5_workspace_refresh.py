@@ -379,6 +379,11 @@ def test_workspace_refresh_cli_compact_progress(tmp_path, capsys):
         "session_refs": ["session:s1"],
         "blocked_claim_trust_count": 1,
     }
+    assert cli_payload["topic_status_handoffs"][0]["kind"] == "topic_status_bundle_progress"
+    assert cli_payload["topic_status_handoffs"][0]["session_id"] == "s1"
+    assert cli_payload["topic_status_handoffs"][0]["files"]["session_start"].endswith(
+        "session_start.generated.md"
+    )
     assert cli_payload["source_reconstruction"]["incomplete_claim_count"] == 1
     assert cli_payload["source_reconstruction_review"] == {
         "claim_count": 1,

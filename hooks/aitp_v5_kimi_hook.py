@@ -18,6 +18,7 @@ from brain.v5.pretool_policy import context_policy_decision
 from brain.v5.trace import persist_hook_trace_event
 from brain.v5.workspace import get_session_binding, init_workspace
 from brain.v5.workspace_refresh import refresh_workspace_startup_views
+from brain.v5.cli_refresh_progress import compact_workspace_refresh
 
 
 _AITP_MCP_ACTIONS = {
@@ -73,7 +74,8 @@ def _build_parser() -> argparse.ArgumentParser:
 def _dispatch(args: argparse.Namespace, kimi_payload: dict[str, Any]) -> dict[str, Any]:
     if args.command == "session-start":
         ws = init_workspace(args.base)
-        return _kimi_continue({"aitp": refresh_workspace_startup_views(ws, session_id=args.session_id)})
+        refresh = refresh_workspace_startup_views(ws, session_id=args.session_id)
+        return _kimi_continue({"aitp": compact_workspace_refresh(refresh)})
     if args.command == "pre-tool":
         action = _action_from_kimi_tool(kimi_payload)
         policy_decision = _policy_from_kimi_tool(

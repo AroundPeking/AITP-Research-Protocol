@@ -433,12 +433,19 @@ def test_kimi_code_hook_session_start_refreshes_workspace_views(tmp_path):
     assert result.returncode == 0
     assert payload["continue"] is True
     assert payload["suppressOutput"] is True
-    assert payload["aitp"]["kind"] == "workspace_refresh_bundle"
+    assert payload["aitp"]["kind"] == "workspace_refresh_progress"
+    assert payload["aitp"]["source_surface"] == "workspace_refresh_bundle"
     assert payload["aitp"]["refresh_mode"] == "startup_lightweight"
     assert payload["aitp"]["truth_source"] is False
     assert payload["aitp"]["orientation_only"] is True
+    assert "topic_status_bundles" not in payload["aitp"]
+    assert payload["aitp"]["topic_status_handoffs"][0]["session_id"] == "s1"
+    assert payload["aitp"]["topic_status_handoffs"][0]["files"]["session_start"].endswith(
+        "session_start.generated.md"
+    )
     assert (tmp_path / ".aitp" / "surfaces" / "workspace_summary" / "overview.md").exists()
     assert (tmp_path / ".aitp" / "topics" / "librpa-gw" / "runtime" / "topic_state.json").exists()
+    assert (tmp_path / ".aitp" / "topics" / "librpa-gw" / "runtime" / "session_start.generated.md").exists()
     assert not (tmp_path / ".aitp" / "surfaces" / "workspace_replay" / "replay_packet.md").exists()
     assert not (tmp_path / ".aitp" / "surfaces" / "obsidian_l2_active" / "L2 Memory Overview.md").exists()
 
@@ -462,12 +469,19 @@ def test_claude_code_hook_session_start_refreshes_workspace_views(tmp_path):
     assert result.returncode == 0
     assert payload["continue"] is True
     assert payload["suppressOutput"] is True
-    assert payload["aitp"]["kind"] == "workspace_refresh_bundle"
+    assert payload["aitp"]["kind"] == "workspace_refresh_progress"
+    assert payload["aitp"]["source_surface"] == "workspace_refresh_bundle"
     assert payload["aitp"]["refresh_mode"] == "startup_lightweight"
     assert payload["aitp"]["truth_source"] is False
     assert payload["aitp"]["orientation_only"] is True
+    assert "topic_status_bundles" not in payload["aitp"]
+    assert payload["aitp"]["topic_status_handoffs"][0]["session_id"] == "s1"
+    assert payload["aitp"]["topic_status_handoffs"][0]["files"]["session_start"].endswith(
+        "session_start.generated.md"
+    )
     assert (tmp_path / ".aitp" / "surfaces" / "workspace_summary" / "overview.md").exists()
     assert (tmp_path / ".aitp" / "topics" / "librpa-gw" / "runtime" / "topic_state.json").exists()
+    assert (tmp_path / ".aitp" / "topics" / "librpa-gw" / "runtime" / "session_start.generated.md").exists()
     assert not (tmp_path / ".aitp" / "surfaces" / "workspace_replay" / "replay_packet.md").exists()
     assert not (tmp_path / ".aitp" / "surfaces" / "obsidian_l2_active" / "L2 Memory Overview.md").exists()
 
