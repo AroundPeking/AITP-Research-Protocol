@@ -91,8 +91,17 @@ def test_workspace_replay_packet_lists_resume_queue_and_source_gaps(tmp_path):
     from brain.v5.markdown import read_md
     from brain.v5.public_surfaces import require_valid_public_surface
     from brain.v5.replay import write_workspace_replay_packet
+    from brain.v5.source_reconstruction_review import record_source_reconstruction_review_result
 
     ws, claim, gw_claim, _ = _seed_replay_workspace(tmp_path)
+    record_source_reconstruction_review_result(
+        ws,
+        claim_id=claim.claim_id,
+        status="passed",
+        reviewed_components=["definitions", "dependency_graph", "reconstruction_path"],
+        basis_refs=["paper:fqhe-counting"],
+        summary="The source stack was reviewed for replay context.",
+    )
 
     packet = write_workspace_replay_packet(ws)
     payload = asdict(packet)
@@ -105,20 +114,747 @@ def test_workspace_replay_packet_lists_resume_queue_and_source_gaps(tmp_path):
     assert packet.attention_count == 2
     assert packet.source_records["sessions"] == ["s1", "s2"]
     assert packet.source_records["claims"] == [claim.claim_id, gw_claim.claim_id]
+    assert packet.workspace_backlog_summary["active_session_count"] == 2
+    assert packet.workspace_backlog_summary["active_topic_count"] == 2
+    assert packet.workspace_backlog_summary["active_claim_count"] == 2
+    assert packet.workspace_backlog_summary["attention_count"] == 2
+    coverage_summary = packet.workspace_backlog_summary["source_stack_coverage"]
+    assert coverage_summary["surface"] == "source_stack_coverage_manifest"
+    assert coverage_summary["claim_count"] == 2
+    assert coverage_summary["coverage_status_counts"]["evidence_gap"] == 2
+    assert coverage_summary["top_gap_items"][0]["claim_id"] == claim.claim_id
+    assert "failure_mode" in coverage_summary["top_gap_items"][0]["missing_required_outputs"]
+    assert coverage_summary["can_update_claim_trust"] is False
+    source_summary = packet.workspace_backlog_summary["source_reconstruction"]
+    assert source_summary["surface"] == "source_reconstruction_manifest"
+    assert source_summary["complete_claim_count"] == 1
+    assert source_summary["incomplete_claim_count"] == 1
+    assert source_summary["review_status_counts"] == {"passed": 1, "pending": 1}
+    assert source_summary["missing_component_counts"]["definitions"] == 1
+    assert source_summary["top_incomplete_claims"] == [
+        {
+            "session_id": "s2",
+            "topic_id": "gw",
+            "claim_id": gw_claim.claim_id,
+            "review_status": "pending",
+            "missing_components": [
+                "definitions",
+                "assumptions_or_scope",
+                "source_locations",
+                "dependency_graph",
+                "reconstruction_path",
+                "failure_conditions",
+            ],
+            "next_actions": [
+                "collect_required_evidence_or_provenance",
+                "complete_source_reconstruction",
+                "record_source_reconstruction_review_result",
+                "design_falsification_or_counterargument",
+            ],
+            "review_packet_cli": f"aitp-v5 source reconstruction-review --claim {gw_claim.claim_id}",
+            "can_update_claim_trust": False,
+        }
+    ]
+    attention_summary = packet.workspace_backlog_summary["resume_attention"]
+    assert attention_summary["attention_count"] == 2
+    assert attention_summary["top_items"][0]["session_id"] == "s2"
+    assert "missing_source_reconstruction" in attention_summary["top_items"][0]["attention_reasons"]
 
     complete = next(entry for entry in packet.entries if entry["claim_id"] == claim.claim_id)
     incomplete = next(entry for entry in packet.entries if entry["claim_id"] == gw_claim.claim_id)
     assert complete["source_reconstruction_complete"] is True
+    assert complete["source_reconstruction_review_status"] == "passed"
+    assert complete["source_reconstruction_review_result_ids"]
+    assert "record_source_reconstruction_review_result" not in complete["next_actions"]
     assert complete["missing_source_components"] == []
     assert incomplete["source_reconstruction_complete"] is False
+    assert incomplete["source_reconstruction_review_status"] == "pending"
+    assert incomplete["source_reconstruction_review_result_ids"] == []
     assert "definitions" in incomplete["missing_source_components"]
-    assert incomplete["attention_reasons"]
+    assert "source_reconstruction_review_pending" in incomplete["attention_reasons"]
+    assert "record_source_reconstruction_review_result" in incomplete["next_actions"]
 
     _, body = read_md(packet.files["replay_packet"])
     assert "Workspace Replay Packet" in body
     assert claim.claim_id in body
     assert gw_claim.claim_id in body
+    assert "Cross-Topic Backlog" in body
+    assert "Source Stack Coverage" in body
+    assert f"`{gw_claim.claim_id}`" in body
+    assert "Source review: `pending`" in body
     assert "orientation only" in body
+
+
+def test_workspace_replay_packet_uses_temporal_source_review_order(tmp_path):
+    import os
+
+    from brain.v5.models import SourceReconstructionReviewResultRecord
+    from brain.v5.replay import write_workspace_replay_packet
+    from brain.v5.store import write_record
+
+    ws, claim, _, _ = _seed_replay_workspace(tmp_path)
+    review_dir = ws.registry_dir("source_reconstruction_reviews")
+    older_path = review_dir / "source-reconstruction-review-z-older.md"
+    newer_path = review_dir / "source-reconstruction-review-a-newer.md"
+    write_record(
+        older_path,
+        SourceReconstructionReviewResultRecord(
+            result_id=older_path.stem,
+            topic_id=claim.topic_id,
+            claim_id=claim.claim_id,
+            status="passed",
+            reviewed_components=["definitions"],
+            basis_refs=["paper:fqhe-counting"],
+            summary="Older replay review should not win because its id sorts later.",
+        ),
+    )
+    write_record(
+        newer_path,
+        SourceReconstructionReviewResultRecord(
+            result_id=newer_path.stem,
+            topic_id=claim.topic_id,
+            claim_id=claim.claim_id,
+            status="inconclusive",
+            reviewed_components=["definitions"],
+            basis_refs=["paper:fqhe-counting"],
+            remaining_actions=["record_missing_scope_review"],
+            summary="Newer replay review should be selected by file mtime for legacy records.",
+        ),
+    )
+    os.utime(older_path, (1_800_000_000, 1_800_000_000))
+    os.utime(newer_path, (1_800_000_100, 1_800_000_100))
+
+    packet = write_workspace_replay_packet(ws)
+
+    entry = next(entry for entry in packet.entries if entry["claim_id"] == claim.claim_id)
+    assert entry["source_reconstruction_review_status"] == "inconclusive"
+    assert entry["source_reconstruction_review_result_ids"] == [
+        older_path.stem,
+        newer_path.stem,
+    ]
+
+
+def test_workspace_replay_packet_can_include_legacy_semantic_review_backlog(tmp_path):
+    from dataclasses import asdict
+
+    from brain.v5.checkpoints import request_human_checkpoint
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.markdown import read_md
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.replay import write_workspace_replay_packet
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    migration = ws.root / "migrations" / "legacy-run"
+    migration.mkdir(parents=True)
+    (migration / "migration_summary.json").write_text(
+        json.dumps(
+            {
+                "kind": "legacy_v5_lossless_migration_report",
+                "run_id": "legacy-run",
+                "workspace": str(ws.base),
+                "legacy_root": str(ws.base / "research" / "aitp-topics"),
+                "v5_root": str(ws.root),
+                "totals": {
+                    "topic_count": 1,
+                    "legacy_file_count": 1,
+                    "post_legacy_file_count": 1,
+                    "legacy_manifest_hash_stable": True,
+                    "legacy_manifest_change_count": 0,
+                    "archive_reference_count": 0,
+                    "accounted_file_count": 1,
+                    "summary_inputs_trusted": False,
+                },
+                "topics": [
+                    {
+                        "topic": "legacy-l2",
+                        "status": "ok",
+                        "file_count": 1,
+                        "audit_mapped_file_count": 1,
+                        "structured_file_count": 1,
+                        "archive_reference_count": 0,
+                        "accounted_file_count": 1,
+                        "missing_expected_paths": [],
+                        "can_write_v5_records": False,
+                        "active_claim_id": "claim-l2",
+                        "written_records": {
+                            "topics": 1,
+                            "claims": 1,
+                            "evidence": 1,
+                            "reference_locations": 0,
+                            "sensemaking_reports": 1,
+                            "trace_events": 0,
+                            "memory_entries": 1,
+                        },
+                        "preserved_source_refs": 0,
+                        "summary_inputs_trusted": False,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (migration / "verification_report.json").write_text(
+        json.dumps(
+            {
+                "kind": "legacy_v5_lossless_migration_verification",
+                "run_id": "legacy-run",
+                "file_accounting_ok": True,
+                "manifest_check": {"pre_count": 1, "post_count": 1, "missing": 0, "extra": 0, "changed": 0},
+                "archive_reference_check": {
+                    "archive_records_checked": 0,
+                    "archive_records_expected": 0,
+                    "registry_archive_reference_count": 0,
+                    "problem_count": 0,
+                    "problems": [],
+                },
+                "markdown_readability_check": {
+                    "markdown_files_checked": 1,
+                    "problem_count": 0,
+                    "problems": [],
+                },
+                "all_checks_ok": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest = migration / "legacy_manifest_pre.jsonl"
+    manifest.write_text(
+        json.dumps({"topic": "legacy-l2", "path": "state.md", "sha256": "abc"}) + "\n",
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-l2.md",
+        ClaimRecord(
+            claim_id="claim-l2",
+            topic_id="legacy-l2",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Legacy L2 graph needs typed review.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=migration,
+        topic="legacy-l2",
+        status="inconclusive",
+        summary="Legacy L2 remains orientation-only until typed review is complete.",
+        active_claim_id="claim-l2",
+        reviewed_legacy_refs=["legacy_archive:L2/index.md"],
+        reviewed_typed_refs=["claim-l2"],
+        remaining_actions=[
+            "review_legacy_l2_memory_entry_candidates",
+            "decide_human_checkpoint_before_promotion",
+        ],
+    )
+    checkpoint = request_human_checkpoint(
+        ws,
+        topic_id="legacy-l2",
+        claim_id="claim-l2",
+        reason="legacy semantic review promotion decision",
+        requested_by="legacy_semantic_review",
+        options=["approve_semantic_review", "keep_backlog_blocking"],
+    )
+
+    packet = write_workspace_replay_packet(ws, migration_dir=migration)
+    payload = asdict(packet)
+
+    assert require_valid_public_surface("workspace_replay_packet", {"ok": True, **payload})["ok"] is True
+    legacy = packet.workspace_backlog_summary["legacy_semantic_review"]
+    legacy_source = packet.workspace_backlog_summary["legacy_source_reconstruction"]
+    legacy_repair = packet.workspace_backlog_summary["legacy_semantic_repair"]
+    legacy_needs_revision = packet.workspace_backlog_summary["legacy_semantic_needs_revision_basis"]
+    legacy_checkpoints = packet.workspace_backlog_summary["legacy_human_checkpoints"]
+    legacy_topic_question = packet.workspace_backlog_summary["legacy_topic_question_backfill"]
+    legacy_executable = packet.workspace_backlog_summary["legacy_executable_evidence"]
+    assert legacy == {
+        "surface": "legacy_semantic_review_manifest",
+        "migration_dir": str(migration),
+        "review_item_count": 1,
+        "review_progress": {
+            "passed": 0,
+            "inconclusive": 1,
+            "needs_revision": 0,
+            "pending": 0,
+        },
+        "semantic_lossless_proven": False,
+        "open_human_checkpoint_count": 1,
+        "open_human_checkpoints": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "checkpoint_id": checkpoint.checkpoint_id,
+                "checkpoint_ref": f"human-checkpoint:{checkpoint.checkpoint_id}",
+                "action": "decide_human_checkpoint_before_promotion",
+                "decision_cli": (
+                    f"aitp-v5 --base {ws.base} checkpoint decide {checkpoint.checkpoint_id} "
+                    "--decision <approve_semantic_review|keep_backlog_blocking> "
+                    "--rationale <human rationale> --decided-by <reviewer>"
+                ),
+                "decision_mcp": "aitp_v5_decide_human_checkpoint",
+                "can_update_claim_trust": False,
+            }
+        ],
+        "top_backlog_items": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "review_status": "inconclusive",
+                "review_priority": "high",
+                "latest_review_id": review.review_id,
+                "packet_cli": (
+                    f"aitp-v5 --base {ws.base} legacy semantic-review-packet "
+                    f"--migration-dir {migration} --topic legacy-l2"
+                ),
+                "can_update_claim_trust": False,
+            }
+        ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_source == {
+        "surface": "legacy_source_reconstruction_manifest",
+        "migration_dir": str(migration),
+        "work_item_count": 1,
+        "repair_status_counts": {
+            "awaiting_needs_revision_review": 1,
+            "no_repair_candidates": 0,
+            "proposed_repairs": 0,
+        },
+        "proposed_repair_count": 0,
+        "top_backlog_items": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "latest_review_id": review.review_id,
+                "repair_status": "awaiting_needs_revision_review",
+                "missing_components": [
+                    "definitions",
+                    "assumptions_or_scope",
+                    "source_locations",
+                    "dependency_graph",
+                    "reconstruction_path",
+                    "failure_conditions",
+                ],
+                "required_actions": [
+                    "inspect_legacy_refs_for_source_reconstruction_components",
+                    "record_source_reconstruction_review_result",
+                    "record_needs_revision_review_with_specific_source_reconstruction_basis",
+                ],
+                "review_packet_cli": (
+                    f"aitp-v5 --base {ws.base} legacy source-reconstruction-review "
+                    f"--migration-dir {migration} --topic legacy-l2"
+                ),
+                "can_update_claim_trust": False,
+            }
+        ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_repair == {
+        "surface": "legacy_semantic_repair_manifest",
+        "migration_dir": str(migration),
+        "work_item_count": 1,
+        "repair_status_counts": {
+            "awaiting_needs_revision_review": 1,
+            "external_evidence_required": 0,
+            "no_repair_candidates": 0,
+            "proposed_repairs": 0,
+        },
+        "proposed_repair_count": 0,
+        "required_action_counts": {
+            "keep_semantic_review_blocking_until_typed_review_basis_exists": 1,
+            "record_needs_revision_review_with_specific_repair_basis": 1,
+        },
+        "top_repair_items": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "latest_review_id": review.review_id,
+                "review_status": "inconclusive",
+                "repair_status": "awaiting_needs_revision_review",
+                "proposed_repair_count": 0,
+                "proposed_repair_types": [],
+                "required_actions": [
+                    "record_needs_revision_review_with_specific_repair_basis",
+                    "keep_semantic_review_blocking_until_typed_review_basis_exists",
+                ],
+                "repair_plan_cli": (
+                    f"aitp-v5 --base {ws.base} legacy semantic-repair-plan "
+                    f"--migration-dir {migration} --topic legacy-l2"
+                ),
+                "can_update_claim_trust": False,
+            }
+        ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_needs_revision == {
+        "surface": "legacy_semantic_needs_revision_basis_queue",
+        "migration_dir": str(migration),
+        "basis_item_count": 1,
+        "basis_status_counts": {"needs_revision_basis_required": 1},
+        "status_counts": {"inconclusive": 1},
+        "required_action_counts": {
+            "record_needs_revision_review_with_specific_repair_basis": 1,
+            "supply_or_review_human_topic_question_before_claim_statement_backfill": 1,
+            "keep_semantic_review_blocking_until_typed_review_basis_exists": 1,
+        },
+        "top_basis_items": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "latest_review_id": review.review_id,
+                "review_status": "inconclusive",
+                "basis_status": "needs_revision_basis_required",
+                "required_actions": [
+                    "record_needs_revision_review_with_specific_repair_basis",
+                    "supply_or_review_human_topic_question_before_claim_statement_backfill",
+                    "keep_semantic_review_blocking_until_typed_review_basis_exists",
+                ],
+                "needs_revision_result_cli": (
+                    f"aitp-v5 --base {ws.base} legacy semantic-review-result "
+                    f"--migration-dir {migration} --topic legacy-l2 "
+                    "--status needs_revision --legacy-ref <reviewed-legacy-ref> "
+                    "--typed-ref <reviewed-typed-basis-ref> "
+                    "--summary <specific repair basis and remaining semantic gaps>"
+                ),
+                "basis_packet_cli": (
+                    f"aitp-v5 --base {ws.base} legacy semantic-needs-revision-basis-packet "
+                    f"--migration-dir {migration} --topic legacy-l2"
+                ),
+                "repair_plan_cli": (
+                    f"aitp-v5 --base {ws.base} legacy semantic-repair-plan "
+                    f"--migration-dir {migration} --topic legacy-l2"
+                ),
+                "can_update_claim_trust": False,
+            }
+        ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_checkpoints == {
+        "surface": "legacy_human_checkpoint_packet",
+        "migration_dir": str(migration),
+        "checkpoint_item_count": 1,
+        "open_decision_count": 1,
+        "pending_request_count": 0,
+        "next_action_count": 1,
+        "top_checkpoint_items": [
+            {
+                "topic": "legacy-l2",
+                "active_claim_id": "claim-l2",
+                "latest_review_id": review.review_id,
+                "review_status": "inconclusive",
+                "action": "decide_human_checkpoint_before_promotion",
+                "mode": "decide_open_checkpoint",
+                "checkpoint_id": checkpoint.checkpoint_id,
+                "reason": "legacy semantic review promotion decision",
+                "options": ["approve_semantic_review", "keep_backlog_blocking"],
+                "cli": (
+                    f"aitp-v5 --base {ws.base} checkpoint decide {checkpoint.checkpoint_id} "
+                    "--decision <approve_semantic_review|keep_backlog_blocking> "
+                    "--rationale <human rationale> --decided-by <reviewer>"
+                ),
+                "mcp": "aitp_v5_decide_human_checkpoint",
+                "can_update_claim_trust": False,
+            }
+        ],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_topic_question == {
+        "surface": "legacy_topic_question_backfill_packet",
+        "migration_dir": str(migration),
+        "backfill_item_count": 0,
+        "open_decision_count": 0,
+        "pending_request_count": 0,
+        "top_backfill_items": [],
+        "auto_backfill_allowed": False,
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert legacy_executable == {
+        "surface": "legacy_executable_evidence_packet",
+        "migration_dir": str(migration),
+        "evidence_item_count": 0,
+        "executable_action_count": 0,
+        "top_evidence_items": [],
+        "summary_inputs_trusted": False,
+        "orientation_only": True,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    _, body = read_md(packet.files["replay_packet"])
+    assert "Legacy Semantic Review Backlog" in body
+    assert "Legacy Source Reconstruction Backlog" in body
+    assert "Legacy Semantic Repair Triage" in body
+    assert "Legacy Needs-Revision Basis" in body
+    assert "Legacy Human Checkpoints" in body
+    assert "Legacy Executable Evidence" in body
+    assert "Source reconstruction items: 1" in body
+    assert "Semantic repair items: 1" in body
+    assert "Proposed semantic repairs: 0" in body
+    assert "Needs-revision basis items: 1" in body
+    assert "Checkpoint decisions: 1 open, 0 pending request" in body
+    assert "Executable evidence items: 0" in body
+    assert "Open human checkpoints: 1" in body
+    assert checkpoint.checkpoint_id in body
+    assert "semantic lossless proven: False" in body
+    assert "legacy-l2" in body
+
+
+def test_workspace_replay_includes_legacy_executable_evidence_blockers(tmp_path):
+    from dataclasses import asdict
+
+    from brain.v5.legacy_semantic_review import record_legacy_semantic_review_result
+    from brain.v5.models import ClaimRecord
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.replay import write_workspace_replay_packet
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    migration = ws.root / "migrations" / "legacy-run"
+    migration.mkdir(parents=True)
+    (migration / "migration_summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "legacy-run",
+                "workspace": str(ws.base),
+                "legacy_root": str(ws.base / "research" / "aitp-topics"),
+                "v5_root": str(ws.root),
+                "totals": {"topic_count": 1, "legacy_file_count": 1, "post_legacy_file_count": 1},
+                "topics": [
+                    {
+                        "topic": "crpa",
+                        "status": "ok",
+                        "file_count": 1,
+                        "accounted_file_count": 1,
+                        "can_write_v5_records": False,
+                        "active_claim_id": "claim-crpa",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (migration / "verification_report.json").write_text(
+        json.dumps(
+            {
+                "run_id": "legacy-run",
+                "file_accounting_ok": True,
+                "manifest_check": {"pre_count": 1, "post_count": 1, "missing": 0, "extra": 0, "changed": 0},
+                "archive_reference_check": {
+                    "archive_records_checked": 0,
+                    "archive_records_expected": 0,
+                    "registry_archive_reference_count": 0,
+                    "problem_count": 0,
+                },
+                "markdown_readability_check": {"markdown_files_checked": 1, "problem_count": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-crpa.md",
+        ClaimRecord(
+            claim_id="claim-crpa",
+            topic_id="crpa",
+            statement="The cRPA benchmark still needs executable validation.",
+            evidence_profile="code_method",
+            confidence_state="legacy_seed",
+            active_uncertainty="Executable SrVO3 benchmark missing.",
+        ),
+    )
+    review = record_legacy_semantic_review_result(
+        ws,
+        migration_dir=migration,
+        topic="crpa",
+        status="inconclusive",
+        summary="Executable evidence remains missing before semantic pass.",
+        active_claim_id="claim-crpa",
+        reviewed_typed_refs=["claim-crpa", "validation-contract:validation-contract-crpa"],
+        remaining_actions=[
+            "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs"
+        ],
+    )
+
+    packet = write_workspace_replay_packet(ws, migration_dir=migration)
+    payload = asdict(packet)
+
+    assert require_valid_public_surface("workspace_replay_packet", {"ok": True, **payload})["ok"] is True
+    executable = packet.workspace_backlog_summary["legacy_executable_evidence"]
+    assert executable["surface"] == "legacy_executable_evidence_packet"
+    assert executable["evidence_item_count"] == 1
+    assert executable["executable_action_count"] == 1
+    assert executable["top_evidence_items"][0]["topic"] == "crpa"
+    assert executable["top_evidence_items"][0]["latest_review_id"] == review.review_id
+    assert executable["top_evidence_items"][0]["executable_actions"] == [
+        "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs"
+    ]
+    assert executable["top_evidence_items"][0]["validation_command_count"] == 1
+    assert executable["top_evidence_items"][0]["tool_run_command_count"] == 0
+    assert executable["can_update_claim_trust"] is False
+
+
+def test_workspace_replay_reuses_legacy_review_worklist_for_compact_backlog(monkeypatch, tmp_path):
+    import brain.v5.replay_backlog_summary as backlog_summary
+    import brain.v5.replay_legacy_backlog_summary as legacy_backlog_summary
+    from brain.v5.replay_backlog_summary import build_workspace_backlog_summary
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    migration = ws.root / "migrations" / "legacy-run"
+    migration.mkdir(parents=True)
+    calls = {"manifest": 0, "worklist": 0}
+
+    def fake_source_stack(_ws):
+        return {
+            "claim_count": 0,
+            "coverage_status_counts": {},
+            "missing_required_output_counts": {},
+            "source_component_gap_counts": {},
+            "source_review_status_counts": {},
+            "items": [],
+        }
+
+    def fake_manifest(_ws, *, migration_dir):
+        calls["manifest"] += 1
+        return {
+            "migration_dir": str(migration_dir),
+            "review_item_count": 1,
+            "review_progress": {
+                "passed": 0,
+                "inconclusive": 1,
+                "needs_revision": 0,
+                "pending": 0,
+            },
+            "semantic_lossless_proven": False,
+            "items": [
+                {
+                    "topic": "crpa",
+                    "active_claim_id": "claim-crpa",
+                    "review_status": "inconclusive",
+                    "review_priority": "high",
+                    "latest_semantic_review": {"review_id": "legacy-review-crpa"},
+                    "packet_cli": "aitp-v5 legacy semantic-review-packet crpa",
+                }
+            ],
+        }
+
+    def fake_worklist(_ws, *, migration_dir, manifest=None):
+        calls["worklist"] += 1
+        assert manifest is not None
+        return {
+            "run_id": "legacy-run",
+            "migration_dir": str(migration_dir),
+            "workspace": str(ws.base),
+            "open_human_checkpoint_count": 1,
+            "open_human_checkpoints": [
+                {
+                    "topic": "crpa",
+                    "active_claim_id": "claim-crpa",
+                    "checkpoint_id": "checkpoint-crpa",
+                    "checkpoint_ref": "human-checkpoint:checkpoint-crpa",
+                    "action": "decide_human_checkpoint_before_promotion",
+                    "decision_cli": "aitp-v5 checkpoint decide checkpoint-crpa --decision <approve|block>",
+                    "decision_mcp": "aitp_v5_decide_human_checkpoint",
+                    "can_update_claim_trust": False,
+                }
+            ],
+            "items": [
+                {
+                    "topic": "crpa",
+                    "active_claim_id": "claim-crpa",
+                    "latest_review_id": "legacy-review-crpa",
+                    "review_status": "inconclusive",
+                    "blocking_classes": ["executable_evidence_required"],
+                    "review_action_commands": [
+                        {
+                            "surface": "validation_result_record",
+                            "effect": "typed_record_write",
+                            "action": (
+                                "implement_or_import_executable_SrVO3_t2g_crpa_benchmark_with_Wannier_U_J_outputs"
+                            ),
+                        },
+                        {
+                            "surface": "human_checkpoint_record",
+                            "effect": "typed_record_write",
+                            "action": "decide_human_checkpoint_before_promotion",
+                            "checkpoint_id": "checkpoint-crpa",
+                            "latest_review_id": "legacy-review-crpa",
+                            "cli": "aitp-v5 checkpoint decide checkpoint-crpa --decision <approve|block>",
+                            "mcp": "aitp_v5_decide_human_checkpoint",
+                        },
+                    ],
+                }
+            ],
+        }
+
+    def fake_source_reconstruction(_ws, *, migration_dir):
+        return {
+            "migration_dir": str(migration_dir),
+            "work_item_count": 0,
+            "repair_status_counts": {
+                "awaiting_needs_revision_review": 0,
+                "no_repair_candidates": 0,
+                "proposed_repairs": 0,
+            },
+            "proposed_repair_count": 0,
+            "items": [],
+        }
+
+    def fake_semantic_repair(_ws, *, migration_dir):
+        return {
+            "migration_dir": str(migration_dir),
+            "work_item_count": 0,
+            "repair_status_counts": {
+                "awaiting_needs_revision_review": 0,
+                "no_repair_candidates": 0,
+                "proposed_repairs": 0,
+            },
+            "proposed_repair_count": 0,
+            "required_action_counts": {},
+            "items": [],
+        }
+
+    def fail_packet_builder(*_args, **_kwargs):
+        raise AssertionError("compact replay should summarize from the shared legacy worklist")
+
+    monkeypatch.setattr(backlog_summary, "build_source_stack_coverage_manifest", fake_source_stack)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_semantic_review_manifest", fake_manifest)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_semantic_review_worklist", fake_worklist)
+    monkeypatch.setattr(backlog_summary, "build_legacy_source_reconstruction_manifest", fake_source_reconstruction)
+    monkeypatch.setattr(backlog_summary, "build_legacy_semantic_repair_manifest", fake_semantic_repair)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_executable_evidence_packet", fail_packet_builder, raising=False)
+    monkeypatch.setattr(legacy_backlog_summary, "build_legacy_human_checkpoint_packet", fail_packet_builder, raising=False)
+
+    summary = build_workspace_backlog_summary(ws, [], migration_dir=str(migration))
+
+    assert calls == {"manifest": 1, "worklist": 1}
+    assert summary["legacy_semantic_review"]["review_item_count"] == 1
+    assert summary["legacy_semantic_needs_revision_basis"]["basis_item_count"] == 1
+    assert summary["legacy_executable_evidence"]["evidence_item_count"] == 1
+    assert summary["legacy_executable_evidence"]["executable_action_count"] == 1
+    assert summary["legacy_executable_evidence"]["top_evidence_items"][0]["latest_review_id"] == "legacy-review-crpa"
+    assert summary["legacy_human_checkpoints"]["checkpoint_item_count"] == 1
+    assert summary["legacy_human_checkpoints"]["open_decision_count"] == 1
 
 
 def test_workspace_replay_packet_cli_mcp_and_runtime(tmp_path, capsys):
@@ -140,3 +876,119 @@ def test_workspace_replay_packet_cli_mcp_and_runtime(tmp_path, capsys):
         "mcp": "aitp_v5_write_workspace_replay_packet",
         "surface": "workspace_replay_packet",
     }
+
+
+def test_workspace_replay_packet_cli_compact_progress(tmp_path, capsys):
+    from brain.v5.cli import main
+
+    _ws, claim, gw_claim, _evidence = _seed_replay_workspace(tmp_path)
+
+    assert main(["--base", str(tmp_path), "summary", "replay", "--compact"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "workspace_replay_packet_progress"
+    assert payload["source_surface"] == "workspace_replay_packet"
+    assert payload["entry_count"] == 2
+    assert payload["attention_count"] == 2
+    assert payload["active_session_count"] == 2
+    assert payload["active_claim_count"] == 2
+    assert payload["source_reconstruction"]["incomplete_claim_count"] == 1
+    assert payload["source_reconstruction"]["top_incomplete_claim_refs"] == [
+        f"source_reconstruction:{gw_claim.claim_id}"
+    ]
+    assert payload["resume_attention"]["attention_count"] == 2
+    assert payload["resume_attention"]["top_session_refs"] == ["session:s2", "session:s1"]
+    assert payload["source_stack_coverage"]["claim_count"] == 2
+    assert payload["source_stack_coverage"]["coverage_status_counts"]["complete"] == 0
+    assert payload["source_stack_coverage"]["coverage_status_counts"]["evidence_gap"] == 2
+    assert payload["source_record_counts"]["sessions"] == 2
+    assert payload["source_record_counts"]["claims"] == 2
+    assert payload["source_record_counts"]["memory_entries"] == 0
+    assert payload["top_entry_refs"] == [f"replay_entry:s1:{claim.claim_id}", f"replay_entry:s2:{gw_claim.claim_id}"]
+    assert payload["derived_from"] == "kernel_state"
+    assert payload["truth_source"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+    assert "entries" not in payload
+
+
+def test_workspace_replay_packet_cli_mcp_accept_migration_dir(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_write_workspace_replay_packet
+    from brain.v5.models import ClaimRecord
+    from brain.v5.store import write_record
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path / "v5")
+    migration = ws.root / "migrations" / "legacy-run"
+    migration.mkdir(parents=True)
+    (migration / "migration_summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "legacy-run",
+                "workspace": str(ws.base),
+                "legacy_root": str(ws.base / "research" / "aitp-topics"),
+                "v5_root": str(ws.root),
+                "totals": {"topic_count": 1, "legacy_file_count": 1, "post_legacy_file_count": 1},
+                "topics": [
+                    {
+                        "topic": "legacy-l2",
+                        "status": "ok",
+                        "file_count": 1,
+                        "accounted_file_count": 1,
+                        "can_write_v5_records": False,
+                        "active_claim_id": "claim-l2",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (migration / "verification_report.json").write_text(
+        json.dumps(
+            {
+                "run_id": "legacy-run",
+                "file_accounting_ok": True,
+                "manifest_check": {"pre_count": 1, "post_count": 1, "missing": 0, "extra": 0, "changed": 0},
+                "archive_reference_check": {
+                    "archive_records_checked": 0,
+                    "archive_records_expected": 0,
+                    "registry_archive_reference_count": 0,
+                    "problem_count": 0,
+                },
+                "markdown_readability_check": {"markdown_files_checked": 1, "problem_count": 0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    write_record(
+        ws.registry_dir("claims") / "claim-l2.md",
+        ClaimRecord(
+            claim_id="claim-l2",
+            topic_id="legacy-l2",
+            statement="",
+            evidence_profile="legacy_import",
+            confidence_state="legacy_seed",
+            active_uncertainty="Legacy L2 graph needs typed review.",
+        ),
+    )
+
+    assert main([
+        "--base",
+        str(ws.base),
+        "summary",
+        "replay",
+        "--migration-dir",
+        str(migration),
+    ]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_write_workspace_replay_packet(str(ws.base), migration_dir=str(migration))
+
+    assert cli_payload["kind"] == "workspace_replay_packet"
+    assert cli_payload["workspace_backlog_summary"]["legacy_semantic_review"]["review_item_count"] == 1
+    assert cli_payload["workspace_backlog_summary"]["legacy_source_reconstruction"]["work_item_count"] == 1
+    assert mcp_payload["workspace_backlog_summary"]["legacy_semantic_review"]["migration_dir"] == str(migration)
+    assert mcp_payload["workspace_backlog_summary"]["legacy_source_reconstruction"]["surface"] == "legacy_source_reconstruction_manifest"
+    assert cli_payload["can_update_claim_trust"] is False
+    assert mcp_payload["can_update_kernel_state"] is False

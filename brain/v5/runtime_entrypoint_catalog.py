@@ -24,16 +24,25 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_audit_hook_installation",
         "surface": "runtime_hook_installation_audit",
     },
+    "runtime_host_lifecycle_audit": {"cli": "aitp-v5 adapter host-lifecycle <runtime>", "mcp": "aitp_v5_audit_runtime_host_lifecycle", "surface": "runtime_host_lifecycle_audit"},
+    "runtime_host_readiness_audit": {"cli": "aitp-v5 adapter host-readiness <runtime>", "mcp": "aitp_v5_audit_runtime_host_readiness", "surface": "runtime_host_readiness_audit"},
     "runtime_hook_installation_paths": {
         "cli": "aitp-v5 adapter install-paths",
         "mcp": "aitp_v5_discover_hook_install_paths",
         "surface": "runtime_hook_installation_paths",
     },
     "runtime_hook_smoke_coverage": {"cli": "aitp-v5 adapter smoke-coverage", "mcp": "aitp_v5_report_hook_smoke_coverage", "surface": "runtime_hook_smoke_coverage"},
+    "final_engineering_readiness_audit": {"cli": "aitp-v5 adapter final-readiness", "mcp": "aitp_v5_audit_final_engineering_readiness", "surface": "final_engineering_readiness_audit"},
+    "vnext_readiness_manifest": {"cli": "aitp-v5 status vnext-readiness", "mcp": "aitp_v5_build_vnext_readiness_manifest", "surface": "vnext_readiness_manifest"},
     "adapter_packet": {
         "cli": "aitp-v5 adapter packet <runtime> <session-id>",
         "mcp": "aitp_v5_get_adapter_packet",
         "surface": "adapter_packet",
+    },
+    "runtime_host_production_loop_audit": {
+        "cli": "aitp-v5 adapter host-production-loop",
+        "mcp": "aitp_v5_audit_priority_host_production_loops",
+        "surface": "runtime_host_production_loop_audit",
     },
     "codex_hook_bridge": {"cli": "aitp-v5 adapter hook-bridge codex <session-id> <args>", "mcp": "aitp_v5_write_codex_hook_bridge", "surface": "codex_hook_bridge"},
     "codex_hook_installation": {"cli": "aitp-v5 adapter install-hooks codex <session-id> <args>", "mcp": "aitp_v5_install_codex_hook_fixture", "surface": "codex_hook_installation"},
@@ -52,6 +61,72 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "cli": "aitp-v5 brief <session-id>",
         "mcp": "aitp_v5_get_execution_brief",
         "surface": "execution_brief",
+    },
+    "interaction_recording_preview": {"cli": "aitp-v5 interaction preview <session-id>", "mcp": "aitp_v5_preview_interaction_recording", "surface": "interaction_recording_preview"},
+    "workspace_interaction_preview": {
+        "cli": "aitp-v5 interaction workspace-preview",
+        "mcp": "aitp_v5_build_workspace_interaction_preview",
+        "surface": "workspace_interaction_preview_bundle",
+    },
+    "interaction_recording_worklist": {
+        "cli": "aitp-v5 interaction worklist",
+        "mcp": "aitp_v5_build_interaction_recording_worklist",
+        "surface": "interaction_recording_worklist",
+    },
+    "suggest_literature_intake": {
+        "cli": "aitp-v5 literature suggest-intake <args>",
+        "mcp": "aitp_v5_suggest_literature_intake",
+        "surface": "literature_intake_suggestion",
+    },
+    "record_literature_candidate": {
+        "cli": "aitp-v5 literature record-candidate <args>",
+        "mcp": "aitp_v5_record_literature_candidate",
+        "surface": "literature_intake_record_result",
+    },
+    "record_final_output_profile": {
+        "cli": "aitp-v5 output profile record <args>",
+        "mcp": "aitp_v5_record_final_output_profile",
+        "surface": "final_output_profile",
+    },
+    "request_operator_checkpoint": {
+        "cli": "aitp-v5 operator checkpoint request <args>",
+        "mcp": "aitp_v5_request_operator_checkpoint",
+        "surface": "operator_checkpoint_record",
+    },
+    "answer_operator_checkpoint": {
+        "cli": "aitp-v5 operator checkpoint answer <args>",
+        "mcp": "aitp_v5_answer_operator_checkpoint",
+        "surface": "operator_checkpoint_record",
+    },
+    "record_strategy_memory": {
+        "cli": "aitp-v5 strategy memory record <args>",
+        "mcp": "aitp_v5_record_strategy_memory",
+        "surface": "strategy_memory_record",
+    },
+    "record_lane_exemplar": {
+        "cli": "aitp-v5 exemplar lane record <args>",
+        "mcp": "aitp_v5_record_lane_exemplar",
+        "surface": "lane_exemplar_record",
+    },
+    "lane_exemplar_manifest": {
+        "cli": "aitp-v5 exemplar lane manifest",
+        "mcp": "aitp_v5_build_lane_exemplar_manifest",
+        "surface": "lane_exemplar_manifest",
+    },
+    "record_research_intent_packet": {
+        "cli": "aitp-v5 intent packet record <args>",
+        "mcp": "aitp_v5_record_research_intent_packet",
+        "surface": "research_intent_packet",
+    },
+    "record_run_iteration": {
+        "cli": "aitp-v5 run iteration record <args>",
+        "mcp": "aitp_v5_record_run_iteration",
+        "surface": "run_iteration_record",
+    },
+    "materialize_steering_redirect": {
+        "cli": "aitp-v5 intent steering materialize <args>",
+        "mcp": "aitp_v5_materialize_steering_redirect",
+        "surface": "steering_decision_record",
     },
     "record_code_state": {
         "cli": "aitp-v5 code state record <args>",
@@ -93,6 +168,36 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_audit_source_reconstruction",
         "surface": "source_reconstruction_audit",
     },
+    "source_reconstruction_manifest": {
+        "cli": "aitp-v5 source reconstruction-manifest",
+        "mcp": "aitp_v5_build_source_reconstruction_manifest",
+        "surface": "source_reconstruction_manifest",
+    },
+    "source_stack_coverage_manifest": {
+        "cli": "aitp-v5 source coverage-manifest",
+        "mcp": "aitp_v5_build_source_stack_coverage_manifest",
+        "surface": "source_stack_coverage_manifest",
+    },
+    "source_reconstruction_review_manifest": {
+        "cli": "aitp-v5 source reconstruction-review-manifest",
+        "mcp": "aitp_v5_build_source_reconstruction_review_manifest",
+        "surface": "source_reconstruction_review_manifest",
+    },
+    "source_reconstruction_obsidian_view": {
+        "cli": "aitp-v5 source reconstruction-obsidian-view",
+        "mcp": "aitp_v5_write_source_reconstruction_obsidian_view",
+        "surface": "source_reconstruction_obsidian_view_bundle",
+    },
+    "source_reconstruction_review_packet": {
+        "cli": "aitp-v5 source reconstruction-review <args>",
+        "mcp": "aitp_v5_build_source_reconstruction_review_packet",
+        "surface": "source_reconstruction_review_packet",
+    },
+    "record_source_reconstruction_review_result": {
+        "cli": "aitp-v5 source reconstruction-review-result <args>",
+        "mcp": "aitp_v5_record_source_reconstruction_review_result",
+        "surface": "source_reconstruction_review_result_record",
+    },
     "persist_hook_trace_event": {
         "cli": "aitp-v5 trace hook-event persist <args>",
         "mcp": "aitp_v5_persist_hook_trace_event",
@@ -108,6 +213,141 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_migrate_legacy_topic_to_v5",
         "surface": "legacy_migration_result",
     },
+    "legacy_migration_coverage_audit": {
+        "cli": "aitp-v5 legacy migration-audit <args>",
+        "mcp": "aitp_v5_audit_legacy_migration_coverage",
+        "surface": "legacy_migration_coverage_audit",
+    },
+    "legacy_l2_graph_manifest": {
+        "cli": "aitp-v5 legacy l2-graph-manifest <args>",
+        "mcp": "aitp_v5_build_legacy_l2_graph_manifest",
+        "surface": "legacy_l2_graph_manifest",
+    },
+    "legacy_l2_typed_migration_packet": {
+        "cli": "aitp-v5 legacy l2-typed-migration-packet <args>",
+        "mcp": "aitp_v5_build_legacy_l2_typed_migration_packet",
+        "surface": "legacy_l2_typed_migration_packet",
+    },
+    "legacy_l2_obsidian_view": {
+        "cli": "aitp-v5 legacy l2-obsidian-view <args>",
+        "mcp": "aitp_v5_write_legacy_l2_obsidian_view",
+        "surface": "legacy_l2_obsidian_view_bundle",
+    },
+    "legacy_runtime_log_marker_audit": {
+        "cli": "aitp-v5 legacy runtime-log-marker-audit <args>",
+        "mcp": "aitp_v5_build_legacy_runtime_log_marker_audit",
+        "surface": "legacy_runtime_log_marker_audit",
+    },
+    "legacy_semantic_review_queue": {
+        "cli": "aitp-v5 legacy semantic-review-queue <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_review_queue",
+        "surface": "legacy_semantic_review_queue",
+    },
+    "legacy_semantic_review_manifest": {
+        "cli": "aitp-v5 legacy semantic-review-manifest <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_review_manifest",
+        "surface": "legacy_semantic_review_manifest",
+    },
+    "legacy_semantic_review_worklist": {
+        "cli": "aitp-v5 legacy semantic-review-worklist <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_review_worklist",
+        "surface": "legacy_semantic_review_worklist",
+    },
+    "legacy_semantic_needs_revision_basis_queue": {
+        "cli": "aitp-v5 legacy semantic-needs-revision-basis <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_needs_revision_basis_queue",
+        "surface": "legacy_semantic_needs_revision_basis_queue",
+    },
+    "legacy_semantic_needs_revision_basis_packet": {
+        "cli": "aitp-v5 legacy semantic-needs-revision-basis-packet <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_needs_revision_basis_packet",
+        "surface": "legacy_semantic_needs_revision_basis_packet",
+    },
+    "legacy_semantic_needs_revision_basis_obsidian_view": {
+        "cli": "aitp-v5 legacy semantic-needs-revision-basis-obsidian-view <args>",
+        "mcp": "aitp_v5_write_legacy_semantic_needs_revision_basis_obsidian_view",
+        "surface": "legacy_semantic_needs_revision_basis_obsidian_view_bundle",
+    },
+    "legacy_semantic_review_obsidian_view": {
+        "cli": "aitp-v5 legacy semantic-review-obsidian-view <args>",
+        "mcp": "aitp_v5_write_legacy_semantic_review_obsidian_view",
+        "surface": "legacy_semantic_review_obsidian_view_bundle",
+    },
+    "legacy_semantic_review_packet": {
+        "cli": "aitp-v5 legacy semantic-review-packet <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_review_packet",
+        "surface": "legacy_semantic_review_packet",
+    },
+    "legacy_semantic_repair_plan": {
+        "cli": "aitp-v5 legacy semantic-repair-plan <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_repair_plan",
+        "surface": "legacy_semantic_repair_plan",
+    },
+    "legacy_semantic_repair_manifest": {
+        "cli": "aitp-v5 legacy semantic-repair-manifest <args>",
+        "mcp": "aitp_v5_build_legacy_semantic_repair_manifest",
+        "surface": "legacy_semantic_repair_manifest",
+    },
+    "legacy_semantic_repair_apply": {
+        "cli": "aitp-v5 legacy semantic-repair-apply <args>",
+        "mcp": "aitp_v5_apply_legacy_semantic_repair",
+        "surface": "legacy_semantic_repair_apply",
+    },
+    "legacy_source_reconstruction_plan": {
+        "cli": "aitp-v5 legacy source-reconstruction-plan <args>",
+        "mcp": "aitp_v5_build_legacy_source_reconstruction_plan",
+        "surface": "legacy_source_reconstruction_plan",
+    },
+    "legacy_source_reconstruction_manifest": {
+        "cli": "aitp-v5 legacy source-reconstruction-manifest <args>",
+        "mcp": "aitp_v5_build_legacy_source_reconstruction_manifest",
+        "surface": "legacy_source_reconstruction_manifest",
+    },
+    "legacy_source_reconstruction_obsidian_view": {
+        "cli": "aitp-v5 legacy source-reconstruction-obsidian-view <args>",
+        "mcp": "aitp_v5_write_legacy_source_reconstruction_obsidian_view",
+        "surface": "legacy_source_reconstruction_obsidian_view_bundle",
+    },
+    "legacy_source_reconstruction_review_packet": {
+        "cli": "aitp-v5 legacy source-reconstruction-review <args>",
+        "mcp": "aitp_v5_build_legacy_source_reconstruction_review_packet",
+        "surface": "legacy_source_reconstruction_review_packet",
+    },
+    "legacy_source_metadata_repair_packet": {
+        "cli": "aitp-v5 legacy source-metadata-repair-packet <args>",
+        "mcp": "aitp_v5_build_legacy_source_metadata_repair_packet",
+        "surface": "legacy_source_metadata_repair_packet",
+    },
+    "legacy_executable_evidence_packet": {
+        "cli": "aitp-v5 legacy executable-evidence-packet <args>",
+        "mcp": "aitp_v5_build_legacy_executable_evidence_packet",
+        "surface": "legacy_executable_evidence_packet",
+    },
+    "legacy_human_checkpoint_packet": {
+        "cli": "aitp-v5 legacy human-checkpoint-packet <args>",
+        "mcp": "aitp_v5_build_legacy_human_checkpoint_packet",
+        "surface": "legacy_human_checkpoint_packet",
+    },
+    "legacy_topic_question_backfill_packet": {
+        "cli": "aitp-v5 legacy topic-question-backfill-packet <args>",
+        "mcp": "aitp_v5_build_legacy_topic_question_backfill_packet",
+        "surface": "legacy_topic_question_backfill_packet",
+    },
+    "legacy_human_checkpoint_obsidian_view": {
+        "cli": "aitp-v5 legacy human-checkpoint-obsidian-view <args>",
+        "mcp": "aitp_v5_write_legacy_human_checkpoint_obsidian_view",
+        "surface": "legacy_human_checkpoint_obsidian_view_bundle",
+    },
+    "legacy_source_reconstruction_apply": {
+        "cli": "aitp-v5 legacy source-reconstruction-apply <args>",
+        "mcp": "aitp_v5_apply_legacy_source_reconstruction_repair",
+        "surface": "legacy_source_reconstruction_apply",
+    },
+    "record_legacy_semantic_review_result": {
+        "cli": "aitp-v5 legacy semantic-review-result <args>",
+        "mcp": "aitp_v5_record_legacy_semantic_review_result",
+        "surface": "legacy_semantic_review_result_record",
+    },
     "summary_orientation": {
         "cli": "aitp-v5 summary orientation <session-id>",
         "mcp": "aitp_v5_read_summary_orientation",
@@ -121,6 +361,8 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
     "workspace_summary": {"cli": "aitp-v5 summary workspace", "mcp": "aitp_v5_write_workspace_summary", "surface": "workspace_summary_bundle"},
     "workspace_replay": {"cli": "aitp-v5 summary replay", "mcp": "aitp_v5_write_workspace_replay_packet", "surface": "workspace_replay_packet"},
     "workspace_refresh": {"cli": "aitp-v5 summary refresh", "mcp": "aitp_v5_refresh_workspace_views", "surface": "workspace_refresh_bundle"},
+    "topic_status": {"cli": "aitp-v5 status topic <session-id>", "mcp": "aitp_v5_write_topic_status_surfaces", "surface": "topic_status_bundle"},
+    "topic_status_compact": {"cli": "aitp-v5 status topic <session-id> --compact", "mcp": "aitp_v5_write_topic_status_surfaces_compact", "surface": "topic_status_bundle"},
     "trust_preflight": {
         "cli": "aitp-v5 trust preflight <args>",
         "mcp": "aitp_v5_preflight_trust_update",
@@ -202,289 +444,13 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
     "build_failure_mode_review_packet": {"cli": "aitp-v5 memory failure-mode-review <args>", "mcp": "aitp_v5_build_failure_mode_review_packet", "surface": "failure_mode_review_packet"},
     "request_failure_mode_review_checkpoint": {"cli": "aitp-v5 memory request-failure-mode-review <args>", "mcp": "aitp_v5_request_failure_mode_review_checkpoint", "surface": "human_checkpoint_record"},
     "record_failure_mode_review_result": {"cli": "aitp-v5 memory failure-mode-review-result <args>", "mcp": "aitp_v5_record_failure_mode_review_result", "surface": "failure_mode_review_result_record"},
+    "goal_continuation_write": {"cli": "aitp-v5 goal write <args>", "mcp": "aitp_v5_write_goal_continuation", "surface": "goal_continuation_packet"},
+    "goal_continuation_latest": {"cli": "aitp-v5 goal latest", "mcp": "aitp_v5_read_latest_goal_continuation", "surface": "goal_continuation_packet"},
+    "goal_continuation_list": {"cli": "aitp-v5 goal list", "mcp": "aitp_v5_list_goal_continuations", "surface": "goal_continuation_list"},
 }
 
 
 def sample_args_for_template(template: str) -> list[str]:
-    if template.startswith("trust update-record"):
-        return [
-            "trust-update-sample",
-        ]
-    if template.startswith("trust audit"):
-        return [
-            "--claim",
-            "claim-fqhe",
-        ]
-    if template.startswith("trust "):
-        return [
-            "change_claim_confidence",
-            "--session",
-            "s1",
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-        ]
-    if template.startswith("policy pre-tool"):
-        return [
-            "validate_claim",
-            "--session",
-            "s1",
-            "--claim",
-            "claim-fqhe",
-            "--source-kind",
-            "typed_records",
-        ]
-    if template.startswith("memory failure-mode-review-result"):
-        return ["--claim", "claim-fqhe", "--checkpoint", "checkpoint-fqhe", "--status", "passed", "--reviewed-mode", "sector misassignment", "--basis-ref", "literature:fqhe", "--summary", "Review basis."]
-    if template.startswith(("memory audit", "memory failure-modes", "memory failure-mode-review", "memory request-failure-mode-review")):
-        return ["--claim", "claim-fqhe"]
-    if template.startswith("source reconstruction-audit"):
-        return ["--claim", "claim-fqhe"]
-    if template.startswith("code state record"):
-        return [
-            "--repo-id",
-            "librpa",
-            "--upstream-remote",
-            "origin",
-            "--upstream-branch",
-            "master",
-            "--upstream-commit",
-            "abc123",
-            "--local-branch",
-            "topic/gw",
-            "--worktree-path",
-            "D:/worktrees/librpa/gw",
-        ]
-    if template.startswith("evidence record"):
-        return [
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-            "--type",
-            "toy_numeric",
-            "--status",
-            "supports",
-            "--summary",
-            "Finite-size check.",
-        ]
-    if template.startswith("tool recipe register"):
-        return [
-            "recipe-ed",
-            "--family",
-            "numerical",
-            "--name",
-            "exact-diagonalization",
-            "--purpose",
-            "Run an ED check.",
-        ]
-    if template.startswith("tool run record"):
-        return [
-            "--recipe",
-            "recipe-ed",
-            "--family",
-            "numerical",
-            "--name",
-            "exact-diagonalization",
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-        ]
-    if template.startswith("tool execute"):
-        return [
-            "scalar_tolerance_check",
-            "--recipe",
-            "recipe-ed",
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-            "--inputs-json",
-            '{"observed":1,"expected":1,"tolerance":0}',
-        ]
-    if template.startswith("reference location record"):
-        return [
-            "--topic",
-            "fqhe",
-            "--connector",
-            "local_pdf",
-            "--type",
-            "paper_pdf",
-            "--uri",
-            "file:///papers/fqhe.pdf",
-            "--label",
-            "FQHE paper PDF",
-        ]
-    if template.startswith("trace hook-event persist"):
-        return [
-            "--payload-json",
-            '{"kind":"hook_trace_event","hook_name":"post_tool","event":{"event_id":"event-1","session_id":"s1","topic_id":"fqhe","event_type":"tool_run_recorded","risk_level":"guided","payload":{},"kind":"trace_event"},"exit_code":0,"summary_inputs_trusted":false}',
-        ]
-    if template.startswith("legacy migrate"):
-        return [
-            "D:/aitp/legacy-topic",
-            "--context",
-            "legacy-context",
-            "--session",
-            "s1",
-        ]
-    if template.startswith("adapter hook-bridge"):
-        return [
-            "--output",
-            "AITP_V5_HOOK_BRIDGE.md",
-        ]
-    if template.startswith("adapter hook-settings"):
-        return [
-            "--output",
-            ".claude/settings.local.json",
-        ]
-    if template.startswith("adapter install-hooks kimi-code"):
-        return [
-            "--settings",
-            ".kimi/config.toml",
-        ]
-    if template.startswith("adapter install-hooks codex"):
-        return [
-            "--output",
-            ".codex/AITP_V5_HOOKS.json",
-        ]
-    if template.startswith("adapter install-hooks opencode"):
-        return [
-            "--output",
-            ".opencode/AITP_V5_PLUGIN_HOOKS.json",
-        ]
-    if template.startswith("adapter install-hooks"):
-        return [
-            "--settings",
-            ".claude/settings.local.json",
-        ]
-    if template.startswith("adapter pre-tool-event"):
-        return [
-            "--bridge-json",
-            '{"kind":"codex_hook_bridge","runtime":"codex","source_protocol_field":"runtime_hook_installation","installation_mode":"explicit_guard_calls","native_installer_available":false,"summary_inputs_trusted":false,"can_update_kernel_state":false,"pre_tool_policy_entrypoint":{"cli":"aitp-v5 policy pre-tool <args>","mcp":"aitp_v5_evaluate_pre_tool_policy","surface":"pre_tool_policy_decision","truth_source":"typed_records","summary_inputs_trusted":false,"can_update_kernel_state":false,"can_update_claim_trust":false},"gate_protocols":{"source_protocol_field":"runtime_gate_protocols","record_evidence":{"pre_tool_policy":"aitp_v5_evaluate_pre_tool_policy","preflight":"","sequence":["refresh_execution_brief","evaluate_pre_tool_policy","record_evidence","refresh_execution_brief","write_session_summary"],"required_typed_refs":["topic_id","claim_id"],"allowed_state_sources":["typed_records","typed_evidence_records"],"policy_reasons_field":"policy_reasons","human_checkpoint_required":false,"truth_source":"typed_records","summary_inputs_trusted":false}},"path":"AITP_V5_HOOK_BRIDGE.md","guard_calls":[{"hook_name":"pre_tool"}]}',
-            "--event-json",
-            '{"runtime":"codex","hook_name":"pre_tool","session_id":"s1","tool_name":"mcp__aitp__aitp_v5_record_evidence","tool_input":{"claim_id":"claim-fqhe","source_kind":"typed_records"}}',
-        ]
-    if template.startswith("object record"):
-        return [
-            "--topic",
-            "fqhe",
-            "--type",
-            "hilbert_sector",
-            "--name",
-            "N=8 sector",
-            "--definition",
-            "Finite-size Hilbert sector.",
-        ]
-    if template.startswith("relation record"):
-        return [
-            "--topic",
-            "fqhe",
-            "--type",
-            "diagnoses",
-            "--subject",
-            "object-a",
-            "--object",
-            "object-b",
-            "--statement",
-            "A diagnoses B.",
-        ]
-    if template.startswith("sensemaking report"):
-        return [
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-            "--title",
-            "Sanity check",
-            "--summary",
-            "Counting holds for N=8.",
-        ]
-    if template.startswith("subagent ingest-result"):
-        return [
-            "--topic",
-            "fqhe",
-            "--packet-json",
-            '{"packet_id":"packet-critic","packet_type":"CriticPacket","claim_id":"claim-fqhe","claim_statement":"Claim"}',
-            "--result-json",
-            '{"summary":"Critique result."}',
-        ]
-    if template.startswith("validation contract create"):
-        return [
-            "--topic",
-            "gw",
-            "--claim",
-            "claim-gw",
-            "--required-check",
-            "code_state_present",
-            "--failure-mode",
-            "dirty worktree",
-            "--required-output",
-            "evidence_or_provenance",
-        ]
-    if template.startswith("validation result record"):
-        return [
-            "--topic",
-            "gw",
-            "--claim",
-            "claim-gw",
-            "--contract",
-            "validation-contract-gw",
-            "--tool-run",
-            "tool-run-gw",
-            "--status",
-            "inconclusive",
-            "--checked-output",
-            "evidence_or_provenance",
-            "--summary",
-            "Validation result sample.",
-        ]
-    if template.startswith("checkpoint request"):
-        return [
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-            "--reason",
-            "Promotion requires judgment",
-            "--requested-by",
-            "risk_policy",
-            "--option",
-            "approve",
-        ]
-    if template.startswith("checkpoint decide"):
-        return [
-            "checkpoint-test",
-            "--decision",
-            "approve",
-            "--rationale",
-            "Looks good",
-            "--decided-by",
-            "human",
-        ]
-    if template.startswith("promotion packet create"):
-        return [
-            "--topic",
-            "fqhe",
-            "--claim",
-            "claim-fqhe",
-            "--proposed-kind",
-            "scoped_claim",
-            "--scope",
-            "N<=10 ED",
-            "--evidence-ref",
-            "evidence-1",
-            "--validation-result-id",
-            "validation-result-1",
-            "--failure-mode",
-            "misassignment",
-        ]
-    if template.startswith("promotion packet apply"):
-        return [
-            "packet-fqhe",
-            "--checkpoint",
-            "checkpoint-fqhe",
-        ]
-    return []
+    from brain.v5.runtime_entrypoint_samples import sample_args_for_template as _sample_args
+
+    return _sample_args(template)

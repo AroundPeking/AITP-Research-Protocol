@@ -19,6 +19,17 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
     assert entrypoints["execute_tool"]["surface"] == "tool_run_record"
     assert entrypoints["list_tool_executors"]["surface"] == "tool_executor_catalog"
     assert entrypoints["migrate_legacy_topic"]["surface"] == "legacy_migration_result"
+    assert entrypoints["legacy_migration_coverage_audit"]["surface"] == "legacy_migration_coverage_audit"
+    assert entrypoints["legacy_semantic_review_queue"]["surface"] == "legacy_semantic_review_queue"
+    assert entrypoints["legacy_semantic_review_worklist"]["surface"] == "legacy_semantic_review_worklist"
+    assert entrypoints["legacy_semantic_repair_apply"]["surface"] == "legacy_semantic_repair_apply"
+    assert entrypoints["legacy_semantic_repair_plan"]["surface"] == "legacy_semantic_repair_plan"
+    assert entrypoints["legacy_semantic_repair_manifest"]["surface"] == "legacy_semantic_repair_manifest"
+    assert entrypoints["source_reconstruction_manifest"]["surface"] == "source_reconstruction_manifest"
+    assert entrypoints["source_stack_coverage_manifest"]["surface"] == "source_stack_coverage_manifest"
+    assert entrypoints["record_legacy_semantic_review_result"]["surface"] == (
+        "legacy_semantic_review_result_record"
+    )
     assert entrypoints["record_validation_result"]["surface"] == "validation_result_record"
     assert entrypoints["record_evidence"]["mcp"] == "aitp_v5_record_evidence"
     assert entrypoints["record_code_state"]["mcp"] == "aitp_v5_record_code_state"
@@ -27,6 +38,23 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
     assert entrypoints["execute_tool"]["mcp"] == "aitp_v5_execute_tool"
     assert entrypoints["list_tool_executors"]["mcp"] == "aitp_v5_list_tool_executors"
     assert entrypoints["migrate_legacy_topic"]["mcp"] == "aitp_v5_migrate_legacy_topic_to_v5"
+    assert entrypoints["legacy_migration_coverage_audit"]["mcp"] == "aitp_v5_audit_legacy_migration_coverage"
+    assert entrypoints["legacy_semantic_review_queue"]["mcp"] == "aitp_v5_build_legacy_semantic_review_queue"
+    assert entrypoints["legacy_semantic_review_worklist"]["mcp"] == (
+        "aitp_v5_build_legacy_semantic_review_worklist"
+    )
+    assert entrypoints["legacy_semantic_repair_apply"]["mcp"] == "aitp_v5_apply_legacy_semantic_repair"
+    assert entrypoints["legacy_semantic_repair_plan"]["mcp"] == "aitp_v5_build_legacy_semantic_repair_plan"
+    assert entrypoints["legacy_semantic_repair_manifest"]["mcp"] == (
+        "aitp_v5_build_legacy_semantic_repair_manifest"
+    )
+    assert entrypoints["source_reconstruction_manifest"]["mcp"] == "aitp_v5_build_source_reconstruction_manifest"
+    assert entrypoints["source_stack_coverage_manifest"]["mcp"] == (
+        "aitp_v5_build_source_stack_coverage_manifest"
+    )
+    assert entrypoints["record_legacy_semantic_review_result"]["mcp"] == (
+        "aitp_v5_record_legacy_semantic_review_result"
+    )
     assert entrypoints["record_validation_result"]["mcp"] == "aitp_v5_record_validation_result"
     assert entrypoints["get_trust_update_record"] == {
         "cli": "aitp-v5 trust update-record <args>",
@@ -98,6 +126,16 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "mcp": "aitp_v5_audit_hook_installation",
         "surface": "runtime_hook_installation_audit",
     }
+    assert entrypoints["runtime_host_readiness_audit"] == {
+        "cli": "aitp-v5 adapter host-readiness <runtime>",
+        "mcp": "aitp_v5_audit_runtime_host_readiness",
+        "surface": "runtime_host_readiness_audit",
+    }
+    assert entrypoints["runtime_host_lifecycle_audit"] == {
+        "cli": "aitp-v5 adapter host-lifecycle <runtime>",
+        "mcp": "aitp_v5_audit_runtime_host_lifecycle",
+        "surface": "runtime_host_lifecycle_audit",
+    }
     assert entrypoints["runtime_hook_installation_paths"] == {
         "cli": "aitp-v5 adapter install-paths",
         "mcp": "aitp_v5_discover_hook_install_paths",
@@ -107,6 +145,21 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "cli": "aitp-v5 adapter smoke-coverage",
         "mcp": "aitp_v5_report_hook_smoke_coverage",
         "surface": "runtime_hook_smoke_coverage",
+    }
+    assert entrypoints["interaction_recording_preview"] == {
+        "cli": "aitp-v5 interaction preview <session-id>",
+        "mcp": "aitp_v5_preview_interaction_recording",
+        "surface": "interaction_recording_preview",
+    }
+    assert entrypoints["workspace_interaction_preview"] == {
+        "cli": "aitp-v5 interaction workspace-preview",
+        "mcp": "aitp_v5_build_workspace_interaction_preview",
+        "surface": "workspace_interaction_preview_bundle",
+    }
+    assert entrypoints["interaction_recording_worklist"] == {
+        "cli": "aitp-v5 interaction worklist",
+        "mcp": "aitp_v5_build_interaction_recording_worklist",
+        "surface": "interaction_recording_worklist",
     }
 
 

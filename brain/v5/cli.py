@@ -10,17 +10,21 @@ from pathlib import Path
 from typing import Any
 
 from brain.v5.brief import build_execution_brief
-from brain.v5.cli_adapters import dispatch_adapter_command
+from brain.v5.cli_adapters import add_adapter_parser, dispatch_adapter_command
 from brain.v5.cli_memory import add_memory_parser, dispatch_memory_command
 from brain.v5.cli_summaries import add_summary_parser, dispatch_summary_command
 from brain.v5.cli_source import add_source_parser, dispatch_source_command
 from brain.v5.code import record_code_state
 from brain.v5.evidence import record_evidence
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
-from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
+from brain.v5.cli_legacy import add_legacy_parser, dispatch_legacy_command
+from brain.v5.cli_interaction import add_interaction_parser, dispatch_interaction_command
+from brain.v5.cli_literature import add_literature_parser, dispatch_literature_command
 from brain.v5.models import TrustUpdateRequest
 from brain.v5.cli_policy import add_policy_parser, dispatch_policy_command
 from brain.v5.cli_validation import add_validation_parser, dispatch_validation_command
+from brain.v5.cli_vnext import VNEXT_COMMANDS, add_vnext_parsers, dispatch_vnext_command
+from brain.v5.cli_goal import add_goal_parser, dispatch_goal_command
 from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.physics_objects import record_object_relation, record_physics_object
 from brain.v5.references import record_reference_location
@@ -152,31 +156,16 @@ def _build_parser() -> argparse.ArgumentParser:
     rlr.add_argument("--status", default="located"); rlr.add_argument("--summary", default="")
     rlr.add_argument("--metadata-json", default="{}"); rlr.add_argument("--linked-records-json", default="{}")
 
-    lp = sp.add_parser("legacy"); ls = lp.add_subparsers(dest="legacy_command", required=True)
-    lm = ls.add_parser("migrate"); lm.add_argument("topic_dir")
-    lm.add_argument("--context", required=True, dest="context_id")
-    lm.add_argument("--session", required=True, dest="session_id")
+    add_legacy_parser(sp)
+    add_interaction_parser(sp)
+    add_literature_parser(sp)
+    add_vnext_parsers(sp)
+    add_goal_parser(sp)
 
     add_summary_parser(sp)
     add_source_parser(sp)
 
-    ap = sp.add_parser("adapter"); aps = ap.add_subparsers(dest="adapter_command", required=True)
-    aps.add_parser("record-gate-audit")
-    apt = aps.add_parser("packet"); apt.add_argument("runtime"); apt.add_argument("session_id")
-    ahb = aps.add_parser("hook-bridge"); ahb.add_argument("runtime"); ahb.add_argument("session_id")
-    ahb.add_argument("--output", required=True)
-    ahs = aps.add_parser("hook-settings"); ahs.add_argument("runtime"); ahs.add_argument("session_id")
-    ahs.add_argument("--output", required=True)
-    aih = aps.add_parser("install-hooks"); aih.add_argument("runtime"); aih.add_argument("session_id")
-    aih.add_argument("--settings", default=""); aih.add_argument("--output", default="")
-    aih.add_argument("--plugin", default=""); aih.add_argument("--bridge-output", default="")
-    aia = aps.add_parser("install-audit"); aia.add_argument("runtime")
-    aia.add_argument("--settings", default=""); aia.add_argument("--output", default=""); aia.add_argument("--plugin", default="")
-    aps.add_parser("install-paths"); aps.add_parser("smoke-coverage")
-    ape = aps.add_parser("pre-tool-event"); ape.add_argument("runtime"); ape.add_argument("session_id")
-    ape.add_argument("--bridge-json", default=""); ape.add_argument("--bridge-path", default="")
-    ape.add_argument("--event-json", required=True)
-    aps.add_parser("registry"); aps.add_parser("public-surfaces")
+    add_adapter_parser(sp)
 
     op = sp.add_parser("object"); ops = op.add_subparsers(dest="object_command", required=True)
     orr = ops.add_parser("record")
@@ -338,14 +327,16 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             metadata=_j(args.metadata_json), linked_records=_j(args.linked_records_json))
         return {"ok": True, **require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})}
 
-    if args.command == "legacy" and args.legacy_command == "migrate":
-        result = migrate_legacy_topic_to_v5(
-            ws,
-            args.topic_dir,
-            context_id=args.context_id,
-            session_id=args.session_id,
-        )
-        return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
+    if args.command == "legacy":
+        return dispatch_legacy_command(args, ws)
+    if args.command == "interaction":
+        return dispatch_interaction_command(args, ws)
+    if args.command == "literature":
+        return dispatch_literature_command(args, ws)
+    if args.command in VNEXT_COMMANDS:
+        return dispatch_vnext_command(args, ws)
+    if args.command == "goal":
+        return dispatch_goal_command(args, ws)
 
     if args.command == "summary":
         return dispatch_summary_command(args, ws)

@@ -129,14 +129,30 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   `aitp-v5 adapter install-paths` or
   `aitp_v5_discover_hook_install_paths`. The returned
   `runtime_hook_installation_paths` surface lists preferred and alternate
-  Codex/Claude Code/OpenCode install targets plus matching install/audit
+  Codex/Claude Code/Kimi Code/OpenCode install targets plus matching install/audit
   commands. It is convention metadata, not kernel state.
 - Runtime hook smoke coverage can be reviewed with
   `aitp-v5 adapter smoke-coverage` or
   `aitp_v5_report_hook_smoke_coverage`. The returned
   `runtime_hook_smoke_coverage` surface is orientation-only and lists
-  test-backed Codex/OpenCode/Claude Code hook smoke checks plus remaining
-  real-host gaps.
+  test-backed Codex/Claude Code/Kimi Code/OpenCode hook smoke checks, dynamic
+  host-readiness coverage, and remaining real interactive lifecycle-event gaps.
+- Dynamic host readiness can be checked with
+  `aitp-v5 adapter host-readiness <runtime>` or
+  `aitp_v5_audit_runtime_host_readiness`. The returned
+  `runtime_host_readiness_audit` launches the local host command (`codex`,
+  `claude`, `kimi`, or `opencode` by default), optionally audits the installed
+  hook file, and can directly smoke Claude/Kimi `SessionStart` refresh. It is
+  runtime evidence only, remains orientation-only, and cannot update claim
+  trust.
+- Dynamic lifecycle probing can be checked with
+  `aitp-v5 adapter host-lifecycle <runtime>` or
+  `aitp_v5_audit_runtime_host_lifecycle`. The returned
+  `runtime_host_lifecycle_audit` runs a supplied host command, compares
+  `.aitp/runtime/hook_trace_events.jsonl` before/after, and scans stdout/stderr
+  for AITP hook output kinds. It remains orientation-only and is evidence about
+  that invocation, not a global guarantee about all future host UI/session
+  modes.
 - Codex native `hooks.json` installation now writes command strings with the
   active Python interpreter and an absolute
   `hooks/aitp_v5_adapter_event_runner.py` path. Tests execute those commands
@@ -154,9 +170,13 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
 - Claude Code and Kimi Code host installers now emit `SessionStart`,
   `PreToolUse`, and `PostToolUse` lifecycle commands with absolute hook script
   paths and the active Python interpreter. Their `SessionStart` commands call
-  `refresh_workspace_views`, regenerating workspace summary, replay packet, and
-  active-session L2 Obsidian views as orientation-only startup context. Tests
-  execute the generated `session-start` commands from a temporary user
+  `refresh_workspace_startup_views`, regenerating a lightweight workspace
+  summary, interaction worklist, and current-session topic status as
+  orientation-only startup context, then return compact
+  `workspace_refresh_progress` to avoid large chat payloads. Full
+  replay/source-stack/L2/source reconstruction refresh remains explicit through
+  `refresh_workspace_views`.
+  Tests execute the generated `session-start` commands from a temporary user
   workspace cwd.
 - `hooks/aitp_v5_claude_hook.py` reads Claude Code hook JSON from stdin. Its
   `PreToolUse` path maps destructive, remote, and expensive Bash commands to a
@@ -265,6 +285,24 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   reconstruction-path evidence, and failure conditions. The contracted
   `source_reconstruction_audit` surface is read-only, uses only typed records,
   keeps `summary_inputs_trusted=false`, and cannot update claim trust.
+- Agents can call `aitp-v5 source reconstruction-manifest` or
+  `aitp_v5_build_source_reconstruction_manifest` to batch those audits across
+  active claims. The contracted `source_reconstruction_manifest` surface lists
+  complete/incomplete counts, aggregate missing-component counts, per-claim
+  missing components, direct next-action commands, and recommended record types
+  for source-stack closeout. It is orientation-only, handles empty
+  legacy-import claim statements without rejecting the backlog, and cannot
+  update kernel state or claim trust.
+- Agents can call `aitp-v5 legacy source-reconstruction-plan` or
+  `aitp_v5_build_legacy_source_reconstruction_plan` to derive a read-only
+  reconstruction-path evidence backfill plan from the latest typed
+  `needs_revision` legacy semantic review. The guarded apply surface,
+  `aitp-v5 legacy source-reconstruction-apply` or
+  `aitp_v5_apply_legacy_source_reconstruction_repair`, can write a narrow
+  `source_reconstruction` evidence record with
+  `supports_outputs=["reconstruction_path"]` when reviewed L3/candidate refs
+  exist. It can update typed evidence coverage but cannot update claim trust or
+  prove semantic losslessness.
 - Agents can call `aitp-v5 summary replay` or
   `aitp_v5_write_workspace_replay_packet` for an orientation-only
   `workspace_replay_packet` across active sessions. It lists active claims,
@@ -277,11 +315,97 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   review view for active L2 memory entries. The generated notes list memory
   scope, evidence refs, validation refs, and known failure modes, but keep
   `truth_source=false`; typed memory/audit records remain authoritative.
+- Agents can call `aitp-v5 legacy l2-graph-manifest` or
+  `aitp_v5_build_legacy_l2_graph_manifest` to inspect a legacy global `L2/`
+  index/graph before typed migration. The manifest counts legacy entries,
+  graph nodes/edges/steps/towers, records Obsidian view targets, and recommends
+  typed L2 memory/object-relation migration while keeping the legacy graph
+  orientation-only and unable to update trust.
+- Agents can call `aitp-v5 legacy l2-obsidian-view` or
+  `aitp_v5_write_legacy_l2_obsidian_view` to write a derived
+  orientation-only Obsidian view under `.aitp/surfaces/legacy_l2_obsidian`.
+  The view lists legacy entries and graph counts for browsing/triage, keeps
+  `truth_source=false`, reports `memory_entry_count=0`, and requires typed L2
+  migration before any trust update.
 - Agents can call `aitp-v5 summary refresh` or
   `aitp_v5_refresh_workspace_views` as a single host-startup refresh point.
   It regenerates the workspace summary, replay packet, and active-session L2
   Obsidian view in a contracted `workspace_refresh_bundle`, remains
   orientation-only, and cannot update kernel state or claim trust.
+  Claude/Kimi SessionStart hooks call the lighter startup refresh and return
+  compact `workspace_refresh_progress` with topic-status handoff paths instead
+  of dumping full `topic_status_bundles`; the full files are still written on
+  disk.
+- Agents can write goal continuation audit packets via `aitp-v5 goal write` or
+  `aitp_v5_write_goal_continuation`. Each packet is written to
+  `.aitp/surfaces/goal_continuation/` as JSON+Markdown and contains the
+  objective, changed files, test results, smoke commands, readiness outcome,
+  next actions, trust boundary, and blocking backlog. Future sessions can read
+  the latest packet via `aitp-v5 goal latest` or `aitp_v5_read_latest_goal_continuation`
+  to reconstruct context without chat history. These packets are orientation-only.
+  Use repeated CLI args (`--changed-file`, `--test-run`, `--next-action`,
+  `--audit-command`) and JSON args (`--commits-json`,
+  `--changed-file-stats-json`) for audit handoffs; comma-separated legacy args
+  are only for simple values. Stored `latest.json` packets must themselves pass
+  the public `goal_continuation_packet` contract.
+- Agents can call `aitp-v5 interaction preview <session-id>` or
+  `aitp_v5_preview_interaction_recording` before or during a natural research
+  conversation. The contracted `interaction_recording_preview` is read-only
+  and derived from the typed execution brief. It reports whether the current
+  session can stay lightweight, which records are recommended rather than
+  required, which trust-changing records are deferred, and which triggers make
+  the workflow heavier. It keeps `summary_inputs_trusted=false` and cannot
+  update kernel state or claim trust.
+- Agents can call `aitp-v5 legacy migration-audit` or
+  `aitp_v5_audit_legacy_migration_coverage` against a completed
+  `legacy-v5-lossless-*` migration run. The audit proves file accounting,
+  archive-reference coverage, Markdown readability, and per-topic coverage
+  status, but it must keep `semantic_lossless_proven=false` and
+  `semantic_review_required=true`; semantic correctness of old physics content
+  requires human/v5 review, not manifest accounting alone.
+- Agents can call `aitp-v5 legacy semantic-review-queue` or
+  `aitp_v5_build_legacy_semantic_review_queue` against the same migration run
+  to turn accounting coverage into per-topic review work items. Each item
+  reports legacy shape, active claim id, typed/archive coverage counts,
+  source-reconstruction status, review priority, review reasons, and
+  recommended actions. The queue is orientation-only and cannot update kernel
+  state or claim trust; it operationalizes semantic review without proving it.
+- Agents can call `aitp-v5 legacy semantic-review-result` or
+  `aitp_v5_record_legacy_semantic_review_result` to persist a per-topic
+  `legacy_semantic_review_result_record` after actual review. The record stores
+  status, summary, reviewed legacy refs, reviewed typed refs,
+  evidence/validation refs, remaining actions, and an optional checkpoint id.
+  The semantic review queue reads these records back as
+  `semantic_review_status`; the result record cannot update claim trust.
+- Agents can call `aitp-v5 legacy semantic-repair-plan` or
+  `aitp_v5_build_legacy_semantic_repair_plan` to derive a read-only repair plan
+  from typed `needs_revision` legacy semantic review results. Agents can then
+  call `aitp-v5 legacy semantic-repair-apply` or
+  `aitp_v5_apply_legacy_semantic_repair` for narrow repairs such as
+  `claim_statement_backfill`, `claim_scope_backfill`, and
+  `claim_failure_mode_backfill`. Repairs require the matching review id, use
+  reviewed legacy refs as their basis, can recover an empty statement from a
+  reviewed L3 distillation's `distilled_claim` when the review action requests
+  it, can recover an empty statement from an L1 question contract's
+  `bounded_question` when the review action requests it, and can recover scope
+  either from a legacy candidate's `regime_of_validity` or from an L1 question
+  contract's `scope_boundaries`. Source selection follows the typed review
+  action, so an L1 scope action is not allowed to be satisfied by candidate
+  assumptions merely because both refs were reviewed. Claim failure modes can be
+  recovered from L4 review basis or from L1 `Non-Success Conditions` when the
+  review action requests that source. Frontmatter values are normalized before
+  becoming proposed claim text, including YAML lists and maps, so repairs do not
+  write Python collection reprs into claim statements, scopes, or failure modes.
+  Failed validation-result follow-up is not a mechanical apply repair:
+  `validation_result_revision` candidates are marked
+  `external_evidence_required` with required action
+  `record_revised_validation_result_before_semantic_pass`, because they need a
+  repaired or replaced run and a new typed validation result before semantic
+  pass.
+  They update only the migrated claim and topic ledger, and write a durable
+  `legacy_semantic_repair` record. The repair apply surface may update kernel
+  content state, but it cannot update claim trust or prove semantic
+  losslessness.
 - Agents can call `aitp-v5 memory failure-modes --claim <claim-id>` or
   `aitp_v5_audit_failure_mode_coverage` for a read-only
   `failure_mode_audit` surface. It reports active uncertainty,
@@ -418,6 +542,30 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   request carries the matching token.
 - Hook trace events are durable process history only. They do not create
   evidence, memory, validation, or claim-confidence records.
+- The vNext human-idea/AI-execution/human-steering plan is a first-class
+  readiness input. Agents can call `aitp-v5 status vnext-readiness`,
+  `aitp-v5 status vnext-readiness --compact`, or
+  `aitp_v5_build_vnext_readiness_manifest` for the contracted
+  `vnext_readiness_manifest`, which reports implemented control-plane
+  workstreams, output-stability support, literature intake support, priority
+  host conformance with OpenCode deferred, and remaining lane-exemplar backlog.
+  Prefer `--compact` for startup and quick continuation checks so hosts do not
+  dump the full lane-exemplar item list into chat context.
+  `adapter final-readiness` includes this manifest but still keeps legacy
+  semantic review as a separate blocking content backlog and cannot update
+  claim trust.
+- Human-facing reports have a stable output spine defined in `docs/AITP_SPEC.md`
+  and topic-local `final_output_profile` records. Future report changes should
+  be additive unless a new output version and compatibility note are recorded.
+- Current-session topic status now renders `session_start.generated.md` as the
+  resume-first surface for future agents: it includes the active
+  `final_output_profile`, strategy-memory `next_time_rule` items, lane exemplar
+  trust boundaries, and any required operator checkpoint. It remains
+  orientation-only and cannot update kernel state or claim trust.
+- `aitp-v5 status topic <session-id> --compact` and
+  `aitp_v5_write_topic_status_surfaces_compact` should be preferred when a host
+  needs only a small continuation payload; they still write the full status
+  files but do not dump the complete `topic_state` JSON into chat.
 
 ## Protocol Layer Map
 

@@ -10,6 +10,7 @@ from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
+from brain.v5.final_readiness import audit_final_engineering_readiness
 from brain.v5.hook_install_audit import audit_hook_installation
 from brain.v5.hook_install_paths import discover_hook_install_paths
 from brain.v5.hook_install_templates import (
@@ -19,9 +20,9 @@ from brain.v5.hook_install_templates import (
     write_opencode_plugin_bridge,
 )
 from brain.v5.mcp_kimi_hooks import aitp_v5_install_kimi_code_hook_config, aitp_v5_write_kimi_code_hook_config
+from brain.v5.mcp_legacy import aitp_v5_apply_legacy_semantic_repair, aitp_v5_apply_legacy_source_reconstruction_repair, aitp_v5_audit_legacy_migration_coverage, aitp_v5_build_legacy_executable_evidence_packet, aitp_v5_build_legacy_human_checkpoint_packet, aitp_v5_build_legacy_l2_graph_manifest, aitp_v5_build_legacy_l2_typed_migration_packet, aitp_v5_build_legacy_runtime_log_marker_audit, aitp_v5_build_legacy_semantic_needs_revision_basis_packet, aitp_v5_build_legacy_semantic_needs_revision_basis_queue, aitp_v5_build_legacy_semantic_repair_manifest, aitp_v5_build_legacy_semantic_repair_plan, aitp_v5_build_legacy_semantic_review_manifest, aitp_v5_build_legacy_semantic_review_packet, aitp_v5_build_legacy_semantic_review_queue, aitp_v5_build_legacy_semantic_review_worklist, aitp_v5_build_legacy_source_metadata_repair_packet, aitp_v5_build_legacy_source_reconstruction_manifest, aitp_v5_build_legacy_source_reconstruction_plan, aitp_v5_build_legacy_source_reconstruction_review_packet, aitp_v5_build_legacy_topic_question_backfill_packet, aitp_v5_migrate_legacy_topic_to_v5, aitp_v5_record_legacy_semantic_review_result, aitp_v5_write_legacy_human_checkpoint_obsidian_view, aitp_v5_write_legacy_l2_obsidian_view, aitp_v5_write_legacy_semantic_needs_revision_basis_obsidian_view, aitp_v5_write_legacy_semantic_review_obsidian_view, aitp_v5_write_legacy_source_reconstruction_obsidian_view
 from brain.v5.hook_smoke_coverage import runtime_hook_smoke_coverage_report
 from brain.v5.knowledge_connectors import describe_knowledge_connectors
-from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
 from brain.v5.pretool_policy import evaluate_context_pre_tool_policy
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
@@ -32,10 +33,22 @@ from brain.v5.validation import create_validation_contract, record_validation_re
 from brain.v5.checkpoints import decide_human_checkpoint, request_human_checkpoint
 from brain.v5.memory import apply_promotion_packet, create_promotion_packet
 from brain.v5.mcp_evidence import aitp_v5_record_evidence
+from brain.v5.mcp_host_readiness import aitp_v5_audit_priority_host_production_loops, aitp_v5_audit_runtime_host_lifecycle, aitp_v5_audit_runtime_host_readiness
 from brain.v5.mcp_hook_install import aitp_v5_install_codex_hook_fixture, aitp_v5_install_opencode_hook_fixture
+from brain.v5.mcp_interaction import aitp_v5_build_interaction_recording_worklist, aitp_v5_build_workspace_interaction_preview, aitp_v5_preview_interaction_recording
+from brain.v5.mcp_lane_exemplars import aitp_v5_build_lane_exemplar_manifest, aitp_v5_record_lane_exemplar
+from brain.v5.mcp_literature import aitp_v5_record_literature_candidate, aitp_v5_suggest_literature_intake
 from brain.v5.mcp_memory import aitp_v5_audit_failure_mode_coverage, aitp_v5_audit_l2_memory_context, aitp_v5_build_failure_mode_review_packet, aitp_v5_record_failure_mode_review_result, aitp_v5_request_failure_mode_review_checkpoint, aitp_v5_write_l2_obsidian_view
+from brain.v5.mcp_operator_checkpoint import aitp_v5_answer_operator_checkpoint, aitp_v5_request_operator_checkpoint
+from brain.v5.mcp_output_stability import aitp_v5_build_vnext_readiness_manifest, aitp_v5_record_final_output_profile
+from brain.v5.mcp_research_intent import aitp_v5_materialize_steering_redirect, aitp_v5_record_research_intent_packet
+from brain.v5.mcp_run_iterations import aitp_v5_record_run_iteration
+from brain.v5.mcp_source import aitp_v5_audit_source_reconstruction, aitp_v5_build_source_reconstruction_manifest, aitp_v5_build_source_reconstruction_review_manifest, aitp_v5_build_source_reconstruction_review_packet, aitp_v5_build_source_stack_coverage_manifest, aitp_v5_record_source_reconstruction_review_result, aitp_v5_write_source_reconstruction_obsidian_view
+from brain.v5.mcp_strategy_memory import aitp_v5_record_strategy_memory
 from brain.v5.mcp_summaries import aitp_v5_read_summary_orientation, aitp_v5_refresh_workspace_views, aitp_v5_write_session_summary, aitp_v5_write_workspace_replay_packet, aitp_v5_write_workspace_summary
+from brain.v5.mcp_topic_status import aitp_v5_write_topic_status_surfaces, aitp_v5_write_topic_status_surfaces_compact
 from brain.v5.mcp_trust_audit import aitp_v5_audit_claim_trust
+from brain.v5.mcp_goal import aitp_v5_list_goal_continuations, aitp_v5_read_latest_goal_continuation, aitp_v5_write_goal_continuation
 from brain.v5.risk import assess_claim_risk
 from brain.v5.store import list_records
 from brain.v5.subagents import ingest_subagent_result
@@ -156,11 +169,6 @@ def aitp_v5_list_tool_executors() -> dict:
 def aitp_v5_list_knowledge_connectors() -> dict:
     return require_valid_public_surface("knowledge_connector_catalog", describe_knowledge_connectors())
 
-def aitp_v5_audit_source_reconstruction(base: str, *, claim_id: str) -> dict:
-    from brain.v5.source_reconstruction import audit_source_reconstruction
-    return require_valid_public_surface("source_reconstruction_audit", audit_source_reconstruction(_ws(base), claim_id=claim_id))
-
-
 def aitp_v5_persist_hook_trace_event(base: str, *, hook_payload: dict) -> dict:
     return require_valid_public_surface("hook_trace_event_record", persist_hook_trace_event(_ws(base), hook_payload))
 
@@ -176,22 +184,6 @@ def aitp_v5_record_reference_location(
         source_ref=source_ref, external_id=external_id, status=status, summary=summary,
         metadata=metadata, linked_records=linked_records)
     return require_valid_public_surface("reference_location_record", {"ok": True, **asdict(loc)})
-
-
-def aitp_v5_migrate_legacy_topic_to_v5(
-    base: str,
-    *,
-    topic_dir: str,
-    context_id: str,
-    session_id: str,
-) -> dict:
-    result = migrate_legacy_topic_to_v5(
-        _ws(base),
-        topic_dir,
-        context_id=context_id,
-        session_id=session_id,
-    )
-    return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
 
 
 def aitp_v5_get_adapter_packet(base: str, *, runtime: str, session_id: str) -> dict:
@@ -303,6 +295,16 @@ def aitp_v5_report_hook_smoke_coverage() -> dict:
         **require_valid_public_surface(
             "runtime_hook_smoke_coverage",
             runtime_hook_smoke_coverage_report(),
+        ),
+    }
+
+
+def aitp_v5_audit_final_engineering_readiness(base: str, *, migration_dir: str = "") -> dict:
+    return {
+        "ok": True,
+        **require_valid_public_surface(
+            "final_engineering_readiness_audit",
+            audit_final_engineering_readiness(_ws(base), migration_dir=migration_dir or None),
         ),
     }
 

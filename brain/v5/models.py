@@ -376,6 +376,73 @@ class FailureModeReviewResultRecord:
 
 
 @dataclass
+class SourceReconstructionReviewResultRecord:
+    result_id: str
+    topic_id: str
+    claim_id: str
+    status: str
+    reviewed_components: list[str] = field(default_factory=list)
+    basis_refs: list[str] = field(default_factory=list)
+    evidence_refs: list[str] = field(default_factory=list)
+    validation_result_ids: list[str] = field(default_factory=list)
+    reference_location_ids: list[str] = field(default_factory=list)
+    object_ids: list[str] = field(default_factory=list)
+    relation_ids: list[str] = field(default_factory=list)
+    remaining_actions: list[str] = field(default_factory=list)
+    reviewer_role: str = "human_or_adversarial_reviewer"
+    summary: str = ""
+    created_at: str = ""
+    summary_inputs_trusted: bool = False
+    can_update_claim_trust: bool = False
+    kind: str = "source_reconstruction_review_result"
+
+
+@dataclass
+class LegacySemanticReviewResultRecord:
+    review_id: str
+    migration_run_id: str
+    migration_dir: str
+    topic: str
+    status: str
+    summary: str
+    active_claim_id: str = ""
+    reviewer_role: str = "human_or_adversarial_reviewer"
+    reviewed_legacy_refs: list[str] = field(default_factory=list)
+    reviewed_typed_refs: list[str] = field(default_factory=list)
+    evidence_refs: list[str] = field(default_factory=list)
+    validation_result_ids: list[str] = field(default_factory=list)
+    remaining_actions: list[str] = field(default_factory=list)
+    checkpoint_id: str = ""
+    created_at: str = ""
+    summary_inputs_trusted: bool = False
+    can_update_claim_trust: bool = False
+    kind: str = "legacy_semantic_review_result"
+
+
+@dataclass
+class LegacySemanticRepairRecord:
+    repair_id: str
+    migration_run_id: str
+    migration_dir: str
+    topic: str
+    active_claim_id: str
+    review_id: str
+    repair_type: str
+    previous_value: str
+    new_value: str
+    basis_refs: list[str] = field(default_factory=list)
+    applied: bool = False
+    required_actions: list[str] = field(default_factory=list)
+    summary_inputs_trusted: bool = False
+    can_update_claim_trust: bool = False
+    kind: str = "legacy_semantic_repair"
+
+    @property
+    def record_id(self) -> str:
+        return self.repair_id
+
+
+@dataclass
 class PromotionPacketRecord:
     packet_id: str
     topic_id: str

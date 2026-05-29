@@ -14,7 +14,14 @@ kept as thin layers over kernel records.
 
 ## Current Status
 
-AITP v5 is a usable research-kernel MVP, not yet a fully packaged research OS.
+AITP v5 is at **kernel-ready / content-backlog** status. The typed kernel,
+public contracts, CLI/MCP surfaces, Codex/Claude Code/Kimi Code host paths,
+vNext control-plane surfaces, literature-intake assistant, source-stack and
+source-reconstruction review surfaces, L2/Obsidian views, workspace replay, and
+goal-continuation audit packets are implemented and covered by the focused v5
+test suite. This does **not** mean all migrated research content is
+semantically reviewed or that claim trust can be updated from orientation
+surfaces.
 
 | Area | Status |
 |------|--------|
@@ -22,9 +29,22 @@ AITP v5 is a usable research-kernel MVP, not yet a fully packaged research OS.
 | Trust discipline | Implemented: summaries are orientation-only, validation gates trust, high-risk promotion needs evidence, passed validation, failure modes, and human review checkpoints |
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
-| Legacy migration | Implemented core: dry-run audit and v5 migration paths for old AITP topic content |
-| Host integration | Partially productionized: Codex, Claude Code, and Kimi Code have v5 MCP/hook/adapter surfaces; broader in-host smoke coverage and packaging are still being hardened |
-| OpenCode | Available as an adapter/plugin track, but currently lower priority than Codex, Claude Code, and Kimi Code |
+| Legacy migration | Implemented migration, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
+| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits |
+| OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
+| Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
+| Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
+
+The latest real readiness audit reports:
+
+- `completion_status = kernel_ready_content_backlog`
+- `kernel_capability_status = ready_for_priority_hosts`
+- `blocking_gaps = ["legacy_semantic_review_backlog"]`
+- legacy semantic review progress: `needs_revision = 16`, `inconclusive = 2`,
+  `passed = 0`
+- source reconstruction backlog: `incomplete_claim_count = 3`
+- `can_update_claim_trust = false`
+- `semantic_lossless_proven = false`
 
 The practical rule is:
 
@@ -32,7 +52,29 @@ The practical rule is:
 - Treat typed v5 records as the authority.
 - Treat generated summaries, replay packets, README text, adapter packets, and
   Obsidian views as orientation surfaces.
-- Keep improving host packaging and end-to-end app smoke tests incrementally.
+- Do not call the whole migration complete until the legacy semantic review
+  backlog is reviewed and repaired from typed review results.
+
+## Remaining Work
+
+The remaining work is content and deployment hardening, not a missing core v5
+kernel capability:
+
+1. Resolve the real legacy semantic review backlog. Each `needs_revision` or
+   `inconclusive` topic needs typed review/repair basis; archive accounting is
+   not semantic proof.
+2. Clear source-reconstruction inconclusive items for the remaining active
+   claims.
+3. Continue qsgw/librpa topic hardening with the final/diagnostic lane
+   boundary: final outputs require final-usable provenance; diagnostic outputs
+   may carry assumptions only when labeled.
+4. Keep literature intake conservative: record references as orientation-only,
+   record evidence only with explicit claim, status, source refs, and scoped
+   output, and route trust changes through preflight/checkpoints.
+5. Update downstream theory workspaces to the latest v5 kernel and regenerate
+   topic-local runtime handoff files where needed.
+6. Revisit OpenCode after its host hook model is stable enough for the same
+   production-loop guarantees as Codex, Claude Code, and Kimi Code.
 
 ## Why AITP Exists
 

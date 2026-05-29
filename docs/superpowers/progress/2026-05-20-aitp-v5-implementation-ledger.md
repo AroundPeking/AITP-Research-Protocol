@@ -5880,3 +5880,610 @@ Each entry should record:
   - run a real Theoretical-Physics workspace install/audit pass for Claude Code
     and Kimi Code config files, then perform the remaining final-goal audit for
     migration coverage, UX weight, and old-topic semantic completeness.
+
+### 072bd48 - Add Legacy Migration Coverage Audit
+
+- Task: add a conservative public audit for completed `legacy-v5-lossless-*`
+  migration runs so old-topic migration can be reviewed without overclaiming
+  semantic losslessness.
+- Planning source:
+  - final-engineering gap for old content migration semantic audit;
+  - prior migration reports proved file accounting and archive references but
+    did not expose a stable v5 public surface for per-topic coverage;
+  - user requirement that old AITP research contents be migrated without
+    omission while not pretending machine accounting proves every physics
+    interpretation.
+- Changed files:
+  - `brain/v5/legacy_migration_audit.py`
+  - `brain/v5/legacy_migration_audit_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `legacy_migration_coverage_audit`;
+  - added `audit_legacy_migration_coverage`;
+  - added CLI `aitp-v5 legacy migration-audit`;
+  - added MCP wrapper `aitp_v5_audit_legacy_migration_coverage`;
+  - added runtime entrypoint `legacy_migration_coverage_audit`;
+  - split legacy CLI/MCP dispatch into focused modules so `cli.py` and
+    `mcp_tools.py` remain thin entrypoints.
+- Tests:
+  - synthetic migration run reports accounted file/reference/readability
+    coverage while keeping `semantic_lossless_proven=false`;
+  - noncanonical legacy seeds are reported as accounted but still needing
+    semantic review;
+  - CLI/MCP/runtime/public-surface contracts expose the same audit.
+- Verification:
+  - focused related set:
+    `pytest tests\test_v5_legacy_bridge.py tests\test_v5_public_surfaces.py tests\test_v5_runtime_entrypoints.py tests\test_v5_mcp_tools.py tests\test_v5_cli.py tests\test_v5_architecture_boundaries.py -q`:
+    76 passed.
+  - real workspace smoke on
+    `D:\BaiduSyncdisk\Theoretical-Physics\.aitp\migrations\legacy-v5-lossless-20260524-031743`:
+    `legacy_migration_coverage_audit accounted_needs_review 18 topics,
+    1871 legacy files, 1871 post files, 1487 archive refs checked, 4289
+    Markdown files checked, gap_topic_count=0,
+    semantic_lossless_proven=false, semantic_review_required=true`.
+- Residual risks:
+  - this audit proves preservation/coverage accounting, not physics-level
+    semantic correctness;
+  - old `legacy_seed` topics still require per-topic human/v5 review before
+    claims can become trusted memory.
+- Next recommended task:
+  - add a lightweight interaction/UX audit or command that helps users see
+    exactly what AITP will do in a natural research conversation before it
+    writes heavy typed records.
+
+### 9dc95fd - Add Interaction Recording Preview
+
+- Task: add a lightweight natural-conversation preview surface so host adapters
+  and agents can see what AITP v5 will record, defer, or escalate before
+  writing heavy typed records.
+- Planning source:
+  - final-engineering gap for reducing UX weight in early theoretical-physics
+    exploration;
+  - previous legacy-audit recommendation to expose a command that explains
+    recording boundaries before heavy record writes;
+  - real HS/Yangian OTOC workflow feedback that broad validation and schema
+    categories can interrupt natural research flow.
+- Changed files:
+  - `brain/v5/interaction_preview.py`
+  - `brain/v5/interaction_preview_contracts.py`
+  - `brain/v5/cli_interaction.py`
+  - `brain/v5/mcp_interaction.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_interaction.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `interaction_recording_preview`;
+  - added read-only builder `build_interaction_recording_preview`;
+  - added CLI `aitp-v5 interaction preview <session-id>`;
+  - added MCP wrapper `aitp_v5_preview_interaction_recording`;
+  - added runtime entrypoint `interaction_recording_preview`;
+  - preview reports `can_stay_lightweight`, recommended records, deferred
+    trust-changing records, heavier triggers, question budget, and interaction
+    profile while keeping `summary_inputs_trusted=false`,
+    `orientation_only=true`, `can_update_kernel_state=false`, and
+    `can_update_claim_trust=false`.
+- Tests:
+  - preview validates as a public surface and preserves read-only flags;
+  - no-active-claim sessions remain orientation-only and recommend only an
+    execution brief read;
+  - CLI and MCP wrappers return the contracted preview;
+  - runtime entrypoint validation advertises the CLI/MCP pair.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_interaction.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    66 passed.
+  - real workspace smoke on
+    `D:\BaiduSyncdisk\Theoretical-Physics` session
+    `codex-20260524-hs-yangian-otoc`: CLI preview returned
+    `interaction_recording_preview`, `risk_level=adversarial`,
+    recommended records `execution_brief,sensemaking_report_record,validation_contract_record`,
+    deferred records `promotion_packet_record,trust_update_apply,human_checkpoint_record`,
+    and `.aitp` file count stayed 4413 before and after the call.
+  - MCP smoke on the same real session returned `orientation_only=true`,
+    `summary_inputs_trusted=false`, `can_update_kernel_state=false`, and
+    `can_update_claim_trust=false`.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 497 passed.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - preview makes interaction boundaries explicit, but host agents still need
+    to call it or read the startup adapter packet; it is not a GUI prompt.
+  - adversarial/high-risk sessions correctly remain heavy at trust boundaries;
+    the preview does not relax validation or promotion gates.
+- Next recommended task:
+  - run a final residual-gap audit for Codex/Claude/Kimi host-process closure,
+    source/knowledge stack status, legacy semantic review state, and long-term
+    replay before deciding whether the active AITP v5 goal can be marked
+    complete.
+
+### 0324bc5 - Add Runtime Host Readiness Audit
+
+- Task: add a dynamic readiness surface that distinguishes configured hook files
+  from host commands that actually launch on the current machine.
+- Planning source:
+  - final-engineering gap for real host loop proof across Codex, Claude Code,
+    and Kimi Code;
+  - `runtime_hook_smoke_coverage` still reports static test-backed coverage and
+    a `real_host_process_smoke` gap;
+  - user requirement to verify the actual callable path, not just configured
+    state.
+- Changed files:
+  - `brain/v5/host_readiness.py`
+  - `brain/v5/host_readiness_contracts.py`
+  - `brain/v5/mcp_host_readiness.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_host_readiness.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `runtime_host_readiness_audit`;
+  - added CLI `aitp-v5 adapter host-readiness <runtime>`;
+  - added MCP wrapper `aitp_v5_audit_runtime_host_readiness`;
+  - readiness launches the local host command (`codex`, `claude`, `kimi`, or
+    `opencode` by default), optionally audits installed hook files, and can
+    directly smoke Claude/Kimi `SessionStart` refresh commands;
+  - the surface is dynamic runtime evidence only and keeps
+    `summary_inputs_trusted=false`, `orientation_only=true`,
+    `can_update_kernel_state=false`, and `can_update_claim_trust=false`.
+- Tests:
+  - readiness can run a real local process while skipping install audit;
+  - CLI and MCP wrappers expose the contracted surface;
+  - runtime entrypoint validation advertises the CLI/MCP pair;
+  - public-surface registry includes the new contract.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_host_readiness.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    59 passed.
+  - real Theoretical-Physics readiness smokes:
+    - Codex: `status=process_ready`, process `codex-cli 0.132.0`, install
+      `installed`;
+    - Claude Code: `status=ready_with_session_start_smoke`, process
+      `2.1.150 (Claude Code)`, install `installed`, `SessionStart` returned
+      `workspace_refresh_bundle`;
+    - Kimi Code: `status=ready_with_session_start_smoke`, process
+      `kimi, version 1.35.0`, install `installed`, `SessionStart` returned
+      `workspace_refresh_bundle`.
+  - before readiness smoke, real Theoretical-Physics Claude/Kimi configs were
+    audited as `partial` because `SessionStart` was missing; v5 installers
+    reinstalled them and follow-up audits returned `installed`.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 499 passed.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+- Residual risks:
+  - readiness proves the host process starts and configured hook commands run
+    directly; it still cannot prove every proprietary interactive app will fire
+    lifecycle hooks in all future UI/session modes.
+  - OpenCode remains intentionally deferred by current user priority.
+- Next recommended task:
+  - produce the final residual-gap audit from current public surfaces and real
+    workspace smokes, then decide whether remaining items are product polish or
+    blockers for the active goal.
+
+### 8a7d265 - Clarify Host Smoke Coverage Residual
+
+- Task: update static hook smoke coverage so it recognizes the new dynamic
+  host-readiness surface and no longer labels Codex/Claude/Kimi as lacking a
+  host process smoke path.
+- Planning source:
+  - readiness audit in `0324bc5` proved a callable dynamic process/readiness
+    surface;
+  - static `runtime_hook_smoke_coverage` still used the older
+    `real_host_process_smoke` gap label, which conflated process launch with
+    proprietary interactive lifecycle firing.
+- Changed files:
+  - `brain/v5/hook_smoke_coverage.py`
+  - `tests/test_v5_adapters.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+- Public/runtime behavior changes:
+  - Codex, Claude Code, and Kimi Code smoke coverage now includes
+    `dynamic_host_readiness_audit_surface`;
+  - their remaining static gap is renamed to
+    `real_interactive_lifecycle_event_smoke`, which is narrower and more
+    honest;
+  - OpenCode remains unchanged because it is deferred by current priority.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_adapters.py tests/test_v5_host_readiness.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    112 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 499 passed.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+  - current `runtime_hook_smoke_coverage` output:
+    - Codex, Claude Code, and Kimi Code include
+      `dynamic_host_readiness_audit_surface`;
+    - their remaining gap is `real_interactive_lifecycle_event_smoke`;
+    - OpenCode still reports `real_host_process_smoke` because OpenCode is
+      deferred by current user priority.
+- Residual risks:
+  - this clarifies static coverage wording; the separate dynamic readiness
+    surface still cannot prove every proprietary interactive host UI will fire
+    lifecycle hooks in every future session mode.
+  - OpenCode remains intentionally deferred.
+- Next recommended task:
+  - update stale planning docs so the next agent sees the current closure
+    state rather than the older host-process and pre-tool partial-gap wording.
+
+### ab1cee1 - Update Final Engineering Gap Audit Docs
+
+- Task: update stale planning and orientation docs after the closure pass so
+  they distinguish implemented kernel surfaces from remaining future
+  hardening.
+- Planning source:
+  - final residual-gap audit found that
+    `2026-05-20-aitp-v5-next-agent-implementation-plan.md` still described
+    host process smoke and pre-tool policy coverage using older wording;
+  - README and project memory omitted Kimi Code from a few host-target lists
+    even though Kimi install/readiness surfaces now exist.
+- Changed files:
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `docs/superpowers/progress/2026-05-20-aitp-v5-implementation-ledger.md`
+- Public/runtime behavior changes:
+  - none; docs-only correction.
+- Verification:
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 499 passed in 139.17s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+
+### 2132af9 - Add Runtime Host Lifecycle Probe
+
+- Task: add a reusable runtime probe for the remaining host lifecycle-event
+  evidence gap.
+- Planning source:
+  - final host gap required stronger evidence than installed config or process
+    readiness;
+  - Kimi/Claude/Codex hooks emit lifecycle output and post-tool trace records,
+    so a probe can audit one host invocation by comparing hook trace deltas and
+    stdout/stderr hook output kinds.
+- Changed files:
+  - `brain/v5/host_readiness.py`
+  - `brain/v5/host_lifecycle_contracts.py`
+  - `brain/v5/mcp_host_readiness.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/cli.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/runtime_entrypoint_samples.py`
+  - `brain/v5/hook_smoke_coverage.py`
+  - `tests/test_v5_host_readiness.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `tests/test_v5_adapters.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-hook-installation.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `runtime_host_lifecycle_audit`;
+  - added CLI `aitp-v5 adapter host-lifecycle <runtime>`;
+  - added MCP wrapper `aitp_v5_audit_runtime_host_lifecycle`;
+  - the probe runs a supplied host command, records stdout/stderr, compares
+    `.aitp/runtime/hook_trace_events.jsonl` before/after, and reports observed
+    AITP hook output kinds without trusting summaries or mutating claim trust.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_host_readiness.py tests/test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads tests/test_v5_runtime_entrypoints.py::test_runtime_entrypoints_advertise_typed_write_surfaces tests/test_v5_runtime_entrypoints.py::test_runtime_entrypoint_validation_confirms_advertised_targets_exist tests/test_v5_adapters.py::test_runtime_hook_smoke_coverage_reports_test_backed_host_smokes -q`:
+    8 passed.
+  - architecture-inclusive related set:
+    `python -m pytest tests/test_v5_architecture_boundaries.py tests/test_v5_host_readiness.py tests/test_v5_public_surfaces.py::test_public_surface_registry_names_all_runtime_facing_payloads tests/test_v5_runtime_entrypoints.py::test_runtime_entrypoints_advertise_typed_write_surfaces tests/test_v5_runtime_entrypoints.py::test_runtime_entrypoint_validation_confirms_advertised_targets_exist tests/test_v5_adapters.py::test_runtime_hook_smoke_coverage_reports_test_backed_host_smokes -q`:
+    14 passed.
+  - broader related set:
+    `python -m pytest tests/test_v5_host_readiness.py tests/test_v5_adapters.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    138 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 501 passed in 240.44s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed.
+  - real Theoretical-Physics lifecycle probe:
+    - `claude --version`, `kimi --version`, and `codex --version` returned
+      `process_ready_no_lifecycle_event_observed`, correctly showing that
+      version commands do not trigger lifecycle hooks;
+    - direct Claude/Kimi `session-start` hook commands run through
+      `host-lifecycle` returned `hook_output_observed` with
+      `workspace_refresh_bundle`, while preserving
+      `summary_inputs_trusted=false`, `can_update_kernel_state=false`, and
+      `can_update_claim_trust=false`.
+- Residual risks:
+  - this proves the probe surface and can capture lifecycle evidence for a
+    specific invocation; it does not by itself prove every proprietary host UI
+    mode will fire lifecycle hooks.
+
+### a764fc2 - Add Legacy Semantic Review Queue
+
+- Task: turn conservative legacy migration coverage into an actionable
+  per-topic semantic review queue.
+- Planning source:
+  - remaining final-engineering gap after coverage audit: file accounting
+    proved 1871 migrated legacy files were accounted for, but
+    `semantic_lossless_proven=false` still needed an operational review path;
+  - user requirement that old AITP research contents not be treated as lost,
+    while not overclaiming that every physics interpretation was already
+    semantically reviewed.
+- Changed files:
+  - `brain/v5/legacy_semantic_review.py`
+  - `brain/v5/legacy_semantic_review_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`
+  - `docs/superpowers/progress/2026-05-20-aitp-v5-implementation-ledger.md`
+- Public/runtime behavior changes:
+  - added contracted public surface `legacy_semantic_review_queue`;
+  - added CLI `aitp-v5 legacy semantic-review-queue`;
+  - added MCP wrapper `aitp_v5_build_legacy_semantic_review_queue`;
+  - added runtime entrypoint `legacy_semantic_review_queue`;
+  - queue items include topic, legacy shape, active claim id,
+    typed/archive coverage counts, source-reconstruction status, review
+    priority, review reasons, and recommended actions;
+  - the queue is orientation-only, cannot update kernel state or claim trust,
+    and keeps `semantic_lossless_proven=false`.
+- Tests:
+  - synthetic migration run produces per-topic review items and flags
+    noncanonical/missing-claim/source-reconstruction cases;
+  - CLI, MCP, runtime, and public-surface registry expose the contracted queue.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_legacy_bridge.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    54 passed.
+- Residual risks:
+  - the queue makes semantic review auditable and actionable; it does not
+    complete the human/physics review for every migrated topic.
+
+### 61bfd95 - Record Legacy Semantic Review Results
+
+- Task: add a typed per-topic review result so migrated legacy topics can be
+  closed one by one after actual semantic review.
+- Planning source:
+  - follow-up to `a764fc2`; a queue made old-topic semantic review visible, but
+    the kernel still needed a durable way to record review outcomes and basis
+    without updating claim trust.
+- Changed files:
+  - `brain/v5/models.py`
+  - `brain/v5/paths.py`
+  - `brain/v5/legacy_semantic_review.py`
+  - `brain/v5/legacy_semantic_review_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+  - `tests/test_v5_runtime_entrypoints.py`
+  - `README.md`
+  - `PROJECT_MEMORY.md`
+  - `docs/superpowers/progress/2026-05-20-aitp-v5-implementation-ledger.md`
+- Public/runtime behavior changes:
+  - added typed record `LegacySemanticReviewResultRecord`;
+  - added registry path `registry/legacy_semantic_reviews`;
+  - added public surface `legacy_semantic_review_result_record`;
+  - added CLI `aitp-v5 legacy semantic-review-result`;
+  - added MCP wrapper `aitp_v5_record_legacy_semantic_review_result`;
+  - semantic review queue now reports `semantic_review_status`,
+    `semantic_review_result_ids`, and `latest_semantic_review` for topics with
+    recorded review outcomes.
+- Tests:
+  - record result requires an explicit legacy/typed/evidence/validation review
+    basis and preserves `summary_inputs_trusted=false` plus
+    `can_update_claim_trust=false`;
+  - queue reads back recorded review status;
+  - CLI/MCP/runtime/public-surface registries expose the result record.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_legacy_bridge.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_architecture_boundaries.py -q`:
+    56 passed.
+- Residual risks:
+  - this adds the durable result mechanism; it does not perform the actual
+    human/physics semantic review of all migrated topics by itself.
+
+### 9a08fea - Add Final Engineering Readiness Audit
+
+- Task: add a single read-only final-gap audit surface so agents can distinguish
+  implemented AITP v5 kernel capability from remaining content/host backlog
+  before deciding whether the long-running goal can be marked complete.
+- Planning source:
+  - final residual-gap note in this ledger and
+    `docs/superpowers/plans/2026-05-20-aitp-v5-next-agent-implementation-plan.md`;
+  - user requirement to avoid reassurance-only status reports and to keep
+    legacy semantic review separate from migration accounting.
+- Changed files:
+  - `brain/v5/final_readiness.py`
+  - `brain/v5/final_readiness_contracts.py`
+  - `brain/v5/cli_adapters.py`
+  - `brain/v5/contracts.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/runtime_entrypoint_samples.py`
+  - `tests/test_v5_final_readiness.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - added public surface `final_engineering_readiness_audit`;
+  - added CLI `aitp-v5 adapter final-readiness`;
+  - added MCP wrapper `aitp_v5_audit_final_engineering_readiness`;
+  - added runtime entrypoint `final_engineering_readiness_audit`;
+  - split runtime sample-argument dispatch out of
+    `runtime_entrypoint_catalog.py` to keep the catalog module below the
+    architecture line-count boundary.
+- Tests:
+  - audit reports kernel capability and content backlog separately;
+  - audit keeps `summary_inputs_trusted=false`, `orientation_only=true`,
+    `can_update_kernel_state=false`, and `can_update_claim_trust=false`;
+  - missing legacy migration run is reported as backlog, not success;
+  - CLI/MCP/runtime/public-surface registry expose the contracted surface.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_final_readiness.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    60 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 508 passed in 265.74s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed with only Windows CRLF warnings.
+  - real Theoretical-Physics smoke:
+    `aitp-v5 --base D:/BaiduSyncdisk/Theoretical-Physics adapter final-readiness --migration-dir D:/BaiduSyncdisk/Theoretical-Physics/.aitp/migrations/legacy-v5-lossless-20260524-031743`
+    returned `completion_status=kernel_ready_content_backlog`,
+    `kernel_capability_status=ready_for_priority_hosts`,
+    `content_backlog_status=legacy_semantic_review_backlog`,
+    `blocking_gaps=["legacy_semantic_review_backlog"]`, priority hosts
+    `codex,claude_code,kimi_code`, deferred host `opencode`, and legacy review
+    counts `review_item_count=18`, `pending_count=17`,
+    `inconclusive_count=1`, `passed_count=0`.
+  - the same real smoke preserved `.aitp` file count before/after:
+    `4426 -> 4426`, confirming the surface is read-only.
+- Residual risks:
+  - this is an audit surface, not completion itself. It currently proves that
+    the kernel can report the remaining backlog; it also confirms that actual
+    per-topic semantic review remains unfinished in the real workspace.
+  - priority host integration still has the residual
+    `real_interactive_lifecycle_event_smoke` gap for proprietary interactive UI
+    modes, while OpenCode remains intentionally deferred.
+
+### 6aa1df4 - Add Legacy Semantic Review Packets
+
+- Task: add a per-topic read-only review packet so the legacy semantic review
+  queue can be turned into actual reviewer work without manually stitching
+  together migration manifests, active claims, typed records, and source refs.
+- Planning source:
+  - `final_engineering_readiness_audit` reported the real workspace as
+    `kernel_ready_content_backlog` with
+    `legacy_semantic_review_backlog`;
+  - user requirement that old AITP content migration not silently drop topics,
+    while still not claiming semantic losslessness from file accounting alone.
+- Changed files:
+  - `brain/v5/legacy_semantic_review_packet.py`
+  - `brain/v5/legacy_semantic_review.py`
+  - `brain/v5/legacy_semantic_review_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/runtime_entrypoint_samples.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - added public surface `legacy_semantic_review_packet`;
+  - added CLI `aitp-v5 legacy semantic-review-packet --migration-dir <dir> --topic <topic>`;
+  - added MCP wrapper `aitp_v5_build_legacy_semantic_review_packet`;
+  - added runtime entrypoint `legacy_semantic_review_packet`;
+  - packet includes the queue item, active claim, typed reference/evidence/
+    object/relation/sensemaking/validation records, legacy review refs, and a
+    checklist for actual semantic review;
+  - packet is read-only and keeps `semantic_lossless_proven=false`.
+- Tests:
+  - packet collects review basis for a migrated topic without writing files;
+  - packet validates as a public surface and preserves orientation-only flags;
+  - CLI/MCP/runtime/public-surface registry expose the contracted packet;
+  - architecture line-count boundary remains satisfied after moving packet logic
+    to a focused module.
+- Verification:
+  - targeted related set:
+    `python -m pytest tests/test_v5_legacy_bridge.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    82 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 510 passed in 201.14s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed with only Windows CRLF warnings.
+  - real Theoretical-Physics smoke:
+    `aitp-v5 --base D:/BaiduSyncdisk/Theoretical-Physics legacy semantic-review-packet --migration-dir D:/BaiduSyncdisk/Theoretical-Physics/.aitp/migrations/legacy-v5-lossless-20260524-031743 --topic quantum-chaos-long-range-spin-chains`
+    returned `legacy_ref_count=248`, typed counts
+    `reference_locations=255`, `evidence=18`, `physics_objects=4`,
+    `sensemaking_reports=16`, `validation_results=0`, queue status
+    `pending`, and the expected review checklist.
+  - the same real smoke preserved `.aitp` file count before/after:
+    `4426 -> 4426`, confirming the packet is read-only.
+- Residual risks:
+  - packets make semantic review practical, but they still do not perform the
+    physics judgment. The real workspace still has 17 pending topics and 1
+    inconclusive topic until reviewers record per-topic review results.
+
+### 8bdc6a2 - Add Legacy Semantic Review Manifest
+
+- Task: add a batch manifest over legacy semantic review packets so the
+  remaining migrated-topic review backlog is machine-readable and executable
+  topic by topic.
+- Planning source:
+  - `final_engineering_readiness_audit` still reports
+    `legacy_semantic_review_backlog`;
+  - after `legacy_semantic_review_packet`, reviewers can inspect one topic, but
+    the system still needed a stable batch list of packet/result commands and
+    review progress.
+- Changed files:
+  - `brain/v5/legacy_semantic_review_manifest.py`
+  - `brain/v5/legacy_semantic_review_contracts.py`
+  - `brain/v5/cli_legacy.py`
+  - `brain/v5/mcp_legacy.py`
+  - `brain/v5/mcp_tools.py`
+  - `brain/v5/public_surfaces.py`
+  - `brain/v5/runtime_entrypoint_catalog.py`
+  - `brain/v5/runtime_entrypoint_samples.py`
+  - `tests/test_v5_legacy_bridge.py`
+  - `tests/test_v5_public_surfaces.py`
+- Public/runtime behavior changes:
+  - added public surface `legacy_semantic_review_manifest`;
+  - added CLI `aitp-v5 legacy semantic-review-manifest --migration-dir <dir>`;
+  - added MCP wrapper `aitp_v5_build_legacy_semantic_review_manifest`;
+  - added runtime entrypoint `legacy_semantic_review_manifest`;
+  - manifest lists every review item with status, priority, packet CLI,
+    result-record CLI template, recommended actions, and trust protections.
+- Tests:
+  - manifest batches all topics without writing files;
+  - manifest validates as a public surface and preserves orientation-only flags;
+  - CLI/MCP/runtime/public-surface registry expose the contracted surface.
+- Verification:
+  - related set:
+    `python -m pytest tests/test_v5_legacy_bridge.py tests/test_v5_public_surfaces.py tests/test_v5_runtime_entrypoints.py tests/test_v5_mcp_tools.py tests/test_v5_cli.py tests/test_v5_architecture_boundaries.py -q`:
+    84 passed.
+  - full v5 suite:
+    `python -m pytest <all tests/test_v5_*.py> -q`: 512 passed in 144.05s.
+  - `python -m compileall -q brain/v5`: passed.
+  - `git diff --check -- .`: passed with only Windows CRLF warnings.
+  - real Theoretical-Physics smoke:
+    `aitp-v5 --base D:/BaiduSyncdisk/Theoretical-Physics legacy semantic-review-manifest --migration-dir D:/BaiduSyncdisk/Theoretical-Physics/.aitp/migrations/legacy-v5-lossless-20260524-031743`
+    returned `topic_count=18`, `review_item_count=18`,
+    `review_progress={pending:17,inconclusive:1,needs_revision:0,passed:0}`,
+    `next_action_count=18`, and per-topic packet/result commands.
+  - the same real smoke preserved `.aitp` file count before/after:
+    `4426 -> 4426`, confirming the manifest is read-only.
+- Residual risks:
+  - the manifest closes the operational queue/packet bookkeeping gap. It does
+    not perform the semantic physics review; the real content backlog remains
+    17 pending topics and 1 inconclusive topic until review results are
+    recorded.

@@ -340,44 +340,50 @@ Implemented:
   packet through CLI/MCP/runtime public surfaces.
 - A v5 implementation ledger exists for step-by-step review.
 
-Major remaining gaps:
+Major remaining gaps after the 2026-05-24/25 closure pass:
 
-- Hook helpers now have native lifecycle installation paths for Claude Code,
-  Codex, and OpenCode, but still need broader host packaging and in-host smoke
-  coverage.
-  Codex explicit bridge materialization, Claude Code settings template
-  generation and merge installation, Codex `hooks.json` merge installation,
-  OpenCode plugin bridge materialization, OpenCode project-local plugin
-  installation, and
-  post-tool trace persistence surfaces exist; Codex/OpenCode now have a
-  CLI/MCP-callable runtime event normalizer advertised in generated bridges plus
-  a generated bridge JSON sidecar, runner argv, advertised stdin host-runner;
-  Codex and OpenCode also have generated installation fixtures for pre-tool
-  policy decisions and post-tool trace persistence. A read-only install-audit
-  surface can inspect supplied host files and report conflicts, and an
-  install-paths surface reports workspace-local targets. Codex native
-  `hooks.json` commands are now smoke-tested from a user workspace cwd rather
-  than the AITP repository cwd, and generated OpenCode local plugins are
-  smoke-tested by loading the JavaScript module and invoking before/after
-  lifecycle handlers. A `runtime_hook_smoke_coverage` surface now reports these
-  checks and remaining real-host gaps for reviewers. The remaining gap is
-  broader end-to-end host smoke tests inside real app processes plus any
-  non-workspace/global host config discovery that proves useful.
-- Pre-tool policy coverage is still partial. It checks trust-apply token
-  presence, validation/promotion-packet/promotion context, and summary-sourced
-  code-state/evidence/tool-run/tool-execution/tool-recipe/reference-location/
-  physics-object/object-relation/sensemaking-report/
-  subagent-ingestion/validation-contract/result/human-checkpoint request/decision/
-  promotion-packet creation/application attempts through CLI/MCP/runtime/bridge metadata, and
-  adversarial-risk trust changes require approved typed human checkpoints.
-  Rigorous/adversarial tool execution now requires explicit validation-contract
-  refs bound to the concrete tool recipe/executor. It still does not yet cover
-  every MCP input or every active risk dimension;
-  bridge metadata and the record-gate audit advertise the current coverage
-  explicitly.
-- Domain tools are useful but intentionally lightweight; formal-theory checks are checklist/provenance checks, not automated theorem proving.
-- Subagent packet planning and result ingestion exist, but live external-subagent execution adapters still need integration tests.
-- Full legacy test suite remains a historical failure set outside the v5 regression gate.
+- Host integration is no longer missing a process/readiness proof for the
+  current priority hosts. Codex, Claude Code, and Kimi Code have
+  native generation/merge surfaces plus `runtime_host_readiness_audit`; real
+  `D:\BaiduSyncdisk\Theoretical-Physics` smokes launched `codex`, `claude`,
+  and `kimi`, audited installed hooks, and directly verified Claude/Kimi
+  `SessionStart` refresh returning `workspace_refresh_bundle`. Static
+  `runtime_hook_smoke_coverage` now includes
+  `dynamic_host_readiness_audit_surface` and
+  `dynamic_host_lifecycle_audit_surface` for Codex/Claude/Kimi. The lifecycle
+  audit runs a supplied host command, compares hook trace counts before/after,
+  and scans host output for AITP hook output kinds. The remaining host gap is
+  broader than a single probe: proving that proprietary interactive host UIs
+  fire every lifecycle event in every future session mode. OpenCode remains
+  intentionally deferred by the current user priority.
+- Pre-tool and record-gate coverage is a current audited surface, not an
+  untracked partial promise. `adapter record-gate-audit` reports
+  `ungated_record_protocols=[]` for current record protocols; high-risk
+  validation, trust, L2 promotion, tool-derived evidence, summary-sourced
+  records, and adversarial tool-execution gates are covered. The residual is
+  future hardening: rerun the audit whenever a new MCP input or active risk
+  dimension is added.
+- Source and knowledge stack closure surfaces exist and are tested:
+  `source_reconstruction_audit`, `workspace_replay_packet`,
+  `workspace_refresh_bundle`, and `l2_obsidian_view_bundle`. Real workspace
+  replay may still surface scientific content gaps such as missing
+  reconstruction paths on older claims; those are content backlog discovered by
+  the kernel, not a missing kernel capability.
+- Legacy migration now has both a coverage audit and an operational semantic
+  review queue. The coverage audit proves file accounting, archive-reference
+  coverage, Markdown readability, and per-topic coverage. The
+  `semantic-review-queue` surface turns those topics into review items with
+  source-reconstruction status, review priority, review reasons, and
+  recommended actions. Both surfaces deliberately keep
+  `semantic_lossless_proven=false`: the remaining work is per-topic physics
+  content review before migrated statements can become trusted memory, not a
+  missing accounting surface.
+- Domain tools remain intentionally lightweight: formal-theory checks are
+  checklist/provenance checks, not automated theorem proving. Subagent packet
+  planning and result ingestion exist; live external-subagent orchestration
+  integration tests are optional future hardening.
+- The historical non-v5 legacy suite remains outside the v5 regression gate
+  unless legacy code is modified; the active gate is `tests/test_v5_*.py`.
 
 ## Execution Rules For Other AI Agents
 

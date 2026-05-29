@@ -124,3 +124,337 @@ def test_execution_brief_includes_interaction_profile_and_keeps_policy_guards(tm
     assert brief["interaction_profile"]["effective_risk_level"] == brief["risk_assessment"]["level"]
     assert len(brief["mandatory_reflection"]) <= brief["interaction_profile"]["effective_max_questions"]
     assert "policy:no_code_method_validation_without_code_state" in brief["forbidden_now"]
+
+
+def test_interaction_recording_preview_is_read_only_and_defers_heavy_records(tmp_path):
+    from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "hs-otoc", context_id="quantum-chaos", title="HS OTOC")
+    claim = create_claim(
+        ws,
+        topic_id="hs-otoc",
+        statement="The fixed-Sz OTOC definition is the correct finite-size baseline.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size and operator-choice artifacts remain possible",
+    )
+    bind_session(
+        ws,
+        "s1",
+        topic_id="hs-otoc",
+        context_id="quantum-chaos",
+        active_claim=claim.claim_id,
+        interaction_profile="collaborator",
+        interaction_steering="lighter, keep it moving",
+    )
+
+    preview = build_interaction_recording_preview(ws, "s1")
+    validated = require_valid_public_surface("interaction_recording_preview", preview)
+
+    assert validated["orientation_only"] is True
+    assert validated["summary_inputs_trusted"] is False
+    assert validated["can_update_kernel_state"] is False
+    assert validated["can_update_claim_trust"] is False
+    assert validated["mandatory_question_count"] <= validated["max_questions"]
+    assert "continue_natural_research_conversation" in validated["natural_workflow"]
+    assert validated["recording_decision"] == {
+        "mode": "guarded_recording",
+        "can_continue_without_kernel_write": True,
+        "next_kernel_entrypoint": "aitp_v5_record_sensemaking_report",
+        "required_before_trust_change": [
+            "aitp_v5_record_evidence_or_tool_run",
+            "aitp_v5_preflight_trust_update",
+        ],
+        "why": "active claim can continue naturally, but missing evidence outputs require typed provenance before trust changes",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert "trust_update_apply" in {item["record_type"] for item in validated["deferred_records"]}
+    assert "source_is_only_a_summary_task_plan_findings_or_progress_file" in validated["heavier_triggers"]
+
+
+def test_interaction_recording_preview_without_claim_stays_orientation_only(tmp_path):
+    from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "new-topic", context_id="scratch", title="New Topic")
+    bind_session(ws, "s1", topic_id="new-topic", context_id="scratch")
+
+    preview = build_interaction_recording_preview(ws, "s1")
+
+    assert preview["active_claim"] == ""
+    assert preview["can_stay_lightweight"] is True
+    assert preview["recording_decision"] == {
+        "mode": "lightweight_trace",
+        "can_continue_without_kernel_write": True,
+        "next_kernel_entrypoint": "",
+        "required_before_trust_change": ["bind_or_create_claim", "aitp_v5_preflight_trust_update"],
+        "why": "no active claim is bound, so natural exploration can stay lightweight until a stable research question emerges",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+    assert [item["record_type"] for item in preview["recommended_records"]] == ["execution_brief"]
+    assert preview["natural_workflow"] == [
+        "continue_natural_research_conversation",
+        "bind_or_create_a_claim_only_after_a_stable_research_question_emerges",
+    ]
+
+
+def test_workspace_interaction_preview_bundle_summarizes_active_sessions(tmp_path):
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+    from brain.v5.workspace_interaction_preview import build_workspace_interaction_preview
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "hs-otoc", context_id="quantum-chaos", title="HS OTOC")
+    claim = create_claim(
+        ws,
+        topic_id="hs-otoc",
+        statement="The fixed-Sz OTOC definition is the correct finite-size baseline.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size and operator-choice artifacts remain possible",
+    )
+    bind_session(
+        ws,
+        "s-claim",
+        topic_id="hs-otoc",
+        context_id="quantum-chaos",
+        active_claim=claim.claim_id,
+        interaction_profile="collaborator",
+        interaction_steering="lighter, keep it moving",
+    )
+    create_topic(ws, "scratch", context_id="scratch", title="Scratch")
+    bind_session(ws, "s-empty", topic_id="scratch", context_id="scratch")
+
+    payload = require_valid_public_surface(
+        "workspace_interaction_preview_bundle",
+        build_workspace_interaction_preview(ws),
+    )
+
+    assert payload["kind"] == "workspace_interaction_preview_bundle"
+    assert payload["session_count"] == 2
+    assert payload["decision_mode_counts"] == {
+        "guarded_recording": 1,
+        "lightweight_trace": 1,
+    }
+    assert payload["source_records"]["sessions"] == ["s-claim", "s-empty"]
+    assert payload["source_records"]["topics"] == ["hs-otoc", "scratch"]
+    assert payload["source_records"]["claims"] == [claim.claim_id]
+    assert payload["preview_refs"] == [
+        "interaction_recording_preview:s-claim",
+        "interaction_recording_preview:s-empty",
+    ]
+    by_session = {item["session_id"]: item for item in payload["items"]}
+    assert by_session["s-claim"]["topic_id"] == "hs-otoc"
+    assert by_session["s-claim"]["active_claim"] == claim.claim_id
+    assert by_session["s-claim"]["recording_mode"] == "guarded_recording"
+    assert by_session["s-claim"]["next_kernel_entrypoint"] == "aitp_v5_record_sensemaking_report"
+    assert by_session["s-empty"]["active_claim"] == ""
+    assert by_session["s-empty"]["recording_mode"] == "lightweight_trace"
+    assert by_session["s-empty"]["can_stay_lightweight"] is True
+    assert all(item["can_update_claim_trust"] is False for item in payload["items"])
+    assert payload["derived_from"] == "interaction_recording_preview"
+    assert payload["truth_source"] == "typed_records"
+    assert payload["summary_inputs_trusted"] is False
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+
+
+def test_interaction_recording_preview_cli_and_mcp(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_preview_interaction_recording
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "new-topic", context_id="scratch", title="New Topic")
+    bind_session(ws, "s1", topic_id="new-topic", context_id="scratch")
+
+    assert main(["--base", str(tmp_path), "interaction", "preview", "s1"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_preview_interaction_recording(str(tmp_path), session_id="s1")
+
+    assert cli_payload["kind"] == "interaction_recording_preview"
+    assert mcp_payload["kind"] == "interaction_recording_preview"
+    assert cli_payload["recording_decision"]["mode"] == "lightweight_trace"
+    assert mcp_payload["recording_decision"]["mode"] == "lightweight_trace"
+    assert cli_payload["can_update_kernel_state"] is False
+    assert mcp_payload["can_update_claim_trust"] is False
+
+
+def test_workspace_interaction_preview_cli_mcp_and_runtime(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_workspace_interaction_preview
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "new-topic", context_id="scratch", title="New Topic")
+    bind_session(ws, "s1", topic_id="new-topic", context_id="scratch")
+
+    assert main(["--base", str(tmp_path), "interaction", "workspace-preview"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_workspace_interaction_preview(str(tmp_path))
+
+    assert cli_payload["kind"] == "workspace_interaction_preview_bundle"
+    assert mcp_payload["kind"] == "workspace_interaction_preview_bundle"
+    assert cli_payload["session_count"] == 1
+    assert mcp_payload["decision_mode_counts"] == {"lightweight_trace": 1}
+    assert cli_payload["can_update_kernel_state"] is False
+    assert mcp_payload["can_update_claim_trust"] is False
+    assert runtime_entrypoints()["workspace_interaction_preview"] == {
+        "cli": "aitp-v5 interaction workspace-preview",
+        "mcp": "aitp_v5_build_workspace_interaction_preview",
+        "surface": "workspace_interaction_preview_bundle",
+    }
+
+
+def test_interaction_recording_worklist_translates_preview_into_kernel_actions(tmp_path):
+    from brain.v5.interaction_worklist import build_interaction_recording_worklist
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "hs-otoc", context_id="quantum-chaos", title="HS OTOC")
+    claim = create_claim(
+        ws,
+        topic_id="hs-otoc",
+        statement="The fixed-Sz OTOC definition is the correct finite-size baseline.",
+        evidence_profile="toy_numeric",
+        confidence_state="hypothesis",
+        active_uncertainty="finite-size and operator-choice artifacts remain possible",
+    )
+    bind_session(ws, "s-claim", topic_id="hs-otoc", context_id="quantum-chaos", active_claim=claim.claim_id)
+    create_topic(ws, "scratch", context_id="scratch", title="Scratch")
+    bind_session(ws, "s-empty", topic_id="scratch", context_id="scratch")
+
+    payload = require_valid_public_surface(
+        "interaction_recording_worklist",
+        build_interaction_recording_worklist(ws),
+    )
+
+    assert payload["kind"] == "interaction_recording_worklist"
+    assert payload["derived_from"] == "workspace_interaction_preview_bundle"
+    assert payload["session_count"] == 2
+    assert payload["work_item_count"] == 2
+    assert payload["decision_mode_counts"] == {"guarded_recording": 1, "lightweight_trace": 1}
+    assert payload["source_preview_refs"] == [
+        "interaction_recording_preview:s-claim",
+        "interaction_recording_preview:s-empty",
+    ]
+    by_session = {item["session_id"]: item for item in payload["items"]}
+    claim_item = by_session["s-claim"]
+    empty_item = by_session["s-empty"]
+    assert claim_item["action_kind"] == "record_sensemaking_then_evidence_before_trust"
+    assert claim_item["required_now"] is False
+    assert claim_item["can_continue_without_kernel_write"] is True
+    assert claim_item["max_questions"] > 0
+    assert "active_claim_has_missing_required_evidence_outputs" in claim_item["heavier_triggers"]
+    assert claim_item["next_kernel_entrypoint"] == "aitp_v5_record_sensemaking_report"
+    assert claim_item["mcp_entrypoints"] == [
+        "aitp_v5_record_sensemaking_report",
+        "aitp_v5_record_evidence",
+        "aitp_v5_preflight_trust_update",
+    ]
+    assert claim_item["cli_templates"][0].startswith(
+        f"aitp-v5 --base <workspace> sensemaking report --topic hs-otoc --claim {claim.claim_id}"
+    )
+    assert claim_item["before_trust_change"] == [
+        "record typed evidence or tool-run provenance",
+        "run trust preflight before any claim confidence change",
+    ]
+    assert empty_item["action_kind"] == "keep_lightweight_until_claim_binding"
+    assert empty_item["required_now"] is False
+    assert empty_item["can_continue_without_kernel_write"] is True
+    assert empty_item["max_questions"] > 0
+    assert "user_or_agent_requests_a_claim_trust_change" in empty_item["heavier_triggers"]
+    assert empty_item["mcp_entrypoints"] == ["aitp_v5_create_claim", "aitp_v5_bind_session"]
+    assert all(item["can_update_claim_trust"] is False for item in payload["items"])
+    assert payload["orientation_only"] is True
+    assert payload["can_update_kernel_state"] is False
+    assert payload["can_update_claim_trust"] is False
+
+
+def test_interaction_recording_worklist_cli_mcp_and_runtime(tmp_path, capsys):
+    import json
+
+    from brain.v5.cli import main
+    from brain.v5.mcp_tools import aitp_v5_build_interaction_recording_worklist
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.workspace import bind_session, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "new-topic", context_id="scratch", title="New Topic")
+    bind_session(ws, "s1", topic_id="new-topic", context_id="scratch")
+
+    assert main(["--base", str(tmp_path), "interaction", "worklist"]) == 0
+    cli_payload = json.loads(capsys.readouterr().out)
+    mcp_payload = aitp_v5_build_interaction_recording_worklist(str(tmp_path))
+
+    assert cli_payload["kind"] == "interaction_recording_worklist"
+    assert mcp_payload["kind"] == "interaction_recording_worklist"
+    assert cli_payload["work_item_count"] == 1
+    assert mcp_payload["items"][0]["action_kind"] == "keep_lightweight_until_claim_binding"
+    assert cli_payload["can_update_kernel_state"] is False
+    assert mcp_payload["can_update_claim_trust"] is False
+    assert runtime_entrypoints()["interaction_recording_worklist"] == {
+        "cli": "aitp-v5 interaction worklist",
+        "mcp": "aitp_v5_build_interaction_recording_worklist",
+        "surface": "interaction_recording_worklist",
+    }
+
+
+def test_interaction_recording_preview_blocks_natural_recording_at_adversarial_checkpoint(tmp_path):
+    from brain.v5.interaction_preview import build_interaction_recording_preview
+    from brain.v5.interaction_worklist import build_interaction_recording_worklist
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "gw-conflict", context_id="gw-methods", title="GW Conflict")
+    claim = create_claim(
+        ws,
+        topic_id="gw-conflict",
+        statement="This publication-ready QSGW proof contradicts the benchmark.",
+        evidence_profile="code_method",
+        confidence_state="hypothesis",
+        active_uncertainty="conflict with reference paper and formula-code kernel mismatch",
+    )
+    bind_session(ws, "s1", topic_id="gw-conflict", context_id="gw-methods", active_claim=claim.claim_id)
+
+    preview = require_valid_public_surface("interaction_recording_preview", build_interaction_recording_preview(ws, "s1"))
+
+    assert preview["risk_level"] == "adversarial"
+    assert preview["can_stay_lightweight"] is False
+    assert preview["recording_decision"] == {
+        "mode": "trust_boundary_checkpoint",
+        "can_continue_without_kernel_write": False,
+        "next_kernel_entrypoint": "aitp_v5_request_human_checkpoint",
+        "required_before_trust_change": [
+            "aitp_v5_request_human_checkpoint",
+            "aitp_v5_record_evidence_or_tool_run",
+            "aitp_v5_preflight_trust_update",
+        ],
+        "why": "adversarial risk requires a human checkpoint before recording content that could drive trust changes",
+        "summary_inputs_trusted": False,
+        "can_update_kernel_state": False,
+        "can_update_claim_trust": False,
+    }
+
+    worklist = require_valid_public_surface("interaction_recording_worklist", build_interaction_recording_worklist(ws))
+    item = worklist["items"][0]
+    assert item["recording_mode"] == "trust_boundary_checkpoint"
+    assert item["required_now"] is True
+    assert item["can_continue_without_kernel_write"] is False
+    assert "claim_risk_requires_validation_or_adversarial_review" in item["heavier_triggers"]
