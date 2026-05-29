@@ -9,7 +9,9 @@
     "correspondence_check",
     "approximation_validity_check",
     "unitarity_check",
-    "causality_check"
+    "causality_check",
+    "scale_separation_check",
+    "regularization_independence"
   ],
   "l4_outcomes": [
     "pass",

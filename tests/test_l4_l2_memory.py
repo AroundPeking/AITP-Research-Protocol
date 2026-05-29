@@ -151,6 +151,7 @@ class PhysicsChecksTests(unittest.TestCase):
             "dimensional_consistency", "symmetry_compatibility",
             "limiting_case_check", "conservation_check", "correspondence_check",
             "approximation_validity_check", "unitarity_check", "causality_check",
+            "scale_separation_check", "regularization_independence",
         }
         self.assertEqual(set(PHYSICS_CHECK_FIELDS), expected)
 
@@ -448,7 +449,7 @@ class L4FixtureValidationTests(unittest.TestCase):
         tex_path = self.fixture_root / "tex" / "l4_validation_test_record.tex"
         content = tex_path.read_text(encoding="utf-8")
         self.assertIn("tests/fixtures/l4/", content)
-        self.assertIn("test_l4_l2_memory.py", content)
+        self.assertIn("test\\_l4\\_l2\\_memory.py", content)
 
 
 if __name__ == "__main__":
