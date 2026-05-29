@@ -143,7 +143,7 @@ def evaluate_topic_gate(topic_slug):
         if cached_mtime == mtime:
             return cached_result
 
-    _aitp_repo = "C:/Users/samur/aitp-test-workspace/AITP-Research-Protocol"
+    _aitp_repo = os.environ.get("AITP_REPO_ROOT", "{{REPO_ROOT}}")
     if _aitp_repo not in sys.path:
         sys.path.insert(0, _aitp_repo)
 

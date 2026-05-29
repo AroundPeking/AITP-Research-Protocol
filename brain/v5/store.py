@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, fields, is_dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -29,6 +29,9 @@ def read_record(path: str | Path, cls: type[T]) -> T:
     """Read frontmatter into a dataclass class."""
 
     fm, _ = read_md(path)
+    if is_dataclass(cls):
+        allowed = {field.name for field in fields(cls)}
+        fm = {key: value for key, value in fm.items() if key in allowed}
     return cls(**fm)
 
 

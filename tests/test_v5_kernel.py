@@ -54,6 +54,34 @@ def test_markdown_reader_ignores_body_table_dashes_when_splitting_frontmatter(tm
     assert "|--------|---------|" in body
 
 
+def test_store_ignores_unknown_frontmatter_fields_for_forward_compatibility(tmp_path):
+    from brain.v5.markdown import write_md
+    from brain.v5.models import EvidenceRecord
+    from brain.v5.store import read_record
+
+    path = tmp_path / "evidence.md"
+    write_md(
+        path,
+        {
+            "evidence_id": "evidence-forward-compatible",
+            "topic_id": "librpa-gw",
+            "claim_id": "claim-librpa-gw",
+            "evidence_type": "code_method",
+            "status": "partial",
+            "summary": "Old migrated records may carry fields unknown to this model.",
+            "future_schema_extension": ["legacy-validation-result"],
+            "kind": "evidence",
+        },
+        "# Evidence\n",
+    )
+
+    record = read_record(path, EvidenceRecord)
+
+    assert record.evidence_id == "evidence-forward-compatible"
+    assert record.summary.startswith("Old migrated records")
+    assert not hasattr(record, "future_schema_extension")
+
+
 def test_topic_context_and_session_binding_are_session_local(tmp_path):
     from brain.v5.workspace import (
         bind_session,

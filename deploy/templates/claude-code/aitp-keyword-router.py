@@ -9,6 +9,7 @@ When AITP keywords are detected in the user's message, this hook:
 """
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -37,7 +38,7 @@ AITP_KEYWORDS = [
     "格林函数",
 ]
 
-AITP_TOPICS_ROOT = Path("C:/Users/samur/aitp-test-workspace/research/aitp-topics")
+AITP_TOPICS_ROOT = Path(os.environ.get("AITP_TOPICS_ROOT", "{{TOPICS_ROOT}}"))
 
 
 def parse_yaml_frontmatter(text: str) -> dict:
@@ -188,7 +189,7 @@ def main() -> int:
         "INSTRUCTIONS (follow exactly):\n"
         "1. Match the user's request to ONE of the topics above by comparing title/question.\n"
         "2. If a match is found, call mcp__aitp__aitp_get_execution_brief("
-        "topics_root='C:/Users/samur/aitp-test-workspace/research/aitp-topics', "
+        f"topics_root='{AITP_TOPICS_ROOT.as_posix()}', "
         "topic_slug='<matched_slug>') to get current state.\n"
         "3. If NO match, call mcp__aitp__aitp_bootstrap_topic to create a new topic.\n"
         "4. Do NOT create a duplicate topic if one already matches.\n"
