@@ -37,6 +37,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = REPO_ROOT / "deploy" / "templates"
 INSTALL_DIR = Path.home() / ".aitp"
 RECORD_PATH = INSTALL_DIR / "install-record.json"
+MCP_ENTRYPOINT = "brain/v5/native_mcp.py"
+LEGACY_MCP_ENTRYPOINT = "brain/native_mcp.py"
 
 AGENTS = ("claude-code", "kimi-code", "codex")
 AGENT_CHOICES = (*AGENTS, "all")
@@ -50,6 +52,14 @@ SCOPE_CHOICES = ("user", "project")
 def _find_path_dir() -> Path | None:
     """Find a writable directory already in PATH where we can place a wrapper."""
     path_dirs = os.environ.get("PATH", "").split(os.pathsep)
+    path_dir_keys = set()
+    for p in path_dirs:
+        if not p:
+            continue
+        try:
+            path_dir_keys.add(str(Path(p).resolve()).casefold())
+        except OSError:
+            continue
 
     # Candidate directories: where pip.exe / pip lives
     python_exe = Path(sys.executable)
@@ -65,10 +75,18 @@ def _find_path_dir() -> Path | None:
     # The python dir itself (Unix)
     candidates.append(python_exe.parent)
 
+    def is_durable_path_dir(path: Path) -> bool:
+        text = str(path).casefold()
+        return "\\uv\\cache\\builds-v0\\" not in text and "\\.tmp" not in text and "\\.codex\\tmp\\" not in text
+
     for c in candidates:
         try:
             c_resolved = c.resolve()
-            if c_resolved.exists() and str(c_resolved) in [Path(p).resolve().as_posix() for p in path_dirs if p]:
+            if (
+                c_resolved.exists()
+                and str(c_resolved).casefold() in path_dir_keys
+                and is_durable_path_dir(c_resolved)
+            ):
                 if os.access(str(c_resolved), os.W_OK):
                     return c_resolved
         except OSError:
@@ -78,7 +96,7 @@ def _find_path_dir() -> Path | None:
     for p in path_dirs:
         try:
             pp = Path(p).resolve()
-            if pp.exists() and os.access(str(pp), os.W_OK):
+            if pp.exists() and is_durable_path_dir(pp) and os.access(str(pp), os.W_OK):
                 return pp
         except OSError:
             continue
@@ -178,6 +196,22 @@ def _fill(text: str, variables: dict) -> str:
     for k, v in variables.items():
         text = text.replace("{{" + k + "}}", v)
     return text
+
+
+def _mcp_entrypoint(repo_root: str) -> str:
+    return f"{repo_root}/{MCP_ENTRYPOINT}"
+
+
+def _has_supported_mcp_entrypoint(text: str) -> bool:
+    return MCP_ENTRYPOINT in text or LEGACY_MCP_ENTRYPOINT in text
+
+
+def _v5_topics_root_for(legacy_topics_root: Path) -> Path | None:
+    if legacy_topics_root.name != "aitp-topics":
+        return None
+    if legacy_topics_root.parent.name != "research":
+        return None
+    return legacy_topics_root.parent.parent / ".aitp" / "topics"
 
 
 def _read_template(rel_path: str) -> str | None:
@@ -364,7 +398,7 @@ def _merge_claude_settings(settings_path: Path, variables: dict, remove: bool = 
         topics_root_var = variables.get("TOPICS_ROOT", "")
         mcp_entry = {
             "command": "python",
-            "args": [f"{repo_root_var}/brain/native_mcp.py"],
+            "args": [_mcp_entrypoint(repo_root_var)],
         }
         if topics_root_var:
             mcp_entry["env"] = {"AITP_TOPICS_ROOT": topics_root_var}
@@ -409,14 +443,14 @@ def _write_mcp_json(
                     "--with", "jsonschema",
                     "--with", "fastmcp",
                     "python",
-                    f"{repo_root}/brain/native_mcp.py",
+                    _mcp_entrypoint(repo_root),
                 ],
                 "cwd": repo_root,
             }
         else:
             entry = {
                 "command": "python",
-                "args": [f"{repo_root}/brain/native_mcp.py"],
+                "args": [_mcp_entrypoint(repo_root)],
                 "cwd": repo_root,
             }
         if topics_root:
@@ -488,11 +522,11 @@ def _merge_codex_config_toml(
             "--with", "jsonschema",
             "--with", "fastmcp",
             "python",
-            f"{repo_root}/brain/native_mcp.py",
+            _mcp_entrypoint(repo_root),
         ]
     else:
         command = "python"
-        args = [f"{repo_root}/brain/native_mcp.py"]
+        args = [_mcp_entrypoint(repo_root)]
 
     block = [
         "[mcp_servers.aitp]",
@@ -527,7 +561,7 @@ def _merge_kimi_config_toml(config_path: Path, repo_root: str, remove: bool = Fa
     section_block = (
         f'{section_header}\n'
         f'command = "python"\n'
-        f'args = ["{repo_root}/brain/native_mcp.py"]\n'
+        f'args = ["{_mcp_entrypoint(repo_root)}"]\n'
     )
 
     # Remove existing section
@@ -1522,13 +1556,17 @@ def cmd_status(args) -> None:
 
         files = inst.get("files", [])
         missing = 0
+        checked = 0
         for f in files:
+            if str(f).startswith("- stale:"):
+                continue
             f = f.split(" (")[0]
+            checked += 1
             if not Path(f).exists():
                 missing += 1
                 print(f"    MISSING: {f}")
         if missing == 0:
-            print(f"    Files: all present ({len(files)} items)")
+            print(f"    Files: all present ({checked} items)")
 
 
 def cmd_doctor(args) -> None:
@@ -1567,6 +1605,7 @@ def cmd_doctor(args) -> None:
     print(f"\n  Repo root: {REPO_ROOT}")
     critical_files = [
         "brain/native_mcp.py",
+        "brain/v5/native_mcp.py",
         "brain/mcp_server.py",
         "brain/state_model.py",
         "brain/PROTOCOL.md",
@@ -1585,7 +1624,13 @@ def cmd_doctor(args) -> None:
         issues.append("Topics root not configured")
         print("    FAIL: no topics root found")
     elif Path(topics_root).exists():
-        topics = [d for d in Path(topics_root).iterdir() if d.is_dir()]
+        topics_path = Path(topics_root)
+        support_dirs = {".aitp", "L2"}
+        topics = [
+            d for d in topics_path.iterdir()
+            if d.is_dir() and not d.name.startswith(".") and d.name not in support_dirs
+        ]
+        v5_topics_root = _v5_topics_root_for(topics_path)
         print(f"    OK ({len(topics)} topics)")
         # Content-level check: validate each topic's state.md
         healthy = 0
@@ -1594,6 +1639,11 @@ def cmd_doctor(args) -> None:
         for topic_dir in sorted(topics):
             state_path = topic_dir / "state.md"
             if not state_path.exists():
+                v5_topic_path = (v5_topics_root / topic_dir.name / "topic.md") if v5_topics_root else None
+                if v5_topic_path and v5_topic_path.exists():
+                    healthy += 1
+                    print(f"    OK(v5): {topic_dir.name} topic.md")
+                    continue
                 invalid_state += 1
                 issues.append(f"Topic '{topic_dir.name}': missing state.md")
                 print(f"    INVALID: {topic_dir.name} — no state.md")
@@ -1763,7 +1813,7 @@ def cmd_doctor(args) -> None:
             try:
                 content = config_path.read_text(encoding="utf-8")
                 has_aitp = "[mcp_servers.aitp]" in content
-                has_cwd = "cwd =" in content and "brain/native_mcp.py" in content
+                has_cwd = "cwd =" in content and _has_supported_mcp_entrypoint(content)
                 status = "OK" if has_aitp and has_cwd else "NOT CONFIGURED"
                 codex_config_ready = codex_config_ready or (has_aitp and has_cwd)
             except OSError:
