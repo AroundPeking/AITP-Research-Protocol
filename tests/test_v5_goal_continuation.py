@@ -263,3 +263,79 @@ def test_goal_cli_repeated_args_preserve_commas(tmp_path):
     assert latest["commit_range"] == "base..head"
     assert latest["commits"][0]["subject"] == "subject, with comma"
     assert latest["audit_commands"] == ["git show --stat abc1234"]
+
+
+def test_goal_cli_json_file_args_are_windows_shell_safe(tmp_path):
+    base = str(tmp_path)
+    readiness_path = tmp_path / "readiness.json"
+    commits_path = tmp_path / "commits.json"
+    stats_path = tmp_path / "file-stats.json"
+    readiness_path.write_text(
+        json.dumps({
+            "completion_status": "kernel_ready_content_backlog",
+            "blocking_gaps": ["legacy_semantic_review_backlog"],
+            "can_update_claim_trust": False,
+            "can_update_kernel_state": False,
+            "semantic_lossless_proven": False,
+        }),
+        encoding="utf-8",
+    )
+    commits_path.write_text(
+        json.dumps([
+            {
+                "hash": "78ee81aa",
+                "subject": "Harden legacy semantic review packets",
+                "files_changed": 3,
+                "insertions": 62,
+                "deletions": 8,
+            }
+        ]),
+        encoding="utf-8",
+    )
+    stats_path.write_text(
+        json.dumps([
+            {
+                "path": "brain/v5/legacy_semantic_review_packet.py",
+                "status": "modified",
+                "insertions": 8,
+                "deletions": 8,
+            }
+        ]),
+        encoding="utf-8",
+    )
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "brain.v5.cli",
+            "--base",
+            base,
+            "goal",
+            "write",
+            "--objective",
+            "Windows-safe continuation packet",
+            "--readiness-json-file",
+            str(readiness_path),
+            "--commits-json-file",
+            str(commits_path),
+            "--changed-file-stats-json-file",
+            str(stats_path),
+            "--commit-ref",
+            "78ee81aa",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "brain.v5.cli", "--base", base, "goal", "latest"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    latest = json.loads(result.stdout.strip())
+    assert latest["readiness_outcome"]["completion_status"] == "kernel_ready_content_backlog"
+    assert latest["readiness_outcome"]["blocking_gaps"] == ["legacy_semantic_review_backlog"]
+    assert latest["commits"][0]["hash"] == "78ee81aa"
+    assert latest["changed_file_stats"][0]["path"] == "brain/v5/legacy_semantic_review_packet.py"

@@ -612,6 +612,12 @@ a domain: copy the domain manifest into the topic's `contracts/` or add
   not make any legacy item semantically lossless: final readiness still reports
   `legacy_semantic_review_backlog` until the typed reviews, source
   reconstruction, archive sampling, and human checkpoints actually clear.
+- Goal continuation CLI supports JSON file arguments for Windows-safe audit
+  writes: use `--readiness-json-file`, `--commits-json-file`, and
+  `--changed-file-stats-json-file` when PowerShell would otherwise strip JSON
+  quotes from inline arguments. The packet remains orientation-only and should
+  be used to preserve commit ranges, tests, smoke commands, blocking backlogs,
+  and next actions for cross-session review.
 
 ## Protocol Layer Map
 

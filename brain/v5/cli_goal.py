@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Any
 
 from brain.v5.goal_continuation import (
     list_goal_continuations,
@@ -21,6 +23,7 @@ def add_goal_parser(sp) -> None:
     write_p.add_argument("--changed-files", default="")
     write_p.add_argument("--changed-file", action="append", default=[], dest="changed_file_items")
     write_p.add_argument("--changed-file-stats-json", default="[]")
+    write_p.add_argument("--changed-file-stats-json-file", default="")
     write_p.add_argument("--tests-run", default="")
     write_p.add_argument("--test-run", action="append", default=[], dest="test_run_items")
     write_p.add_argument("--tests-passed", default=None, dest="tests_passed_raw")
@@ -28,6 +31,7 @@ def add_goal_parser(sp) -> None:
     write_p.add_argument("--smoke-command", action="append", default=[], dest="smoke_command_items")
     write_p.add_argument("--smoke-passed", default=None, dest="smoke_passed_raw")
     write_p.add_argument("--readiness-json", default="{}")
+    write_p.add_argument("--readiness-json-file", default="")
     write_p.add_argument("--next-actions", default="")
     write_p.add_argument("--next-action", action="append", default=[], dest="next_action_items")
     write_p.add_argument("--trust-boundary", default="")
@@ -38,6 +42,7 @@ def add_goal_parser(sp) -> None:
     write_p.add_argument("--commit-ref", default="")
     write_p.add_argument("--commit-range", default="")
     write_p.add_argument("--commits-json", default="[]")
+    write_p.add_argument("--commits-json-file", default="")
     write_p.add_argument("--audit-command", action="append", default=[], dest="audit_command_items")
 
     gs.add_parser("latest")
@@ -60,16 +65,28 @@ def _bool_or_none(value: str | None) -> bool | None:
     return value.lower() in ("true", "1", "yes")
 
 
+def _json_arg(inline_value: str, file_value: str, default: str) -> Any:
+    raw = default
+    if file_value:
+        raw = Path(file_value).read_text(encoding="utf-8")
+    elif inline_value:
+        raw = inline_value
+    return json.loads(raw)
+
+
 def dispatch_goal_command(args, ws) -> dict:
     if args.goal_command == "write":
         readiness = {}
-        if args.readiness_json and args.readiness_json != "{}":
-            readiness = json.loads(args.readiness_json)
+        readiness = _json_arg(args.readiness_json, args.readiness_json_file, "{}")
         packet = write_goal_continuation(
             ws,
             objective=args.objective,
             changed_files=_list_arg(args.changed_file_items, args.changed_files),
-            changed_file_stats=json.loads(args.changed_file_stats_json),
+            changed_file_stats=_json_arg(
+                args.changed_file_stats_json,
+                args.changed_file_stats_json_file,
+                "[]",
+            ),
             tests_run=_list_arg(args.test_run_items, args.tests_run),
             tests_passed=_bool_or_none(args.tests_passed_raw),
             smoke_commands=_list_arg(args.smoke_command_items, args.smoke_commands),
@@ -82,7 +99,7 @@ def dispatch_goal_command(args, ws) -> dict:
             session_id=args.session_id,
             commit_ref=args.commit_ref,
             commit_range=args.commit_range,
-            commits=json.loads(args.commits_json),
+            commits=_json_arg(args.commits_json, args.commits_json_file, "[]"),
             audit_commands=args.audit_command_items,
         )
         return require_valid_public_surface("goal_continuation_packet", packet)
