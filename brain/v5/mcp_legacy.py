@@ -7,6 +7,7 @@ from pathlib import Path
 from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest, build_legacy_l2_typed_migration_packet
 from brain.v5.legacy_l2_obsidian import write_legacy_l2_obsidian_view
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
+from brain.v5.curated_legacy_migration import known_curated_legacy_topics, migrate_curated_legacy_topic_to_v5
 from brain.v5.legacy_executable_evidence import build_legacy_executable_evidence_packet
 from brain.v5.legacy_human_checkpoint_obsidian import write_legacy_human_checkpoint_obsidian_view
 from brain.v5.legacy_human_checkpoint_packet import build_legacy_human_checkpoint_packet
@@ -56,6 +57,31 @@ def aitp_v5_migrate_legacy_topic_to_v5(
         session_id=session_id,
     )
     return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
+
+
+def aitp_v5_migrate_curated_legacy_topic_to_v5(
+    base: str,
+    *,
+    topic_dir: str,
+    context_id: str = "",
+    session_id: str = "",
+) -> dict:
+    result = migrate_curated_legacy_topic_to_v5(
+        _ws(base),
+        topic_dir,
+        context_id=context_id,
+        session_id=session_id,
+    )
+    return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
+
+
+def aitp_v5_list_curated_legacy_topics() -> dict:
+    return {
+        "ok": True,
+        "kind": "curated_legacy_topic_catalog",
+        "topics": known_curated_legacy_topics(),
+        "summary_inputs_trusted": False,
+    }
 
 
 def aitp_v5_audit_legacy_migration_coverage(base: str, *, migration_dir: str = "") -> dict:

@@ -21,6 +21,8 @@ from typing import Any
 _DIAG = Path(os.environ.get("AITP_V5_MCP_LOG", str(Path(tempfile.gettempdir()) / "aitp_v5_mcp_boot.log")))
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _OUTPUT_MODE = "content-length"
+# Compatibility aliases are exposed for legacy discovery/bootstrap only.  New
+# research execution should bind a v5 session and use aitp_v5_* typed tools.
 _COMPAT_TOOL_NAMES = {
     "aitp_list_topics",
     "aitp_get_execution_brief",

@@ -29,7 +29,7 @@ surfaces.
 | Trust discipline | Implemented: summaries are orientation-only, validation gates trust, high-risk promotion needs evidence, passed validation, failure modes, and human review checkpoints |
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
-| Legacy migration | Implemented migration, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
+| Legacy migration | Implemented generic migration plus curated v5 migration for priority legacy topics, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
 | Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits |
 | OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
@@ -244,6 +244,14 @@ The legacy MCP server (`brain/mcp_server.py`) remains in the repository for the
 older L0-L4 Markdown protocol, but new research workflows should prefer the v5
 typed kernel.
 
+The v5 native MCP entrypoint may expose compatibility aliases named
+`aitp_list_topics`, `aitp_get_execution_brief`, and `aitp_bootstrap_topic`.
+These aliases are for legacy discovery/bootstrap only. A research turn should
+use `aitp_v5_get_execution_brief(base=<workspace>, session_id=<session-id>)` as
+its execution contract. If an older topic only has a legacy slug, first migrate
+or bind it into v5 typed records with `aitp_v5_migrate_curated_legacy_topic_to_v5`
+or `aitp_v5_migrate_legacy_topic_to_v5`.
+
 ## Project-Scope Multi-Host Install
 
 For a real theory workspace, keep the priority host adapters installed together:
@@ -271,6 +279,13 @@ Project-scope installs write runtime assets under the workspace-local host
 surfaces such as `.claude/`, `.kimi/`, `.codex/`, and `.mcp.json`. They should
 not require user-global MCP files or a global `aitp` command wrapper. Use
 user-scope installs only when a user explicitly wants global host wiring.
+
+Keep the three priority hosts consistent. When updating a theory workspace,
+run `scripts/aitp-pm.py update --agent all ...`, not one host at a time, unless
+you are intentionally debugging a single adapter. Codex, Claude Code, and Kimi
+Code skills should all describe the same v5-native rule: typed session brief
+first, legacy aliases only for discovery/migration, and trust changes only via
+v5 gates.
 
 After installing or updating, verify the install record:
 
@@ -383,22 +398,30 @@ Use the v5 legacy commands for audit/migration review:
 
 ```bash
 python -m brain.v5.cli --base /path/to/workspace legacy --help
+python -m brain.v5.cli --base /path/to/workspace legacy curated-known-topics
+python -m brain.v5.cli --base /path/to/workspace legacy curated-migrate \
+  /path/to/workspace/research/aitp-topics/<legacy-topic-slug>
 ```
+
+`curated-migrate` is for known topics whose current scientific boundary has
+been hand-curated into a v5 active claim, claim status, validation contract,
+evidence records, proof obligations, artifact links, and a topic-local migration
+index. It does not promote the claim to L2.
 
 ## Repository Map
 
 ```text
 AITP-Research-Protocol/
-├── brain/
-│   ├── v5/                 typed kernel, CLI, MCP wrappers, adapters, audits
-│   └── mcp_server.py       legacy L0-L4 MCP server
-├── hooks/                  v5 and legacy host lifecycle hooks
-├── deploy/templates/       host skill and runtime templates
-├── docs/                   install guides, protocol specs, plans, ledgers
-├── skills/                 legacy protocol skills
-├── contracts/              protocol contracts
-├── tests/                  legacy and v5 tests
-└── scripts/                install/update helpers
+|-- brain/
+|   |-- v5/                 typed kernel, CLI, MCP wrappers, adapters, audits
+|   `-- mcp_server.py       legacy L0-L4 MCP server
+|-- hooks/                  v5 and legacy host lifecycle hooks
+|-- deploy/templates/       host skill and runtime templates
+|-- docs/                   install guides, protocol specs, plans, ledgers
+|-- skills/                 legacy protocol skills
+|-- contracts/              protocol contracts
+|-- tests/                  legacy and v5 tests
+`-- scripts/                install/update helpers
 ```
 
 ## Verification

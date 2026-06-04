@@ -5,6 +5,7 @@ from __future__ import annotations
 from brain.v5.legacy_l2_graph import build_legacy_l2_graph_manifest, build_legacy_l2_typed_migration_packet
 from brain.v5.legacy_l2_obsidian import write_legacy_l2_obsidian_view
 from brain.v5.legacy_bridge import migrate_legacy_topic_to_v5
+from brain.v5.curated_legacy_migration import known_curated_legacy_topics, migrate_curated_legacy_topic_to_v5
 from brain.v5.legacy_executable_evidence import build_legacy_executable_evidence_packet
 from brain.v5.legacy_human_checkpoint_obsidian import write_legacy_human_checkpoint_obsidian_view
 from brain.v5.legacy_human_checkpoint_packet import build_legacy_human_checkpoint_packet
@@ -69,6 +70,11 @@ def add_legacy_parser(subparsers) -> None:
     migrate.add_argument("topic_dir")
     migrate.add_argument("--context", required=True, dest="context_id")
     migrate.add_argument("--session", required=True, dest="session_id")
+    curated = legacy_subparsers.add_parser("curated-migrate")
+    curated.add_argument("topic_dir")
+    curated.add_argument("--context", default="", dest="context_id")
+    curated.add_argument("--session", default="", dest="session_id")
+    legacy_subparsers.add_parser("curated-known-topics")
     audit = legacy_subparsers.add_parser("migration-audit")
     audit.add_argument("--migration-dir", default="")
     audit.add_argument("--compact", "--progress", action="store_true", dest="compact")
@@ -191,6 +197,21 @@ def dispatch_legacy_command(args, ws) -> dict:
             session_id=args.session_id,
         )
         return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
+    if args.legacy_command == "curated-migrate":
+        result = migrate_curated_legacy_topic_to_v5(
+            ws,
+            args.topic_dir,
+            context_id=args.context_id,
+            session_id=args.session_id,
+        )
+        return {"ok": True, **require_valid_public_surface("legacy_migration_result", result)}
+    if args.legacy_command == "curated-known-topics":
+        return {
+            "ok": True,
+            "kind": "curated_legacy_topic_catalog",
+            "topics": known_curated_legacy_topics(),
+            "summary_inputs_trusted": False,
+        }
     if args.legacy_command == "migration-audit":
         audit = audit_legacy_migration_coverage(ws, migration_dir=args.migration_dir or None)
         payload = {"ok": True, **require_valid_public_surface("legacy_migration_coverage_audit", audit)}

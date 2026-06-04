@@ -3,7 +3,7 @@ name: using-aitp
 description: Highest-priority Codex app entry skill for theoretical-physics research, topic continuation, paper learning, derivation work, validation planning, and research steering. Enter AITP before free-form physics reasoning.
 ---
 
-# Using AITP In Codex App
+# Using AITP v5 In Codex App
 
 ## Role
 
@@ -19,10 +19,11 @@ Follow the Charter and SPEC before platform convenience.
 - Do not use Claude-only tool names such as `AskUserQuestion` or `ToolSearch`.
 - If Codex exposes AITP MCP tools, call the AITP tool under the actual Codex
   tool namespace shown in the session.
-- Current project installs expose both v5 typed tools (`aitp_v5_*`) and
-  legacy-friendly discovery aliases (`aitp_list_topics`,
-  `aitp_get_execution_brief`, `aitp_bootstrap_topic`) through the v5 native MCP
-  entrypoint.
+- Current project installs expose v5 typed tools (`aitp_v5_*`) through the v5
+  native MCP entrypoint. Legacy-friendly aliases (`aitp_list_topics`,
+  `aitp_get_execution_brief`, `aitp_bootstrap_topic`) may exist only for
+  discovery/bootstrap compatibility; do not use a legacy stage brief as the
+  execution contract for new work.
 - If the AITP MCP tools are unavailable, run the local doctor command and stop
   before mutating topic state.
 - Ask the user through Codex's normal conversation surface unless a structured
@@ -35,6 +36,7 @@ Follow the Charter and SPEC before platform convenience.
 
 - Topics root: `{{TOPICS_ROOT}}`
 - Repository root: `{{REPO_ROOT}}`
+- v5 workspace base: `{{TOPICS_ROOT}}`
 - Protocol manual: `{{REPO_ROOT}}/brain/PROTOCOL.md`
 - Codex gateway runtime skill: `aitp-runtime`
 
@@ -42,37 +44,37 @@ Follow the Charter and SPEC before platform convenience.
 
 1. Decide whether the request is physics research. If yes, enter AITP before
    brainstorming, code reading, paper reading, or answer synthesis.
-2. List topics through AITP, using `topics_root="{{TOPICS_ROOT}}"`.
-3. Match the request to an existing topic by slug, title, or question.
-4. If no topic matches, bootstrap a new topic through AITP with a slug, title,
-   question, and lane.
-5. Get the execution brief for the topic.
-6. Follow the brief and load `aitp-runtime` for the stage loop.
+2. If a v5 session id is already known, call
+   `aitp_v5_get_execution_brief(base="{{TOPICS_ROOT}}", session_id=<session-id>)`.
+3. If only a legacy topic slug is known, use legacy discovery only to find the
+   topic, then migrate/bind a v5 session before doing research:
+   `aitp_v5_migrate_curated_legacy_topic_to_v5` for known curated topics, or
+   `aitp_v5_migrate_legacy_topic_to_v5` for a generic preservation pass.
+4. If no topic matches, create a v5 topic, create an initial claim, bind a
+   session, and then get the v5 execution brief.
+5. Follow the v5 brief and load `aitp-runtime` for the typed-record loop.
 
-Use these logical tool calls, mapped to the actual Codex tool names. If only
-v5 session tools are available, bind a v5 session and call
-`aitp_v5_get_execution_brief(base=<workspace>, session_id=<session-id>)`.
+Use these logical tool calls, mapped to the actual Codex tool names:
 
 ```text
-aitp_list_topics(topics_root="{{TOPICS_ROOT}}")
-aitp_bootstrap_topic(
-  topics_root="{{TOPICS_ROOT}}",
-  topic_slug=<slug>,
-  title=<title>,
-  question=<question>,
-  lane=<lane>
+aitp_v5_get_execution_brief(base="{{TOPICS_ROOT}}", session_id=<session-id>)
+aitp_v5_migrate_curated_legacy_topic_to_v5(
+  base="{{TOPICS_ROOT}}",
+  topic_dir="{{TOPICS_ROOT}}/<legacy-topic-slug>"
 )
-aitp_get_execution_brief(topics_root="{{TOPICS_ROOT}}", topic_slug=<slug>)
+aitp_v5_create_topic(base="{{TOPICS_ROOT}}", topic_id=<slug>, context_id=<context>, title=<title>)
+aitp_v5_create_claim(base="{{TOPICS_ROOT}}", topic_id=<slug>, statement=<claim>, evidence_profile=<profile>, confidence_state="hypothesis", active_uncertainty=<uncertainty>)
+aitp_v5_bind_session(base="{{TOPICS_ROOT}}", session_id=<session-id>, topic_id=<slug>, context_id=<context>, active_claim=<claim-id>)
 ```
 
 ## Hard Rules
 
 - Do not manually inspect AITP topic state just to determine what exists. Ask
-  AITP for status or an execution brief.
+  AITP for a v5 session brief or use legacy discovery only for migration.
 - Do not manually edit AITP topic-state files. Use AITP tools for topic state.
-- Do not silently skip L3 or L4 when a claim requires candidate formation and
-  validation.
-- Do not promote to L2 without the explicit promotion gate.
+- Do not treat old `stage`, `gate_status`, or `L0/L1/L3/L4` fields as v5 truth.
+- Do not promote to L2 without v5 trust preflight, validation coverage, and the
+  explicit promotion/human gate.
 - Preserve uncertainty, anomalies, failed attempts, and unresolved gaps.
 - Treat L2 as reusable memory only after validation or an explicitly justified
   low-risk route.
@@ -98,6 +100,8 @@ the MCP tool surface shown in Codex does not match the protocol text:
 
 ```powershell
 uv run --with pyyaml --with jsonschema --with fastmcp python scripts/aitp-pm.py doctor
+uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.v5.cli --base "{{TOPICS_ROOT}}" brief <session-id>
+uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.v5.cli --base "{{TOPICS_ROOT}}" legacy curated-known-topics
 uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.cli state show <topic>
 uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.cli gate check <topic>
 uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.cli --help
