@@ -180,7 +180,7 @@ observed in live research sessions:
 | "I can just answer this research question directly" | Direct answers bypass source registration, derivation recording, and L2 accumulation. Enter AITP first. |
 | "I will read files first and decide later whether AITP applies" | Skill check comes BEFORE file exploration. AITP tells you HOW to explore. |
 | "MCP is down, I'll just work directly and record later" | Use `aitp_event.py` to record events OFFLINE. Test submissions, failures, and results must be logged as they happen, not retroactively. `python3 hooks/aitp_event.py <topics_root> <slug> <event_type> <desc>` |
-| "I'll record the test results after the job finishes" | Record job SUBMISSION now. Record FAILURE when it fails. Don't batch — each event is a data point. The harness can't track what it doesn't know about. |
+| "I'll record the test results after the job finishes" | Record job SUBMISSION now. Record FAILURE when it fails. Don't batch; each event is a data point. The harness can't track what it doesn't know about. |
 
 ## Offline Recording (When MCP Is Unavailable)
 
@@ -188,8 +188,8 @@ When the AITP MCP server is disconnected, use `hooks/aitp_event.py` to record ev
 directly to the topic's `runtime/log.md`. No MCP dependency needed.
 
 ```
-python3 D:/BaiduSyncdisk/repos/AITP-Research-Protocol/hooks/aitp_event.py \
-  D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics \
+python3 {{REPO_ROOT}}/hooks/aitp_event.py \
+  {{TOPICS_ROOT}} \
   qsgw-headwing-update-librpa \
   L4_test_submit \
   "Job 1732319: full pipeline, 8 procs, 120GB"

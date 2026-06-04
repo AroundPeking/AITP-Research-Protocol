@@ -29,10 +29,9 @@ def _default_topics_root():
     candidate = repo_root / "research" / "aitp-topics"
     if candidate.is_dir():
         return candidate
-    # Last resort: hardcoded path (for Claude Code worktree scenarios)
-    hardcoded = Path("D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics")
-    if hardcoded.is_dir():
-        return hardcoded
+    configured = Path("{{TOPICS_ROOT}}")
+    if configured.is_dir():
+        return configured
     return candidate
 
 DEFAULT_TOPICS_ROOT = _default_topics_root()

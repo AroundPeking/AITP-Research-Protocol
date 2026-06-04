@@ -6,6 +6,8 @@ import shutil
 import urllib.request
 import urllib.error
 
+from brain.cli.paths import resolve_topic_root as resolve_topic_root_path
+
 
 def _now_iso():
     from datetime import datetime, timezone
@@ -62,6 +64,11 @@ def _append_research_md(root: Path, layer: str, entry: str):
         _atomic_write(path, f"# Research Trail\n\n{line}")
 
 
+def _current_stage(root: Path) -> str:
+    fm, _ = _parse_md(root / "state.md")
+    return str(fm.get("stage", "L0")).strip() or "L0"
+
+
 def _download_file(url: str, dest: Path) -> bool:
     """Download a file from URL to dest. Returns True on success."""
     try:
@@ -81,6 +88,7 @@ def cmd_source_add(args):
         root = Path(args.topics_root)
     else:
         root = _resolve_topic_root(args.topic)
+    current_stage = _current_stage(root)
     source_id = _slugify(args.id or args.title or args.path or args.url or args.repo or "untitled")
 
     # Auto-detect type if not given
@@ -133,7 +141,7 @@ def cmd_source_add(args):
             dest = original_dir / p.name
             shutil.copy2(p, dest)
             original_files.append(p.name)
-            print(f"  Copied: {p.name} → original/")
+            print(f"  Copied: {p.name} -> original/")
         elif p.exists() and p.is_dir():
             for f in p.rglob("*"):
                 if f.is_file() and ".git" not in f.parts:
@@ -142,7 +150,7 @@ def cmd_source_add(args):
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dest)
             original_files.append(f"{p.name}/ (directory)")
-            print(f"  Copied directory: {p.name}/ → original/")
+            print(f"  Copied directory: {p.name}/ -> original/")
         else:
             print(f"  Path not found: {args.path}")
 
@@ -165,7 +173,7 @@ def cmd_source_add(args):
             dest = original_dir / url_path
             if _download_file(args.url, dest):
                 original_files.append(url_path)
-                print(f"  Downloaded: {url_path} → original/")
+                print(f"  Downloaded: {url_path} -> original/")
 
     # ── Write source.md (pure metadata) ───────────────────────────────
     fm = {
@@ -174,6 +182,7 @@ def cmd_source_add(args):
         "type": stype,
         "role": args.role or "direct_dependency",
         "created_at": _now_iso(),
+        "registered_from_stage": current_stage,
         "original_files": original_files,
     }
     if args.repo:
@@ -222,12 +231,17 @@ def cmd_source_add(args):
         )
     _write_md(source_dir / "notes.md", notes_fm, notes_body)
 
-    _append_research_md(root, "L0", f"Registered source: {source_id} ({stype})")
-    print(f"Source '{source_id}' ({stype}) registered → {source_dir}")
-    print(f"  source.md  — metadata")
-    print(f"  notes.md   — reading notes template")
+    _append_research_md(root, current_stage, f"Registered source: {source_id} ({stype})")
+    print(f"Source '{source_id}' ({stype}) registered -> {source_dir}")
+    print("  source.md  - metadata")
+    print("  notes.md   - reading notes template")
     if original_files:
-        print(f"  original/  — {len(original_files)} file(s)")
+        print(f"  original/  - {len(original_files)} file(s)")
+    if current_stage not in ("L0", "L1"):
+        print(
+            f"  note: source was added during {current_stage}; "
+            "update source_registry/source_basis if it changes the claim."
+        )
     return 0
 
 
@@ -316,6 +330,7 @@ def cmd_source_discover(args):
 
 def cmd_source_registry(args):
     root = _resolve_topic_root(args.topic)
+    current_stage = _current_stage(root)
     sources_dir = root / "L0" / "sources"
     if not sources_dir.exists() or not list(sources_dir.iterdir()):
         print("No sources registered yet. Use 'aitp source add' first.")
@@ -333,7 +348,11 @@ def cmd_source_registry(args):
         print("No sources found.")
         return 1
 
-    lines = ["# Source Registry\n", f"\n**Total sources**: {len(sources)}\n"]
+    lines = [
+        "# Source Registry\n",
+        f"\n**Total sources**: {len(sources)}\n",
+        f"\n**Last synthesized from stage**: {current_stage}\n",
+    ]
     for s in sorted(sources):
         sf, _ = _parse_md(s)
         sid = sf.get("source_id", s.stem)
@@ -345,10 +364,17 @@ def cmd_source_registry(args):
         lines.append(f"- **{sid}**: {title} ({stype}, {srole}){orig_str}\n")
 
     registry_path = root / "L0" / "source_registry.md"
-    fm = {"source_count": len(sources), "search_status": "complete"}
+    fm = {
+        "artifact_kind": "l0_source_registry",
+        "stage": "L0",
+        "source_count": len(sources),
+        "search_status": "complete",
+        "last_synthesized_from_stage": current_stage,
+        "updated_at": _now_iso(),
+    }
     _write_md(registry_path, fm, "".join(lines))
-    _append_research_md(root, "L0", f"Registry synthesized: {len(sources)} sources")
-    print(f"Registry written with {len(sources)} sources → {registry_path}")
+    _append_research_md(root, current_stage, f"Registry synthesized: {len(sources)} sources")
+    print(f"Registry written with {len(sources)} sources -> {registry_path}")
     return 0
 
 
@@ -376,10 +402,4 @@ def cmd_source_read(args):
 
 
 def _resolve_topic_root(topic_slug: str) -> Path:
-    import os
-    base = Path(os.environ.get("AITP_TOPICS_ROOT",
-        "D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics"))
-    for candidate in [base / topic_slug, base / "topics" / topic_slug]:
-        if (candidate / "state.md").exists():
-            return candidate
-    return base / topic_slug
+    return resolve_topic_root_path(topic_slug)

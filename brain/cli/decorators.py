@@ -71,7 +71,6 @@ STAGE_PERMISSIONS: dict[str, dict[str, list[str]]] = {
         "allow": [],
         "deny": [
             "aitp_create_derivation_step",
-            "aitp_register_source",
         ],
     },
 }

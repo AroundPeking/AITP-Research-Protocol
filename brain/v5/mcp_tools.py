@@ -100,6 +100,46 @@ def aitp_v5_get_execution_brief(base: str, *, session_id: str) -> dict:
     return require_valid_public_surface("execution_brief", build_execution_brief(_ws(base), session_id))
 
 
+def aitp_list_topics(topics_root: str) -> list[dict]:
+    """Compatibility alias for the legacy topic list tool."""
+    from brain.mcp_server import aitp_list_topics as _list_topics
+
+    return _list_topics(topics_root)
+
+
+def aitp_get_execution_brief(topics_root: str, topic_slug: str) -> dict:
+    """Compatibility alias for the legacy execution brief tool."""
+    from brain.mcp_server import aitp_get_execution_brief as _get_execution_brief
+
+    return _get_execution_brief(topics_root, topic_slug)
+
+
+def aitp_bootstrap_topic(
+    topics_root: str,
+    topic_slug: str,
+    title: str,
+    question: str,
+    lane: str = "unspecified",
+    research_intensity: str = "standard",
+    interaction_level: str = "collaborative",
+) -> dict:
+    """Compatibility alias for the legacy topic bootstrap tool."""
+    from brain.mcp_server import aitp_bootstrap_topic as _bootstrap_topic
+
+    result = _bootstrap_topic(
+        topics_root,
+        topic_slug,
+        title,
+        question,
+        lane=lane,
+        research_intensity=research_intensity,
+        interaction_level=interaction_level,
+    )
+    if isinstance(result, dict):
+        return result
+    return {"ok": True, "message": str(result), "topic_slug": topic_slug}
+
+
 def aitp_v5_assess_risk(base: str, *, claim_id: str) -> dict:
     ws = _ws(base); claim = get_claim(ws, claim_id)
     return {"ok": True, "claim_id": claim_id, "risk_assessment": asdict(assess_claim_risk(claim, code_states=_linked_code_states(ws, claim_id)))}

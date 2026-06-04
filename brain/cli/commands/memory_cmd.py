@@ -2,6 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 
+from brain.cli.paths import resolve_topic_root as resolve_topic_root_path
+
 
 def _now_iso():
     from datetime import datetime, timezone
@@ -36,13 +38,7 @@ def _ensure_memory_template(root: Path):
 
 
 def _resolve_topic_root(topic_slug: str) -> Path:
-    import os
-    base = Path(os.environ.get("AITP_TOPICS_ROOT",
-        "D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics"))
-    for candidate in [base / topic_slug, base / "topics" / topic_slug]:
-        if (candidate / "state.md").exists():
-            return candidate
-    return base / topic_slug
+    return resolve_topic_root_path(topic_slug)
 
 
 def cmd_memory_steer(args):

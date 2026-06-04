@@ -19,6 +19,10 @@ Follow the Charter and SPEC before platform convenience.
 - Do not use Claude-only tool names such as `AskUserQuestion` or `ToolSearch`.
 - If Codex exposes AITP MCP tools, call the AITP tool under the actual Codex
   tool namespace shown in the session.
+- Current project installs expose both v5 typed tools (`aitp_v5_*`) and
+  legacy-friendly discovery aliases (`aitp_list_topics`,
+  `aitp_get_execution_brief`, `aitp_bootstrap_topic`) through the v5 native MCP
+  entrypoint.
 - If the AITP MCP tools are unavailable, run the local doctor command and stop
   before mutating topic state.
 - Ask the user through Codex's normal conversation surface unless a structured
@@ -45,7 +49,9 @@ Follow the Charter and SPEC before platform convenience.
 5. Get the execution brief for the topic.
 6. Follow the brief and load `aitp-runtime` for the stage loop.
 
-Use these logical tool calls, mapped to the actual Codex tool names:
+Use these logical tool calls, mapped to the actual Codex tool names. If only
+v5 session tools are available, bind a v5 session and call
+`aitp_v5_get_execution_brief(base=<workspace>, session_id=<session-id>)`.
 
 ```text
 aitp_list_topics(topics_root="{{TOPICS_ROOT}}")
@@ -87,10 +93,13 @@ and what choice is needed.
 
 ## Fallback Commands
 
-Use these only when MCP tools are not available or when diagnosing setup:
+Use these only when MCP tools are not available, when diagnosing setup, or when
+the MCP tool surface shown in Codex does not match the protocol text:
 
 ```powershell
 uv run --with pyyaml --with jsonschema --with fastmcp python scripts/aitp-pm.py doctor
+uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.cli state show <topic>
+uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.cli gate check <topic>
 uv run --with pyyaml --with jsonschema --with fastmcp python -m brain.cli --help
 ```
 

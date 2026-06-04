@@ -21,6 +21,11 @@ from typing import Any
 _DIAG = Path(os.environ.get("AITP_V5_MCP_LOG", str(Path(tempfile.gettempdir()) / "aitp_v5_mcp_boot.log")))
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _OUTPUT_MODE = "content-length"
+_COMPAT_TOOL_NAMES = {
+    "aitp_list_topics",
+    "aitp_get_execution_brief",
+    "aitp_bootstrap_topic",
+}
 
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -145,7 +150,8 @@ def _load_tools() -> dict[str, Any]:
     tools = {
         name: getattr(mcp_tools, name)
         for name in dir(mcp_tools)
-        if name.startswith("aitp_v5_") and callable(getattr(mcp_tools, name))
+        if (name.startswith("aitp_v5_") or name in _COMPAT_TOOL_NAMES)
+        and callable(getattr(mcp_tools, name))
     }
     _log(f"loaded {len(tools)} v5 tools")
     return tools

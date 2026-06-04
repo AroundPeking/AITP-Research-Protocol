@@ -14,7 +14,11 @@ Do not treat chat summaries, Markdown notes, or generated hook config as scienti
 ## Environment
 
 - AITP v5 runs through the native MCP entrypoint at `{{REPO_ROOT}}/brain/v5/native_mcp.py`.
-- Kimi Code should expose the MCP server as `aitp`; tools are named `aitp_v5_*`.
+- Kimi Code should expose the MCP server as `aitp`; typed tools are named
+  `aitp_v5_*`.
+- Project installs also expose legacy-friendly discovery aliases
+  `aitp_list_topics`, `aitp_get_execution_brief`, and `aitp_bootstrap_topic`
+  from the same v5 native MCP server.
 - Current AITP project installs use `.kimi/config.toml` and `.kimi/skills/`.
 - Newer Kimi Code installs may use `.kimi-code/config.toml`, `.kimi-code/mcp.json`, and `.kimi-code/skills/`.
 - If the local Kimi CLI supports explicit paths, load project assets with `--config-file`, `--mcp-config-file`, and `--skills-dir`.
@@ -22,8 +26,13 @@ Do not treat chat summaries, Markdown notes, or generated hook config as scienti
 
 ## Entry Procedure
 
-1. If the request might belong to theoretical physics, call `aitp_v5_get_execution_brief` for the active session before doing substantive work.
-2. If no active v5 session is known, create or bind one with `aitp_v5_create_topic`, `aitp_v5_create_claim`, and `aitp_v5_bind_session`.
+1. If the request might belong to theoretical physics, call
+   `aitp_v5_get_execution_brief` for the active session before doing
+   substantive work.
+2. If no active v5 session is known, use `aitp_list_topics` and
+   `aitp_get_execution_brief` to orient legacy topics, or create/bind a v5
+   session with `aitp_v5_create_topic`, `aitp_v5_create_claim`, and
+   `aitp_v5_bind_session`.
 3. Read the execution brief and follow its risk, claim, evidence, validation, and next-action fields.
 4. For every meaningful result, use typed writes:
    - `aitp_v5_record_physics_object`

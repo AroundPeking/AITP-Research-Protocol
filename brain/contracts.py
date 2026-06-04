@@ -20,7 +20,15 @@ L0_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
             "source_count": 0,
             "search_status": "",
         },
-        "# Source Registry\n\n## Search Methodology\n\n## Source Inventory\n\n"
+        "# Source Registry\n\n"
+        "Use this as a short audit, not a bibliography dump. Each entry should say "
+        "why the source is load-bearing or explicitly mark it as background.\n\n"
+        "## Search Methodology\n\n"
+        "Record where you searched, the date, the query terms, and what you chose "
+        "not to include.\n\n"
+        "## Source Inventory\n\n"
+        "For each source: source_id, role, key equation/result/claim, and the "
+        "specific uncertainty it helps reduce.\n\n"
         "## Source Roles\n\n"
         "Classify each source by its role in the research:\n"
         "- **foundational**: defines the framework (e.g. Hedin 1965 for GW)\n"
@@ -47,8 +55,9 @@ L0_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
         "Currently covered:\n"
         "Missing:\n\n"
         "## Overall Verdict\n\n"
-        "Which key dimensions are adequately covered? "
-        "Which gaps would block derivation?\n\n"
+        "State whether the current source stack is enough for the next stage. "
+        "Name the strongest missing source if it is not enough, or write why the "
+        "remaining gaps are non-blocking.\n\n"
         "## Gaps And Next Sources\n",
     ),
 }
@@ -88,10 +97,27 @@ L1_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
             "competing_hypotheses": "",
             "source_refs": [],
         },
-        "# Question Contract\n\n## Bounded Question\n\n## Competing Hypotheses\n\n"
-        "## Scope Boundaries\n\n## Forbidden Proxies\n\n"
-        "## Target Quantities Or Claims\n\n## Deliverables\n\n"
-        "## Acceptance Criteria\n\n## Non-Success Conditions\n\n## Uncertainty Markers\n",
+        "# Question Contract\n\n"
+        "Write this as the contract for the next research move. It should be narrow "
+        "enough that a later review can say pass/fail/revise.\n\n"
+        "## Bounded Question\n\n"
+        "One sentence. Include the system/regime/approximation if relevant.\n\n"
+        "## Competing Hypotheses\n\n"
+        "What would be true if the main route fails?\n\n"
+        "## Scope Boundaries\n\n"
+        "What cases, parameter ranges, or claims are explicitly out of scope?\n\n"
+        "## Forbidden Proxies\n\n"
+        "What observable or shortcut would be misleading for this question?\n\n"
+        "## Target Quantities Or Claims\n\n"
+        "What exact claim, formula, diagnostic, or code behavior is being tested?\n\n"
+        "## Deliverables\n\n"
+        "What artifact will count as progress: derivation note, code patch, review, "
+        "benchmark, theorem skeleton, or manuscript section?\n\n"
+        "## Acceptance Criteria\n\n"
+        "What evidence would make the next transition legitimate?\n\n"
+        "## Non-Success Conditions\n\n"
+        "What concrete outcome would force revision or retreat?\n\n"
+        "## Uncertainty Markers\n\n",
     ),
     "source_basis.md": (
         {
@@ -102,8 +128,20 @@ L1_ARTIFACT_TEMPLATES: dict[str, tuple[dict[str, Any], str]] = {
             "peripheral_sources": "",
             "source_refs": [],
         },
-        "# Source Basis\n\n## Core Sources\n\n## Peripheral Sources\n\n"
-        "## Source Roles\n\n## Reading Depth\n\n## Why Each Source Matters\n",
+        "# Source Basis\n\n"
+        "Separate sources that carry the argument from sources that merely orient it.\n\n"
+        "## Core Sources\n\n"
+        "List the sources whose equations, algorithms, definitions, or data are "
+        "direct dependencies for the current question.\n\n"
+        "## Peripheral Sources\n\n"
+        "List sources used for context, comparison, or sanity checks.\n\n"
+        "## Source Roles\n\n"
+        "For each core source, state the role: definition provider, derivation anchor, "
+        "benchmark, counterexample, convention reference, or implementation source.\n\n"
+        "## Reading Depth\n\n"
+        "Mark each core source as skimmed, section-read, fully read, code-traced, or "
+        "benchmark-reproduced.\n\n"
+        "## Why Each Source Matters\n",
     ),
     "convention_snapshot.md": (
         {

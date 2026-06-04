@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
+from brain.cli.paths import resolve_topic_root as resolve_topic_root_path
+from brain.cli.paths import topics_root_path
 from brain.domains import topics_dir
 from brain.state import L2_EDGE_TYPES, L2_NODE_TYPES
 
@@ -42,19 +44,12 @@ def _slugify(value: str) -> str:
 
 
 def _resolve_topic_root(topic_slug: str) -> Path:
-    import os
-    base = Path(os.environ.get("AITP_TOPICS_ROOT",
-        "D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics"))
-    for candidate in [base / topic_slug, base / "topics" / topic_slug]:
-        if (candidate / "state.md").exists():
-            return candidate
-    return base / topic_slug
+    return resolve_topic_root_path(topic_slug)
 
 
 def cmd_l2_node_create(args):
     """Create an L2 graph node."""
-    topics_root = Path(args.topics_root) if getattr(args, 'topics_root') else Path(
-        "D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics")
+    topics_root = topics_root_path(getattr(args, "topics_root", None))
     l2_dir = topics_dir(topics_root) / "L2" / "graph" / "nodes"
     l2_dir.mkdir(parents=True, exist_ok=True)
 
@@ -76,8 +71,7 @@ def cmd_l2_node_create(args):
 
 def cmd_l2_edge_create(args):
     """Create an L2 graph edge."""
-    topics_root = Path(args.topics_root) if getattr(args, 'topics_root') else Path(
-        "D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics")
+    topics_root = topics_root_path(getattr(args, "topics_root", None))
     l2_root = topics_dir(topics_root) / "L2"
     l2_dir = l2_root / "graph" / "edges"
     l2_dir.mkdir(parents=True, exist_ok=True)
@@ -117,7 +111,7 @@ def cmd_l2_merge(args):
     # Collect all derivation steps + edges from topic
     steps_dir = root / "L2" / "graph" / "steps"
     edges_dir = root / "L2" / "graph" / "edges"
-    topics_root = topics_dir(Path("D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics"))
+    topics_root = topics_dir(topics_root_path())
     global_l2 = topics_root / "L2" / "graph"
 
     count = 0
@@ -137,7 +131,7 @@ def cmd_l2_merge(args):
 
 def cmd_l2_query(args):
     """Query L2 knowledge graph."""
-    topics_root = topics_dir(Path("D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics"))
+    topics_root = topics_dir(topics_root_path())
     query = " ".join(args.query) if hasattr(args.query, '__iter__') else str(args.query)
     nodes_dir = topics_root / "L2" / "graph" / "nodes"
     if not nodes_dir.exists():

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -22,16 +21,13 @@ from brain.cli.state import (
 from brain.cli.preflight import (
     run_preflight,
 )
+from brain.cli.paths import default_topics_root, resolve_topic_root as resolve_topic_root_path
 
 # Default topics root (can be overridden by env var)
-DEFAULT_TOPICS_ROOT = os.environ.get(
-    "AITP_TOPICS_ROOT",
-    "D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics"
-)
+DEFAULT_TOPICS_ROOT = default_topics_root()
 
 def _resolve_topic_root(topic_slug: str) -> Path:
-    from brain.cli.state import resolve_topic_root
-    return resolve_topic_root(DEFAULT_TOPICS_ROOT, topic_slug)
+    return resolve_topic_root_path(topic_slug, DEFAULT_TOPICS_ROOT)
 
 def _parse_md(path: Path):
     """Local YAML frontmatter parser."""
@@ -169,6 +165,32 @@ def cmd_gate_check(args):
     return 0 if gs.startswith("ready") else 1
 
 
+def cmd_gate_sync(args):
+    """Synchronize cached state.md gate_status with live gate evaluation."""
+    root = _resolve_topic_root(args.topic)
+    state_path = root / "state.md"
+    if not state_path.exists():
+        print(f"Error: Topic '{args.topic}' not found")
+        return 1
+    fm, body = load_state(root)
+    try:
+        snapshot = _live_gate_snapshot(root, fm)
+    except Exception as exc:
+        print(f"Error: live gate evaluation failed: {exc}")
+        return 1
+    old_gate = str(fm.get("gate_status", "?"))
+    fm["gate_status"] = snapshot.gate_status
+    fm["updated_at"] = _now_iso()
+    fm["gate_status_synced_at"] = _now_iso()
+    _write_md(state_path, fm, body)
+    print(f"Gate synced: {old_gate} -> {snapshot.gate_status}")
+    if snapshot.missing_requirements:
+        print("Missing requirements:")
+        for item in snapshot.missing_requirements:
+            print(f"  - {item}")
+    return 0 if snapshot.gate_status.startswith("ready") else 1
+
+
 def cmd_gate_override(args):
     """Override a blocked gate with explicit reason."""
     root = _resolve_topic_root(args.topic)
@@ -214,7 +236,7 @@ def cmd_lane_switch(args):
         atomic_write(rp, rp.read_text(encoding="utf-8") + line)
     else:
         atomic_write(rp, f"# Research Trail\n\n{line}")
-    print(f"Lane switched: {old_lane} → {new_lane}")
+    print(f"Lane switched: {old_lane} -> {new_lane}")
     return 0
 
 
@@ -230,7 +252,7 @@ def cmd_topic_init(args):
     # Create directory tree
     dirs = [
         "L0/sources", "L1/intake", "L2/graph/steps", "L2/graph/edges",
-        "L3/candidates", "L3/ideate", "L4/reviews", "L4/reports",
+        "L3/candidates", "L3/ideate", "L3/derive/steps", "L4/reviews", "L4/reports",
         "L4/scripts", "L4/outputs", "compute", "runtime", "contracts",
     ]
     for d in dirs:
@@ -399,11 +421,11 @@ def cmd_derive_record(args):
         if stage == "L3":
             print("Preflight advisory:")
             for f in failures:
-                print(f"  • {f}")
+                print(f"  - {f}")
         else:
             print("Preflight blocked:")
             for f in failures:
-                print(f"  • {f}")
+                print(f"  - {f}")
             return 1
     # Write step
     steps_dir = root / "L2" / "graph" / "steps"
@@ -428,7 +450,11 @@ def cmd_derive_record(args):
             step_body += f"**{k}**: {v}\n\n"
     step_path = steps_dir / f"{step_id.lower()}.md"
     _write_md(step_path, step_fm, step_body)
-    print(f"Step {step_id} recorded → {step_path}")
+    mirror_path = root / "L3" / "derive" / "steps" / f"{step_id.lower()}.md"
+    mirror_fm = {**step_fm, "canonical_path": str(step_path)}
+    _write_md(mirror_path, mirror_fm, step_body)
+    print(f"Step {step_id} recorded -> {step_path}")
+    print(f"L3 mirror written -> {mirror_path}")
     return 0
 
 
@@ -524,6 +550,9 @@ def build_parser():
     p_gc = p_gate_sub.add_parser("check", help="Check gate status")
     p_gc.add_argument("topic")
     p_gc.set_defaults(func=cmd_gate_check)
+    p_gs = p_gate_sub.add_parser("sync", help="Sync cached state.md gate_status from live evaluation")
+    p_gs.add_argument("topic")
+    p_gs.set_defaults(func=cmd_gate_sync)
     p_go = p_gate_sub.add_parser("override", help="Override a blocked gate")
     p_go.add_argument("topic")
     p_go.add_argument("--reason", "-r", help="Reason for override")

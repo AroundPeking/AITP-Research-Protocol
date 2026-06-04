@@ -15,9 +15,7 @@ R = "\033[31m"; M = "\033[35m"; B = "\033[34m"
 W = "\033[37m"; D = "\033[90m"; Z = "\033[0m"
 
 # ── Unicode / ASCII mode ────────────────────────────────────────
-_UNI = os.environ.get("PYTHONIOENCODING", "").lower() == "utf-8" or (
-    hasattr(sys.stdout, "encoding") and "utf" in (sys.stdout.encoding or "").lower()
-)
+_UNI = os.environ.get("AITP_PANEL_UNICODE", "").lower() in {"1", "true", "yes"}
 
 if _UNI:
     _TL="┌"; _TR="┐"; _BL="└"; _BR="┘"; _HZ="─"; _VT="│"
@@ -39,7 +37,8 @@ def _resolve_topics_root():
     if env and Path(env).is_dir():
         _TOPICS_ROOT = Path(env)
     else:
-        _TOPICS_ROOT = Path("D:/BaiduSyncdisk/Theoretical-Physics/research/aitp-topics")
+        configured = Path("{{TOPICS_ROOT}}")
+        _TOPICS_ROOT = configured if configured.is_dir() else Path.cwd() / "research" / "aitp-topics"
     return _TOPICS_ROOT
 
 
