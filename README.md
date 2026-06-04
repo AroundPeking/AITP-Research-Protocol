@@ -244,6 +244,45 @@ The legacy MCP server (`brain/mcp_server.py`) remains in the repository for the
 older L0-L4 Markdown protocol, but new research workflows should prefer the v5
 typed kernel.
 
+## Project-Scope Multi-Host Install
+
+For a real theory workspace, keep the priority host adapters installed together:
+`claude-code`, `kimi-code`, and `codex` should share the same AITP repo,
+topics root, and project target root. This avoids one host resuming from a
+different MCP endpoint or topic store than the others.
+
+Preferred project-scope install:
+
+```bash
+uv run --with pyyaml --with jsonschema --with fastmcp python scripts/aitp-pm.py install \
+  --agent all \
+  --scope project \
+  --target-root /path/to/theory-workspace \
+  --topics-root /path/to/theory-workspace/research/aitp-topics
+```
+
+Windows example for the Theoretical-Physics workspace:
+
+```powershell
+uv run --with pyyaml --with jsonschema --with fastmcp python scripts/aitp-pm.py install --agent all --scope project --target-root F:/AI_Workspace/Theoretical-Physics --topics-root F:/AI_Workspace/Theoretical-Physics/research/aitp-topics
+```
+
+Project-scope installs write runtime assets under the workspace-local host
+surfaces such as `.claude/`, `.kimi/`, `.codex/`, and `.mcp.json`. They should
+not require user-global MCP files or a global `aitp` command wrapper. Use
+user-scope installs only when a user explicitly wants global host wiring.
+
+After installing or updating, verify the install record:
+
+```bash
+uv run --with pyyaml --with jsonschema --with fastmcp python scripts/aitp-pm.py status
+```
+
+The project records for `claude-code:project`, `kimi-code:project`, and
+`codex:project` should all be present and should report the same `REPO_ROOT`,
+`TOPICS_ROOT`, and `TARGET_ROOT`. The package manager rejects project installs
+that would drift from an existing project install record.
+
 ## Host Adapters
 
 | Host | Current path | Notes |

@@ -172,6 +172,32 @@ def _record_key(agent: str, scope: str) -> str:
     return f"{agent}:{scope}"
 
 
+def _norm_install_value(value: str) -> str:
+    return str(value or "").replace("\\", "/").rstrip("/")
+
+
+def _enforce_project_install_consistency(record: dict, variables: dict) -> None:
+    """Reject project installs that would drift from existing project records."""
+    expected_fields = ("REPO_ROOT", "TOPICS_ROOT", "TARGET_ROOT")
+    for key, inst in record.get("installs", {}).items():
+        try:
+            _, scope = key.split(":", 1)
+        except ValueError:
+            continue
+        if scope != "project":
+            continue
+        existing_vars = inst.get("variables", {})
+        for field in expected_fields:
+            existing = _norm_install_value(existing_vars.get(field, ""))
+            incoming = _norm_install_value(variables.get(field, ""))
+            if existing and incoming and existing != incoming:
+                raise SystemExit(
+                    "Project install consistency violation: "
+                    f"{key} has {field}={existing}, incoming {field}={incoming}. "
+                    "Use one shared project target/topics root for claude-code, kimi-code, and codex."
+                )
+
+
 # ---------------------------------------------------------------------------
 # Template & variable helpers
 # ---------------------------------------------------------------------------
@@ -547,7 +573,13 @@ def _merge_codex_config_toml(
     _atomic_write(config_path, new_content)
 
 
-def _merge_kimi_config_toml(config_path: Path, repo_root: str, remove: bool = False) -> None:
+def _merge_kimi_config_toml(
+    config_path: Path,
+    repo_root: str,
+    topics_root: str = "",
+    remove: bool = False,
+    prefer_uv: bool = True,
+) -> None:
     """Add or remove [mcp.servers.aitp] section from Kimi Code config.toml."""
     if not config_path.exists():
         if not remove:
@@ -558,11 +590,33 @@ def _merge_kimi_config_toml(config_path: Path, repo_root: str, remove: bool = Fa
         content = config_path.read_text(encoding="utf-8")
 
     section_header = '[mcp.servers.aitp]'
-    section_block = (
-        f'{section_header}\n'
-        f'command = "python"\n'
-        f'args = ["{_mcp_entrypoint(repo_root)}"]\n'
-    )
+    if prefer_uv and shutil.which("uv"):
+        command = "uv"
+        args = [
+            "run",
+            "--with", "pyyaml",
+            "--with", "jsonschema",
+            "--with", "fastmcp",
+            "python",
+            _mcp_entrypoint(repo_root),
+        ]
+    else:
+        command = "python"
+        args = [_mcp_entrypoint(repo_root)]
+
+    section_lines = [
+        section_header,
+        f"command = {_toml_string(command)}",
+        f"args = {_toml_array(args)}",
+        f"cwd = {_toml_string(repo_root)}",
+    ]
+    if topics_root:
+        section_lines.extend([
+            "",
+            "[mcp.servers.aitp.env]",
+            f"AITP_TOPICS_ROOT = {_toml_string(topics_root)}",
+        ])
+    section_block = "\n".join(section_lines) + "\n"
 
     # Remove existing section
     lines = content.split("\n")
@@ -928,7 +982,12 @@ def _deploy_claude_code(
         deployed.append(str(settings_path))
 
         mcp_path = (target_root or Path.cwd()) / ".mcp.json"
-        _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
+        _write_mcp_json(
+            mcp_path,
+            variables["REPO_ROOT"],
+            variables.get("TOPICS_ROOT", ""),
+            prefer_uv=True,
+        )
         deployed.append(str(mcp_path))
 
     # 7. Clean up stale AITP files (deployed files with no matching source)
@@ -971,9 +1030,14 @@ def _deploy_kimi_code(
     scope: str, target_root: Path | None, variables: dict, remove: bool = False
 ) -> list[str]:
     """Install or uninstall AITP for Kimi Code. Auto-discovers skills."""
-    # Kimi Code scans ~/.agents/skills/ for skills (directory-per-skill format)
-    skills_dir = Path.home() / ".agents" / "skills"
-    mcp_base = Path.home() / ".kimi"
+    if scope == "project":
+        base = target_root or Path.cwd()
+        skills_dir = base / ".kimi" / "skills"
+        mcp_base = base / ".kimi"
+    else:
+        # User-scope Kimi Code scans ~/.agents/skills/ for shared skills.
+        skills_dir = Path.home() / ".agents" / "skills"
+        mcp_base = Path.home() / ".kimi"
 
     # Gateway skills for Kimi Code (only the essential entry + runtime)
     gateway_skills = [
@@ -1032,11 +1096,20 @@ def _deploy_kimi_code(
             print(f"    SKIP {dst_rel} (cannot write to {dst.parent} — junction/mount point)")
 
     mcp_path = mcp_base / "mcp.json"
-    _write_mcp_json(mcp_path, variables["REPO_ROOT"], variables.get("TOPICS_ROOT", ""))
+    _write_mcp_json(
+        mcp_path,
+        variables["REPO_ROOT"],
+        variables.get("TOPICS_ROOT", ""),
+        prefer_uv=True,
+    )
     deployed.append(f"{mcp_path} (aitp entry written)")
 
     config_path = mcp_base / "config.toml"
-    _merge_kimi_config_toml(config_path, variables["REPO_ROOT"])
+    _merge_kimi_config_toml(
+        config_path,
+        variables["REPO_ROOT"],
+        variables.get("TOPICS_ROOT", ""),
+    )
     deployed.append(f"{config_path} ([mcp.servers.aitp] merged)")
 
     return deployed
@@ -1238,13 +1311,20 @@ def cmd_install(args) -> None:
     agents = AGENTS if args.agent == "all" else [args.agent]
     scope = args.scope or "user"
     target_root = Path(args.target_root) if args.target_root else None
+    if scope == "project" and target_root is None:
+        target_root = Path.cwd()
 
     topics_root = args.topics_root or _detect_topics_root()
     if not topics_root:
         topics_root = _prompt_topics_root()
 
-    variables = _build_variables(topics_root)
     record = _load_record()
+    variables = _build_variables(
+        topics_root,
+        str(target_root) if scope == "project" and target_root else None,
+    )
+    if scope == "project":
+        _enforce_project_install_consistency(record, variables)
 
     pkg_file = REPO_ROOT / "package.json"
     try:
@@ -1279,21 +1359,28 @@ def cmd_install(args) -> None:
     _save_record(record)
     print(f"\nInstall record saved to {RECORD_PATH}")
 
-    # Register 'aitp' CLI wrapper
-    wrapper = _register_cli()
-    if wrapper:
-        print(f"  CLI registered: {wrapper}")
+    # Register a global 'aitp' CLI wrapper only for user-scope installs.
+    if scope == "user":
+        wrapper = _register_cli()
+        if wrapper:
+            print(f"  CLI registered: {wrapper}")
+        else:
+            print("  WARNING: could not auto-register 'aitp' command (no writable PATH dir found)")
     else:
-        print("  WARNING: could not auto-register 'aitp' command (no writable PATH dir found)")
+        print("  Project-scope install: global 'aitp' CLI wrapper not registered.")
 
 
 def cmd_uninstall(args) -> None:
     agents = AGENTS if args.agent == "all" else [args.agent]
     scope = args.scope or "user"
     target_root = Path(args.target_root) if args.target_root else None
+    if scope == "project" and target_root is None:
+        target_root = Path.cwd()
 
     record = _load_record()
-    variables = _build_variables()
+    variables = _build_variables(
+        target_root=str(target_root) if scope == "project" and target_root else None,
+    )
 
     for agent in agents:
         print(f"\n=== Uninstalling AITP for {agent} ({scope} scope) ===")
@@ -1314,8 +1401,9 @@ def cmd_uninstall(args) -> None:
         print(f"  Done. {len(paths)} items removed.")
 
     _save_record(record)
-    _unregister_cli()
-    print("  CLI wrapper removed.")
+    if scope == "user":
+        _unregister_cli()
+        print("  CLI wrapper removed.")
 
 
 def cmd_update(args) -> None:
@@ -1329,8 +1417,6 @@ def cmd_update(args) -> None:
     topics_root = args.topics_root or _detect_topics_root()
     if not topics_root:
         topics_root = _prompt_topics_root()
-
-    variables = _build_variables(topics_root)
 
     pkg_file = REPO_ROOT / "package.json"
     try:
@@ -1371,6 +1457,13 @@ def cmd_update(args) -> None:
                 tr = inst.get("variables", {}).get("TARGET_ROOT")
                 if tr:
                     target_root = Path(tr)
+
+            variables = _build_variables(
+                topics_root,
+                str(target_root) if scope == "project" and target_root else None,
+            )
+            if scope == "project":
+                _enforce_project_install_consistency(record, variables)
 
             print(f"\n=== Updating AITP for {agent} ({scope} scope) ===")
             if agent == "claude-code":
@@ -1498,7 +1591,6 @@ def cmd_upgrade(args) -> None:
     topics_root = _detect_topics_root()
     if not topics_root:
         topics_root = _prompt_topics_root()
-    variables = _build_variables(topics_root)
 
     for key in list(record["installs"]):
         agent, scope = key.split(":", 1)
@@ -1507,6 +1599,13 @@ def cmd_upgrade(args) -> None:
             tr = record["installs"][key].get("variables", {}).get("TARGET_ROOT")
             if tr:
                 target_root = Path(tr)
+
+        variables = _build_variables(
+            topics_root,
+            str(target_root) if scope == "project" and target_root else None,
+        )
+        if scope == "project":
+            _enforce_project_install_consistency(record, variables)
 
         print(f"\n=== Re-deploying {agent} ({scope} scope) ===")
         if agent == "claude-code":
