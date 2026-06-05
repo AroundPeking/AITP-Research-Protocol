@@ -16,7 +16,7 @@ from brain.v5.ids import prefixed_id
 from brain.v5.models import ClaimStatusRecord, ProofObligationRecord, ReferenceLocationRecord
 from brain.v5.paths import WorkspacePaths
 from brain.v5.references import record_reference_location
-from brain.v5.store import write_record
+from brain.v5.store import list_valid_records, read_record, write_record
 from brain.v5.tools import record_tool_run
 from brain.v5.workspace import get_claim
 
@@ -71,12 +71,15 @@ def attach_artifact(
     artifact_type: str,
     uri: str,
     summary: str,
-    size_bytes: int = 0,
+    size_bytes: int | str | None = 0,
     metadata: dict[str, Any] | None = None,
 ) -> Any:
     """Attach an artifact by reference and preserve hash metadata when possible."""
 
     enriched = dict(metadata or {})
+    if "size_bytes" in enriched:
+        enriched["size_bytes"] = _normalize_size_bytes(enriched["size_bytes"])
+    size_bytes = _normalize_size_bytes(size_bytes)
     local_path = _local_path_from_uri(uri)
     if local_path and local_path.exists():
         enriched.setdefault("sha256", _sha256(local_path))
@@ -94,6 +97,25 @@ def attach_artifact(
         size_bytes=size_bytes,
         metadata=enriched,
     )
+
+
+def get_proof_obligation(ws: WorkspacePaths, obligation_id: str) -> ProofObligationRecord:
+    """Read a proof-obligation record by id."""
+
+    path = ws.registry_dir("proof_obligations") / f"{obligation_id}.md"
+    if not path.exists():
+        raise FileNotFoundError(f"proof obligation not found: {obligation_id}")
+    return read_record(path, ProofObligationRecord)
+
+
+def list_proof_obligations_for_claim(ws: WorkspacePaths, claim_id: str) -> list[ProofObligationRecord]:
+    """Return proof obligations linked to a claim."""
+
+    return [
+        record
+        for record in list_valid_records(ws.registry_dir("proof_obligations"), ProofObligationRecord)
+        if record.claim_id == claim_id
+    ]
 
 
 def update_claim_status(
@@ -145,6 +167,70 @@ def update_claim_status(
             f"Maturity: `{maturity_level}`\n\n"
             f"Scope: {scope}\n\n"
             f"Next action: {next_action}\n"
+        ),
+    )
+    return record
+
+
+def update_proof_obligation(
+    ws: WorkspacePaths,
+    *,
+    obligation_id: str,
+    topic_id: str = "",
+    claim_id: str = "",
+    statement: str = "",
+    obligation_type: str = "",
+    status: str = "",
+    maturity_level: str = "",
+    next_action: str = "",
+    required_evidence: list[str] | None = None,
+    proof_strategy: list[str] | None = None,
+    failure_modes: list[str] | None = None,
+    source_refs: list[str] | None = None,
+    evidence_refs: list[str] | None = None,
+    artifact_ids: list[str] | None = None,
+    replace_lists: bool = False,
+) -> ProofObligationRecord:
+    """Refine an existing proof obligation without changing claim trust."""
+
+    record = get_proof_obligation(ws, obligation_id)
+    if topic_id and record.topic_id != topic_id:
+        raise ValueError(f"proof obligation {obligation_id} belongs to topic {record.topic_id}, not {topic_id}")
+    if claim_id and record.claim_id != claim_id:
+        raise ValueError(f"proof obligation {obligation_id} belongs to claim {record.claim_id}, not {claim_id}")
+    _require_known_claim(ws, record.claim_id, topic_id=record.topic_id)
+    if maturity_level:
+        _require_maturity(maturity_level)
+
+    if statement:
+        record.statement = statement
+    if obligation_type:
+        record.obligation_type = obligation_type
+    if status:
+        record.status = status
+    if maturity_level:
+        record.maturity_level = maturity_level
+    if next_action:
+        record.next_action = next_action
+
+    record.required_evidence = _merge_list(record.required_evidence, required_evidence, replace=replace_lists)
+    record.proof_strategy = _merge_list(record.proof_strategy, proof_strategy, replace=replace_lists)
+    record.failure_modes = _merge_list(record.failure_modes, failure_modes, replace=replace_lists)
+    record.source_refs = _merge_list(record.source_refs, source_refs, replace=replace_lists)
+    record.evidence_refs = _merge_list(record.evidence_refs, evidence_refs, replace=replace_lists)
+    record.artifact_ids = _merge_list(record.artifact_ids, artifact_ids, replace=replace_lists)
+    record.human_gate_required = True
+    record.can_update_claim_trust = False
+
+    write_record(
+        ws.registry_dir("proof_obligations") / f"{obligation_id}.md",
+        record,
+        body=(
+            "# Proof Obligation\n\n"
+            f"{record.statement}\n\n"
+            f"Claim: `{record.claim_id}`\n\n"
+            f"Status: `{record.status}`\n\n"
+            f"Next action: {record.next_action}\n"
         ),
     )
     return record
@@ -410,6 +496,26 @@ def _require_known_claim(ws: WorkspacePaths, claim_id: str, *, topic_id: str) ->
 def _require_maturity(maturity_level: str) -> None:
     if maturity_level not in MATURITY_LEVELS:
         raise ValueError(f"maturity_level must be one of {sorted(MATURITY_LEVELS)}")
+
+
+def _normalize_size_bytes(value: Any) -> int:
+    if value in (None, ""):
+        return 0
+    try:
+        size = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"size_bytes must be a non-negative integer, got {value!r}") from exc
+    if size < 0:
+        raise ValueError(f"size_bytes must be non-negative, got {size}")
+    return size
+
+
+def _merge_list(current: list[str], updates: list[str] | None, *, replace: bool) -> list[str]:
+    if updates is None:
+        return list(current)
+    if replace:
+        return _unique([str(item) for item in updates if str(item)])
+    return _unique(list(current) + [str(item) for item in updates if str(item)])
 
 
 def _local_path_from_uri(uri: str) -> Path | None:

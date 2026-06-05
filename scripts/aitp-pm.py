@@ -411,7 +411,7 @@ def _v5_topics_root_for(legacy_topics_root: Path) -> Path | None:
         return None
     if legacy_topics_root.parent.name != "research":
         return None
-    return legacy_topics_root.parent.parent / ".aitp" / "topics"
+    return legacy_topics_root / ".aitp" / "topics"
 
 
 def _read_template(rel_path: str) -> str | None:

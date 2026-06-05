@@ -158,6 +158,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_create_proof_obligation",
         "surface": "proof_obligation_record",
     },
+    "update_proof_obligation": {
+        "cli": "aitp-v5 research-state update-proof-obligation <args>",
+        "mcp": "aitp_v5_update_proof_obligation",
+        "surface": "proof_obligation_record",
+    },
     "research_event_classifier": {
         "cli": "aitp-v5 research-state classify-event <args>",
         "mcp": "aitp_v5_classify_research_event",

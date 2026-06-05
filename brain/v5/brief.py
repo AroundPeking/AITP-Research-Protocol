@@ -11,13 +11,14 @@ from brain.v5.flow import resolve_flow_profile
 from brain.v5.interaction import prioritize_questions, resolve_interaction_profile
 from brain.v5.knowledge_connectors import suggest_knowledge_connectors_for_claim
 from brain.v5.lane_exemplars import load_lane_exemplars
-from brain.v5.models import ClaimRecord, CodeStateRecord, ToolRunRecord
+from brain.v5.models import ClaimRecord, ClaimStatusRecord, CodeStateRecord, ProofObligationRecord, ToolRunRecord
 from brain.v5.memory import list_memory_entries_for_claim, memory_entry_brief_payload
 from brain.v5.operator_checkpoint import load_operator_checkpoint
 from brain.v5.policy import evaluate_policy
 from brain.v5.question_engine import generate_questions
 from brain.v5.physics_objects import list_object_relations_for_claim, object_relation_brief_payload
 from brain.v5.references import list_reference_locations_for_claim, reference_location_brief_payload
+from brain.v5.research_state import list_proof_obligations_for_claim
 from brain.v5.research_intent import load_innovation_direction, load_research_intent_gate
 from brain.v5.output_stability import load_final_output_profile
 from brain.v5.risk import action_budget_for_level, assess_claim_risk
@@ -42,6 +43,8 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
     operating_notes = []
     object_relations = []
     memory_entries = []
+    proof_obligations = []
+    claim_status_records = []
     research_intent_gate = load_research_intent_gate(ws, session.topic_id)
     innovation_direction = load_innovation_direction(ws, session.topic_id)
     final_output_profile = load_final_output_profile(ws, session.topic_id)
@@ -61,6 +64,8 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
         ]
         questions = generate_questions(claim, flow, object_relations=object_relations)
         evidence_records = list_evidence_for_claim(ws, claim.claim_id)
+        proof_obligations = list_proof_obligations_for_claim(ws, claim.claim_id)
+        claim_status_records = _claim_statuses_for_claim(ws, claim.claim_id)
         recommended_tool_executors = suggest_tool_executors_for_claim(claim)
         knowledge_connectors = suggest_knowledge_connectors_for_claim(claim)
         raw_reference_locations = list_reference_locations_for_claim(ws, claim.claim_id)
@@ -216,13 +221,26 @@ def build_execution_brief(ws, session_id: str) -> dict[str, Any]:
             "lane_exemplars": lane_exemplars,
             "object_relations": object_relations,
             "memory_entries": memory_entries,
+            "proof_obligations": [
+                _proof_obligation_brief_payload(record)
+                for record in proof_obligations
+            ],
         },
+        "research_gates": _research_gate_payload(
+            claim_status_records=claim_status_records,
+            proof_obligations=proof_obligations,
+            human_checkpoint_needed=action_budget.requires_human_checkpoint or bool(operator_checkpoint.get("active")),
+        ),
         "mandatory_reflection": mandatory_reflection,
         "next_action_candidates": next_action_candidates,
         "forbidden_now": _forbidden_actions(flow.profile if flow else "guided") + policy_forbidden + vnext_forbidden,
         "human_checkpoint": {
             "needed": action_budget.requires_human_checkpoint or bool(operator_checkpoint.get("active")),
             "reason": _human_checkpoint_reason(action_budget.requires_human_checkpoint, operator_checkpoint),
+            "semantics": (
+                "Immediate runtime checkpoint: if true, the agent must stop and get an explicit human "
+                "decision before continuing. This is distinct from record-level human_gate_required flags."
+            ),
         },
     }
 
@@ -312,6 +330,64 @@ def _tool_runs_for_claim(ws, claim_id: str) -> list[ToolRunRecord]:
         for run in list_valid_records(ws.registry_dir("tool_runs"), ToolRunRecord)
         if run.claim_id == claim_id
     ]
+
+
+def _claim_statuses_for_claim(ws, claim_id: str) -> list[ClaimStatusRecord]:
+    return [
+        record
+        for record in list_valid_records(ws.registry_dir("claim_statuses"), ClaimStatusRecord)
+        if record.claim_id == claim_id
+    ]
+
+
+def _proof_obligation_brief_payload(record: ProofObligationRecord) -> dict[str, Any]:
+    return {
+        "obligation_id": record.obligation_id,
+        "claim_id": record.claim_id,
+        "statement": record.statement,
+        "obligation_type": record.obligation_type,
+        "status": record.status,
+        "maturity_level": record.maturity_level,
+        "next_action": record.next_action,
+        "required_evidence": list(record.required_evidence),
+        "proof_strategy": list(record.proof_strategy),
+        "failure_modes": list(record.failure_modes),
+        "evidence_refs": list(record.evidence_refs),
+        "artifact_ids": list(record.artifact_ids),
+        "human_gate_required": bool(record.human_gate_required),
+        "can_update_claim_trust": bool(record.can_update_claim_trust),
+    }
+
+
+def _research_gate_payload(
+    *,
+    claim_status_records: list[ClaimStatusRecord],
+    proof_obligations: list[ProofObligationRecord],
+    human_checkpoint_needed: bool,
+) -> dict[str, Any]:
+    gated_statuses = [record for record in claim_status_records if record.human_gate_required]
+    gated_obligations = [record for record in proof_obligations if record.human_gate_required]
+    open_obligations = [
+        record
+        for record in proof_obligations
+        if str(record.status).lower() not in {"closed", "resolved", "passed", "complete"}
+    ]
+    return {
+        "record_level_human_gate_required": bool(gated_statuses or gated_obligations),
+        "record_level_human_gate_count": len(gated_statuses) + len(gated_obligations),
+        "open_proof_obligation_count": len(open_obligations),
+        "open_proof_obligation_ids": [record.obligation_id for record in open_obligations],
+        "human_checkpoint_needed": bool(human_checkpoint_needed),
+        "semantics": {
+            "human_gate_required": (
+                "Record-level provenance/trust guard: this record still needs explicit human review "
+                "before it can support trust promotion or L2 memory. It does not by itself pause the runtime."
+            ),
+            "human_checkpoint_needed": (
+                "Immediate runtime/operator checkpoint: when true, stop and ask the human before continuing."
+            ),
+        },
+    }
 
 
 def _record_links_to_claim(linked_records: dict, claim_id: str) -> bool:

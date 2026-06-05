@@ -97,13 +97,47 @@ def _write_message(message: dict[str, Any]) -> None:
     sys.stdout.buffer.flush()
 
 
-def _annotation_schema(annotation: Any) -> str:
+def _annotation_schema(annotation: Any) -> dict[str, Any]:
+    if annotation is inspect.Parameter.empty:
+        return {"type": "string"}
+    if isinstance(annotation, str):
+        return _annotation_string_schema(annotation)
     origin = getattr(annotation, "__origin__", None)
     if origin is not None:
         args = getattr(annotation, "__args__", ())
-        non_none = [arg for arg in args if arg is not type(None)]
-        if non_none:
-            annotation = non_none[0]
+        schema_types = _dedupe_schema_types([_schema_type_for_annotation(arg) for arg in args])
+        return {"type": schema_types[0] if len(schema_types) == 1 else schema_types}
+    return {"type": _schema_type_for_annotation(annotation)}
+
+
+def _annotation_string_schema(annotation: str) -> dict[str, Any]:
+    text = annotation.replace("typing.", "").strip()
+    if "|" in text:
+        schema_types = _dedupe_schema_types(
+            [_schema_type_for_annotation(part.strip()) for part in text.split("|")]
+        )
+        return {"type": schema_types[0] if len(schema_types) == 1 else schema_types}
+    return {"type": _schema_type_for_annotation(text)}
+
+
+def _schema_type_for_annotation(annotation: Any) -> str:
+    if annotation is type(None):
+        return "null"
+    if isinstance(annotation, str):
+        text = annotation.strip()
+        if text in {"None", "NoneType", "null"}:
+            return "null"
+        if text in {"int", "builtins.int"}:
+            return "integer"
+        if text in {"float", "builtins.float"}:
+            return "number"
+        if text in {"bool", "builtins.bool"}:
+            return "boolean"
+        if text in {"Any", "typing.Any"} or text.startswith("dict"):
+            return "object"
+        if text.startswith("list"):
+            return "array"
+        return "string"
     if annotation is int:
         return "integer"
     if annotation is float:
@@ -117,6 +151,14 @@ def _annotation_schema(annotation: Any) -> str:
     return "string"
 
 
+def _dedupe_schema_types(values: list[str]) -> list[str]:
+    out: list[str] = []
+    for value in values:
+        if value not in out:
+            out.append(value)
+    return out
+
+
 def _build_tool_schema(name: str, func: Any) -> dict[str, Any]:
     signature = inspect.signature(func)
     properties: dict[str, Any] = {}
@@ -125,8 +167,7 @@ def _build_tool_schema(name: str, func: Any) -> dict[str, Any]:
         if param_name in {"self", "cls"}:
             continue
         annotation = param.annotation
-        schema_type = "string" if annotation is inspect.Parameter.empty else _annotation_schema(annotation)
-        properties[param_name] = {"type": schema_type}
+        properties[param_name] = _annotation_schema(annotation)
         if param.default is inspect.Parameter.empty:
             required.append(param_name)
 

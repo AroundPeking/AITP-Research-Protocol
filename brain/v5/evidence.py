@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from brain.v5.ids import prefixed_id, short_hash
 from brain.v5.models import ArtifactRecord, EvidenceRecord
@@ -25,11 +26,12 @@ def record_artifact_ref(
     artifact_type: str,
     uri: str,
     summary: str,
-    size_bytes: int = 0,
+    size_bytes: int | str | None = 0,
     metadata: dict | None = None,
 ) -> ArtifactRecord:
     """Record a large artifact by reference, not by copying raw content."""
 
+    normalized_size = _normalize_size_bytes(size_bytes)
     suffix = short_hash(f"{topic_id}:{claim_id}:{artifact_type}:{uri}", 10)
     artifact_id = f"artifact-{artifact_type}-{suffix}"
     record = ArtifactRecord(
@@ -39,7 +41,7 @@ def record_artifact_ref(
         artifact_type=artifact_type,
         uri=uri,
         summary=summary,
-        size_bytes=size_bytes,
+        size_bytes=normalized_size,
         metadata=metadata or {},
     )
     write_record(
@@ -48,6 +50,18 @@ def record_artifact_ref(
         body=f"# Artifact\n\n{summary}\n\nURI: `{uri}`\n",
     )
     return record
+
+
+def _normalize_size_bytes(value: Any) -> int:
+    if value in (None, ""):
+        return 0
+    try:
+        size = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"size_bytes must be a non-negative integer, got {value!r}") from exc
+    if size < 0:
+        raise ValueError(f"size_bytes must be non-negative, got {size}")
+    return size
 
 
 def record_evidence(

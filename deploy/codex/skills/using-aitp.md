@@ -37,6 +37,8 @@ Follow the Charter and SPEC before platform convenience.
 - Topics root: `{{TOPICS_ROOT}}`
 - Repository root: `{{REPO_ROOT}}`
 - v5 workspace base: `{{TOPICS_ROOT}}`
+- Canonical v5 store: `{{TOPICS_ROOT}}/.aitp/`; workspace-root `.aitp/`
+  is not the v5 topic store.
 - Protocol manual: `{{REPO_ROOT}}/brain/PROTOCOL.md`
 - Codex gateway runtime skill: `aitp-runtime`
 

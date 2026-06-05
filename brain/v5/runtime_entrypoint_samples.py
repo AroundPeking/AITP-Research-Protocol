@@ -39,6 +39,8 @@ def sample_args_for_template(template: str) -> list[str]:
         return ["--topic", "fqhe", "--claim", "claim-fqhe", "--maturity-level", "finite-size evidence", "--claim-status", "bounded_check_recorded", "--scope", "N<=10", "--risk", "not a theorem", "--next-action", "human review"]
     if template.startswith("research-state create-proof-obligation"):
         return ["--topic", "fqhe", "--claim", "claim-fqhe", "--statement", "Prove the finite-size pattern for all N.", "--type", "theorem_gap", "--status", "open", "--maturity-level", "theorem-candidate", "--next-action", "derive symbolic proof"]
+    if template.startswith("research-state update-proof-obligation"):
+        return ["proof-obligation-fqhe", "--topic", "fqhe", "--claim", "claim-fqhe", "--status", "refined", "--next-action", "split proof into algebraic lemmas"]
     if template.startswith("research-state classify-event"):
         return ["--topic", "fqhe", "--claim", "claim-fqhe", "--event-kind", "result_json", "--summary", "JSON result with a finite-size check.", "--source-uri", "results/check.json"]
     if template.startswith("research-state bounded-evidence"):

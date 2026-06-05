@@ -98,8 +98,11 @@ def test_research_state_cli_mcp_and_runtime_entrypoints(tmp_path, capsys):
         aitp_v5_record_bounded_numerical_evidence,
         aitp_v5_register_source,
         aitp_v5_update_claim_status,
+        aitp_v5_update_proof_obligation,
     )
     from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.brief import build_execution_brief
+    from brain.v5.workspace import bind_session
 
     ws, claim, result_path = _seed_workspace(tmp_path)
 
@@ -152,6 +155,7 @@ def test_research_state_cli_mcp_and_runtime_entrypoints(tmp_path, capsys):
         artifact_type="fisherd_result_json",
         uri=str(result_path),
         summary="Fisherd result file.",
+        size_bytes=str(result_path.stat().st_size),
     )
     status = aitp_v5_update_claim_status(
         str(ws.base),
@@ -175,6 +179,16 @@ def test_research_state_cli_mcp_and_runtime_entrypoints(tmp_path, capsys):
         next_action="derive from motif occupation formula",
         required_evidence=["symbolic derivation", "independent finite-L audit"],
     )
+    updated_obligation = aitp_v5_update_proof_obligation(
+        str(ws.base),
+        obligation_id=obligation["obligation_id"],
+        topic_id=claim.topic_id,
+        claim_id=claim.claim_id,
+        status="refined",
+        next_action="derive from motif occupation formula and log remaining exception classes",
+        proof_strategy=["Yangian/motif derivation"],
+        evidence_refs=["evidence:finite_L_H4_motif_formula_check_L10_L12"],
+    )
     classification = aitp_v5_classify_research_event(
         topic_id=claim.topic_id,
         claim_id=claim.claim_id,
@@ -197,17 +211,34 @@ def test_research_state_cli_mcp_and_runtime_entrypoints(tmp_path, capsys):
     assert cli_payload["kind"] == "bounded_numerical_evidence_bundle"
     assert source["orientation_only"] is True
     assert artifact["kind"] == "artifact"
+    assert isinstance(artifact["size_bytes"], int)
     assert status["kind"] == "claim_status"
     assert status["can_update_claim_trust"] is False
     assert obligation["kind"] == "proof_obligation"
     assert obligation["can_update_claim_trust"] is False
+    assert updated_obligation["status"] == "refined"
+    assert "Yangian/motif derivation" in updated_obligation["proof_strategy"]
     assert classification["recommended_action"] == "record_bounded_numerical_evidence"
     assert classification["trust_update_forbidden"] is True
     assert mcp_payload["kind"] == "bounded_numerical_evidence_bundle"
     assert mcp_payload["trust_update_forbidden"] is True
     assert runtime_entrypoints()["register_source"]["mcp"] == "aitp_v5_register_source"
     assert runtime_entrypoints()["attach_artifact"]["surface"] == "artifact_record"
+    assert runtime_entrypoints()["update_proof_obligation"]["mcp"] == "aitp_v5_update_proof_obligation"
     assert runtime_entrypoints()["research_event_classifier"]["surface"] == "research_event_classification"
+
+    bind_session(
+        ws,
+        "session-alpha2",
+        topic_id=claim.topic_id,
+        context_id="theory",
+        active_claim=claim.claim_id,
+    )
+    brief = build_execution_brief(ws, "session-alpha2")
+    assert brief["research_gates"]["record_level_human_gate_required"] is True
+    assert brief["research_gates"]["open_proof_obligation_count"] >= 1
+    assert brief["human_checkpoint"]["needed"] is False
+    assert "distinct" in brief["human_checkpoint"]["semantics"]
 
 
 def test_public_surface_validators_accept_research_state_payloads():

@@ -155,7 +155,7 @@ AITP v5 keeps a hard distinction between truth sources and orientation surfaces.
 
 **Authoritative:**
 
-- typed v5 kernel records under `.aitp/`
+- typed v5 kernel records under `<topics-root>/.aitp/`
 - validation contracts and validation results
 - evidence records linked to sources, code states, tool runs, and validation
 - human checkpoint records
@@ -185,7 +185,14 @@ The v5 kernel is exposed through several thin surfaces:
 | `brain/v5/public_surfaces.py` | Contracted public payload validators |
 | `brain/v5/adapter_*` | Host adapter packets, bridge runners, and install/audit helpers |
 | `hooks/aitp_v5_*` | Host lifecycle hooks and event runners |
-| `.aitp/surfaces/` | Generated orientation outputs such as summaries and review views |
+| `<topics-root>/.aitp/surfaces/` | Generated orientation outputs such as summaries and review views |
+
+For legacy workspaces whose topic store is
+`<workspace>/research/aitp-topics`, the canonical v5 kernel store is
+`<workspace>/research/aitp-topics/.aitp/`. A workspace-root
+`<workspace>/.aitp/` may exist for older local tooling or host UI state, but it
+is not the v5 topic/claim/evidence store and should not be used as the
+execution contract.
 
 For a quick CLI check:
 
@@ -348,8 +355,9 @@ Current Kimi CLI builds and the existing AITP installer use project-local
 `.kimi/config.toml` and `.kimi/skills/`. Newer Kimi Code builds document
 `.kimi-code/mcp.json`, `.kimi-code/config.toml`, and `.kimi-code/skills/`.
 Keep both paths in sync when a workspace must work across both builds. The
-scientific authority remains the v5 typed records under `.aitp/`; Kimi config,
-skills, MCP JSON, and hook traces are runtime metadata only.
+scientific authority remains the v5 typed records under
+`<topics-root>/.aitp/`; Kimi config, skills, MCP JSON, and hook traces are
+runtime metadata only.
 
 ## What Gets Recorded
 

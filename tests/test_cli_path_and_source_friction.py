@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 from argparse import Namespace
+from pathlib import Path
 
 
 def test_default_topics_root_discovers_workspace_layout(tmp_path, monkeypatch):
@@ -59,3 +61,17 @@ def test_v5_native_mcp_exposes_legacy_friendly_discovery_aliases():
     assert "aitp_list_topics" in _TOOLS
     assert "aitp_get_execution_brief" in _TOOLS
     assert "aitp_bootstrap_topic" in _TOOLS
+
+
+def test_package_manager_uses_topic_root_aitp_as_v5_surface(tmp_path):
+    module_path = Path(__file__).resolve().parents[1] / "scripts" / "aitp-pm.py"
+    spec = importlib.util.spec_from_file_location("aitp_pm_for_test", module_path)
+    assert spec and spec.loader
+    aitp_pm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(aitp_pm)
+
+    workspace = tmp_path / "workspace"
+    topics_root = workspace / "research" / "aitp-topics"
+
+    assert aitp_pm._v5_topics_root_for(topics_root) == topics_root / ".aitp" / "topics"
+    assert aitp_pm._v5_topics_root_for(topics_root) != workspace / ".aitp" / "topics"

@@ -14,6 +14,7 @@ from brain.v5.research_state import (
     record_bounded_numerical_evidence,
     register_source,
     update_claim_status,
+    update_proof_obligation,
 )
 
 
@@ -39,7 +40,7 @@ def add_research_state_parser(sp) -> None:
     art.add_argument("--type", required=True, dest="artifact_type")
     art.add_argument("--uri", required=True)
     art.add_argument("--summary", required=True)
-    art.add_argument("--size-bytes", type=int, default=0)
+    art.add_argument("--size-bytes", default=0)
     art.add_argument("--metadata-json", default="{}")
 
     status = sub.add_parser("update-claim-status")
@@ -70,6 +71,23 @@ def add_research_state_parser(sp) -> None:
     obligation.add_argument("--source-ref", action="append", default=[], dest="source_refs")
     obligation.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     obligation.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
+
+    obligation_update = sub.add_parser("update-proof-obligation")
+    obligation_update.add_argument("obligation_id")
+    obligation_update.add_argument("--topic", default="", dest="topic_id")
+    obligation_update.add_argument("--claim", default="", dest="claim_id")
+    obligation_update.add_argument("--statement", default="")
+    obligation_update.add_argument("--type", default="", dest="obligation_type")
+    obligation_update.add_argument("--status", default="")
+    obligation_update.add_argument("--maturity-level", default="")
+    obligation_update.add_argument("--next-action", default="")
+    obligation_update.add_argument("--required-evidence", action="append", default=None, dest="required_evidence")
+    obligation_update.add_argument("--proof-strategy", action="append", default=None, dest="proof_strategy")
+    obligation_update.add_argument("--failure-mode", action="append", default=None, dest="failure_modes")
+    obligation_update.add_argument("--source-ref", action="append", default=None, dest="source_refs")
+    obligation_update.add_argument("--evidence-ref", action="append", default=None, dest="evidence_refs")
+    obligation_update.add_argument("--artifact-id", action="append", default=None, dest="artifact_ids")
+    obligation_update.add_argument("--replace-lists", action="store_true")
 
     event = sub.add_parser("classify-event")
     event.add_argument("--topic", required=True, dest="topic_id")
@@ -164,6 +182,26 @@ def dispatch_research_state_command(args, ws) -> dict:
             source_refs=args.source_refs,
             evidence_refs=args.evidence_refs,
             artifact_ids=args.artifact_ids,
+        )
+        return {"ok": True, **require_valid_public_surface("proof_obligation_record", {"ok": True, **asdict(record)})}
+    if args.research_state_command == "update-proof-obligation":
+        record = update_proof_obligation(
+            ws,
+            obligation_id=args.obligation_id,
+            topic_id=args.topic_id,
+            claim_id=args.claim_id,
+            statement=args.statement,
+            obligation_type=args.obligation_type,
+            status=args.status,
+            maturity_level=args.maturity_level,
+            next_action=args.next_action,
+            required_evidence=args.required_evidence,
+            proof_strategy=args.proof_strategy,
+            failure_modes=args.failure_modes,
+            source_refs=args.source_refs,
+            evidence_refs=args.evidence_refs,
+            artifact_ids=args.artifact_ids,
+            replace_lists=args.replace_lists,
         )
         return {"ok": True, **require_valid_public_surface("proof_obligation_record", {"ok": True, **asdict(record)})}
     if args.research_state_command == "classify-event":

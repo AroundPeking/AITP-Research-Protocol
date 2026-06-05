@@ -14,6 +14,7 @@ from brain.v5.research_state import (
     record_bounded_numerical_evidence,
     register_source,
     update_claim_status,
+    update_proof_obligation,
 )
 from brain.v5.workspace import init_workspace
 
@@ -60,7 +61,7 @@ def aitp_v5_attach_artifact(
     artifact_type: str,
     uri: str,
     summary: str,
-    size_bytes: int = 0,
+    size_bytes: int | str | None = 0,
     metadata: dict[str, Any] | None = None,
 ) -> dict:
     record = attach_artifact(
@@ -142,6 +143,46 @@ def aitp_v5_create_proof_obligation(
         source_refs=source_refs,
         evidence_refs=evidence_refs,
         artifact_ids=artifact_ids,
+    )
+    return require_valid_public_surface("proof_obligation_record", {"ok": True, **asdict(record)})
+
+
+def aitp_v5_update_proof_obligation(
+    base: str,
+    *,
+    obligation_id: str,
+    topic_id: str = "",
+    claim_id: str = "",
+    statement: str = "",
+    obligation_type: str = "",
+    status: str = "",
+    maturity_level: str = "",
+    next_action: str = "",
+    required_evidence: list[str] | None = None,
+    proof_strategy: list[str] | None = None,
+    failure_modes: list[str] | None = None,
+    source_refs: list[str] | None = None,
+    evidence_refs: list[str] | None = None,
+    artifact_ids: list[str] | None = None,
+    replace_lists: bool = False,
+) -> dict:
+    record = update_proof_obligation(
+        _ws(base),
+        obligation_id=obligation_id,
+        topic_id=topic_id,
+        claim_id=claim_id,
+        statement=statement,
+        obligation_type=obligation_type,
+        status=status,
+        maturity_level=maturity_level,
+        next_action=next_action,
+        required_evidence=required_evidence,
+        proof_strategy=proof_strategy,
+        failure_modes=failure_modes,
+        source_refs=source_refs,
+        evidence_refs=evidence_refs,
+        artifact_ids=artifact_ids,
+        replace_lists=replace_lists,
     )
     return require_valid_public_surface("proof_obligation_record", {"ok": True, **asdict(record)})
 

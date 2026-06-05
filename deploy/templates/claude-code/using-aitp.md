@@ -19,6 +19,8 @@ Markdown stages, and chat summaries are orientation only.
 
 - AITP v5 MCP entrypoint: `{{REPO_ROOT}}/brain/v5/native_mcp.py`
 - v5 workspace base: `{{TOPICS_ROOT}}`
+- Canonical v5 store: `{{TOPICS_ROOT}}/.aitp/`; workspace-root `.aitp/`
+  is not the v5 topic store.
 - Typed tools are named `mcp__aitp__aitp_v5_*` when exposed by Claude Code.
 - Legacy aliases (`mcp__aitp__aitp_list_topics`,
   `mcp__aitp__aitp_get_execution_brief`, `mcp__aitp__aitp_bootstrap_topic`) are
