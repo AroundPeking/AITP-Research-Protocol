@@ -1,0 +1,92 @@
+from __future__ import annotations
+
+
+def test_exploratory_record_is_orientation_only_and_public(tmp_path):
+    from dataclasses import asdict
+
+    from brain.v5.contracts import validate_exploratory_record
+    from brain.v5.exploration import exploratory_record_payload, record_exploratory_record
+    from brain.v5.mcp_tools import aitp_v5_record_exploratory_record
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "fqhe", context_id="topological-order", title="FQHE")
+
+    record = record_exploratory_record(
+        ws,
+        topic_id="fqhe",
+        claim_id="claim-fqhe",
+        session_id="s1",
+        exploration_type="question_decomposition",
+        title="Break the original question into traceable subquestions",
+        focal_question="Which local definitions are needed before the relation path is meaningful?",
+        summary="The initial physics question is being split into local checks.",
+        original_question="Does sector counting identify the edge CFT?",
+        local_question="Which sector labels need reconstruction?",
+        candidate_paths=["counting sequence -> sector labels -> edge CFT"],
+        unresolved_points=["finite-size aliasing"],
+        next_actions=["record a source backtrace step"],
+    )
+    payload = exploratory_record_payload(record)
+
+    assert validate_exploratory_record(payload).ok is True
+    assert require_valid_public_surface("exploratory_record", payload) == payload
+    assert asdict(record)["orientation_only"] is True
+    assert asdict(record)["can_update_claim_trust"] is False
+
+    mcp_payload = aitp_v5_record_exploratory_record(
+        str(tmp_path),
+        topic_id="fqhe",
+        claim_id="claim-fqhe",
+        session_id="s1",
+        exploration_type="backtrace_step",
+        title="Trace sector label source",
+        focal_question="Where is the sector label convention defined?",
+        summary="Backtrace remains open until the source definition is found.",
+        original_question="Does sector counting identify the edge CFT?",
+        local_question="Find the sector label definition.",
+        unresolved_points=["definition source not located"],
+    )
+
+    assert mcp_payload["kind"] == "exploratory_record"
+    assert mcp_payload["exploration_type"] == "backtrace_step"
+    assert mcp_payload["orientation_only"] is True
+    assert mcp_payload["can_update_claim_trust"] is False
+
+
+def test_exploratory_record_contract_rejects_trust_mutation():
+    from brain.v5.contracts import validate_exploratory_record
+
+    payload = {
+        "ok": True,
+        "kind": "exploratory_record",
+        "record_id": "exploratory-bad",
+        "topic_id": "fqhe",
+        "claim_id": "claim-fqhe",
+        "session_id": "s1",
+        "exploration_type": "relation_path_brainstorm",
+        "title": "Bad trust mutation",
+        "focal_question": "Can this update trust?",
+        "summary": "No.",
+        "status": "open",
+        "object_ids": [],
+        "relation_ids": [],
+        "source_refs": [],
+        "artifact_ids": [],
+        "parent_record_ids": [],
+        "derived_record_ids": [],
+        "candidate_paths": [],
+        "unresolved_points": [],
+        "next_actions": [],
+        "metadata": {},
+        "orientation_only": False,
+        "can_update_claim_trust": True,
+    }
+
+    result = validate_exploratory_record(payload)
+
+    assert result.ok is False
+    paths = {issue.path for issue in result.issues}
+    assert "exploratory_record.orientation_only" in paths
+    assert "exploratory_record.can_update_claim_trust" in paths

@@ -348,6 +348,35 @@ class SensemakingReportRecord:
 
 
 @dataclass
+class ExploratoryRecord:
+    record_id: str
+    topic_id: str
+    claim_id: str
+    session_id: str
+    exploration_type: str
+    title: str
+    focal_question: str
+    summary: str
+    original_question: str = ""
+    local_question: str = ""
+    status: str = "open"
+    object_ids: list[str] = field(default_factory=list)
+    relation_ids: list[str] = field(default_factory=list)
+    source_refs: list[str] = field(default_factory=list)
+    artifact_ids: list[str] = field(default_factory=list)
+    parent_record_ids: list[str] = field(default_factory=list)
+    derived_record_ids: list[str] = field(default_factory=list)
+    candidate_paths: list[str] = field(default_factory=list)
+    unresolved_points: list[str] = field(default_factory=list)
+    next_actions: list[str] = field(default_factory=list)
+    human_steering: str = ""
+    metadata: dict = field(default_factory=dict)
+    orientation_only: bool = True
+    can_update_claim_trust: bool = False
+    kind: str = "exploratory_record"
+
+
+@dataclass
 class ValidationContractRecord:
     contract_id: str
     topic_id: str

@@ -26,6 +26,7 @@ from brain.v5.cli_research_state import add_research_state_parser, dispatch_rese
 from brain.v5.cli_validation import add_validation_parser, dispatch_validation_command
 from brain.v5.cli_vnext import VNEXT_COMMANDS, add_vnext_parsers, dispatch_vnext_command
 from brain.v5.cli_goal import add_goal_parser, dispatch_goal_command
+from brain.v5.exploration import exploratory_record_payload, record_exploratory_record
 from brain.v5.process_graph import build_process_graph_slice
 from brain.v5.public_surfaces import require_valid_public_surface
 from brain.v5.physics_objects import record_object_relation, record_physics_object
@@ -203,6 +204,30 @@ def _build_parser() -> argparse.ArgumentParser:
     sr.add_argument("--evidence-ref", action="append", default=[], dest="evidence_refs")
     sr.add_argument("--open-question", action="append", default=[], dest="open_questions")
     sr.add_argument("--next-action", action="append", default=[], dest="next_actions")
+
+    ex_p = sp.add_parser("exploration"); ex_s = ex_p.add_subparsers(dest="exploration_command", required=True)
+    er = ex_s.add_parser("record")
+    er.add_argument("--topic", required=True, dest="topic_id")
+    er.add_argument("--claim", default="", dest="claim_id")
+    er.add_argument("--session", default="", dest="session_id")
+    er.add_argument("--type", required=True, dest="exploration_type")
+    er.add_argument("--title", required=True)
+    er.add_argument("--focal-question", required=True)
+    er.add_argument("--summary", required=True)
+    er.add_argument("--original-question", default="")
+    er.add_argument("--local-question", default="")
+    er.add_argument("--status", default="open")
+    er.add_argument("--object-id", action="append", default=[], dest="object_ids")
+    er.add_argument("--relation-id", action="append", default=[], dest="relation_ids")
+    er.add_argument("--source-ref", action="append", default=[], dest="source_refs")
+    er.add_argument("--artifact-id", action="append", default=[], dest="artifact_ids")
+    er.add_argument("--parent-record-id", action="append", default=[], dest="parent_record_ids")
+    er.add_argument("--derived-record-id", action="append", default=[], dest="derived_record_ids")
+    er.add_argument("--candidate-path", action="append", default=[], dest="candidate_paths")
+    er.add_argument("--unresolved-point", action="append", default=[], dest="unresolved_points")
+    er.add_argument("--next-action", action="append", default=[], dest="next_actions")
+    er.add_argument("--human-steering", default="")
+    er.add_argument("--metadata-json", default="{}")
 
     sap = sp.add_parser("subagent"); sas = sap.add_subparsers(dest="subagent_command", required=True)
     sai = sas.add_parser("ingest-result")
@@ -397,6 +422,33 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any]:
             relation_ids=args.relation_ids, evidence_refs=args.evidence_refs,
             open_questions=args.open_questions, next_actions=args.next_actions)
         return {"ok": True, **require_valid_public_surface("sensemaking_report_record", {"ok": True, **asdict(rpt)})}
+
+    if args.command == "exploration" and args.exploration_command == "record":
+        rec = record_exploratory_record(
+            ws,
+            topic_id=args.topic_id,
+            claim_id=args.claim_id,
+            session_id=args.session_id,
+            exploration_type=args.exploration_type,
+            title=args.title,
+            focal_question=args.focal_question,
+            summary=args.summary,
+            original_question=args.original_question,
+            local_question=args.local_question,
+            status=args.status,
+            object_ids=args.object_ids,
+            relation_ids=args.relation_ids,
+            source_refs=args.source_refs,
+            artifact_ids=args.artifact_ids,
+            parent_record_ids=args.parent_record_ids,
+            derived_record_ids=args.derived_record_ids,
+            candidate_paths=args.candidate_paths,
+            unresolved_points=args.unresolved_points,
+            next_actions=args.next_actions,
+            human_steering=args.human_steering,
+            metadata=_j(args.metadata_json),
+        )
+        return require_valid_public_surface("exploratory_record", exploratory_record_payload(rec))
 
     if args.command == "subagent" and args.subagent_command == "ingest-result":
         result = ingest_subagent_result(

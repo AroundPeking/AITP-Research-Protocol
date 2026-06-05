@@ -4,6 +4,7 @@ from __future__ import annotations
 def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     from brain.v5.code import record_code_state
     from brain.v5.evidence import record_evidence
+    from brain.v5.exploration import record_exploratory_record
     from brain.v5.mcp_tools import aitp_v5_get_process_graph_slice
     from brain.v5.physics_objects import record_object_relation, record_physics_object
     from brain.v5.process_graph import build_process_graph_slice
@@ -140,6 +141,40 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
         relation_ids=[relation.relation_id],
         evidence_refs=[evidence.evidence_id],
     )
+    exploratory = record_exploratory_record(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        session_id="s1",
+        exploration_type="relation_path_brainstorm",
+        title="Backtrace counting to CFT",
+        focal_question="Which intermediate definitions connect counting to edge CFT labels?",
+        summary="The relation path is being explored before validation.",
+        original_question="Does sector counting identify the edge CFT?",
+        local_question="Trace sector matching definitions.",
+        object_ids=[counting.object_id, cft.object_id],
+        relation_ids=[relation.relation_id],
+        source_refs=[ref.location_id],
+        candidate_paths=["counting sequence -> sector matching -> edge CFT"],
+        unresolved_points=["finite-size aliasing"],
+        next_actions=["open source backtrace"],
+    )
+    backtrace = record_exploratory_record(
+        ws,
+        topic_id="fqhe",
+        claim_id=claim.claim_id,
+        session_id="s1",
+        exploration_type="backtrace_step",
+        title="Trace sector matching source",
+        focal_question="Where is the sector matching convention defined?",
+        summary="The source dependency is being traced without changing claim trust.",
+        original_question="Does sector counting identify the edge CFT?",
+        local_question="Locate the sector matching convention.",
+        source_refs=[ref.location_id],
+        parent_record_ids=[exploratory.record_id],
+        unresolved_points=["definition boundary not fully reconstructed"],
+        next_actions=["reconstruct definition"],
+    )
 
     payload = build_process_graph_slice(ws, "s1", limit=80)
     mcp_payload = aitp_v5_get_process_graph_slice(str(tmp_path), session_id="s1", limit=80)
@@ -166,11 +201,13 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
         "validation_contract",
         "validation_result",
         "sensemaking_report",
+        "exploratory_record",
     }.issubset(node_types)
     assert f"claim:{claim.claim_id}" in node_ids
     assert f"reference_location:{ref.location_id}" in node_ids
     assert f"proof_obligation:{obligation.obligation_id}" in node_ids
     assert f"sensemaking_report:{report.report_id}" in node_ids
+    assert f"exploratory_record:{exploratory.record_id}" in node_ids
 
     edges = {(edge["source"], edge["type"], edge["target"]) for edge in payload["edges"]}
     assert (f"claim:{claim.claim_id}", "has_evidence", f"evidence:{evidence.evidence_id}") in edges
@@ -182,14 +219,29 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     assert (f"evidence:{evidence.evidence_id}", "uses_tool_run", f"tool_run:{run.run_id}") in edges
     assert (f"evidence:{evidence.evidence_id}", "uses_validation_result", f"validation_result:{validation.result_id}") in edges
     assert (f"tool_run:{run.run_id}", "uses_code_state", f"code_state:{code_state.code_state_id}") in edges
+    assert (
+        f"claim:{claim.claim_id}",
+        "has_exploratory_record",
+        f"exploratory_record:{exploratory.record_id}",
+    ) in edges
+    assert (
+        f"exploratory_record:{exploratory.record_id}",
+        "explores_relation",
+        f"object_relation:{relation.relation_id}",
+    ) in edges
 
     assert payload["open_obligations"][0]["obligation_id"] == obligation.obligation_id
     assert payload["source_backtrace"][0]["complete"] is True
     assert payload["relation_neighborhood"][0]["relation_id"] == relation.relation_id
+    exploratory_ids = {item["record_id"] for item in payload["exploratory_records"]}
+    assert exploratory.record_id in exploratory_ids
+    assert backtrace.record_id in exploratory_ids
+    assert payload["source_backtrace"][0]["exploratory_record_ids"] == [backtrace.record_id]
     assert "this API cannot update claim trust" in payload["trust_boundary_reasons"]
     moments = {item["moment"] for item in payload["recommended_moments"]}
     assert "record_or_validate_open_obligation" in moments
     assert "brainstorm_relation_path" in moments
+    assert "audit_original_question_drift" in moments
 
 
 def test_process_graph_slice_is_registered_for_native_mcp_and_runtime_entrypoints():

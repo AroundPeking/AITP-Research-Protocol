@@ -216,6 +216,49 @@ def require_valid_sensemaking_report_record(payload: dict[str, Any]) -> dict[str
     return _require_valid(validate_sensemaking_report_record(payload), payload)
 
 
+def validate_exploratory_record(payload: dict[str, Any], *, path: str = "exploratory_record") -> ContractResult:
+    result = _validate_base_record(payload, path, kind="exploratory_record")
+    if result.issues:
+        return result
+    for key in ("record_id", "topic_id", "exploration_type", "title", "focal_question", "summary", "status"):
+        _require_nonempty_str(payload, key, path, result)
+    if payload.get("exploration_type") not in {
+        "source_asset",
+        "question_decomposition",
+        "relation_path_brainstorm",
+        "backtrace_step",
+        "steering_checkpoint",
+    }:
+        result.add(
+            f"{path}.exploration_type",
+            "must be source_asset, question_decomposition, relation_path_brainstorm, backtrace_step, or steering_checkpoint",
+        )
+    if payload.get("status") not in {"open", "active", "resolved", "deferred", "superseded"}:
+        result.add(f"{path}.status", "must be open, active, resolved, deferred, or superseded")
+    for key in (
+        "object_ids",
+        "relation_ids",
+        "source_refs",
+        "artifact_ids",
+        "parent_record_ids",
+        "derived_record_ids",
+        "candidate_paths",
+        "unresolved_points",
+        "next_actions",
+    ):
+        _require_list(payload.get(key), f"{path}.{key}", result)
+    _require_mapping(payload.get("metadata"), f"{path}.metadata", result)
+    if payload.get("orientation_only") is not True:
+        result.add(f"{path}.orientation_only", "must be true")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
+    return result
+
+
+def require_valid_exploratory_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return _require_valid(validate_exploratory_record(payload), payload)
+
+
 def validate_validation_contract_record(payload: dict[str, Any], *, path: str = "validation_contract_record") -> ContractResult:
     result = _validate_base_record(payload, path, kind="validation_contract")
     if result.issues:

@@ -53,6 +53,33 @@ def sample_args_for_template(template: str) -> list[str]:
         return ["scalar_tolerance_check", "--recipe", "recipe-ed", "--topic", "fqhe", "--claim", "claim-fqhe", "--inputs-json", '{"observed":1,"expected":1,"tolerance":0}']
     if template.startswith("reference location record"):
         return ["--topic", "fqhe", "--connector", "local_pdf", "--type", "paper_pdf", "--uri", "file:///papers/fqhe.pdf", "--label", "FQHE paper PDF"]
+    if template.startswith("exploration record"):
+        return [
+            "--topic",
+            "fqhe",
+            "--claim",
+            "claim-fqhe",
+            "--session",
+            "s1",
+            "--type",
+            "relation_path_brainstorm",
+            "--title",
+            "Counting to CFT relation path",
+            "--focal-question",
+            "How can the counting sequence constrain the candidate edge CFT?",
+            "--summary",
+            "Exploratory relation path before validation.",
+            "--original-question",
+            "Does sector counting identify the edge theory?",
+            "--local-question",
+            "Which intermediate objects connect counting data to CFT labels?",
+            "--candidate-path",
+            "counting sequence -> sector matching -> edge CFT",
+            "--unresolved-point",
+            "finite-size aliasing",
+            "--next-action",
+            "trace source definitions",
+        ]
     if template.startswith("literature suggest-intake") or template.startswith("literature record-candidate"):
         return [
             "--session",

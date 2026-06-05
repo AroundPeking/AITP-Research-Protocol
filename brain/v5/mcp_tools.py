@@ -10,6 +10,7 @@ from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import record_code_state
+from brain.v5.exploration import exploratory_record_payload, record_exploratory_record
 from brain.v5.final_readiness import audit_final_engineering_readiness
 from brain.v5.hook_install_audit import audit_hook_installation
 from brain.v5.hook_install_paths import discover_hook_install_paths
@@ -106,6 +107,58 @@ def aitp_v5_get_process_graph_slice(base: str, *, session_id: str, claim_id: str
         "process_graph_slice",
         build_process_graph_slice(_ws(base), session_id, claim_id=claim_id, limit=limit),
     )
+
+
+def aitp_v5_record_exploratory_record(
+    base: str,
+    *,
+    topic_id: str,
+    exploration_type: str,
+    title: str,
+    focal_question: str,
+    summary: str,
+    claim_id: str = "",
+    session_id: str = "",
+    original_question: str = "",
+    local_question: str = "",
+    status: str = "open",
+    object_ids: list[str] | None = None,
+    relation_ids: list[str] | None = None,
+    source_refs: list[str] | None = None,
+    artifact_ids: list[str] | None = None,
+    parent_record_ids: list[str] | None = None,
+    derived_record_ids: list[str] | None = None,
+    candidate_paths: list[str] | None = None,
+    unresolved_points: list[str] | None = None,
+    next_actions: list[str] | None = None,
+    human_steering: str = "",
+    metadata: dict | None = None,
+) -> dict:
+    record = record_exploratory_record(
+        _ws(base),
+        topic_id=topic_id,
+        claim_id=claim_id,
+        session_id=session_id,
+        exploration_type=exploration_type,
+        title=title,
+        focal_question=focal_question,
+        summary=summary,
+        original_question=original_question,
+        local_question=local_question,
+        status=status,
+        object_ids=object_ids,
+        relation_ids=relation_ids,
+        source_refs=source_refs,
+        artifact_ids=artifact_ids,
+        parent_record_ids=parent_record_ids,
+        derived_record_ids=derived_record_ids,
+        candidate_paths=candidate_paths,
+        unresolved_points=unresolved_points,
+        next_actions=next_actions,
+        human_steering=human_steering,
+        metadata=metadata,
+    )
+    return require_valid_public_surface("exploratory_record", exploratory_record_payload(record))
 
 
 def aitp_list_topics(topics_root: str) -> list[dict]:

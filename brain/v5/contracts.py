@@ -376,6 +376,22 @@ def require_valid_sensemaking_report_record(payload: dict[str, Any]) -> dict[str
     return _require_valid_sensemaking_report_record(payload)
 
 
+def validate_exploratory_record(payload: dict[str, Any], *, path: str = "exploratory_record") -> ContractResult:
+    """Validate a public exploratory-record write payload."""
+
+    from brain.v5.record_contracts import validate_exploratory_record as _validate
+
+    return _validate(payload, path=path)
+
+
+def require_valid_exploratory_record(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return an exploratory-record write payload or raise a contract error."""
+
+    from brain.v5.record_contracts import require_valid_exploratory_record as _require
+
+    return _require(payload)
+
+
 def validate_validation_contract_record(payload: dict[str, Any], *, path: str = "validation_contract_record") -> ContractResult:
     from brain.v5.record_contracts import validate_validation_contract_record as _validate_validation_contract_record
     return _validate_validation_contract_record(payload, path=path)

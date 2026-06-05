@@ -9,6 +9,7 @@ from brain.v5.models import (
     ClaimRecord,
     CodeStateRecord,
     EvidenceRecord,
+    ExploratoryRecord,
     MemoryEntryRecord,
     ObjectRelationRecord,
     PhysicsObjectRecord,
@@ -82,6 +83,12 @@ def build_process_graph_slice(
         topic_id,
         claim_ids,
     )
+    exploratory_records = _filter_exploratory_records(
+        _records(ws, "exploratory_records", ExploratoryRecord),
+        topic_id,
+        claim_ids,
+        session_id,
+    )
     code_state_ids = {code_id for run in tool_runs for code_id in run.code_state_ids if code_id}
     code_state_ids.update(_linked_code_state_ids_for_claim(_records(ws, "code_states", CodeStateRecord), claim_ids))
     code_states = [
@@ -116,14 +123,17 @@ def build_process_graph_slice(
         builder.add_node("memory_entry", record.entry_id, record, label=record.statement or record.entry_id)
     for record in sensemaking_reports:
         builder.add_node("sensemaking_report", record.report_id, record, label=record.title)
+    for record in exploratory_records:
+        builder.add_node("exploratory_record", record.record_id, record, label=record.title)
 
     for claim in claims:
         builder.add_edge("session", session.session_id, "claim", claim.claim_id, "session_focus")
     _add_edges(builder, session, claims, references, evidence, obligations, objects, relations,
-               validation_contracts, validation_results, tool_runs, code_states, memory_entries, sensemaking_reports)
+               validation_contracts, validation_results, tool_runs, code_states, memory_entries, sensemaking_reports,
+               exploratory_records)
 
     open_obligations = [_obligation_slice(record) for record in obligations if not _closed(record.status)]
-    source_backtrace = _source_backtrace(claims, references, evidence, obligations, objects, relations)
+    source_backtrace = _source_backtrace(claims, references, evidence, obligations, objects, relations, exploratory_records)
     relation_neighborhood = _relation_neighborhood(objects, relations)
     trust_boundary_reasons = [
         "process_graph_slice is orientation-only",
@@ -149,7 +159,8 @@ def build_process_graph_slice(
         "source_backtrace": source_backtrace,
         "relation_neighborhood": relation_neighborhood,
         "trust_boundary_reasons": trust_boundary_reasons,
-        "recommended_moments": _recommended_moments(open_obligations, source_backtrace, relations),
+        "exploratory_records": [_exploratory_slice(record) for record in exploratory_records],
+        "recommended_moments": _recommended_moments(open_obligations, source_backtrace, relations, exploratory_records),
         "record_counts": {
             "claim": len(claims),
             "physics_object": len(objects),
@@ -163,6 +174,7 @@ def build_process_graph_slice(
             "validation_result": len(validation_results),
             "memory_entry": len(memory_entries),
             "sensemaking_report": len(sensemaking_reports),
+            "exploratory_record": len(exploratory_records),
         },
         "truncation": {
             "limit": limit,
@@ -244,6 +256,7 @@ def _add_edges(
     code_states: list[CodeStateRecord],
     memory_entries: list[MemoryEntryRecord],
     sensemaking_reports: list[SensemakingReportRecord],
+    exploratory_records: list[ExploratoryRecord],
 ) -> None:
     reference_lookup = _reference_lookup(references)
     object_ids = {record.object_id for record in objects}
@@ -311,6 +324,21 @@ def _add_edges(
             builder.add_edge("sensemaking_report", record.report_id, "object_relation", relation_id, "mentions_relation")
         for evidence_id in record.evidence_refs:
             builder.add_edge("sensemaking_report", record.report_id, "evidence", evidence_id, "mentions_evidence")
+    for record in exploratory_records:
+        if record.claim_id:
+            builder.add_edge("claim", record.claim_id, "exploratory_record", record.record_id, "has_exploratory_record")
+        if record.session_id:
+            builder.add_edge("session", record.session_id, "exploratory_record", record.record_id, "recorded_exploration")
+        for object_id in record.object_ids:
+            builder.add_edge("exploratory_record", record.record_id, "physics_object", object_id, "explores_object")
+        for relation_id in record.relation_ids:
+            builder.add_edge("exploratory_record", record.record_id, "object_relation", relation_id, "explores_relation")
+        for ref in record.source_refs:
+            location_id = reference_lookup.get(ref)
+            if location_id:
+                builder.add_edge("exploratory_record", record.record_id, "reference_location", location_id, "explores_source")
+        for parent_id in record.parent_record_ids:
+            builder.add_edge("exploratory_record", record.record_id, "exploratory_record", parent_id, "continues_from")
     if session.active_claim:
         for claim in claims:
             if claim.claim_id == session.active_claim:
@@ -335,6 +363,25 @@ def _filter_by_topic_and_claim(records: list, topic_id: str, claim_ids: set[str]
         for record in records
         if getattr(record, "topic_id", "") == topic_id
         and (not claim_ids or getattr(record, "claim_id", "") in claim_ids)
+    ]
+
+
+def _filter_exploratory_records(
+    records: list[ExploratoryRecord],
+    topic_id: str,
+    claim_ids: set[str],
+    session_id: str,
+) -> list[ExploratoryRecord]:
+    return [
+        record
+        for record in records
+        if record.topic_id == topic_id
+        and (
+            not claim_ids
+            or record.claim_id in claim_ids
+            or not record.claim_id
+            or record.session_id == session_id
+        )
     ]
 
 
@@ -403,6 +450,7 @@ def _source_backtrace(
     obligations: list[ProofObligationRecord],
     objects: list[PhysicsObjectRecord],
     relations: list[ObjectRelationRecord],
+    exploratory_records: list[ExploratoryRecord],
 ) -> list[dict[str, Any]]:
     by_claim = {claim.claim_id: claim for claim in claims}
     result = []
@@ -411,6 +459,11 @@ def _source_backtrace(
         claim_evidence = [record.evidence_id for record in evidence if record.claim_id == claim_id]
         claim_obligations = [record.obligation_id for record in obligations if record.claim_id == claim_id]
         claim_relations = [record.relation_id for record in relations if record.claim_id == claim_id]
+        claim_backtrace_records = [
+            record.record_id
+            for record in exploratory_records
+            if record.claim_id == claim_id and record.exploration_type in {"backtrace_step", "source_asset"}
+        ]
         missing = []
         if not claim_refs:
             missing.append("reference_location")
@@ -431,6 +484,7 @@ def _source_backtrace(
                 "proof_obligation_ids": claim_obligations,
                 "object_relation_ids": claim_relations,
                 "physics_object_ids": [record.object_id for record in objects],
+                "exploratory_record_ids": claim_backtrace_records,
                 "missing_components": missing,
                 "complete": not missing,
             }
@@ -459,10 +513,32 @@ def _relation_neighborhood(
     ]
 
 
+def _exploratory_slice(record: ExploratoryRecord) -> dict[str, Any]:
+    return {
+        "record_id": record.record_id,
+        "exploration_type": record.exploration_type,
+        "topic_id": record.topic_id,
+        "claim_id": record.claim_id,
+        "session_id": record.session_id,
+        "title": record.title,
+        "focal_question": record.focal_question,
+        "original_question": record.original_question,
+        "local_question": record.local_question,
+        "status": record.status,
+        "object_ids": list(record.object_ids),
+        "relation_ids": list(record.relation_ids),
+        "source_refs": list(record.source_refs),
+        "candidate_paths": list(record.candidate_paths),
+        "unresolved_points": list(record.unresolved_points),
+        "next_actions": list(record.next_actions),
+    }
+
+
 def _recommended_moments(
     open_obligations: list[dict[str, Any]],
     source_backtrace: list[dict[str, Any]],
     relations: list[ObjectRelationRecord],
+    exploratory_records: list[ExploratoryRecord],
 ) -> list[dict[str, Any]]:
     moments: list[dict[str, Any]] = []
     for obligation in open_obligations:
@@ -493,6 +569,43 @@ def _recommended_moments(
                     "reason": "object relation is still a hypothesis",
                     "target_type": "object_relation",
                     "target_id": relation.relation_id,
+                }
+            )
+    for record in exploratory_records:
+        if record.exploration_type == "question_decomposition" and record.status in {"open", "active"}:
+            moments.append(
+                {
+                    "moment": "direction.brainstorm",
+                    "reason": "open question decomposition should steer the next local analysis",
+                    "target_type": "exploratory_record",
+                    "target_id": record.record_id,
+                }
+            )
+        if record.exploration_type == "relation_path_brainstorm" and record.status in {"open", "active"}:
+            moments.append(
+                {
+                    "moment": "brainstorm_relation_path",
+                    "reason": "relation path brainstorming is open",
+                    "target_type": "exploratory_record",
+                    "target_id": record.record_id,
+                }
+            )
+        if record.exploration_type in {"source_asset", "backtrace_step"} and record.status in {"open", "active"}:
+            moments.append(
+                {
+                    "moment": "backtrace_source_reconstruction",
+                    "reason": "exploratory source/backtrace record is still open",
+                    "target_type": "exploratory_record",
+                    "target_id": record.record_id,
+                }
+            )
+        if record.original_question and record.local_question and record.status in {"open", "active"}:
+            moments.append(
+                {
+                    "moment": "audit_original_question_drift",
+                    "reason": "exploratory local question must stay tied to the original question",
+                    "target_type": "exploratory_record",
+                    "target_id": record.record_id,
                 }
             )
     return _dedupe_moments(moments)
