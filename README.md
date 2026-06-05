@@ -30,7 +30,7 @@ surfaces.
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
 | Legacy migration | Implemented generic migration plus curated v5 migration for priority legacy topics, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
-| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits |
+| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now has a WorkFrame-scoped typed bridge that can read `process_graph_slice`, compile it into context, and write exploratory records through AITP instead of duplicating the schema |
 | OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
 | Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
@@ -92,8 +92,11 @@ kernel capability:
    code repositories, git commits, and generated artifacts still need stronger
    typed source identities, content hashes, and version anchors.
 7. Wire exploratory records into host runtimes. Hakimi can consume process graph
-   slices, but automatic moment detection, AITP MCP writeback, and turn-loop
-   enforcement still need the next runtime integration slice.
+   slices through a WorkFrame-scoped typed bridge, compile them into context
+   packs before research-context injection, and write exploratory records back
+   through AITP. Richer moment policy, MCP-first execution, and strict
+   validation/checkpoint enforcement still need the next runtime integration
+   slice.
 8. Update downstream theory workspaces to the latest v5 kernel and regenerate
    topic-local runtime handoff files where needed.
 9. Revisit OpenCode after its host hook model is stable enough for the same
