@@ -277,11 +277,16 @@ these names as the stable bridge contract, not infer names from README prose:
 The graph slice returns `moment_policy.decisions` as the typed policy surface
 for hosts. Each decision carries whether it is `required_now`, which
 `required_before_trust_change` prerequisites apply, and which AITP
-`entrypoints` should be used. Hakimi compiles these decisions into ContextPack
-call obligations and now uses them in its final gate to downgrade trust-sensitive
-answers when required calls are neither passed nor explicitly blocked. Other
-hosts can consume the same read-only policy without adopting Hakimi's runtime
-internals.
+`entrypoints` should be used. Decisions also expose orientation-only
+`payload_hints`: host-agnostic draft fields for the typed record that should be
+written next, such as evidence, reference-location, exploratory, source-asset,
+or validation-result records. These hints are not canonical truth and cannot
+update claim trust; they keep hosts from inventing payload shapes while AITP
+remains the authority for the actual record. Hakimi compiles these decisions
+into ContextPack call obligations and now uses them in its final gate to
+downgrade trust-sensitive answers when required calls are neither passed nor
+explicitly blocked. Other hosts can consume the same read-only policy without
+adopting Hakimi's runtime internals.
 
 The downstream Hakimi real CLI smoke is opt-in so Hakimi unit tests do not
 depend on Python packages. To run it from the Hakimi checkout after installing

@@ -498,6 +498,7 @@ def _obligation_slice(record: ProofObligationRecord) -> dict[str, Any]:
     suggested_moments = _suggested_moments_for_obligation(record)
     return {
         "obligation_id": record.obligation_id,
+        "topic_id": record.topic_id,
         "claim_id": record.claim_id,
         "status": record.status,
         "obligation_type": record.obligation_type,
@@ -552,6 +553,7 @@ def _source_backtrace(
             missing.append("object_relation")
         result.append(
             {
+                "topic_id": claim.topic_id,
                 "claim_id": claim_id,
                 "statement": claim.statement,
                 "reference_location_ids": claim_refs,
@@ -575,6 +577,7 @@ def _relation_neighborhood(
     object_names = {record.object_id: record.name for record in objects}
     return [
         {
+            "topic_id": record.topic_id,
             "relation_id": record.relation_id,
             "claim_id": record.claim_id,
             "status": record.status,

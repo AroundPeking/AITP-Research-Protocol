@@ -58,13 +58,36 @@ def _validate_decision(payload: Any, path: str, result: ContractResult) -> None:
     for key in ("required_now", "trust_boundary", "summary_inputs_trusted", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):
         if not isinstance(payload.get(key), bool):
             result.add(f"{path}.{key}", "must be a boolean")
-    for key in ("missing_components", "record_entrypoints", "exploration_entrypoints", "entrypoints", "required_before_trust_change"):
+    for key in ("missing_components", "record_entrypoints", "exploration_entrypoints", "entrypoints", "payload_hints", "required_before_trust_change"):
         _require_list(payload.get(key), f"{path}.{key}", result)
+    if isinstance(payload.get("payload_hints"), list):
+        for index, hint in enumerate(payload["payload_hints"]):
+            _validate_payload_hint(hint, f"{path}.payload_hints[{index}]", result)
     if payload.get("summary_inputs_trusted") is not False:
         result.add(f"{path}.summary_inputs_trusted", "must be false")
     if payload.get("orientation_only") is not True:
         result.add(f"{path}.orientation_only", "must be true")
     if payload.get("can_update_kernel_state") is not False:
         result.add(f"{path}.can_update_kernel_state", "must be false")
+    if payload.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
+
+
+def _validate_payload_hint(payload: Any, path: str, result: ContractResult) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in ("entrypoint", "record_action", "target_type", "target_id", "action_kind"):
+        if not isinstance(payload.get(key), str) or not payload.get(key):
+            result.add(f"{path}.{key}", "must be a non-empty string")
+    _require_mapping(payload.get("draft"), f"{path}.draft", result)
+    _require_list(payload.get("required_fields"), f"{path}.required_fields", result)
+    for key in ("orientation_only", "summary_inputs_trusted", "can_update_claim_trust"):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    if payload.get("summary_inputs_trusted") is not False:
+        result.add(f"{path}.summary_inputs_trusted", "must be false")
+    if payload.get("orientation_only") is not True:
+        result.add(f"{path}.orientation_only", "must be true")
     if payload.get("can_update_claim_trust") is not False:
         result.add(f"{path}.can_update_claim_trust", "must be false")

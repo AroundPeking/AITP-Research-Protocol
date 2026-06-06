@@ -59,6 +59,9 @@ def _recording_decisions(open_obligations: list[dict[str, Any]]) -> list[dict[st
             reason="open proof obligation requires typed evidence or validation",
             target_type="proof_obligation",
             target_id=str(obligation["obligation_id"]),
+            topic_id=str(obligation.get("topic_id") or ""),
+            claim_id=str(obligation.get("claim_id") or ""),
+            target_record=obligation,
             record_entrypoints=["aitp_v5_record_evidence", "aitp_v5_record_validation_result"],
             required_before_trust_change=[
                 "record typed evidence or validation for the open obligation",
@@ -84,6 +87,9 @@ def _source_backtrace_decisions(source_backtrace: list[dict[str, Any]]) -> list[
                 reason="missing source reconstruction components",
                 target_type="claim",
                 target_id=str(item.get("claim_id") or ""),
+                topic_id=str(item.get("topic_id") or ""),
+                claim_id=str(item.get("claim_id") or ""),
+                target_record=item,
                 missing_components=missing,
                 record_entrypoints=[
                     "aitp_v5_record_exploratory_record",
@@ -115,6 +121,9 @@ def _relation_brainstorm_decisions(relations: list[dict[str, Any]]) -> list[dict
                 reason="object relation is still a hypothesis",
                 target_type="object_relation",
                 target_id=str(relation.get("relation_id") or ""),
+                topic_id=str(relation.get("topic_id") or ""),
+                claim_id=str(relation.get("claim_id") or ""),
+                target_record=relation,
                 exploration_entrypoints=["aitp_v5_record_exploratory_record"],
                 required_before_trust_change=[
                     "convert relation-path brainstorm into typed evidence or validation",
@@ -143,6 +152,10 @@ def _exploratory_decisions(records: list[dict[str, Any]]) -> list[dict[str, Any]
                     reason="open question decomposition should steer the next local analysis",
                     target_type="exploratory_record",
                     target_id=record_id,
+                    topic_id=str(record.get("topic_id") or ""),
+                    claim_id=str(record.get("claim_id") or ""),
+                    session_id=str(record.get("session_id") or ""),
+                    target_record=record,
                     exploration_entrypoints=["aitp_v5_record_exploratory_record"],
                 )
             )
@@ -156,6 +169,10 @@ def _exploratory_decisions(records: list[dict[str, Any]]) -> list[dict[str, Any]
                     reason="relation path brainstorming is open",
                     target_type="exploratory_record",
                     target_id=record_id,
+                    topic_id=str(record.get("topic_id") or ""),
+                    claim_id=str(record.get("claim_id") or ""),
+                    session_id=str(record.get("session_id") or ""),
+                    target_record=record,
                     exploration_entrypoints=["aitp_v5_record_exploratory_record"],
                 )
             )
@@ -169,6 +186,10 @@ def _exploratory_decisions(records: list[dict[str, Any]]) -> list[dict[str, Any]
                     reason="exploratory source/backtrace record is still open",
                     target_type="exploratory_record",
                     target_id=record_id,
+                    topic_id=str(record.get("topic_id") or ""),
+                    claim_id=str(record.get("claim_id") or ""),
+                    session_id=str(record.get("session_id") or ""),
+                    target_record=record,
                     exploration_entrypoints=["aitp_v5_record_exploratory_record"],
                 )
             )
@@ -182,6 +203,10 @@ def _exploratory_decisions(records: list[dict[str, Any]]) -> list[dict[str, Any]
                     reason="exploratory local question must stay tied to the original question",
                     target_type="exploratory_record",
                     target_id=record_id,
+                    topic_id=str(record.get("topic_id") or ""),
+                    claim_id=str(record.get("claim_id") or ""),
+                    session_id=str(record.get("session_id") or ""),
+                    target_record=record,
                     exploration_entrypoints=["aitp_v5_record_exploratory_record"],
                 )
             )
@@ -208,6 +233,7 @@ def _trust_boundary_decisions(source_backtrace: list[dict[str, Any]], decisions:
             reason="recording, brainstorming, or backtrace prerequisites exist before any claim-trust update",
             target_type="claim",
             target_id=claim_id,
+            claim_id=claim_id,
             required_before_trust_change=[
                 "resolve required recording/backtrace/brainstorm policy decisions",
                 "run aitp_v5_preflight_trust_update",
@@ -226,6 +252,10 @@ def _decision(
     reason: str,
     target_type: str,
     target_id: str,
+    topic_id: str = "",
+    claim_id: str = "",
+    session_id: str = "",
+    target_record: dict[str, Any] | None = None,
     record_entrypoints: list[str] | None = None,
     exploration_entrypoints: list[str] | None = None,
     required_before_trust_change: list[str] | None = None,
@@ -246,6 +276,17 @@ def _decision(
         "record_entrypoints": record_points,
         "exploration_entrypoints": exploration_points,
         "entrypoints": _entrypoints(record_points, exploration_points, trust_prerequisites),
+        "payload_hints": _payload_hints(
+            action_kind=action_kind,
+            target_type=target_type,
+            target_id=target_id,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            session_id=session_id,
+            target_record=target_record or {},
+            record_entrypoints=record_points,
+            exploration_entrypoints=exploration_points,
+        ),
         "required_before_trust_change": trust_prerequisites,
         "trust_boundary": bool(trust_prerequisites),
         "summary_inputs_trusted": False,
@@ -279,6 +320,206 @@ def _dedupe_decisions(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         seen.add(key)
         result.append(item)
+    return result
+
+
+def _payload_hints(
+    *,
+    action_kind: str,
+    target_type: str,
+    target_id: str,
+    topic_id: str,
+    claim_id: str,
+    session_id: str,
+    target_record: dict[str, Any],
+    record_entrypoints: list[str],
+    exploration_entrypoints: list[str],
+) -> list[dict[str, Any]]:
+    hints: list[dict[str, Any]] = []
+    for entrypoint in [*record_entrypoints, *exploration_entrypoints]:
+        hint = _payload_hint(
+            entrypoint=entrypoint,
+            action_kind=action_kind,
+            target_type=target_type,
+            target_id=target_id,
+            topic_id=topic_id,
+            claim_id=claim_id,
+            session_id=session_id,
+            target_record=target_record,
+        )
+        if hint is not None:
+            hints.append(hint)
+    return hints
+
+
+def _payload_hint(
+    *,
+    entrypoint: str,
+    action_kind: str,
+    target_type: str,
+    target_id: str,
+    topic_id: str,
+    claim_id: str,
+    session_id: str,
+    target_record: dict[str, Any],
+) -> dict[str, Any] | None:
+    base = {
+        "entrypoint": entrypoint,
+        "action_kind": action_kind,
+        "target_type": target_type,
+        "target_id": target_id,
+        "orientation_only": True,
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+    }
+    if entrypoint == "aitp_v5_record_evidence":
+        return {
+            **base,
+            "record_action": "record_evidence",
+            "required_fields": ["topic_id", "claim_id", "evidence_type", "status", "summary"],
+            "draft": _clean_mapping(
+                {
+                    "topic_id": topic_id,
+                    "claim_id": claim_id,
+                    "evidence_type": _evidence_type_for_target(target_type, action_kind),
+                    "status": "supports",
+                    "summary": _placeholder("source-grounded evidence summary"),
+                    "supports_outputs": _supports_outputs(target_record),
+                    "source_refs": _source_refs(target_record),
+                }
+            ),
+        }
+    if entrypoint == "aitp_v5_record_reference_location":
+        return {
+            **base,
+            "record_action": "record_reference_location",
+            "required_fields": ["topic_id", "connector_id", "location_type", "uri", "label"],
+            "draft": _clean_mapping(
+                {
+                    "topic_id": topic_id,
+                    "claim_id": claim_id,
+                    "connector_id": _placeholder("connector id"),
+                    "location_type": "paper_section",
+                    "uri": _placeholder("source URI"),
+                    "label": _placeholder("source label"),
+                    "status": "located",
+                    "summary": _placeholder("orientation-only source pointer summary"),
+                }
+            ),
+        }
+    if entrypoint == "aitp_v5_register_source_asset":
+        return {
+            **base,
+            "record_action": "register_source_asset",
+            "required_fields": ["topic_id", "asset_type", "uri", "title"],
+            "draft": _clean_mapping(
+                {
+                    "topic_id": topic_id,
+                    "claim_id": claim_id,
+                    "asset_type": "paper",
+                    "uri": _placeholder("source URI"),
+                    "title": _placeholder("source title"),
+                    "source_kind": "literature",
+                }
+            ),
+        }
+    if entrypoint == "aitp_v5_record_exploratory_record":
+        return {
+            **base,
+            "record_action": "record_exploratory_record",
+            "required_fields": ["topic_id", "exploration_type", "title", "focal_question", "summary"],
+            "draft": _clean_mapping(
+                {
+                    "topic_id": topic_id,
+                    "claim_id": claim_id,
+                    "session_id": session_id,
+                    "exploration_type": _exploration_type_for_action(action_kind),
+                    "title": _exploration_title(action_kind),
+                    "focal_question": _placeholder("local question to record"),
+                    "summary": _placeholder("orientation-only exploration summary"),
+                    "original_question": target_record.get("original_question", ""),
+                    "local_question": target_record.get("local_question", ""),
+                    "object_ids": list(target_record.get("object_ids") or []),
+                    "relation_ids": list(target_record.get("relation_ids") or []),
+                    "source_refs": _source_refs(target_record),
+                    "unresolved_points": list(target_record.get("unresolved_points") or []),
+                    "next_actions": list(target_record.get("next_actions") or []),
+                }
+            ),
+        }
+    if entrypoint == "aitp_v5_record_validation_result":
+        return {
+            **base,
+            "record_action": "record_validation_result",
+            "required_fields": ["topic_id", "claim_id", "contract_id", "tool_run_id", "status", "summary"],
+            "draft": _clean_mapping(
+                {
+                    "topic_id": topic_id,
+                    "claim_id": claim_id,
+                    "contract_id": _placeholder("validation contract id"),
+                    "tool_run_id": _placeholder("tool run id"),
+                    "status": "partial",
+                    "summary": _placeholder("validation result summary"),
+                    "checked_outputs": _supports_outputs(target_record),
+                }
+            ),
+        }
+    return None
+
+
+def _evidence_type_for_target(target_type: str, action_kind: str) -> str:
+    if target_type == "proof_obligation":
+        return "proof_obligation_resolution"
+    if "source" in action_kind or "backtrace" in action_kind:
+        return "source_reconstruction"
+    return "process_record"
+
+
+def _exploration_type_for_action(action_kind: str) -> str:
+    if "relation_path" in action_kind:
+        return "relation_path_brainstorm"
+    if "source" in action_kind or "backtrace" in action_kind:
+        return "backtrace_step"
+    if "original" in action_kind:
+        return "question_decomposition"
+    return "steering_checkpoint"
+
+
+def _exploration_title(action_kind: str) -> str:
+    if "relation_path" in action_kind:
+        return "Record relation-path brainstorm"
+    if "source" in action_kind or "backtrace" in action_kind:
+        return "Record source backtrace step"
+    if "original" in action_kind:
+        return "Record original-question drift check"
+    return "Record research steering checkpoint"
+
+
+def _supports_outputs(record: dict[str, Any]) -> list[str]:
+    for key in ("required_evidence", "missing_components"):
+        values = record.get(key)
+        if isinstance(values, list):
+            return [str(value) for value in values if str(value)]
+    return []
+
+
+def _source_refs(record: dict[str, Any]) -> list[str]:
+    values = record.get("source_refs")
+    if isinstance(values, list):
+        return [str(value) for value in values if str(value)]
+    return []
+
+
+def _placeholder(label: str) -> str:
+    return f"<{label}>"
+
+
+def _clean_mapping(value: dict[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, item in value.items():
+        if item == "" or item == [] or item == {}:
+            continue
+        result[key] = item
     return result
 
 

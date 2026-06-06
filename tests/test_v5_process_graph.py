@@ -255,12 +255,15 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     ) in edges
 
     assert payload["open_obligations"][0]["obligation_id"] == obligation.obligation_id
+    assert payload["open_obligations"][0]["topic_id"] == "fqhe"
     assert payload["open_obligations"][0]["severity"] == "blocking"
     assert payload["open_obligations"][0]["trust_boundary"] == "before_final_or_promotion"
     assert "aitp.create_open_obligation" in payload["open_obligations"][0]["suggested_moments"]
     assert payload["source_backtrace"][0]["complete"] is True
+    assert payload["source_backtrace"][0]["topic_id"] == "fqhe"
     assert payload["source_backtrace"][0]["source_asset_ids"] == [asset.asset_id]
     assert payload["relation_neighborhood"][0]["relation_id"] == relation.relation_id
+    assert payload["relation_neighborhood"][0]["topic_id"] == "fqhe"
     exploratory_ids = {item["record_id"] for item in payload["exploratory_records"]}
     assert exploratory.record_id in exploratory_ids
     assert backtrace.record_id in exploratory_ids
@@ -285,6 +288,16 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     assert "aitp_v5_record_validation_result" in recording_decision["entrypoints"]
     assert "aitp_v5_preflight_trust_update" in recording_decision["entrypoints"]
     assert recording_decision["trust_boundary"] == bool(recording_decision["required_before_trust_change"])
+    evidence_hint = _hint_by_entrypoint(recording_decision, "aitp_v5_record_evidence")
+    assert evidence_hint["record_action"] == "record_evidence"
+    assert evidence_hint["orientation_only"] is True
+    assert evidence_hint["summary_inputs_trusted"] is False
+    assert evidence_hint["can_update_claim_trust"] is False
+    assert evidence_hint["draft"]["topic_id"] == "fqhe"
+    assert evidence_hint["draft"]["claim_id"] == claim.claim_id
+    assert evidence_hint["draft"]["evidence_type"] == "proof_obligation_resolution"
+    assert "analytic derivation" in evidence_hint["draft"]["supports_outputs"]
+    assert "source-grounded evidence summary" in evidence_hint["draft"]["summary"]
     relation_decision = by_policy_moment["brainstorm_relation_path"]
     assert relation_decision["required_now"] is False
     assert relation_decision["exploration_entrypoints"] == ["aitp_v5_record_exploratory_record"]
@@ -292,6 +305,11 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
         "aitp_v5_record_exploratory_record",
         "aitp_v5_preflight_trust_update",
     ]
+    exploration_hint = _hint_by_entrypoint(relation_decision, "aitp_v5_record_exploratory_record")
+    assert exploration_hint["record_action"] == "record_exploratory_record"
+    assert exploration_hint["draft"]["topic_id"] == "fqhe"
+    assert exploration_hint["draft"]["claim_id"] == claim.claim_id
+    assert exploration_hint["draft"]["exploration_type"] == "relation_path_brainstorm"
     trust_decision = by_policy_moment["trust_boundary_before_claim_update"]
     assert trust_decision["required_now"] is True
     assert trust_decision["decision_type"] == "trust_boundary"
@@ -307,6 +325,38 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     assert by_moment["audit_original_question_drift"]["trust_boundary"] == "question_continuity"
 
 
+def test_process_graph_policy_payload_hints_for_missing_source_components(tmp_path):
+    from brain.v5.process_graph import build_process_graph_slice
+    from brain.v5.workspace import bind_session, create_claim, create_topic, init_workspace
+
+    ws = init_workspace(tmp_path)
+    create_topic(ws, "qg", context_id="theoretical-physics", title="QG algebra")
+    claim = create_claim(
+        ws,
+        topic_id="qg",
+        statement="A candidate algebraic split may model an observer role.",
+        evidence_profile="source_reconstruction",
+        confidence_state="hypothesis",
+        active_uncertainty="source chain unclear",
+    )
+    bind_session(ws, "s-missing", topic_id="qg", context_id="theoretical-physics", active_claim=claim.claim_id)
+
+    payload = build_process_graph_slice(ws, "s-missing", limit=20)
+    policy = payload["moment_policy"]
+    backtrace_decision = next(item for item in policy["decisions"] if item["decision_type"] == "backtrace")
+    reference_hint = _hint_by_entrypoint(backtrace_decision, "aitp_v5_record_reference_location")
+
+    assert backtrace_decision["required_now"] is True
+    assert reference_hint["record_action"] == "record_reference_location"
+    assert reference_hint["orientation_only"] is True
+    assert reference_hint["summary_inputs_trusted"] is False
+    assert reference_hint["can_update_claim_trust"] is False
+    assert reference_hint["draft"]["topic_id"] == "qg"
+    assert reference_hint["draft"]["claim_id"] == claim.claim_id
+    assert reference_hint["draft"]["location_type"] == "paper_section"
+    assert reference_hint["draft"]["uri"] == "<source URI>"
+
+
 def test_process_graph_slice_is_registered_for_native_mcp_and_runtime_entrypoints():
     from brain.v5.native_mcp import _TOOLS
     from brain.v5.runtime_entrypoints import runtime_entrypoints, validate_runtime_entrypoints
@@ -318,3 +368,10 @@ def test_process_graph_slice_is_registered_for_native_mcp_and_runtime_entrypoint
         "surface": "process_graph_slice",
     }
     assert validate_runtime_entrypoints() == []
+
+
+def _hint_by_entrypoint(decision: dict, entrypoint: str) -> dict:
+    for hint in decision["payload_hints"]:
+        if hint["entrypoint"] == entrypoint:
+            return hint
+    raise AssertionError(f"missing payload hint {entrypoint}")
