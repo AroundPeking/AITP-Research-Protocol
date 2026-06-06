@@ -276,6 +276,26 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     decision_types = {item["decision_type"] for item in policy["decisions"]}
     assert {"recording", "brainstorming", "backtrace", "trust_boundary"}.issubset(decision_types)
     assert any(item["moment"] == "trust_boundary_before_claim_update" for item in policy["decisions"])
+    by_policy_moment = {item["moment"]: item for item in policy["decisions"]}
+    recording_decision = by_policy_moment["record_or_validate_open_obligation"]
+    assert recording_decision["required_now"] is True
+    assert recording_decision["target_type"] == "proof_obligation"
+    assert recording_decision["target_id"] == obligation.obligation_id
+    assert "aitp_v5_record_evidence" in recording_decision["record_entrypoints"]
+    assert "aitp_v5_record_validation_result" in recording_decision["entrypoints"]
+    assert "aitp_v5_preflight_trust_update" in recording_decision["entrypoints"]
+    assert recording_decision["trust_boundary"] == bool(recording_decision["required_before_trust_change"])
+    relation_decision = by_policy_moment["brainstorm_relation_path"]
+    assert relation_decision["required_now"] is False
+    assert relation_decision["exploration_entrypoints"] == ["aitp_v5_record_exploratory_record"]
+    assert relation_decision["entrypoints"] == [
+        "aitp_v5_record_exploratory_record",
+        "aitp_v5_preflight_trust_update",
+    ]
+    trust_decision = by_policy_moment["trust_boundary_before_claim_update"]
+    assert trust_decision["required_now"] is True
+    assert trust_decision["decision_type"] == "trust_boundary"
+    assert trust_decision["entrypoints"] == ["aitp_v5_preflight_trust_update"]
     moments = {item["moment"] for item in payload["recommended_moments"]}
     assert "record_or_validate_open_obligation" in moments
     assert "brainstorm_relation_path" in moments

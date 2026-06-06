@@ -30,12 +30,12 @@ surfaces.
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
 | Legacy migration | Implemented generic migration plus curated v5 migration for priority legacy topics, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
-| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now auto-configures a WorkFrame-scoped typed session bridge that can read `process_graph_slice`, compile it into context, and expose model-facing AITP write-bridge execution for exploratory records, source assets, proof obligations, validation contracts/results, and human checkpoints instead of duplicating the schema |
+| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now auto-configures a WorkFrame-scoped typed session bridge that can read `process_graph_slice`, compile `moment_policy.decisions` into required call obligations, and expose model-facing AITP write-bridge execution for exploratory records, source assets, proof obligations, validation contracts/results, and human checkpoints instead of duplicating the schema |
 | OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
 | Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
 | Theory research state | Implemented minimal conservative surface: `research-state register-source`, `attach-artifact`, `update-claim-status`, `create-proof-obligation`, `classify-event`, and `bounded-evidence` connect literature/results/artifacts/Fisherd-style runs to typed records without claim-trust promotion |
-| Typed process graph | Implemented first read-only slice: `aitp-v5 graph slice <session-id>` and `aitp_v5_get_process_graph_slice` compile typed records into orientation-only nodes, edges, source backtrace, relation neighborhoods, open obligations, trust-boundary reasons, recommended research moments, and a host-agnostic moment policy for when to record, brainstorm/backtrace, or stop at a trust boundary |
+| Typed process graph | Implemented first read-only slice: `aitp-v5 graph slice <session-id>` and `aitp_v5_get_process_graph_slice` compile typed records into orientation-only nodes, edges, source backtrace, relation neighborhoods, open obligations, trust-boundary reasons, recommended research moments, and a host-agnostic `moment_policy.decisions` list with `required_now`, `required_before_trust_change`, split record/exploration entrypoints, and a host-facing `entrypoints` summary |
 | Exploratory research graph | Implemented first typed record: `aitp-v5 exploration record` and `aitp_v5_record_exploratory_record` capture source assets, question decomposition, relation-path brainstorming, backtrace steps, and steering checkpoints as orientation-only graph records |
 | Canonical source assets | Implemented first typed record: `aitp-v5 asset register` and `aitp_v5_register_source_asset` assign orientation-only identities, hashes, version anchors, and source/code/artifact links to papers, lectures, notes, code repositories, snapshots, datasets, and generated artifacts |
 | QSGW cockpit | Implemented first surface: `aitp-v5 status qsgw-cockpit` writes a topic-local final/diagnostic lane manifest, plot guard, and dashboard dry-run from typed records plus `research/librpa` report/script scans; it also discovers downstream `*_lane_manifest_current.json` and `*_aitp_intake_current.jsonl` files without treating them as trust updates |
@@ -60,6 +60,9 @@ The practical rule is:
 - Treat host-agnostic moment policy as read-only process guidance; it explains
   when typed records, brainstorming/backtrace, or trust preflight are needed,
   but it cannot update kernel state or claim trust.
+- Treat `moment_policy.decisions[].entrypoints` as the host-facing call surface
+  summary. Hakimi may compile it into blocking/current-turn call obligations,
+  but the policy remains derived from AITP typed records and contracts.
 - Treat exploratory records as canonical process records for navigation,
   brainstorming, and backtrace continuity, but not as evidence or validation.
 - Treat source asset records as canonical identities for raw papers, lectures,
@@ -113,16 +116,17 @@ kernel capability:
    original physics question.
 7. Harden the Hakimi runtime bridge against real topic stores. Hakimi sessions
    now auto-configure a dynamic AITP CLI bridge, consume process graph slices
-   through explicit WorkFrame scope, compile them into context packs before
-   research-context injection, and expose write-bridge hints and execution for
+   through explicit WorkFrame scope, compile `moment_policy.decisions` into
+   ContextPack call obligations before research-context injection, and expose
+   write-bridge hints and execution for
    exploratory records, proof obligations, human checkpoints, source assets,
    and validation records. Hakimi also has an opt-in real CLI smoke that creates
    a temporary AITP topic store, reads a real `process_graph_slice`, writes a
    proof obligation and checkpoint, and verifies the resulting `.aitp` records
    when `HAKIMI_AITP_REAL_CLI_SMOKE=1`, `AITP_V5_REPO`, and `AITP_V5_PYTHON`
    point at a working AITP Python environment. Richer MCP-first execution and
-   strict validation/checkpoint enforcement still need the next runtime
-   integration slice.
+   strict validation/checkpoint enforcement and richer evidence write-back
+   still need the next runtime integration slice.
 8. Update downstream theory workspaces to the latest v5 kernel and regenerate
    topic-local runtime handoff files where needed.
 9. Revisit OpenCode after its host hook model is stable enough for the same
@@ -245,6 +249,13 @@ register`, `checkpoint request`, `research-state create-proof-obligation`,
 `validation contract create`, and `validation result record`. If the
 `aitp-v5` console command is not installed in a local environment, use the
 equivalent module invocation shown below.
+
+The graph slice returns `moment_policy.decisions` as the typed policy surface
+for hosts. Each decision carries whether it is `required_now`, which
+`required_before_trust_change` prerequisites apply, and which AITP
+`entrypoints` should be used. Hakimi compiles these decisions into ContextPack
+call obligations; other hosts can consume the same read-only policy without
+adopting Hakimi's runtime internals.
 
 The downstream Hakimi real CLI smoke is opt-in so Hakimi unit tests do not
 depend on Python packages. To run it from the Hakimi checkout after installing

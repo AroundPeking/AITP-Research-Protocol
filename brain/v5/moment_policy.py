@@ -231,6 +231,9 @@ def _decision(
     required_before_trust_change: list[str] | None = None,
     missing_components: list[str] | None = None,
 ) -> dict[str, Any]:
+    record_points = record_entrypoints or []
+    exploration_points = exploration_entrypoints or []
+    trust_prerequisites = required_before_trust_change or []
     return {
         "moment": moment,
         "decision_type": decision_type,
@@ -240,10 +243,11 @@ def _decision(
         "target_type": target_type,
         "target_id": target_id,
         "missing_components": missing_components or [],
-        "record_entrypoints": record_entrypoints or [],
-        "exploration_entrypoints": exploration_entrypoints or [],
-        "required_before_trust_change": required_before_trust_change or [],
-        "trust_boundary": bool(required_before_trust_change),
+        "record_entrypoints": record_points,
+        "exploration_entrypoints": exploration_points,
+        "entrypoints": _entrypoints(record_points, exploration_points, trust_prerequisites),
+        "required_before_trust_change": trust_prerequisites,
+        "trust_boundary": bool(trust_prerequisites),
         "summary_inputs_trusted": False,
         "orientation_only": True,
         "can_update_kernel_state": False,
@@ -275,4 +279,18 @@ def _dedupe_decisions(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         seen.add(key)
         result.append(item)
+    return result
+
+
+def _entrypoints(
+    record_entrypoints: list[str],
+    exploration_entrypoints: list[str],
+    required_before_trust_change: list[str],
+) -> list[str]:
+    result: list[str] = []
+    for value in [*record_entrypoints, *exploration_entrypoints]:
+        if value and value not in result:
+            result.append(value)
+    if any("aitp_v5_preflight_trust_update" in value for value in required_before_trust_change):
+        result.append("aitp_v5_preflight_trust_update")
     return result

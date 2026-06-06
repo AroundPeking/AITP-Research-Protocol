@@ -58,7 +58,7 @@ def _validate_decision(payload: Any, path: str, result: ContractResult) -> None:
     for key in ("required_now", "trust_boundary", "summary_inputs_trusted", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):
         if not isinstance(payload.get(key), bool):
             result.add(f"{path}.{key}", "must be a boolean")
-    for key in ("missing_components", "record_entrypoints", "exploration_entrypoints", "required_before_trust_change"):
+    for key in ("missing_components", "record_entrypoints", "exploration_entrypoints", "entrypoints", "required_before_trust_change"):
         _require_list(payload.get(key), f"{path}.{key}", result)
     if payload.get("summary_inputs_trusted") is not False:
         result.add(f"{path}.summary_inputs_trusted", "must be false")
