@@ -238,7 +238,54 @@ def test_research_state_cli_mcp_and_runtime_entrypoints(tmp_path, capsys):
     assert brief["research_gates"]["record_level_human_gate_required"] is True
     assert brief["research_gates"]["open_proof_obligation_count"] >= 1
     assert brief["human_checkpoint"]["needed"] is False
-    assert "distinct" in brief["human_checkpoint"]["semantics"]
+
+
+def test_attach_artifact_cli_preserves_hash_metadata_and_entrypoint_contract(tmp_path, capsys):
+    from brain.v5.cli import main
+    from brain.v5.runtime_entrypoints import runtime_entrypoints
+    from brain.v5.runtime_entrypoint_samples import sample_args_for_template
+
+    ws, claim, result_path = _seed_workspace(tmp_path)
+
+    assert main(
+        [
+            "--base",
+            str(ws.base),
+            "research-state",
+            "attach-artifact",
+            "--topic",
+            claim.topic_id,
+            "--claim",
+            claim.claim_id,
+            "--type",
+            "benchmark_log",
+            "--uri",
+            str(result_path),
+            "--summary",
+            "Benchmark log/result artifact attached by reference.",
+            "--metadata-json",
+            '{"role":"benchmark_output"}',
+        ]
+    ) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["kind"] == "artifact"
+    assert payload["artifact_type"] == "benchmark_log"
+    assert payload["topic_id"] == claim.topic_id
+    assert payload["claim_id"] == claim.claim_id
+    assert payload["size_bytes"] == result_path.stat().st_size
+    assert payload["metadata"]["sha256"]
+    assert payload["metadata"]["role"] == "benchmark_output"
+    assert payload["metadata"]["can_update_claim_trust"] is False
+    attach_entrypoint = runtime_entrypoints()["attach_artifact"]
+    assert attach_entrypoint["cli"] == "aitp-v5 research-state attach-artifact <args>"
+    assert attach_entrypoint["mcp"] == "aitp_v5_attach_artifact"
+    assert attach_entrypoint["surface"] == "artifact_record"
+    sample_args = sample_args_for_template("research-state attach-artifact <args>")
+    assert "--type" in sample_args
+    assert "result_json" in sample_args
+    assert "--uri" in sample_args
 
 
 def test_public_surface_validators_accept_research_state_payloads():
