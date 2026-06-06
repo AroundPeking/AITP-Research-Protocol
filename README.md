@@ -70,6 +70,11 @@ The practical rule is:
   `source_dependency_questions`, and `original_question_guard` help hosts
   preserve nonlinear theoretical-physics thinking without promoting the
   exploration to evidence or claim trust.
+- Treat downstream prompt rendering of those theory-process handles as a host
+  projection. Hakimi now renders normalized theory reasoning into its WorkFrame
+  reminder and ContextPack XML so a model can actually see the local
+  brainstorm/backtrace constraints, but that rendering is not an AITP trust
+  update and does not create a second canonical store.
 - Treat `moment_policy.decisions[].entrypoints` as the host-facing call surface
   summary. Hakimi may compile it into blocking/current-turn call obligations,
   but the policy remains derived from AITP typed records and contracts.
@@ -302,6 +307,13 @@ into ContextPack call obligations and now uses them in its final gate to
 downgrade trust-sensitive answers when required calls are neither passed nor
 explicitly blocked. Other hosts can consume the same read-only policy without
 adopting Hakimi's runtime internals.
+
+Exploratory record reasoning fields are likewise host-facing process handles:
+Hakimi normalizes them into `params.theoryReasoning`, then renders them into the
+injected WorkFrame reminder and ContextPack XML `<theory_reasoning>` bindings.
+This makes relation-path, definition/derivation/source-backtrace, and
+original-question-continuity constraints visible at the local action boundary
+while keeping AITP typed records as the authority.
 
 The downstream Hakimi real CLI smoke is opt-in so Hakimi unit tests do not
 depend on Python packages. To run it from the Hakimi checkout after installing
