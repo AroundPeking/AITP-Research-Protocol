@@ -35,10 +35,10 @@ surfaces.
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
 | Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
 | Theory research state | Implemented minimal conservative surface: `research-state register-source`, `attach-artifact`, `update-claim-status`, `create-proof-obligation`, `classify-event`, and `bounded-evidence` connect literature/results/artifacts/Fisherd-style runs to typed records without claim-trust promotion. `attach-artifact` is the stable artifact pointer write surface for benchmark logs, validation outputs, patches, plots, JSON results, and generated files |
-| Typed process graph | Implemented first read-only slice: `aitp-v5 graph slice <session-id>` and `aitp_v5_get_process_graph_slice` compile typed records into orientation-only nodes, edges, source backtrace, relation neighborhoods, route state, provenance gaps, open obligations, trust-boundary reasons, recommended research moments, and a host-agnostic `moment_policy.decisions` list with `required_now`, `required_before_trust_change`, lifecycle trigger phases/conditions, split record/exploration entrypoints, and a host-facing `entrypoints` summary. The same policy is also exposed directly through `aitp-v5 graph moment-policy <session-id>` / `aitp_v5_get_host_agnostic_moment_policy` |
+| Typed process graph | Implemented first read-only slice: `aitp-v5 graph slice <session-id>` and `aitp_v5_get_process_graph_slice` compile typed records into orientation-only nodes, edges, source backtrace, `source_asset_index`, relation neighborhoods, route state, provenance gaps, open obligations, trust-boundary reasons, recommended research moments, and a host-agnostic `moment_policy.decisions` list with `required_now`, `required_before_trust_change`, lifecycle trigger phases/conditions, split record/exploration entrypoints, and a host-facing `entrypoints` summary. The same policy is also exposed directly through `aitp-v5 graph moment-policy <session-id>` / `aitp_v5_get_host_agnostic_moment_policy` |
 | Exploratory research graph | Implemented first typed record: `aitp-v5 exploration record` and `aitp_v5_record_exploratory_record` capture source assets, question decomposition, relation-path brainstorming, backtrace steps, and steering checkpoints as orientation-only graph records. Theory-facing fields now preserve why-question decomposition, relation-path questions, definition/derivation/source backtrace questions, backtrace targets, and original-question guards without updating claim trust |
 | Research route state | Implemented first typed record: `aitp-v5 route record` and `aitp_v5_record_research_route` capture live routes, abandoned/blocked routes, branches, failed-attempt lessons, pivots, checkpoint links, and next actions as orientation-only process graph records. Route state can steer agents and preserve nonlinear research continuity, but it is not evidence, validation, or claim-trust authority |
-| Canonical source assets | Implemented first typed record: `aitp-v5 asset register` and `aitp_v5_register_source_asset` assign orientation-only identities, hashes, version anchors, duplicate-hash diagnostics, and source/code/artifact links to papers, lectures, notes, code repositories, snapshots, datasets, and generated artifacts |
+| Canonical source assets | Implemented first typed record and projection: `aitp-v5 asset register` and `aitp_v5_register_source_asset` assign orientation-only identities, hashes, version anchors, duplicate-hash diagnostics, and source/code/artifact links to papers, lectures, notes, code repositories, snapshots, datasets, and generated artifacts; `process_graph_slice.source_asset_index[]` exposes that canonical source asset state to hosts without creating a second store |
 | Source/code provenance automation | Implemented first automation: `aitp-v5 code state auto` and `aitp_v5_capture_code_state_auto` capture git HEAD, branch/upstream, dirty status, diff hash, optional patch artifacts, and linked topic/claim/session refs without requiring a host to hand-fill code-state fields |
 | QSGW cockpit | Implemented first surface: `aitp-v5 status qsgw-cockpit` writes a topic-local final/diagnostic lane manifest, plot guard, and dashboard dry-run from typed records plus `research/librpa` report/script scans; it also discovers downstream `*_lane_manifest_current.json` and `*_aitp_intake_current.jsonl` files without treating them as trust updates |
 
@@ -96,6 +96,11 @@ The practical rule is:
 - Treat source asset records as canonical identities for raw papers, lectures,
   notes, code snapshots, datasets, and generated artifacts; they orient source
   backtrace and provenance, but they do not update claim trust by themselves.
+- Treat `process_graph_slice.source_asset_index[]` as the read-only source
+  asset projection for hosts. It carries asset ids, source kinds, URIs, hashes,
+  hash status, version anchors, reference locations, linked artifact/code
+  refs, duplicate diagnostics, and related provenance gap ids, but it remains
+  orientation-only and cannot update claim trust.
 - Treat `provenance_gaps[]` in process graph slices as orientation-only capture
   reminders. Missing source locations, source hashes, code state, tool runs, or
   benchmark artifacts should be fixed before reusing a ref as evidence,
@@ -147,11 +152,12 @@ kernel capability:
    proof obligations: attach result artifacts by reference, record tool-run
    provenance, write scoped evidence, append claim maturity/status, and keep
    publishable/trust changes behind validation and human gates.
-6. Harden the source-store contract beyond the first `SourceAssetRecord` and
-   code-state automation slices: the kernel now records duplicate-hash
-   diagnostics and can auto-capture git code state, but stronger local
-   PDF/lecture/code snapshot indexing and source-stack queries still need to
-   keep a backtrace focused on the original physics question.
+6. Harden the source-store contract beyond the first `SourceAssetRecord`,
+   `source_asset_index`, and code-state automation slices: the kernel now
+   records duplicate-hash diagnostics, projects source asset hash/version/ref
+   status into graph slices, and can auto-capture git code state, but stronger
+   local PDF/lecture/code snapshot indexing and source-stack queries still
+   need to keep a backtrace focused on the original physics question.
 7. Harden the Hakimi runtime bridge against real topic stores. Hakimi sessions
    now auto-configure a dynamic AITP CLI bridge, consume process graph slices
    through explicit WorkFrame scope, compile `moment_policy.decisions` into

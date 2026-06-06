@@ -273,10 +273,20 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     assert payload["source_backtrace"][0]["complete"] is True
     assert payload["source_backtrace"][0]["topic_id"] == "fqhe"
     assert payload["source_backtrace"][0]["source_asset_ids"] == [asset.asset_id]
+    assert payload["source_asset_index"][0]["asset_id"] == asset.asset_id
+    assert payload["source_asset_index"][0]["asset_type"] == "paper"
+    assert payload["source_asset_index"][0]["uri"] == "arxiv:2601.00001"
+    assert payload["source_asset_index"][0]["version_anchor"] == {"arxiv_version": "v1"}
+    assert payload["source_asset_index"][0]["reference_locations"][0]["reference_location_id"] == ref.location_id
+    assert payload["source_asset_index"][0]["hash_status"] == "missing"
+    assert payload["source_asset_index"][0]["orientation_only"] is True
+    assert payload["source_asset_index"][0]["can_update_claim_trust"] is False
     provenance_gap = next(item for item in payload["provenance_gaps"] if item["gap_type"] == "source_asset_hash_missing")
     assert provenance_gap["target_refs"] == [f"source_asset:{asset.asset_id}"]
     assert provenance_gap["recommended_entrypoints"] == ["aitp_v5_register_source_asset"]
     assert provenance_gap["required_before_trust_change"] is False
+    assert payload["source_asset_index"][0]["provenance_gap_ids"] == [provenance_gap["gap_id"]]
+    assert payload["source_asset_index"][0]["provenance_gap_types"] == ["source_asset_hash_missing"]
     assert payload["relation_neighborhood"][0]["relation_id"] == relation.relation_id
     assert payload["relation_neighborhood"][0]["topic_id"] == "fqhe"
     assert "relation-path brainstorming" in payload["relation_neighborhood"][0]["reasoning_moves"]

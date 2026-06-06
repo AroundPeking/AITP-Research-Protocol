@@ -173,6 +173,7 @@ def build_process_graph_slice(
         tool_runs=tool_runs,
         code_states=code_states,
     )
+    source_asset_index = _source_asset_index(source_assets, references, provenance_gaps)
     trust_boundary_reasons = [
         "process_graph_slice is orientation-only",
         "truth_source is typed_records",
@@ -206,6 +207,7 @@ def build_process_graph_slice(
         "edges": builder.edges,
         "open_obligations": open_obligations,
         "source_backtrace": source_backtrace,
+        "source_asset_index": source_asset_index,
         "relation_neighborhood": relation_neighborhood,
         "trust_boundary_reasons": trust_boundary_reasons,
         "exploratory_records": exploratory_slices,
@@ -226,6 +228,7 @@ def build_process_graph_slice(
             "object_relation": len(relations),
             "reference_location": len(references),
             "source_asset": len(source_assets),
+            "source_asset_index": len(source_asset_index),
             "evidence": len(evidence),
             "proof_obligation": len(obligations),
             "code_state": len(code_states),
@@ -982,6 +985,78 @@ def _source_backtrace(
                 "original_question_guard": _record_values(claim_backtrace_records, "original_question_guard"),
                 "missing_components": missing,
                 "complete": not missing,
+            }
+        )
+    return result
+
+
+def _source_asset_index(
+    source_assets: list[SourceAssetRecord],
+    references: list[ReferenceLocationRecord],
+    provenance_gaps: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    references_by_id = {record.location_id: record for record in references}
+    result: list[dict[str, Any]] = []
+    for record in source_assets:
+        duplicate = record.metadata.get("duplicate_hash_diagnostics", {})
+        if not isinstance(duplicate, dict):
+            duplicate = {}
+        target_ref = f"source_asset:{record.asset_id}"
+        asset_gaps = [
+            gap
+            for gap in provenance_gaps
+            if gap.get("target_type") == "source_asset"
+            and (
+                gap.get("target_id") == record.asset_id
+                or target_ref in list(gap.get("target_refs") or [])
+            )
+        ]
+        reference_items = [
+            {
+                "reference_location_id": reference.location_id,
+                "uri": reference.uri,
+                "label": reference.label,
+                "connector_id": reference.connector_id,
+                "location_type": reference.location_type,
+                "status": reference.status,
+            }
+            for reference_id in record.reference_location_ids
+            for reference in [references_by_id.get(reference_id)]
+            if reference is not None
+        ]
+        hash_status = "present" if record.content_hash else "missing"
+        if duplicate.get("duplicate_hash"):
+            hash_status = "duplicate"
+        result.append(
+            {
+                "asset_id": record.asset_id,
+                "topic_id": record.topic_id,
+                "claim_id": record.claim_id,
+                "asset_type": record.asset_type,
+                "uri": record.uri,
+                "title": record.title,
+                "label": record.label,
+                "summary": record.summary,
+                "source_kind": record.source_kind,
+                "content_hash": record.content_hash,
+                "hash_algorithm": record.hash_algorithm,
+                "hash_status": hash_status,
+                "version_anchor": dict(record.version_anchor),
+                "acquired_at": record.acquired_at,
+                "source_refs": list(record.source_refs),
+                "artifact_ids": list(record.artifact_ids),
+                "code_state_ids": list(record.code_state_ids),
+                "reference_location_ids": list(record.reference_location_ids),
+                "reference_locations": reference_items,
+                "derived_from": list(record.derived_from),
+                "linked_records": dict(record.linked_records),
+                "metadata": dict(record.metadata),
+                "duplicate_hash_diagnostics": dict(duplicate),
+                "provenance_gap_ids": [str(gap.get("gap_id") or gap.get("id") or "") for gap in asset_gaps if gap.get("gap_id") or gap.get("id")],
+                "provenance_gap_types": [str(gap.get("gap_type") or "") for gap in asset_gaps if gap.get("gap_type")],
+                "target_refs": [target_ref, record.uri, *record.source_refs],
+                "orientation_only": record.orientation_only,
+                "can_update_claim_trust": record.can_update_claim_trust,
             }
         )
     return result
