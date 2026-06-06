@@ -30,7 +30,7 @@ surfaces.
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
 | Legacy migration | Implemented generic migration plus curated v5 migration for priority legacy topics, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
-| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now has a WorkFrame-scoped typed bridge that can read `process_graph_slice`, compile it into context, expose model-facing AITP write-bridge execution for moment-derived exploratory records, proof obligations, and human checkpoints, and route source assets plus validation records through AITP instead of duplicating the schema |
+| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now has a WorkFrame-scoped typed bridge that can read `process_graph_slice`, compile it into context, and expose model-facing AITP write-bridge execution for exploratory records, source assets, proof obligations, validation contracts/results, and human checkpoints instead of duplicating the schema |
 | OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
 | Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
@@ -111,9 +111,8 @@ kernel capability:
    context packs before research-context injection, and expose write-bridge
    hints for exploratory records, proof obligations, human checkpoints, source
    assets, and validation records. Hakimi also has a model-facing execution
-   path for the first three moment-derived write operations. The current smoke
-   is still fake-runner based; richer MCP-first execution, real topic-store
-   integration, source-asset/validation write execution from the model surface,
+   path for those current AITP CLI write operations. The current smoke is still
+   fake-runner based; richer MCP-first execution, real topic-store integration,
    and strict validation/checkpoint enforcement still need the next runtime
    integration slice.
 8. Update downstream theory workspaces to the latest v5 kernel and regenerate
