@@ -30,7 +30,7 @@ surfaces.
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
 | Legacy migration | Implemented generic migration plus curated v5 migration for priority legacy topics, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
-| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now has a WorkFrame-scoped typed bridge that can read `process_graph_slice`, compile it into context, and write exploratory records through AITP instead of duplicating the schema |
+| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; Hakimi now has a WorkFrame-scoped typed bridge that can read `process_graph_slice`, compile it into context, and route exploratory records, proof obligations, human checkpoints, source assets, and validation records back through AITP instead of duplicating the schema |
 | OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
 | Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
@@ -65,6 +65,10 @@ The practical rule is:
 - Treat source asset records as canonical identities for raw papers, lectures,
   notes, code snapshots, datasets, and generated artifacts; they orient source
   backtrace and provenance, but they do not update claim trust by themselves.
+- Treat Hakimi bridge smoke tests as downstream contract checks: they show that
+  an AITP-shaped slice, moment policy, and write CLI contract can be consumed by
+  Hakimi without making Hakimi a second source of truth. They are not a
+  substitute for running the real AITP CLI/MCP against a topic store.
 - Treat generated summaries, replay packets, README text, adapter packets, and
   Obsidian views as orientation surfaces.
 - Do not call the whole migration complete until the legacy semantic review
@@ -98,10 +102,12 @@ kernel capability:
    add ingestion/de-duplication policy, stronger local PDF/lecture/code snapshot
    indexing, and source-stack queries that can keep a backtrace focused on the
    original physics question.
-7. Wire exploratory records into host runtimes. Hakimi can consume process graph
-   slices through a WorkFrame-scoped typed bridge, compile them into context
-   packs before research-context injection, and write exploratory records back
-   through AITP. Richer moment policy, MCP-first execution, and strict
+7. Wire the full AITP bridge into host runtimes. Hakimi can consume process
+   graph slices through a WorkFrame-scoped typed bridge, compile them into
+   context packs before research-context injection, and expose write-bridge
+   hints for exploratory records, proof obligations, human checkpoints, source
+   assets, and validation records. The current Hakimi smoke is fake-runner
+   based; richer MCP-first execution, real topic-store integration, and strict
    validation/checkpoint enforcement still need the next runtime integration
    slice.
 8. Update downstream theory workspaces to the latest v5 kernel and regenerate
