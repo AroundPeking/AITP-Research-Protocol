@@ -8,6 +8,7 @@ from brain.v5.contracts import ContractError, ContractResult, _require_bool_valu
 
 
 _DECISION_TYPES = {"recording", "brainstorming", "backtrace", "trust_boundary"}
+_LIFECYCLE_PHASES = {"pre_turn", "pre_action", "pre_final"}
 
 
 def validate_host_agnostic_moment_policy(
@@ -58,8 +59,24 @@ def _validate_decision(payload: Any, path: str, result: ContractResult) -> None:
     for key in ("required_now", "trust_boundary", "summary_inputs_trusted", "orientation_only", "can_update_kernel_state", "can_update_claim_trust"):
         if not isinstance(payload.get(key), bool):
             result.add(f"{path}.{key}", "must be a boolean")
-    for key in ("missing_components", "record_entrypoints", "exploration_entrypoints", "entrypoints", "payload_hints", "required_before_trust_change"):
+    for key in (
+        "missing_components",
+        "record_entrypoints",
+        "exploration_entrypoints",
+        "entrypoints",
+        "lifecycle_phases",
+        "trigger_conditions",
+        "payload_hints",
+        "required_before_trust_change",
+        "recommended_host_behavior",
+    ):
         _require_list(payload.get(key), f"{path}.{key}", result)
+    _validate_lifecycle_phases(payload.get("lifecycle_phases"), f"{path}.lifecycle_phases", result)
+    _validate_string_list(payload.get("trigger_conditions"), f"{path}.trigger_conditions", result)
+    _validate_string_list(payload.get("recommended_host_behavior"), f"{path}.recommended_host_behavior", result)
+    if not isinstance(payload.get("recording_threshold"), str) or not payload.get("recording_threshold"):
+        result.add(f"{path}.recording_threshold", "must be a non-empty string")
+    _validate_trust_boundary_inputs(payload.get("trust_boundary_inputs"), payload, f"{path}.trust_boundary_inputs", result)
     if isinstance(payload.get("payload_hints"), list):
         for index, hint in enumerate(payload["payload_hints"]):
             _validate_payload_hint(hint, f"{path}.payload_hints[{index}]", result)
@@ -71,6 +88,66 @@ def _validate_decision(payload: Any, path: str, result: ContractResult) -> None:
         result.add(f"{path}.can_update_kernel_state", "must be false")
     if payload.get("can_update_claim_trust") is not False:
         result.add(f"{path}.can_update_claim_trust", "must be false")
+
+
+def _validate_lifecycle_phases(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, list):
+        return
+    if not payload:
+        result.add(path, "must not be empty")
+        return
+    for index, value in enumerate(payload):
+        if value not in _LIFECYCLE_PHASES:
+            result.add(f"{path}[{index}]", f"must be one of {sorted(_LIFECYCLE_PHASES)}")
+
+
+def _validate_string_list(payload: Any, path: str, result: ContractResult) -> None:
+    if not isinstance(payload, list):
+        return
+    if not payload:
+        result.add(path, "must not be empty")
+        return
+    for index, value in enumerate(payload):
+        if not isinstance(value, str) or not value:
+            result.add(f"{path}[{index}]", "must be a non-empty string")
+
+
+def _validate_trust_boundary_inputs(
+    payload: Any,
+    decision: dict[str, Any],
+    path: str,
+    result: ContractResult,
+) -> None:
+    _require_mapping(payload, path, result)
+    if not isinstance(payload, dict):
+        return
+    for key in ("target_refs", "entrypoints", "required_before_trust_change"):
+        _require_list(payload.get(key), f"{path}.{key}", result)
+    for key in ("requires_preflight", "final_gate_required"):
+        if not isinstance(payload.get(key), bool):
+            result.add(f"{path}.{key}", "must be a boolean")
+    if not isinstance(payload.get("claim_id"), str):
+        result.add(f"{path}.claim_id", "must be a string")
+    target_ref = f"{decision.get('target_type')}:{decision.get('target_id')}"
+    if isinstance(payload.get("target_refs"), list) and target_ref not in payload["target_refs"]:
+        result.add(f"{path}.target_refs", f"must include {target_ref!r}")
+    if isinstance(payload.get("entrypoints"), list) and isinstance(decision.get("entrypoints"), list):
+        if payload["entrypoints"] != decision["entrypoints"]:
+            result.add(f"{path}.entrypoints", "must match decision.entrypoints")
+    if isinstance(payload.get("required_before_trust_change"), list) and isinstance(
+        decision.get("required_before_trust_change"),
+        list,
+    ):
+        if payload["required_before_trust_change"] != decision["required_before_trust_change"]:
+            result.add(f"{path}.required_before_trust_change", "must match decision.required_before_trust_change")
+    if isinstance(decision.get("entrypoints"), list):
+        expected_preflight = "aitp_v5_preflight_trust_update" in decision["entrypoints"]
+        if payload.get("requires_preflight") is not expected_preflight:
+            result.add(f"{path}.requires_preflight", f"must be {expected_preflight}")
+    if isinstance(decision.get("trust_boundary"), bool):
+        expected_final_gate = decision["trust_boundary"] or decision.get("decision_type") == "trust_boundary"
+        if payload.get("final_gate_required") is not expected_final_gate:
+            result.add(f"{path}.final_gate_required", f"must be {expected_final_gate}")
 
 
 def _validate_payload_hint(payload: Any, path: str, result: ContractResult) -> None:

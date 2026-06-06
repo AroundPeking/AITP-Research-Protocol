@@ -264,6 +264,18 @@ def _decision(
     record_points = record_entrypoints or []
     exploration_points = exploration_entrypoints or []
     trust_prerequisites = required_before_trust_change or []
+    entrypoints = _entrypoints(record_points, exploration_points, trust_prerequisites)
+    lifecycle_contract = _lifecycle_contract(
+        decision_type=decision_type,
+        action_kind=action_kind,
+        required_now=required_now,
+        reason=reason,
+        target_type=target_type,
+        target_id=target_id,
+        claim_id=claim_id,
+        entrypoints=entrypoints,
+        required_before_trust_change=trust_prerequisites,
+    )
     return {
         "moment": moment,
         "decision_type": decision_type,
@@ -275,7 +287,8 @@ def _decision(
         "missing_components": missing_components or [],
         "record_entrypoints": record_points,
         "exploration_entrypoints": exploration_points,
-        "entrypoints": _entrypoints(record_points, exploration_points, trust_prerequisites),
+        "entrypoints": entrypoints,
+        **lifecycle_contract,
         "payload_hints": _payload_hints(
             action_kind=action_kind,
             target_type=target_type,
@@ -294,6 +307,165 @@ def _decision(
         "can_update_kernel_state": False,
         "can_update_claim_trust": False,
     }
+
+
+def _lifecycle_contract(
+    *,
+    decision_type: str,
+    action_kind: str,
+    required_now: bool,
+    reason: str,
+    target_type: str,
+    target_id: str,
+    claim_id: str,
+    entrypoints: list[str],
+    required_before_trust_change: list[str],
+) -> dict[str, Any]:
+    return {
+        "lifecycle_phases": _lifecycle_phases(
+            decision_type=decision_type,
+            action_kind=action_kind,
+            required_now=required_now,
+            required_before_trust_change=required_before_trust_change,
+        ),
+        "trigger_conditions": _trigger_conditions(
+            decision_type=decision_type,
+            action_kind=action_kind,
+            required_now=required_now,
+            reason=reason,
+            required_before_trust_change=required_before_trust_change,
+        ),
+        "recording_threshold": _recording_threshold(
+            decision_type=decision_type,
+            required_now=required_now,
+            action_kind=action_kind,
+        ),
+        "trust_boundary_inputs": {
+            "target_refs": [f"{target_type}:{target_id}"],
+            "claim_id": claim_id or (target_id if target_type == "claim" else ""),
+            "entrypoints": list(entrypoints),
+            "required_before_trust_change": list(required_before_trust_change),
+            "requires_preflight": "aitp_v5_preflight_trust_update" in entrypoints,
+            "final_gate_required": decision_type == "trust_boundary" or bool(required_before_trust_change),
+        },
+        "recommended_host_behavior": _recommended_host_behavior(
+            decision_type=decision_type,
+            required_now=required_now,
+            entrypoints=entrypoints,
+            required_before_trust_change=required_before_trust_change,
+        ),
+    }
+
+
+def _lifecycle_phases(
+    *,
+    decision_type: str,
+    action_kind: str,
+    required_now: bool,
+    required_before_trust_change: list[str],
+) -> list[str]:
+    if decision_type == "trust_boundary":
+        return ["pre_action", "pre_final"]
+    if required_now or required_before_trust_change:
+        return ["pre_turn", "pre_action", "pre_final"]
+    if decision_type == "backtrace":
+        return ["pre_turn", "pre_action"]
+    if decision_type == "brainstorming" and "original" in action_kind:
+        return ["pre_turn", "pre_action", "pre_final"]
+    if decision_type == "brainstorming":
+        return ["pre_turn", "pre_action"]
+    return ["pre_turn"]
+
+
+def _trigger_conditions(
+    *,
+    decision_type: str,
+    action_kind: str,
+    required_now: bool,
+    reason: str,
+    required_before_trust_change: list[str],
+) -> list[str]:
+    conditions = [reason]
+    if required_now:
+        conditions.append("at pre_turn because required_now is true")
+    else:
+        conditions.append("when the host action depends on this target")
+    if decision_type == "recording":
+        conditions.extend(
+            [
+                "when an open obligation needs typed evidence or validation",
+                "before final synthesis, promotion, or trust update that relies on the target claim",
+            ]
+        )
+    if decision_type == "backtrace":
+        conditions.extend(
+            [
+                "when source backtrace reports missing or open reconstruction components",
+                "before using the target claim or source chain as support",
+            ]
+        )
+    if decision_type == "brainstorming":
+        conditions.extend(
+            [
+                "when a relation or exploratory path is still hypothetical or open",
+                "before using the brainstormed path as claim support or validation basis",
+            ]
+        )
+        if "original" in action_kind:
+            conditions.append("before final synthesis if the local question may have drifted")
+    if decision_type == "trust_boundary":
+        conditions.extend(
+            [
+                "before any claim-trust update",
+                "before trust-sensitive final output for the target claim",
+            ]
+        )
+    if required_before_trust_change:
+        conditions.append("before claim-trust changes until required_before_trust_change is satisfied")
+    return _dedupe_strings(conditions)
+
+
+def _recording_threshold(*, decision_type: str, required_now: bool, action_kind: str) -> str:
+    if decision_type == "trust_boundary":
+        return "blocking_before_claim_trust_update"
+    if decision_type == "recording" and required_now:
+        return "blocking_before_final_or_promotion"
+    if decision_type == "backtrace" and required_now:
+        return "required_before_source_dependent_support"
+    if decision_type == "backtrace":
+        return "recommended_before_following_source_chain"
+    if decision_type == "brainstorming" and "original" in action_kind:
+        return "recommended_before_next_local_step_or_final_synthesis"
+    if decision_type == "brainstorming":
+        return "recommended_before_using_hypothesis_or_exploration"
+    return "recommended_when_target_becomes_action_relevant"
+
+
+def _recommended_host_behavior(
+    *,
+    decision_type: str,
+    required_now: bool,
+    entrypoints: list[str],
+    required_before_trust_change: list[str],
+) -> list[str]:
+    behavior = [
+        "treat this lifecycle policy as orientation-only and verify writes against typed kernel records",
+    ]
+    if entrypoints:
+        behavior.append("surface the declared entrypoints and payload_hints at the listed lifecycle phases")
+    if required_now:
+        behavior.append("treat the decision as a current-turn obligation unless an explicit blocker is recorded")
+    if decision_type == "recording":
+        behavior.append("call the record entrypoint before final or promotional use of the target claim")
+    if decision_type == "backtrace":
+        behavior.append("call the backtrace or source-record entrypoint before source-dependent actions")
+    if decision_type == "brainstorming":
+        behavior.append("call the brainstorming entrypoint before using the path as evidence or validation input")
+    if decision_type == "trust_boundary":
+        behavior.append("at pre_final, require passed calls or explicit blockers before trust-sensitive final output")
+    if required_before_trust_change:
+        behavior.append("run aitp_v5_preflight_trust_update before any claim-trust mutation")
+    return _dedupe_strings(behavior)
 
 
 def _moment_summary(decision: dict[str, Any]) -> dict[str, Any]:
@@ -320,6 +492,15 @@ def _dedupe_decisions(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         seen.add(key)
         result.append(item)
+    return result
+
+
+def _dedupe_strings(items: list[str]) -> list[str]:
+    result: list[str] = []
+    for item in items:
+        value = str(item)
+        if value and value not in result:
+            result.append(value)
     return result
 
 

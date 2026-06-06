@@ -298,7 +298,21 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     assert evidence_hint["draft"]["evidence_type"] == "proof_obligation_resolution"
     assert "analytic derivation" in evidence_hint["draft"]["supports_outputs"]
     assert "source-grounded evidence summary" in evidence_hint["draft"]["summary"]
-    relation_decision = by_policy_moment["brainstorm_relation_path"]
+    assert recording_decision["lifecycle_phases"] == ["pre_turn", "pre_action", "pre_final"]
+    assert recording_decision["recording_threshold"] == "blocking_before_final_or_promotion"
+    assert "at pre_turn because required_now is true" in recording_decision["trigger_conditions"]
+    assert recording_decision["trust_boundary_inputs"]["target_refs"] == [
+        f"proof_obligation:{obligation.obligation_id}"
+    ]
+    assert recording_decision["trust_boundary_inputs"]["entrypoints"] == recording_decision["entrypoints"]
+    assert recording_decision["trust_boundary_inputs"]["requires_preflight"] is True
+    assert recording_decision["trust_boundary_inputs"]["final_gate_required"] is True
+    assert any("current-turn obligation" in item for item in recording_decision["recommended_host_behavior"])
+    relation_decision = next(
+        item
+        for item in policy["decisions"]
+        if item["decision_type"] == "brainstorming" and item["target_type"] == "object_relation"
+    )
     assert relation_decision["required_now"] is False
     assert relation_decision["exploration_entrypoints"] == ["aitp_v5_record_exploratory_record"]
     assert relation_decision["entrypoints"] == [
@@ -310,10 +324,39 @@ def test_process_graph_slice_reads_typed_records_and_exposes_edges(tmp_path):
     assert exploration_hint["draft"]["topic_id"] == "fqhe"
     assert exploration_hint["draft"]["claim_id"] == claim.claim_id
     assert exploration_hint["draft"]["exploration_type"] == "relation_path_brainstorm"
+    assert relation_decision["lifecycle_phases"] == ["pre_turn", "pre_action", "pre_final"]
+    assert relation_decision["recording_threshold"] == "recommended_before_using_hypothesis_or_exploration"
+    assert "before using the brainstormed path as claim support or validation basis" in relation_decision[
+        "trigger_conditions"
+    ]
+    assert relation_decision["trust_boundary_inputs"]["target_refs"] == [f"object_relation:{relation.relation_id}"]
+    assert relation_decision["trust_boundary_inputs"]["requires_preflight"] is True
+    assert relation_decision["trust_boundary_inputs"]["final_gate_required"] is True
+    backtrace_decision = next(
+        item
+        for item in policy["decisions"]
+        if item["decision_type"] == "backtrace" and item["target_id"] == backtrace.record_id
+    )
+    assert backtrace_decision["lifecycle_phases"] == ["pre_turn", "pre_action"]
+    assert backtrace_decision["recording_threshold"] == "recommended_before_following_source_chain"
+    assert "when source backtrace reports missing or open reconstruction components" in backtrace_decision[
+        "trigger_conditions"
+    ]
+    assert backtrace_decision["trust_boundary_inputs"]["target_refs"] == [
+        f"exploratory_record:{backtrace.record_id}"
+    ]
+    assert backtrace_decision["trust_boundary_inputs"]["requires_preflight"] is False
     trust_decision = by_policy_moment["trust_boundary_before_claim_update"]
     assert trust_decision["required_now"] is True
     assert trust_decision["decision_type"] == "trust_boundary"
     assert trust_decision["entrypoints"] == ["aitp_v5_preflight_trust_update"]
+    assert trust_decision["lifecycle_phases"] == ["pre_action", "pre_final"]
+    assert trust_decision["recording_threshold"] == "blocking_before_claim_trust_update"
+    assert "before any claim-trust update" in trust_decision["trigger_conditions"]
+    assert trust_decision["trust_boundary_inputs"]["target_refs"] == [f"claim:{claim.claim_id}"]
+    assert trust_decision["trust_boundary_inputs"]["requires_preflight"] is True
+    assert trust_decision["trust_boundary_inputs"]["final_gate_required"] is True
+    assert any("pre_final" in item for item in trust_decision["recommended_host_behavior"])
     moments = {item["moment"] for item in payload["recommended_moments"]}
     assert "record_or_validate_open_obligation" in moments
     assert "brainstorm_relation_path" in moments
@@ -347,6 +390,12 @@ def test_process_graph_policy_payload_hints_for_missing_source_components(tmp_pa
     reference_hint = _hint_by_entrypoint(backtrace_decision, "aitp_v5_record_reference_location")
 
     assert backtrace_decision["required_now"] is True
+    assert backtrace_decision["lifecycle_phases"] == ["pre_turn", "pre_action", "pre_final"]
+    assert backtrace_decision["recording_threshold"] == "required_before_source_dependent_support"
+    assert "before using the target claim or source chain as support" in backtrace_decision["trigger_conditions"]
+    assert backtrace_decision["trust_boundary_inputs"]["target_refs"] == [f"claim:{claim.claim_id}"]
+    assert backtrace_decision["trust_boundary_inputs"]["requires_preflight"] is True
+    assert backtrace_decision["trust_boundary_inputs"]["final_gate_required"] is True
     assert reference_hint["record_action"] == "record_reference_location"
     assert reference_hint["orientation_only"] is True
     assert reference_hint["summary_inputs_trusted"] is False
