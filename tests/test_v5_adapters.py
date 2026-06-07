@@ -2961,6 +2961,15 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
     assert by_operation["recordEvidence"]["preferred_transport"] == "mcp"
     assert by_operation["recordEvidence"]["mcp_tool"] == "aitp_v5_record_evidence"
     assert by_operation["recordEvidence"]["cli_fallback"] == "aitp-v5 evidence record <args>"
+    assert by_operation["recordEvidence"]["mcp_invocation"] == {
+        "tool": "aitp_v5_record_evidence",
+        "argument_style": "json_object",
+        "base_argument": "base",
+        "payload_key_case": "snake_case",
+        "result_surface": "evidence_record",
+        "result_content_type": "json_object",
+        "fallback_policy": "use_cli_when_mcp_transport_unavailable_or_call_fails",
+    }
     assert by_operation["preflightTrustUpdate"]["claim_trust_mutation"] == "none"
     assert "trustApply" not in by_operation
 

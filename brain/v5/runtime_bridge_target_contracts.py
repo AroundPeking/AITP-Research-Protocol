@@ -27,6 +27,19 @@ def validate_runtime_bridge_target_manifest(
         result.add(f"{path}.preferred_transport", "must be 'mcp'")
     if payload.get("fallback_transport") != "cli":
         result.add(f"{path}.fallback_transport", "must be 'cli'")
+    if payload.get("mcp_argument_style") != "json_object":
+        result.add(f"{path}.mcp_argument_style", "must be 'json_object'")
+    if payload.get("mcp_base_argument") != "base":
+        result.add(f"{path}.mcp_base_argument", "must be 'base'")
+    if payload.get("mcp_payload_key_case") != "snake_case":
+        result.add(f"{path}.mcp_payload_key_case", "must be 'snake_case'")
+    if payload.get("mcp_result_content_type") != "json_object":
+        result.add(f"{path}.mcp_result_content_type", "must be 'json_object'")
+    if payload.get("fallback_policy") != "use_cli_when_mcp_transport_unavailable_or_call_fails":
+        result.add(
+            f"{path}.fallback_policy",
+            "must use CLI when MCP transport is unavailable or call fails",
+        )
     if payload.get("truth_source") != "runtime_entrypoint_catalog":
         result.add(f"{path}.truth_source", "must be 'runtime_entrypoint_catalog'")
     if payload.get("summary_inputs_trusted") is not False:
@@ -90,6 +103,32 @@ def _validate_targets(targets: list[Any], path: str, result: ContractResult) -> 
             result.add(f"{item_path}.preferred_transport", "must be 'mcp'")
         if target.get("fallback_transport") != "cli":
             result.add(f"{item_path}.fallback_transport", "must be 'cli'")
+        invocation = target.get("mcp_invocation")
+        _require_mapping(invocation, f"{item_path}.mcp_invocation", result)
+        if isinstance(invocation, dict):
+            if invocation.get("tool") != entrypoint["mcp"]:
+                result.add(f"{item_path}.mcp_invocation.tool", "must match MCP tool")
+            if invocation.get("argument_style") != "json_object":
+                result.add(f"{item_path}.mcp_invocation.argument_style", "must be 'json_object'")
+            if invocation.get("base_argument") != "base":
+                result.add(f"{item_path}.mcp_invocation.base_argument", "must be 'base'")
+            if invocation.get("payload_key_case") != "snake_case":
+                result.add(f"{item_path}.mcp_invocation.payload_key_case", "must be 'snake_case'")
+            if invocation.get("result_surface") != entrypoint["surface"]:
+                result.add(f"{item_path}.mcp_invocation.result_surface", "must match surface")
+            if invocation.get("result_content_type") != "json_object":
+                result.add(
+                    f"{item_path}.mcp_invocation.result_content_type",
+                    "must be 'json_object'",
+                )
+            if (
+                invocation.get("fallback_policy")
+                != "use_cli_when_mcp_transport_unavailable_or_call_fails"
+            ):
+                result.add(
+                    f"{item_path}.mcp_invocation.fallback_policy",
+                    "must use CLI when MCP transport is unavailable or call fails",
+                )
         if target.get("claim_trust_mutation") != "none":
             result.add(f"{item_path}.claim_trust_mutation", "must be 'none'")
         if target.get("can_update_claim_trust") is not False:

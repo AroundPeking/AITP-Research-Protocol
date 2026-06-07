@@ -281,6 +281,15 @@ def test_hakimi_runtime_bridge_entrypoint_contract_is_stable():
         "surface": "process_graph_slice",
         "preferred_transport": "mcp",
         "fallback_transport": "cli",
+        "mcp_invocation": {
+            "tool": "aitp_v5_get_process_graph_slice",
+            "argument_style": "json_object",
+            "base_argument": "base",
+            "payload_key_case": "snake_case",
+            "result_surface": "process_graph_slice",
+            "result_content_type": "json_object",
+            "fallback_policy": "use_cli_when_mcp_transport_unavailable_or_call_fails",
+        },
         "execution_role": "read",
         "state_effect": "read_only",
         "canonical_store": ".aitp",
@@ -290,6 +299,15 @@ def test_hakimi_runtime_bridge_entrypoint_contract_is_stable():
     }
     assert by_operation["recordEvidence"]["mcp_tool"] == "aitp_v5_record_evidence"
     assert by_operation["recordEvidence"]["cli_fallback"] == "aitp-v5 evidence record <args>"
+    assert by_operation["recordEvidence"]["mcp_invocation"] == {
+        "tool": "aitp_v5_record_evidence",
+        "argument_style": "json_object",
+        "base_argument": "base",
+        "payload_key_case": "snake_case",
+        "result_surface": "evidence_record",
+        "result_content_type": "json_object",
+        "fallback_policy": "use_cli_when_mcp_transport_unavailable_or_call_fails",
+    }
     assert by_operation["captureToolRunAuto"]["mcp_tool"] == "aitp_v5_capture_tool_run_auto"
     assert by_operation["captureToolRunAuto"]["cli_fallback"] == "aitp-v5 tool run capture-auto <args>"
     assert by_operation["captureToolRunAuto"]["surface"] == "tool_run_record"
@@ -303,6 +321,11 @@ def test_hakimi_runtime_bridge_entrypoint_contract_is_stable():
     assert manifest["excluded_entrypoints"]["trust_apply"].startswith("claim trust mutation")
     assert manifest["preferred_transport"] == "mcp"
     assert manifest["fallback_transport"] == "cli"
+    assert manifest["mcp_argument_style"] == "json_object"
+    assert manifest["mcp_base_argument"] == "base"
+    assert manifest["mcp_payload_key_case"] == "snake_case"
+    assert manifest["mcp_result_content_type"] == "json_object"
+    assert manifest["fallback_policy"] == "use_cli_when_mcp_transport_unavailable_or_call_fails"
     assert manifest["can_update_claim_trust"] is False
 
 

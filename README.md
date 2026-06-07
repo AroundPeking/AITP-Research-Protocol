@@ -91,9 +91,11 @@ The practical rule is:
   but the policy remains derived from AITP typed records and contracts.
 - Treat `runtime_bridge_target_manifest` as the canonical host target table for
   AITP reads, writes, and preflight. It names the preferred MCP tool, CLI
-  fallback template, public surface, and state effect for each host operation;
-  it excludes `trust_apply`, remains orientation-only, and cannot update claim
-  trust.
+  fallback template, public surface, state effect, and MCP invocation contract
+  for each host operation: JSON-object args, `base` as the workspace argument,
+  snake_case payload keys, JSON-object result payloads, and CLI fallback when
+  MCP is unavailable or fails. It excludes `trust_apply`, remains
+  orientation-only, and cannot update claim trust.
 - Treat route moments as process-continuity guidance unless AITP explicitly
   marks a trust boundary. Recording a route choice, failed-route lesson, or
   pivot checkpoint should make the agent less forgetful without turning route
@@ -210,14 +212,15 @@ kernel capability:
    snapshot indexing and source-stack queries still need to keep a backtrace
    focused on the original physics question.
 7. Harden the Hakimi runtime bridge against real topic stores. Hakimi sessions
-   now auto-configure a dynamic AITP CLI bridge, consume process graph slices
+   now auto-configure a dynamic AITP bridge, consume process graph slices
    through explicit WorkFrame scope, compile `moment_policy.decisions` into
    ContextPack call obligations before research-context injection, preserve the
    cached AITP context when no fresh slice is available, run soft final-gate
    checks over unhandled required calls, and expose write-bridge hints and
-   execution for exploratory records, research routes, proof obligations, human
-   checkpoints, trust preflight, source assets, auto-captured local source
-   assets, auto-captured code state, and validation records.
+   MCP-first execution with CLI fallback for exploratory records, research
+   routes, proof obligations, human checkpoints, trust preflight, source
+   assets, auto-captured local source assets, auto-captured code state, and
+   validation records.
    Hakimi also has an opt-in real CLI smoke that creates
    a temporary AITP topic store, reads a real `process_graph_slice`, writes a
    proof obligation and checkpoint, and verifies the resulting `.aitp` records
@@ -225,10 +228,11 @@ kernel capability:
    point at a working AITP Python environment. The first strict AITP preflight
    bridge is implemented as a non-mutating policy-evidence call. The
    MCP-first bridge target manifest is implemented and gives hosts canonical
-   MCP tool names plus CLI fallback templates; actual MCP transport execution
-   inside Hakimi and richer evidence write-back still need later runtime
-   integration slices. `trust apply` remains an AITP-owned future boundary for
-   hosts.
+   MCP tool names, invocation args, result shape, and CLI fallback templates.
+   Hakimi write/preflight execution can now call those MCP tools first and
+   fall back to the CLI bridge; MCP-first read transport and richer evidence
+   write-back still need later runtime integration slices. `trust apply`
+   remains an AITP-owned future boundary for hosts.
 8. Update downstream theory workspaces to the latest v5 kernel and regenerate
    topic-local runtime handoff files where needed.
 9. Revisit OpenCode after its host hook model is stable enough for the same
