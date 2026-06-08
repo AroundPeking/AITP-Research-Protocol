@@ -2916,6 +2916,25 @@ def test_adapter_packet_exposes_runtime_payload_profiles_for_benchmark_provenanc
         "benchmark_adapter_run_to_tool_run",
         "primitive_tool_lifecycle_to_tool_run",
     ]
+    assert profiles["host_usage_policy"] == {
+        "read_surface_effect": "metadata_only",
+        "allowed_uses": [
+            "payload_construction",
+            "capture_policy_diagnostics",
+            "bridge_readiness_diagnostics",
+        ],
+        "forbidden_uses": [
+            "evidence_support",
+            "validation_result",
+            "claim_trust_update",
+            "trust_apply",
+            "bulk_auto_capture",
+        ],
+        "records_validation_result": False,
+        "claim_trust_mutation": "none",
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+    }
     by_id = {profile["profile_id"]: profile for profile in profiles["profiles"]}
     assert set(by_id) == {
         "benchmark_adapter_run_to_tool_run",
@@ -2998,6 +3017,9 @@ def test_runtime_payload_profiles_are_public_cli_and_mcp(capsys):
     assert profiles["catalog_version"] == "aitp.v5.runtime_payload_profiles.v1"
     assert profiles["profile_count"] == len(profiles["profiles"])
     assert profiles["profile_index"] == [profile["profile_id"] for profile in profiles["profiles"]]
+    assert profiles["host_usage_policy"]["read_surface_effect"] == "metadata_only"
+    assert "evidence_support" in profiles["host_usage_policy"]["forbidden_uses"]
+    assert profiles["host_usage_policy"]["records_validation_result"] is False
     assert _invoke(["adapter", "payload-profiles"], capsys) == {
         "ok": True,
         "runtime_payload_profiles": profiles,

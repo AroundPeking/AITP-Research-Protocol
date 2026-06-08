@@ -31,6 +31,9 @@ def validate_runtime_payload_profiles(
         result.add(f"{path}.summary_inputs_trusted", "must be false")
     if payload.get("can_update_claim_trust") is not False:
         result.add(f"{path}.can_update_claim_trust", "must be false")
+    _require_mapping(payload.get("host_usage_policy"), f"{path}.host_usage_policy", result)
+    if isinstance(payload.get("host_usage_policy"), dict):
+        _validate_host_usage_policy(payload["host_usage_policy"], f"{path}.host_usage_policy", result)
     _require_list(payload.get("profiles"), f"{path}.profiles", result)
     if isinstance(payload.get("profiles"), list):
         _validate_profiles(payload["profiles"], f"{path}.profiles", result)
@@ -49,6 +52,35 @@ def require_valid_runtime_payload_profiles(payload: dict[str, Any]) -> dict[str,
     if not result.ok:
         raise ContractError(result)
     return payload
+
+
+def _validate_host_usage_policy(policy: dict[str, Any], path: str, result: ContractResult) -> None:
+    expected_allowed = [
+        "payload_construction",
+        "capture_policy_diagnostics",
+        "bridge_readiness_diagnostics",
+    ]
+    expected_forbidden = [
+        "evidence_support",
+        "validation_result",
+        "claim_trust_update",
+        "trust_apply",
+        "bulk_auto_capture",
+    ]
+    if policy.get("read_surface_effect") != "metadata_only":
+        result.add(f"{path}.read_surface_effect", "must be 'metadata_only'")
+    if policy.get("allowed_uses") != expected_allowed:
+        result.add(f"{path}.allowed_uses", "must list metadata-only host uses")
+    if policy.get("forbidden_uses") != expected_forbidden:
+        result.add(f"{path}.forbidden_uses", "must list evidence/validation/trust exclusions")
+    if policy.get("records_validation_result") is not False:
+        result.add(f"{path}.records_validation_result", "must be false")
+    if policy.get("claim_trust_mutation") != "none":
+        result.add(f"{path}.claim_trust_mutation", "must be 'none'")
+    if policy.get("summary_inputs_trusted") is not False:
+        result.add(f"{path}.summary_inputs_trusted", "must be false")
+    if policy.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.can_update_claim_trust", "must be false")
 
 
 def _validate_profiles(profiles: list[Any], path: str, result: ContractResult) -> None:
