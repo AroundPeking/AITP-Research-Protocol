@@ -652,6 +652,10 @@ include `suggested_next_operation`, `suggested_next_entrypoint`, and
 `suggested_next_surface` to point hosts toward the normal AITP write path. Those
 fields are repair guidance only; they do not execute the write or weaken the
 no-trust boundary.
+Hosts may summarize those suggested fields in a local repair checklist for
+model ergonomics, but that checklist is downstream rendering over
+`record_ref_lookup`; it is not a new AITP entrypoint, validation result, trust
+preflight, or write execution.
 A host-side confirmation summary over that reviewed call draft is also not an
 AITP trust preflight. It may classify remaining placeholder, source-review, and
 preflight-scope diagnostics before a pending explicit AITP call, but it does
