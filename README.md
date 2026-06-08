@@ -713,6 +713,10 @@ If a host reuses one renderer/helper for these pointer and summary annotations,
 that reuse is a host-runtime implementation detail. It does not promote the
 annotation into an AITP contract or change the canonical typed write/preflight
 surfaces.
+If a host adds a checklist telling a caller to inspect readiness before a later
+explicit bridge call, that checklist is downstream next-step guidance. It does
+not authorize the write call, call the bridge, or replace AITP typed validation,
+source support, trust preflight, or write-entrypoint checks.
 Downstream guard tests may pin missing-field and tamper rejection, but they
 remain host-contract tests. AITP's own write surface is still the explicit
 typed entrypoint list, with non-mutating trust preflight but no `trustApply`
