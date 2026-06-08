@@ -636,6 +636,9 @@ Host placeholder-vs-concrete ref readiness inside that alignment is likewise
 only local draft classification. It does not prove the referenced AITP records
 exist, validate source support, or replace the explicit AITP write/preflight
 entrypoint.
+Even concrete-looking refs in host output should be treated as syntax-level
+until an AITP-owned read, write result, validation, or trust-preflight surface
+confirms the relevant record state.
 A host-side confirmation summary over that reviewed call draft is also not an
 AITP trust preflight. It may classify remaining placeholder, source-review, and
 preflight-scope diagnostics before a pending explicit AITP call, but it does
