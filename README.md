@@ -642,6 +642,10 @@ If a host re-checks such a handoff before executing the later call, that guard
 is still host-side consistency checking over the transfer envelope. It does not
 replace AITP validation, trust preflight, final-gate checks, or the canonical
 typed write/preflight entrypoint itself.
+Downstream guard tests may pin missing-field and tamper rejection, but they
+remain host-contract tests. AITP's own write surface is still the explicit
+typed entrypoint list, with non-mutating trust preflight but no `trustApply`
+write target exposed to hosts.
 
 Exploratory record reasoning fields are likewise host-facing process handles:
 Hakimi normalizes them into `params.theoryReasoning`, then renders them into the
