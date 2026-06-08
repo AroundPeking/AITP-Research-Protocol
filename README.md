@@ -720,6 +720,10 @@ source support, trust preflight, or write-entrypoint checks.
 If that checklist carries a stable host id derived from the handoff and draft
 family, the id is for host navigation only. It does not reserve or mint an AITP
 record id, and it does not change canonical identity rules for typed records.
+If a host readiness-inspection result echoes that checklist id or item status,
+the echo is read-only reporting over the host guard. It does not satisfy AITP
+validation, source-support, trust-preflight, final-gate, or write-entrypoint
+requirements.
 Downstream guard tests may pin missing-field and tamper rejection, but they
 remain host-contract tests. AITP's own write surface is still the explicit
 typed entrypoint list, with non-mutating trust preflight but no `trustApply`
