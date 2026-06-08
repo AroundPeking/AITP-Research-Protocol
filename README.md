@@ -612,6 +612,11 @@ could be reviewed for promotion. That binding is still a host projection over
 AITP-owned chunk ids and hashes: it does not make the chunk evidence, does not
 execute any AITP write operation, and does not relax the requirement for an
 explicit later source/reference/evidence/validation/trust-preflight path.
+Hosts may also render the returned draft operations as a local decision tree
+for possible next write-bridge calls. That rendering is downstream UI/runtime
+guidance only: the AITP surface still remains read-only until a host explicitly
+calls one of the normal AITP write or preflight entrypoints with reviewed
+payload fields.
 
 Exploratory record reasoning fields are likewise host-facing process handles:
 Hakimi normalizes them into `params.theoryReasoning`, then renders them into the
