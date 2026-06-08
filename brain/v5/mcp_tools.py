@@ -11,6 +11,7 @@ from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.brief import build_execution_brief
 from brain.v5.code import capture_code_state_from_git, record_code_state
+from brain.v5.curated_rag_corpus import curated_rag_corpus, search_curated_rag_corpus
 from brain.v5.exploration import exploratory_record_payload, record_exploratory_record
 from brain.v5.final_readiness import audit_final_engineering_readiness
 from brain.v5.hook_install_audit import audit_hook_installation
@@ -632,6 +633,30 @@ def aitp_v5_get_runtime_payload_profiles() -> dict:
         "runtime_payload_profiles": require_valid_public_surface(
             "runtime_payload_profiles",
             runtime_payload_profiles(),
+        ),
+    }
+
+
+def aitp_v5_get_curated_rag_corpus() -> dict:
+    """Return the curated heuristic RAG corpus catalog."""
+
+    return {
+        "ok": True,
+        "curated_rag_corpus": require_valid_public_surface(
+            "curated_rag_corpus",
+            curated_rag_corpus(),
+        ),
+    }
+
+
+def aitp_v5_search_curated_rag_corpus(query: str, *, limit: int = 5) -> dict:
+    """Return heuristic background chunks from the curated RAG corpus."""
+
+    return {
+        "ok": True,
+        "curated_rag_search_result": require_valid_public_surface(
+            "curated_rag_search_result",
+            search_curated_rag_corpus(query, limit=limit),
         ),
     }
 

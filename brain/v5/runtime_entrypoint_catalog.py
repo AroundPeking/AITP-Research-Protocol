@@ -24,6 +24,16 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_get_runtime_payload_profiles",
         "surface": "runtime_payload_profiles",
     },
+    "curated_rag_corpus": {
+        "cli": "aitp-v5 adapter curated-rag-corpus",
+        "mcp": "aitp_v5_get_curated_rag_corpus",
+        "surface": "curated_rag_corpus",
+    },
+    "curated_rag_search": {
+        "cli": "aitp-v5 adapter curated-rag-search <query> <args>",
+        "mcp": "aitp_v5_search_curated_rag_corpus",
+        "surface": "curated_rag_search_result",
+    },
     "record_gate_coverage_audit": {
         "cli": "aitp-v5 adapter record-gate-audit",
         "mcp": "aitp_v5_audit_record_gate_coverage",

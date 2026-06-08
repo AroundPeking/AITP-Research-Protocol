@@ -3030,6 +3030,72 @@ def test_runtime_payload_profiles_are_public_cli_and_mcp(capsys):
     }
 
 
+def test_adapter_packet_exposes_curated_rag_corpus_as_heuristic_context(tmp_path):
+    from brain.v5.adapters import build_adapter_packet
+    from brain.v5.curated_rag_corpus import curated_rag_corpus
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    ws, _ = _seed_session(tmp_path)
+
+    packet = build_adapter_packet(ws, "s1", runtime="codex")
+    corpus = packet["curated_rag_corpus"]
+
+    assert corpus == curated_rag_corpus()
+    assert require_valid_public_surface("curated_rag_corpus", corpus) == corpus
+    assert corpus["catalog_version"] == "aitp.v5.curated_rag_corpus.v1"
+    assert corpus["retrieval_policy"]["result_role"] == "heuristic_context"
+    assert corpus["retrieval_policy"]["read_surface_effect"] == "orientation_only"
+    assert corpus["retrieval_policy"]["requires_promotion_for_claim_support"] is True
+    assert corpus["retrieval_policy"]["forbidden_uses"] == [
+        "evidence_support",
+        "validation_result",
+        "claim_trust_update",
+        "trust_apply",
+        "final_gate_satisfaction",
+    ]
+    assert corpus["index_policy"]["active_index_mode"] == "lexical_fixture"
+    assert corpus["document_count"] == len(corpus["documents"])
+    assert corpus["chunk_count"] == len(corpus["chunks"])
+    assert corpus["chunk_index"] == [chunk["chunk_id"] for chunk in corpus["chunks"]]
+    assert all(chunk["retrieval_role"] == "heuristic_context" for chunk in corpus["chunks"])
+    assert all(chunk["can_update_claim_trust"] is False for chunk in corpus["chunks"])
+
+
+def test_curated_rag_corpus_is_public_cli_and_mcp(capsys):
+    from brain.v5.curated_rag_corpus import curated_rag_corpus, search_curated_rag_corpus
+    from brain.v5.mcp_tools import aitp_v5_get_curated_rag_corpus, aitp_v5_search_curated_rag_corpus
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    corpus = curated_rag_corpus()
+    search = search_curated_rag_corpus("source claim evidence", limit=2)
+
+    assert require_valid_public_surface("curated_rag_corpus", corpus) == corpus
+    assert require_valid_public_surface("curated_rag_search_result", search) == search
+    assert search["result_role"] == "heuristic_context"
+    assert search["requires_promotion_for_claim_support"] is True
+    assert search["records_validation_result"] is False
+    assert search["claim_trust_mutation"] == "none"
+    assert search["result_count"] >= 1
+    assert search["results"][0]["retrieval_role"] == "heuristic_context"
+    assert search["results"][0]["can_update_claim_trust"] is False
+    assert _invoke(["adapter", "curated-rag-corpus"], capsys) == {
+        "ok": True,
+        "curated_rag_corpus": corpus,
+    }
+    assert _invoke(["adapter", "curated-rag-search", "source claim evidence", "--limit", "2"], capsys) == {
+        "ok": True,
+        "curated_rag_search_result": search,
+    }
+    assert aitp_v5_get_curated_rag_corpus() == {
+        "ok": True,
+        "curated_rag_corpus": corpus,
+    }
+    assert aitp_v5_search_curated_rag_corpus("source claim evidence", limit=2) == {
+        "ok": True,
+        "curated_rag_search_result": search,
+    }
+
+
 def test_adapter_registry_protocol_fields_match_builder_keys():
     from brain.v5.adapter_protocols import adapter_protocol_fields, build_adapter_protocols
 
@@ -3092,6 +3158,8 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
         "readProcessGraphSlice",
         "readMomentPolicy",
         "readRuntimePayloadProfiles",
+        "readCuratedRagCorpus",
+        "searchCuratedRagCorpus",
     ]
     assert manifest["target_groups"]["preflight"] == ["preflightTrustUpdate"]
     assert by_operation["readRuntimePayloadProfiles"]["mcp_tool"] == "aitp_v5_get_runtime_payload_profiles"
@@ -3099,6 +3167,12 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
     assert by_operation["readRuntimePayloadProfiles"]["surface"] == "runtime_payload_profiles"
     assert by_operation["readRuntimePayloadProfiles"]["execution_role"] == "read"
     assert by_operation["readRuntimePayloadProfiles"]["state_effect"] == "read_only"
+    assert by_operation["readCuratedRagCorpus"]["mcp_tool"] == "aitp_v5_get_curated_rag_corpus"
+    assert by_operation["readCuratedRagCorpus"]["cli_fallback"] == "aitp-v5 adapter curated-rag-corpus"
+    assert by_operation["readCuratedRagCorpus"]["surface"] == "curated_rag_corpus"
+    assert by_operation["searchCuratedRagCorpus"]["mcp_tool"] == "aitp_v5_search_curated_rag_corpus"
+    assert by_operation["searchCuratedRagCorpus"]["cli_fallback"] == "aitp-v5 adapter curated-rag-search <query> <args>"
+    assert by_operation["searchCuratedRagCorpus"]["surface"] == "curated_rag_search_result"
     assert by_operation["readProcessGraphSlice"]["mcp_arguments"] == {
         "required": ["base", "session_id"],
         "optional": ["claim_id", "limit"],
@@ -3113,6 +3187,16 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
         "required": [],
         "optional": [],
         "source": "aitp_v5_get_runtime_payload_profiles",
+    }
+    assert by_operation["readCuratedRagCorpus"]["mcp_arguments"] == {
+        "required": [],
+        "optional": [],
+        "source": "aitp_v5_get_curated_rag_corpus",
+    }
+    assert by_operation["searchCuratedRagCorpus"]["mcp_arguments"] == {
+        "required": ["query"],
+        "optional": ["limit"],
+        "source": "aitp_v5_search_curated_rag_corpus",
     }
     assert by_operation["recordEvidence"]["preferred_transport"] == "mcp"
     assert by_operation["recordEvidence"]["mcp_tool"] == "aitp_v5_record_evidence"

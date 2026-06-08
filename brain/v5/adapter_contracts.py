@@ -44,6 +44,7 @@ _ADAPTER_REQUIRED_KEYS = (
     "public_surface_audit",
     "runtime_entrypoints",
     "runtime_payload_profiles",
+    "curated_rag_corpus",
     "adapter_protocol_registry",
     "runtime_hook_installation",
     "trust_changing_actions",
@@ -105,6 +106,13 @@ def validate_adapter_packet(payload: dict[str, Any], *, path: str = "adapter") -
         _validate_runtime_payload_profiles(
             payload["runtime_payload_profiles"],
             f"{path}.runtime_payload_profiles",
+            result,
+        )
+
+    if "curated_rag_corpus" in payload:
+        _validate_curated_rag_corpus(
+            payload["curated_rag_corpus"],
+            f"{path}.curated_rag_corpus",
             result,
         )
 
@@ -281,6 +289,12 @@ def _validate_runtime_payload_profiles(payload: Any, path: str, result: Contract
     from brain.v5.runtime_payload_profile_contracts import validate_runtime_payload_profiles
 
     result.extend(validate_runtime_payload_profiles(payload, path=path))
+
+
+def _validate_curated_rag_corpus(payload: Any, path: str, result: ContractResult) -> None:
+    from brain.v5.curated_rag_contracts import validate_curated_rag_corpus
+
+    result.extend(validate_curated_rag_corpus(payload, path=path))
 
 
 def _validate_adapter_protocol_registry(payload: Any, path: str, result: ContractResult) -> None:

@@ -40,6 +40,7 @@ surfaces.
 | Research route state | Implemented first typed record: `aitp-v5 route record` and `aitp_v5_record_research_route` capture live routes, abandoned/blocked routes, branches, failed-attempt lessons, pivots, checkpoint links, and next actions as orientation-only process graph records. Route state can steer agents and preserve nonlinear research continuity, but it is not evidence, validation, or claim-trust authority |
 | Canonical source assets | Implemented first typed record and projection: `aitp-v5 asset register` / `aitp_v5_register_source_asset` and `aitp-v5 asset capture-auto` / `aitp_v5_capture_source_asset_auto` assign orientation-only identities, local file hashes, version anchors, duplicate-hash diagnostics, and source/code/artifact links to papers, lectures, notes, code repositories, snapshots, datasets, and generated artifacts; `process_graph_slice.source_asset_index[]` exposes that canonical source asset state to hosts without creating a second store |
 | Source/code/tool provenance automation | Implemented first automations: `aitp-v5 asset capture-auto` and `aitp_v5_capture_source_asset_auto` capture local source file hash/size/mtime/MIME-ish metadata into canonical source asset records, `aitp-v5 code state auto` and `aitp_v5_capture_code_state_auto` capture git HEAD, branch/upstream, dirty status, diff hash, optional patch artifacts, and linked topic/claim/session refs, `aitp-v5 tool run capture-auto` / `aitp_v5_capture_tool_run_auto` captures local tool transcript/result hash, size, mtime, MIME-ish metadata, and bounded preview into a `tool_run_record`, and `aitp-v5 research-state attach-artifact-auto` / `aitp_v5_attach_artifact_auto` captures local artifact hash/size/mtime/MIME-ish metadata into an `artifact_record` without treating it as evidence, validation, or trust |
+| Curated heuristic RAG | Implemented first read-only contract surface: `aitp-v5 adapter curated-rag-corpus` / `aitp_v5_get_curated_rag_corpus` exposes the curated background corpus catalog and `aitp-v5 adapter curated-rag-search <query>` / `aitp_v5_search_curated_rag_corpus` returns deterministic fixture retrieval as `heuristic_context`. The corpus/chunks are orientation-only background for conceptual scaffolding, literature orientation, derivation scaffolding, method selection, and source-backtrace suggestions; they cannot satisfy evidence, validation, claim-trust, `trust_apply`, or final-gate requirements unless promoted through normal AITP source/evidence/validation records |
 | QSGW cockpit | Implemented first surface: `aitp-v5 status qsgw-cockpit` writes a topic-local final/diagnostic lane manifest, plot guard, and dashboard dry-run from typed records plus `research/librpa` report/script scans; it also discovers downstream `*_lane_manifest_current.json` and `*_aitp_intake_current.jsonl` files without treating them as trust updates |
 
 The latest real readiness audit reports:
@@ -129,6 +130,14 @@ The practical rule is:
   updates, `trust_apply`, and bulk auto-capture; it also carries
   `records_validation_result=false`, `claim_trust_mutation=none`,
   `summary_inputs_trusted=false`, and `can_update_claim_trust=false`.
+- Treat `curated_rag_corpus` and `curated_rag_search_result` as heuristic
+  background context only. Hosts may use retrieved chunks to frame concepts,
+  orient a literature/source backtrace, choose a derivation method, or decide
+  what to inspect next. They must not use retrieved text as evidence support,
+  validation, claim-trust update input, `trust_apply`, or final-gate
+  satisfaction without first promoting the relevant source passage through
+  normal AITP `source_asset`, `reference_location`, evidence, validation, and
+  trust-preflight records.
 - Treat route moments as process-continuity guidance unless AITP explicitly
   marks a trust boundary. Recording a route choice, failed-route lesson, or
   pivot checkpoint should make the agent less forgetful without turning route
@@ -415,6 +424,8 @@ these names as the stable bridge contract, not infer names from README prose:
 | `host_agnostic_moment_policy` | `aitp-v5 graph moment-policy <session-id>` | `aitp_v5_get_host_agnostic_moment_policy` | `host_agnostic_moment_policy` |
 | `runtime_bridge_target_manifest` | `aitp-v5 adapter bridge-targets` | `aitp_v5_get_runtime_bridge_target_manifest` | `runtime_bridge_target_manifest` |
 | `runtime_payload_profiles` | `aitp-v5 adapter payload-profiles` | `aitp_v5_get_runtime_payload_profiles` | `runtime_payload_profiles` |
+| `curated_rag_corpus` | `aitp-v5 adapter curated-rag-corpus` | `aitp_v5_get_curated_rag_corpus` | `curated_rag_corpus` |
+| `curated_rag_search` | `aitp-v5 adapter curated-rag-search <query> <args>` | `aitp_v5_search_curated_rag_corpus` | `curated_rag_search_result` |
 | `record_evidence` | `aitp-v5 evidence record <args>` | `aitp_v5_record_evidence` | `evidence_record` |
 | `record_tool_run` | `aitp-v5 tool run record <args>` | `aitp_v5_record_tool_run` | `tool_run_record` |
 | `capture_tool_run_auto` | `aitp-v5 tool run capture-auto <args>` | `aitp_v5_capture_tool_run_auto` | `tool_run_record` |
@@ -443,7 +454,9 @@ operation such as `recordEvidence`, `captureSourceAssetAuto`,
 CLI fallback template, public surface, and state effect. Read targets also
 carry `mcp_arguments` for host runtime calls: `readProcessGraphSlice` and
 `readMomentPolicy` require `base` plus `session_id` and accept `claim_id` plus
-`limit`, while `readRuntimePayloadProfiles` has no required arguments. The
+`limit`, `readRuntimePayloadProfiles` and `readCuratedRagCorpus` have no
+required arguments, and `searchCuratedRagCorpus` requires `query` with optional
+`limit`. The
 manifest is derived from `runtime_entrypoints()`, has
 `preferred_transport=mcp`, keeps `fallback_transport=cli`, and explicitly
 excludes `trust_apply`.
@@ -547,6 +560,24 @@ the catalog as evidence support, a validation result, a claim-trust update,
 `trust_apply`, or a bulk auto-capture permission. The policy repeats the
 no-trust flags at catalog scope so host parsers can fail closed if the public
 profile surface is tampered with.
+
+`curated_rag_corpus` is the adjacent lightweight knowledge shelf for selected
+papers, lectures, notes, reviews, textbooks, personal explanations, and code
+documentation that should help an agent reason. The current first surface is a
+contract-first fixture catalog with stable document/chunk ids, source URI,
+version anchors, content hashes, domain/topic hints, and an index policy. The
+active index mode is `lexical_fixture`; future BM25 or embedding indexes should
+remain derived from canonical corpus/chunk records and report stale-index
+diagnostics when hashes or version anchors drift.
+
+`curated_rag_search_result` returns retrieved chunks with
+`result_role=heuristic_context`, `read_surface_effect=orientation_only`,
+`records_validation_result=false`, `claim_trust_mutation=none`,
+`summary_inputs_trusted=false`, `can_update_claim_trust=false`, and
+`requires_promotion_for_claim_support=true`. Retrieved chunks can suggest
+terminology, methods, examples, or source-backtrace directions. If a chunk
+becomes claim-relevant, the host must escalate through the ordinary AITP source
+and validation path instead of treating RAG retrieval as claim support.
 
 Exploratory record reasoning fields are likewise host-facing process handles:
 Hakimi normalizes them into `params.theoryReasoning`, then renders them into the

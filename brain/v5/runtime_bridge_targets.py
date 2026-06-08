@@ -24,12 +24,24 @@ _MCP_ARGUMENT_SPECS: dict[str, dict[str, Any]] = {
         "optional": [],
         "source": "aitp_v5_get_runtime_payload_profiles",
     },
+    "curated_rag_corpus": {
+        "required": [],
+        "optional": [],
+        "source": "aitp_v5_get_curated_rag_corpus",
+    },
+    "curated_rag_search": {
+        "required": ["query"],
+        "optional": ["limit"],
+        "source": "aitp_v5_search_curated_rag_corpus",
+    },
 }
 
 _BRIDGE_TARGET_SPECS: tuple[tuple[str, str, str, str], ...] = (
     ("readProcessGraphSlice", "process_graph_slice", "read", "read_only"),
     ("readMomentPolicy", "host_agnostic_moment_policy", "read", "read_only"),
     ("readRuntimePayloadProfiles", "runtime_payload_profiles", "read", "read_only"),
+    ("readCuratedRagCorpus", "curated_rag_corpus", "read", "read_only"),
+    ("searchCuratedRagCorpus", "curated_rag_search", "read", "read_only"),
     ("recordExploratoryRecord", "record_exploratory_record", "write", "typed_record_write"),
     ("registerSourceAsset", "register_source_asset", "write", "typed_record_write"),
     ("captureSourceAssetAuto", "capture_source_asset_auto", "write", "typed_record_write"),

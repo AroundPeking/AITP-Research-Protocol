@@ -143,6 +143,8 @@ def _validate_mcp_arguments(target: dict[str, Any], path: str, result: ContractR
         "process_graph_slice",
         "host_agnostic_moment_policy",
         "runtime_payload_profiles",
+        "curated_rag_corpus",
+        "curated_rag_search",
     }:
         _require_mapping(arguments, f"{path}.mcp_arguments", result)
         if not isinstance(arguments, dict):
@@ -167,5 +169,15 @@ def _validate_mcp_arguments(target: dict[str, Any], path: str, result: ContractR
                 result.add(f"{path}.mcp_arguments.required", "must be empty")
             if arguments.get("optional") != []:
                 result.add(f"{path}.mcp_arguments.optional", "must be empty")
+        if entrypoint_key == "curated_rag_corpus":
+            if arguments.get("required") != []:
+                result.add(f"{path}.mcp_arguments.required", "must be empty")
+            if arguments.get("optional") != []:
+                result.add(f"{path}.mcp_arguments.optional", "must be empty")
+        if entrypoint_key == "curated_rag_search":
+            if arguments.get("required") != ["query"]:
+                result.add(f"{path}.mcp_arguments.required", "must require query")
+            if arguments.get("optional") != ["limit"]:
+                result.add(f"{path}.mcp_arguments.optional", "must allow limit")
     elif arguments is not None:
         result.add(f"{path}.mcp_arguments", "must be omitted for non-read target metadata")

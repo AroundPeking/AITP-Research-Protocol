@@ -12,6 +12,7 @@ from brain.v5.adapter_protocols import adapter_protocol_registry, record_gate_co
 from brain.v5.adapter_runtime import evaluate_platform_pre_tool_event
 from brain.v5.adapters import build_adapter_packet
 from brain.v5.cli_progress import compact_final_readiness
+from brain.v5.curated_rag_corpus import curated_rag_corpus, search_curated_rag_corpus
 from brain.v5.final_readiness import audit_final_engineering_readiness
 from brain.v5.hook_codex_install import install_codex_hooks_json
 from brain.v5.hook_fixture_templates import install_codex_hook_fixture, install_opencode_hook_fixture
@@ -38,6 +39,8 @@ def add_adapter_parser(sp) -> None:
     aps.add_parser("record-gate-audit")
     aps.add_parser("bridge-targets")
     aps.add_parser("payload-profiles")
+    aps.add_parser("curated-rag-corpus")
+    ars = aps.add_parser("curated-rag-search"); ars.add_argument("query"); ars.add_argument("--limit", type=int, default=5)
     apt = aps.add_parser("packet"); apt.add_argument("runtime"); apt.add_argument("session_id")
     ahb = aps.add_parser("hook-bridge"); ahb.add_argument("runtime"); ahb.add_argument("session_id")
     ahb.add_argument("--output", required=True)
@@ -95,6 +98,22 @@ def dispatch_adapter_command(args: Namespace, ws: Any | None) -> dict[str, Any]:
             "runtime_payload_profiles": require_valid_public_surface(
                 "runtime_payload_profiles",
                 runtime_payload_profiles(),
+            ),
+        }
+    if args.adapter_command == "curated-rag-corpus":
+        return {
+            "ok": True,
+            "curated_rag_corpus": require_valid_public_surface(
+                "curated_rag_corpus",
+                curated_rag_corpus(),
+            ),
+        }
+    if args.adapter_command == "curated-rag-search":
+        return {
+            "ok": True,
+            "curated_rag_search_result": require_valid_public_surface(
+                "curated_rag_search_result",
+                search_curated_rag_corpus(args.query, limit=args.limit),
             ),
         }
     if args.adapter_command == "record-gate-audit":

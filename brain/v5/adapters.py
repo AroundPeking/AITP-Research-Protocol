@@ -7,6 +7,7 @@ from typing import Any
 from brain.v5.adapter_protocols import build_adapter_protocols, supported_runtimes
 from brain.v5.brief import build_execution_brief
 from brain.v5.contracts import require_valid_adapter_packet, require_valid_execution_brief
+from brain.v5.curated_rag_corpus import curated_rag_corpus
 from brain.v5.hook_install_templates import build_runtime_hook_installation
 from brain.v5.paths import WorkspacePaths
 from brain.v5.public_surfaces import describe_public_surfaces
@@ -57,6 +58,7 @@ def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = 
         "public_surface_audit": describe_public_surfaces(),
         "runtime_entrypoints": runtime_entrypoints(),
         "runtime_payload_profiles": runtime_payload_profiles(),
+        "curated_rag_corpus": curated_rag_corpus(),
         **adapter_protocols,
         "runtime_hook_installation": build_runtime_hook_installation(
             normalized_runtime,
