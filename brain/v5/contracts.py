@@ -92,6 +92,20 @@ def require_valid_runtime_bridge_target_manifest(payload: dict[str, Any]) -> dic
     return _require(payload)
 
 
+def validate_record_ref_lookup(
+    payload: dict[str, Any],
+    *,
+    path: str = "record_ref_lookup",
+) -> ContractResult:
+    from brain.v5.record_ref_contracts import validate_record_ref_lookup as _validate
+    return _validate(payload, path=path)
+
+
+def require_valid_record_ref_lookup(payload: dict[str, Any]) -> dict[str, Any]:
+    from brain.v5.record_ref_contracts import require_valid_record_ref_lookup as _require
+    return _require(payload)
+
+
 def validate_curated_rag_corpus(
     payload: dict[str, Any],
     *,

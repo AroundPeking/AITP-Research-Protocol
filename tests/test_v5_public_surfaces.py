@@ -83,6 +83,7 @@ def test_public_surface_registry_names_all_runtime_facing_payloads():
         "proof_obligation_record",
         "qsgw_cockpit_bundle",
         "record_gate_coverage_audit",
+        "record_ref_lookup",
         "reference_location_record",
         "research_route_record",
         "research_event_classification",

@@ -30,7 +30,7 @@ surfaces.
 | Long-term memory | Implemented core: L2 memory entries, promotion packets, memory audits, failure-mode audits, trust audits, Obsidian review views |
 | Replay and review | Implemented core: session summaries, workspace summaries, workspace replay packets, source reconstruction audits |
 | Legacy migration | Implemented generic migration plus curated v5 migration for priority legacy topics, coverage, semantic-review, repair, source-reconstruction, human-checkpoint, and Obsidian worklist surfaces; the real legacy semantic review backlog remains blocking |
-| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; `aitp-v5 adapter bridge-targets` / `aitp_v5_get_runtime_bridge_target_manifest` now expose MCP-first host bridge targets with CLI fallback templates; `aitp-v5 adapter payload-profiles` / `aitp_v5_get_runtime_payload_profiles` expose the read-only runtime payload profile catalog directly; `runtime_payload_profiles` tells hosts how to turn benchmark adapter runs and primitive tool lifecycle completions into AITP `tool_run_record` provenance without creating validation/trust, now includes `catalog_version`, `profile_count`, `profile_index`, `capture_policy`, and `host_usage_policy` metadata for metadata-only host reads, controlled adapter auto-capture, explicit primitive-tool capture, diagnostics, and no-trust exclusions; Hakimi auto-configures a WorkFrame-scoped typed session bridge that can read `process_graph_slice`, compile `moment_policy.decisions` into required call obligations, read/inspect the runtime payload profile catalog as AITP-owned metadata, automatically request bounded curated RAG `heuristic_context` for background-oriented turns, and expose model-facing AITP write-bridge execution for curated RAG corpus ingestion, exploratory records, research routes, source assets, auto-captured local source assets, auto-captured code state, auto-captured local artifacts, proof obligations, validation contracts/results, human checkpoints, and non-mutating trust preflight instead of duplicating the schema |
+| Host integration | Priority hosts are ready for Codex, Claude Code, and Kimi Code through v5 MCP/hook/adapter surfaces and production-loop audits; `aitp-v5 adapter bridge-targets` / `aitp_v5_get_runtime_bridge_target_manifest` now expose MCP-first host bridge targets with CLI fallback templates; `aitp-v5 adapter payload-profiles` / `aitp_v5_get_runtime_payload_profiles` expose the read-only runtime payload profile catalog directly; `aitp-v5 adapter record-ref-lookup <refs...>` / `aitp_v5_lookup_record_refs` expose a read-only typed-store existence check for canonical refs without source support, validation, evidence creation, or claim-trust authority; `runtime_payload_profiles` tells hosts how to turn benchmark adapter runs and primitive tool lifecycle completions into AITP `tool_run_record` provenance without creating validation/trust, now includes `catalog_version`, `profile_count`, `profile_index`, `capture_policy`, and `host_usage_policy` metadata for metadata-only host reads, controlled adapter auto-capture, explicit primitive-tool capture, diagnostics, and no-trust exclusions; Hakimi auto-configures a WorkFrame-scoped typed session bridge that can read `process_graph_slice`, compile `moment_policy.decisions` into required call obligations, read/inspect the runtime payload profile catalog as AITP-owned metadata, look up reviewed source/reference record refs as typed-existence-only metadata, automatically request bounded curated RAG `heuristic_context` for background-oriented turns, and expose model-facing AITP write-bridge execution for curated RAG corpus ingestion, exploratory records, research routes, source assets, auto-captured local source assets, auto-captured code state, auto-captured local artifacts, proof obligations, validation contracts/results, human checkpoints, and non-mutating trust preflight instead of duplicating the schema |
 | OpenCode | Adapter/plugin surfaces exist, but OpenCode remains deferred until its hook model and packaging path stabilize |
 | Goal continuation | Implemented: local `.aitp/surfaces/goal_continuation/` JSON+Markdown packets capture objective, commit range, changed files, tests, smoke commands, readiness, next actions, and blocking backlog |
 | Literature intake | Implemented conservative intake: references are orientation-only, evidence/sensemaking are guarded suggestions, and trust updates stay forbidden without preflight/checkpoints |
@@ -430,6 +430,7 @@ these names as the stable bridge contract, not infer names from README prose:
 | `host_agnostic_moment_policy` | `aitp-v5 graph moment-policy <session-id>` | `aitp_v5_get_host_agnostic_moment_policy` | `host_agnostic_moment_policy` |
 | `runtime_bridge_target_manifest` | `aitp-v5 adapter bridge-targets` | `aitp_v5_get_runtime_bridge_target_manifest` | `runtime_bridge_target_manifest` |
 | `runtime_payload_profiles` | `aitp-v5 adapter payload-profiles` | `aitp_v5_get_runtime_payload_profiles` | `runtime_payload_profiles` |
+| `record_ref_lookup` | `aitp-v5 adapter record-ref-lookup <refs...>` | `aitp_v5_lookup_record_refs` | `record_ref_lookup` |
 | `curated_rag_corpus` | `aitp-v5 adapter curated-rag-corpus` | `aitp_v5_get_curated_rag_corpus` | `curated_rag_corpus` |
 | `curated_rag_search` | `aitp-v5 adapter curated-rag-search <query> <args>` | `aitp_v5_search_curated_rag_corpus` | `curated_rag_search_result` |
 | `ingest_curated_rag_corpus` | `aitp-v5 curated-rag ingest <args>` | `aitp_v5_ingest_curated_rag_corpus` | `curated_rag_ingest_result` |
@@ -462,8 +463,9 @@ CLI fallback template, public surface, and state effect. Read targets also
 carry `mcp_arguments` for host runtime calls: `readProcessGraphSlice` and
 `readMomentPolicy` require `base` plus `session_id` and accept `claim_id` plus
 `limit`, `readRuntimePayloadProfiles` has no required arguments,
-`readCuratedRagCorpus` accepts optional `base`, and
-`searchCuratedRagCorpus` requires `query` with optional `base` and `limit`. The
+`readCuratedRagCorpus` accepts optional `base`,
+`searchCuratedRagCorpus` requires `query` with optional `base` and `limit`,
+and `lookupRecordRefs` requires `base` plus `refs`. The
 manifest is derived from `runtime_entrypoints()`, has
 `preferred_transport=mcp`, keeps `fallback_transport=cli`, and explicitly
 excludes `trust_apply`.
@@ -639,6 +641,12 @@ entrypoint.
 Even concrete-looking refs in host output should be treated as syntax-level
 until an AITP-owned read, write result, validation, or trust-preflight surface
 confirms the relevant record state.
+`record_ref_lookup` is the narrow read-only confirmation path for this
+pre-execution case: it can say that `source_asset:<id>`,
+`reference_location:<id>`, or another supported typed ref exists in the AITP
+store, but `status="found"` still means typed-store existence only. It does not
+validate source support, create evidence, create validation, satisfy a final
+gate, update claim trust, or make summary inputs trusted.
 A host-side confirmation summary over that reviewed call draft is also not an
 AITP trust preflight. It may classify remaining placeholder, source-review, and
 preflight-scope diagnostics before a pending explicit AITP call, but it does

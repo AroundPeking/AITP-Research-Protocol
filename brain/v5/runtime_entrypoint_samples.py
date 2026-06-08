@@ -53,6 +53,8 @@ def sample_args_for_template(template: str) -> list[str]:
         return ["--path", "notes/dmft-orientation.md", "--tag", "dmft", "--topic-hint", "gw-dmft"]
     if template.startswith("adapter curated-rag-promotion-draft"):
         return ["--topic", "fqhe", "--claim", "claim-fqhe"]
+    if template.startswith("adapter record-ref-lookup"):
+        return ["source_asset:source-asset-edge-counting", "reference_location:reference-location-edge-counting"]
     if template.startswith("tool recipe register"):
         return ["recipe-ed", "--family", "numerical", "--name", "exact-diagonalization", "--purpose", "Run an ED check."]
     if template.startswith("tool run capture-auto"):

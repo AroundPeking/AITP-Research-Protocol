@@ -34,6 +34,7 @@ from brain.v5.knowledge_connectors import describe_knowledge_connectors
 from brain.v5.models import CodeStateRecord, TrustUpdateRequest
 from brain.v5.pretool_policy import evaluate_context_pre_tool_policy
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
+from brain.v5.record_refs import lookup_record_refs
 from brain.v5.physics_objects import record_object_relation, record_physics_object
 from brain.v5.process_graph import build_process_graph_slice
 from brain.v5.references import record_reference_location
@@ -131,6 +132,16 @@ def aitp_v5_get_host_agnostic_moment_policy(
 
     graph = build_process_graph_slice(_ws(base), session_id, claim_id=claim_id, limit=limit)
     return require_valid_public_surface("host_agnostic_moment_policy", graph["moment_policy"])
+
+
+def aitp_v5_lookup_record_refs(base: str, *, refs: list[str]) -> dict:
+    return {
+        "ok": True,
+        "record_ref_lookup": require_valid_public_surface(
+            "record_ref_lookup",
+            lookup_record_refs(_ws(base), refs),
+        ),
+    }
 
 
 def aitp_v5_record_exploratory_record(

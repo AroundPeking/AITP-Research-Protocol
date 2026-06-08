@@ -24,6 +24,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_get_runtime_payload_profiles",
         "surface": "runtime_payload_profiles",
     },
+    "record_ref_lookup": {
+        "cli": "aitp-v5 adapter record-ref-lookup <args>",
+        "mcp": "aitp_v5_lookup_record_refs",
+        "surface": "record_ref_lookup",
+    },
     "curated_rag_corpus": {
         "cli": "aitp-v5 adapter curated-rag-corpus",
         "mcp": "aitp_v5_get_curated_rag_corpus",

@@ -33,6 +33,7 @@ from brain.v5.hook_smoke_coverage import runtime_hook_smoke_coverage_report
 from brain.v5.hook_opencode_install import install_opencode_plugin_file
 from brain.v5.host_readiness import audit_priority_host_production_loops, audit_runtime_host_lifecycle, audit_runtime_host_readiness
 from brain.v5.public_surfaces import describe_public_surfaces, require_valid_public_surface
+from brain.v5.record_refs import lookup_record_refs
 from brain.v5.runtime_bridge_targets import runtime_bridge_target_manifest
 from brain.v5.runtime_payload_profiles import runtime_payload_profiles
 
@@ -43,6 +44,7 @@ def add_adapter_parser(sp) -> None:
     aps.add_parser("record-gate-audit")
     aps.add_parser("bridge-targets")
     aps.add_parser("payload-profiles")
+    arr = aps.add_parser("record-ref-lookup"); arr.add_argument("refs", nargs="+")
     aps.add_parser("curated-rag-corpus")
     ars = aps.add_parser("curated-rag-search"); ars.add_argument("query"); ars.add_argument("--limit", type=int, default=5)
     arp = aps.add_parser("curated-rag-promotion-draft"); arp.add_argument("chunk_id")
@@ -157,6 +159,15 @@ def dispatch_adapter_command(args: Namespace, ws: Any | None) -> dict[str, Any]:
         }
     if ws is None:
         raise SystemExit("adapter command requires an initialized v5 workspace")
+
+    if args.adapter_command == "record-ref-lookup":
+        return {
+            "ok": True,
+            "record_ref_lookup": require_valid_public_surface(
+                "record_ref_lookup",
+                lookup_record_refs(ws, args.refs),
+            ),
+        }
 
     if args.adapter_command == "final-readiness":
         payload = {

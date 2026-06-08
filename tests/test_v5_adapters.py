@@ -3171,6 +3171,77 @@ def test_curated_rag_corpus_reads_file_backed_workspace_manifest(tmp_path, capsy
     }
 
 
+def test_record_ref_lookup_confirms_typed_record_existence_only(tmp_path, capsys):
+    from brain.v5.mcp_tools import aitp_v5_lookup_record_refs
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.record_refs import lookup_record_refs
+    from brain.v5.references import record_reference_location
+    from brain.v5.source_assets import register_source_asset
+
+    ws, claim = _seed_session(tmp_path)
+    source = register_source_asset(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        asset_type="paper",
+        uri="arxiv:2601.00001",
+        title="Edge counting source",
+        source_kind="literature",
+    )
+    location = record_reference_location(
+        ws,
+        topic_id="librpa-gw",
+        claim_id=claim.claim_id,
+        connector_id="local_pdf",
+        location_type="paper_pdf",
+        uri="file:///papers/edge-counting.pdf",
+        label="Edge counting PDF",
+    )
+
+    refs = [
+        f"source_asset:{source.asset_id}",
+        f"aitp:reference_location:{location.location_id}",
+        "source_asset:missing-source",
+        "literature:foo",
+        "not-a-ref",
+    ]
+    lookup = lookup_record_refs(ws, refs)
+
+    assert require_valid_public_surface("record_ref_lookup", lookup) == lookup
+    assert lookup["kind"] == "record_ref_lookup"
+    assert lookup["lookup_scope"] == "typed_record_existence_only"
+    assert lookup["found_count"] == 2
+    assert lookup["missing_count"] == 1
+    assert lookup["unsupported_count"] == 1
+    assert lookup["malformed_count"] == 1
+    assert lookup["records_validation_result"] is False
+    assert lookup["source_support_result"] is False
+    assert lookup["claim_trust_mutation"] == "none"
+    assert lookup["can_update_claim_trust"] is False
+
+    by_ref = {item["ref"]: item for item in lookup["refs"]}
+    assert by_ref[f"source_asset:{source.asset_id}"]["status"] == "found"
+    assert by_ref[f"source_asset:{source.asset_id}"]["record_confirmed"] is True
+    assert by_ref[f"source_asset:{source.asset_id}"]["record_kind"] == "source_asset"
+    assert by_ref[f"source_asset:{source.asset_id}"]["records_validation_result"] is False
+    assert by_ref[f"source_asset:{source.asset_id}"]["can_update_record_claim_trust"] is False
+    assert by_ref[f"aitp:reference_location:{location.location_id}"]["status"] == "found"
+    assert by_ref[f"aitp:reference_location:{location.location_id}"]["ref_kind"] == "reference_location"
+    assert by_ref["source_asset:missing-source"]["status"] == "not_found"
+    assert by_ref["source_asset:missing-source"]["record_confirmed"] is False
+    assert by_ref["literature:foo"]["status"] == "unsupported_kind"
+    assert by_ref["not-a-ref"]["status"] == "malformed_ref"
+
+    assert _invoke(["--base", str(tmp_path), "adapter", "record-ref-lookup", *refs], capsys) == {
+        "ok": True,
+        "record_ref_lookup": lookup,
+    }
+    assert aitp_v5_lookup_record_refs(str(tmp_path), refs=refs) == {
+        "ok": True,
+        "record_ref_lookup": lookup,
+    }
+
+
 def test_curated_rag_ingestion_writes_manifest_index_and_no_trust_surface(tmp_path, capsys):
     from brain.v5.curated_rag_corpus import (
         curated_rag_corpus,
@@ -3417,6 +3488,7 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
         "readProcessGraphSlice",
         "readMomentPolicy",
         "readRuntimePayloadProfiles",
+        "lookupRecordRefs",
         "readCuratedRagCorpus",
         "searchCuratedRagCorpus",
         "draftCuratedRagPromotion",
@@ -3428,6 +3500,11 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
     assert by_operation["readRuntimePayloadProfiles"]["surface"] == "runtime_payload_profiles"
     assert by_operation["readRuntimePayloadProfiles"]["execution_role"] == "read"
     assert by_operation["readRuntimePayloadProfiles"]["state_effect"] == "read_only"
+    assert by_operation["lookupRecordRefs"]["mcp_tool"] == "aitp_v5_lookup_record_refs"
+    assert by_operation["lookupRecordRefs"]["cli_fallback"] == "aitp-v5 adapter record-ref-lookup <args>"
+    assert by_operation["lookupRecordRefs"]["surface"] == "record_ref_lookup"
+    assert by_operation["lookupRecordRefs"]["execution_role"] == "read"
+    assert by_operation["lookupRecordRefs"]["state_effect"] == "read_only"
     assert by_operation["readCuratedRagCorpus"]["mcp_tool"] == "aitp_v5_get_curated_rag_corpus"
     assert by_operation["readCuratedRagCorpus"]["cli_fallback"] == "aitp-v5 adapter curated-rag-corpus"
     assert by_operation["readCuratedRagCorpus"]["surface"] == "curated_rag_corpus"
@@ -3462,6 +3539,11 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
         "required": [],
         "optional": [],
         "source": "aitp_v5_get_runtime_payload_profiles",
+    }
+    assert by_operation["lookupRecordRefs"]["mcp_arguments"] == {
+        "required": ["base", "refs"],
+        "optional": [],
+        "source": "aitp_v5_lookup_record_refs",
     }
     assert by_operation["readCuratedRagCorpus"]["mcp_arguments"] == {
         "required": [],

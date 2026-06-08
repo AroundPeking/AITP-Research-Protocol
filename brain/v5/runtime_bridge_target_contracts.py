@@ -148,6 +148,7 @@ def _validate_mcp_arguments(target: dict[str, Any], path: str, result: ContractR
         "process_graph_slice",
         "host_agnostic_moment_policy",
         "runtime_payload_profiles",
+        "record_ref_lookup",
         "curated_rag_corpus",
         "curated_rag_search",
         "curated_rag_promotion_draft",
@@ -173,6 +174,11 @@ def _validate_mcp_arguments(target: dict[str, Any], path: str, result: ContractR
         if entrypoint_key == "runtime_payload_profiles":
             if arguments.get("required") != []:
                 result.add(f"{path}.mcp_arguments.required", "must be empty")
+            if arguments.get("optional") != []:
+                result.add(f"{path}.mcp_arguments.optional", "must be empty")
+        if entrypoint_key == "record_ref_lookup":
+            if arguments.get("required") != ["base", "refs"]:
+                result.add(f"{path}.mcp_arguments.required", "must require base and refs")
             if arguments.get("optional") != []:
                 result.add(f"{path}.mcp_arguments.optional", "must be empty")
         if entrypoint_key == "curated_rag_corpus":
