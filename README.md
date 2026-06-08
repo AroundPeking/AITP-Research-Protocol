@@ -717,6 +717,9 @@ If a host adds a checklist telling a caller to inspect readiness before a later
 explicit bridge call, that checklist is downstream next-step guidance. It does
 not authorize the write call, call the bridge, or replace AITP typed validation,
 source support, trust preflight, or write-entrypoint checks.
+If that checklist carries a stable host id derived from the handoff and draft
+family, the id is for host navigation only. It does not reserve or mint an AITP
+record id, and it does not change canonical identity rules for typed records.
 Downstream guard tests may pin missing-field and tamper rejection, but they
 remain host-contract tests. AITP's own write surface is still the explicit
 typed entrypoint list, with non-mutating trust preflight but no `trustApply`
