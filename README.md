@@ -638,6 +638,10 @@ artifact carrying a confirmation id, diagnostic hash, exact tool-call JSON, and
 non-execution provenance. That artifact is not an AITP typed record and does
 not rewrite the curated RAG draft; it is only a downstream transfer envelope
 for a later explicit `execute_aitp_write_bridge` call.
+If a host re-checks such a handoff before executing the later call, that guard
+is still host-side consistency checking over the transfer envelope. It does not
+replace AITP validation, trust preflight, final-gate checks, or the canonical
+typed write/preflight entrypoint itself.
 
 Exploratory record reasoning fields are likewise host-facing process handles:
 Hakimi normalizes them into `params.theoryReasoning`, then renders them into the
