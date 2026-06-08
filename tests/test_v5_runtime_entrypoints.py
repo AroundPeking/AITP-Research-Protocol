@@ -307,6 +307,11 @@ def test_hakimi_runtime_bridge_entrypoint_contract_is_stable():
         "claim_trust_mutation": "none",
         "summary_inputs_trusted": False,
         "can_update_claim_trust": False,
+        "mcp_arguments": {
+            "required": ["base", "session_id"],
+            "optional": ["claim_id", "limit"],
+            "source": "aitp_v5_get_process_graph_slice",
+        },
     }
     assert by_operation["recordEvidence"]["mcp_tool"] == "aitp_v5_record_evidence"
     assert by_operation["recordEvidence"]["cli_fallback"] == "aitp-v5 evidence record <args>"
@@ -334,6 +339,11 @@ def test_hakimi_runtime_bridge_entrypoint_contract_is_stable():
     assert by_operation["readRuntimePayloadProfiles"]["state_effect"] == "read_only"
     assert by_operation["readRuntimePayloadProfiles"]["claim_trust_mutation"] == "none"
     assert by_operation["readRuntimePayloadProfiles"]["can_update_claim_trust"] is False
+    assert by_operation["readRuntimePayloadProfiles"]["mcp_arguments"] == {
+        "required": [],
+        "optional": [],
+        "source": "aitp_v5_get_runtime_payload_profiles",
+    }
     assert by_operation["preflightTrustUpdate"]["mcp_tool"] == "aitp_v5_preflight_trust_update"
     assert by_operation["preflightTrustUpdate"]["state_effect"] == "preflight_only"
     assert "trustApply" not in by_operation

@@ -94,7 +94,11 @@ The practical rule is:
   fallback template, public surface, state effect, and MCP invocation contract
   for each host operation: JSON-object args, `base` as the workspace argument,
   snake_case payload keys, JSON-object result payloads, and CLI fallback when
-  MCP is unavailable or fails. It excludes `trust_apply`, remains
+  MCP is unavailable or fails. Read targets also declare `mcp_arguments` so
+  hosts know that `readProcessGraphSlice` / `readMomentPolicy` require
+  `base` and `session_id`, accept `claim_id` and `limit`, and that
+  `readRuntimePayloadProfiles` has no required payload. It excludes
+  `trust_apply`, remains
   orientation-only, and cannot update claim trust.
 - Treat `runtime_payload_profiles` as the canonical host-event-to-write
   contract. The first profile maps Hakimi benchmark adapter runs to
@@ -241,9 +245,9 @@ kernel capability:
    MCP-first bridge target manifest is implemented and gives hosts canonical
    MCP tool names, invocation args, result shape, and CLI fallback templates.
    Runtime payload profiles now give Hakimi a canonical benchmark-adapter-run
-   to `tool_run_record` mapping. Hakimi write/preflight execution can now call
-   those MCP tools first and fall back to the CLI bridge; MCP-first read
-   transport and richer evidence write-back still need later runtime
+   to `tool_run_record` mapping. Hakimi process graph reads, writes, and
+   preflight execution can now call the AITP MCP tools first and fall back to
+   the CLI bridge; richer evidence write-back still needs later runtime
    integration slices. `trust apply` remains an AITP-owned future boundary for
    hosts.
 8. Update downstream theory workspaces to the latest v5 kernel and regenerate
@@ -415,9 +419,13 @@ hard-coding the operation-to-entrypoint map. Each target names a Hakimi-facing
 operation such as `recordEvidence`, `captureSourceAssetAuto`,
 `captureCodeStateAuto`, `attachArtifactAuto`, or
 `preflightTrustUpdate`, its canonical AITP entrypoint key, preferred MCP tool,
-CLI fallback template, public surface, and state effect. The manifest is
-derived from `runtime_entrypoints()`, has `preferred_transport=mcp`, keeps
-`fallback_transport=cli`, and explicitly excludes `trust_apply`.
+CLI fallback template, public surface, and state effect. Read targets also
+carry `mcp_arguments` for host runtime calls: `readProcessGraphSlice` and
+`readMomentPolicy` require `base` plus `session_id` and accept `claim_id` plus
+`limit`, while `readRuntimePayloadProfiles` has no required arguments. The
+manifest is derived from `runtime_entrypoints()`, has
+`preferred_transport=mcp`, keeps `fallback_transport=cli`, and explicitly
+excludes `trust_apply`.
 
 The graph slice returns `moment_policy.decisions` as the typed policy surface
 for hosts. Each decision carries whether it is `required_now`, which

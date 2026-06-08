@@ -3015,6 +3015,21 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
     assert by_operation["readRuntimePayloadProfiles"]["surface"] == "runtime_payload_profiles"
     assert by_operation["readRuntimePayloadProfiles"]["execution_role"] == "read"
     assert by_operation["readRuntimePayloadProfiles"]["state_effect"] == "read_only"
+    assert by_operation["readProcessGraphSlice"]["mcp_arguments"] == {
+        "required": ["base", "session_id"],
+        "optional": ["claim_id", "limit"],
+        "source": "aitp_v5_get_process_graph_slice",
+    }
+    assert by_operation["readMomentPolicy"]["mcp_arguments"] == {
+        "required": ["base", "session_id"],
+        "optional": ["claim_id", "limit"],
+        "source": "aitp_v5_get_host_agnostic_moment_policy",
+    }
+    assert by_operation["readRuntimePayloadProfiles"]["mcp_arguments"] == {
+        "required": [],
+        "optional": [],
+        "source": "aitp_v5_get_runtime_payload_profiles",
+    }
     assert by_operation["recordEvidence"]["preferred_transport"] == "mcp"
     assert by_operation["recordEvidence"]["mcp_tool"] == "aitp_v5_record_evidence"
     assert by_operation["recordEvidence"]["cli_fallback"] == "aitp-v5 evidence record <args>"

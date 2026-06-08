@@ -8,6 +8,24 @@ from typing import Any
 from brain.v5.runtime_entrypoints import runtime_entrypoints
 
 
+_MCP_ARGUMENT_SPECS: dict[str, dict[str, Any]] = {
+    "process_graph_slice": {
+        "required": ["base", "session_id"],
+        "optional": ["claim_id", "limit"],
+        "source": "aitp_v5_get_process_graph_slice",
+    },
+    "host_agnostic_moment_policy": {
+        "required": ["base", "session_id"],
+        "optional": ["claim_id", "limit"],
+        "source": "aitp_v5_get_host_agnostic_moment_policy",
+    },
+    "runtime_payload_profiles": {
+        "required": [],
+        "optional": [],
+        "source": "aitp_v5_get_runtime_payload_profiles",
+    },
+}
+
 _BRIDGE_TARGET_SPECS: tuple[tuple[str, str, str, str], ...] = (
     ("readProcessGraphSlice", "process_graph_slice", "read", "read_only"),
     ("readMomentPolicy", "host_agnostic_moment_policy", "read", "read_only"),
@@ -96,7 +114,7 @@ def _target_payload(
     state_effect: str,
     entrypoint: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "operation": operation,
         "entrypoint_key": entrypoint_key,
         "mcp_tool": entrypoint["mcp"],
@@ -120,3 +138,7 @@ def _target_payload(
         "summary_inputs_trusted": False,
         "can_update_claim_trust": False,
     }
+    mcp_arguments = _MCP_ARGUMENT_SPECS.get(entrypoint_key)
+    if mcp_arguments is not None:
+        payload["mcp_arguments"] = deepcopy(mcp_arguments)
+    return payload

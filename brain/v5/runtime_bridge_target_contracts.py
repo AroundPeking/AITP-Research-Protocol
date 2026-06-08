@@ -133,3 +133,39 @@ def _validate_targets(targets: list[Any], path: str, result: ContractResult) -> 
             result.add(f"{item_path}.claim_trust_mutation", "must be 'none'")
         if target.get("can_update_claim_trust") is not False:
             result.add(f"{item_path}.can_update_claim_trust", "must be false")
+        _validate_mcp_arguments(target, item_path, result)
+
+
+def _validate_mcp_arguments(target: dict[str, Any], path: str, result: ContractResult) -> None:
+    entrypoint_key = target.get("entrypoint_key")
+    arguments = target.get("mcp_arguments")
+    if entrypoint_key in {
+        "process_graph_slice",
+        "host_agnostic_moment_policy",
+        "runtime_payload_profiles",
+    }:
+        _require_mapping(arguments, f"{path}.mcp_arguments", result)
+        if not isinstance(arguments, dict):
+            return
+        _require_list(arguments.get("required"), f"{path}.mcp_arguments.required", result)
+        _require_list(arguments.get("optional"), f"{path}.mcp_arguments.optional", result)
+        if not isinstance(arguments.get("source"), str) or not arguments["source"]:
+            result.add(f"{path}.mcp_arguments.source", "must be a non-empty string")
+        if entrypoint_key in {"process_graph_slice", "host_agnostic_moment_policy"}:
+            if arguments.get("required") != ["base", "session_id"]:
+                result.add(
+                    f"{path}.mcp_arguments.required",
+                    "must require base and session_id",
+                )
+            if arguments.get("optional") != ["claim_id", "limit"]:
+                result.add(
+                    f"{path}.mcp_arguments.optional",
+                    "must allow claim_id and limit",
+                )
+        if entrypoint_key == "runtime_payload_profiles":
+            if arguments.get("required") != []:
+                result.add(f"{path}.mcp_arguments.required", "must be empty")
+            if arguments.get("optional") != []:
+                result.add(f"{path}.mcp_arguments.optional", "must be empty")
+    elif arguments is not None:
+        result.add(f"{path}.mcp_arguments", "must be omitted for non-read target metadata")
