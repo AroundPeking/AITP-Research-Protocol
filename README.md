@@ -673,6 +673,11 @@ artifact carrying a confirmation id, diagnostic hash, exact tool-call JSON, and
 non-execution provenance. That artifact is not an AITP typed record and does
 not rewrite the curated RAG draft; it is only a downstream transfer envelope
 for a later explicit `execute_aitp_write_bridge` call.
+A reviewed `aitp_record_ref_repair_write_bridge_call_draft` may use a
+repair-scoped handoff for that same transfer, but the boundary is unchanged:
+the handoff creates no AITP record, records no source support or validation,
+does not run trust preflight, and does not relax typed write-entrypoint
+validation.
 If a host re-checks such a handoff before executing the later call, that guard
 is still host-side consistency checking over the transfer envelope. It does not
 replace AITP validation, trust preflight, final-gate checks, or the canonical
