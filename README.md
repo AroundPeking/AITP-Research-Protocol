@@ -658,9 +658,10 @@ model ergonomics, but that checklist is downstream rendering over
 preflight, or write execution.
 A host-side confirmation summary over that reviewed call draft is also not an
 AITP trust preflight. It may classify remaining placeholder, source-review, and
-preflight-scope diagnostics before a pending explicit AITP call, but it does
-not record validation, satisfy final gates, convert the curated chunk into
-evidence, or mutate claim trust.
+preflight-scope diagnostics, and may count repair-hinted missing refs so its
+summary stays aligned with a host-rendered checklist before a pending explicit
+AITP call. It still does not record validation, satisfy final gates, convert the
+curated chunk into evidence, or mutate claim trust.
 Hosts may finally wrap the reviewed/confirmed call draft in a local handoff
 artifact carrying a confirmation id, diagnostic hash, exact tool-call JSON, and
 non-execution provenance. That artifact is not an AITP typed record and does
