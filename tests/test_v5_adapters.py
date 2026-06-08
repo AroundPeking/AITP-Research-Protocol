@@ -2922,6 +2922,20 @@ def test_adapter_packet_exposes_runtime_payload_profiles_for_benchmark_provenanc
     assert profile["target_entrypoint"] == "aitp_v5_record_tool_run"
     assert profile["payload_template"]["tool_family"] == "benchmark_adapter"
     assert profile["payload_template"]["evidence_status"] == "unreviewed"
+    assert profile["capture_policy"] == {
+        "capture_mode": "controlled_auto",
+        "host_trigger": "ResearchAction.run_benchmark_adapter",
+        "requires_configured_bridge": True,
+        "requires_scoped_topic_and_claim": True,
+        "requires_tool_call_id": False,
+        "capture_granularity": "one_tool_run_per_adapter_run",
+        "missing_scope_behavior": "skip_with_reason",
+        "bulk_auto_capture": False,
+        "records_validation_result": False,
+        "claim_trust_mutation": "none",
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+    }
     assert profile["result_semantics"] == {
         "record_kind": "tool_run",
         "evidence_ref_prefix": "aitp:tool_run",
@@ -2949,6 +2963,20 @@ def test_adapter_packet_exposes_runtime_payload_profiles_for_benchmark_provenanc
     assert primitive_profile["payload_template"]["environment"]["payload_profile"] == (
         "primitive_tool_lifecycle_to_tool_run"
     )
+    assert primitive_profile["capture_policy"] == {
+        "capture_mode": "explicit_request",
+        "host_trigger": "ResearchAction.capture_primitive_tool_run",
+        "requires_configured_bridge": True,
+        "requires_scoped_topic_and_claim": True,
+        "requires_tool_call_id": True,
+        "capture_granularity": "one_tool_run_per_explicit_tool_call_id",
+        "missing_scope_behavior": "skip_with_reason",
+        "bulk_auto_capture": False,
+        "records_validation_result": False,
+        "claim_trust_mutation": "none",
+        "summary_inputs_trusted": False,
+        "can_update_claim_trust": False,
+    }
     assert primitive_profile["result_semantics"]["records_validation_result"] is False
     assert "explicit evidence or validation" in primitive_profile["strict_boundary"]
 

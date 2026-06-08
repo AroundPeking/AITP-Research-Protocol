@@ -68,7 +68,7 @@ def _validate_profiles(profiles: list[Any], path: str, result: ContractResult) -
                 result.add(f"{item_path}.{key}", "must be a non-empty string")
         for key in ("required_host_fields", "optional_host_fields"):
             _require_list(profile.get(key), f"{item_path}.{key}", result)
-        for key in ("payload_template", "result_semantics"):
+        for key in ("capture_policy", "payload_template", "result_semantics"):
             _require_mapping(profile.get(key), f"{item_path}.{key}", result)
 
         if profile_id == "benchmark_adapter_run_to_tool_run":
@@ -102,6 +102,14 @@ def _validate_benchmark_adapter_profile(
         result.add(f"{path}.target_surface", "must be 'tool_run_record'")
     if profile.get("required_host_fields") != expected_required:
         result.add(f"{path}.required_host_fields", "must name the benchmark adapter run contract")
+    _validate_capture_policy(
+        profile,
+        path,
+        result,
+        expected_capture_mode="controlled_auto",
+        expected_host_trigger="ResearchAction.run_benchmark_adapter",
+        expected_tool_call_requirement=False,
+    )
     template = profile.get("payload_template")
     if isinstance(template, dict):
         if template.get("tool_family") != "benchmark_adapter":
@@ -141,6 +149,14 @@ def _validate_primitive_tool_lifecycle_profile(
         result.add(f"{path}.target_surface", "must be 'tool_run_record'")
     if profile.get("required_host_fields") != expected_required:
         result.add(f"{path}.required_host_fields", "must name the primitive tool lifecycle contract")
+    _validate_capture_policy(
+        profile,
+        path,
+        result,
+        expected_capture_mode="explicit_request",
+        expected_host_trigger="ResearchAction.capture_primitive_tool_run",
+        expected_tool_call_requirement=True,
+    )
     template = profile.get("payload_template")
     if isinstance(template, dict):
         if template.get("tool_family") != "primitive_tool":
@@ -155,3 +171,44 @@ def _validate_primitive_tool_lifecycle_profile(
             result.add(f"{path}.result_semantics.claim_trust_mutation", "must be 'none'")
         if semantics.get("can_update_claim_trust") is not False:
             result.add(f"{path}.result_semantics.can_update_claim_trust", "must be false")
+
+
+def _validate_capture_policy(
+    profile: dict[str, Any],
+    path: str,
+    result: ContractResult,
+    *,
+    expected_capture_mode: str,
+    expected_host_trigger: str,
+    expected_tool_call_requirement: bool,
+) -> None:
+    policy = profile.get("capture_policy")
+    if not isinstance(policy, dict):
+        return
+    if policy.get("capture_mode") != expected_capture_mode:
+        result.add(f"{path}.capture_policy.capture_mode", f"must be '{expected_capture_mode}'")
+    if policy.get("host_trigger") != expected_host_trigger:
+        result.add(f"{path}.capture_policy.host_trigger", f"must be '{expected_host_trigger}'")
+    if policy.get("requires_configured_bridge") is not True:
+        result.add(f"{path}.capture_policy.requires_configured_bridge", "must be true")
+    if policy.get("requires_scoped_topic_and_claim") is not True:
+        result.add(f"{path}.capture_policy.requires_scoped_topic_and_claim", "must be true")
+    if policy.get("requires_tool_call_id") is not expected_tool_call_requirement:
+        result.add(
+            f"{path}.capture_policy.requires_tool_call_id",
+            f"must be {str(expected_tool_call_requirement).lower()}",
+        )
+    if not isinstance(policy.get("capture_granularity"), str) or not policy.get("capture_granularity"):
+        result.add(f"{path}.capture_policy.capture_granularity", "must be a non-empty string")
+    if policy.get("missing_scope_behavior") != "skip_with_reason":
+        result.add(f"{path}.capture_policy.missing_scope_behavior", "must be 'skip_with_reason'")
+    if policy.get("bulk_auto_capture") is not False:
+        result.add(f"{path}.capture_policy.bulk_auto_capture", "must be false")
+    if policy.get("records_validation_result") is not False:
+        result.add(f"{path}.capture_policy.records_validation_result", "must be false")
+    if policy.get("claim_trust_mutation") != "none":
+        result.add(f"{path}.capture_policy.claim_trust_mutation", "must be 'none'")
+    if policy.get("summary_inputs_trusted") is not False:
+        result.add(f"{path}.capture_policy.summary_inputs_trusted", "must be false")
+    if policy.get("can_update_claim_trust") is not False:
+        result.add(f"{path}.capture_policy.can_update_claim_trust", "must be false")
