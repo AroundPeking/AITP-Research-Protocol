@@ -70,6 +70,14 @@ def _validate_lookup_item(item: Any, path: str, result: ContractResult) -> None:
     for key in ("ref", "status", "read_surface_effect", "claim_trust_mutation"):
         if not isinstance(item.get(key), str) or not item.get(key):
             result.add(f"{path}.{key}", "must be a non-empty string")
+    for key in (
+        "suggested_next_operation",
+        "suggested_next_entrypoint",
+        "suggested_next_surface",
+        "suggested_next_reason",
+    ):
+        if not isinstance(item.get(key), str):
+            result.add(f"{path}.{key}", "must be a string")
     if item.get("status") not in _STATUSES:
         result.add(f"{path}.status", "must be a supported lookup status")
     if item.get("read_surface_effect") != "record_existence_check_only":

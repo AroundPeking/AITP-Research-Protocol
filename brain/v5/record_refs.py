@@ -184,6 +184,21 @@ _ALIASES = {
     "topic_record": "topic",
 }
 
+_MISSING_REF_SUGGESTIONS: dict[str, tuple[str, str, str, str]] = {
+    "reference_location": (
+        "recordReferenceLocation",
+        "record_reference_location",
+        "reference_location_record",
+        "record a normal AITP reference location before using this ref as source context",
+    ),
+    "source_asset": (
+        "registerSourceAsset",
+        "register_source_asset",
+        "source_asset_record",
+        "register or auto-capture a normal AITP source asset before using this ref as source context",
+    ),
+}
+
 
 def lookup_record_refs(ws: WorkspacePaths, refs: list[str]) -> dict[str, Any]:
     """Return read-only typed-store existence checks for canonical record refs."""
@@ -238,6 +253,7 @@ def _lookup_record_ref(ws: WorkspacePaths, ref: str) -> dict[str, Any]:
         store_scope=store_scope,
     )
     if not path.exists():
+        _add_missing_ref_suggestion(result, ref_kind)
         return result
 
     try:
@@ -265,6 +281,21 @@ def _lookup_record_ref(ws: WorkspacePaths, ref: str) -> dict[str, Any]:
         }
     )
     return result
+
+
+def _add_missing_ref_suggestion(result: dict[str, Any], ref_kind: str) -> None:
+    suggestion = _MISSING_REF_SUGGESTIONS.get(ref_kind)
+    if suggestion is None:
+        return
+    operation, entrypoint, surface, reason = suggestion
+    result.update(
+        {
+            "suggested_next_operation": operation,
+            "suggested_next_entrypoint": entrypoint,
+            "suggested_next_surface": surface,
+            "suggested_next_reason": reason,
+        }
+    )
 
 
 def _parse_ref(ref: str) -> tuple[str, str] | None:
@@ -323,5 +354,9 @@ def _base_result(
         "source_support_result": False,
         "claim_trust_mutation": "none",
         "can_update_claim_trust": False,
+        "suggested_next_operation": "",
+        "suggested_next_entrypoint": "",
+        "suggested_next_surface": "",
+        "suggested_next_reason": "",
         "diagnostic": diagnostic,
     }

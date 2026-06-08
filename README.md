@@ -647,6 +647,11 @@ pre-execution case: it can say that `source_asset:<id>`,
 store, but `status="found"` still means typed-store existence only. It does not
 validate source support, create evidence, create validation, satisfy a final
 gate, update claim trust, or make summary inputs trusted.
+For missing `source_asset` and `reference_location` refs, the same item may
+include `suggested_next_operation`, `suggested_next_entrypoint`, and
+`suggested_next_surface` to point hosts toward the normal AITP write path. Those
+fields are repair guidance only; they do not execute the write or weaken the
+no-trust boundary.
 A host-side confirmation summary over that reviewed call draft is also not an
 AITP trust preflight. It may classify remaining placeholder, source-review, and
 preflight-scope diagnostics before a pending explicit AITP call, but it does

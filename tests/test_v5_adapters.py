@@ -3202,6 +3202,7 @@ def test_record_ref_lookup_confirms_typed_record_existence_only(tmp_path, capsys
         f"source_asset:{source.asset_id}",
         f"aitp:reference_location:{location.location_id}",
         "source_asset:missing-source",
+        "reference_location:missing-location",
         "literature:foo",
         "not-a-ref",
     ]
@@ -3211,7 +3212,7 @@ def test_record_ref_lookup_confirms_typed_record_existence_only(tmp_path, capsys
     assert lookup["kind"] == "record_ref_lookup"
     assert lookup["lookup_scope"] == "typed_record_existence_only"
     assert lookup["found_count"] == 2
-    assert lookup["missing_count"] == 1
+    assert lookup["missing_count"] == 2
     assert lookup["unsupported_count"] == 1
     assert lookup["malformed_count"] == 1
     assert lookup["records_validation_result"] is False
@@ -3229,7 +3230,17 @@ def test_record_ref_lookup_confirms_typed_record_existence_only(tmp_path, capsys
     assert by_ref[f"aitp:reference_location:{location.location_id}"]["ref_kind"] == "reference_location"
     assert by_ref["source_asset:missing-source"]["status"] == "not_found"
     assert by_ref["source_asset:missing-source"]["record_confirmed"] is False
+    assert by_ref["source_asset:missing-source"]["suggested_next_operation"] == "registerSourceAsset"
+    assert by_ref["source_asset:missing-source"]["suggested_next_entrypoint"] == "register_source_asset"
+    assert by_ref["source_asset:missing-source"]["suggested_next_surface"] == "source_asset_record"
+    assert by_ref["reference_location:missing-location"]["status"] == "not_found"
+    assert by_ref["reference_location:missing-location"]["suggested_next_operation"] == "recordReferenceLocation"
+    assert by_ref["reference_location:missing-location"]["suggested_next_entrypoint"] == "record_reference_location"
+    assert by_ref["reference_location:missing-location"]["suggested_next_surface"] == "reference_location_record"
+    assert by_ref["reference_location:missing-location"]["records_validation_result"] is False
+    assert by_ref["reference_location:missing-location"]["source_support_result"] is False
     assert by_ref["literature:foo"]["status"] == "unsupported_kind"
+    assert by_ref["literature:foo"]["suggested_next_operation"] == ""
     assert by_ref["not-a-ref"]["status"] == "malformed_ref"
 
     assert _invoke(["--base", str(tmp_path), "adapter", "record-ref-lookup", *refs], capsys) == {
