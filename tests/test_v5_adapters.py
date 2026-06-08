@@ -3096,6 +3096,81 @@ def test_curated_rag_corpus_is_public_cli_and_mcp(capsys):
     }
 
 
+def test_curated_rag_corpus_reads_file_backed_workspace_manifest(tmp_path, capsys):
+    from brain.v5.curated_rag_corpus import curated_rag_corpus, search_curated_rag_corpus
+    from brain.v5.public_surfaces import require_valid_public_surface
+    from brain.v5.workspace import init_workspace
+
+    ws = init_workspace(tmp_path)
+    corpus_dir = ws.root / "curated_rag"
+    corpus_dir.mkdir(parents=True, exist_ok=True)
+    (corpus_dir / "corpus.json").write_text(
+        json.dumps(
+            {
+                "corpus_id": "aitp.curated.user_background.v1",
+                "documents": [
+                    {
+                        "document_id": "curated_rag_doc:user_note_dmft",
+                        "title": "User DMFT Orientation Note",
+                        "asset_type": "note",
+                        "source_uri": "file:///notes/dmft.md",
+                        "version_anchor": {"mtime": "2026-06-08T00:00:00Z"},
+                        "content_hash": "sha256:user-note-dmft",
+                        "tags": ["dmft", "self-energy"],
+                        "domain_hints": ["theoretical-physics/condensed-matter"],
+                        "topic_hints": ["gw-dmft"],
+                    }
+                ],
+                "chunks": [
+                    {
+                        "chunk_id": "curated_rag_chunk:user_note_dmft:0001",
+                        "document_id": "curated_rag_doc:user_note_dmft",
+                        "anchor": {"section": "orientation", "ordinal": 1},
+                        "text": "DMFT orientation should separate impurity self energy, lattice embedding, and double counting before choosing a solver.",
+                        "summary": "Separate impurity self energy, embedding, and double counting before solver choice.",
+                        "tags": ["dmft", "method-selection"],
+                    }
+                ],
+            },
+            ensure_ascii=True,
+        ),
+        encoding="utf-8",
+    )
+    (corpus_dir / "indexes").mkdir(parents=True, exist_ok=True)
+    (corpus_dir / "indexes" / "lexical_index.json").write_text(
+        json.dumps({"manifest_hash": "sha256:stale"}),
+        encoding="utf-8",
+    )
+
+    corpus = curated_rag_corpus(ws)
+    search = search_curated_rag_corpus("DMFT solver self energy", limit=3, base=ws)
+
+    assert require_valid_public_surface("curated_rag_corpus", corpus) == corpus
+    assert require_valid_public_surface("curated_rag_search_result", search) == search
+    assert corpus["corpus_id"] == "aitp.curated.user_background.v1"
+    assert corpus["index_policy"]["active_index_mode"] == "lexical_file_backed"
+    assert corpus["index_policy"]["index_source"] == "file_backed_corpus_manifest"
+    assert corpus["index_policy"]["index_status"] == "stale"
+    assert corpus["index_policy"]["stale_index_diagnostics"][0]["code"] == "curated_rag_index_stale"
+    assert corpus["documents"][0]["trust_status"] == "heuristic_context"
+    assert corpus["chunks"][0]["retrieval_role"] == "heuristic_context"
+    assert search["index_mode"] == "lexical_file_backed"
+    assert search["index_status"] == "stale"
+    assert search["results"][0]["document_id"] == "curated_rag_doc:user_note_dmft"
+    assert search["results"][0]["can_update_claim_trust"] is False
+    assert _invoke(["--base", str(tmp_path), "adapter", "curated-rag-corpus"], capsys) == {
+        "ok": True,
+        "curated_rag_corpus": corpus,
+    }
+    assert _invoke(
+        ["--base", str(tmp_path), "adapter", "curated-rag-search", "DMFT solver self energy", "--limit", "3"],
+        capsys,
+    ) == {
+        "ok": True,
+        "curated_rag_search_result": search,
+    }
+
+
 def test_adapter_registry_protocol_fields_match_builder_keys():
     from brain.v5.adapter_protocols import adapter_protocol_fields, build_adapter_protocols
 
@@ -3190,12 +3265,12 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
     }
     assert by_operation["readCuratedRagCorpus"]["mcp_arguments"] == {
         "required": [],
-        "optional": [],
+        "optional": ["base"],
         "source": "aitp_v5_get_curated_rag_corpus",
     }
     assert by_operation["searchCuratedRagCorpus"]["mcp_arguments"] == {
         "required": ["query"],
-        "optional": ["limit"],
+        "optional": ["base", "limit"],
         "source": "aitp_v5_search_curated_rag_corpus",
     }
     assert by_operation["recordEvidence"]["preferred_transport"] == "mcp"

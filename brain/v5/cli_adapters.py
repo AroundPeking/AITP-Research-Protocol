@@ -105,7 +105,7 @@ def dispatch_adapter_command(args: Namespace, ws: Any | None) -> dict[str, Any]:
             "ok": True,
             "curated_rag_corpus": require_valid_public_surface(
                 "curated_rag_corpus",
-                curated_rag_corpus(),
+                curated_rag_corpus(ws),
             ),
         }
     if args.adapter_command == "curated-rag-search":
@@ -113,7 +113,7 @@ def dispatch_adapter_command(args: Namespace, ws: Any | None) -> dict[str, Any]:
             "ok": True,
             "curated_rag_search_result": require_valid_public_surface(
                 "curated_rag_search_result",
-                search_curated_rag_corpus(args.query, limit=args.limit),
+                search_curated_rag_corpus(args.query, limit=args.limit, base=ws),
             ),
         }
     if args.adapter_command == "record-gate-audit":

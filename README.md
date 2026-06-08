@@ -40,7 +40,7 @@ surfaces.
 | Research route state | Implemented first typed record: `aitp-v5 route record` and `aitp_v5_record_research_route` capture live routes, abandoned/blocked routes, branches, failed-attempt lessons, pivots, checkpoint links, and next actions as orientation-only process graph records. Route state can steer agents and preserve nonlinear research continuity, but it is not evidence, validation, or claim-trust authority |
 | Canonical source assets | Implemented first typed record and projection: `aitp-v5 asset register` / `aitp_v5_register_source_asset` and `aitp-v5 asset capture-auto` / `aitp_v5_capture_source_asset_auto` assign orientation-only identities, local file hashes, version anchors, duplicate-hash diagnostics, and source/code/artifact links to papers, lectures, notes, code repositories, snapshots, datasets, and generated artifacts; `process_graph_slice.source_asset_index[]` exposes that canonical source asset state to hosts without creating a second store |
 | Source/code/tool provenance automation | Implemented first automations: `aitp-v5 asset capture-auto` and `aitp_v5_capture_source_asset_auto` capture local source file hash/size/mtime/MIME-ish metadata into canonical source asset records, `aitp-v5 code state auto` and `aitp_v5_capture_code_state_auto` capture git HEAD, branch/upstream, dirty status, diff hash, optional patch artifacts, and linked topic/claim/session refs, `aitp-v5 tool run capture-auto` / `aitp_v5_capture_tool_run_auto` captures local tool transcript/result hash, size, mtime, MIME-ish metadata, and bounded preview into a `tool_run_record`, and `aitp-v5 research-state attach-artifact-auto` / `aitp_v5_attach_artifact_auto` captures local artifact hash/size/mtime/MIME-ish metadata into an `artifact_record` without treating it as evidence, validation, or trust |
-| Curated heuristic RAG | Implemented first read-only contract surface: `aitp-v5 adapter curated-rag-corpus` / `aitp_v5_get_curated_rag_corpus` exposes the curated background corpus catalog and `aitp-v5 adapter curated-rag-search <query>` / `aitp_v5_search_curated_rag_corpus` returns deterministic fixture retrieval as `heuristic_context`. The corpus/chunks are orientation-only background for conceptual scaffolding, literature orientation, derivation scaffolding, method selection, and source-backtrace suggestions; they cannot satisfy evidence, validation, claim-trust, `trust_apply`, or final-gate requirements unless promoted through normal AITP source/evidence/validation records |
+| Curated heuristic RAG | Implemented first read-only contract surface and file-backed manifest lane: `aitp-v5 adapter curated-rag-corpus` / `aitp_v5_get_curated_rag_corpus` exposes either the default fixture catalog or `.aitp/curated_rag/corpus.json`, and `aitp-v5 adapter curated-rag-search <query>` / `aitp_v5_search_curated_rag_corpus` returns deterministic lexical retrieval as `heuristic_context`. The file-backed lane derives `lexical_file_backed` index metadata, manifest hashes, and stale-index diagnostics from `.aitp/curated_rag/indexes/lexical_index.json` when present. Corpus/chunks remain orientation-only background for conceptual scaffolding, literature orientation, derivation scaffolding, method selection, and source-backtrace suggestions; they cannot satisfy evidence, validation, claim-trust, `trust_apply`, or final-gate requirements unless promoted through normal AITP source/evidence/validation records |
 | QSGW cockpit | Implemented first surface: `aitp-v5 status qsgw-cockpit` writes a topic-local final/diagnostic lane manifest, plot guard, and dashboard dry-run from typed records plus `research/librpa` report/script scans; it also discovers downstream `*_lane_manifest_current.json` and `*_aitp_intake_current.jsonl` files without treating them as trust updates |
 
 The latest real readiness audit reports:
@@ -454,9 +454,9 @@ operation such as `recordEvidence`, `captureSourceAssetAuto`,
 CLI fallback template, public surface, and state effect. Read targets also
 carry `mcp_arguments` for host runtime calls: `readProcessGraphSlice` and
 `readMomentPolicy` require `base` plus `session_id` and accept `claim_id` plus
-`limit`, `readRuntimePayloadProfiles` and `readCuratedRagCorpus` have no
-required arguments, and `searchCuratedRagCorpus` requires `query` with optional
-`limit`. The
+`limit`, `readRuntimePayloadProfiles` has no required arguments,
+`readCuratedRagCorpus` accepts optional `base`, and
+`searchCuratedRagCorpus` requires `query` with optional `base` and `limit`. The
 manifest is derived from `runtime_entrypoints()`, has
 `preferred_transport=mcp`, keeps `fallback_transport=cli`, and explicitly
 excludes `trust_apply`.
@@ -563,12 +563,18 @@ profile surface is tampered with.
 
 `curated_rag_corpus` is the adjacent lightweight knowledge shelf for selected
 papers, lectures, notes, reviews, textbooks, personal explanations, and code
-documentation that should help an agent reason. The current first surface is a
-contract-first fixture catalog with stable document/chunk ids, source URI,
-version anchors, content hashes, domain/topic hints, and an index policy. The
-active index mode is `lexical_fixture`; future BM25 or embedding indexes should
-remain derived from canonical corpus/chunk records and report stale-index
-diagnostics when hashes or version anchors drift.
+documentation that should help an agent reason. Without a workspace corpus it
+returns the contract-first fixture catalog. When `.aitp/curated_rag/corpus.json`
+exists, AITP normalizes that file-backed manifest into the same public surface
+with stable document/chunk ids, source URI, version anchors, content hashes,
+domain/topic hints, and no-trust flags. The active index mode is
+`lexical_fixture` for the fixture and `lexical_file_backed` for workspace
+manifests. If `.aitp/curated_rag/indexes/lexical_index.json` exists, AITP
+compares its `manifest_hash` with the current document/chunk manifest and
+reports `fresh` or `stale` diagnostics; if no index file exists, the lexical
+retrieval is derived in memory. Future BM25 or embedding indexes should remain
+derived from canonical corpus/chunk records and report stale-index diagnostics
+when hashes or version anchors drift.
 
 `curated_rag_search_result` returns retrieved chunks with
 `result_role=heuristic_context`, `read_surface_effect=orientation_only`,

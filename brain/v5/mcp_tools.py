@@ -637,26 +637,26 @@ def aitp_v5_get_runtime_payload_profiles() -> dict:
     }
 
 
-def aitp_v5_get_curated_rag_corpus() -> dict:
+def aitp_v5_get_curated_rag_corpus(base: str = "") -> dict:
     """Return the curated heuristic RAG corpus catalog."""
 
     return {
         "ok": True,
         "curated_rag_corpus": require_valid_public_surface(
             "curated_rag_corpus",
-            curated_rag_corpus(),
+            curated_rag_corpus(base or None),
         ),
     }
 
 
-def aitp_v5_search_curated_rag_corpus(query: str, *, limit: int = 5) -> dict:
+def aitp_v5_search_curated_rag_corpus(query: str, *, limit: int = 5, base: str = "") -> dict:
     """Return heuristic background chunks from the curated RAG corpus."""
 
     return {
         "ok": True,
         "curated_rag_search_result": require_valid_public_surface(
             "curated_rag_search_result",
-            search_curated_rag_corpus(query, limit=limit),
+            search_curated_rag_corpus(query, limit=limit, base=base or None),
         ),
     }
 

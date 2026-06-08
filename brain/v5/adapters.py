@@ -58,7 +58,7 @@ def build_adapter_packet(ws: WorkspacePaths, session_id: str, *, runtime: str = 
         "public_surface_audit": describe_public_surfaces(),
         "runtime_entrypoints": runtime_entrypoints(),
         "runtime_payload_profiles": runtime_payload_profiles(),
-        "curated_rag_corpus": curated_rag_corpus(),
+        "curated_rag_corpus": curated_rag_corpus(ws),
         **adapter_protocols,
         "runtime_hook_installation": build_runtime_hook_installation(
             normalized_runtime,

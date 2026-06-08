@@ -44,6 +44,7 @@ _LAYOUT_DIRS = [
     "memory/code_provenance",
     "memory/upstream_snapshots",
     "memory/route_memory",
+    "curated_rag/indexes",
     "tools/recipes",
     "tools/trust_cards",
     "tools/domain_packs",

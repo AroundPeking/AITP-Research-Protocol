@@ -39,16 +39,22 @@ def validate_curated_rag_corpus(
         if payload.get("document_index") != document_index:
             result.add(f"{path}.document_index", "must list document ids in catalog order")
         _validate_documents(payload["documents"], f"{path}.documents", result)
+    document_ids = {
+        document.get("document_id")
+        for document in payload.get("documents", [])
+        if isinstance(document, dict) and isinstance(document.get("document_id"), str)
+    }
     if isinstance(payload.get("chunks"), list):
         if payload.get("chunk_count") != len(payload["chunks"]):
             result.add(f"{path}.chunk_count", "must equal len(chunks)")
         chunk_index = [chunk.get("chunk_id") for chunk in payload["chunks"] if isinstance(chunk, dict)]
         if payload.get("chunk_index") != chunk_index:
             result.add(f"{path}.chunk_index", "must list chunk ids in catalog order")
-        _validate_chunks(payload["chunks"], f"{path}.chunks", result)
+        _validate_chunks(payload["chunks"], f"{path}.chunks", result, document_ids)
 
-    if payload != curated_rag_corpus():
-        result.add(path, "must match curated_rag_corpus()")
+    if payload.get("index_policy", {}).get("active_index_mode") == "lexical_fixture":
+        if payload != curated_rag_corpus():
+            result.add(path, "fixture corpus must match curated_rag_corpus()")
     return result
 
 
@@ -82,8 +88,12 @@ def validate_curated_rag_search_result(
         result.add(f"{path}.requires_promotion_for_claim_support", "must be true")
     if not isinstance(payload.get("query"), str):
         result.add(f"{path}.query", "must be a string")
-    if payload.get("index_mode") != "lexical_fixture":
-        result.add(f"{path}.index_mode", "must be 'lexical_fixture'")
+    if payload.get("index_mode") not in {"lexical_fixture", "lexical_file_backed"}:
+        result.add(f"{path}.index_mode", "must be a supported lexical curated RAG mode")
+    if payload.get("index_status") is not None and not isinstance(payload.get("index_status"), str):
+        result.add(f"{path}.index_status", "must be a string when present")
+    if payload.get("stale_index_diagnostics") is not None:
+        _require_list(payload.get("stale_index_diagnostics"), f"{path}.stale_index_diagnostics", result)
     _require_list(payload.get("results"), f"{path}.results", result)
     if isinstance(payload.get("results"), list):
         if payload.get("result_count") != len(payload["results"]):
@@ -143,10 +153,11 @@ def _validate_retrieval_policy(policy: dict[str, Any], path: str, result: Contra
 
 
 def _validate_index_policy(policy: dict[str, Any], path: str, result: ContractResult) -> None:
-    if policy.get("active_index_mode") != "lexical_fixture":
-        result.add(f"{path}.active_index_mode", "must be 'lexical_fixture'")
-    if policy.get("supported_index_modes") != ["lexical_fixture"]:
-        result.add(f"{path}.supported_index_modes", "must list lexical_fixture")
+    active_index_mode = policy.get("active_index_mode")
+    if active_index_mode not in {"lexical_fixture", "lexical_file_backed"}:
+        result.add(f"{path}.active_index_mode", "must be a supported lexical curated RAG mode")
+    if policy.get("supported_index_modes") != [active_index_mode]:
+        result.add(f"{path}.supported_index_modes", "must list the active lexical mode")
     if policy.get("embedding_index_required") is not False:
         result.add(f"{path}.embedding_index_required", "must be false")
     if policy.get("index_is_derived") is not True:
@@ -155,6 +166,14 @@ def _validate_index_policy(policy: dict[str, Any], path: str, result: ContractRe
         result.add(f"{path}.derived_from", "must be 'curated_rag_chunk_manifest'")
     if policy.get("stale_index_behavior") != "return_diagnostic_not_trust":
         result.add(f"{path}.stale_index_behavior", "must return diagnostics, not trust")
+    if active_index_mode == "lexical_file_backed":
+        if policy.get("index_source") != "file_backed_corpus_manifest":
+            result.add(f"{path}.index_source", "must be 'file_backed_corpus_manifest'")
+        if not isinstance(policy.get("manifest_hash"), str) or not policy.get("manifest_hash"):
+            result.add(f"{path}.manifest_hash", "must be a non-empty string")
+        if policy.get("index_status") not in {"fresh", "stale", "derived_in_memory"}:
+            result.add(f"{path}.index_status", "must be fresh, stale, or derived_in_memory")
+        _require_list(policy.get("stale_index_diagnostics"), f"{path}.stale_index_diagnostics", result)
 
 
 def _validate_documents(documents: list[Any], path: str, result: ContractResult) -> None:
@@ -184,7 +203,12 @@ def _validate_documents(documents: list[Any], path: str, result: ContractResult)
             result.add(f"{item_path}.can_update_claim_trust", "must be false")
 
 
-def _validate_chunks(chunks: list[Any], path: str, result: ContractResult) -> None:
+def _validate_chunks(
+    chunks: list[Any],
+    path: str,
+    result: ContractResult,
+    document_ids: set[str],
+) -> None:
     ids: set[str] = set()
     for index, chunk in enumerate(chunks):
         item_path = f"{path}[{index}]"
@@ -201,6 +225,8 @@ def _validate_chunks(chunks: list[Any], path: str, result: ContractResult) -> No
         for key in ("document_id", "text", "summary", "content_hash"):
             if not isinstance(chunk.get(key), str) or not chunk.get(key):
                 result.add(f"{item_path}.{key}", "must be a non-empty string")
+        if chunk.get("document_id") not in document_ids:
+            result.add(f"{item_path}.document_id", "must refer to a corpus document")
         _require_mapping(chunk.get("anchor"), f"{item_path}.anchor", result)
         _require_list(chunk.get("tags"), f"{item_path}.tags", result)
         if not isinstance(chunk.get("token_estimate"), int) or chunk["token_estimate"] <= 0:

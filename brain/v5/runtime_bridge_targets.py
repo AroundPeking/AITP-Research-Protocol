@@ -26,12 +26,12 @@ _MCP_ARGUMENT_SPECS: dict[str, dict[str, Any]] = {
     },
     "curated_rag_corpus": {
         "required": [],
-        "optional": [],
+        "optional": ["base"],
         "source": "aitp_v5_get_curated_rag_corpus",
     },
     "curated_rag_search": {
         "required": ["query"],
-        "optional": ["limit"],
+        "optional": ["base", "limit"],
         "source": "aitp_v5_search_curated_rag_corpus",
     },
 }
