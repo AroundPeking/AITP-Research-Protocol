@@ -709,6 +709,10 @@ readiness call, the summary is the same downstream annotation. It may help a
 model distinguish inspection material from execution material, but it is not an
 AITP typed record, validation, source-support record, trust preflight, or write
 authorization.
+If a host reuses one renderer/helper for these pointer and summary annotations,
+that reuse is a host-runtime implementation detail. It does not promote the
+annotation into an AITP contract or change the canonical typed write/preflight
+surfaces.
 Downstream guard tests may pin missing-field and tamper rejection, but they
 remain host-contract tests. AITP's own write surface is still the explicit
 typed entrypoint list, with non-mutating trust preflight but no `trustApply`
