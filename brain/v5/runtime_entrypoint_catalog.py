@@ -34,6 +34,11 @@ RUNTIME_ENTRYPOINTS: dict[str, dict[str, Any]] = {
         "mcp": "aitp_v5_search_curated_rag_corpus",
         "surface": "curated_rag_search_result",
     },
+    "curated_rag_promotion_draft": {
+        "cli": "aitp-v5 adapter curated-rag-promotion-draft <chunk-id> <args>",
+        "mcp": "aitp_v5_draft_curated_rag_promotion",
+        "surface": "curated_rag_promotion_draft",
+    },
     "ingest_curated_rag_corpus": {
         "cli": "aitp-v5 curated-rag ingest <args>",
         "mcp": "aitp_v5_ingest_curated_rag_corpus",

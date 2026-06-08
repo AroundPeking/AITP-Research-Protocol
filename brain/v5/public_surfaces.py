@@ -18,6 +18,7 @@ _PUBLIC_SURFACE_NAMES = (
     "code_state_record",
     "curated_rag_corpus",
     "curated_rag_ingest_result",
+    "curated_rag_promotion_draft",
     "curated_rag_search_result",
     "evidence_record",
     "execution_brief",
@@ -140,6 +141,7 @@ _PUBLIC_SURFACE_PURPOSES = {
     "code_state_record": "contracted code-state provenance record for code-dependent physics results",
     "curated_rag_corpus": "read-only curated background RAG corpus catalog for heuristic context without evidence, validation, or claim-trust authority",
     "curated_rag_ingest_result": "contracted file-backed curated RAG manifest/index write result for heuristic background corpus updates without evidence, validation, final-gate, or claim-trust authority",
+    "curated_rag_promotion_draft": "read-only curated RAG escalation draft that proposes normal source, evidence, validation, and trust-preflight records without creating claim support or trust authority",
     "curated_rag_search_result": "read-only curated background RAG retrieval result marked heuristic_context and unable to satisfy evidence, validation, final-gate, or trust boundaries",
     "evidence_record": "contracted evidence write result linked to a claim and required outputs",
     "execution_brief": "typed kernel brief for current focus, risk, evidence coverage, and next actions",
@@ -400,6 +402,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     from brain.v5.curated_rag_contracts import (
         require_valid_curated_rag_corpus,
         require_valid_curated_rag_ingest_result,
+        require_valid_curated_rag_promotion_draft,
         require_valid_curated_rag_search_result,
     )
     from brain.v5.interaction_preview_contracts import require_valid_interaction_recording_preview
@@ -453,6 +456,7 @@ def _validators() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
         "code_state_record": require_valid_code_state_record,
         "curated_rag_corpus": require_valid_curated_rag_corpus,
         "curated_rag_ingest_result": require_valid_curated_rag_ingest_result,
+        "curated_rag_promotion_draft": require_valid_curated_rag_promotion_draft,
         "curated_rag_search_result": require_valid_curated_rag_search_result,
         "evidence_record": require_valid_evidence_record,
         "execution_brief": require_valid_execution_brief,

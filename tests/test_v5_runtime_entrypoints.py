@@ -78,6 +78,11 @@ def test_runtime_entrypoints_advertise_typed_write_surfaces():
         "mcp": "aitp_v5_get_runtime_payload_profiles",
         "surface": "runtime_payload_profiles",
     }
+    assert entrypoints["curated_rag_promotion_draft"] == {
+        "cli": "aitp-v5 adapter curated-rag-promotion-draft <chunk-id> <args>",
+        "mcp": "aitp_v5_draft_curated_rag_promotion",
+        "surface": "curated_rag_promotion_draft",
+    }
     assert entrypoints["get_trust_update_record"] == {
         "cli": "aitp-v5 trust update-record <args>",
         "mcp": "aitp_v5_get_trust_update_record",

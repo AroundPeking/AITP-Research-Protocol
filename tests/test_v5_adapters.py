@@ -3271,6 +3271,90 @@ def test_curated_rag_ingestion_writes_manifest_index_and_no_trust_surface(tmp_pa
     assert mcp_payload["can_update_claim_trust"] is False
 
 
+def test_curated_rag_promotion_draft_is_read_only_cli_and_mcp(capsys):
+    from brain.v5.curated_rag_corpus import draft_curated_rag_promotion
+    from brain.v5.mcp_tools import aitp_v5_draft_curated_rag_promotion
+    from brain.v5.public_surfaces import require_valid_public_surface
+
+    chunk_id = "curated_rag_chunk:source_backtrace_orientation:0001"
+    draft = draft_curated_rag_promotion(
+        chunk_id,
+        topic_id="fqhe",
+        claim_id="claim-fqhe",
+        connector_id="local_pdf",
+    )
+
+    assert require_valid_public_surface("curated_rag_promotion_draft", draft) == draft
+    assert draft["kind"] == "curated_rag_promotion_draft"
+    assert draft["state_effect"] == "read_only"
+    assert draft["retrieval_role"] == "heuristic_context"
+    assert draft["read_surface_effect"] == "orientation_only"
+    assert draft["records_validation_result"] is False
+    assert draft["claim_trust_mutation"] == "none"
+    assert draft["can_update_claim_trust"] is False
+    assert draft["draft_creates_records"] is False
+    assert draft["requires_promotion_for_claim_support"] is True
+    assert draft["required_context_before_write"] == []
+    assert draft["promotion_path"] == [
+        "source_asset",
+        "reference_location",
+        "evidence",
+        "validation",
+        "trust_preflight",
+    ]
+    assert draft["promotion_boundary"] == {
+        "retrieval_is_claim_support": False,
+        "draft_is_evidence": False,
+        "draft_records_validation_result": False,
+        "draft_satisfies_final_gate": False,
+        "draft_can_update_claim_trust": False,
+        "requires_user_or_model_decision_before_write": True,
+    }
+    assert [item["stage"] for item in draft["draft_operations"]] == draft["promotion_path"]
+    assert all(item["draft_only"] is True for item in draft["draft_operations"])
+    assert all(item["creates_record_now"] is False for item in draft["draft_operations"])
+    assert all(item["claim_support_created"] is False for item in draft["draft_operations"])
+    assert draft["draft_operations"][0]["operation"] == "registerSourceAsset"
+    assert draft["draft_operations"][0]["payload_draft"]["derived_from"] == [
+        "curated_rag_doc:source_backtrace_orientation",
+        chunk_id,
+    ]
+    assert draft["draft_operations"][1]["operation"] == "recordReferenceLocation"
+    assert draft["draft_operations"][2]["operation"] == "recordEvidence"
+    assert draft["draft_operations"][3]["operation"] == "createValidationContract"
+    assert draft["draft_operations"][4]["operation"] == "preflightTrustUpdate"
+
+    assert _invoke(
+        [
+            "adapter",
+            "curated-rag-promotion-draft",
+            chunk_id,
+            "--topic",
+            "fqhe",
+            "--claim",
+            "claim-fqhe",
+            "--connector",
+            "local_pdf",
+        ],
+        capsys,
+    ) == {
+        "ok": True,
+        "curated_rag_promotion_draft": draft,
+    }
+    assert aitp_v5_draft_curated_rag_promotion(
+        chunk_id,
+        topic_id="fqhe",
+        claim_id="claim-fqhe",
+        connector_id="local_pdf",
+    ) == {
+        "ok": True,
+        "curated_rag_promotion_draft": draft,
+    }
+
+    missing_context_draft = draft_curated_rag_promotion(chunk_id)
+    assert missing_context_draft["required_context_before_write"] == ["topic_id", "claim_id"]
+
+
 def test_adapter_registry_protocol_fields_match_builder_keys():
     from brain.v5.adapter_protocols import adapter_protocol_fields, build_adapter_protocols
 
@@ -3335,6 +3419,7 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
         "readRuntimePayloadProfiles",
         "readCuratedRagCorpus",
         "searchCuratedRagCorpus",
+        "draftCuratedRagPromotion",
     ]
     assert "ingestCuratedRagCorpus" in manifest["target_groups"]["write"]
     assert manifest["target_groups"]["preflight"] == ["preflightTrustUpdate"]
@@ -3349,6 +3434,13 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
     assert by_operation["searchCuratedRagCorpus"]["mcp_tool"] == "aitp_v5_search_curated_rag_corpus"
     assert by_operation["searchCuratedRagCorpus"]["cli_fallback"] == "aitp-v5 adapter curated-rag-search <query> <args>"
     assert by_operation["searchCuratedRagCorpus"]["surface"] == "curated_rag_search_result"
+    assert by_operation["draftCuratedRagPromotion"]["mcp_tool"] == "aitp_v5_draft_curated_rag_promotion"
+    assert by_operation["draftCuratedRagPromotion"]["cli_fallback"] == (
+        "aitp-v5 adapter curated-rag-promotion-draft <chunk-id> <args>"
+    )
+    assert by_operation["draftCuratedRagPromotion"]["surface"] == "curated_rag_promotion_draft"
+    assert by_operation["draftCuratedRagPromotion"]["execution_role"] == "read"
+    assert by_operation["draftCuratedRagPromotion"]["state_effect"] == "read_only"
     assert by_operation["ingestCuratedRagCorpus"]["mcp_tool"] == "aitp_v5_ingest_curated_rag_corpus"
     assert by_operation["ingestCuratedRagCorpus"]["cli_fallback"] == "aitp-v5 curated-rag ingest <args>"
     assert by_operation["ingestCuratedRagCorpus"]["surface"] == "curated_rag_ingest_result"
@@ -3380,6 +3472,11 @@ def test_runtime_bridge_target_manifest_is_public_and_mcp_first(capsys):
         "required": ["query"],
         "optional": ["base", "limit"],
         "source": "aitp_v5_search_curated_rag_corpus",
+    }
+    assert by_operation["draftCuratedRagPromotion"]["mcp_arguments"] == {
+        "required": ["chunk_id"],
+        "optional": ["base", "topic_id", "claim_id", "connector_id", "promotion_intent"],
+        "source": "aitp_v5_draft_curated_rag_promotion",
     }
     assert by_operation["recordEvidence"]["preferred_transport"] == "mcp"
     assert by_operation["recordEvidence"]["mcp_tool"] == "aitp_v5_record_evidence"

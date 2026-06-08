@@ -13,6 +13,7 @@ from brain.v5.brief import build_execution_brief
 from brain.v5.code import capture_code_state_from_git, record_code_state
 from brain.v5.curated_rag_corpus import (
     curated_rag_corpus,
+    draft_curated_rag_promotion,
     ingest_curated_rag_corpus,
     search_curated_rag_corpus,
 )
@@ -661,6 +662,33 @@ def aitp_v5_search_curated_rag_corpus(query: str, *, limit: int = 5, base: str =
         "curated_rag_search_result": require_valid_public_surface(
             "curated_rag_search_result",
             search_curated_rag_corpus(query, limit=limit, base=base or None),
+        ),
+    }
+
+
+def aitp_v5_draft_curated_rag_promotion(
+    chunk_id: str,
+    *,
+    base: str = "",
+    topic_id: str = "",
+    claim_id: str = "",
+    connector_id: str = "curated_rag",
+    promotion_intent: str = "claim_support_review",
+) -> dict:
+    """Return a read-only promotion draft for a curated RAG chunk."""
+
+    return {
+        "ok": True,
+        "curated_rag_promotion_draft": require_valid_public_surface(
+            "curated_rag_promotion_draft",
+            draft_curated_rag_promotion(
+                chunk_id,
+                base=base or None,
+                topic_id=topic_id,
+                claim_id=claim_id,
+                connector_id=connector_id,
+                promotion_intent=promotion_intent,
+            ),
         ),
     }
 
