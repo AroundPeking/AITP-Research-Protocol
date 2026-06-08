@@ -689,6 +689,11 @@ replace AITP validation, trust preflight, final-gate checks, or the canonical
 typed write/preflight entrypoint itself. It may also report that the selected
 write operation differs from repair-hint operations, but that distinction is a
 host disambiguation aid rather than AITP state.
+A host may expose the same guard as a read-only readiness inspector before the
+explicit execution step. That inspection can report whether the handoff,
+operation, and payload match, but `bridge_called=false` remains part of the
+boundary: it is not a write attempt, does not mutate the handoff, and does not
+create AITP validation, evidence, source support, or trust state.
 Downstream guard tests may pin missing-field and tamper rejection, but they
 remain host-contract tests. AITP's own write surface is still the explicit
 typed entrypoint list, with non-mutating trust preflight but no `trustApply`
