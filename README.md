@@ -650,6 +650,12 @@ for possible next write-bridge calls. That rendering is downstream UI/runtime
 guidance only: the AITP surface still remains read-only until a host explicitly
 calls one of the normal AITP write or preflight entrypoints with reviewed
 payload fields.
+Hosts may additionally use `promotion_write_sequence.requires_prior_refs` to
+block a selected downstream call draft when a reviewed payload is missing the
+source/reference/evidence refs that AITP says must already exist. That is still
+host-side readiness checking over AITP-owned policy: it does not execute the
+bridge, create records, validate source support, satisfy final gates, or update
+claim trust.
 If a host also turns a selected decision-tree option into a prefilled
 `execute_aitp_write_bridge` call draft, that draft is still downstream guidance
 over AITP-owned `payload_draft` / `payload_template` fields. It may expose
