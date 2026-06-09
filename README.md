@@ -742,6 +742,11 @@ separate explicit execute call was observed after the guard passed, or that item
 2 was not followed after a guard failure, but it still does not authorize the
 write, mutate the checklist or handoff, create AITP records, validate source
 support, or change claim trust.
+If the host's final passed handoff guard repeats the same checklist id and item
+2 status, that cross-reference is still downstream trace metadata. It links the
+readiness result, execution precheck, and guard result for auditability, but it
+does not mint an AITP identity, expand the write surface, authorize execution,
+or replace typed write/preflight requirements.
 Host remediation summaries over those diagnostics are also advisory repair
 hints only. They may suggest which handoff field or explicit execute argument
 to fix, but they do not mutate the handoff or perform an AITP write/preflight.
