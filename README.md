@@ -676,6 +676,10 @@ inspection, or explicit write/preflight execution.
 If the host accepts structured carried-ref handoff objects, malformed objects
 should fail closed rather than producing suggestions or pointers; explicit
 canonical refs may still be accepted as user/model-provided reviewed input.
+If the host renders a diagnostic taxonomy for those parse failures, the taxonomy
+is still host repair guidance only. It may name the malformed field/path, but it
+does not become an AITP validation result, final-gate check, write authority, or
+claim-trust signal.
 If a host also turns a selected decision-tree option into a prefilled
 `execute_aitp_write_bridge` call draft, that draft is still downstream guidance
 over AITP-owned `payload_draft` / `payload_template` fields. It may expose
